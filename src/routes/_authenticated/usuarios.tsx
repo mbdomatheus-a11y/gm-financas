@@ -362,6 +362,24 @@ function UsuariosPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <Dialog open={!!editar} onOpenChange={(o) => !o && setEditar(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Editar nome</DialogTitle>
+          </DialogHeader>
+          <Field label="Nome completo">
+            <Input
+              value={editar?.nome ?? ""}
+              onChange={(e) => setEditar(editar ? { ...editar, nome: e.target.value } : null)}
+            />
+          </Field>
+          <DialogFooter>
+            <Button onClick={() => salvarNome.mutate()} disabled={salvarNome.isPending}>
+              Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }
