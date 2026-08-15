@@ -381,7 +381,7 @@ function CartoesPage() {
       <Dialog open={openCartao} onOpenChange={setOpenCartao}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Novo cartão</DialogTitle>
+            <DialogTitle>{editCartaoId ? "Editar cartão" : "Novo cartão"}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Apelido" className="sm:col-span-2">
@@ -453,7 +453,7 @@ function CartoesPage() {
               <Input value={fc.titular} onChange={(e) => setFc({ ...fc, titular: e.target.value })} placeholder={perfilNome} />
             </Field>
             <Field label="Cor" className="sm:col-span-2">
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 {CORES.map((cor) => (
                   <button
                     key={cor}
@@ -470,7 +470,7 @@ function CartoesPage() {
           </div>
           <DialogFooter>
             <Button onClick={() => salvarCartao.mutate()} disabled={salvarCartao.isPending}>
-              Salvar cartão
+              {editCartaoId ? "Salvar alterações" : "Salvar cartão"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -479,7 +479,7 @@ function CartoesPage() {
       <Dialog open={openBanco} onOpenChange={setOpenBanco}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Novo banco</DialogTitle>
+            <DialogTitle>{editBancoId ? "Editar banco" : "Novo banco"}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4">
             <Field label="Nome do banco">
@@ -511,7 +511,7 @@ function CartoesPage() {
           </div>
           <DialogFooter>
             <Button onClick={() => salvarBanco.mutate()} disabled={salvarBanco.isPending}>
-              Salvar banco
+              {editBancoId ? "Salvar alterações" : "Salvar banco"}
             </Button>
           </DialogFooter>
         </DialogContent>
