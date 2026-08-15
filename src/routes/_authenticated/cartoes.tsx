@@ -229,7 +229,7 @@ function CartoesPage() {
       description="Formas de pagamento usadas nas despesas"
       actions={
         can("cartoes", "editar") && (
-          <Button size="sm" onClick={() => (tab === "cartoes" ? setOpenCartao(true) : setOpenBanco(true))}>
+          <Button size="sm" onClick={() => (tab === "cartoes" ? novoCartao() : novoBanco())}>
             <Plus className="size-4" /> {tab === "cartoes" ? "Novo cartão" : "Novo banco"}
           </Button>
         )
