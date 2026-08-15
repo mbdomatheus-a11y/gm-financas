@@ -149,6 +149,38 @@
   --brand: oklch(0.42 0.02 255);
   --brand-strong: oklch(0.32 0.02 255);
 }
+[data-palette="turquesa"] {
+  --brand: oklch(0.62 0.12 195);
+  --brand-strong: oklch(0.52 0.12 197);
+}
+[data-palette="indigo"] {
+  --brand: oklch(0.52 0.17 275);
+  --brand-strong: oklch(0.43 0.18 277);
+}
+[data-palette="vinho"] {
+  --brand: oklch(0.45 0.16 15);
+  --brand-strong: oklch(0.36 0.16 15);
+}
+[data-palette="ouro"] {
+  --brand: oklch(0.72 0.14 85);
+  --brand-strong: oklch(0.62 0.14 82);
+}
+[data-palette="menta"] {
+  --brand: oklch(0.7 0.12 165);
+  --brand-strong: oklch(0.6 0.12 167);
+}
+[data-palette="coral"] {
+  --brand: oklch(0.67 0.16 35);
+  --brand-strong: oklch(0.57 0.17 32);
+}
+[data-palette="lavanda"] {
+  --brand: oklch(0.63 0.13 310);
+  --brand-strong: oklch(0.53 0.14 310);
+}
+[data-palette="oceano"] {
+  --brand: oklch(0.5 0.11 230);
+  --brand-strong: oklch(0.4 0.11 232);
+}
 
 @layer base {
   * {
