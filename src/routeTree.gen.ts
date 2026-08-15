@@ -17,6 +17,7 @@ import { Route as AuthenticatedDespesasRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedInvestimentosRouteImport } from './routes/_authenticated/investimentos'
 import { Route as AuthenticatedNovaSenhaRouteImport } from './routes/_authenticated/nova-senha'
 import { Route as AuthenticatedReceitasRouteImport } from './routes/_authenticated/receitas'
+import { Route as AuthenticatedUsuariosRouteImport } from './routes/_authenticated/usuarios'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -58,6 +59,11 @@ const AuthenticatedReceitasRoute = AuthenticatedReceitasRouteImport.update({
   path: '/receitas',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedUsuariosRoute = AuthenticatedUsuariosRouteImport.update({
+  id: '/usuarios',
+  path: '/usuarios',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -67,6 +73,7 @@ export interface FileRoutesByFullPath {
   '/investimentos': typeof AuthenticatedInvestimentosRoute
   '/nova-senha': typeof AuthenticatedNovaSenhaRoute
   '/receitas': typeof AuthenticatedReceitasRoute
+  '/usuarios': typeof AuthenticatedUsuariosRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -76,6 +83,7 @@ export interface FileRoutesByTo {
   '/investimentos': typeof AuthenticatedInvestimentosRoute
   '/nova-senha': typeof AuthenticatedNovaSenhaRoute
   '/receitas': typeof AuthenticatedReceitasRoute
+  '/usuarios': typeof AuthenticatedUsuariosRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -87,6 +95,7 @@ export interface FileRoutesById {
   '/_authenticated/investimentos': typeof AuthenticatedInvestimentosRoute
   '/_authenticated/nova-senha': typeof AuthenticatedNovaSenhaRoute
   '/_authenticated/receitas': typeof AuthenticatedReceitasRoute
+  '/_authenticated/usuarios': typeof AuthenticatedUsuariosRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -98,6 +107,7 @@ export interface FileRouteTypes {
     | '/investimentos'
     | '/nova-senha'
     | '/receitas'
+    | '/usuarios'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -107,6 +117,7 @@ export interface FileRouteTypes {
     | '/investimentos'
     | '/nova-senha'
     | '/receitas'
+    | '/usuarios'
   id:
     | '__root__'
     | '/'
@@ -117,6 +128,7 @@ export interface FileRouteTypes {
     | '/_authenticated/investimentos'
     | '/_authenticated/nova-senha'
     | '/_authenticated/receitas'
+    | '/_authenticated/usuarios'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -182,6 +194,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedReceitasRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/usuarios': {
+      id: '/_authenticated/usuarios'
+      path: '/usuarios'
+      fullPath: '/usuarios'
+      preLoaderRoute: typeof AuthenticatedUsuariosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
@@ -192,6 +211,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedInvestimentosRoute: typeof AuthenticatedInvestimentosRoute
   AuthenticatedNovaSenhaRoute: typeof AuthenticatedNovaSenhaRoute
   AuthenticatedReceitasRoute: typeof AuthenticatedReceitasRoute
+  AuthenticatedUsuariosRoute: typeof AuthenticatedUsuariosRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -201,6 +221,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedInvestimentosRoute: AuthenticatedInvestimentosRoute,
   AuthenticatedNovaSenhaRoute: AuthenticatedNovaSenhaRoute,
   AuthenticatedReceitasRoute: AuthenticatedReceitasRoute,
+  AuthenticatedUsuariosRoute: AuthenticatedUsuariosRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
