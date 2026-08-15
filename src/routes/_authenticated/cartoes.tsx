@@ -350,6 +350,17 @@ function CartoesPage() {
                   </p>
                 </div>
                 <Badge variant="secondary">{b.tipo_conta}</Badge>
+                {can("cartoes", "editar") && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-muted-foreground hover:text-primary"
+                    onClick={() => editarBanco(b)}
+                    aria-label="Editar banco"
+                  >
+                    <Pencil className="size-4" />
+                  </Button>
+                )}
                 {can("cartoes", "excluir") && (
                   <Button
                     variant="ghost"
