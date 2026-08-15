@@ -228,6 +228,13 @@ function UsuariosPage() {
                   <Button
                     size="sm"
                     variant="outline"
+                    onClick={() => setEditar({ id: p.id, nome: p.nome })}
+                  >
+                    <Pencil className="size-4" /> Editar nome
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
                     onClick={() => setReset({ id: p.id, nome: p.nome })}
                   >
                     <KeyRound className="size-4" /> Redefinir senha
