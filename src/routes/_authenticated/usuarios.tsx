@@ -30,7 +30,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useProfilesList, useRolesList } from "@/hooks/useFinance";
 import { usePermissoes, type Modulo } from "@/hooks/useAuthData";
 import { adminCreateUser, adminResetPassword, adminSetRole } from "@/lib/admin.functions";
-import { formatCPF, onlyDigits, validarCPF } from "@/lib/cpf";
+import { maskCpf, onlyDigits, isValidCpf } from "@/lib/cpf";
 
 export const Route = createFileRoute("/_authenticated/usuarios")({
   head: () => ({
@@ -89,7 +89,7 @@ function UsuariosPage() {
   const criarUsuario = useMutation({
     mutationFn: async () => {
       const cpf = onlyDigits(novo.cpf);
-      if (!validarCPF(cpf)) throw new Error("CPF inválido");
+      if (!isValidCpf(cpf)) throw new Error("CPF inválido");
       if (novo.nome.trim().length < 2) throw new Error("Informe o nome completo");
       await criar({ data: { nome: novo.nome.trim(), cpf, role: novo.role as "admin" | "comum" } });
     },
@@ -191,7 +191,7 @@ function UsuariosPage() {
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold">{p.nome}</p>
                     <p className="text-xs text-muted-foreground">
-                      CPF {formatCPF(p.cpf)}
+                      CPF {maskCpf(p.cpf)}
                       {p.senha_temporaria ? " · senha temporária pendente" : ""}
                     </p>
                   </div>
@@ -289,7 +289,7 @@ function UsuariosPage() {
             <Field label="CPF">
               <Input
                 inputMode="numeric"
-                value={formatCPF(novo.cpf)}
+                value={maskCpf(novo.cpf)}
                 onChange={(e) => setNovo({ ...novo, cpf: onlyDigits(e.target.value).slice(0, 11) })}
                 placeholder="000.000.000-00"
               />
