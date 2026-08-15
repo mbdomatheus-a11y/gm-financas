@@ -130,6 +130,7 @@ function InvestimentosPage() {
       const valor = Number(String(valorMov).replace(",", "."));
       if (!valor || valor <= 0) throw new Error("Informe um valor válido");
       const inv = investimentos.find((i: any) => i.id === mov.id);
+      if (!inv) throw new Error("Investimento não encontrado");
       const delta = mov.tipo === "aporte" ? valor : -valor;
       const { error } = await supabase.from("investimento_movimentos").insert({
         investimento_id: mov.id,
