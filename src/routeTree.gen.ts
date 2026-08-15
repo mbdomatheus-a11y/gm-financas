@@ -16,6 +16,7 @@ import { Route as AuthenticatedDashboardRouteImport } from './routes/_authentica
 import { Route as AuthenticatedDespesasRouteImport } from './routes/_authenticated/despesas'
 import { Route as AuthenticatedInvestimentosRouteImport } from './routes/_authenticated/investimentos'
 import { Route as AuthenticatedNovaSenhaRouteImport } from './routes/_authenticated/nova-senha'
+import { Route as AuthenticatedPersonalizacaoRouteImport } from './routes/_authenticated/personalizacao'
 import { Route as AuthenticatedReceitasRouteImport } from './routes/_authenticated/receitas'
 import { Route as AuthenticatedUsuariosRouteImport } from './routes/_authenticated/usuarios'
 
@@ -54,6 +55,12 @@ const AuthenticatedNovaSenhaRoute = AuthenticatedNovaSenhaRouteImport.update({
   path: '/nova-senha',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedPersonalizacaoRoute =
+  AuthenticatedPersonalizacaoRouteImport.update({
+    id: '/personalizacao',
+    path: '/personalizacao',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedReceitasRoute = AuthenticatedReceitasRouteImport.update({
   id: '/receitas',
   path: '/receitas',
@@ -72,6 +79,7 @@ export interface FileRoutesByFullPath {
   '/despesas': typeof AuthenticatedDespesasRoute
   '/investimentos': typeof AuthenticatedInvestimentosRoute
   '/nova-senha': typeof AuthenticatedNovaSenhaRoute
+  '/personalizacao': typeof AuthenticatedPersonalizacaoRoute
   '/receitas': typeof AuthenticatedReceitasRoute
   '/usuarios': typeof AuthenticatedUsuariosRoute
 }
@@ -82,6 +90,7 @@ export interface FileRoutesByTo {
   '/despesas': typeof AuthenticatedDespesasRoute
   '/investimentos': typeof AuthenticatedInvestimentosRoute
   '/nova-senha': typeof AuthenticatedNovaSenhaRoute
+  '/personalizacao': typeof AuthenticatedPersonalizacaoRoute
   '/receitas': typeof AuthenticatedReceitasRoute
   '/usuarios': typeof AuthenticatedUsuariosRoute
 }
@@ -94,6 +103,7 @@ export interface FileRoutesById {
   '/_authenticated/despesas': typeof AuthenticatedDespesasRoute
   '/_authenticated/investimentos': typeof AuthenticatedInvestimentosRoute
   '/_authenticated/nova-senha': typeof AuthenticatedNovaSenhaRoute
+  '/_authenticated/personalizacao': typeof AuthenticatedPersonalizacaoRoute
   '/_authenticated/receitas': typeof AuthenticatedReceitasRoute
   '/_authenticated/usuarios': typeof AuthenticatedUsuariosRoute
 }
@@ -106,6 +116,7 @@ export interface FileRouteTypes {
     | '/despesas'
     | '/investimentos'
     | '/nova-senha'
+    | '/personalizacao'
     | '/receitas'
     | '/usuarios'
   fileRoutesByTo: FileRoutesByTo
@@ -116,6 +127,7 @@ export interface FileRouteTypes {
     | '/despesas'
     | '/investimentos'
     | '/nova-senha'
+    | '/personalizacao'
     | '/receitas'
     | '/usuarios'
   id:
@@ -127,6 +139,7 @@ export interface FileRouteTypes {
     | '/_authenticated/despesas'
     | '/_authenticated/investimentos'
     | '/_authenticated/nova-senha'
+    | '/_authenticated/personalizacao'
     | '/_authenticated/receitas'
     | '/_authenticated/usuarios'
   fileRoutesById: FileRoutesById
@@ -187,6 +200,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedNovaSenhaRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/personalizacao': {
+      id: '/_authenticated/personalizacao'
+      path: '/personalizacao'
+      fullPath: '/personalizacao'
+      preLoaderRoute: typeof AuthenticatedPersonalizacaoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/receitas': {
       id: '/_authenticated/receitas'
       path: '/receitas'
@@ -210,6 +230,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDespesasRoute: typeof AuthenticatedDespesasRoute
   AuthenticatedInvestimentosRoute: typeof AuthenticatedInvestimentosRoute
   AuthenticatedNovaSenhaRoute: typeof AuthenticatedNovaSenhaRoute
+  AuthenticatedPersonalizacaoRoute: typeof AuthenticatedPersonalizacaoRoute
   AuthenticatedReceitasRoute: typeof AuthenticatedReceitasRoute
   AuthenticatedUsuariosRoute: typeof AuthenticatedUsuariosRoute
 }
@@ -220,6 +241,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDespesasRoute: AuthenticatedDespesasRoute,
   AuthenticatedInvestimentosRoute: AuthenticatedInvestimentosRoute,
   AuthenticatedNovaSenhaRoute: AuthenticatedNovaSenhaRoute,
+  AuthenticatedPersonalizacaoRoute: AuthenticatedPersonalizacaoRoute,
   AuthenticatedReceitasRoute: AuthenticatedReceitasRoute,
   AuthenticatedUsuariosRoute: AuthenticatedUsuariosRoute,
 }
