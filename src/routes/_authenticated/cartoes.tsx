@@ -100,7 +100,9 @@ function CartoesPage() {
   const [tab, setTab] = useState("cartoes");
   const [openCartao, setOpenCartao] = useState(false);
   const [openBanco, setOpenBanco] = useState(false);
-  const [fc, setFc] = useState<any>({
+  const [editCartaoId, setEditCartaoId] = useState<string | null>(null);
+  const [editBancoId, setEditBancoId] = useState<string | null>(null);
+  const cartaoVazio = {
     apelido: "",
     bandeira: "Visa",
     final: "",
@@ -110,15 +112,48 @@ function CartoesPage() {
     banco_id: "",
     cor: CORES[0],
     titular: "",
-  });
-  const [fb, setFb] = useState<any>({
-    nome: "",
-    agencia: "",
-    conta: "",
-    tipo: "corrente",
-    titular: "",
-  });
+  };
+  const bancoVazio = { nome: "", agencia: "", conta: "", tipo: "corrente", titular: "" };
+  const [fc, setFc] = useState<any>(cartaoVazio);
+  const [fb, setFb] = useState<any>(bancoVazio);
   const perfilNome = perfil?.nome ?? "Casal";
+
+  function novoCartao() {
+    setEditCartaoId(null);
+    setFc(cartaoVazio);
+    setOpenCartao(true);
+  }
+  function editarCartao(c: any) {
+    setEditCartaoId(c.id);
+    setFc({
+      apelido: c.apelido ?? "",
+      bandeira: c.bandeira ?? "Visa",
+      final: c.final ?? "",
+      limite: c.limite != null ? String(c.limite) : "",
+      dia_fechamento: String(c.dia_fechamento ?? 1),
+      dia_vencimento: String(c.dia_vencimento ?? 10),
+      banco_id: c.banco_id ?? "",
+      cor: c.cor ?? CORES[0],
+      titular: c.titular ?? "",
+    });
+    setOpenCartao(true);
+  }
+  function novoBanco() {
+    setEditBancoId(null);
+    setFb(bancoVazio);
+    setOpenBanco(true);
+  }
+  function editarBanco(b: any) {
+    setEditBancoId(b.id);
+    setFb({
+      nome: b.nome ?? "",
+      agencia: b.agencia ?? "",
+      conta: b.conta ?? "",
+      tipo: b.tipo_conta ?? "corrente",
+      titular: b.titular ?? "",
+    });
+    setOpenBanco(true);
+  }
 
   const gastoDoCartao = (id: string) =>
     despesas
@@ -139,12 +174,15 @@ function CartoesPage() {
         titular: fc.titular || perfilNome,
         tipo: "credito",
       });
-      const { error } = await supabase.from("cartoes").insert(parsed);
+      const { error } = editCartaoId
+        ? await supabase.from("cartoes").update(parsed).eq("id", editCartaoId)
+        : await supabase.from("cartoes").insert(parsed);
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Cartão cadastrado");
+      toast.success(editCartaoId ? "Cartão atualizado" : "Cartão cadastrado");
       setOpenCartao(false);
+      setEditCartaoId(null);
       qc.invalidateQueries();
     },
     onError: (e: any) => toast.error(e?.errors?.[0]?.message ?? e.message),
@@ -159,12 +197,15 @@ function CartoesPage() {
         tipo_conta: fb.tipo,
         titular: fb.titular || perfilNome,
       });
-      const { error } = await supabase.from("bancos").insert(parsed);
+      const { error } = editBancoId
+        ? await supabase.from("bancos").update(parsed).eq("id", editBancoId)
+        : await supabase.from("bancos").insert(parsed);
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Banco cadastrado");
+      toast.success(editBancoId ? "Banco atualizado" : "Banco cadastrado");
       setOpenBanco(false);
+      setEditBancoId(null);
       qc.invalidateQueries();
     },
     onError: (e: any) => toast.error(e?.errors?.[0]?.message ?? e.message),
