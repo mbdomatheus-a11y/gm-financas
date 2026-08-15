@@ -269,17 +269,30 @@ function CartoesPage() {
                         {c.bancos ? ` · ${c.bancos.nome}` : ""}
                       </p>
                     </div>
-                    {can("cartoes", "excluir") && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-muted-foreground hover:text-destructive"
-                        onClick={() => excluir.mutate({ table: "cartoes", id: c.id })}
-                        aria-label="Excluir cartão"
-                      >
-                        <Trash2 className="size-4" />
-                      </Button>
-                    )}
+                    <div className="flex shrink-0 items-center">
+                      {can("cartoes", "editar") && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-muted-foreground hover:text-primary"
+                          onClick={() => editarCartao(c)}
+                          aria-label="Editar cartão"
+                        >
+                          <Pencil className="size-4" />
+                        </Button>
+                      )}
+                      {can("cartoes", "excluir") && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-muted-foreground hover:text-destructive"
+                          onClick={() => excluir.mutate({ table: "cartoes", id: c.id })}
+                          aria-label="Excluir cartão"
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div className="rounded-lg bg-muted/50 p-2">
