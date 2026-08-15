@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Building2, CreditCard, Plus, Trash2 } from "lucide-react";
+import { Building2, CreditCard, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -71,7 +71,22 @@ const bancoSchema = z.object({
   titular: z.string().min(1, "Informe o titular"),
 });
 
-const CORES = ["#2563eb", "#16a34a", "#9333ea", "#ea580c", "#db2777", "#334155"];
+const CORES = [
+  "#2563eb",
+  "#0ea5e9",
+  "#14b8a6",
+  "#16a34a",
+  "#84cc16",
+  "#eab308",
+  "#f59e0b",
+  "#ea580c",
+  "#ef4444",
+  "#db2777",
+  "#a855f7",
+  "#6366f1",
+  "#334155",
+  "#0f172a",
+];
 
 function CartoesPage() {
   const qc = useQueryClient();
