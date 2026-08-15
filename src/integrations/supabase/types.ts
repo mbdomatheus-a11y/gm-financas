@@ -14,16 +14,474 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      bancos: {
+        Row: {
+          agencia: string | null
+          conta: string | null
+          created_at: string
+          id: string
+          nome: string
+          saldo_atual: number
+          tipo_conta: string
+          titular: string | null
+        }
+        Insert: {
+          agencia?: string | null
+          conta?: string | null
+          created_at?: string
+          id?: string
+          nome: string
+          saldo_atual?: number
+          tipo_conta?: string
+          titular?: string | null
+        }
+        Update: {
+          agencia?: string | null
+          conta?: string | null
+          created_at?: string
+          id?: string
+          nome?: string
+          saldo_atual?: number
+          tipo_conta?: string
+          titular?: string | null
+        }
+        Relationships: []
+      }
+      cartoes: {
+        Row: {
+          apelido: string | null
+          banco_id: string | null
+          bandeira: string
+          cor: string | null
+          created_at: string
+          dia_fechamento: number | null
+          dia_vencimento: number | null
+          final: string
+          id: string
+          limite: number | null
+          tipo: string
+          titular: string
+          validade_ano: number | null
+          validade_mes: number | null
+        }
+        Insert: {
+          apelido?: string | null
+          banco_id?: string | null
+          bandeira?: string
+          cor?: string | null
+          created_at?: string
+          dia_fechamento?: number | null
+          dia_vencimento?: number | null
+          final: string
+          id?: string
+          limite?: number | null
+          tipo?: string
+          titular: string
+          validade_ano?: number | null
+          validade_mes?: number | null
+        }
+        Update: {
+          apelido?: string | null
+          banco_id?: string | null
+          bandeira?: string
+          cor?: string | null
+          created_at?: string
+          dia_fechamento?: number | null
+          dia_vencimento?: number | null
+          final?: string
+          id?: string
+          limite?: number | null
+          tipo?: string
+          titular?: string
+          validade_ano?: number | null
+          validade_mes?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cartoes_banco_id_fkey"
+            columns: ["banco_id"]
+            isOneToOne: false
+            referencedRelation: "bancos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      categorias: {
+        Row: {
+          cor: string | null
+          created_at: string
+          icone: string | null
+          id: string
+          nome: string
+          tipo: string
+        }
+        Insert: {
+          cor?: string | null
+          created_at?: string
+          icone?: string | null
+          id?: string
+          nome: string
+          tipo: string
+        }
+        Update: {
+          cor?: string | null
+          created_at?: string
+          icone?: string | null
+          id?: string
+          nome?: string
+          tipo?: string
+        }
+        Relationships: []
+      }
+      despesas: {
+        Row: {
+          banco_id: string | null
+          cartao_id: string | null
+          categoria: string
+          created_at: string
+          created_by: string | null
+          data_compra: string
+          data_primeira_parcela: string
+          descricao: string
+          id: string
+          moeda: string
+          observacoes: string | null
+          responsavel: string | null
+          tipo: string
+          total_parcelas: number
+          valor_total: number
+        }
+        Insert: {
+          banco_id?: string | null
+          cartao_id?: string | null
+          categoria?: string
+          created_at?: string
+          created_by?: string | null
+          data_compra: string
+          data_primeira_parcela: string
+          descricao: string
+          id?: string
+          moeda?: string
+          observacoes?: string | null
+          responsavel?: string | null
+          tipo: string
+          total_parcelas?: number
+          valor_total: number
+        }
+        Update: {
+          banco_id?: string | null
+          cartao_id?: string | null
+          categoria?: string
+          created_at?: string
+          created_by?: string | null
+          data_compra?: string
+          data_primeira_parcela?: string
+          descricao?: string
+          id?: string
+          moeda?: string
+          observacoes?: string | null
+          responsavel?: string | null
+          tipo?: string
+          total_parcelas?: number
+          valor_total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "despesas_banco_id_fkey"
+            columns: ["banco_id"]
+            isOneToOne: false
+            referencedRelation: "bancos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "despesas_cartao_id_fkey"
+            columns: ["cartao_id"]
+            isOneToOne: false
+            referencedRelation: "cartoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      investimento_movimentos: {
+        Row: {
+          created_at: string
+          data: string
+          id: string
+          investimento_id: string
+          tipo: string
+          valor: number
+        }
+        Insert: {
+          created_at?: string
+          data?: string
+          id?: string
+          investimento_id: string
+          tipo: string
+          valor: number
+        }
+        Update: {
+          created_at?: string
+          data?: string
+          id?: string
+          investimento_id?: string
+          tipo?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "investimento_movimentos_investimento_id_fkey"
+            columns: ["investimento_id"]
+            isOneToOne: false
+            referencedRelation: "investimentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      investimentos: {
+        Row: {
+          created_at: string
+          data_investimento: string
+          id: string
+          instituicao: string | null
+          nome: string
+          observacoes: string | null
+          rentabilidade: string | null
+          responsavel: string | null
+          tipo: string
+          valor_atual: number
+          valor_investido: number
+        }
+        Insert: {
+          created_at?: string
+          data_investimento: string
+          id?: string
+          instituicao?: string | null
+          nome: string
+          observacoes?: string | null
+          rentabilidade?: string | null
+          responsavel?: string | null
+          tipo: string
+          valor_atual?: number
+          valor_investido?: number
+        }
+        Update: {
+          created_at?: string
+          data_investimento?: string
+          id?: string
+          instituicao?: string | null
+          nome?: string
+          observacoes?: string | null
+          rentabilidade?: string | null
+          responsavel?: string | null
+          tipo?: string
+          valor_atual?: number
+          valor_investido?: number
+        }
+        Relationships: []
+      }
+      parcelas: {
+        Row: {
+          data_pagamento: string | null
+          despesa_id: string
+          id: string
+          moeda: string
+          numero: number
+          paga: boolean
+          total: number
+          valor: number
+          vencimento: string
+        }
+        Insert: {
+          data_pagamento?: string | null
+          despesa_id: string
+          id?: string
+          moeda?: string
+          numero: number
+          paga?: boolean
+          total: number
+          valor: number
+          vencimento: string
+        }
+        Update: {
+          data_pagamento?: string | null
+          despesa_id?: string
+          id?: string
+          moeda?: string
+          numero?: number
+          paga?: boolean
+          total?: number
+          valor?: number
+          vencimento?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "parcelas_despesa_id_fkey"
+            columns: ["despesa_id"]
+            isOneToOne: false
+            referencedRelation: "despesas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      permissoes: {
+        Row: {
+          id: string
+          modulo: string
+          pode_editar: boolean
+          pode_excluir: boolean
+          pode_ver: boolean
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          modulo: string
+          pode_editar?: boolean
+          pode_excluir?: boolean
+          pode_ver?: boolean
+          user_id: string
+        }
+        Update: {
+          id?: string
+          modulo?: string
+          pode_editar?: boolean
+          pode_excluir?: boolean
+          pode_ver?: boolean
+          user_id?: string
+        }
+        Relationships: []
+      }
+      preferencias_usuario: {
+        Row: {
+          fonte: string
+          layout_menu: string
+          paleta: string
+          tema: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          fonte?: string
+          layout_menu?: string
+          paleta?: string
+          tema?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          fonte?: string
+          layout_menu?: string
+          paleta?: string
+          tema?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          ativo: boolean
+          cpf: string
+          created_at: string
+          id: string
+          nome: string
+          senha_temporaria: boolean
+        }
+        Insert: {
+          ativo?: boolean
+          cpf: string
+          created_at?: string
+          id: string
+          nome: string
+          senha_temporaria?: boolean
+        }
+        Update: {
+          ativo?: boolean
+          cpf?: string
+          created_at?: string
+          id?: string
+          nome?: string
+          senha_temporaria?: boolean
+        }
+        Relationships: []
+      }
+      receitas: {
+        Row: {
+          categoria: string
+          created_at: string
+          created_by: string | null
+          data_recebimento: string
+          descricao: string
+          frequencia: string | null
+          id: string
+          moeda: string
+          observacoes: string | null
+          recorrente: boolean
+          responsavel: string | null
+          valor: number
+        }
+        Insert: {
+          categoria?: string
+          created_at?: string
+          created_by?: string | null
+          data_recebimento: string
+          descricao: string
+          frequencia?: string | null
+          id?: string
+          moeda?: string
+          observacoes?: string | null
+          recorrente?: boolean
+          responsavel?: string | null
+          valor: number
+        }
+        Update: {
+          categoria?: string
+          created_at?: string
+          created_by?: string | null
+          data_recebimento?: string
+          descricao?: string
+          frequencia?: string | null
+          id?: string
+          moeda?: string
+          observacoes?: string | null
+          recorrente?: boolean
+          responsavel?: string | null
+          valor?: number
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "comum"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +608,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "comum"],
+    },
   },
 } as const
