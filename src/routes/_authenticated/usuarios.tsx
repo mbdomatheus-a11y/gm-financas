@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { KeyRound, ShieldCheck, UserPlus, Users } from "lucide-react";
+import { KeyRound, Pencil, ShieldCheck, UserPlus, Users } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppLayout } from "@/components/AppLayout";
@@ -71,6 +71,7 @@ function UsuariosPage() {
   const [reset, setReset] = useState<{ id: string; nome: string } | null>(null);
   const [senha, setSenha] = useState("");
   const [detalhe, setDetalhe] = useState<string | null>(null);
+  const [editar, setEditar] = useState<{ id: string; nome: string } | null>(null);
 
   const { data: permissoes = [] } = useQuery({
     queryKey: ["permissoes-todas"],
