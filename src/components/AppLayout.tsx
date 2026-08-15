@@ -23,8 +23,19 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 
+type NavTo =
+  | "/dashboard"
+  | "/receitas"
+  | "/despesas"
+  | "/cartoes"
+  | "/investimentos"
+  | "/compartilhar"
+  | "/usuarios"
+  | "/personalizacao"
+  | "/conta";
+
 type NavItem = {
-  to: string;
+  to: NavTo;
   label: string;
   short: string;
   icon: typeof LayoutDashboard;
@@ -80,7 +91,7 @@ export function AppLayout({
     navigate({ to: "/", replace: true });
   }
 
-  const NavLinks = ({ onNavigate }: { onNavigate?: () => void }) => (
+  const NavLinks = ({ onNavigate }: { onNavigate?: (() => void) | undefined }) => (
     <nav className="flex flex-1 flex-col gap-1">
       {items.map((item) => {
         const active = pathname === item.to;
@@ -105,7 +116,7 @@ export function AppLayout({
     </nav>
   );
 
-  const SidebarInner = ({ onNavigate }: { onNavigate?: () => void }) => (
+  const SidebarInner = ({ onNavigate }: { onNavigate?: (() => void) | undefined }) => (
     <div className="flex h-full flex-col gap-4 p-4">
       <Link to="/dashboard" onClick={onNavigate} className="flex items-center gap-3 px-2 py-1">
         <div className="gradient-brand flex size-9 items-center justify-center rounded-xl">
