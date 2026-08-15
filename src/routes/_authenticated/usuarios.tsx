@@ -128,6 +128,22 @@ function UsuariosPage() {
     onError: (e: any) => toast.error(e.message),
   });
 
+  const salvarNome = useMutation({
+    mutationFn: async () => {
+      if (!editar) return;
+      const nome = editar.nome.trim();
+      if (nome.length < 2) throw new Error("Informe o nome completo");
+      const { error } = await supabase.from("profiles").update({ nome }).eq("id", editar.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Nome atualizado");
+      setEditar(null);
+      qc.invalidateQueries();
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
   const toggleAtivo = useMutation({
     mutationFn: async ({ id, ativo }: { id: string; ativo: boolean }) => {
       const { error } = await supabase.from("profiles").update({ ativo }).eq("id", id);
