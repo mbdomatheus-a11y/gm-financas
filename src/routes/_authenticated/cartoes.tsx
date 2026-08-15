@@ -1,0 +1,425 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Building2, CreditCard, Plus, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+import { z } from "zod";
+
+import { AppLayout } from "@/components/AppLayout";
+import { Field } from "@/routes/_authenticated/receitas";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { supabase } from "@/integrations/supabase/client";
+import { useBancos, useCartoes, useDespesas } from "@/hooks/useFinance";
+import { usePermissoes, useSession } from "@/hooks/useAuthData";
+import { useCotacao } from "@/hooks/useCotacao";
+import { formatBRL, toBRL } from "@/lib/format";
+
+export const Route = createFileRoute("/_authenticated/cartoes")({
+  head: () => ({
+    meta: [
+      { title: "Cartões e Bancos — Finanças do Casal" },
+      {
+        name: "description",
+        content: "Cadastre cartões de crédito, contas bancárias e acompanhe a fatura de cada um.",
+      },
+      { property: "og:title", content: "Cartões e Bancos — Finanças do Casal" },
+      {
+        property: "og:description",
+        content: "Gestão de cartões, limites, faturas e contas bancárias do casal.",
+      },
+    ],
+  }),
+  component: CartoesPage,
+});
+
+const cartaoSchema = z.object({
+  apelido: z.string().trim().min(2, "Informe um apelido").max(60),
+  bandeira: z.string().min(1, "Selecione a bandeira"),
+  final: z.string().regex(/^\d{4}$/, "Informe os 4 últimos dígitos"),
+  limite: z.number().nonnegative(),
+  dia_fechamento: z.number().int().min(1).max(31),
+  dia_vencimento: z.number().int().min(1).max(31),
+  banco_id: z.string().uuid().nullable(),
+  cor: z.string(),
+});
+
+const bancoSchema = z.object({
+  nome: z.string().trim().min(2, "Informe o nome do banco").max(60),
+  agencia: z.string().max(20).nullable(),
+  conta: z.string().max(30).nullable(),
+  tipo: z.string().min(1),
+});
+
+const CORES = ["#2563eb", "#16a34a", "#9333ea", "#ea580c", "#db2777", "#334155"];
+
+function CartoesPage() {
+  const qc = useQueryClient();
+  const cotacao = useCotacao();
+  const { user } = useSession();
+  const { can } = usePermissoes();
+  const { data: cartoes = [] } = useCartoes();
+  const { data: bancos = [] } = useBancos();
+  const { data: despesas = [] } = useDespesas();
+
+  const [tab, setTab] = useState("cartoes");
+  const [openCartao, setOpenCartao] = useState(false);
+  const [openBanco, setOpenBanco] = useState(false);
+  const [fc, setFc] = useState<any>({
+    apelido: "",
+    bandeira: "Visa",
+    final: "",
+    limite: "",
+    dia_fechamento: "1",
+    dia_vencimento: "10",
+    banco_id: "",
+    cor: CORES[0],
+  });
+  const [fb, setFb] = useState<any>({ nome: "", agencia: "", conta: "", tipo: "corrente" });
+
+  const gastoDoCartao = (id: string) =>
+    despesas
+      .filter((d: any) => d.cartao_id === id)
+      .reduce((s: number, d: any) => s + toBRL(Number(d.valor_total), d.moeda, cotacao), 0);
+
+  const salvarCartao = useMutation({
+    mutationFn: async () => {
+      const parsed = cartaoSchema.parse({
+        apelido: fc.apelido,
+        bandeira: fc.bandeira,
+        final: fc.final,
+        limite: Number(String(fc.limite).replace(",", ".")) || 0,
+        dia_fechamento: Number(fc.dia_fechamento),
+        dia_vencimento: Number(fc.dia_vencimento),
+        banco_id: fc.banco_id || null,
+        cor: fc.cor,
+      });
+      const { error } = await supabase
+        .from("cartoes")
+        .insert({ ...parsed, created_by: user?.id ?? null });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Cartão cadastrado");
+      setOpenCartao(false);
+      qc.invalidateQueries();
+    },
+    onError: (e: any) => toast.error(e?.errors?.[0]?.message ?? e.message),
+  });
+
+  const salvarBanco = useMutation({
+    mutationFn: async () => {
+      const parsed = bancoSchema.parse({
+        nome: fb.nome,
+        agencia: fb.agencia || null,
+        conta: fb.conta || null,
+        tipo: fb.tipo,
+      });
+      const { error } = await supabase
+        .from("bancos")
+        .insert({ ...parsed, created_by: user?.id ?? null });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Banco cadastrado");
+      setOpenBanco(false);
+      qc.invalidateQueries();
+    },
+    onError: (e: any) => toast.error(e?.errors?.[0]?.message ?? e.message),
+  });
+
+  const excluir = useMutation({
+    mutationFn: async ({ table, id }: { table: "cartoes" | "bancos"; id: string }) => {
+      const { error } = await supabase.from(table).delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Registro excluído");
+      qc.invalidateQueries();
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  return (
+    <AppLayout
+      title="Cartões e Bancos"
+      description="Formas de pagamento usadas nas despesas"
+      actions={
+        can("cartoes", "editar") && (
+          <Button size="sm" onClick={() => (tab === "cartoes" ? setOpenCartao(true) : setOpenBanco(true))}>
+            <Plus className="size-4" /> {tab === "cartoes" ? "Novo cartão" : "Novo banco"}
+          </Button>
+        )
+      }
+    >
+      <Tabs value={tab} onValueChange={setTab}>
+        <TabsList className="w-full sm:w-auto">
+          <TabsTrigger value="cartoes" className="flex-1 sm:flex-none">
+            Cartões
+          </TabsTrigger>
+          <TabsTrigger value="bancos" className="flex-1 sm:flex-none">
+            Bancos
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="cartoes" className="mt-4 grid gap-3 sm:grid-cols-2">
+          {cartoes.length === 0 && (
+            <Card className="sm:col-span-2">
+              <CardContent className="flex flex-col items-center gap-2 py-12 text-center">
+                <CreditCard className="size-8 text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">Nenhum cartão cadastrado.</p>
+              </CardContent>
+            </Card>
+          )}
+          {cartoes.map((c: any) => {
+            const usado = gastoDoCartao(c.id);
+            const limite = Number(c.limite) || 0;
+            return (
+              <Card key={c.id} className="overflow-hidden">
+                <div className="h-1.5" style={{ backgroundColor: c.cor }} />
+                <CardContent className="space-y-3 p-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-semibold">{c.apelido}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {c.bandeira} •••• {c.final}
+                        {c.bancos ? ` · ${c.bancos.nome}` : ""}
+                      </p>
+                    </div>
+                    {can("cartoes", "excluir") && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-muted-foreground hover:text-destructive"
+                        onClick={() => excluir.mutate({ table: "cartoes", id: c.id })}
+                        aria-label="Excluir cartão"
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="rounded-lg bg-muted/50 p-2">
+                      <p className="text-muted-foreground">Fecha dia</p>
+                      <p className="font-semibold">{c.dia_fechamento}</p>
+                    </div>
+                    <div className="rounded-lg bg-muted/50 p-2">
+                      <p className="text-muted-foreground">Vence dia</p>
+                      <p className="font-semibold">{c.dia_vencimento}</p>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">Comprometido</span>
+                      <span className="font-semibold">
+                        {formatBRL(usado)} / {formatBRL(limite)}
+                      </span>
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full bg-muted">
+                      <div
+                        className="h-full rounded-full"
+                        style={{
+                          width: `${limite ? Math.min(100, (usado / limite) * 100) : 0}%`,
+                          backgroundColor: c.cor,
+                        }}
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </TabsContent>
+
+        <TabsContent value="bancos" className="mt-4 space-y-2">
+          {bancos.length === 0 && (
+            <Card>
+              <CardContent className="flex flex-col items-center gap-2 py-12 text-center">
+                <Building2 className="size-8 text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">Nenhum banco cadastrado.</p>
+              </CardContent>
+            </Card>
+          )}
+          {bancos.map((b: any) => (
+            <Card key={b.id}>
+              <CardContent className="flex items-center gap-3 p-4">
+                <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10">
+                  <Building2 className="size-5 text-primary" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold">{b.nome}</p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {b.agencia ? `Ag. ${b.agencia} · ` : ""}
+                    {b.conta ? `Conta ${b.conta}` : "Sem conta informada"}
+                  </p>
+                </div>
+                <Badge variant="secondary">{b.tipo}</Badge>
+                {can("cartoes", "excluir") && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-muted-foreground hover:text-destructive"
+                    onClick={() => excluir.mutate({ table: "bancos", id: b.id })}
+                    aria-label="Excluir banco"
+                  >
+                    <Trash2 className="size-4" />
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+        </TabsContent>
+      </Tabs>
+
+      <Dialog open={openCartao} onOpenChange={setOpenCartao}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Novo cartão</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Apelido" className="sm:col-span-2">
+              <Input value={fc.apelido} onChange={(e) => setFc({ ...fc, apelido: e.target.value })} />
+            </Field>
+            <Field label="Bandeira">
+              <Select value={fc.bandeira} onValueChange={(v) => setFc({ ...fc, bandeira: v })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {["Visa", "Mastercard", "Elo", "American Express", "Hipercard"].map((b) => (
+                    <SelectItem key={b} value={b}>
+                      {b}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field label="4 últimos dígitos">
+              <Input
+                inputMode="numeric"
+                maxLength={4}
+                value={fc.final}
+                onChange={(e) => setFc({ ...fc, final: e.target.value.replace(/\D/g, "") })}
+              />
+            </Field>
+            <Field label="Limite">
+              <Input
+                inputMode="decimal"
+                value={fc.limite}
+                onChange={(e) => setFc({ ...fc, limite: e.target.value })}
+                placeholder="0,00"
+              />
+            </Field>
+            <Field label="Banco emissor">
+              <Select value={fc.banco_id} onValueChange={(v) => setFc({ ...fc, banco_id: v })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Opcional" />
+                </SelectTrigger>
+                <SelectContent>
+                  {bancos.map((b: any) => (
+                    <SelectItem key={b.id} value={b.id}>
+                      {b.nome}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field label="Dia de fechamento">
+              <Input
+                type="number"
+                min={1}
+                max={31}
+                value={fc.dia_fechamento}
+                onChange={(e) => setFc({ ...fc, dia_fechamento: e.target.value })}
+              />
+            </Field>
+            <Field label="Dia de vencimento">
+              <Input
+                type="number"
+                min={1}
+                max={31}
+                value={fc.dia_vencimento}
+                onChange={(e) => setFc({ ...fc, dia_vencimento: e.target.value })}
+              />
+            </Field>
+            <Field label="Cor" className="sm:col-span-2">
+              <div className="flex gap-2">
+                {CORES.map((cor) => (
+                  <button
+                    key={cor}
+                    onClick={() => setFc({ ...fc, cor })}
+                    aria-label={`Cor ${cor}`}
+                    className={`size-8 rounded-full border-2 transition-transform ${
+                      fc.cor === cor ? "scale-110 border-foreground" : "border-transparent"
+                    }`}
+                    style={{ backgroundColor: cor }}
+                  />
+                ))}
+              </div>
+            </Field>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => salvarCartao.mutate()} disabled={salvarCartao.isPending}>
+              Salvar cartão
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={openBanco} onOpenChange={setOpenBanco}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Novo banco</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4">
+            <Field label="Nome do banco">
+              <Input value={fb.nome} onChange={(e) => setFb({ ...fb, nome: e.target.value })} />
+            </Field>
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Agência">
+                <Input value={fb.agencia} onChange={(e) => setFb({ ...fb, agencia: e.target.value })} />
+              </Field>
+              <Field label="Conta">
+                <Input value={fb.conta} onChange={(e) => setFb({ ...fb, conta: e.target.value })} />
+              </Field>
+            </div>
+            <Field label="Tipo de conta">
+              <Select value={fb.tipo} onValueChange={(v) => setFb({ ...fb, tipo: v })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="corrente">Corrente</SelectItem>
+                  <SelectItem value="poupanca">Poupança</SelectItem>
+                  <SelectItem value="pagamento">Conta de pagamento</SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => salvarBanco.mutate()} disabled={salvarBanco.isPending}>
+              Salvar banco
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </AppLayout>
+  );
+}
