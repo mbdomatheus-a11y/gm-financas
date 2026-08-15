@@ -14,6 +14,7 @@ import {
   LogOut,
   Menu,
   Wallet,
+  Tags,
 } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -27,6 +28,7 @@ type NavTo =
   | "/dashboard"
   | "/receitas"
   | "/despesas"
+  | "/categorias"
   | "/cartoes"
   | "/investimentos"
   | "/compartilhar"
@@ -48,6 +50,7 @@ const NAV: NavItem[] = [
   { to: "/dashboard", label: "Dashboard", short: "Início", icon: LayoutDashboard, mobile: true },
   { to: "/receitas", label: "Receitas", short: "Receitas", icon: TrendingUp, modulo: "receitas", mobile: true },
   { to: "/despesas", label: "Despesas", short: "Despesas", icon: TrendingDown, modulo: "despesas", mobile: true },
+  { to: "/categorias", label: "Categorias", short: "Categ.", icon: Tags },
   { to: "/cartoes", label: "Cartões e Bancos", short: "Cartões", icon: CreditCard, modulo: "cartoes", mobile: true },
   { to: "/investimentos", label: "Investimentos", short: "Invest.", icon: PiggyBank, modulo: "investimentos" },
   { to: "/compartilhar", label: "Compartilhar", short: "Compart.", icon: Share2, modulo: "compartilhar" },

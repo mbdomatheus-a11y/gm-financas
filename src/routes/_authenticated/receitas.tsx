@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, TrendingUp } from "lucide-react";
+import { Pencil, Plus, Trash2, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -19,7 +19,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -83,6 +82,7 @@ function ReceitasPage() {
   const { data: perfis = [] } = useProfilesList();
 
   const [open, setOpen] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<any>(emptyForm);
   const [filtroMes, setFiltroMes] = useState("todos");
   const [filtroCat, setFiltroCat] = useState("todas");
@@ -102,6 +102,29 @@ function ReceitasPage() {
 
   const total = lista.reduce((s: number, r: any) => s + toBRL(Number(r.valor), r.moeda, cotacao), 0);
 
+  function abrirNova() {
+    setEditId(null);
+    setForm(emptyForm);
+    setOpen(true);
+  }
+
+  function abrirEdicao(r: any) {
+    if (!can("receitas", "editar")) return;
+    setEditId(r.id);
+    setForm({
+      descricao: r.descricao ?? "",
+      valor: String(r.valor ?? ""),
+      moeda: r.moeda ?? "BRL",
+      categoria: r.categoria ?? "",
+      data_recebimento: r.data_recebimento,
+      recorrente: !!r.recorrente,
+      frequencia: r.frequencia ?? "mensal",
+      responsavel: r.responsavel ?? "",
+      observacoes: r.observacoes ?? "",
+    });
+    setOpen(true);
+  }
+
   const salvar = useMutation({
     mutationFn: async () => {
       const parsed = schema.parse({
@@ -110,6 +133,13 @@ function ReceitasPage() {
         frequencia: form.recorrente ? form.frequencia : null,
         observacoes: form.observacoes || null,
       });
+
+      if (editId) {
+        const { error } = await supabase.from("receitas").update(parsed).eq("id", editId);
+        if (error) throw error;
+        return;
+      }
+
       const base = { ...parsed, created_by: user?.id ?? null };
       const rows = [base];
       if (parsed.recorrente) {
@@ -126,8 +156,9 @@ function ReceitasPage() {
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Receita cadastrada");
+      toast.success(editId ? "Receita atualizada" : "Receita cadastrada");
       setOpen(false);
+      setEditId(null);
       setForm(emptyForm);
       qc.invalidateQueries();
     },
@@ -153,124 +184,9 @@ function ReceitasPage() {
       description={`${lista.length} lançamento(s) · ${formatBRL(total)}`}
       actions={
         can("receitas", "editar") && (
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button size="sm">
-                <Plus className="size-4" /> Nova
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
-              <DialogHeader>
-                <DialogTitle>Nova receita</DialogTitle>
-              </DialogHeader>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Descrição" className="sm:col-span-2">
-                  <Input
-                    value={form.descricao}
-                    onChange={(e) => setForm({ ...form, descricao: e.target.value })}
-                    placeholder="Salário de agosto"
-                  />
-                </Field>
-                <Field label="Valor">
-                  <Input
-                    inputMode="decimal"
-                    value={form.valor}
-                    onChange={(e) => setForm({ ...form, valor: e.target.value })}
-                    placeholder="0,00"
-                  />
-                </Field>
-                <Field label="Moeda">
-                  <Select value={form.moeda} onValueChange={(v) => setForm({ ...form, moeda: v })}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="BRL">R$ Real</SelectItem>
-                      <SelectItem value="USD">US$ Dólar</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <Field label="Categoria">
-                  <Select
-                    value={form.categoria}
-                    onValueChange={(v) => setForm({ ...form, categoria: v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {categorias.map((c: any) => (
-                        <SelectItem key={c.id} value={c.nome}>
-                          {c.nome}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <Field label="Data de recebimento">
-                  <Input
-                    type="date"
-                    value={form.data_recebimento}
-                    onChange={(e) => setForm({ ...form, data_recebimento: e.target.value })}
-                  />
-                </Field>
-                <Field label="Responsável">
-                  <Select
-                    value={form.responsavel}
-                    onValueChange={(v) => setForm({ ...form, responsavel: v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {responsaveis.map((r) => (
-                        <SelectItem key={r} value={r}>
-                          {r}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <Field label="Frequência">
-                  <div className="flex items-center gap-3">
-                    <Switch
-                      checked={form.recorrente}
-                      onCheckedChange={(v) => setForm({ ...form, recorrente: v })}
-                    />
-                    {form.recorrente ? (
-                      <Select
-                        value={form.frequencia}
-                        onValueChange={(v) => setForm({ ...form, frequencia: v })}
-                      >
-                        <SelectTrigger className="flex-1">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="mensal">Mensal</SelectItem>
-                          <SelectItem value="semanal">Semanal</SelectItem>
-                          <SelectItem value="bimestral">Bimestral</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <span className="text-sm text-muted-foreground">Lançamento único</span>
-                    )}
-                  </div>
-                </Field>
-                <Field label="Observações" className="sm:col-span-2">
-                  <Textarea
-                    value={form.observacoes}
-                    onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
-                    rows={2}
-                  />
-                </Field>
-              </div>
-              <DialogFooter>
-                <Button onClick={() => salvar.mutate()} disabled={salvar.isPending}>
-                  Salvar receita
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          <Button size="sm" onClick={abrirNova}>
+            <Plus className="size-4" /> Nova
+          </Button>
         )
       }
     >
@@ -326,7 +242,11 @@ function ReceitasPage() {
           </Card>
         )}
         {lista.map((r: any) => (
-          <Card key={r.id}>
+          <Card
+            key={r.id}
+            onClick={() => abrirEdicao(r)}
+            className={can("receitas", "editar") ? "cursor-pointer transition-colors hover:border-primary/40" : ""}
+          >
             <CardContent className="flex items-center gap-3 p-4">
               <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-success/10">
                 <TrendingUp className="size-5 text-success" />
@@ -348,12 +268,29 @@ function ReceitasPage() {
                   </p>
                 )}
               </div>
+              {can("receitas", "editar") && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="shrink-0 text-muted-foreground hover:text-primary"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    abrirEdicao(r);
+                  }}
+                  aria-label="Editar receita"
+                >
+                  <Pencil className="size-4" />
+                </Button>
+              )}
               {can("receitas", "excluir") && (
                 <Button
                   variant="ghost"
                   size="icon"
                   className="shrink-0 text-muted-foreground hover:text-destructive"
-                  onClick={() => excluir.mutate(r.id)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    excluir.mutate(r.id);
+                  }}
                   aria-label="Excluir receita"
                 >
                   <Trash2 className="size-4" />
@@ -372,6 +309,117 @@ function ReceitasPage() {
           Lançamentos futuros são gerados automaticamente por 12 ocorrências.
         </p>
       )}
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{editId ? "Editar receita" : "Nova receita"}</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Descrição" className="sm:col-span-2">
+              <Input
+                value={form.descricao}
+                onChange={(e) => setForm({ ...form, descricao: e.target.value })}
+                placeholder="Salário de agosto"
+              />
+            </Field>
+            <Field label="Valor">
+              <Input
+                inputMode="decimal"
+                value={form.valor}
+                onChange={(e) => setForm({ ...form, valor: e.target.value })}
+                placeholder="0,00"
+              />
+            </Field>
+            <Field label="Moeda">
+              <Select value={form.moeda} onValueChange={(v) => setForm({ ...form, moeda: v })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="BRL">R$ Real</SelectItem>
+                  <SelectItem value="USD">US$ Dólar</SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field label="Categoria">
+              <Select value={form.categoria} onValueChange={(v) => setForm({ ...form, categoria: v })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categorias.map((c: any) => (
+                    <SelectItem key={c.id} value={c.nome}>
+                      {c.nome}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field label="Data de recebimento">
+              <Input
+                type="date"
+                value={form.data_recebimento}
+                onChange={(e) => setForm({ ...form, data_recebimento: e.target.value })}
+              />
+            </Field>
+            <Field label="Responsável">
+              <Select
+                value={form.responsavel}
+                onValueChange={(v) => setForm({ ...form, responsavel: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione" />
+                </SelectTrigger>
+                <SelectContent>
+                  {responsaveis.map((r) => (
+                    <SelectItem key={r} value={r}>
+                      {r}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field label="Frequência">
+              <div className="flex items-center gap-3">
+                <Switch
+                  checked={form.recorrente}
+                  onCheckedChange={(v) => setForm({ ...form, recorrente: v })}
+                />
+                {form.recorrente ? (
+                  <Select
+                    value={form.frequencia}
+                    onValueChange={(v) => setForm({ ...form, frequencia: v })}
+                  >
+                    <SelectTrigger className="flex-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="mensal">Mensal</SelectItem>
+                      <SelectItem value="semanal">Semanal</SelectItem>
+                      <SelectItem value="bimestral">Bimestral</SelectItem>
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <span className="text-sm text-muted-foreground">Lançamento único</span>
+                )}
+              </div>
+            </Field>
+            <Field label="Observações" className="sm:col-span-2">
+              <Textarea
+                value={form.observacoes}
+                onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
+                rows={2}
+              />
+            </Field>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => salvar.mutate()} disabled={salvar.isPending}>
+              {editId ? "Salvar alterações" : "Salvar receita"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }

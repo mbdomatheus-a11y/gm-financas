@@ -29,6 +29,14 @@ const PALETAS = [
   { id: "laranja", label: "Laranja", cor: "#ea580c" },
   { id: "rosa", label: "Rosa", cor: "#db2777" },
   { id: "grafite", label: "Grafite", cor: "#334155" },
+  { id: "turquesa", label: "Turquesa", cor: "#0ea5a4" },
+  { id: "indigo", label: "Índigo", cor: "#4f46e5" },
+  { id: "vinho", label: "Vinho", cor: "#9f1239" },
+  { id: "ouro", label: "Ouro", cor: "#ca8a04" },
+  { id: "menta", label: "Menta", cor: "#34d399" },
+  { id: "coral", label: "Coral", cor: "#f97316" },
+  { id: "lavanda", label: "Lavanda", cor: "#a78bfa" },
+  { id: "oceano", label: "Oceano", cor: "#1d4ed8" },
 ];
 
 const TEMAS = [

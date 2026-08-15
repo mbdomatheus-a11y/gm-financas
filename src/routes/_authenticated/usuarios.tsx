@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { KeyRound, ShieldCheck, UserPlus, Users } from "lucide-react";
+import { KeyRound, Pencil, ShieldCheck, UserPlus, Users } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppLayout } from "@/components/AppLayout";
@@ -71,6 +71,7 @@ function UsuariosPage() {
   const [reset, setReset] = useState<{ id: string; nome: string } | null>(null);
   const [senha, setSenha] = useState("");
   const [detalhe, setDetalhe] = useState<string | null>(null);
+  const [editar, setEditar] = useState<{ id: string; nome: string } | null>(null);
 
   const { data: permissoes = [] } = useQuery({
     queryKey: ["permissoes-todas"],
@@ -122,6 +123,22 @@ function UsuariosPage() {
       setRole({ data: { userId: id, role } }),
     onSuccess: () => {
       toast.success("Privilégio atualizado");
+      qc.invalidateQueries();
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const salvarNome = useMutation({
+    mutationFn: async () => {
+      if (!editar) return;
+      const nome = editar.nome.trim();
+      if (nome.length < 2) throw new Error("Informe o nome completo");
+      const { error } = await supabase.from("profiles").update({ nome }).eq("id", editar.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Nome atualizado");
+      setEditar(null);
       qc.invalidateQueries();
     },
     onError: (e: any) => toast.error(e.message),
@@ -208,6 +225,13 @@ function UsuariosPage() {
                 </div>
 
                 <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setEditar({ id: p.id, nome: p.nome })}
+                  >
+                    <Pencil className="size-4" /> Editar nome
+                  </Button>
                   <Button
                     size="sm"
                     variant="outline"
@@ -334,6 +358,24 @@ function UsuariosPage() {
           <DialogFooter>
             <Button onClick={() => redefinir.mutate()} disabled={redefinir.isPending}>
               Redefinir
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={!!editar} onOpenChange={(o) => !o && setEditar(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Editar nome</DialogTitle>
+          </DialogHeader>
+          <Field label="Nome completo">
+            <Input
+              value={editar?.nome ?? ""}
+              onChange={(e) => setEditar(editar ? { ...editar, nome: e.target.value } : null)}
+            />
+          </Field>
+          <DialogFooter>
+            <Button onClick={() => salvarNome.mutate()} disabled={salvarNome.isPending}>
+              Salvar
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Building2, CreditCard, Plus, Trash2 } from "lucide-react";
+import { Building2, CreditCard, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -71,7 +71,22 @@ const bancoSchema = z.object({
   titular: z.string().min(1, "Informe o titular"),
 });
 
-const CORES = ["#2563eb", "#16a34a", "#9333ea", "#ea580c", "#db2777", "#334155"];
+const CORES = [
+  "#2563eb",
+  "#0ea5e9",
+  "#14b8a6",
+  "#16a34a",
+  "#84cc16",
+  "#eab308",
+  "#f59e0b",
+  "#ea580c",
+  "#ef4444",
+  "#db2777",
+  "#a855f7",
+  "#6366f1",
+  "#334155",
+  "#0f172a",
+];
 
 function CartoesPage() {
   const qc = useQueryClient();
@@ -85,7 +100,9 @@ function CartoesPage() {
   const [tab, setTab] = useState("cartoes");
   const [openCartao, setOpenCartao] = useState(false);
   const [openBanco, setOpenBanco] = useState(false);
-  const [fc, setFc] = useState<any>({
+  const [editCartaoId, setEditCartaoId] = useState<string | null>(null);
+  const [editBancoId, setEditBancoId] = useState<string | null>(null);
+  const cartaoVazio = {
     apelido: "",
     bandeira: "Visa",
     final: "",
@@ -95,15 +112,48 @@ function CartoesPage() {
     banco_id: "",
     cor: CORES[0],
     titular: "",
-  });
-  const [fb, setFb] = useState<any>({
-    nome: "",
-    agencia: "",
-    conta: "",
-    tipo: "corrente",
-    titular: "",
-  });
+  };
+  const bancoVazio = { nome: "", agencia: "", conta: "", tipo: "corrente", titular: "" };
+  const [fc, setFc] = useState<any>(cartaoVazio);
+  const [fb, setFb] = useState<any>(bancoVazio);
   const perfilNome = perfil?.nome ?? "Casal";
+
+  function novoCartao() {
+    setEditCartaoId(null);
+    setFc(cartaoVazio);
+    setOpenCartao(true);
+  }
+  function editarCartao(c: any) {
+    setEditCartaoId(c.id);
+    setFc({
+      apelido: c.apelido ?? "",
+      bandeira: c.bandeira ?? "Visa",
+      final: c.final ?? "",
+      limite: c.limite != null ? String(c.limite) : "",
+      dia_fechamento: String(c.dia_fechamento ?? 1),
+      dia_vencimento: String(c.dia_vencimento ?? 10),
+      banco_id: c.banco_id ?? "",
+      cor: c.cor ?? CORES[0],
+      titular: c.titular ?? "",
+    });
+    setOpenCartao(true);
+  }
+  function novoBanco() {
+    setEditBancoId(null);
+    setFb(bancoVazio);
+    setOpenBanco(true);
+  }
+  function editarBanco(b: any) {
+    setEditBancoId(b.id);
+    setFb({
+      nome: b.nome ?? "",
+      agencia: b.agencia ?? "",
+      conta: b.conta ?? "",
+      tipo: b.tipo_conta ?? "corrente",
+      titular: b.titular ?? "",
+    });
+    setOpenBanco(true);
+  }
 
   const gastoDoCartao = (id: string) =>
     despesas
@@ -124,12 +174,15 @@ function CartoesPage() {
         titular: fc.titular || perfilNome,
         tipo: "credito",
       });
-      const { error } = await supabase.from("cartoes").insert(parsed);
+      const { error } = editCartaoId
+        ? await supabase.from("cartoes").update(parsed).eq("id", editCartaoId)
+        : await supabase.from("cartoes").insert(parsed);
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Cartão cadastrado");
+      toast.success(editCartaoId ? "Cartão atualizado" : "Cartão cadastrado");
       setOpenCartao(false);
+      setEditCartaoId(null);
       qc.invalidateQueries();
     },
     onError: (e: any) => toast.error(e?.errors?.[0]?.message ?? e.message),
@@ -144,12 +197,15 @@ function CartoesPage() {
         tipo_conta: fb.tipo,
         titular: fb.titular || perfilNome,
       });
-      const { error } = await supabase.from("bancos").insert(parsed);
+      const { error } = editBancoId
+        ? await supabase.from("bancos").update(parsed).eq("id", editBancoId)
+        : await supabase.from("bancos").insert(parsed);
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Banco cadastrado");
+      toast.success(editBancoId ? "Banco atualizado" : "Banco cadastrado");
       setOpenBanco(false);
+      setEditBancoId(null);
       qc.invalidateQueries();
     },
     onError: (e: any) => toast.error(e?.errors?.[0]?.message ?? e.message),
@@ -173,7 +229,7 @@ function CartoesPage() {
       description="Formas de pagamento usadas nas despesas"
       actions={
         can("cartoes", "editar") && (
-          <Button size="sm" onClick={() => (tab === "cartoes" ? setOpenCartao(true) : setOpenBanco(true))}>
+          <Button size="sm" onClick={() => (tab === "cartoes" ? novoCartao() : novoBanco())}>
             <Plus className="size-4" /> {tab === "cartoes" ? "Novo cartão" : "Novo banco"}
           </Button>
         )
@@ -213,17 +269,30 @@ function CartoesPage() {
                         {c.bancos ? ` · ${c.bancos.nome}` : ""}
                       </p>
                     </div>
-                    {can("cartoes", "excluir") && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-muted-foreground hover:text-destructive"
-                        onClick={() => excluir.mutate({ table: "cartoes", id: c.id })}
-                        aria-label="Excluir cartão"
-                      >
-                        <Trash2 className="size-4" />
-                      </Button>
-                    )}
+                    <div className="flex shrink-0 items-center">
+                      {can("cartoes", "editar") && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-muted-foreground hover:text-primary"
+                          onClick={() => editarCartao(c)}
+                          aria-label="Editar cartão"
+                        >
+                          <Pencil className="size-4" />
+                        </Button>
+                      )}
+                      {can("cartoes", "excluir") && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-muted-foreground hover:text-destructive"
+                          onClick={() => excluir.mutate({ table: "cartoes", id: c.id })}
+                          aria-label="Excluir cartão"
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div className="rounded-lg bg-muted/50 p-2">
@@ -281,6 +350,17 @@ function CartoesPage() {
                   </p>
                 </div>
                 <Badge variant="secondary">{b.tipo_conta}</Badge>
+                {can("cartoes", "editar") && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-muted-foreground hover:text-primary"
+                    onClick={() => editarBanco(b)}
+                    aria-label="Editar banco"
+                  >
+                    <Pencil className="size-4" />
+                  </Button>
+                )}
                 {can("cartoes", "excluir") && (
                   <Button
                     variant="ghost"
@@ -301,7 +381,7 @@ function CartoesPage() {
       <Dialog open={openCartao} onOpenChange={setOpenCartao}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Novo cartão</DialogTitle>
+            <DialogTitle>{editCartaoId ? "Editar cartão" : "Novo cartão"}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Apelido" className="sm:col-span-2">
@@ -373,7 +453,7 @@ function CartoesPage() {
               <Input value={fc.titular} onChange={(e) => setFc({ ...fc, titular: e.target.value })} placeholder={perfilNome} />
             </Field>
             <Field label="Cor" className="sm:col-span-2">
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 {CORES.map((cor) => (
                   <button
                     key={cor}
@@ -390,7 +470,7 @@ function CartoesPage() {
           </div>
           <DialogFooter>
             <Button onClick={() => salvarCartao.mutate()} disabled={salvarCartao.isPending}>
-              Salvar cartão
+              {editCartaoId ? "Salvar alterações" : "Salvar cartão"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -399,7 +479,7 @@ function CartoesPage() {
       <Dialog open={openBanco} onOpenChange={setOpenBanco}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Novo banco</DialogTitle>
+            <DialogTitle>{editBancoId ? "Editar banco" : "Novo banco"}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4">
             <Field label="Nome do banco">
@@ -431,7 +511,7 @@ function CartoesPage() {
           </div>
           <DialogFooter>
             <Button onClick={() => salvarBanco.mutate()} disabled={salvarBanco.isPending}>
-              Salvar banco
+              {editBancoId ? "Salvar alterações" : "Salvar banco"}
             </Button>
           </DialogFooter>
         </DialogContent>
