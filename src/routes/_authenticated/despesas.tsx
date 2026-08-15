@@ -1,7 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, CheckCircle2, Plus, Trash2, TrendingDown } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  ChevronDown,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+  TrendingDown,
+} from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -13,7 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Dialog,
@@ -46,10 +55,12 @@ import {
   formatBRL,
   formatDate,
   formatUSD,
+  monthKey,
   parseDate,
   toBRL,
   toISODate,
 } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/despesas")({
   head: () => ({
@@ -112,8 +123,12 @@ function DespesasPage() {
 
   const [tab, setTab] = useState<"fixa" | "variavel">("fixa");
   const [open, setOpen] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<any>(novoForm("fixa"));
   const [duplicata, setDuplicata] = useState<any | null>(null);
+  const [busca, setBusca] = useState("");
+  const [filtroMes, setFiltroMes] = useState("todos");
+  const [expandida, setExpandida] = useState<string | null>(null);
 
   const responsaveis = [...perfis.map((p: any) => p.nome), RESPONSAVEIS_EXTRA];
 
@@ -122,6 +137,7 @@ function DespesasPage() {
   const previewParcela = valorNum > 0 ? dividirParcelas(valorNum, nParcelas)[0] ?? 0 : 0;
 
   const possivelDuplicata = useMemo(() => {
+    if (editId) return null;
     if (!form.descricao && !valorNum) return null;
     const [tipoPg, idPg] = String(form.pagamento).split(":");
     return (
@@ -137,7 +153,34 @@ function DespesasPage() {
         return (mesmaDescricao || valorProximo) && diffDias <= 3 && (mesmoPagamento || !idPg);
       }) ?? null
     );
-  }, [despesas, form.descricao, form.data_compra, form.pagamento, valorNum]);
+  }, [despesas, editId, form.descricao, form.data_compra, form.pagamento, valorNum]);
+
+  function abrirNova() {
+    setEditId(null);
+    setForm(novoForm(tab));
+    setDuplicata(null);
+    setOpen(true);
+  }
+
+  function abrirEdicao(d: any) {
+    if (!can("despesas", "editar")) return;
+    setEditId(d.id);
+    setDuplicata(null);
+    setForm({
+      descricao: d.descricao ?? "",
+      valor_total: String(d.valor_total ?? ""),
+      moeda: d.moeda ?? "BRL",
+      categoria: d.categoria ?? "",
+      tipo: d.tipo ?? "fixa",
+      data_compra: d.data_compra,
+      pagamento: d.cartao_id ? `cartao:${d.cartao_id}` : d.banco_id ? `banco:${d.banco_id}` : "",
+      total_parcelas: String(d.total_parcelas ?? 1),
+      data_primeira_parcela: d.data_primeira_parcela,
+      responsavel: d.responsavel ?? "",
+      observacoes: d.observacoes ?? "",
+    });
+    setOpen(true);
+  }
 
   const salvar = useMutation({
     mutationFn: async () => {
@@ -154,34 +197,58 @@ function DespesasPage() {
         observacoes: form.observacoes || null,
       });
       const [tipoPg, idPg] = String(form.pagamento).split(":");
-      const { data: despesa, error } = await supabase
-        .from("despesas")
-        .insert({
-          ...parsed,
-          cartao_id: tipoPg === "cartao" ? (idPg ?? null) : null,
-          banco_id: tipoPg === "banco" ? (idPg ?? null) : null,
-          created_by: user?.id ?? null,
-        })
-        .select()
-        .single();
-      if (error) throw error;
+      const vinculos = {
+        cartao_id: tipoPg === "cartao" ? (idPg ?? null) : null,
+        banco_id: tipoPg === "banco" ? (idPg ?? null) : null,
+      };
+
+      let despesaId = editId;
+      if (editId) {
+        const { error } = await supabase
+          .from("despesas")
+          .update({ ...parsed, ...vinculos })
+          .eq("id", editId);
+        if (error) throw error;
+      } else {
+        const { data: despesa, error } = await supabase
+          .from("despesas")
+          .insert({ ...parsed, ...vinculos, created_by: user?.id ?? null })
+          .select()
+          .single();
+        if (error) throw error;
+        despesaId = despesa.id;
+      }
+
+      const pagasAntigas = new Set<number>(
+        editId
+          ? ((despesas.find((d: any) => d.id === editId)?.parcelas ?? []) as any[])
+              .filter((p: any) => p.paga)
+              .map((p: any) => p.numero)
+          : [],
+      );
+      if (editId) {
+        const { error } = await supabase.from("parcelas").delete().eq("despesa_id", editId);
+        if (error) throw error;
+      }
 
       const valores = dividirParcelas(parsed.valor_total, parsed.total_parcelas);
       const base = parseDate(parsed.data_primeira_parcela);
       const parcelas = valores.map((valor, i) => ({
-        despesa_id: despesa.id,
+        despesa_id: despesaId!,
         numero: i + 1,
         total: parsed.total_parcelas,
         valor,
         moeda: parsed.moeda,
         vencimento: toISODate(addMonths(base, i)),
+        paga: pagasAntigas.has(i + 1),
       }));
       const { error: e2 } = await supabase.from("parcelas").insert(parcelas);
       if (e2) throw e2;
     },
     onSuccess: () => {
-      toast.success("Despesa cadastrada com parcelas geradas");
+      toast.success(editId ? "Despesa atualizada" : "Despesa cadastrada com parcelas geradas");
       setOpen(false);
+      setEditId(null);
       setDuplicata(null);
       setForm(novoForm(tab));
       qc.invalidateQueries();
@@ -219,130 +286,232 @@ function DespesasPage() {
     salvar.mutate();
   }
 
-  const lista = despesas.filter((d: any) => d.tipo === tab);
+  const meses = useMemo(
+    () =>
+      Array.from(new Set(despesas.map((d: any) => monthKey(d.data_compra))))
+        .sort()
+        .reverse(),
+    [despesas],
+  );
+
+  const lista = despesas.filter((d: any) => {
+    if (d.tipo !== tab) return false;
+    if (filtroMes !== "todos" && monthKey(d.data_compra) !== filtroMes) return false;
+    if (busca && !`${d.descricao} ${d.categoria} ${d.responsavel}`.toLowerCase().includes(busca.toLowerCase()))
+      return false;
+    return true;
+  });
+
+  const resumo = useMemo(() => {
+    let total = 0;
+    let pago = 0;
+    let aberto = 0;
+    for (const d of lista as any[]) {
+      const brl = (v: number) => toBRL(v, d.moeda, cotacao);
+      total += brl(Number(d.valor_total));
+      for (const p of d.parcelas ?? []) {
+        if (p.paga) pago += brl(Number(p.valor));
+        else aberto += brl(Number(p.valor));
+      }
+    }
+    return { total, pago, aberto };
+  }, [lista, cotacao]);
 
   return (
     <AppLayout
       title="Despesas"
-      description="Fixas e variáveis, com parcelamento automático"
+      description={`${lista.length} lançamento(s) · ${formatBRL(resumo.total)}`}
       actions={
         can("despesas", "editar") && (
-          <Button
-            size="sm"
-            onClick={() => {
-              setForm(novoForm(tab));
-              setDuplicata(null);
-              setOpen(true);
-            }}
-          >
+          <Button size="sm" onClick={abrirNova}>
             <Plus className="size-4" /> Nova
           </Button>
         )
       }
     >
-      <Tabs value={tab} onValueChange={(v) => setTab(v as "fixa" | "variavel")}>
-        <TabsList className="w-full sm:w-auto">
-          <TabsTrigger value="fixa" className="flex-1 sm:flex-none">
-            Despesas fixas
-          </TabsTrigger>
-          <TabsTrigger value="variavel" className="flex-1 sm:flex-none">
-            Despesas variáveis
-          </TabsTrigger>
-        </TabsList>
+      <div className="mb-3 grid grid-cols-3 gap-2">
+        {[
+          { label: "Total", valor: resumo.total, cor: "text-foreground" },
+          { label: "Pago", valor: resumo.pago, cor: "text-success" },
+          { label: "Em aberto", valor: resumo.aberto, cor: "text-destructive" },
+        ].map((k) => (
+          <div key={k.label} className="rounded-xl border bg-card px-3 py-2">
+            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{k.label}</p>
+            <p className={cn("text-sm font-bold tabular-nums", k.cor)}>{formatBRL(k.valor)}</p>
+          </div>
+        ))}
+      </div>
 
-        <TabsContent value={tab} className="mt-4 space-y-3">
-          {lista.length === 0 && (
-            <Card>
-              <CardContent className="flex flex-col items-center gap-2 py-12 text-center">
-                <TrendingDown className="size-8 text-muted-foreground" />
-                <p className="text-sm text-muted-foreground">Nenhuma despesa cadastrada aqui.</p>
-              </CardContent>
-            </Card>
-          )}
+      <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+        <Tabs value={tab} onValueChange={(v) => setTab(v as "fixa" | "variavel")}>
+          <TabsList className="h-9">
+            <TabsTrigger value="fixa" className="text-xs">
+              Fixas
+            </TabsTrigger>
+            <TabsTrigger value="variavel" className="text-xs">
+              Variáveis
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+        <div className="relative flex-1">
+          <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            placeholder="Buscar descrição, categoria ou responsável"
+            className="h-9 pl-8"
+          />
+        </div>
+        <Select value={filtroMes} onValueChange={setFiltroMes}>
+          <SelectTrigger className="h-9 sm:w-44">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todos os meses</SelectItem>
+            {meses.map((m) => (
+              <SelectItem key={m} value={m}>
+                {m}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {lista.length === 0 ? (
+        <Card>
+          <CardContent className="flex flex-col items-center gap-2 py-12 text-center">
+            <TrendingDown className="size-8 text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">Nenhuma despesa encontrada.</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="divide-y overflow-hidden rounded-xl border bg-card">
           {lista.map((d: any) => {
             const parcelas = [...(d.parcelas ?? [])].sort((a: any, b: any) => a.numero - b.numero);
             const pagas = parcelas.filter((p: any) => p.paga).length;
+            const aberta = expandida === d.id;
             return (
-              <Card key={d.id}>
-                <CardContent className="space-y-3 p-4">
-                  <div className="flex items-start gap-3">
-                    <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-destructive/10">
-                      <TrendingDown className="size-5 text-destructive" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold">{d.descricao}</p>
-                      <p className="truncate text-xs text-muted-foreground">
-                        {d.categoria} · {formatDate(d.data_compra)} · {d.responsavel}
-                        {d.cartoes ? ` · ${d.cartoes.apelido ?? "Cartão"} •${d.cartoes.final}` : ""}
-                        {d.bancos ? ` · ${d.bancos.nome}` : ""}
+              <div key={d.id}>
+                <div
+                  onClick={() => abrirEdicao(d)}
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-2.5 transition-colors hover:bg-muted/40",
+                    can("despesas", "editar") && "cursor-pointer",
+                  )}
+                >
+                  <div
+                    className="h-8 w-1 shrink-0 rounded-full"
+                    style={{ backgroundColor: d.cartoes?.cor ?? "var(--muted-foreground)" }}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold leading-tight">{d.descricao}</p>
+                    <p className="truncate text-[11px] text-muted-foreground">
+                      {formatDate(d.data_compra)} · {d.categoria} · {d.responsavel}
+                      {d.cartoes ? ` · ${d.cartoes.apelido ?? "Cartão"} •${d.cartoes.final}` : ""}
+                      {d.bancos ? ` · ${d.bancos.nome}` : ""}
+                    </p>
+                  </div>
+                  {d.total_parcelas > 1 && (
+                    <Badge variant="secondary" className="hidden shrink-0 text-[10px] sm:inline-flex">
+                      {pagas}/{d.total_parcelas} pagas
+                    </Badge>
+                  )}
+                  <div className="shrink-0 text-right">
+                    <p className="text-sm font-bold tabular-nums">
+                      {formatBRL(toBRL(Number(d.valor_total), d.moeda, cotacao))}
+                    </p>
+                    {d.moeda === "USD" && (
+                      <p className="text-[10px] text-muted-foreground">
+                        {formatUSD(Number(d.valor_total))}
                       </p>
-                    </div>
-                    <div className="shrink-0 text-right">
-                      <p className="text-sm font-bold">
-                        {formatBRL(toBRL(Number(d.valor_total), d.moeda, cotacao))}
-                      </p>
-                      {d.moeda === "USD" && (
-                        <p className="text-[11px] text-muted-foreground">
-                          {formatUSD(Number(d.valor_total))} na cotação
-                        </p>
-                      )}
-                    </div>
+                    )}
+                  </div>
+                  <div className="flex shrink-0 items-center">
+                    {can("despesas", "editar") && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-8 text-muted-foreground hover:text-primary"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          abrirEdicao(d);
+                        }}
+                        aria-label="Editar despesa"
+                      >
+                        <Pencil className="size-4" />
+                      </Button>
+                    )}
+                    {parcelas.length > 0 && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-8 text-muted-foreground"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setExpandida(aberta ? null : d.id);
+                        }}
+                        aria-label="Ver parcelas"
+                      >
+                        <ChevronDown
+                          className={cn("size-4 transition-transform", aberta && "rotate-180")}
+                        />
+                      </Button>
+                    )}
                     {can("despesas", "excluir") && (
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="shrink-0 text-muted-foreground hover:text-destructive"
-                        onClick={() => excluir.mutate(d.id)}
+                        className="size-8 text-muted-foreground hover:text-destructive"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          excluir.mutate(d.id);
+                        }}
                         aria-label="Excluir despesa"
                       >
                         <Trash2 className="size-4" />
                       </Button>
                     )}
                   </div>
+                </div>
 
-                  {d.total_parcelas > 1 && (
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-muted-foreground">
-                          {parcelas[0] ? formatBRL(Number(parcelas[0].valor)) : ""} por parcela
-                        </span>
-                        <Badge variant="secondary">
-                          {pagas} de {d.total_parcelas} pagas
-                        </Badge>
-                      </div>
-                      <Progress value={(pagas / d.total_parcelas) * 100} className="h-2" />
+                {aberta && (
+                  <div className="space-y-2 border-t bg-muted/20 px-3 py-2.5">
+                    {d.total_parcelas > 1 && (
+                      <Progress value={(pagas / d.total_parcelas) * 100} className="h-1.5" />
+                    )}
+                    <div className="flex flex-wrap gap-1.5">
+                      {parcelas.map((p: any) => (
+                        <button
+                          key={p.id}
+                          onClick={() => togglePaga.mutate({ id: p.id, paga: !p.paga })}
+                          disabled={!can("despesas", "editar")}
+                          className={cn(
+                            "inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-medium tabular-nums transition-colors",
+                            p.paga
+                              ? "border-success/30 bg-success/10 text-success"
+                              : "border-border bg-background text-muted-foreground hover:border-primary/40",
+                          )}
+                          title={`Vence em ${formatDate(p.vencimento)}`}
+                        >
+                          {p.paga && <CheckCircle2 className="size-3" />}
+                          {p.numero}/{p.total} · {formatBRL(Number(p.valor))}
+                        </button>
+                      ))}
                     </div>
-                  )}
-
-                  <div className="flex flex-wrap gap-1.5">
-                    {parcelas.map((p: any) => (
-                      <button
-                        key={p.id}
-                        onClick={() => togglePaga.mutate({ id: p.id, paga: !p.paga })}
-                        disabled={!can("despesas", "editar")}
-                        className={`inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-medium transition-colors ${
-                          p.paga
-                            ? "border-success/30 bg-success/10 text-success"
-                            : "border-border bg-muted/40 text-muted-foreground hover:border-primary/40"
-                        }`}
-                        title={`Vence em ${formatDate(p.vencimento)}`}
-                      >
-                        {p.paga && <CheckCircle2 className="size-3" />}
-                        {p.numero}/{p.total} · {formatBRL(Number(p.valor))}
-                      </button>
-                    ))}
                   </div>
-                </CardContent>
-              </Card>
+                )}
+              </div>
             );
           })}
-        </TabsContent>
-      </Tabs>
+        </div>
+      )}
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Nova despesa {tab === "fixa" ? "fixa" : "variável"}</DialogTitle>
+            <DialogTitle>
+              {editId ? "Editar despesa" : `Nova despesa ${tab === "fixa" ? "fixa" : "variável"}`}
+            </DialogTitle>
           </DialogHeader>
 
           {duplicata && (
@@ -491,7 +660,7 @@ function DespesasPage() {
 
           <DialogFooter>
             <Button onClick={tentarSalvar} disabled={salvar.isPending}>
-              {duplicata ? "Salvar mesmo assim" : "Salvar despesa"}
+              {duplicata ? "Salvar mesmo assim" : editId ? "Salvar alterações" : "Salvar despesa"}
             </Button>
           </DialogFooter>
         </DialogContent>
