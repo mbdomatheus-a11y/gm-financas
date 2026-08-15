@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useBancos, useCartoes, useDespesas } from "@/hooks/useFinance";
-import { usePermissoes, useSession } from "@/hooks/useAuthData";
+import { usePermissoes, useProfile } from "@/hooks/useAuthData";
 import { useCotacao } from "@/hooks/useCotacao";
 import { formatBRL, toBRL } from "@/lib/format";
 
@@ -59,13 +59,16 @@ const cartaoSchema = z.object({
   dia_vencimento: z.number().int().min(1).max(31),
   banco_id: z.string().uuid().nullable(),
   cor: z.string(),
+  titular: z.string().min(1, "Informe o titular"),
+  tipo: z.string().min(1),
 });
 
 const bancoSchema = z.object({
   nome: z.string().trim().min(2, "Informe o nome do banco").max(60),
   agencia: z.string().max(20).nullable(),
   conta: z.string().max(30).nullable(),
-  tipo: z.string().min(1),
+  tipo_conta: z.string().min(1),
+  titular: z.string().min(1, "Informe o titular"),
 });
 
 const CORES = ["#2563eb", "#16a34a", "#9333ea", "#ea580c", "#db2777", "#334155"];
@@ -73,7 +76,7 @@ const CORES = ["#2563eb", "#16a34a", "#9333ea", "#ea580c", "#db2777", "#334155"]
 function CartoesPage() {
   const qc = useQueryClient();
   const cotacao = useCotacao();
-  const { user } = useSession();
+  const { data: perfil } = useProfile();
   const { can } = usePermissoes();
   const { data: cartoes = [] } = useCartoes();
   const { data: bancos = [] } = useBancos();
@@ -91,8 +94,16 @@ function CartoesPage() {
     dia_vencimento: "10",
     banco_id: "",
     cor: CORES[0],
+    titular: "",
   });
-  const [fb, setFb] = useState<any>({ nome: "", agencia: "", conta: "", tipo: "corrente" });
+  const [fb, setFb] = useState<any>({
+    nome: "",
+    agencia: "",
+    conta: "",
+    tipo: "corrente",
+    titular: "",
+  });
+  const perfilNome = perfil?.nome ?? "Casal";
 
   const gastoDoCartao = (id: string) =>
     despesas
@@ -110,10 +121,10 @@ function CartoesPage() {
         dia_vencimento: Number(fc.dia_vencimento),
         banco_id: fc.banco_id || null,
         cor: fc.cor,
+        titular: fc.titular || perfilNome,
+        tipo: "credito",
       });
-      const { error } = await supabase
-        .from("cartoes")
-        .insert({ ...parsed, created_by: user?.id ?? null });
+      const { error } = await supabase.from("cartoes").insert(parsed);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -130,11 +141,10 @@ function CartoesPage() {
         nome: fb.nome,
         agencia: fb.agencia || null,
         conta: fb.conta || null,
-        tipo: fb.tipo,
+        tipo_conta: fb.tipo,
+        titular: fb.titular || perfilNome,
       });
-      const { error } = await supabase
-        .from("bancos")
-        .insert({ ...parsed, created_by: user?.id ?? null });
+      const { error } = await supabase.from("bancos").insert(parsed);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -270,7 +280,7 @@ function CartoesPage() {
                     {b.conta ? `Conta ${b.conta}` : "Sem conta informada"}
                   </p>
                 </div>
-                <Badge variant="secondary">{b.tipo}</Badge>
+                <Badge variant="secondary">{b.tipo_conta}</Badge>
                 {can("cartoes", "excluir") && (
                   <Button
                     variant="ghost"
@@ -359,6 +369,9 @@ function CartoesPage() {
                 onChange={(e) => setFc({ ...fc, dia_vencimento: e.target.value })}
               />
             </Field>
+            <Field label="Titular">
+              <Input value={fc.titular} onChange={(e) => setFc({ ...fc, titular: e.target.value })} placeholder={perfilNome} />
+            </Field>
             <Field label="Cor" className="sm:col-span-2">
               <div className="flex gap-2">
                 {CORES.map((cor) => (
@@ -400,6 +413,9 @@ function CartoesPage() {
                 <Input value={fb.conta} onChange={(e) => setFb({ ...fb, conta: e.target.value })} />
               </Field>
             </div>
+            <Field label="Titular">
+              <Input value={fb.titular} onChange={(e) => setFb({ ...fb, titular: e.target.value })} placeholder={perfilNome} />
+            </Field>
             <Field label="Tipo de conta">
               <Select value={fb.tipo} onValueChange={(v) => setFb({ ...fb, tipo: v })}>
                 <SelectTrigger>
