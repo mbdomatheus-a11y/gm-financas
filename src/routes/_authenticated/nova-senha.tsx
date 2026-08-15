@@ -32,14 +32,24 @@ function NovaSenhaPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (senha.length < 6) return toast.error("A senha deve ter ao menos 6 caracteres");
-    if (senha !== confirma) return toast.error("As senhas não coincidem");
-    if (senha === "admin123") return toast.error("Escolha uma senha diferente da provisória");
+    if (senha.length < 6) {
+      toast.error("A senha deve ter ao menos 6 caracteres");
+      return;
+    }
+    if (senha !== confirma) {
+      toast.error("As senhas não coincidem");
+      return;
+    }
+    if (senha === "admin123") {
+      toast.error("Escolha uma senha diferente da provisória");
+      return;
+    }
     setLoading(true);
     const { error } = await supabase.auth.updateUser({ password: senha });
     if (error) {
       setLoading(false);
-      return toast.error(error.message);
+      toast.error(error.message);
+      return;
     }
     await supabase.from("profiles").update({ senha_temporaria: false }).eq("id", user!.id);
     await qc.invalidateQueries();
