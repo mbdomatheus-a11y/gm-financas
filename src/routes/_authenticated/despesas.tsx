@@ -158,8 +158,8 @@ function DespesasPage() {
         .from("despesas")
         .insert({
           ...parsed,
-          cartao_id: tipoPg === "cartao" ? idPg : null,
-          banco_id: tipoPg === "banco" ? idPg : null,
+          cartao_id: tipoPg === "cartao" ? (idPg ?? null) : null,
+          banco_id: tipoPg === "banco" ? (idPg ?? null) : null,
           created_by: user?.id ?? null,
         })
         .select()
