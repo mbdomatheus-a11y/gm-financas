@@ -82,8 +82,13 @@ function DashboardPage() {
   const { data: despesas = [] } = useDespesas();
 
   const mesAtual = currentMonthKey();
+  const [janela, setJanela] = useState("-6");
+  const [mesPie, setMesPie] = useState(mesAtual);
+
+  const meses = useMemo(() => monthWindow(janela), [janela]);
 
   const dados = useMemo(() => {
+
     const parcelas = despesas.flatMap((d: any) =>
       (d.parcelas ?? []).map((p: any) => ({ ...p, despesa: d })),
     );
