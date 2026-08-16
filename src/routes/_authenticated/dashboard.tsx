@@ -220,8 +220,20 @@ function DashboardPage() {
 
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
             <CardTitle className="text-base">Despesas por categoria</CardTitle>
+            <Select value={mesPie} onValueChange={setMesPie}>
+              <SelectTrigger className="h-8 w-[130px] text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {mesesSelecionaveis.map((k) => (
+                  <SelectItem key={k} value={k} className="text-xs">
+                    {monthLabel(k)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </CardHeader>
           <CardContent className="h-[300px]">
             {dados.pie.length === 0 ? (
@@ -233,9 +245,12 @@ function DashboardPage() {
                     data={dados.pie}
                     dataKey="value"
                     nameKey="name"
-                    innerRadius={60}
-                    outerRadius={95}
+                    innerRadius={55}
+                    outerRadius={90}
                     paddingAngle={2}
+                    label={(e: any) => formatBRL(Number(e.value))}
+                    labelLine={false}
+                    fontSize={11}
                   >
                     {dados.pie.map((_, i) => (
                       <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
@@ -250,19 +265,39 @@ function DashboardPage() {
         </Card>
 
         <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Receitas x Despesas (6 meses)</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
+            <CardTitle className="text-base">Fluxo de caixa mês a mês</CardTitle>
+            <Select value={janela} onValueChange={setJanela}>
+              <SelectTrigger className="h-8 w-[170px] text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {JANELAS.map((j) => (
+                  <SelectItem key={j.value} value={j.value} className="text-xs">
+                    {j.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </CardHeader>
           <CardContent className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={dados.meses}>
+              <BarChart data={dados.meses} margin={{ top: 18 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
-                <XAxis dataKey="mes" fontSize={12} tickLine={false} axisLine={false} />
+                <XAxis dataKey="mes" fontSize={11} tickLine={false} axisLine={false} interval={0} angle={dados.meses.length > 8 ? -35 : 0} textAnchor={dados.meses.length > 8 ? "end" : "middle"} height={dados.meses.length > 8 ? 46 : 24} />
                 <YAxis fontSize={11} tickLine={false} axisLine={false} width={60} />
                 <Tooltip formatter={(v: any) => formatBRL(Number(v))} />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
-                <Bar dataKey="Receitas" fill="var(--success)" radius={[6, 6, 0, 0]} />
-                <Bar dataKey="Despesas" fill="var(--destructive)" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="Receitas" fill="var(--success)" radius={[6, 6, 0, 0]}>
+                  {dados.meses.length <= 12 && (
+                    <LabelList dataKey="Receitas" position="top" fontSize={9} formatter={compact} />
+                  )}
+                </Bar>
+                <Bar dataKey="Despesas" fill="var(--destructive)" radius={[6, 6, 0, 0]}>
+                  {dados.meses.length <= 12 && (
+                    <LabelList dataKey="Despesas" position="top" fontSize={9} formatter={compact} />
+                  )}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -277,10 +312,11 @@ function DashboardPage() {
           <CardContent className="h-[260px]">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart
-                data={dados.meses.map((m) => ({ mes: m.mes, Saldo: m.Receitas - m.Despesas }))}
+                data={dados.meses.map((m: any) => ({ mes: m.mes, Saldo: Number((m.Receitas - m.Despesas).toFixed(2)) }))}
+                margin={{ top: 18 }}
               >
                 <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
-                <XAxis dataKey="mes" fontSize={12} tickLine={false} axisLine={false} />
+                <XAxis dataKey="mes" fontSize={11} tickLine={false} axisLine={false} />
                 <YAxis fontSize={11} tickLine={false} axisLine={false} width={60} />
                 <Tooltip formatter={(v: any) => formatBRL(Number(v))} />
                 <Line
@@ -289,8 +325,15 @@ function DashboardPage() {
                   stroke="var(--primary)"
                   strokeWidth={2.5}
                   dot={{ r: 3 }}
-                />
+                >
+                  {dados.meses.length <= 12 && (
+                    <LabelList dataKey="Saldo" position="top" fontSize={9} formatter={compact} />
+                  )}
+                </Line>
               </LineChart>
+            </ResponsiveContainer>
+          </CardContent>
+
             </ResponsiveContainer>
           </CardContent>
         </Card>
