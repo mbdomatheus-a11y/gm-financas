@@ -125,7 +125,7 @@ function DashboardPage() {
       .reduce((s: number, p: any) => s + toBRL(Number(p.valor), p.despesa.moeda, cotacao), 0);
 
     const porCategoria = new Map<string, number>();
-    for (const p of parcelasMes) {
+    for (const p of parcelas.filter((p: any) => monthKey(p.vencimento) === mesPie)) {
       const key = `${p.despesa.categoria} (${p.despesa.tipo === "fixa" ? "fixa" : "variável"})`;
       porCategoria.set(
         key,
@@ -133,7 +133,7 @@ function DashboardPage() {
       );
     }
 
-    const meses = lastMonths(6).map((key) => {
+    const serie = meses.map((key: string) => {
       const rec = receitas
         .filter((r: any) => monthKey(r.data_recebimento) === key)
         .reduce((s: number, r: any) => s + toBRL(Number(r.valor), r.moeda, cotacao), 0);
@@ -142,6 +142,7 @@ function DashboardPage() {
         .reduce((s: number, p: any) => s + toBRL(Number(p.valor), p.despesa.moeda, cotacao), 0);
       return { mes: monthLabel(key), Receitas: Number(rec.toFixed(2)), Despesas: Number(des.toFixed(2)) };
     });
+
 
     const parceladas = despesas
       .filter((d: any) => d.total_parcelas > 1)
