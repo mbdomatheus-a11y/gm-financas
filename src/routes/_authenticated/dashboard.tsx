@@ -167,10 +167,11 @@ function DashboardPage() {
       mensalizado,
       dividaTotal,
       pie: Array.from(porCategoria, ([name, value]) => ({ name, value: Number(value.toFixed(2)) })),
-      meses,
+      meses: serie,
       parceladas,
     };
-  }, [receitas, despesas, cotacao, mesAtual]);
+  }, [receitas, despesas, cotacao, mesAtual, mesPie, meses]);
+
 
   return (
     <AppLayout
