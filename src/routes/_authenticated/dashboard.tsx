@@ -333,9 +333,6 @@ function DashboardPage() {
               </LineChart>
             </ResponsiveContainer>
           </CardContent>
-
-            </ResponsiveContainer>
-          </CardContent>
         </Card>
 
         <Card>
