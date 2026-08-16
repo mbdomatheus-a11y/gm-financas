@@ -76,6 +76,34 @@ const PIE_COLORS = [
   "oklch(0.7 0.13 120)",
 ];
 
+const JANELAS = [
+  { value: "-6", label: "Últimos 6 meses" },
+  { value: "-12", label: "Últimos 12 meses" },
+  { value: "6", label: "Próximos 6 meses" },
+  { value: "12", label: "Próximos 12 meses" },
+  { value: "24", label: "Próximos 24 meses" },
+];
+
+/** Gera as chaves de mês da janela escolhida (negativo = passado incluindo o mês atual). */
+function monthWindow(janela: string): string[] {
+  const n = Number(janela);
+  const now = new Date();
+  const out: string[] = [];
+  if (n < 0) {
+    for (let i = -n - 1; i >= 0; i--) out.push(monthKey(new Date(now.getFullYear(), now.getMonth() - i, 1)));
+  } else {
+    for (let i = 0; i < n; i++) out.push(monthKey(new Date(now.getFullYear(), now.getMonth() + i, 1)));
+  }
+  return out;
+}
+
+const compact = (v: any) =>
+  Number(v) === 0
+    ? ""
+    : new Intl.NumberFormat("pt-BR", { notation: "compact", maximumFractionDigits: 1 }).format(
+        Number(v),
+      );
+
 function DashboardPage() {
   const cotacao = useCotacao();
   const { data: receitas = [] } = useReceitas();
@@ -86,6 +114,13 @@ function DashboardPage() {
   const [mesPie, setMesPie] = useState(mesAtual);
 
   const meses = useMemo(() => monthWindow(janela), [janela]);
+  const mesesSelecionaveis = useMemo(() => {
+    const now = new Date();
+    const out: string[] = [];
+    for (let i = -12; i <= 24; i++) out.push(monthKey(new Date(now.getFullYear(), now.getMonth() + i, 1)));
+    return out;
+  }, []);
+
 
   const dados = useMemo(() => {
 
