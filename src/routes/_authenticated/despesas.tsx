@@ -98,6 +98,7 @@ function novoForm(tipo: "fixa" | "variavel") {
   return {
     descricao: "",
     valor_total: "",
+    modo_valor: "total",
     moeda: "BRL",
     categoria: "",
     tipo,
@@ -109,6 +110,7 @@ function novoForm(tipo: "fixa" | "variavel") {
     observacoes: "",
   };
 }
+
 
 function DespesasPage() {
   const qc = useQueryClient();
@@ -132,9 +134,15 @@ function DespesasPage() {
 
   const responsaveis = [...perfis.map((p: any) => p.nome), RESPONSAVEIS_EXTRA];
 
-  const valorNum = Number(String(form.valor_total).replace(",", ".")) || 0;
+  const valorDigitado = Number(String(form.valor_total).replace(",", ".")) || 0;
   const nParcelas = Math.max(1, Number(form.total_parcelas) || 1);
+  // "parcela" = o valor digitado é o de cada parcela; "total" = valor cheio da compra
+  const valorNum =
+    form.modo_valor === "parcela"
+      ? Number((valorDigitado * nParcelas).toFixed(2))
+      : valorDigitado;
   const previewParcela = valorNum > 0 ? dividirParcelas(valorNum, nParcelas)[0] ?? 0 : 0;
+
 
   const possivelDuplicata = useMemo(() => {
     if (editId) return null;
@@ -169,6 +177,8 @@ function DespesasPage() {
     setForm({
       descricao: d.descricao ?? "",
       valor_total: String(d.valor_total ?? ""),
+      modo_valor: "total",
+
       moeda: d.moeda ?? "BRL",
       categoria: d.categoria ?? "",
       tipo: d.tipo ?? "fixa",
@@ -534,14 +544,36 @@ function DespesasPage() {
                 placeholder="Ex.: Mercado do mês"
               />
             </Field>
-            <Field label="Valor total">
+            <Field label={form.modo_valor === "parcela" ? "Valor da parcela" : "Valor total"}>
               <Input
                 inputMode="decimal"
                 value={form.valor_total}
                 onChange={(e) => setForm({ ...form, valor_total: e.target.value })}
                 placeholder="0,00"
               />
+              {nParcelas > 1 && valorNum > 0 && (
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  {form.modo_valor === "parcela"
+                    ? `Total da compra: ${formatBRL(valorNum)}`
+                    : `Cada parcela: ${formatBRL(previewParcela)}`}
+                </p>
+              )}
             </Field>
+            <Field label="O valor digitado é">
+              <Select
+                value={form.modo_valor}
+                onValueChange={(v) => setForm({ ...form, modo_valor: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="total">Valor total da compra</SelectItem>
+                  <SelectItem value="parcela">Valor de cada parcela</SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
+
             <Field label="Moeda">
               <Select value={form.moeda} onValueChange={(v) => setForm({ ...form, moeda: v })}>
                 <SelectTrigger>
