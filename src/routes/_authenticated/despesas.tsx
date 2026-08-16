@@ -134,9 +134,15 @@ function DespesasPage() {
 
   const responsaveis = [...perfis.map((p: any) => p.nome), RESPONSAVEIS_EXTRA];
 
-  const valorNum = Number(String(form.valor_total).replace(",", ".")) || 0;
+  const valorDigitado = Number(String(form.valor_total).replace(",", ".")) || 0;
   const nParcelas = Math.max(1, Number(form.total_parcelas) || 1);
+  // "parcela" = o valor digitado é o de cada parcela; "total" = valor cheio da compra
+  const valorNum =
+    form.modo_valor === "parcela"
+      ? Number((valorDigitado * nParcelas).toFixed(2))
+      : valorDigitado;
   const previewParcela = valorNum > 0 ? dividirParcelas(valorNum, nParcelas)[0] ?? 0 : 0;
+
 
   const possivelDuplicata = useMemo(() => {
     if (editId) return null;
