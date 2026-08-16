@@ -98,6 +98,7 @@ function novoForm(tipo: "fixa" | "variavel") {
   return {
     descricao: "",
     valor_total: "",
+    modo_valor: "total",
     moeda: "BRL",
     categoria: "",
     tipo,
@@ -109,6 +110,7 @@ function novoForm(tipo: "fixa" | "variavel") {
     observacoes: "",
   };
 }
+
 
 function DespesasPage() {
   const qc = useQueryClient();
