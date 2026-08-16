@@ -34,10 +34,12 @@ export const ensureSeedUsers = createServerFn({ method: "POST" }).handler(async 
 });
 
 async function assertAdmin(context: { supabase: any; userId: string }) {
-  const { data } = await context.supabase.rpc("has_role", {
-    _user_id: context.userId,
-    _role: "admin",
-  });
+  const { data } = await context.supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", context.userId)
+    .eq("role", "admin")
+    .maybeSingle();
   if (!data) throw new Error("Acesso restrito a administradores");
 }
 
