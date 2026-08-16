@@ -177,6 +177,8 @@ function DespesasPage() {
     setForm({
       descricao: d.descricao ?? "",
       valor_total: String(d.valor_total ?? ""),
+      modo_valor: "total",
+
       moeda: d.moeda ?? "BRL",
       categoria: d.categoria ?? "",
       tipo: d.tipo ?? "fixa",
