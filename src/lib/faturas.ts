@@ -1,6 +1,6 @@
 import * as pdfjs from "pdfjs-dist";
-// @ts-expect-error worker é resolvido pelo Vite como URL
 import workerSrc from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+
 
 import { addMonths, parseDate, toISODate } from "@/lib/format";
 
