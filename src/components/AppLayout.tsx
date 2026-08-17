@@ -28,7 +28,9 @@ type NavTo =
   | "/dashboard"
   | "/receitas"
   | "/despesas"
+  | "/importar"
   | "/categorias"
+
   | "/cartoes"
   | "/investimentos"
   | "/compartilhar"
