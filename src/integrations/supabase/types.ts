@@ -47,6 +47,44 @@ export type Database = {
         }
         Relationships: []
       }
+      cartao_vinculos: {
+        Row: {
+          banco: string
+          created_at: string
+          final: string
+          id: string
+          profile_id: string | null
+          responsavel: string
+          updated_at: string
+        }
+        Insert: {
+          banco: string
+          created_at?: string
+          final: string
+          id?: string
+          profile_id?: string | null
+          responsavel: string
+          updated_at?: string
+        }
+        Update: {
+          banco?: string
+          created_at?: string
+          final?: string
+          id?: string
+          profile_id?: string | null
+          responsavel?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cartao_vinculos_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cartoes: {
         Row: {
           apelido: string | null
@@ -136,16 +174,24 @@ export type Database = {
       despesas: {
         Row: {
           banco_id: string | null
+          banco_nome: string | null
+          cartao_final: string | null
           cartao_id: string | null
           categoria: string
           created_at: string
           created_by: string | null
           data_compra: string
           data_primeira_parcela: string
+          dedup_key: string | null
           descricao: string
+          descricao_normalizada: string | null
+          direcao: string
+          fatura_id: string | null
+          grupo_parcelamento: string | null
           id: string
           moeda: string
           observacoes: string | null
+          origem: string
           responsavel: string | null
           tipo: string
           total_parcelas: number
@@ -153,16 +199,24 @@ export type Database = {
         }
         Insert: {
           banco_id?: string | null
+          banco_nome?: string | null
+          cartao_final?: string | null
           cartao_id?: string | null
           categoria?: string
           created_at?: string
           created_by?: string | null
           data_compra: string
           data_primeira_parcela: string
+          dedup_key?: string | null
           descricao: string
+          descricao_normalizada?: string | null
+          direcao?: string
+          fatura_id?: string | null
+          grupo_parcelamento?: string | null
           id?: string
           moeda?: string
           observacoes?: string | null
+          origem?: string
           responsavel?: string | null
           tipo: string
           total_parcelas?: number
@@ -170,16 +224,24 @@ export type Database = {
         }
         Update: {
           banco_id?: string | null
+          banco_nome?: string | null
+          cartao_final?: string | null
           cartao_id?: string | null
           categoria?: string
           created_at?: string
           created_by?: string | null
           data_compra?: string
           data_primeira_parcela?: string
+          dedup_key?: string | null
           descricao?: string
+          descricao_normalizada?: string | null
+          direcao?: string
+          fatura_id?: string | null
+          grupo_parcelamento?: string | null
           id?: string
           moeda?: string
           observacoes?: string | null
+          origem?: string
           responsavel?: string | null
           tipo?: string
           total_parcelas?: number
@@ -200,7 +262,106 @@ export type Database = {
             referencedRelation: "cartoes"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "despesas_fatura_id_fkey"
+            columns: ["fatura_id"]
+            isOneToOne: false
+            referencedRelation: "import_faturas"
+            referencedColumns: ["id"]
+          },
         ]
+      }
+      import_faturas: {
+        Row: {
+          arquivo_excluido_em: string | null
+          arquivo_excluido_por: string | null
+          arquivo_hash: string
+          arquivo_nome: string
+          banco: string
+          competencia: string | null
+          created_at: string
+          id: string
+          lote_id: string
+          paginas: number | null
+          status: string
+          storage_path: string | null
+          total_declarado: number | null
+          total_extraido: number | null
+          updated_at: string
+          vencimento: string | null
+        }
+        Insert: {
+          arquivo_excluido_em?: string | null
+          arquivo_excluido_por?: string | null
+          arquivo_hash: string
+          arquivo_nome: string
+          banco: string
+          competencia?: string | null
+          created_at?: string
+          id?: string
+          lote_id: string
+          paginas?: number | null
+          status?: string
+          storage_path?: string | null
+          total_declarado?: number | null
+          total_extraido?: number | null
+          updated_at?: string
+          vencimento?: string | null
+        }
+        Update: {
+          arquivo_excluido_em?: string | null
+          arquivo_excluido_por?: string | null
+          arquivo_hash?: string
+          arquivo_nome?: string
+          banco?: string
+          competencia?: string | null
+          created_at?: string
+          id?: string
+          lote_id?: string
+          paginas?: number | null
+          status?: string
+          storage_path?: string | null
+          total_declarado?: number | null
+          total_extraido?: number | null
+          updated_at?: string
+          vencimento?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_faturas_lote_id_fkey"
+            columns: ["lote_id"]
+            isOneToOne: false
+            referencedRelation: "import_lotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      import_lotes: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          observacao: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          observacao?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          observacao?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       investimento_movimentos: {
         Row: {
@@ -281,36 +442,54 @@ export type Database = {
       }
       parcelas: {
         Row: {
+          confianca_data: string | null
           data_pagamento: string | null
+          dedup_key: string | null
           despesa_id: string
+          fatura_id: string | null
           id: string
           moeda: string
           numero: number
+          origem: string
           paga: boolean
+          situacao_temporal: string | null
           total: number
           valor: number
+          valor_estimado: boolean
           vencimento: string
         }
         Insert: {
+          confianca_data?: string | null
           data_pagamento?: string | null
+          dedup_key?: string | null
           despesa_id: string
+          fatura_id?: string | null
           id?: string
           moeda?: string
           numero: number
+          origem?: string
           paga?: boolean
+          situacao_temporal?: string | null
           total: number
           valor: number
+          valor_estimado?: boolean
           vencimento: string
         }
         Update: {
+          confianca_data?: string | null
           data_pagamento?: string | null
+          dedup_key?: string | null
           despesa_id?: string
+          fatura_id?: string | null
           id?: string
           moeda?: string
           numero?: number
+          origem?: string
           paga?: boolean
+          situacao_temporal?: string | null
           total?: number
           valor?: number
+          valor_estimado?: boolean
           vencimento?: string
         }
         Relationships: [
@@ -319,6 +498,13 @@ export type Database = {
             columns: ["despesa_id"]
             isOneToOne: false
             referencedRelation: "despesas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "parcelas_fatura_id_fkey"
+            columns: ["fatura_id"]
+            isOneToOne: false
+            referencedRelation: "import_faturas"
             referencedColumns: ["id"]
           },
         ]
