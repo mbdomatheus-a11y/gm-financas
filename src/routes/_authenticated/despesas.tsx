@@ -454,6 +454,21 @@ function DespesasPage() {
                         className="size-8 text-muted-foreground hover:text-primary"
                         onClick={(e) => {
                           e.stopPropagation();
+                          moverTipo.mutate({ id: d.id, tipo: d.tipo === "fixa" ? "variavel" : "fixa" });
+                        }}
+                        title={d.tipo === "fixa" ? "Mover para variável" : "Mover para fixa"}
+                        aria-label={d.tipo === "fixa" ? "Mover para variável" : "Mover para fixa"}
+                      >
+                        <ArrowLeftRight className="size-4" />
+                      </Button>
+                    )}
+                    {can("despesas", "editar") && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-8 text-muted-foreground hover:text-primary"
+                        onClick={(e) => {
+                          e.stopPropagation();
                           abrirEdicao(d);
                         }}
                         aria-label="Editar despesa"
@@ -461,6 +476,7 @@ function DespesasPage() {
                         <Pencil className="size-4" />
                       </Button>
                     )}
+
                     {parcelas.length > 0 && (
                       <Button
                         variant="ghost"
