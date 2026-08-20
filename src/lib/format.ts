@@ -79,3 +79,34 @@ export function dividirParcelas(total: number, n: number): number[] {
   values[n - 1] = (values[n - 1] ?? 0) + resto;
   return values.map((c) => c / 100);
 }
+
+/** Nome completo do mês com ano, ex.: "Agosto de 2026". */
+export function monthLabelLong(key: string): string {
+  const [y, m] = key.split("-");
+  const d = new Date(Number(y), Number(m) - 1, 1);
+  const label = d.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
+/** "Guilherme · Itaú •1234" — identificação de responsável e forma de pagamento. */
+export function identificacaoDespesa(d: {
+  responsavel?: string | null;
+  banco_nome?: string | null;
+  cartao_final?: string | null;
+  cartoes?: { apelido?: string | null; titular?: string | null; final?: string | null } | null;
+  bancos?: { nome?: string | null } | null;
+}): string {
+  const partes: string[] = [];
+  if (d.responsavel) partes.push(d.responsavel);
+  const cartao = d.cartoes;
+  if (cartao) {
+    const nome = cartao.apelido || cartao.titular || "Cartão";
+    partes.push(cartao.final ? `${nome} •${cartao.final}` : nome);
+  } else if (d.bancos?.nome) {
+    partes.push(d.bancos.nome);
+  } else if (d.banco_nome) {
+    partes.push(d.cartao_final ? `${d.banco_nome} •${d.cartao_final}` : d.banco_nome);
+  }
+  return partes.join(" · ");
+}
+
