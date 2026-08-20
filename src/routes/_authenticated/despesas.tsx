@@ -290,6 +290,21 @@ function DespesasPage() {
     },
   });
 
+  const moverTipo = useMutation({
+    mutationFn: async ({ id, tipo }: { id: string; tipo: "fixa" | "variavel" }) => {
+      const { error } = await supabase.from("despesas").update({ tipo }).eq("id", id);
+      if (error) throw error;
+      return tipo;
+    },
+    onSuccess: (tipo) => {
+      toast.success(`Despesa movida para ${tipo === "fixa" ? "fixas" : "variáveis"}`);
+      qc.invalidateQueries();
+    },
+    onError: (e: any) => toast.error(e.message ?? "Não foi possível mover"),
+  });
+
+
+
   function tentarSalvar() {
     if (possivelDuplicata && !duplicata) {
       setDuplicata(possivelDuplicata);
