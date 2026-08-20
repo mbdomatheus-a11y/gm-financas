@@ -55,6 +55,7 @@ import {
   formatBRL,
   formatDate,
   formatUSD,
+  identificacaoDespesa,
   monthKey,
   parseDate,
   toBRL,
