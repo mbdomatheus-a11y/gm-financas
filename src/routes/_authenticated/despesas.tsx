@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
+  ArrowLeftRight,
   CheckCircle2,
   ChevronDown,
   Pencil,
@@ -55,6 +56,7 @@ import {
   formatBRL,
   formatDate,
   formatUSD,
+  identificacaoDespesa,
   monthKey,
   parseDate,
   toBRL,
@@ -288,6 +290,21 @@ function DespesasPage() {
     },
   });
 
+  const moverTipo = useMutation({
+    mutationFn: async ({ id, tipo }: { id: string; tipo: "fixa" | "variavel" }) => {
+      const { error } = await supabase.from("despesas").update({ tipo }).eq("id", id);
+      if (error) throw error;
+      return tipo;
+    },
+    onSuccess: (tipo) => {
+      toast.success(`Despesa movida para ${tipo === "fixa" ? "fixas" : "variáveis"}`);
+      qc.invalidateQueries();
+    },
+    onError: (e: any) => toast.error(e.message ?? "Não foi possível mover"),
+  });
+
+
+
   function tentarSalvar() {
     if (possivelDuplicata && !duplicata) {
       setDuplicata(possivelDuplicata);
@@ -414,11 +431,19 @@ function DespesasPage() {
                     style={{ backgroundColor: d.cartoes?.cor ?? "var(--muted-foreground)" }}
                   />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold leading-tight">{d.descricao}</p>
+                    <p className="truncate text-sm font-semibold leading-tight">
+                      {identificacaoDespesa(d) && (
+                        <span className="text-primary">{identificacaoDespesa(d)} · </span>
+                      )}
+                      {d.descricao}
+                    </p>
                     <p className="truncate text-[11px] text-muted-foreground">
-                      {formatDate(d.data_compra)} · {d.categoria} · {d.responsavel}
-                      {d.cartoes ? ` · ${d.cartoes.apelido ?? "Cartão"} •${d.cartoes.final}` : ""}
-                      {d.bancos ? ` · ${d.bancos.nome}` : ""}
+                      {formatDate(d.data_compra)} · {d.categoria}
+                      {d.total_parcelas > 1
+                        ? ` · ${d.total_parcelas}x de ${formatBRL(
+                            toBRL(Number(d.valor_total) / d.total_parcelas, d.moeda, cotacao),
+                          )}`
+                        : " · à vista"}
                     </p>
                   </div>
                   {d.total_parcelas > 1 && (
@@ -426,6 +451,7 @@ function DespesasPage() {
                       {pagas}/{d.total_parcelas} pagas
                     </Badge>
                   )}
+
                   <div className="shrink-0 text-right">
                     <p className="text-sm font-bold tabular-nums">
                       {formatBRL(toBRL(Number(d.valor_total), d.moeda, cotacao))}
@@ -444,6 +470,21 @@ function DespesasPage() {
                         className="size-8 text-muted-foreground hover:text-primary"
                         onClick={(e) => {
                           e.stopPropagation();
+                          moverTipo.mutate({ id: d.id, tipo: d.tipo === "fixa" ? "variavel" : "fixa" });
+                        }}
+                        title={d.tipo === "fixa" ? "Mover para variável" : "Mover para fixa"}
+                        aria-label={d.tipo === "fixa" ? "Mover para variável" : "Mover para fixa"}
+                      >
+                        <ArrowLeftRight className="size-4" />
+                      </Button>
+                    )}
+                    {can("despesas", "editar") && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-8 text-muted-foreground hover:text-primary"
+                        onClick={(e) => {
+                          e.stopPropagation();
                           abrirEdicao(d);
                         }}
                         aria-label="Editar despesa"
@@ -451,6 +492,7 @@ function DespesasPage() {
                         <Pencil className="size-4" />
                       </Button>
                     )}
+
                     {parcelas.length > 0 && (
                       <Button
                         variant="ghost"

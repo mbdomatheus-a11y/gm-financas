@@ -31,7 +31,17 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCategorias, useProfilesList, useReceitas, RESPONSAVEIS_EXTRA } from "@/hooks/useFinance";
 import { usePermissoes, useSession } from "@/hooks/useAuthData";
 import { useCotacao } from "@/hooks/useCotacao";
-import { addMonths, formatBRL, formatDate, formatMoeda, monthKey, toBRL, toISODate } from "@/lib/format";
+import {
+  addMonths,
+  currentMonthKey,
+  formatBRL,
+  formatDate,
+  formatMoeda,
+  monthKey,
+  monthLabelLong,
+  toBRL,
+  toISODate,
+} from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/receitas")({
   head: () => ({
@@ -101,6 +111,28 @@ function ReceitasPage() {
   });
 
   const total = lista.reduce((s: number, r: any) => s + toBRL(Number(r.valor), r.moeda, cotacao), 0);
+
+  const grupos = useMemo(() => {
+    const map = new Map<string, any[]>();
+    for (const r of lista as any[]) {
+      const k = monthKey(r.data_recebimento);
+      if (!map.has(k)) map.set(k, []);
+      map.get(k)!.push(r);
+    }
+    return Array.from(map, ([mes, itens]) => ({
+      mes,
+      itens: itens.sort(
+        (a, b) => new Date(b.data_recebimento).getTime() - new Date(a.data_recebimento).getTime(),
+      ),
+      total: itens.reduce((s, r) => s + toBRL(Number(r.valor), r.moeda, cotacao), 0),
+    })).sort((a, b) => b.mes.localeCompare(a.mes));
+  }, [lista, cotacao]);
+
+  const [fechados, setFechados] = useState<Record<string, boolean>>({});
+  const mesAtual = currentMonthKey();
+  const estaAberto = (mes: string) =>
+    fechados[mes] === undefined ? mes === mesAtual || grupos.length === 1 : !fechados[mes];
+
 
   function abrirNova() {
     setEditId(null);
@@ -232,7 +264,7 @@ function ReceitasPage() {
         </Select>
       </div>
 
-      <div className="space-y-2">
+      <div className="space-y-4">
         {lista.length === 0 && (
           <Card>
             <CardContent className="flex flex-col items-center gap-2 py-12 text-center">
@@ -241,65 +273,98 @@ function ReceitasPage() {
             </CardContent>
           </Card>
         )}
-        {lista.map((r: any) => (
-          <Card
-            key={r.id}
-            onClick={() => abrirEdicao(r)}
-            className={can("receitas", "editar") ? "cursor-pointer transition-colors hover:border-primary/40" : ""}
-          >
-            <CardContent className="flex items-center gap-3 p-4">
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-success/10">
-                <TrendingUp className="size-5 text-success" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold">{r.descricao}</p>
-                <p className="truncate text-xs text-muted-foreground">
-                  {r.categoria} · {formatDate(r.data_recebimento)} · {r.responsavel}
-                  {r.recorrente ? ` · ${r.frequencia}` : ""}
-                </p>
-              </div>
-              <div className="shrink-0 text-right">
-                <p className="text-sm font-bold text-success">
-                  {formatBRL(toBRL(Number(r.valor), r.moeda, cotacao))}
-                </p>
-                {r.moeda === "USD" && (
-                  <p className="text-[11px] text-muted-foreground">
-                    {formatMoeda(Number(r.valor), "USD")} na cotação
-                  </p>
-                )}
-              </div>
-              {can("receitas", "editar") && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="shrink-0 text-muted-foreground hover:text-primary"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    abrirEdicao(r);
-                  }}
-                  aria-label="Editar receita"
-                >
-                  <Pencil className="size-4" />
-                </Button>
+        {grupos.map((g) => {
+          const aberto = estaAberto(g.mes);
+          return (
+            <div key={g.mes} className="overflow-hidden rounded-xl border bg-card">
+              <button
+                type="button"
+                onClick={() => setFechados((f) => ({ ...f, [g.mes]: aberto }))}
+                className="flex w-full items-center gap-3 bg-muted/40 px-4 py-2.5 text-left transition-colors hover:bg-muted/60"
+              >
+                <ChevronDown
+                  className={`size-4 shrink-0 text-muted-foreground transition-transform ${aberto ? "" : "-rotate-90"}`}
+                />
+                <span className="flex-1 truncate text-sm font-semibold">{monthLabelLong(g.mes)}</span>
+                <Badge variant="secondary" className="shrink-0 text-[10px]">
+                  {g.itens.length} lançamento{g.itens.length > 1 ? "s" : ""}
+                </Badge>
+                <span className="shrink-0 text-sm font-bold tabular-nums text-success">
+                  {formatBRL(g.total)}
+                </span>
+              </button>
+              {aberto && (
+                <div className="divide-y">
+                  {g.itens.map((r: any) => (
+                    <div
+                      key={r.id}
+                      onClick={() => abrirEdicao(r)}
+                      className={`flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-muted/30 ${
+                        can("receitas", "editar") ? "cursor-pointer" : ""
+                      }`}
+                    >
+                      <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-success/10">
+                        <TrendingUp className="size-4 text-success" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold leading-tight">
+                          <span className="text-primary">{r.responsavel} · </span>
+                          {r.descricao}
+                        </p>
+                        <p className="truncate text-[11px] text-muted-foreground">
+                          {r.categoria} · {formatDate(r.data_recebimento)}
+                          {r.recorrente ? ` · ${r.frequencia}` : ""}
+                        </p>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <p className="text-sm font-bold tabular-nums text-success">
+                          {formatBRL(toBRL(Number(r.valor), r.moeda, cotacao))}
+                        </p>
+                        {r.moeda === "USD" && (
+                          <p className="text-[10px] text-muted-foreground">
+                            {formatMoeda(Number(r.valor), "USD")} na cotação
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex shrink-0 items-center">
+                        {can("receitas", "editar") && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-8 text-muted-foreground hover:text-primary"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              abrirEdicao(r);
+                            }}
+                            aria-label="Editar receita"
+                          >
+                            <Pencil className="size-4" />
+                          </Button>
+                        )}
+                        {can("receitas", "excluir") && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-8 text-muted-foreground hover:text-destructive"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              excluir.mutate(r.id);
+                            }}
+                            aria-label="Excluir receita"
+                          >
+                            <Trash2 className="size-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               )}
-              {can("receitas", "excluir") && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="shrink-0 text-muted-foreground hover:text-destructive"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    excluir.mutate(r.id);
-                  }}
-                  aria-label="Excluir receita"
-                >
-                  <Trash2 className="size-4" />
-                </Button>
-              )}
-            </CardContent>
-          </Card>
-        ))}
+            </div>
+          );
+        })}
       </div>
+
 
       {lista.some((r: any) => r.recorrente) && (
         <p className="mt-4 text-xs text-muted-foreground">
