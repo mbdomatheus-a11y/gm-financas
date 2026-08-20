@@ -102,6 +102,28 @@ function ReceitasPage() {
 
   const total = lista.reduce((s: number, r: any) => s + toBRL(Number(r.valor), r.moeda, cotacao), 0);
 
+  const grupos = useMemo(() => {
+    const map = new Map<string, any[]>();
+    for (const r of lista as any[]) {
+      const k = monthKey(r.data_recebimento);
+      if (!map.has(k)) map.set(k, []);
+      map.get(k)!.push(r);
+    }
+    return Array.from(map, ([mes, itens]) => ({
+      mes,
+      itens: itens.sort(
+        (a, b) => new Date(b.data_recebimento).getTime() - new Date(a.data_recebimento).getTime(),
+      ),
+      total: itens.reduce((s, r) => s + toBRL(Number(r.valor), r.moeda, cotacao), 0),
+    })).sort((a, b) => b.mes.localeCompare(a.mes));
+  }, [lista, cotacao]);
+
+  const [fechados, setFechados] = useState<Record<string, boolean>>({});
+  const mesAtual = currentMonthKey();
+  const estaAberto = (mes: string) =>
+    fechados[mes] === undefined ? mes === mesAtual || grupos.length === 1 : !fechados[mes];
+
+
   function abrirNova() {
     setEditId(null);
     setForm(emptyForm);
