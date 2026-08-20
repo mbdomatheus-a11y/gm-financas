@@ -31,7 +31,17 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCategorias, useProfilesList, useReceitas, RESPONSAVEIS_EXTRA } from "@/hooks/useFinance";
 import { usePermissoes, useSession } from "@/hooks/useAuthData";
 import { useCotacao } from "@/hooks/useCotacao";
-import { addMonths, formatBRL, formatDate, formatMoeda, monthKey, toBRL, toISODate } from "@/lib/format";
+import {
+  addMonths,
+  currentMonthKey,
+  formatBRL,
+  formatDate,
+  formatMoeda,
+  monthKey,
+  monthLabelLong,
+  toBRL,
+  toISODate,
+} from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/receitas")({
   head: () => ({
