@@ -281,6 +281,9 @@ export type Database = {
           competencia: string | null
           created_at: string
           id: string
+          limite_disponivel: number | null
+          limite_total: number | null
+          limite_utilizado: number | null
           lote_id: string
           paginas: number | null
           status: string
@@ -299,6 +302,9 @@ export type Database = {
           competencia?: string | null
           created_at?: string
           id?: string
+          limite_disponivel?: number | null
+          limite_total?: number | null
+          limite_utilizado?: number | null
           lote_id: string
           paginas?: number | null
           status?: string
@@ -317,6 +323,9 @@ export type Database = {
           competencia?: string | null
           created_at?: string
           id?: string
+          limite_disponivel?: number | null
+          limite_total?: number | null
+          limite_utilizado?: number | null
           lote_id?: string
           paginas?: number | null
           status?: string
