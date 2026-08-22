@@ -42,6 +42,9 @@ export type FaturaExtraida = {
   vencimento: string | null;
   competencia: string | null;
   total_declarado: number | null;
+  limite_total: number | null;
+  limite_utilizado: number | null;
+  limite_disponivel: number | null;
   finais: string[];
   lancamentos: LancamentoExtraido[];
   texto: string;
@@ -264,6 +267,7 @@ export async function processarFatura(file: File): Promise<FaturaExtraida> {
     vencimento,
     competencia: vencimento ? vencimento.slice(0, 7) : null,
     total_declarado: extrairTotal(texto),
+    ...extrairLimites(texto),
     finais: extrairFinais(texto),
     lancamentos: extrairLancamentos(texto, vencimento),
     texto,
