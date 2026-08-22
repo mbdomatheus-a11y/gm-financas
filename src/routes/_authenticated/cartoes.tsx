@@ -31,7 +31,7 @@ import { useBancos, useCartoes, useDespesas, useFaturasImportadas } from "@/hook
 import { usePermissoes, useProfile } from "@/hooks/useAuthData";
 import { useCotacao } from "@/hooks/useCotacao";
 import { formatBRL, toBRL } from "@/lib/format";
-import { BANCO_LABEL, type BancoFatura } from "@/lib/faturas";
+
 
 export const Route = createFileRoute("/_authenticated/cartoes")({
   head: () => ({
@@ -71,6 +71,14 @@ const bancoSchema = z.object({
   tipo_conta: z.string().min(1),
   titular: z.string().min(1, "Informe o titular"),
 });
+
+const BANCO_LABEL: Record<string, string> = {
+  itau: "Itaú",
+  nubank: "Nubank",
+  pernambucanas: "Pernambucanas",
+  santander: "Santander",
+  desconhecido: "Não identificado",
+};
 
 const CORES = [
   "#2563eb",
@@ -266,7 +274,7 @@ function CartoesPage() {
         .reduce((s: number, p: any) => s + toBRL(Number(p.valor), p.despesa.moeda, cotacao), 0);
       return {
         banco,
-        label: BANCO_LABEL[banco as BancoFatura] ?? banco,
+        label: BANCO_LABEL[banco] ?? banco,
         competencia: atual.competencia ?? null,
         limite_total: total,
         utilizado,
