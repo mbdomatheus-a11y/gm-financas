@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Building2, CreditCard, Gauge, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -27,10 +27,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
-import { useBancos, useCartoes, useDespesas } from "@/hooks/useFinance";
+import { useBancos, useCartoes, useDespesas, useFaturasImportadas } from "@/hooks/useFinance";
 import { usePermissoes, useProfile } from "@/hooks/useAuthData";
 import { useCotacao } from "@/hooks/useCotacao";
 import { formatBRL, toBRL } from "@/lib/format";
+import { BANCO_LABEL, type BancoFatura } from "@/lib/faturas";
 
 export const Route = createFileRoute("/_authenticated/cartoes")({
   head: () => ({
@@ -96,6 +97,7 @@ function CartoesPage() {
   const { data: cartoes = [] } = useCartoes();
   const { data: bancos = [] } = useBancos();
   const { data: despesas = [] } = useDespesas();
+  const { data: faturas = [] } = useFaturasImportadas();
 
   const [tab, setTab] = useState("cartoes");
   const [openCartao, setOpenCartao] = useState(false);
