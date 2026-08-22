@@ -21,7 +21,7 @@ export function useDespesas() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("despesas")
-        .select("*, parcelas(*), cartoes(apelido, final, cor), bancos(nome)")
+        .select("*, parcelas(*), cartoes(apelido, titular, final, cor), bancos(nome)")
         .order("data_compra", { ascending: false });
       if (error) throw error;
       return data ?? [];
