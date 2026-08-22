@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Building2, CreditCard, Pencil, Plus, Trash2 } from "lucide-react";
+import { Building2, CreditCard, Gauge, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 
