@@ -149,6 +149,9 @@ function ImportarPage() {
             vencimento: f.vencimento,
             competencia: f.competencia,
             total_declarado: f.total_declarado,
+            limite_total: f.limite_total,
+            limite_utilizado: f.limite_utilizado,
+            limite_disponivel: f.limite_disponivel,
             total_extraido: f.lancamentos
               .filter((l) => l.incluir)
               .reduce((s, l) => s + (l.direcao === "credito" ? -l.valor : l.valor), 0),
@@ -368,7 +371,25 @@ function ImportarPage() {
                 </p>
               </div>
             </div>
+
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { label: "Limite total", valor: f.limite_total },
+                { label: "Limite utilizado", valor: f.limite_utilizado },
+                { label: "Limite disponível", valor: f.limite_disponivel },
+              ].map((k) => (
+                <div key={k.label} className="rounded-lg border bg-muted/30 px-3 py-2">
+                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                    {k.label}
+                  </p>
+                  <p className="text-sm font-semibold tabular-nums">
+                    {k.valor != null ? formatBRL(k.valor) : "não identificado"}
+                  </p>
+                </div>
+              ))}
+            </div>
           </CardHeader>
+
 
           <CardContent className="p-0">
             {f.lancamentos.length === 0 ? (

@@ -21,7 +21,7 @@ export function useDespesas() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("despesas")
-        .select("*, parcelas(*), cartoes(apelido, final, cor), bancos(nome)")
+        .select("*, parcelas(*), cartoes(apelido, titular, final, cor), bancos(nome)")
         .order("data_compra", { ascending: false });
       if (error) throw error;
       return data ?? [];
@@ -119,4 +119,19 @@ export function useRolesList() {
   });
 }
 
+export function useFaturasImportadas() {
+  return useQuery({
+    queryKey: ["import-faturas"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("import_faturas")
+        .select("*")
+        .order("competencia", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+}
+
 export const RESPONSAVEIS_EXTRA = "Casal / Compartilhado";
+

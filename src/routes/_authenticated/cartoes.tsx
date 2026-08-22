@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Building2, CreditCard, Pencil, Plus, Trash2 } from "lucide-react";
+import { Building2, CreditCard, Gauge, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -27,10 +27,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
-import { useBancos, useCartoes, useDespesas } from "@/hooks/useFinance";
+import { useBancos, useCartoes, useDespesas, useFaturasImportadas } from "@/hooks/useFinance";
 import { usePermissoes, useProfile } from "@/hooks/useAuthData";
 import { useCotacao } from "@/hooks/useCotacao";
 import { formatBRL, toBRL } from "@/lib/format";
+
 
 export const Route = createFileRoute("/_authenticated/cartoes")({
   head: () => ({
@@ -71,6 +72,14 @@ const bancoSchema = z.object({
   titular: z.string().min(1, "Informe o titular"),
 });
 
+const BANCO_LABEL: Record<string, string> = {
+  itau: "Itaú",
+  nubank: "Nubank",
+  pernambucanas: "Pernambucanas",
+  santander: "Santander",
+  desconhecido: "Não identificado",
+};
+
 const CORES = [
   "#2563eb",
   "#0ea5e9",
@@ -96,6 +105,7 @@ function CartoesPage() {
   const { data: cartoes = [] } = useCartoes();
   const { data: bancos = [] } = useBancos();
   const { data: despesas = [] } = useDespesas();
+  const { data: faturas = [] } = useFaturasImportadas();
 
   const [tab, setTab] = useState("cartoes");
   const [openCartao, setOpenCartao] = useState(false);
@@ -223,6 +233,59 @@ function CartoesPage() {
     onError: (e: any) => toast.error(e.message),
   });
 
+  type GrupoLimite = {
+    banco: string;
+    label: string;
+    competencia: string | null;
+    limite_total: number | null;
+    utilizado: number;
+    disponivel: number | null;
+    comprometidoApp: number;
+    historico: any[];
+  };
+
+  const limitesPorBanco: GrupoLimite[] = useMemo(() => {
+    const porBanco = new Map<string, any[]>();
+    for (const f of faturas as any[]) {
+      if (f.limite_total == null && f.limite_utilizado == null && f.limite_disponivel == null)
+        continue;
+      const lista = porBanco.get(f.banco) ?? [];
+      lista.push(f);
+      porBanco.set(f.banco, lista);
+    }
+    const hoje = new Date().toISOString().slice(0, 10);
+    return Array.from(porBanco, ([banco, lista]) => {
+      const ordenadas = [...lista].sort((a, b) =>
+        String(b.competencia ?? "").localeCompare(String(a.competencia ?? "")),
+      );
+      const atual = ordenadas[0];
+      const total = atual.limite_total != null ? Number(atual.limite_total) : null;
+      const disponivel = atual.limite_disponivel != null ? Number(atual.limite_disponivel) : null;
+      const utilizado =
+        atual.limite_utilizado != null
+          ? Number(atual.limite_utilizado)
+          : total != null && disponivel != null
+            ? total - disponivel
+            : 0;
+      const comprometidoApp = (despesas as any[])
+        .filter((d) => String(d.banco_nome ?? "").toLowerCase() === banco.toLowerCase())
+        .flatMap((d) => (d.parcelas ?? []).map((p: any) => ({ ...p, despesa: d })))
+        .filter((p: any) => !p.paga && p.vencimento >= hoje)
+        .reduce((s: number, p: any) => s + toBRL(Number(p.valor), p.despesa.moeda, cotacao), 0);
+      return {
+        banco,
+        label: BANCO_LABEL[banco] ?? banco,
+        competencia: atual.competencia ?? null,
+        limite_total: total,
+        utilizado,
+        disponivel,
+        comprometidoApp,
+        historico: ordenadas.slice(0, 6),
+      };
+    }).sort((a, b) => (b.limite_total ?? 0) - (a.limite_total ?? 0));
+  }, [faturas, despesas, cotacao]);
+
+
   return (
     <AppLayout
       title="Cartões e Bancos"
@@ -243,7 +306,11 @@ function CartoesPage() {
           <TabsTrigger value="bancos" className="flex-1 sm:flex-none">
             Bancos
           </TabsTrigger>
+          <TabsTrigger value="limites" className="flex-1 sm:flex-none">
+            Limites
+          </TabsTrigger>
         </TabsList>
+
 
         <TabsContent value="cartoes" className="mt-4 grid gap-3 sm:grid-cols-2">
           {cartoes.length === 0 && (
@@ -376,7 +443,83 @@ function CartoesPage() {
             </Card>
           ))}
         </TabsContent>
+
+        <TabsContent value="limites" className="mt-4 space-y-3">
+          {limitesPorBanco.length === 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center gap-2 py-12 text-center">
+                <Gauge className="size-8 text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">
+                  Nenhum limite capturado ainda. Importe uma fatura em "Importar Faturas" para ver
+                  esta análise.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            limitesPorBanco.map((g) => {
+              const uso = g.limite_total ? Math.min(100, (g.utilizado / g.limite_total) * 100) : 0;
+              return (
+                <Card key={g.banco}>
+                  <CardContent className="space-y-3 p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-semibold">{g.label}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Última fatura: {g.competencia ?? "—"}
+                        </p>
+                      </div>
+                      <Badge variant={uso > 80 ? "destructive" : "secondary"}>
+                        {uso.toFixed(0)}% do limite usado
+                      </Badge>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                      {[
+                        { label: "Limite total", valor: g.limite_total, cor: "text-foreground" },
+                        { label: "Utilizado", valor: g.utilizado, cor: "text-destructive" },
+                        { label: "Disponível", valor: g.disponivel, cor: "text-success" },
+                        {
+                          label: "Parcelas futuras no app",
+                          valor: g.comprometidoApp,
+                          cor: "text-warning",
+                        },
+                      ].map((k) => (
+                        <div key={k.label} className="rounded-lg border bg-muted/30 px-3 py-2">
+                          <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                            {k.label}
+                          </p>
+                          <p className={`text-sm font-bold tabular-nums ${k.cor}`}>
+                            {k.valor != null ? formatBRL(k.valor) : "—"}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full bg-muted">
+                      <div
+                        className="h-full rounded-full bg-primary"
+                        style={{ width: `${uso}%` }}
+                      />
+                    </div>
+                    {g.historico.length > 1 && (
+                      <div className="flex flex-wrap gap-2 pt-1">
+                        {g.historico.map((h) => (
+                          <span
+                            key={h.competencia}
+                            className="rounded-md border px-2 py-1 text-[11px] text-muted-foreground"
+                          >
+                            {h.competencia}: {formatBRL(Number(h.limite_utilizado ?? 0))} usados
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })
+          )}
+        </TabsContent>
       </Tabs>
+
+
 
       <Dialog open={openCartao} onOpenChange={setOpenCartao}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
