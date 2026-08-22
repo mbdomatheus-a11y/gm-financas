@@ -223,6 +223,59 @@ function CartoesPage() {
     onError: (e: any) => toast.error(e.message),
   });
 
+  type GrupoLimite = {
+    banco: string;
+    label: string;
+    competencia: string | null;
+    limite_total: number | null;
+    utilizado: number;
+    disponivel: number | null;
+    comprometidoApp: number;
+    historico: any[];
+  };
+
+  const limitesPorBanco: GrupoLimite[] = useMemo(() => {
+    const porBanco = new Map<string, any[]>();
+    for (const f of faturas as any[]) {
+      if (f.limite_total == null && f.limite_utilizado == null && f.limite_disponivel == null)
+        continue;
+      const lista = porBanco.get(f.banco) ?? [];
+      lista.push(f);
+      porBanco.set(f.banco, lista);
+    }
+    const hoje = new Date().toISOString().slice(0, 10);
+    return Array.from(porBanco, ([banco, lista]) => {
+      const ordenadas = [...lista].sort((a, b) =>
+        String(b.competencia ?? "").localeCompare(String(a.competencia ?? "")),
+      );
+      const atual = ordenadas[0];
+      const total = atual.limite_total != null ? Number(atual.limite_total) : null;
+      const disponivel = atual.limite_disponivel != null ? Number(atual.limite_disponivel) : null;
+      const utilizado =
+        atual.limite_utilizado != null
+          ? Number(atual.limite_utilizado)
+          : total != null && disponivel != null
+            ? total - disponivel
+            : 0;
+      const comprometidoApp = (despesas as any[])
+        .filter((d) => String(d.banco_nome ?? "").toLowerCase() === banco.toLowerCase())
+        .flatMap((d) => (d.parcelas ?? []).map((p: any) => ({ ...p, despesa: d })))
+        .filter((p: any) => !p.paga && p.vencimento >= hoje)
+        .reduce((s: number, p: any) => s + toBRL(Number(p.valor), p.despesa.moeda, cotacao), 0);
+      return {
+        banco,
+        label: BANCO_LABEL[banco as BancoFatura] ?? banco,
+        competencia: atual.competencia ?? null,
+        limite_total: total,
+        utilizado,
+        disponivel,
+        comprometidoApp,
+        historico: ordenadas.slice(0, 6),
+      };
+    }).sort((a, b) => (b.limite_total ?? 0) - (a.limite_total ?? 0));
+  }, [faturas, despesas, cotacao]);
+
+
   return (
     <AppLayout
       title="Cartões e Bancos"
