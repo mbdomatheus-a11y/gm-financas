@@ -149,6 +149,9 @@ function ImportarPage() {
             vencimento: f.vencimento,
             competencia: f.competencia,
             total_declarado: f.total_declarado,
+            limite_total: f.limite_total,
+            limite_utilizado: f.limite_utilizado,
+            limite_disponivel: f.limite_disponivel,
             total_extraido: f.lancamentos
               .filter((l) => l.incluir)
               .reduce((s, l) => s + (l.direcao === "credito" ? -l.valor : l.valor), 0),
