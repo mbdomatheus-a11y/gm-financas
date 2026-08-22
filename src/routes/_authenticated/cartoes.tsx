@@ -376,7 +376,83 @@ function CartoesPage() {
             </Card>
           ))}
         </TabsContent>
+
+        <TabsContent value="limites" className="mt-4 space-y-3">
+          {limitesPorBanco.length === 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center gap-2 py-12 text-center">
+                <Gauge className="size-8 text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">
+                  Nenhum limite capturado ainda. Importe uma fatura em "Importar Faturas" para ver
+                  esta análise.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            limitesPorBanco.map((g) => {
+              const uso = g.limite_total ? Math.min(100, (g.utilizado / g.limite_total) * 100) : 0;
+              return (
+                <Card key={g.banco}>
+                  <CardContent className="space-y-3 p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-semibold">{g.label}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Última fatura: {g.competencia ?? "—"}
+                        </p>
+                      </div>
+                      <Badge variant={uso > 80 ? "destructive" : "secondary"}>
+                        {uso.toFixed(0)}% do limite usado
+                      </Badge>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                      {[
+                        { label: "Limite total", valor: g.limite_total, cor: "text-foreground" },
+                        { label: "Utilizado", valor: g.utilizado, cor: "text-destructive" },
+                        { label: "Disponível", valor: g.disponivel, cor: "text-success" },
+                        {
+                          label: "Parcelas futuras no app",
+                          valor: g.comprometidoApp,
+                          cor: "text-warning",
+                        },
+                      ].map((k) => (
+                        <div key={k.label} className="rounded-lg border bg-muted/30 px-3 py-2">
+                          <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                            {k.label}
+                          </p>
+                          <p className={`text-sm font-bold tabular-nums ${k.cor}`}>
+                            {k.valor != null ? formatBRL(k.valor) : "—"}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full bg-muted">
+                      <div
+                        className="h-full rounded-full bg-primary"
+                        style={{ width: `${uso}%` }}
+                      />
+                    </div>
+                    {g.historico.length > 1 && (
+                      <div className="flex flex-wrap gap-2 pt-1">
+                        {g.historico.map((h) => (
+                          <span
+                            key={h.competencia}
+                            className="rounded-md border px-2 py-1 text-[11px] text-muted-foreground"
+                          >
+                            {h.competencia}: {formatBRL(Number(h.limite_utilizado ?? 0))} usados
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })
+          )}
+        </TabsContent>
       </Tabs>
+
+
 
       <Dialog open={openCartao} onOpenChange={setOpenCartao}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
