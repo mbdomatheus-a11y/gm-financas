@@ -155,6 +155,57 @@ export function extrairTotal(texto: string): number | null {
   return m ? parseValor(m[2]!) : null;
 }
 
+export type LimitesFatura = {
+  limite_total: number | null;
+  limite_utilizado: number | null;
+  limite_disponivel: number | null;
+};
+
+const VALOR = String.raw`(R?\$?\s?[\d.]+,\d{2})`;
+
+/** Pega o primeiro valor não-zero encontrado; se todos forem zero, devolve o primeiro. */
+function primeiroValor(texto: string, re: RegExp): number | null {
+  let fallback: number | null = null;
+  for (const m of texto.matchAll(re)) {
+    const v = parseValor(m[1]!);
+    if (v > 0) return v;
+    if (fallback === null) fallback = v;
+  }
+  return fallback;
+}
+
+/** Lê limite total, utilizado e disponível do texto da fatura (Itaú, Nubank, Santander, Pernambucanas). */
+export function extrairLimites(texto: string): LimitesFatura {
+  const total = primeiroValor(
+    texto,
+    new RegExp(
+      String.raw`limite\s+(?:total(?!\s*(?:utilizado|dispon))(?:\s+de\s+cr[eé]dito|\s+do\s+cart[aã]o[^:\n]{0,30})?|de\s+cr[eé]dito|rotativo)[^\d\n]{0,60}` +
+        VALOR,
+      "gi",
+    ),
+  );
+  const disponivel = primeiroValor(
+    texto,
+    new RegExp(String.raw`limite\s+(?:total\s+)?dispon[ií]vel[^\d\n]{0,60}` + VALOR, "gi"),
+  );
+  const utilizado = primeiroValor(
+    texto,
+    new RegExp(String.raw`limite\s+(?:total\s+)?utilizado[^\d\n]{0,60}` + VALOR, "gi"),
+  );
+
+  const limite_total = total ?? null;
+  let limite_disponivel = disponivel ?? null;
+  let limite_utilizado = utilizado ?? null;
+  if (limite_total != null && limite_disponivel != null && limite_utilizado == null) {
+    limite_utilizado = Number((limite_total - limite_disponivel).toFixed(2));
+  }
+  if (limite_total != null && limite_utilizado != null && limite_disponivel == null) {
+    limite_disponivel = Number((limite_total - limite_utilizado).toFixed(2));
+  }
+  return { limite_total, limite_utilizado, limite_disponivel };
+}
+
+
 /** Extração genérica: linhas "data descrição valor". Os parsers por banco refinam esse resultado. */
 export function extrairLancamentos(texto: string, vencimento: string | null): LancamentoExtraido[] {
   const anoBase = vencimento ? Number(vencimento.slice(0, 4)) : new Date().getFullYear();
