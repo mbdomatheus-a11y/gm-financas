@@ -243,7 +243,11 @@ function CartoesPage() {
           <TabsTrigger value="bancos" className="flex-1 sm:flex-none">
             Bancos
           </TabsTrigger>
+          <TabsTrigger value="limites" className="flex-1 sm:flex-none">
+            Limites
+          </TabsTrigger>
         </TabsList>
+
 
         <TabsContent value="cartoes" className="mt-4 grid gap-3 sm:grid-cols-2">
           {cartoes.length === 0 && (
