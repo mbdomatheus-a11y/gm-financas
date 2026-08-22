@@ -119,4 +119,19 @@ export function useRolesList() {
   });
 }
 
+export function useFaturasImportadas() {
+  return useQuery({
+    queryKey: ["import-faturas"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("import_faturas")
+        .select("*")
+        .order("competencia", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+}
+
 export const RESPONSAVEIS_EXTRA = "Casal / Compartilhado";
+
