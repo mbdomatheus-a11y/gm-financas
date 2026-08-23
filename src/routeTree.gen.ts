@@ -18,7 +18,9 @@ import { Route as AuthenticatedContaRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedDespesasRouteImport } from './routes/_authenticated/despesas'
 import { Route as AuthenticatedImportarRouteImport } from './routes/_authenticated/importar'
+import { Route as AuthenticatedInicioRouteImport } from './routes/_authenticated/inicio'
 import { Route as AuthenticatedInvestimentosRouteImport } from './routes/_authenticated/investimentos'
+import { Route as AuthenticatedListaComprasRouteImport } from './routes/_authenticated/lista-compras'
 import { Route as AuthenticatedNovaSenhaRouteImport } from './routes/_authenticated/nova-senha'
 import { Route as AuthenticatedPersonalizacaoRouteImport } from './routes/_authenticated/personalizacao'
 import { Route as AuthenticatedReceitasRouteImport } from './routes/_authenticated/receitas'
@@ -69,10 +71,21 @@ const AuthenticatedImportarRoute = AuthenticatedImportarRouteImport.update({
   path: '/importar',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedInicioRoute = AuthenticatedInicioRouteImport.update({
+  id: '/inicio',
+  path: '/inicio',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedInvestimentosRoute =
   AuthenticatedInvestimentosRouteImport.update({
     id: '/investimentos',
     path: '/investimentos',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedListaComprasRoute =
+  AuthenticatedListaComprasRouteImport.update({
+    id: '/lista-compras',
+    path: '/lista-compras',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedNovaSenhaRoute = AuthenticatedNovaSenhaRouteImport.update({
@@ -106,7 +119,9 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/despesas': typeof AuthenticatedDespesasRoute
   '/importar': typeof AuthenticatedImportarRoute
+  '/inicio': typeof AuthenticatedInicioRoute
   '/investimentos': typeof AuthenticatedInvestimentosRoute
+  '/lista-compras': typeof AuthenticatedListaComprasRoute
   '/nova-senha': typeof AuthenticatedNovaSenhaRoute
   '/personalizacao': typeof AuthenticatedPersonalizacaoRoute
   '/receitas': typeof AuthenticatedReceitasRoute
@@ -121,7 +136,9 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/despesas': typeof AuthenticatedDespesasRoute
   '/importar': typeof AuthenticatedImportarRoute
+  '/inicio': typeof AuthenticatedInicioRoute
   '/investimentos': typeof AuthenticatedInvestimentosRoute
+  '/lista-compras': typeof AuthenticatedListaComprasRoute
   '/nova-senha': typeof AuthenticatedNovaSenhaRoute
   '/personalizacao': typeof AuthenticatedPersonalizacaoRoute
   '/receitas': typeof AuthenticatedReceitasRoute
@@ -138,7 +155,9 @@ export interface FileRoutesById {
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/despesas': typeof AuthenticatedDespesasRoute
   '/_authenticated/importar': typeof AuthenticatedImportarRoute
+  '/_authenticated/inicio': typeof AuthenticatedInicioRoute
   '/_authenticated/investimentos': typeof AuthenticatedInvestimentosRoute
+  '/_authenticated/lista-compras': typeof AuthenticatedListaComprasRoute
   '/_authenticated/nova-senha': typeof AuthenticatedNovaSenhaRoute
   '/_authenticated/personalizacao': typeof AuthenticatedPersonalizacaoRoute
   '/_authenticated/receitas': typeof AuthenticatedReceitasRoute
@@ -155,7 +174,9 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/despesas'
     | '/importar'
+    | '/inicio'
     | '/investimentos'
+    | '/lista-compras'
     | '/nova-senha'
     | '/personalizacao'
     | '/receitas'
@@ -170,7 +191,9 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/despesas'
     | '/importar'
+    | '/inicio'
     | '/investimentos'
+    | '/lista-compras'
     | '/nova-senha'
     | '/personalizacao'
     | '/receitas'
@@ -186,7 +209,9 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard'
     | '/_authenticated/despesas'
     | '/_authenticated/importar'
+    | '/_authenticated/inicio'
     | '/_authenticated/investimentos'
+    | '/_authenticated/lista-compras'
     | '/_authenticated/nova-senha'
     | '/_authenticated/personalizacao'
     | '/_authenticated/receitas'
@@ -263,11 +288,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedImportarRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/inicio': {
+      id: '/_authenticated/inicio'
+      path: '/inicio'
+      fullPath: '/inicio'
+      preLoaderRoute: typeof AuthenticatedInicioRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/investimentos': {
       id: '/_authenticated/investimentos'
       path: '/investimentos'
       fullPath: '/investimentos'
       preLoaderRoute: typeof AuthenticatedInvestimentosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/lista-compras': {
+      id: '/_authenticated/lista-compras'
+      path: '/lista-compras'
+      fullPath: '/lista-compras'
+      preLoaderRoute: typeof AuthenticatedListaComprasRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/nova-senha': {
@@ -309,7 +348,9 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDespesasRoute: typeof AuthenticatedDespesasRoute
   AuthenticatedImportarRoute: typeof AuthenticatedImportarRoute
+  AuthenticatedInicioRoute: typeof AuthenticatedInicioRoute
   AuthenticatedInvestimentosRoute: typeof AuthenticatedInvestimentosRoute
+  AuthenticatedListaComprasRoute: typeof AuthenticatedListaComprasRoute
   AuthenticatedNovaSenhaRoute: typeof AuthenticatedNovaSenhaRoute
   AuthenticatedPersonalizacaoRoute: typeof AuthenticatedPersonalizacaoRoute
   AuthenticatedReceitasRoute: typeof AuthenticatedReceitasRoute
@@ -324,7 +365,9 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDespesasRoute: AuthenticatedDespesasRoute,
   AuthenticatedImportarRoute: AuthenticatedImportarRoute,
+  AuthenticatedInicioRoute: AuthenticatedInicioRoute,
   AuthenticatedInvestimentosRoute: AuthenticatedInvestimentosRoute,
+  AuthenticatedListaComprasRoute: AuthenticatedListaComprasRoute,
   AuthenticatedNovaSenhaRoute: AuthenticatedNovaSenhaRoute,
   AuthenticatedPersonalizacaoRoute: AuthenticatedPersonalizacaoRoute,
   AuthenticatedReceitasRoute: AuthenticatedReceitasRoute,

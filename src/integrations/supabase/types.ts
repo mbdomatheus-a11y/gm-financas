@@ -449,6 +449,48 @@ export type Database = {
         }
         Relationships: []
       }
+      lista_compras: {
+        Row: {
+          categoria: string
+          comprado: boolean
+          comprado_em: string | null
+          comprado_por: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          nome: string
+          observacao: string | null
+          quantidade: number
+          updated_at: string
+        }
+        Insert: {
+          categoria?: string
+          comprado?: boolean
+          comprado_em?: string | null
+          comprado_por?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          nome: string
+          observacao?: string | null
+          quantidade?: number
+          updated_at?: string
+        }
+        Update: {
+          categoria?: string
+          comprado?: boolean
+          comprado_em?: string | null
+          comprado_por?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          nome?: string
+          observacao?: string | null
+          quantidade?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       parcelas: {
         Row: {
           confianca_data: string | null
