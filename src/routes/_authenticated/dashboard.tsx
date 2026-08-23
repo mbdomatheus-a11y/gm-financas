@@ -416,7 +416,7 @@ function DashboardPage() {
                   stackId="despesas"
                   fill={corGrupo(g)}
                   className="cursor-pointer"
-                  radius={i === dados.grupos.length - 1 ? [6, 6, 0, 0] : undefined}
+                  radius={i === dados.grupos.length - 1 ? ([6, 6, 0, 0] as [number, number, number, number]) : 0}
                   onClick={(e: any) => setDrill({ mes: e?.payload?.key, grupo: g })}
                 />
               ))}
