@@ -16,6 +16,9 @@ import {
   Wallet,
   Tags,
   FileUp,
+  Home,
+  ShoppingCart,
+
 
 } from "lucide-react";
 
