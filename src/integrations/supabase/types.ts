@@ -451,6 +451,7 @@ export type Database = {
       }
       lista_compras: {
         Row: {
+          alerta_em: string | null
           categoria: string
           comprado: boolean
           comprado_em: string | null
@@ -458,12 +459,14 @@ export type Database = {
           created_at: string
           created_by: string | null
           id: string
+          lista: string
           nome: string
           observacao: string | null
           quantidade: number
           updated_at: string
         }
         Insert: {
+          alerta_em?: string | null
           categoria?: string
           comprado?: boolean
           comprado_em?: string | null
@@ -471,12 +474,14 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          lista?: string
           nome: string
           observacao?: string | null
           quantidade?: number
           updated_at?: string
         }
         Update: {
+          alerta_em?: string | null
           categoria?: string
           comprado?: boolean
           comprado_em?: string | null
@@ -484,6 +489,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          lista?: string
           nome?: string
           observacao?: string | null
           quantidade?: number
