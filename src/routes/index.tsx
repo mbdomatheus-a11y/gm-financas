@@ -46,7 +46,7 @@ function LoginPage() {
   useEffect(() => {
     ensureSeedUsers().catch(() => undefined);
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: "/dashboard" });
+      if (data.session) navigate({ to: "/inicio" });
     });
   }, [navigate]);
 
@@ -81,7 +81,7 @@ function LoginPage() {
       return;
     }
     toast.success("Bem-vindo de volta!");
-    navigate({ to: profile?.senha_temporaria ? "/nova-senha" : "/dashboard" });
+    navigate({ to: profile?.senha_temporaria ? "/nova-senha" : "/inicio" });
   }
 
   return (
