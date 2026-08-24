@@ -55,7 +55,7 @@ function NovaSenhaPage() {
     await qc.invalidateQueries();
     setLoading(false);
     toast.success("Senha atualizada!");
-    navigate({ to: "/dashboard" });
+    navigate({ to: "/inicio" });
   }
 
   return (

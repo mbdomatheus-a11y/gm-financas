@@ -16,6 +16,9 @@ import {
   Wallet,
   Tags,
   FileUp,
+  Home,
+  ShoppingCart,
+
 
 } from "lucide-react";
 
@@ -27,12 +30,13 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 
 type NavTo =
+  | "/inicio"
   | "/dashboard"
   | "/receitas"
   | "/despesas"
   | "/importar"
   | "/categorias"
-
+  | "/lista-compras"
   | "/cartoes"
   | "/investimentos"
   | "/compartilhar"
@@ -51,19 +55,22 @@ type NavItem = {
 };
 
 const NAV: NavItem[] = [
-  { to: "/dashboard", label: "Dashboard", short: "Início", icon: LayoutDashboard, mobile: true },
-  { to: "/receitas", label: "Receitas", short: "Receitas", icon: TrendingUp, modulo: "receitas", mobile: true },
+  { to: "/inicio", label: "Início", short: "Início", icon: Home, mobile: true },
+  { to: "/dashboard", label: "Dashboard", short: "Finanças", icon: LayoutDashboard, mobile: true },
+  { to: "/lista-compras", label: "Lista de compras", short: "Compras", icon: ShoppingCart, mobile: true },
+  { to: "/receitas", label: "Receitas", short: "Receitas", icon: TrendingUp, modulo: "receitas" },
   { to: "/despesas", label: "Despesas", short: "Despesas", icon: TrendingDown, modulo: "despesas", mobile: true },
   { to: "/importar", label: "Importar Faturas", short: "Faturas", icon: FileUp, modulo: "despesas" },
   { to: "/categorias", label: "Categorias", short: "Categ.", icon: Tags },
 
-  { to: "/cartoes", label: "Cartões e Bancos", short: "Cartões", icon: CreditCard, modulo: "cartoes", mobile: true },
+  { to: "/cartoes", label: "Cartões e Bancos", short: "Cartões", icon: CreditCard, modulo: "cartoes" },
   { to: "/investimentos", label: "Investimentos", short: "Invest.", icon: PiggyBank, modulo: "investimentos" },
   { to: "/compartilhar", label: "Compartilhar", short: "Compart.", icon: Share2, modulo: "compartilhar" },
   { to: "/usuarios", label: "Usuários e Privilégios", short: "Usuários", icon: Users, adminOnly: true },
   { to: "/personalizacao", label: "Personalização", short: "Tema", icon: Palette, modulo: "personalizacao" },
   { to: "/conta", label: "Configurações da conta", short: "Conta", icon: Settings },
 ];
+
 
 export function AppLayout({
   title,
