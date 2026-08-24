@@ -109,7 +109,6 @@ function ListaComprasPage() {
   const comprados = daLista.filter((i) => i.comprado);
 
   const hoje = toISODate(new Date());
-  const alertas = itens.filter((i) => i.alerta_em && i.alerta_em <= hoje && !i.comprado === false);
   const alertasVencidos = itens.filter((i) => i.alerta_em && i.alerta_em <= hoje);
 
   const adicionar = useMutation({
