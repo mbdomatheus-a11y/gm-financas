@@ -65,6 +65,8 @@ import {
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/despesas")({
+  validateSearch: (s: Record<string, unknown>): { cartao?: string } =>
+    typeof s['cartao'] === "string" && s['cartao'] ? { cartao: s['cartao'] } : {},
   head: () => ({
     meta: [
       { title: "Despesas — Finanças do Casal" },
