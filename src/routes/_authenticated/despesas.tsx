@@ -6,11 +6,14 @@ import {
   ArrowLeftRight,
   CheckCircle2,
   ChevronDown,
+  CreditCard,
+  List as ListIcon,
   Pencil,
   Plus,
   Search,
   Trash2,
   TrendingDown,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
