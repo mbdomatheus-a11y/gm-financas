@@ -61,6 +61,7 @@ import {
   formatUSD,
   identificacaoDespesa,
   monthKey,
+  monthLabelLong,
   parseDate,
   toBRL,
   toISODate,
