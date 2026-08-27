@@ -125,6 +125,9 @@ function DespesasPage() {
   const { data: bancos = [] } = useBancos();
   const { data: perfis = [] } = useProfilesList();
 
+  const search = Route.useSearch();
+  const navigate = Route.useNavigate();
+
   const [tab, setTab] = useState<"fixa" | "variavel">("fixa");
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -132,7 +135,19 @@ function DespesasPage() {
   const [duplicata, setDuplicata] = useState<any | null>(null);
   const [busca, setBusca] = useState("");
   const [filtroMes, setFiltroMes] = useState("todos");
+  const [filtroBanco, setFiltroBanco] = useState("todos");
+  const [filtroCategoria, setFiltroCategoria] = useState("todos");
+  const [filtroResponsavel, setFiltroResponsavel] = useState("todos");
+  const [modoLista, setModoLista] = useState<"lista" | "cartao">("lista");
   const [expandida, setExpandida] = useState<string | null>(null);
+
+  const filtroCartao = search.cartao ?? "todos";
+  const setFiltroCartao = (v: string) =>
+    navigate({
+      search: (s: any) => ({ ...s, cartao: v === "todos" ? undefined : v }),
+      replace: true,
+    });
+
 
   const responsaveis = [...perfis.map((p: any) => p.nome), RESPONSAVEIS_EXTRA];
 
