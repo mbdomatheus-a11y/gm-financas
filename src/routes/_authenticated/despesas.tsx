@@ -599,8 +599,35 @@ function DespesasPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="divide-y overflow-hidden rounded-xl border bg-card">
-          {lista.map((d: any) => {
+        <div className="space-y-3">
+          {gruposLista.map((grupo) => (
+            <div key={grupo.key} className="overflow-hidden rounded-xl border bg-card">
+              {modoLista === "cartao" && (
+                <div className="flex items-center gap-3 border-b bg-muted/30 px-3 py-2">
+                  <div
+                    className="flex size-8 shrink-0 items-center justify-center rounded-lg"
+                    style={{ backgroundColor: grupo.cor }}
+                  >
+                    <CreditCard className="size-4 text-white" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold">{grupo.label}</p>
+                    <Progress
+                      value={resumo.total > 0 ? (grupo.total / resumo.total) * 100 : 0}
+                      className="mt-1 h-1.5"
+                    />
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <p className="text-sm font-bold tabular-nums">{formatBRL(grupo.total)}</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {grupo.itens.length} lançamento(s) ·{" "}
+                      {resumo.total > 0 ? ((grupo.total / resumo.total) * 100).toFixed(0) : 0}%
+                    </p>
+                  </div>
+                </div>
+              )}
+              <div className="divide-y">
+          {grupo.itens.map((d: any) => {
             const parcelas = [...(d.parcelas ?? [])].sort((a: any, b: any) => a.numero - b.numero);
             const pagas = parcelas.filter((p: any) => p.paga).length;
             const aberta = expandida === d.id;
@@ -634,10 +661,14 @@ function DespesasPage() {
                     </p>
                   </div>
                   {d.total_parcelas > 1 && (
-                    <Badge variant="secondary" className="hidden shrink-0 text-[10px] sm:inline-flex">
-                      {pagas}/{d.total_parcelas} pagas
-                    </Badge>
+                    <div className="hidden w-24 shrink-0 sm:block">
+                      <Badge variant="secondary" className="text-[10px]">
+                        {pagas}/{d.total_parcelas} pagas
+                      </Badge>
+                      <Progress value={(pagas / d.total_parcelas) * 100} className="mt-1 h-1" />
+                    </div>
                   )}
+
 
                   <div className="shrink-0 text-right">
                     <p className="text-sm font-bold tabular-nums">
