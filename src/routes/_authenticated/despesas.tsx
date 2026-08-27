@@ -338,9 +338,18 @@ function DespesasPage() {
     [despesas],
   );
 
+  const formaKey = (d: any) =>
+    d.cartao_id ? `cartao:${d.cartao_id}` : d.banco_id ? `banco:${d.banco_id}` : "sem";
+
   const lista = despesas.filter((d: any) => {
     if (d.tipo !== tab) return false;
     if (filtroMes !== "todos" && monthKey(d.data_compra) !== filtroMes) return false;
+    if (filtroCartao !== "todos") {
+      if (filtroCartao === "sem" ? !!d.cartao_id : d.cartao_id !== filtroCartao) return false;
+    }
+    if (filtroBanco !== "todos" && d.banco_id !== filtroBanco) return false;
+    if (filtroCategoria !== "todos" && d.categoria !== filtroCategoria) return false;
+    if (filtroResponsavel !== "todos" && d.responsavel !== filtroResponsavel) return false;
     if (busca && !`${d.descricao} ${d.categoria} ${d.responsavel}`.toLowerCase().includes(busca.toLowerCase()))
       return false;
     return true;
@@ -350,16 +359,79 @@ function DespesasPage() {
     let total = 0;
     let pago = 0;
     let aberto = 0;
+    let proximo: { data: string; valor: number } | null = null;
+    const hoje = toISODate(new Date());
     for (const d of lista as any[]) {
       const brl = (v: number) => toBRL(v, d.moeda, cotacao);
       total += brl(Number(d.valor_total));
       for (const p of d.parcelas ?? []) {
         if (p.paga) pago += brl(Number(p.valor));
-        else aberto += brl(Number(p.valor));
+        else {
+          aberto += brl(Number(p.valor));
+          if (p.vencimento >= hoje && (!proximo || p.vencimento < proximo.data))
+            proximo = { data: p.vencimento, valor: brl(Number(p.valor)) };
+        }
       }
     }
-    return { total, pago, aberto };
+    return { total, pago, aberto, proximo };
   }, [lista, cotacao]);
+
+  /** Agrupa a lista por forma de pagamento (cartão/banco) ou devolve um grupo único. */
+  const gruposLista = useMemo(() => {
+    if (modoLista === "lista")
+      return [{ key: "all", label: "", cor: "", itens: lista as any[], total: resumo.total }];
+    const mapa = new Map<string, { key: string; label: string; cor: string; itens: any[]; total: number }>();
+    for (const d of lista as any[]) {
+      const key = formaKey(d);
+      const label = d.cartoes
+        ? `${d.cartoes.apelido || d.cartoes.titular || "Cartão"} •${d.cartoes.final ?? ""}`
+        : d.bancos?.nome
+          ? `${d.bancos.nome} (conta)`
+          : (d.banco_nome ?? "Sem forma de pagamento");
+      const cor = d.cartoes?.cor ?? "var(--muted-foreground)";
+      const g = mapa.get(key) ?? { key, label, cor, itens: [], total: 0 };
+      g.itens.push(d);
+      g.total += toBRL(Number(d.valor_total), d.moeda, cotacao);
+      mapa.set(key, g);
+    }
+    return Array.from(mapa.values()).sort((a, b) => b.total - a.total);
+  }, [lista, modoLista, cotacao, resumo.total]);
+
+  const chips = [
+    filtroCartao !== "todos" && {
+      label:
+        filtroCartao === "sem"
+          ? "Sem cartão"
+          : (() => {
+              const c: any = cartoes.find((c: any) => c.id === filtroCartao);
+              return c ? `Cartão ${c.apelido ?? c.bandeira} •${c.final}` : "Cartão";
+            })(),
+      clear: () => setFiltroCartao("todos"),
+    },
+    filtroBanco !== "todos" && {
+      label: `Banco ${(bancos.find((b: any) => b.id === filtroBanco) as any)?.nome ?? ""}`,
+      clear: () => setFiltroBanco("todos"),
+    },
+    filtroCategoria !== "todos" && {
+      label: filtroCategoria,
+      clear: () => setFiltroCategoria("todos"),
+    },
+    filtroResponsavel !== "todos" && {
+      label: filtroResponsavel,
+      clear: () => setFiltroResponsavel("todos"),
+    },
+    filtroMes !== "todos" && { label: monthLabelLong(filtroMes), clear: () => setFiltroMes("todos") },
+    !!busca && { label: `"${busca}"`, clear: () => setBusca("") },
+  ].filter(Boolean) as { label: string; clear: () => void }[];
+
+  function limparFiltros() {
+    setFiltroCartao("todos");
+    setFiltroBanco("todos");
+    setFiltroCategoria("todos");
+    setFiltroResponsavel("todos");
+    setFiltroMes("todos");
+    setBusca("");
+  }
 
   return (
     <AppLayout
@@ -373,53 +445,147 @@ function DespesasPage() {
         )
       }
     >
-      <div className="mb-3 grid grid-cols-3 gap-2">
+      <div className="mb-3 grid grid-cols-2 gap-2 lg:grid-cols-4">
         {[
-          { label: "Total", valor: resumo.total, cor: "text-foreground" },
-          { label: "Pago", valor: resumo.pago, cor: "text-success" },
-          { label: "Em aberto", valor: resumo.aberto, cor: "text-destructive" },
+          { label: "Total", valor: formatBRL(resumo.total), cor: "text-foreground", hint: "" },
+          { label: "Pago", valor: formatBRL(resumo.pago), cor: "text-success", hint: "" },
+          { label: "Em aberto", valor: formatBRL(resumo.aberto), cor: "text-destructive", hint: "" },
+          {
+            label: "Próximo vencimento",
+            valor: resumo.proximo ? formatBRL(resumo.proximo.valor) : "—",
+            cor: "text-warning",
+            hint: resumo.proximo ? formatDate(resumo.proximo.data) : "sem parcelas futuras",
+          },
         ].map((k) => (
           <div key={k.label} className="rounded-xl border bg-card px-3 py-2">
             <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{k.label}</p>
-            <p className={cn("text-sm font-bold tabular-nums", k.cor)}>{formatBRL(k.valor)}</p>
+            <p className={cn("text-sm font-bold tabular-nums", k.cor)}>{k.valor}</p>
+            {k.hint && <p className="text-[10px] text-muted-foreground">{k.hint}</p>}
           </div>
         ))}
       </div>
 
-      <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center">
-        <Tabs value={tab} onValueChange={(v) => setTab(v as "fixa" | "variavel")}>
-          <TabsList className="h-9">
-            <TabsTrigger value="fixa" className="text-xs">
-              Fixas
-            </TabsTrigger>
-            <TabsTrigger value="variavel" className="text-xs">
-              Variáveis
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-        <div className="relative flex-1">
-          <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={busca}
-            onChange={(e) => setBusca(e.target.value)}
-            placeholder="Buscar descrição, categoria ou responsável"
-            className="h-9 pl-8"
-          />
+      <div className="mb-3 space-y-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <Tabs value={tab} onValueChange={(v) => setTab(v as "fixa" | "variavel")}>
+            <TabsList className="h-9">
+              <TabsTrigger value="fixa" className="text-xs">
+                Fixas
+              </TabsTrigger>
+              <TabsTrigger value="variavel" className="text-xs">
+                Variáveis
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+          <div className="relative flex-1">
+            <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              placeholder="Buscar descrição, categoria ou responsável"
+              className="h-9 pl-8"
+            />
+          </div>
+          <Tabs value={modoLista} onValueChange={(v) => setModoLista(v as "lista" | "cartao")}>
+            <TabsList className="h-9">
+              <TabsTrigger value="lista" className="gap-1 text-xs">
+                <ListIcon className="size-3.5" /> Lista
+              </TabsTrigger>
+              <TabsTrigger value="cartao" className="gap-1 text-xs">
+                <CreditCard className="size-3.5" /> Por cartão
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
-        <Select value={filtroMes} onValueChange={setFiltroMes}>
-          <SelectTrigger className="h-9 sm:w-44">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="todos">Todos os meses</SelectItem>
-            {meses.map((m) => (
-              <SelectItem key={m} value={m}>
-                {m}
-              </SelectItem>
+
+        <div className="grid grid-cols-2 gap-2 lg:grid-cols-5">
+          <Select value={filtroCartao} onValueChange={setFiltroCartao}>
+            <SelectTrigger className="h-9 text-xs">
+              <SelectValue placeholder="Cartão" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos os cartões</SelectItem>
+              <SelectItem value="sem">Sem cartão</SelectItem>
+              {cartoes.map((c: any) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.apelido ?? c.bandeira} •{c.final}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={filtroBanco} onValueChange={setFiltroBanco}>
+            <SelectTrigger className="h-9 text-xs">
+              <SelectValue placeholder="Banco" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos os bancos</SelectItem>
+              {bancos.map((b: any) => (
+                <SelectItem key={b.id} value={b.id}>
+                  {b.nome}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
+            <SelectTrigger className="h-9 text-xs">
+              <SelectValue placeholder="Categoria" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todas as categorias</SelectItem>
+              {categorias.map((c: any) => (
+                <SelectItem key={c.id} value={c.nome}>
+                  {c.nome}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={filtroResponsavel} onValueChange={setFiltroResponsavel}>
+            <SelectTrigger className="h-9 text-xs">
+              <SelectValue placeholder="Responsável" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos os responsáveis</SelectItem>
+              {responsaveis.map((r) => (
+                <SelectItem key={r} value={r}>
+                  {r}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={filtroMes} onValueChange={setFiltroMes}>
+            <SelectTrigger className="h-9 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos os meses</SelectItem>
+              {meses.map((m) => (
+                <SelectItem key={m} value={m}>
+                  {monthLabelLong(m)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {chips.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            {chips.map((c) => (
+              <button
+                key={c.label}
+                onClick={c.clear}
+                className="inline-flex items-center gap-1 rounded-full border bg-muted/50 px-2.5 py-1 text-[11px] font-medium hover:bg-muted"
+              >
+                {c.label}
+                <X className="size-3" />
+              </button>
             ))}
-          </SelectContent>
-        </Select>
+            <Button variant="ghost" size="sm" className="h-6 text-[11px]" onClick={limparFiltros}>
+              Limpar filtros
+            </Button>
+          </div>
+        )}
       </div>
+
 
       {lista.length === 0 ? (
         <Card>
