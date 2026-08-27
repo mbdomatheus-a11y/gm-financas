@@ -389,7 +389,7 @@ function DespesasPage() {
           ? `${d.bancos.nome} (conta)`
           : (d.banco_nome ?? "Sem forma de pagamento");
       const cor = d.cartoes?.cor ?? "var(--muted-foreground)";
-      const g = mapa.get(key) ?? { key, label, cor, itens: [], total: 0 };
+      const g = mapa.get(key) ?? { key, label, cor, itens: [] as any[], total: 0 };
       g.itens.push(d);
       g.total += toBRL(Number(d.valor_total), d.moeda, cotacao);
       mapa.set(key, g);
