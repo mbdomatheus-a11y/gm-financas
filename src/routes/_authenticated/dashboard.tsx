@@ -731,7 +731,19 @@ function StatCard({
           <p className="text-xs font-medium text-muted-foreground">{label}</p>
           <Icon className={`size-4 ${toneClass}`} />
         </div>
-        <p className="mt-2 text-xl font-bold tracking-tight">{display ?? formatBRL(value)}</p>
+        <div className="mt-2 flex flex-wrap items-baseline gap-2">
+          <p className="text-xl font-bold tracking-tight">{display ?? formatBRL(value)}</p>
+          {delta != null && Number.isFinite(delta) && (
+            <span
+              className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
+                delta >= 0 ? "bg-destructive/10 text-destructive" : "bg-success/10 text-success"
+              }`}
+            >
+              {delta >= 0 ? <ArrowUpRight className="size-3" /> : <ArrowDownRight className="size-3" />}
+              {Math.abs(delta).toFixed(0)}% vs. mês anterior
+            </span>
+          )}
+        </div>
         {!!usd && !!cotacao && (
           <p className="mt-0.5 text-[11px] text-muted-foreground">
             inclui {formatUSD(usd)} na cotação do dia
