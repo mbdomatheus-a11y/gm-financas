@@ -710,6 +710,7 @@ function StatCard({
   hint,
   display,
   delta,
+  deltaGoodUp,
 }: {
   label: string;
   value: number;
@@ -720,6 +721,7 @@ function StatCard({
   hint?: string;
   display?: string;
   delta?: number | null;
+  deltaGoodUp?: boolean;
 
 }) {
   const toneClass =
@@ -736,7 +738,7 @@ function StatCard({
           {delta != null && Number.isFinite(delta) && (
             <span
               className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
-                delta >= 0 ? "bg-destructive/10 text-destructive" : "bg-success/10 text-success"
+                (delta >= 0) === !!deltaGoodUp ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"
               }`}
             >
               {delta >= 0 ? <ArrowUpRight className="size-3" /> : <ArrowDownRight className="size-3" />}
