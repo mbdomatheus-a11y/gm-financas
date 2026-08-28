@@ -407,6 +407,8 @@ function DashboardPage() {
           cotacao={cotacao}
           icon={ArrowUpRight}
           tone="success"
+          delta={dados.deltaReceitas}
+          deltaGoodUp
         />
         <StatCard
           label="Despesas do mês"
@@ -415,8 +417,10 @@ function DashboardPage() {
           cotacao={cotacao}
           icon={ArrowDownRight}
           tone="destructive"
+          delta={dados.deltaDespesas}
           hint={`Fixas ${formatBRL(dados.fixas)} · Variáveis ${formatBRL(dados.variaveis)}`}
         />
+
         <StatCard
           label="Saldo do mês"
           value={dados.saldo}
