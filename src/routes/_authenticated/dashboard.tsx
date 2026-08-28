@@ -692,6 +692,132 @@ function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Gasto por cartão neste mês</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {dados.porCartao.length === 0 && (
+              <p className="text-sm text-muted-foreground">Sem lançamentos neste mês.</p>
+            )}
+            {dados.porCartao.map((c) => {
+              const pct = dados.totalDespesas > 0 ? (c.valor / dados.totalDespesas) * 100 : 0;
+              const conteudo = (
+                <div className="space-y-1.5 rounded-lg border p-3 transition-colors hover:bg-muted/40">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="size-2.5 shrink-0 rounded-full"
+                      style={{ backgroundColor: c.cor }}
+                    />
+                    <span className="min-w-0 flex-1 truncate text-sm font-medium">{c.nome}</span>
+                    <span className="shrink-0 text-sm font-bold tabular-nums">
+                      {formatBRL(c.valor)}
+                    </span>
+                  </div>
+                  <Progress value={pct} className="h-1.5" />
+                  <p className="text-[11px] text-muted-foreground">{pct.toFixed(0)}% das despesas do mês</p>
+                </div>
+              );
+              return c.id ? (
+                <Link key={c.id} to="/despesas" search={{ cartao: c.id }} className="block">
+                  {conteudo}
+                </Link>
+              ) : (
+                <div key={c.nome}>{conteudo}</div>
+              );
+            })}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Quem gastou no mês</CardTitle>
+          </CardHeader>
+          <CardContent className="h-[300px]">
+            {dados.porResponsavel.length === 0 ? (
+              <EmptyChart />
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={dados.porResponsavel} layout="vertical" margin={{ left: 8, right: 40 }}>
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} opacity={0.3} />
+                  <XAxis type="number" fontSize={11} tickLine={false} axisLine={false} />
+                  <YAxis
+                    type="category"
+                    dataKey="nome"
+                    width={110}
+                    fontSize={11}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <Tooltip formatter={(v: any) => formatBRL(Number(v))} cursor={{ fill: "var(--muted)", opacity: 0.4 }} />
+                  <Bar dataKey="valor" radius={[0, 6, 6, 0]}>
+                    {dados.porResponsavel.map((_, i) => (
+                      <Cell key={i} fill={PALETA[i % PALETA.length]} />
+                    ))}
+                    <LabelList dataKey="valor" position="right" fontSize={10} formatter={compact} />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Categorias: mês atual x média de 3 meses</CardTitle>
+          </CardHeader>
+          <CardContent className="h-[300px]">
+            {dados.comparativo.length === 0 ? (
+              <EmptyChart />
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={dados.comparativo} margin={{ top: 18 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
+                  <XAxis dataKey="categoria" fontSize={11} tickLine={false} axisLine={false} interval={0} angle={-20} textAnchor="end" height={50} />
+                  <YAxis fontSize={11} tickLine={false} axisLine={false} width={60} />
+                  <Tooltip formatter={(v: any, n: any) => [formatBRL(Number(v)), n]} cursor={{ fill: "var(--muted)", opacity: 0.4 }} />
+                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                  <Bar dataKey="Mês atual" fill="var(--primary)" radius={[6, 6, 0, 0]}>
+                    <LabelList dataKey="Mês atual" position="top" fontSize={9} formatter={compact} />
+                  </Bar>
+                  <Bar dataKey="Média 3 meses" fill="var(--muted-foreground)" radius={[6, 6, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0">
+            <CardTitle className="text-base">Próximos 30 dias</CardTitle>
+            <Badge variant="secondary">{formatBRL(dados.totalProximos)}</Badge>
+          </CardHeader>
+          <CardContent className="space-y-1.5">
+            {dados.proximos.length === 0 && (
+              <p className="text-sm text-muted-foreground">Nada a vencer nos próximos 30 dias.</p>
+            )}
+            {dados.proximos.map((p: any) => (
+              <div
+                key={p.id}
+                className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-sm"
+              >
+                <div className="min-w-0">
+                  <p className="truncate font-medium">{p.descricao}</p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {[p.identificacao, p.parcela, formatDate(p.vencimento)].filter(Boolean).join(" · ")}
+                  </p>
+                </div>
+                <span className="shrink-0 font-semibold tabular-nums">{formatBRL(p.valor)}</span>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      </div>
+
     </AppLayout>
   );
 }
