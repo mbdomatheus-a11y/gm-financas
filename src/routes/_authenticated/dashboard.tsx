@@ -709,6 +709,7 @@ function StatCard({
   tone,
   hint,
   display,
+  delta,
 }: {
   label: string;
   value: number;
@@ -718,6 +719,8 @@ function StatCard({
   tone: "success" | "destructive" | "warning";
   hint?: string;
   display?: string;
+  delta?: number | null;
+
 }) {
   const toneClass =
     tone === "success" ? "text-success" : tone === "warning" ? "text-warning" : "text-destructive";
