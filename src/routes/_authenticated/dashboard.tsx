@@ -258,6 +258,91 @@ function DashboardPage() {
     const mediaDespesas =
       serie.length > 0 ? serie.reduce((s, l: any) => s + l.Despesas, 0) / serie.length : 0;
 
+    // Mês anterior, para variação percentual nos indicadores.
+    const ref = new Date(`${mesAtual}-01T12:00:00`);
+    const mesAnterior = monthKey(new Date(ref.getFullYear(), ref.getMonth() - 1, 1));
+    const receitasAnt = receitas
+      .filter((r: any) => monthKey(r.data_recebimento) === mesAnterior)
+      .reduce((s: number, r: any) => s + toBRL(Number(r.valor), r.moeda, cotacao), 0);
+    const despesasAnt = parcelas
+      .filter((p: any) => monthKey(p.vencimento) === mesAnterior)
+      .reduce((s: number, p: any) => s + toBRL(Number(p.valor), p.despesa.moeda, cotacao), 0);
+
+    // Uso por cartão no mês corrente.
+    const cartaoMap = new Map<string, { id: string | null; nome: string; cor: string; valor: number }>();
+    for (const p of parcelasMes) {
+      const d = p.despesa;
+      const id = d.cartao_id ?? null;
+      const nome = d.cartoes
+        ? `${d.cartoes.apelido || d.cartoes.titular || "Cartão"} •${d.cartoes.final ?? ""}`
+        : (d.bancos?.nome ?? d.banco_nome ?? "Sem cartão");
+      const key = id ?? nome;
+      const item = cartaoMap.get(key) ?? {
+        id,
+        nome,
+        cor: d.cartoes?.cor ?? "var(--muted-foreground)",
+        valor: 0,
+      };
+      item.valor += toBRL(Number(p.valor), d.moeda, cotacao);
+      cartaoMap.set(key, item);
+    }
+    const porCartao = Array.from(cartaoMap.values()).sort((a, b) => b.valor - a.valor);
+
+    // Gasto por responsável no mês.
+    const respMap = new Map<string, number>();
+    for (const p of parcelasMes) {
+      const r = p.despesa.responsavel ?? "Sem responsável";
+      respMap.set(r, (respMap.get(r) ?? 0) + toBRL(Number(p.valor), p.despesa.moeda, cotacao));
+    }
+    const porResponsavel = Array.from(respMap, ([nome, valor]) => ({
+      nome,
+      valor: Number(valor.toFixed(2)),
+    })).sort((a, b) => b.valor - a.valor);
+
+    // Categoria: mês atual x média dos 3 meses anteriores.
+    const tresMeses = [1, 2, 3].map((i) =>
+      monthKey(new Date(ref.getFullYear(), ref.getMonth() - i, 1)),
+    );
+    const atualCat = new Map<string, number>();
+    const mediaCat = new Map<string, number>();
+    for (const p of parcelas) {
+      const mk = monthKey(p.vencimento);
+      const cat = p.despesa.categoria ?? "outros";
+      const v = toBRL(Number(p.valor), p.despesa.moeda, cotacao);
+      if (mk === mesAtual) atualCat.set(cat, (atualCat.get(cat) ?? 0) + v);
+      else if (tresMeses.includes(mk)) mediaCat.set(cat, (mediaCat.get(cat) ?? 0) + v / 3);
+    }
+    const comparativo = Array.from(
+      new Set([...atualCat.keys(), ...mediaCat.keys()]),
+    )
+      .map((cat) => ({
+        categoria: cat,
+        "Mês atual": Number((atualCat.get(cat) ?? 0).toFixed(2)),
+        "Média 3 meses": Number((mediaCat.get(cat) ?? 0).toFixed(2)),
+      }))
+      .sort((a, b) => b["Mês atual"] - a["Mês atual"])
+      .slice(0, 6);
+
+    // Próximos vencimentos (30 dias).
+    const hoje = new Date();
+    const limite = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() + 30);
+    const proximos = parcelas
+      .filter((p: any) => {
+        if (p.paga) return false;
+        const v = new Date(`${p.vencimento}T12:00:00`);
+        return v >= new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate()) && v <= limite;
+      })
+      .map((p: any) => ({
+        id: p.id,
+        descricao: p.despesa.descricao,
+        identificacao: identificacaoDespesa(p.despesa),
+        vencimento: p.vencimento,
+        parcela: `${p.numero}/${p.total}`,
+        valor: toBRL(Number(p.valor), p.despesa.moeda, cotacao),
+      }))
+      .sort((a: any, b: any) => a.vencimento.localeCompare(b.vencimento))
+      .slice(0, 8);
+
     return {
       totalReceitas,
       totalDespesas,
@@ -270,12 +355,20 @@ function DashboardPage() {
       mensalizado,
       dividaTotal,
       mediaDespesas,
+      deltaReceitas: receitasAnt > 0 ? ((totalReceitas - receitasAnt) / receitasAnt) * 100 : null,
+      deltaDespesas: despesasAnt > 0 ? ((totalDespesas - despesasAnt) / despesasAnt) * 100 : null,
+      porCartao,
+      porResponsavel,
+      comparativo,
+      proximos,
+      totalProximos: proximos.reduce((s: number, p: any) => s + p.valor, 0),
       pie: Array.from(porCategoria, ([name, value]) => ({ name, value: Number(value.toFixed(2)) })),
       meses: serie,
       grupos: gruposFinais,
       parceladas,
       top5,
     };
+
   }, [receitas, despesas, parcelas, cotacao, mesAtual, mesPie, meses, grupoDe]);
 
   const detalhe = useMemo(() => {
