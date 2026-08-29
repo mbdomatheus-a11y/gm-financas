@@ -145,7 +145,13 @@ function BackupPage() {
         if (p.error) throw p.error;
         const d = await supabase.from("despesas").delete().not("id", "is", null);
         if (d.error) throw d.error;
+        // limpa o histórico de faturas importadas para permitir reimportar os mesmos PDFs
+        const f = await supabase.from("import_faturas").delete().not("id", "is", null);
+        if (f.error) throw f.error;
+        const l = await supabase.from("import_lotes").delete().not("id", "is", null);
+        if (l.error) throw l.error;
       }
+
       await qc.invalidateQueries();
       toast.success(reset === "receitas" ? "Receitas zeradas" : "Despesas zeradas");
       setReset(null);
