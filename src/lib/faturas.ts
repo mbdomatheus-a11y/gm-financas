@@ -95,6 +95,36 @@ export function detectarBanco(texto: string, nomeArquivo: string): BancoFatura {
   return "desconhecido";
 }
 
+const MOJIBAKE: Record<string, string> = {
+  "Ã¡": "á", "Ã ": "à", "Ã¢": "â", "Ã£": "ã", "Ã©": "é", "Ãª": "ê", "Ã­": "í",
+  "Ã³": "ó", "Ã´": "ô", "Ãµ": "õ", "Ãº": "ú", "Ã§": "ç", "Ã‰": "É", "Ãƒ": "Ã",
+  "Ã‡": "Ç", "Ã”": "Ô", "Ã•": "Õ", "Ã": "Á", "Âº": "º", "Âª": "ª", "Â": "",
+};
+
+const MINUSCULAS = new Set(["de", "da", "do", "das", "dos", "e", "em", "no", "na", "para", "com"]);
+
+/** Corrige acentuação quebrada do PDF e deixa nomes em maiúsculas com capitalização legível. */
+export function corrigirTexto(raw: string): string {
+  let s = raw;
+  for (const [de, para] of Object.entries(MOJIBAKE)) s = s.split(de).join(para);
+  s = s.replace(/\s+/g, " ").trim();
+
+  const letras = s.replace(/[^A-Za-zÀ-ÿ]/g, "");
+  const tudoMaiusculo = letras.length > 3 && letras === letras.toUpperCase();
+  if (!tudoMaiusculo) return s;
+
+  return s
+    .split(" ")
+    .map((p, i) => {
+      const baixo = p.toLocaleLowerCase("pt-BR");
+      if (/\d/.test(p) || (p.length <= 3 && !/[aeiouáéíóúâêôãõ]/i.test(p))) return p; // siglas
+      if (i > 0 && MINUSCULAS.has(baixo)) return baixo;
+      return baixo.charAt(0).toLocaleUpperCase("pt-BR") + baixo.slice(1);
+    })
+    .join(" ");
+}
+
+
 export function normalizarDescricao(descricao: string): string {
   return descricao
     .normalize("NFD")
