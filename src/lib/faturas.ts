@@ -328,7 +328,7 @@ export function extrairLancamentos(texto: string, vencimento: string | null): La
     if (!m) continue;
     const data = parseDataBR(m[1]!.trim(), anoBase);
     if (!data) continue;
-    const descricao = m[2]!.replace(/\s+/g, " ").trim();
+    const descricao = corrigirTexto(m[2]!);
     if (!descricao || descricao.length < 3) continue;
     const valor = parseValor(m[3]!);
     if (valor === 0) continue;
