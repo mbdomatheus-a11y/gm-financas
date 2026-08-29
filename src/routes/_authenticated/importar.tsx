@@ -140,27 +140,31 @@ function ImportarPage() {
 
         const { data: fatura, error: fatErr } = await supabase
           .from("import_faturas")
-          .insert({
-            lote_id: lote.id,
-            banco: f.banco,
-            arquivo_nome: f.arquivo_nome,
-            arquivo_hash: f.arquivo_hash,
-            storage_path: path,
-            vencimento: f.vencimento,
-            competencia: f.competencia,
-            total_declarado: f.total_declarado,
-            limite_total: f.limite_total,
-            limite_utilizado: f.limite_utilizado,
-            limite_disponivel: f.limite_disponivel,
-            total_extraido: f.lancamentos
-              .filter((l) => l.incluir)
-              .reduce((s, l) => s + (l.direcao === "credito" ? -l.valor : l.valor), 0),
-            paginas: f.paginas,
-            status: "importada",
-          })
+          .upsert(
+            {
+              lote_id: lote.id,
+              banco: f.banco,
+              arquivo_nome: f.arquivo_nome,
+              arquivo_hash: f.arquivo_hash,
+              storage_path: path,
+              vencimento: f.vencimento,
+              competencia: f.competencia,
+              total_declarado: f.total_declarado,
+              limite_total: f.limite_total,
+              limite_utilizado: f.limite_utilizado,
+              limite_disponivel: f.limite_disponivel,
+              total_extraido: f.lancamentos
+                .filter((l) => l.incluir)
+                .reduce((s, l) => s + (l.direcao === "credito" ? -l.valor : l.valor), 0),
+              paginas: f.paginas,
+              status: "importada",
+            },
+            { onConflict: "arquivo_hash" },
+          )
           .select("id")
           .single();
         if (fatErr) throw fatErr;
+
 
         for (const l of f.lancamentos.filter((x) => x.incluir)) {
           const chave = dedupKey(l);
