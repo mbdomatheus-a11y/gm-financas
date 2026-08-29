@@ -118,7 +118,7 @@ function BackupPage() {
           const lote = linhas.slice(i, i + 200);
           const { error } = await supabase
             .from(t as Tabela)
-            .upsert(lote as any, { onConflict: t === "preferencias_usuario" ? "user_id" : "id" });
+            .upsert(lote as any, { onConflict: "id" });
           if (error) throw new Error(`${t}: ${error.message}`);
           total += lote.length;
         }
