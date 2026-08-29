@@ -18,6 +18,7 @@ import {
   FileUp,
   Home,
   ShoppingCart,
+  DatabaseBackup,
 
 
 } from "lucide-react";
@@ -41,6 +42,7 @@ type NavTo =
   | "/investimentos"
   | "/compartilhar"
   | "/usuarios"
+  | "/backup"
   | "/personalizacao"
   | "/conta";
 
@@ -67,6 +69,7 @@ const NAV: NavItem[] = [
   { to: "/investimentos", label: "Investimentos", short: "Invest.", icon: PiggyBank, modulo: "investimentos" },
   { to: "/compartilhar", label: "Compartilhar", short: "Compart.", icon: Share2, modulo: "compartilhar" },
   { to: "/usuarios", label: "Usuários e Privilégios", short: "Usuários", icon: Users, adminOnly: true },
+  { to: "/backup", label: "Backup e Reset", short: "Backup", icon: DatabaseBackup, adminOnly: true },
   { to: "/personalizacao", label: "Personalização", short: "Tema", icon: Palette, modulo: "personalizacao" },
   { to: "/conta", label: "Configurações da conta", short: "Conta", icon: Settings },
 ];
