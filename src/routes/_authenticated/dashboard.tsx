@@ -396,7 +396,25 @@ function DashboardPage() {
       .sort((a: any, b: any) => b.valor - a.valor);
   }, [drill, parcelas, grupoDe, dados.grupos, cotacao]);
 
+  /** Agrupamentos do mês selecionado, do maior para o menor. */
+  const agrupamentosMes = useMemo(() => {
+    const map = new Map<string, { total: number; itens: number }>();
+    for (const p of parcelas.filter((p: any) => monthKey(p.vencimento) === mesPie)) {
+      const g = grupoDe(p);
+      const atual = map.get(g) ?? { total: 0, itens: 0 };
+      atual.total += toBRL(Number(p.valor), p.despesa.moeda, cotacao);
+      atual.itens += 1;
+      map.set(g, atual);
+    }
+    const lista = Array.from(map, ([grupo, v]) => ({ grupo, ...v })).sort(
+      (a, b) => b.total - a.total,
+    );
+    const total = lista.reduce((s, g) => s + g.total, 0);
+    return { lista, total };
+  }, [parcelas, grupoDe, mesPie, cotacao]);
+
   const corGrupo = (g: string) => PALETA[dados.grupos.indexOf(g) % PALETA.length];
+
 
   return (
     <AppLayout
