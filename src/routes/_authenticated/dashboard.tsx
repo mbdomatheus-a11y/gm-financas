@@ -382,6 +382,7 @@ function DashboardPage() {
       })
       .map((p: any) => ({
         id: p.id,
+        despesa: p.despesa,
         descricao: p.despesa.descricao,
         identificacao: identificacaoDespesa(p.despesa),
         parcela: `${p.numero}/${p.total}`,
@@ -389,6 +390,7 @@ function DashboardPage() {
         paga: p.paga,
         valor: toBRL(Number(p.valor), p.despesa.moeda, cotacao),
       }))
+
       .sort((a: any, b: any) => b.valor - a.valor);
   }, [drill, parcelas, grupoDe, dados.grupos, cotacao]);
 
