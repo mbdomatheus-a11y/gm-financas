@@ -130,7 +130,13 @@ function ImportarPage() {
             .select("id")
             .eq("arquivo_hash", extraida.arquivo_hash)
             .maybeSingle();
-          novos.push({ ...extraida, arquivo: file, duplicada: !!jaExiste });
+          novos.push({
+            ...extraida,
+            arquivo: file,
+            duplicada: !!jaExiste,
+            destino: destinoPadrao(extraida),
+          });
+
         } catch {
           toast.error(`${file.name}: não consegui ler o PDF (pode ser digitalizado).`);
         }
