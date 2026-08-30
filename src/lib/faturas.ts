@@ -264,7 +264,7 @@ function limitesItau(texto: string): LimitesFatura | null {
   if (!(total > 0)) return null;
 
   const saldos = Array.from(
-    texto.matchAll(new RegExp(String.raw`saldo\s+(?:pr[oó]xima\s+fatura|futuro)[^\d]{0,120}` + VALOR, "gi")),
+    texto.matchAll(new RegExp(String.raw`saldo\s+(?:pr[oó]xima\s+fatura|futuro)[^\n]*?` + VALOR, "gi")),
     (m) => parseValor(m[1]!),
   ).filter((v) => v > 0);
 
@@ -298,9 +298,10 @@ export function extrairLimites(texto: string): LimitesFatura {
   const tabela = limitesTabela(texto);
   const itau = limitesItau(texto);
 
-  let limite_total = total ?? tabela?.limite_total ?? itau?.limite_total ?? null;
-  let limite_disponivel = disponivel ?? tabela?.limite_disponivel ?? itau?.limite_disponivel ?? null;
-  let limite_utilizado = utilizado ?? tabela?.limite_utilizado ?? itau?.limite_utilizado ?? null;
+  // Tabelas e o layout do Itaú são mais confiáveis que o casamento genérico por rótulo.
+  let limite_total = tabela?.limite_total ?? itau?.limite_total ?? total ?? null;
+  let limite_disponivel = tabela?.limite_disponivel ?? itau?.limite_disponivel ?? disponivel ?? null;
+  let limite_utilizado = tabela?.limite_utilizado ?? itau?.limite_utilizado ?? utilizado ?? null;
 
   // Coerência: o limite total nunca é menor que utilizado/disponível.
   const maior = Math.max(limite_total ?? 0, limite_utilizado ?? 0, limite_disponivel ?? 0);
