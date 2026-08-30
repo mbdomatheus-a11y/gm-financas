@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/hooks/useAuthData";
-import { useCategorias, useProfilesList } from "@/hooks/useFinance";
+import { useBancos, useCartoes, useCategorias, useProfilesList } from "@/hooks/useFinance";
 import { formatBRL, formatDate } from "@/lib/format";
 import {
   BANCO_LABEL,
