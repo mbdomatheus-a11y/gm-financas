@@ -225,6 +225,16 @@ function ImportarPage() {
 
           const venc = f.vencimento ?? l.data_compra;
           const primeira = vencimentoParcela(venc, l.parcela_numero, 1);
+
+          // Vincula ao cartão pelo final; senão usa o destino escolhido para a fatura.
+          const cartaoLinha = acharCartao(f.banco, l.cartao_final);
+          const [tipoDestino, idDestino] = String(f.destino ?? "").split(":");
+          const cartaoId = cartaoLinha?.id ?? (tipoDestino === "cartao" ? (idDestino ?? null) : null);
+          const bancoId = cartaoId ? null : tipoDestino === "banco" ? (idDestino ?? null) : null;
+          const cartaoDestino = cartaoId
+            ? ((cartoes as any[]).find((c) => c.id === cartaoId) ?? null)
+            : null;
+
           const { data: despesa, error: despErr } = await supabase
             .from("despesas")
             .insert({
@@ -238,8 +248,11 @@ function ImportarPage() {
               total_parcelas: l.parcela_total,
               data_primeira_parcela: primeira,
               responsavel: l.responsavel,
-              banco_nome: BANCO_LABEL[f.banco],
-              cartao_final: l.cartao_final,
+              cartao_id: cartaoId,
+              banco_id: bancoId,
+              banco_nome: cartaoDestino?.bancos?.nome ?? BANCO_LABEL[f.banco],
+              cartao_final: l.cartao_final ?? cartaoDestino?.final ?? null,
+
               direcao: l.direcao,
               origem: "importacao",
               fatura_id: fatura.id,
