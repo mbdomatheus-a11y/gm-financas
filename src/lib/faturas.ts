@@ -98,16 +98,21 @@ export function detectarBanco(texto: string, nomeArquivo: string): BancoFatura {
 const MOJIBAKE: Record<string, string> = {
   "Ã¡": "á", "Ã ": "à", "Ã¢": "â", "Ã£": "ã", "Ã©": "é", "Ãª": "ê", "Ã­": "í",
   "Ã³": "ó", "Ã´": "ô", "Ãµ": "õ", "Ãº": "ú", "Ã§": "ç", "Ã‰": "É", "Ãƒ": "Ã",
-  "Ã‡": "Ç", "Ã”": "Ô", "Ã•": "Õ", "Ã": "Á", "Âº": "º", "Âª": "ª", "Â": "",
+  "Ã‡": "Ç", "Ã”": "Ô", "Ã•": "Õ", "Ã": "Á", "Ãš": "Ú", "Âº": "º", "Âª": "ª",
 };
+/** Só corrige quando o texto realmente veio com bytes UTF-8 lidos como latin-1. */
+const RE_MOJIBAKE = /[ÃÂ][\u0080-\u00bf\u2018-\u201e\u0152-\u0178]/;
 
 const MINUSCULAS = new Set(["de", "da", "do", "das", "dos", "e", "em", "no", "na", "para", "com"]);
 
 /** Corrige acentuação quebrada do PDF e deixa nomes em maiúsculas com capitalização legível. */
 export function corrigirTexto(raw: string): string {
   let s = raw;
-  for (const [de, para] of Object.entries(MOJIBAKE)) s = s.split(de).join(para);
+  if (RE_MOJIBAKE.test(s)) {
+    for (const [de, para] of Object.entries(MOJIBAKE)) s = s.split(de).join(para);
+  }
   s = s.replace(/\s+/g, " ").trim();
+
 
   const letras = s.replace(/[^A-Za-zÀ-ÿ]/g, "");
   const tudoMaiusculo = letras.length > 3 && letras === letras.toUpperCase();
