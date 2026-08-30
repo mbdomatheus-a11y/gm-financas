@@ -545,9 +545,11 @@ function DashboardPage() {
               <p className="text-sm text-muted-foreground">Sem lançamentos aqui.</p>
             )}
             {detalhe.map((d: any) => (
-              <div
+              <button
                 key={d.id}
-                className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-sm"
+                type="button"
+                onClick={() => setEditando(d.despesa)}
+                className="flex w-full items-center justify-between gap-3 rounded-lg border px-3 py-2 text-left text-sm transition-colors hover:bg-muted/60"
               >
                 <div className="min-w-0">
                   <p className="truncate font-medium">{d.descricao}</p>
@@ -563,8 +565,9 @@ function DashboardPage() {
                   </Badge>
                   <span className="font-semibold tabular-nums">{formatBRL(d.valor)}</span>
                 </div>
-              </div>
+              </button>
             ))}
+
           </CardContent>
         </Card>
       )}
