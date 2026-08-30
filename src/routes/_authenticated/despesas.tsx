@@ -200,21 +200,23 @@ function DespesasPage() {
     if (!can("despesas", "editar")) return;
     setEditId(d.id);
     setDuplicata(null);
+    const n = Math.max(1, Number(d.total_parcelas) || 1);
+    const fixa = (d.tipo ?? "fixa") === "fixa";
     setForm({
       descricao: d.descricao ?? "",
-      valor_total: String(d.valor_total ?? ""),
-      modo_valor: "total",
-
+      valor_total: String(Number((Number(d.valor_total ?? 0) / n).toFixed(2))),
       moeda: d.moeda ?? "BRL",
       categoria: d.categoria ?? "",
       tipo: d.tipo ?? "fixa",
       data_compra: d.data_compra,
       pagamento: d.cartao_id ? `cartao:${d.cartao_id}` : d.banco_id ? `banco:${d.banco_id}` : "",
-      total_parcelas: String(d.total_parcelas ?? 1),
+      total_parcelas: fixa ? "1" : String(n),
+      repetir_meses: fixa ? String(n) : "24",
       data_primeira_parcela: d.data_primeira_parcela,
       responsavel: d.responsavel ?? "",
       observacoes: d.observacoes ?? "",
     });
+
     setOpen(true);
   }
 
