@@ -813,35 +813,35 @@ function DespesasPage() {
                 placeholder="Ex.: Mercado do mês"
               />
             </Field>
-            <Field label={form.modo_valor === "parcela" ? "Valor da parcela" : "Valor total"}>
+            <Field label="Valor">
               <Input
                 inputMode="decimal"
                 value={form.valor_total}
                 onChange={(e) => setForm({ ...form, valor_total: e.target.value })}
                 placeholder="0,00"
               />
-              {nParcelas > 1 && valorNum > 0 && (
+              {nParcelas > 1 && valorDigitado > 0 && (
                 <p className="mt-1 text-[11px] text-muted-foreground">
-                  {form.modo_valor === "parcela"
-                    ? `Total da compra: ${formatBRL(valorNum)}`
-                    : `Cada parcela: ${formatBRL(previewParcela)}`}
+                  {nParcelas}x de {formatBRL(previewParcela)} — total {formatBRL(valorNum)}
+                  {recorrenteFixa ? " (repetição mensal)" : ""}
                 </p>
               )}
             </Field>
-            <Field label="O valor digitado é">
-              <Select
-                value={form.modo_valor}
-                onValueChange={(v) => setForm({ ...form, modo_valor: v })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="total">Valor total da compra</SelectItem>
-                  <SelectItem value="parcela">Valor de cada parcela</SelectItem>
-                </SelectContent>
-              </Select>
-            </Field>
+            {recorrenteFixa ? (
+              <Field label="Repetir por (meses)">
+                <Input
+                  type="number"
+                  min={1}
+                  max={120}
+                  value={form.repetir_meses}
+                  onChange={(e) => setForm({ ...form, repetir_meses: e.target.value })}
+                />
+              </Field>
+            ) : (
+              <div className="hidden sm:block" />
+            )}
+
+
 
             <Field label="Moeda">
               <Select value={form.moeda} onValueChange={(v) => setForm({ ...form, moeda: v })}>
