@@ -891,7 +891,9 @@ function DashboardPage() {
         </Card>
       </div>
 
+      <EditarDespesaDialog despesa={editando} onClose={() => setEditando(null)} />
     </AppLayout>
+
   );
 }
 
