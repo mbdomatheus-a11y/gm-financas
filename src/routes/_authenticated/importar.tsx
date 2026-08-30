@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/hooks/useAuthData";
-import { useCategorias, useProfilesList } from "@/hooks/useFinance";
+import { useBancos, useCartoes, useCategorias, useProfilesList } from "@/hooks/useFinance";
 import { formatBRL, formatDate } from "@/lib/format";
 import {
   BANCO_LABEL,
@@ -53,17 +53,56 @@ export const Route = createFileRoute("/_authenticated/importar")({
 
 const BANCOS: BancoFatura[] = ["itau", "nubank", "pernambucanas", "santander", "desconhecido"];
 
-type FaturaItem = FaturaExtraida & { arquivo: File; duplicada?: boolean };
+type FaturaItem = FaturaExtraida & { arquivo: File; duplicada?: boolean; destino?: string };
+
+/** Normaliza nomes para comparar "Itaú" com "itau", "Banco Santander" com "santander" etc. */
+function chaveNome(v: string) {
+  return v
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
 
 function ImportarPage() {
   const qc = useQueryClient();
   const { user } = useSession();
   const { data: profiles = [] } = useProfilesList();
   const { data: categorias = [] } = useCategorias("despesa");
+  const { data: cartoes = [] } = useCartoes();
+  const { data: bancos = [] } = useBancos();
   const inputRef = useRef<HTMLInputElement>(null);
 
   const [lendo, setLendo] = useState(false);
   const [faturas, setFaturas] = useState<FaturaItem[]>([]);
+
+  /** Cartão cadastrado com o final informado (preferindo o mesmo banco da fatura). */
+  function acharCartao(banco: BancoFatura, final: string | null) {
+    if (!final) return null;
+    const doBanco = (cartoes as any[]).filter(
+      (c) =>
+        c.final === final &&
+        (!c.bancos?.nome || chaveNome(c.bancos.nome) === chaveNome(BANCO_LABEL[banco])),
+    );
+    const qualquer = (cartoes as any[]).filter((c) => c.final === final);
+    return doBanco[0] ?? qualquer[0] ?? null;
+  }
+
+  /** Destino padrão da fatura: cartão do banco (por final) ou conta bancária de mesmo nome. */
+  function destinoPadrao(f: FaturaExtraida): string {
+    const nome = chaveNome(BANCO_LABEL[f.banco]);
+    for (const final of f.finais) {
+      const c = acharCartao(f.banco, final);
+      if (c) return `cartao:${c.id}`;
+    }
+    const cartaoBanco = (cartoes as any[]).find(
+      (c) => c.bancos?.nome && chaveNome(c.bancos.nome) === nome,
+    );
+    if (cartaoBanco) return `cartao:${cartaoBanco.id}`;
+    const banco = (bancos as any[]).find((b) => chaveNome(b.nome) === nome);
+    return banco ? `banco:${banco.id}` : "";
+  }
+
 
   const totais = useMemo(() => {
     const lanc = faturas.flatMap((f) => f.lancamentos.filter((l) => l.incluir));
@@ -91,7 +130,13 @@ function ImportarPage() {
             .select("id")
             .eq("arquivo_hash", extraida.arquivo_hash)
             .maybeSingle();
-          novos.push({ ...extraida, arquivo: file, duplicada: !!jaExiste });
+          novos.push({
+            ...extraida,
+            arquivo: file,
+            duplicada: !!jaExiste,
+            destino: destinoPadrao(extraida),
+          });
+
         } catch {
           toast.error(`${file.name}: não consegui ler o PDF (pode ser digitalizado).`);
         }
@@ -180,6 +225,16 @@ function ImportarPage() {
 
           const venc = f.vencimento ?? l.data_compra;
           const primeira = vencimentoParcela(venc, l.parcela_numero, 1);
+
+          // Vincula ao cartão pelo final; senão usa o destino escolhido para a fatura.
+          const cartaoLinha = acharCartao(f.banco, l.cartao_final);
+          const [tipoDestino, idDestino] = String(f.destino ?? "").split(":");
+          const cartaoId = cartaoLinha?.id ?? (tipoDestino === "cartao" ? (idDestino ?? null) : null);
+          const bancoId = cartaoId ? null : tipoDestino === "banco" ? (idDestino ?? null) : null;
+          const cartaoDestino = cartaoId
+            ? ((cartoes as any[]).find((c) => c.id === cartaoId) ?? null)
+            : null;
+
           const { data: despesa, error: despErr } = await supabase
             .from("despesas")
             .insert({
@@ -193,8 +248,11 @@ function ImportarPage() {
               total_parcelas: l.parcela_total,
               data_primeira_parcela: primeira,
               responsavel: l.responsavel,
-              banco_nome: BANCO_LABEL[f.banco],
-              cartao_final: l.cartao_final,
+              cartao_id: cartaoId,
+              banco_id: bancoId,
+              banco_nome: cartaoDestino?.bancos?.nome ?? BANCO_LABEL[f.banco],
+              cartao_final: l.cartao_final ?? cartaoDestino?.final ?? null,
+
               direcao: l.direcao,
               origem: "importacao",
               fatura_id: fatura.id,
@@ -326,11 +384,42 @@ function ImportarPage() {
             </div>
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
+              <div className="space-y-1 sm:col-span-2">
+                <Label className="text-xs">Cartão / conta de destino</Label>
+                <Select
+                  value={f.destino || "nenhum"}
+                  onValueChange={(v) => atualizarFatura(idx, { destino: v === "nenhum" ? "" : v })}
+                >
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="nenhum">Não vincular</SelectItem>
+                    {(cartoes as any[]).map((c) => (
+                      <SelectItem key={c.id} value={`cartao:${c.id}`}>
+                        {c.apelido ?? c.titular} · {c.bancos?.nome ?? c.bandeira} •{c.final}
+                      </SelectItem>
+                    ))}
+                    {(bancos as any[]).map((b) => (
+                      <SelectItem key={b.id} value={`banco:${b.id}`}>
+                        {b.nome} (conta)
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="space-y-1">
+
                 <Label className="text-xs">Banco</Label>
                 <Select
                   value={f.banco}
-                  onValueChange={(v) => atualizarFatura(idx, { banco: v as BancoFatura })}
+                  onValueChange={(v) =>
+                    atualizarFatura(idx, {
+                      banco: v as BancoFatura,
+                      destino: destinoPadrao({ ...f, banco: v as BancoFatura }),
+                    })
+                  }
+
                 >
                   <SelectTrigger className="h-9">
                     <SelectValue />

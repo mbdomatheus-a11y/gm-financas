@@ -106,18 +106,19 @@ function novoForm(tipo: "fixa" | "variavel") {
   return {
     descricao: "",
     valor_total: "",
-    modo_valor: "total",
     moeda: "BRL",
     categoria: "",
     tipo,
     data_compra: toISODate(new Date()),
     pagamento: "",
     total_parcelas: "1",
+    repetir_meses: "24",
     data_primeira_parcela: toISODate(new Date()),
     responsavel: "",
     observacoes: "",
   };
 }
+
 
 
 function DespesasPage() {
@@ -158,13 +159,15 @@ function DespesasPage() {
   const responsaveis = [...perfis.map((p: any) => p.nome), RESPONSAVEIS_EXTRA];
 
   const valorDigitado = Number(String(form.valor_total).replace(",", ".")) || 0;
-  const nParcelas = Math.max(1, Number(form.total_parcelas) || 1);
-  // "parcela" = o valor digitado é o de cada parcela; "total" = valor cheio da compra
-  const valorNum =
-    form.modo_valor === "parcela"
-      ? Number((valorDigitado * nParcelas).toFixed(2))
-      : valorDigitado;
-  const previewParcela = valorNum > 0 ? dividirParcelas(valorNum, nParcelas)[0] ?? 0 : 0;
+  const parcelasInformadas = Math.max(1, Number(form.total_parcelas) || 1);
+  const repetirMeses = Math.max(1, Number(form.repetir_meses) || 1);
+  // Fixa em 1x repete mensalmente pelo número de meses escolhido.
+  const recorrenteFixa = form.tipo === "fixa" && parcelasInformadas === 1;
+  const nParcelas = recorrenteFixa ? repetirMeses : parcelasInformadas;
+  // O valor digitado é sempre o valor de cada parcela/mês.
+  const valorNum = Number((valorDigitado * nParcelas).toFixed(2));
+  const previewParcela = valorDigitado;
+
 
 
   const possivelDuplicata = useMemo(() => {
@@ -197,21 +200,23 @@ function DespesasPage() {
     if (!can("despesas", "editar")) return;
     setEditId(d.id);
     setDuplicata(null);
+    const n = Math.max(1, Number(d.total_parcelas) || 1);
+    const fixa = (d.tipo ?? "fixa") === "fixa";
     setForm({
       descricao: d.descricao ?? "",
-      valor_total: String(d.valor_total ?? ""),
-      modo_valor: "total",
-
+      valor_total: String(Number((Number(d.valor_total ?? 0) / n).toFixed(2))),
       moeda: d.moeda ?? "BRL",
       categoria: d.categoria ?? "",
       tipo: d.tipo ?? "fixa",
       data_compra: d.data_compra,
       pagamento: d.cartao_id ? `cartao:${d.cartao_id}` : d.banco_id ? `banco:${d.banco_id}` : "",
-      total_parcelas: String(d.total_parcelas ?? 1),
+      total_parcelas: fixa ? "1" : String(n),
+      repetir_meses: fixa ? String(n) : "24",
       data_primeira_parcela: d.data_primeira_parcela,
       responsavel: d.responsavel ?? "",
       observacoes: d.observacoes ?? "",
     });
+
     setOpen(true);
   }
 
@@ -224,7 +229,7 @@ function DespesasPage() {
         categoria: form.categoria,
         tipo: form.tipo,
         data_compra: form.data_compra,
-        total_parcelas: Number(form.total_parcelas),
+        total_parcelas: nParcelas,
         data_primeira_parcela: form.data_primeira_parcela,
         responsavel: form.responsavel,
         observacoes: form.observacoes || null,
@@ -808,35 +813,35 @@ function DespesasPage() {
                 placeholder="Ex.: Mercado do mês"
               />
             </Field>
-            <Field label={form.modo_valor === "parcela" ? "Valor da parcela" : "Valor total"}>
+            <Field label="Valor">
               <Input
                 inputMode="decimal"
                 value={form.valor_total}
                 onChange={(e) => setForm({ ...form, valor_total: e.target.value })}
                 placeholder="0,00"
               />
-              {nParcelas > 1 && valorNum > 0 && (
+              {nParcelas > 1 && valorDigitado > 0 && (
                 <p className="mt-1 text-[11px] text-muted-foreground">
-                  {form.modo_valor === "parcela"
-                    ? `Total da compra: ${formatBRL(valorNum)}`
-                    : `Cada parcela: ${formatBRL(previewParcela)}`}
+                  {nParcelas}x de {formatBRL(previewParcela)} — total {formatBRL(valorNum)}
+                  {recorrenteFixa ? " (repetição mensal)" : ""}
                 </p>
               )}
             </Field>
-            <Field label="O valor digitado é">
-              <Select
-                value={form.modo_valor}
-                onValueChange={(v) => setForm({ ...form, modo_valor: v })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="total">Valor total da compra</SelectItem>
-                  <SelectItem value="parcela">Valor de cada parcela</SelectItem>
-                </SelectContent>
-              </Select>
-            </Field>
+            {recorrenteFixa ? (
+              <Field label="Repetir por (meses)">
+                <Input
+                  type="number"
+                  min={1}
+                  max={120}
+                  value={form.repetir_meses}
+                  onChange={(e) => setForm({ ...form, repetir_meses: e.target.value })}
+                />
+              </Field>
+            ) : (
+              <div className="hidden sm:block" />
+            )}
+
+
 
             <Field label="Moeda">
               <Select value={form.moeda} onValueChange={(v) => setForm({ ...form, moeda: v })}>
@@ -947,11 +952,13 @@ function DespesasPage() {
             </Field>
           </div>
 
-          {nParcelas > 1 && valorNum > 0 && (
+          {nParcelas > 1 && valorDigitado > 0 && (
             <p className="rounded-lg bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
-              {nParcelas}x de {formatBRL(previewParcela)} — a última parcela recebe o ajuste de
-              centavos.
+              {recorrenteFixa
+                ? `Despesa fixa repetida por ${nParcelas} meses de ${formatBRL(previewParcela)} — total ${formatBRL(valorNum)}.`
+                : `${nParcelas}x de ${formatBRL(previewParcela)} — total ${formatBRL(valorNum)}.`}
             </p>
+
           )}
 
           <DialogFooter>

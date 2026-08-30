@@ -1,5 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+
 import {
   ArrowDownRight,
   ArrowUpRight,
@@ -39,7 +42,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useCotacao } from "@/hooks/useCotacao";
-import { useDespesas, useReceitas } from "@/hooks/useFinance";
+import { useCategorias, useDespesas, useReceitas } from "@/hooks/useFinance";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+
 import {
   currentMonthKey,
   formatBRL,
@@ -130,6 +143,8 @@ function DashboardPage() {
   const [mesPie, setMesPie] = useState(mesAtual);
   const [agrupamento, setAgrupamento] = useState<Agrupamento>("categoria");
   const [drill, setDrill] = useState<{ mes: string; grupo?: string } | null>(null);
+  const [editando, setEditando] = useState<any | null>(null);
+
 
   const meses = useMemo(() => monthWindow(janela), [janela]);
   const mesesSelecionaveis = useMemo(() => {
@@ -382,6 +397,7 @@ function DashboardPage() {
       })
       .map((p: any) => ({
         id: p.id,
+        despesa: p.despesa,
         descricao: p.despesa.descricao,
         identificacao: identificacaoDespesa(p.despesa),
         parcela: `${p.numero}/${p.total}`,
@@ -389,10 +405,29 @@ function DashboardPage() {
         paga: p.paga,
         valor: toBRL(Number(p.valor), p.despesa.moeda, cotacao),
       }))
+
       .sort((a: any, b: any) => b.valor - a.valor);
   }, [drill, parcelas, grupoDe, dados.grupos, cotacao]);
 
+  /** Agrupamentos do mês selecionado, do maior para o menor. */
+  const agrupamentosMes = useMemo(() => {
+    const map = new Map<string, { total: number; itens: number }>();
+    for (const p of parcelas.filter((p: any) => monthKey(p.vencimento) === mesPie)) {
+      const g = grupoDe(p);
+      const atual = map.get(g) ?? { total: 0, itens: 0 };
+      atual.total += toBRL(Number(p.valor), p.despesa.moeda, cotacao);
+      atual.itens += 1;
+      map.set(g, atual);
+    }
+    const lista = Array.from(map, ([grupo, v]) => ({ grupo, ...v })).sort(
+      (a, b) => b.total - a.total,
+    );
+    const total = lista.reduce((s, g) => s + g.total, 0);
+    return { lista, total };
+  }, [parcelas, grupoDe, mesPie, cotacao]);
+
   const corGrupo = (g: string) => PALETA[dados.grupos.indexOf(g) % PALETA.length];
+
 
   return (
     <AppLayout
@@ -527,6 +562,54 @@ function DashboardPage() {
         </CardContent>
       </Card>
 
+      <Card className="mt-4">
+        <CardHeader className="flex flex-col gap-2 space-y-0 sm:flex-row sm:items-center sm:justify-between">
+          <CardTitle className="text-base">
+            Agrupamentos de {monthLabelLong(mesPie)} — maior para menor
+          </CardTitle>
+          <Select value={mesPie} onValueChange={setMesPie}>
+            <SelectTrigger className="h-8 w-[140px] text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {mesesSelecionaveis.map((m) => (
+                <SelectItem key={m} value={m}>
+                  {monthLabel(m)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {agrupamentosMes.lista.length === 0 && (
+            <p className="text-sm text-muted-foreground">Sem despesas neste mês.</p>
+          )}
+          {agrupamentosMes.lista.map((g) => {
+            const pct = agrupamentosMes.total ? (g.total / agrupamentosMes.total) * 100 : 0;
+            return (
+              <button
+                key={g.grupo}
+                type="button"
+                onClick={() => setDrill({ mes: mesPie, grupo: g.grupo })}
+                className="w-full rounded-lg border px-3 py-2 text-left transition-colors hover:bg-muted/60"
+              >
+                <div className="flex items-center justify-between gap-3 text-sm">
+                  <span className="truncate font-medium capitalize">{g.grupo}</span>
+                  <span className="shrink-0 font-semibold tabular-nums">
+                    {formatBRL(g.total)}
+                  </span>
+                </div>
+                <Progress value={pct} className="mt-1.5 h-1.5" />
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  {g.itens} lançamento(s) · {pct.toFixed(1)}% do mês
+                </p>
+              </button>
+            );
+          })}
+        </CardContent>
+      </Card>
+
+
       {drill && (
         <Card className="mt-4">
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
@@ -543,9 +626,11 @@ function DashboardPage() {
               <p className="text-sm text-muted-foreground">Sem lançamentos aqui.</p>
             )}
             {detalhe.map((d: any) => (
-              <div
+              <button
                 key={d.id}
-                className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-sm"
+                type="button"
+                onClick={() => setEditando(d.despesa)}
+                className="flex w-full items-center justify-between gap-3 rounded-lg border px-3 py-2 text-left text-sm transition-colors hover:bg-muted/60"
               >
                 <div className="min-w-0">
                   <p className="truncate font-medium">{d.descricao}</p>
@@ -561,8 +646,9 @@ function DashboardPage() {
                   </Badge>
                   <span className="font-semibold tabular-nums">{formatBRL(d.valor)}</span>
                 </div>
-              </div>
+              </button>
             ))}
+
           </CardContent>
         </Card>
       )}
@@ -818,7 +904,9 @@ function DashboardPage() {
         </Card>
       </div>
 
+      <EditarDespesaDialog despesa={editando} onClose={() => setEditando(null)} />
     </AppLayout>
+
   );
 }
 
@@ -884,5 +972,118 @@ function StatCard({
         {hint && <p className="mt-1 text-[11px] text-muted-foreground">{hint}</p>}
       </CardContent>
     </Card>
+  );
+}
+
+/** Edição rápida de uma despesa direto do dashboard, sem sair da tela. */
+function EditarDespesaDialog({
+  despesa,
+  onClose,
+}: {
+  despesa: any | null;
+  onClose: () => void;
+}) {
+  const qc = useQueryClient();
+  const { data: categorias = [] } = useCategorias("despesa");
+  const [form, setForm] = useState({
+    descricao: "",
+    categoria: "",
+    tipo: "variavel",
+    responsavel: "",
+  });
+
+  useEffect(() => {
+    if (!despesa) return;
+    setForm({
+      descricao: despesa.descricao ?? "",
+      categoria: despesa.categoria ?? "",
+      tipo: despesa.tipo ?? "variavel",
+      responsavel: despesa.responsavel ?? "",
+    });
+  }, [despesa]);
+
+  const salvar = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from("despesas")
+        .update({
+          descricao: form.descricao,
+          categoria: form.categoria,
+          tipo: form.tipo,
+          responsavel: form.responsavel || null,
+        })
+        .eq("id", despesa.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["despesas"] });
+      toast.success("Despesa atualizada.");
+      onClose();
+    },
+    onError: (e: any) => toast.error(e.message ?? "Não consegui salvar."),
+  });
+
+  return (
+    <Dialog open={!!despesa} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Editar despesa</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-1">
+            <Label className="text-xs">Descrição</Label>
+            <Input
+              value={form.descricao}
+              onChange={(e) => setForm({ ...form, descricao: e.target.value })}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Categoria</Label>
+            <Select
+              value={form.categoria}
+              onValueChange={(v) => setForm({ ...form, categoria: v })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione" />
+              </SelectTrigger>
+              <SelectContent>
+                {(categorias as any[]).map((c) => (
+                  <SelectItem key={c.id} value={c.nome}>
+                    {c.nome}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Tipo</Label>
+            <Select value={form.tipo} onValueChange={(v) => setForm({ ...form, tipo: v })}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="fixa">Fixa</SelectItem>
+                <SelectItem value="variavel">Variável</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Responsável</Label>
+            <Input
+              value={form.responsavel}
+              onChange={(e) => setForm({ ...form, responsavel: e.target.value })}
+            />
+          </div>
+          <div className="flex justify-end gap-2 pt-1">
+            <Button variant="outline" onClick={onClose}>
+              Cancelar
+            </Button>
+            <Button onClick={() => salvar.mutate()} disabled={salvar.isPending}>
+              Salvar
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
