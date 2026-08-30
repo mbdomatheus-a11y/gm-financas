@@ -130,6 +130,8 @@ function DashboardPage() {
   const [mesPie, setMesPie] = useState(mesAtual);
   const [agrupamento, setAgrupamento] = useState<Agrupamento>("categoria");
   const [drill, setDrill] = useState<{ mes: string; grupo?: string } | null>(null);
+  const [editando, setEditando] = useState<any | null>(null);
+
 
   const meses = useMemo(() => monthWindow(janela), [janela]);
   const mesesSelecionaveis = useMemo(() => {
