@@ -413,7 +413,13 @@ function ImportarPage() {
                 <Label className="text-xs">Banco</Label>
                 <Select
                   value={f.banco}
-                  onValueChange={(v) => atualizarFatura(idx, { banco: v as BancoFatura })}
+                  onValueChange={(v) =>
+                    atualizarFatura(idx, {
+                      banco: v as BancoFatura,
+                      destino: destinoPadrao({ ...f, banco: v as BancoFatura }),
+                    })
+                  }
+
                 >
                   <SelectTrigger className="h-9">
                     <SelectValue />
