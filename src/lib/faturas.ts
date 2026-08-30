@@ -101,7 +101,7 @@ const MOJIBAKE: Record<string, string> = {
   "Ã‡": "Ç", "Ã”": "Ô", "Ã•": "Õ", "Ã": "Á", "Ãš": "Ú", "Âº": "º", "Âª": "ª",
 };
 /** Só corrige quando o texto realmente veio com bytes UTF-8 lidos como latin-1. */
-const RE_MOJIBAKE = /[ÃÂ][\u0080-\u00bf\u2018-\u201e\u0152-\u0178]/;
+const RE_MOJIBAKE = /[ÃÂ][\u0080-\u00bf\u2013-\u2030\u0152-\u0178]/;
 
 const MINUSCULAS = new Set(["de", "da", "do", "das", "dos", "e", "em", "no", "na", "para", "com"]);
 
