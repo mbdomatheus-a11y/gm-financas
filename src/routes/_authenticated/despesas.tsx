@@ -158,13 +158,15 @@ function DespesasPage() {
   const responsaveis = [...perfis.map((p: any) => p.nome), RESPONSAVEIS_EXTRA];
 
   const valorDigitado = Number(String(form.valor_total).replace(",", ".")) || 0;
-  const nParcelas = Math.max(1, Number(form.total_parcelas) || 1);
-  // "parcela" = o valor digitado é o de cada parcela; "total" = valor cheio da compra
-  const valorNum =
-    form.modo_valor === "parcela"
-      ? Number((valorDigitado * nParcelas).toFixed(2))
-      : valorDigitado;
-  const previewParcela = valorNum > 0 ? dividirParcelas(valorNum, nParcelas)[0] ?? 0 : 0;
+  const parcelasInformadas = Math.max(1, Number(form.total_parcelas) || 1);
+  const repetirMeses = Math.max(1, Number(form.repetir_meses) || 1);
+  // Fixa em 1x repete mensalmente pelo número de meses escolhido.
+  const recorrenteFixa = form.tipo === "fixa" && parcelasInformadas === 1;
+  const nParcelas = recorrenteFixa ? repetirMeses : parcelasInformadas;
+  // O valor digitado é sempre o valor de cada parcela/mês.
+  const valorNum = Number((valorDigitado * nParcelas).toFixed(2));
+  const previewParcela = valorDigitado;
+
 
 
   const possivelDuplicata = useMemo(() => {
