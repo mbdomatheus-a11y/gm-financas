@@ -53,17 +53,56 @@ export const Route = createFileRoute("/_authenticated/importar")({
 
 const BANCOS: BancoFatura[] = ["itau", "nubank", "pernambucanas", "santander", "desconhecido"];
 
-type FaturaItem = FaturaExtraida & { arquivo: File; duplicada?: boolean };
+type FaturaItem = FaturaExtraida & { arquivo: File; duplicada?: boolean; destino?: string };
+
+/** Normaliza nomes para comparar "Itaú" com "itau", "Banco Santander" com "santander" etc. */
+function chaveNome(v: string) {
+  return v
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
 
 function ImportarPage() {
   const qc = useQueryClient();
   const { user } = useSession();
   const { data: profiles = [] } = useProfilesList();
   const { data: categorias = [] } = useCategorias("despesa");
+  const { data: cartoes = [] } = useCartoes();
+  const { data: bancos = [] } = useBancos();
   const inputRef = useRef<HTMLInputElement>(null);
 
   const [lendo, setLendo] = useState(false);
   const [faturas, setFaturas] = useState<FaturaItem[]>([]);
+
+  /** Cartão cadastrado com o final informado (preferindo o mesmo banco da fatura). */
+  function acharCartao(banco: BancoFatura, final: string | null) {
+    if (!final) return null;
+    const doBanco = (cartoes as any[]).filter(
+      (c) =>
+        c.final === final &&
+        (!c.bancos?.nome || chaveNome(c.bancos.nome) === chaveNome(BANCO_LABEL[banco])),
+    );
+    const qualquer = (cartoes as any[]).filter((c) => c.final === final);
+    return doBanco[0] ?? qualquer[0] ?? null;
+  }
+
+  /** Destino padrão da fatura: cartão do banco (por final) ou conta bancária de mesmo nome. */
+  function destinoPadrao(f: FaturaExtraida): string {
+    const nome = chaveNome(BANCO_LABEL[f.banco]);
+    for (const final of f.finais) {
+      const c = acharCartao(f.banco, final);
+      if (c) return `cartao:${c.id}`;
+    }
+    const cartaoBanco = (cartoes as any[]).find(
+      (c) => c.bancos?.nome && chaveNome(c.bancos.nome) === nome,
+    );
+    if (cartaoBanco) return `cartao:${cartaoBanco.id}`;
+    const banco = (bancos as any[]).find((b) => chaveNome(b.nome) === nome);
+    return banco ? `banco:${banco.id}` : "";
+  }
+
 
   const totais = useMemo(() => {
     const lanc = faturas.flatMap((f) => f.lancamentos.filter((l) => l.incluir));
