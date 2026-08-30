@@ -384,7 +384,32 @@ function ImportarPage() {
             </div>
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
+              <div className="space-y-1 sm:col-span-2">
+                <Label className="text-xs">Cartão / conta de destino</Label>
+                <Select
+                  value={f.destino || "nenhum"}
+                  onValueChange={(v) => atualizarFatura(idx, { destino: v === "nenhum" ? "" : v })}
+                >
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="nenhum">Não vincular</SelectItem>
+                    {(cartoes as any[]).map((c) => (
+                      <SelectItem key={c.id} value={`cartao:${c.id}`}>
+                        {c.apelido ?? c.titular} · {c.bancos?.nome ?? c.bandeira} •{c.final}
+                      </SelectItem>
+                    ))}
+                    {(bancos as any[]).map((b) => (
+                      <SelectItem key={b.id} value={`banco:${b.id}`}>
+                        {b.nome} (conta)
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="space-y-1">
+
                 <Label className="text-xs">Banco</Label>
                 <Select
                   value={f.banco}
