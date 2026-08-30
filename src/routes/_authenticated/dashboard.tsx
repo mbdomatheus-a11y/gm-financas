@@ -42,7 +42,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useCotacao } from "@/hooks/useCotacao";
-import { useDespesas, useReceitas } from "@/hooks/useFinance";
+import { useCategorias, useDespesas, useReceitas } from "@/hooks/useFinance";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+
 import {
   currentMonthKey,
   formatBRL,
