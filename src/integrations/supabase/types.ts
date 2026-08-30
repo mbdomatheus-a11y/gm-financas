@@ -144,6 +144,48 @@ export type Database = {
           },
         ]
       }
+      categoria_regras: {
+        Row: {
+          ativo: boolean
+          categoria: string
+          created_at: string
+          created_by: string | null
+          estabelecimento_normalizado: string
+          id: string
+          prioridade: number
+          subcategoria: string | null
+          texto_original: string | null
+          tipo_regra: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          categoria: string
+          created_at?: string
+          created_by?: string | null
+          estabelecimento_normalizado: string
+          id?: string
+          prioridade?: number
+          subcategoria?: string | null
+          texto_original?: string | null
+          tipo_regra?: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          categoria?: string
+          created_at?: string
+          created_by?: string | null
+          estabelecimento_normalizado?: string
+          id?: string
+          prioridade?: number
+          subcategoria?: string | null
+          texto_original?: string | null
+          tipo_regra?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       categorias: {
         Row: {
           cor: string | null
@@ -178,6 +220,9 @@ export type Database = {
           cartao_final: string | null
           cartao_id: string | null
           categoria: string
+          categoria_confirmada: boolean
+          categoria_sugerida: string | null
+          confianca_categoria: string | null
           created_at: string
           created_by: string | null
           data_compra: string
@@ -186,13 +231,18 @@ export type Database = {
           descricao: string
           descricao_normalizada: string | null
           direcao: string
+          estabelecimento: string | null
+          estabelecimento_normalizado: string | null
           fatura_id: string | null
           grupo_parcelamento: string | null
           id: string
           moeda: string
           observacoes: string | null
           origem: string
+          regra_id: string | null
           responsavel: string | null
+          subcategoria: string | null
+          subcategoria_sugerida: string | null
           tipo: string
           total_parcelas: number
           valor_total: number
@@ -203,6 +253,9 @@ export type Database = {
           cartao_final?: string | null
           cartao_id?: string | null
           categoria?: string
+          categoria_confirmada?: boolean
+          categoria_sugerida?: string | null
+          confianca_categoria?: string | null
           created_at?: string
           created_by?: string | null
           data_compra: string
@@ -211,13 +264,18 @@ export type Database = {
           descricao: string
           descricao_normalizada?: string | null
           direcao?: string
+          estabelecimento?: string | null
+          estabelecimento_normalizado?: string | null
           fatura_id?: string | null
           grupo_parcelamento?: string | null
           id?: string
           moeda?: string
           observacoes?: string | null
           origem?: string
+          regra_id?: string | null
           responsavel?: string | null
+          subcategoria?: string | null
+          subcategoria_sugerida?: string | null
           tipo: string
           total_parcelas?: number
           valor_total: number
@@ -228,6 +286,9 @@ export type Database = {
           cartao_final?: string | null
           cartao_id?: string | null
           categoria?: string
+          categoria_confirmada?: boolean
+          categoria_sugerida?: string | null
+          confianca_categoria?: string | null
           created_at?: string
           created_by?: string | null
           data_compra?: string
@@ -236,13 +297,18 @@ export type Database = {
           descricao?: string
           descricao_normalizada?: string | null
           direcao?: string
+          estabelecimento?: string | null
+          estabelecimento_normalizado?: string | null
           fatura_id?: string | null
           grupo_parcelamento?: string | null
           id?: string
           moeda?: string
           observacoes?: string | null
           origem?: string
+          regra_id?: string | null
           responsavel?: string | null
+          subcategoria?: string | null
+          subcategoria_sugerida?: string | null
           tipo?: string
           total_parcelas?: number
           valor_total?: number
