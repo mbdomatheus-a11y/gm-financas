@@ -98,7 +98,7 @@ export function detectarBanco(texto: string, nomeArquivo: string): BancoFatura {
 const MOJIBAKE: Record<string, string> = {
   "Ã¡": "á", "Ã ": "à", "Ã¢": "â", "Ã£": "ã", "Ã©": "é", "Ãª": "ê", "Ã­": "í",
   "Ã³": "ó", "Ã´": "ô", "Ãµ": "õ", "Ãº": "ú", "Ã§": "ç", "Ã‰": "É", "Ãƒ": "Ã",
-  "Ã‡": "Ç", "Ã”": "Ô", "Ã•": "Õ", "Ã": "Á", "Ãš": "Ú", "Âº": "º", "Âª": "ª",
+  "Ã‡": "Ç", "Ã”": "Ô", "Ã•": "Õ", "Ã\u0081": "Á", "Ãš": "Ú", "Âº": "º", "Âª": "ª",
 };
 /** Só corrige quando o texto realmente veio com bytes UTF-8 lidos como latin-1. */
 const RE_MOJIBAKE = /[ÃÂ][\u0080-\u00bf\u2013-\u2030\u0152-\u0178]/;
