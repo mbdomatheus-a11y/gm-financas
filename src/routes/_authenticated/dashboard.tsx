@@ -549,6 +549,54 @@ function DashboardPage() {
         </CardContent>
       </Card>
 
+      <Card className="mt-4">
+        <CardHeader className="flex flex-col gap-2 space-y-0 sm:flex-row sm:items-center sm:justify-between">
+          <CardTitle className="text-base">
+            Agrupamentos de {monthLabelLong(mesPie)} — maior para menor
+          </CardTitle>
+          <Select value={mesPie} onValueChange={setMesPie}>
+            <SelectTrigger className="h-8 w-[140px] text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {mesesSelecionaveis.map((m) => (
+                <SelectItem key={m} value={m}>
+                  {monthLabel(m)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {agrupamentosMes.lista.length === 0 && (
+            <p className="text-sm text-muted-foreground">Sem despesas neste mês.</p>
+          )}
+          {agrupamentosMes.lista.map((g) => {
+            const pct = agrupamentosMes.total ? (g.total / agrupamentosMes.total) * 100 : 0;
+            return (
+              <button
+                key={g.grupo}
+                type="button"
+                onClick={() => setDrill({ mes: mesPie, grupo: g.grupo })}
+                className="w-full rounded-lg border px-3 py-2 text-left transition-colors hover:bg-muted/60"
+              >
+                <div className="flex items-center justify-between gap-3 text-sm">
+                  <span className="truncate font-medium capitalize">{g.grupo}</span>
+                  <span className="shrink-0 font-semibold tabular-nums">
+                    {formatBRL(g.total)}
+                  </span>
+                </div>
+                <Progress value={pct} className="mt-1.5 h-1.5" />
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  {g.itens} lançamento(s) · {pct.toFixed(1)}% do mês
+                </p>
+              </button>
+            );
+          })}
+        </CardContent>
+      </Card>
+
+
       {drill && (
         <Card className="mt-4">
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
