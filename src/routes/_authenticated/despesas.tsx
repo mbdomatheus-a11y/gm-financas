@@ -106,18 +106,19 @@ function novoForm(tipo: "fixa" | "variavel") {
   return {
     descricao: "",
     valor_total: "",
-    modo_valor: "total",
     moeda: "BRL",
     categoria: "",
     tipo,
     data_compra: toISODate(new Date()),
     pagamento: "",
     total_parcelas: "1",
+    repetir_meses: "24",
     data_primeira_parcela: toISODate(new Date()),
     responsavel: "",
     observacoes: "",
   };
 }
+
 
 
 function DespesasPage() {
