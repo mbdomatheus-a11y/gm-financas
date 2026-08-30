@@ -952,11 +952,13 @@ function DespesasPage() {
             </Field>
           </div>
 
-          {nParcelas > 1 && valorNum > 0 && (
+          {nParcelas > 1 && valorDigitado > 0 && (
             <p className="rounded-lg bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
-              {nParcelas}x de {formatBRL(previewParcela)} — a última parcela recebe o ajuste de
-              centavos.
+              {recorrenteFixa
+                ? `Despesa fixa repetida por ${nParcelas} meses de ${formatBRL(previewParcela)} — total ${formatBRL(valorNum)}.`
+                : `${nParcelas}x de ${formatBRL(previewParcela)} — total ${formatBRL(valorNum)}.`}
             </p>
+
           )}
 
           <DialogFooter>
