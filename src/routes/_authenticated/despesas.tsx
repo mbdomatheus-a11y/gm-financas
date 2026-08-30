@@ -229,7 +229,7 @@ function DespesasPage() {
         categoria: form.categoria,
         tipo: form.tipo,
         data_compra: form.data_compra,
-        total_parcelas: Number(form.total_parcelas),
+        total_parcelas: nParcelas,
         data_primeira_parcela: form.data_primeira_parcela,
         responsavel: form.responsavel,
         observacoes: form.observacoes || null,
