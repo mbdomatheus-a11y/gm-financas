@@ -22,10 +22,12 @@ import { Route as AuthenticatedImportarRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedInicioRouteImport } from './routes/_authenticated/inicio'
 import { Route as AuthenticatedInvestimentosRouteImport } from './routes/_authenticated/investimentos'
 import { Route as AuthenticatedListaComprasRouteImport } from './routes/_authenticated/lista-compras'
+import { Route as AuthenticatedNotasRouteImport } from './routes/_authenticated/notas'
 import { Route as AuthenticatedNovaSenhaRouteImport } from './routes/_authenticated/nova-senha'
 import { Route as AuthenticatedPersonalizacaoRouteImport } from './routes/_authenticated/personalizacao'
 import { Route as AuthenticatedReceitasRouteImport } from './routes/_authenticated/receitas'
 import { Route as AuthenticatedUsuariosRouteImport } from './routes/_authenticated/usuarios'
+import { Route as OauthGoogleDriveReturnRouteImport } from './routes/oauth/google-drive/return'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -94,6 +96,11 @@ const AuthenticatedListaComprasRoute =
     path: '/lista-compras',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedNotasRoute = AuthenticatedNotasRouteImport.update({
+  id: '/notas',
+  path: '/notas',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedNovaSenhaRoute = AuthenticatedNovaSenhaRouteImport.update({
   id: '/nova-senha',
   path: '/nova-senha',
@@ -115,6 +122,11 @@ const AuthenticatedUsuariosRoute = AuthenticatedUsuariosRouteImport.update({
   path: '/usuarios',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const OauthGoogleDriveReturnRoute = OauthGoogleDriveReturnRouteImport.update({
+  id: '/oauth/google-drive/return',
+  path: '/oauth/google-drive/return',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -129,10 +141,12 @@ export interface FileRoutesByFullPath {
   '/inicio': typeof AuthenticatedInicioRoute
   '/investimentos': typeof AuthenticatedInvestimentosRoute
   '/lista-compras': typeof AuthenticatedListaComprasRoute
+  '/notas': typeof AuthenticatedNotasRoute
   '/nova-senha': typeof AuthenticatedNovaSenhaRoute
   '/personalizacao': typeof AuthenticatedPersonalizacaoRoute
   '/receitas': typeof AuthenticatedReceitasRoute
   '/usuarios': typeof AuthenticatedUsuariosRoute
+  '/oauth/google-drive/return': typeof OauthGoogleDriveReturnRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -147,10 +161,12 @@ export interface FileRoutesByTo {
   '/inicio': typeof AuthenticatedInicioRoute
   '/investimentos': typeof AuthenticatedInvestimentosRoute
   '/lista-compras': typeof AuthenticatedListaComprasRoute
+  '/notas': typeof AuthenticatedNotasRoute
   '/nova-senha': typeof AuthenticatedNovaSenhaRoute
   '/personalizacao': typeof AuthenticatedPersonalizacaoRoute
   '/receitas': typeof AuthenticatedReceitasRoute
   '/usuarios': typeof AuthenticatedUsuariosRoute
+  '/oauth/google-drive/return': typeof OauthGoogleDriveReturnRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -167,10 +183,12 @@ export interface FileRoutesById {
   '/_authenticated/inicio': typeof AuthenticatedInicioRoute
   '/_authenticated/investimentos': typeof AuthenticatedInvestimentosRoute
   '/_authenticated/lista-compras': typeof AuthenticatedListaComprasRoute
+  '/_authenticated/notas': typeof AuthenticatedNotasRoute
   '/_authenticated/nova-senha': typeof AuthenticatedNovaSenhaRoute
   '/_authenticated/personalizacao': typeof AuthenticatedPersonalizacaoRoute
   '/_authenticated/receitas': typeof AuthenticatedReceitasRoute
   '/_authenticated/usuarios': typeof AuthenticatedUsuariosRoute
+  '/oauth/google-drive/return': typeof OauthGoogleDriveReturnRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -187,10 +205,12 @@ export interface FileRouteTypes {
     | '/inicio'
     | '/investimentos'
     | '/lista-compras'
+    | '/notas'
     | '/nova-senha'
     | '/personalizacao'
     | '/receitas'
     | '/usuarios'
+    | '/oauth/google-drive/return'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -205,10 +225,12 @@ export interface FileRouteTypes {
     | '/inicio'
     | '/investimentos'
     | '/lista-compras'
+    | '/notas'
     | '/nova-senha'
     | '/personalizacao'
     | '/receitas'
     | '/usuarios'
+    | '/oauth/google-drive/return'
   id:
     | '__root__'
     | '/'
@@ -224,15 +246,18 @@ export interface FileRouteTypes {
     | '/_authenticated/inicio'
     | '/_authenticated/investimentos'
     | '/_authenticated/lista-compras'
+    | '/_authenticated/notas'
     | '/_authenticated/nova-senha'
     | '/_authenticated/personalizacao'
     | '/_authenticated/receitas'
     | '/_authenticated/usuarios'
+    | '/oauth/google-drive/return'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  OauthGoogleDriveReturnRoute: typeof OauthGoogleDriveReturnRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -328,6 +353,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedListaComprasRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/notas': {
+      id: '/_authenticated/notas'
+      path: '/notas'
+      fullPath: '/notas'
+      preLoaderRoute: typeof AuthenticatedNotasRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/nova-senha': {
       id: '/_authenticated/nova-senha'
       path: '/nova-senha'
@@ -356,6 +388,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedUsuariosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/oauth/google-drive/return': {
+      id: '/oauth/google-drive/return'
+      path: '/oauth/google-drive/return'
+      fullPath: '/oauth/google-drive/return'
+      preLoaderRoute: typeof OauthGoogleDriveReturnRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -371,6 +410,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedInicioRoute: typeof AuthenticatedInicioRoute
   AuthenticatedInvestimentosRoute: typeof AuthenticatedInvestimentosRoute
   AuthenticatedListaComprasRoute: typeof AuthenticatedListaComprasRoute
+  AuthenticatedNotasRoute: typeof AuthenticatedNotasRoute
   AuthenticatedNovaSenhaRoute: typeof AuthenticatedNovaSenhaRoute
   AuthenticatedPersonalizacaoRoute: typeof AuthenticatedPersonalizacaoRoute
   AuthenticatedReceitasRoute: typeof AuthenticatedReceitasRoute
@@ -389,6 +429,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedInicioRoute: AuthenticatedInicioRoute,
   AuthenticatedInvestimentosRoute: AuthenticatedInvestimentosRoute,
   AuthenticatedListaComprasRoute: AuthenticatedListaComprasRoute,
+  AuthenticatedNotasRoute: AuthenticatedNotasRoute,
   AuthenticatedNovaSenhaRoute: AuthenticatedNovaSenhaRoute,
   AuthenticatedPersonalizacaoRoute: AuthenticatedPersonalizacaoRoute,
   AuthenticatedReceitasRoute: AuthenticatedReceitasRoute,
@@ -401,6 +442,7 @@ const AuthenticatedRouteRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  OauthGoogleDriveReturnRoute: OauthGoogleDriveReturnRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

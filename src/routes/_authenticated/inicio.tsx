@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo } from "react";
-import { ShoppingCart, Wallet, ArrowRight } from "lucide-react";
+import { ShoppingCart, Wallet, ArrowRight, ReceiptText, AlertTriangle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
 import { AppLayout } from "@/components/AppLayout";
@@ -8,7 +8,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { useCotacao } from "@/hooks/useCotacao";
 import { useDespesas, useReceitas } from "@/hooks/useFinance";
-import { currentMonthKey, formatBRL, monthKey, toBRL } from "@/lib/format";
+import { currentMonthKey, formatBRL, formatDate, monthKey, toBRL } from "@/lib/format";
+import { diasRestantes, statusGarantia } from "@/lib/nfe";
+
 
 export const Route = createFileRoute("/_authenticated/inicio")({
   head: () => ({
@@ -42,11 +44,29 @@ function useListaResumo() {
   });
 }
 
+function useGarantias() {
+  return useQuery({
+    queryKey: ["garantias-resumo"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("notas_fiscais")
+        .select("id, estabelecimento, descricao, garantia_fim")
+        .not("garantia_fim", "is", null)
+        .order("garantia_fim");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+}
+
 function InicioPage() {
   const cotacao = useCotacao();
   const { data: receitas = [] } = useReceitas();
   const { data: despesas = [] } = useDespesas();
   const { data: pendentes = [] } = useListaResumo();
+  const { data: garantias = [] } = useGarantias();
+
+
 
   const resumo = useMemo(() => {
     const mes = currentMonthKey();
@@ -62,6 +82,12 @@ function InicioPage() {
 
   const compras = pendentes.filter((i: any) => i.lista === "compras").length;
   const unicos = pendentes.length - compras;
+
+  const ativas = garantias.filter((g) => statusGarantia(g.garantia_fim) !== "expirada");
+  const aVencer = garantias.filter((g) => {
+    const st = statusGarantia(g.garantia_fim);
+    return st === "critica" || st === "atencao";
+  });
 
   const AREAS = [
     {
@@ -89,11 +115,50 @@ function InicioPage() {
         { label: "Itens únicos", valor: String(unicos), cor: "text-foreground" },
       ],
     },
+    {
+      to: "/notas" as const,
+      titulo: "Notas fiscais",
+      descricao: "Comprovantes por foto ou QR Code, com controle de garantia.",
+      icon: ReceiptText,
+      stats: [
+        { label: "Notas", valor: String(garantias.length), cor: "text-foreground" },
+        { label: "Garantias ativas", valor: String(ativas.length), cor: "text-success" },
+        {
+          label: "Vencendo",
+          valor: String(aVencer.length),
+          cor: aVencer.length ? "text-destructive" : "text-foreground",
+        },
+      ],
+    },
   ];
 
   return (
     <AppLayout title="Início" description="Por onde você quer começar hoje?">
-      <div className="grid gap-4 sm:grid-cols-2">
+      {aVencer.length > 0 && (
+        <Link to="/notas">
+          <Card className="mb-4 border-warning/40 bg-warning/5">
+            <CardContent className="flex items-start gap-3 p-4">
+              <AlertTriangle className="mt-0.5 size-4.5 text-warning" />
+              <div className="text-sm">
+                <p className="font-medium">
+                  {aVencer.length} garantia{aVencer.length > 1 ? "s" : ""} vencendo em até 30 dias
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {aVencer
+                    .slice(0, 3)
+                    .map(
+                      (g) =>
+                        `${g.estabelecimento ?? g.descricao ?? "Nota"} — ${formatDate(g.garantia_fim!)} (${diasRestantes(g.garantia_fim)}d)`,
+                    )
+                    .join(" · ")}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+      )}
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {AREAS.map((a) => {
           const Icon = a.icon;
           return (
