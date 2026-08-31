@@ -19,6 +19,8 @@ import {
   Home,
   ShoppingCart,
   DatabaseBackup,
+  ReceiptText,
+
 
 
 } from "lucide-react";
