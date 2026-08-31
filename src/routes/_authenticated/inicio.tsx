@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo } from "react";
-import { ShoppingCart, Wallet, ArrowRight } from "lucide-react";
+import { ShoppingCart, Wallet, ArrowRight, ReceiptText, AlertTriangle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
 import { AppLayout } from "@/components/AppLayout";
@@ -8,7 +8,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { useCotacao } from "@/hooks/useCotacao";
 import { useDespesas, useReceitas } from "@/hooks/useFinance";
-import { currentMonthKey, formatBRL, monthKey, toBRL } from "@/lib/format";
+import { currentMonthKey, formatBRL, formatDate, monthKey, toBRL } from "@/lib/format";
+import { diasRestantes, statusGarantia } from "@/lib/nfe";
+
 
 export const Route = createFileRoute("/_authenticated/inicio")({
   head: () => ({
