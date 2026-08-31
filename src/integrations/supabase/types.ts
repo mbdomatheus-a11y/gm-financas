@@ -563,6 +563,157 @@ export type Database = {
         }
         Relationships: []
       }
+      nota_arquivos: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          drive_file_id: string
+          id: string
+          link: string | null
+          mime_type: string | null
+          nome: string | null
+          nota_id: string
+          thumbnail_link: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          drive_file_id: string
+          id?: string
+          link?: string | null
+          mime_type?: string | null
+          nome?: string | null
+          nota_id: string
+          thumbnail_link?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          drive_file_id?: string
+          id?: string
+          link?: string | null
+          mime_type?: string | null
+          nome?: string | null
+          nota_id?: string
+          thumbnail_link?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nota_arquivos_nota_id_fkey"
+            columns: ["nota_id"]
+            isOneToOne: false
+            referencedRelation: "notas_fiscais"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nota_itens: {
+        Row: {
+          created_at: string
+          descricao: string
+          garantia_fim: string | null
+          garantia_meses: number | null
+          id: string
+          nota_id: string
+          quantidade: number
+          valor_total: number
+          valor_unitario: number
+        }
+        Insert: {
+          created_at?: string
+          descricao: string
+          garantia_fim?: string | null
+          garantia_meses?: number | null
+          id?: string
+          nota_id: string
+          quantidade?: number
+          valor_total?: number
+          valor_unitario?: number
+        }
+        Update: {
+          created_at?: string
+          descricao?: string
+          garantia_fim?: string | null
+          garantia_meses?: number | null
+          id?: string
+          nota_id?: string
+          quantidade?: number
+          valor_total?: number
+          valor_unitario?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nota_itens_nota_id_fkey"
+            columns: ["nota_id"]
+            isOneToOne: false
+            referencedRelation: "notas_fiscais"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notas_fiscais: {
+        Row: {
+          categoria: string
+          chave_acesso: string | null
+          created_at: string
+          created_by: string | null
+          data_compra: string
+          descricao: string | null
+          drive_folder_id: string | null
+          estabelecimento: string | null
+          garantia_dias: number | null
+          garantia_fim: string | null
+          garantia_meses: number | null
+          id: string
+          observacoes: string | null
+          status_captura: string
+          uf: string | null
+          updated_at: string
+          url_consulta: string | null
+          valor_total: number
+        }
+        Insert: {
+          categoria?: string
+          chave_acesso?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_compra?: string
+          descricao?: string | null
+          drive_folder_id?: string | null
+          estabelecimento?: string | null
+          garantia_dias?: number | null
+          garantia_fim?: string | null
+          garantia_meses?: number | null
+          id?: string
+          observacoes?: string | null
+          status_captura?: string
+          uf?: string | null
+          updated_at?: string
+          url_consulta?: string | null
+          valor_total?: number
+        }
+        Update: {
+          categoria?: string
+          chave_acesso?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_compra?: string
+          descricao?: string | null
+          drive_folder_id?: string | null
+          estabelecimento?: string | null
+          garantia_dias?: number | null
+          garantia_fim?: string | null
+          garantia_meses?: number | null
+          id?: string
+          observacoes?: string | null
+          status_captura?: string
+          uf?: string | null
+          updated_at?: string
+          url_consulta?: string | null
+          valor_total?: number
+        }
+        Relationships: []
+      }
       parcelas: {
         Row: {
           confianca_data: string | null
