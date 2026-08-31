@@ -66,8 +66,10 @@ const NAV: NavItem[] = [
   { to: "/despesas", label: "Despesas", short: "Despesas", icon: TrendingDown, modulo: "despesas", mobile: true },
   { to: "/importar", label: "Importar Faturas", short: "Faturas", icon: FileUp, modulo: "despesas" },
   { to: "/categorias", label: "Categorias", short: "Categ.", icon: Tags },
+  { to: "/notas", label: "Notas fiscais", short: "Notas", icon: ReceiptText },
 
   { to: "/cartoes", label: "Cartões e Bancos", short: "Cartões", icon: CreditCard, modulo: "cartoes" },
+
   { to: "/investimentos", label: "Investimentos", short: "Invest.", icon: PiggyBank, modulo: "investimentos" },
   { to: "/compartilhar", label: "Compartilhar", short: "Compart.", icon: Share2, modulo: "compartilhar" },
   { to: "/usuarios", label: "Usuários e Privilégios", short: "Usuários", icon: Users, adminOnly: true },
