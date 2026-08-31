@@ -38,6 +38,7 @@ type NavTo =
   | "/importar"
   | "/categorias"
   | "/lista-compras"
+  | "/notas"
   | "/cartoes"
   | "/investimentos"
   | "/compartilhar"
@@ -45,6 +46,7 @@ type NavTo =
   | "/backup"
   | "/personalizacao"
   | "/conta";
+
 
 type NavItem = {
   to: NavTo;
