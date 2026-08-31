@@ -44,11 +44,29 @@ function useListaResumo() {
   });
 }
 
+function useGarantias() {
+  return useQuery({
+    queryKey: ["garantias-resumo"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("notas_fiscais")
+        .select("id, estabelecimento, descricao, garantia_fim")
+        .not("garantia_fim", "is", null)
+        .order("garantia_fim");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+}
+
 function InicioPage() {
   const cotacao = useCotacao();
   const { data: receitas = [] } = useReceitas();
   const { data: despesas = [] } = useDespesas();
   const { data: pendentes = [] } = useListaResumo();
+  const { data: garantias = [] } = useGarantias();
+
+
 
   const resumo = useMemo(() => {
     const mes = currentMonthKey();
