@@ -179,6 +179,7 @@ export type Database = {
           created_by: string | null
           estabelecimento_normalizado: string
           id: string
+          origem_arquivo: string | null
           prioridade: number
           subcategoria: string | null
           texto_original: string | null
@@ -192,6 +193,7 @@ export type Database = {
           created_by?: string | null
           estabelecimento_normalizado: string
           id?: string
+          origem_arquivo?: string | null
           prioridade?: number
           subcategoria?: string | null
           texto_original?: string | null
@@ -205,6 +207,7 @@ export type Database = {
           created_by?: string | null
           estabelecimento_normalizado?: string
           id?: string
+          origem_arquivo?: string | null
           prioridade?: number
           subcategoria?: string | null
           texto_original?: string | null
@@ -674,6 +677,55 @@ export type Database = {
             columns: ["nota_id"]
             isOneToOne: false
             referencedRelation: "notas_fiscais"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nota_vinculos: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          despesa_id: string
+          id: string
+          nota_id: string
+          parcela_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          despesa_id: string
+          id?: string
+          nota_id: string
+          parcela_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          despesa_id?: string
+          id?: string
+          nota_id?: string
+          parcela_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nota_vinculos_despesa_id_fkey"
+            columns: ["despesa_id"]
+            isOneToOne: false
+            referencedRelation: "despesas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nota_vinculos_nota_id_fkey"
+            columns: ["nota_id"]
+            isOneToOne: false
+            referencedRelation: "notas_fiscais"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nota_vinculos_parcela_id_fkey"
+            columns: ["parcela_id"]
+            isOneToOne: false
+            referencedRelation: "parcelas"
             referencedColumns: ["id"]
           },
         ]

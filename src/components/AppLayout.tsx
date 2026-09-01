@@ -20,6 +20,7 @@ import {
   ShoppingCart,
   DatabaseBackup,
   ReceiptText,
+  ArrowLeftRight,
 
 
 
@@ -39,6 +40,7 @@ type NavTo =
   | "/despesas"
   | "/importar"
   | "/categorias"
+  | "/de-para"
   | "/lista-compras"
   | "/notas"
   | "/cartoes"
@@ -68,6 +70,7 @@ const NAV: NavItem[] = [
   { to: "/despesas", label: "Despesas", short: "Despesas", icon: TrendingDown, modulo: "despesas", mobile: true },
   { to: "/importar", label: "Importar Faturas", short: "Faturas", icon: FileUp, modulo: "despesas" },
   { to: "/categorias", label: "Categorias", short: "Categ.", icon: Tags },
+  { to: "/de-para", label: "De-para de categorias", short: "De-para", icon: ArrowLeftRight, modulo: "despesas" },
   { to: "/notas", label: "Notas fiscais", short: "Notas", icon: ReceiptText },
 
   { to: "/cartoes", label: "Cartões e Bancos", short: "Cartões", icon: CreditCard, modulo: "cartoes" },
