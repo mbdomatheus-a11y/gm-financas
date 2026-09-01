@@ -29,6 +29,10 @@ export type LancamentoExtraido = {
   cartao_final: string | null;
   responsavel: string | null;
   categoria: string;
+  subcategoria?: string | null;
+  categoria_sugerida?: string | null;
+  confianca_categoria?: "alta" | "media" | "baixa";
+  tipo?: "fixa" | "variavel";
   confianca_data: "alta" | "media" | "baixa";
   valor_estimado: boolean;
   incluir: boolean;
