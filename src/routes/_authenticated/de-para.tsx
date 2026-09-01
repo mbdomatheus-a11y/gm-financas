@@ -165,7 +165,7 @@ function DeParaPage() {
   });
 
   const atualizar = useMutation({
-    mutationFn: async ({ id, patch }: { id: string; patch: Record<string, unknown> }) => {
+    mutationFn: async ({ id, patch }: { id: string; patch: Partial<{ categoria: string; subcategoria: string | null; ativo: boolean }> }) => {
       const { error } = await supabase.from("categoria_regras").update(patch).eq("id", id);
       if (error) throw error;
     },

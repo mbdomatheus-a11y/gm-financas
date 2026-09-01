@@ -17,6 +17,7 @@ import { Route as AuthenticatedCategoriasRouteImport } from './routes/_authentic
 import { Route as AuthenticatedCompartilharRouteImport } from './routes/_authenticated/compartilhar'
 import { Route as AuthenticatedContaRouteImport } from './routes/_authenticated/conta'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedDeParaRouteImport } from './routes/_authenticated/de-para'
 import { Route as AuthenticatedDespesasRouteImport } from './routes/_authenticated/despesas'
 import { Route as AuthenticatedImportarRouteImport } from './routes/_authenticated/importar'
 import { Route as AuthenticatedInicioRouteImport } from './routes/_authenticated/inicio'
@@ -67,6 +68,11 @@ const AuthenticatedContaRoute = AuthenticatedContaRouteImport.update({
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedDeParaRoute = AuthenticatedDeParaRouteImport.update({
+  id: '/de-para',
+  path: '/de-para',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedDespesasRoute = AuthenticatedDespesasRouteImport.update({
@@ -136,6 +142,7 @@ export interface FileRoutesByFullPath {
   '/compartilhar': typeof AuthenticatedCompartilharRoute
   '/conta': typeof AuthenticatedContaRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/de-para': typeof AuthenticatedDeParaRoute
   '/despesas': typeof AuthenticatedDespesasRoute
   '/importar': typeof AuthenticatedImportarRoute
   '/inicio': typeof AuthenticatedInicioRoute
@@ -156,6 +163,7 @@ export interface FileRoutesByTo {
   '/compartilhar': typeof AuthenticatedCompartilharRoute
   '/conta': typeof AuthenticatedContaRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/de-para': typeof AuthenticatedDeParaRoute
   '/despesas': typeof AuthenticatedDespesasRoute
   '/importar': typeof AuthenticatedImportarRoute
   '/inicio': typeof AuthenticatedInicioRoute
@@ -178,6 +186,7 @@ export interface FileRoutesById {
   '/_authenticated/compartilhar': typeof AuthenticatedCompartilharRoute
   '/_authenticated/conta': typeof AuthenticatedContaRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/de-para': typeof AuthenticatedDeParaRoute
   '/_authenticated/despesas': typeof AuthenticatedDespesasRoute
   '/_authenticated/importar': typeof AuthenticatedImportarRoute
   '/_authenticated/inicio': typeof AuthenticatedInicioRoute
@@ -200,6 +209,7 @@ export interface FileRouteTypes {
     | '/compartilhar'
     | '/conta'
     | '/dashboard'
+    | '/de-para'
     | '/despesas'
     | '/importar'
     | '/inicio'
@@ -220,6 +230,7 @@ export interface FileRouteTypes {
     | '/compartilhar'
     | '/conta'
     | '/dashboard'
+    | '/de-para'
     | '/despesas'
     | '/importar'
     | '/inicio'
@@ -241,6 +252,7 @@ export interface FileRouteTypes {
     | '/_authenticated/compartilhar'
     | '/_authenticated/conta'
     | '/_authenticated/dashboard'
+    | '/_authenticated/de-para'
     | '/_authenticated/despesas'
     | '/_authenticated/importar'
     | '/_authenticated/inicio'
@@ -316,6 +328,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/de-para': {
+      id: '/_authenticated/de-para'
+      path: '/de-para'
+      fullPath: '/de-para'
+      preLoaderRoute: typeof AuthenticatedDeParaRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/despesas': {
@@ -405,6 +424,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedCompartilharRoute: typeof AuthenticatedCompartilharRoute
   AuthenticatedContaRoute: typeof AuthenticatedContaRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedDeParaRoute: typeof AuthenticatedDeParaRoute
   AuthenticatedDespesasRoute: typeof AuthenticatedDespesasRoute
   AuthenticatedImportarRoute: typeof AuthenticatedImportarRoute
   AuthenticatedInicioRoute: typeof AuthenticatedInicioRoute
@@ -424,6 +444,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCompartilharRoute: AuthenticatedCompartilharRoute,
   AuthenticatedContaRoute: AuthenticatedContaRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedDeParaRoute: AuthenticatedDeParaRoute,
   AuthenticatedDespesasRoute: AuthenticatedDespesasRoute,
   AuthenticatedImportarRoute: AuthenticatedImportarRoute,
   AuthenticatedInicioRoute: AuthenticatedInicioRoute,
