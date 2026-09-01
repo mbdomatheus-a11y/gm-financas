@@ -39,6 +39,7 @@ type NavTo =
   | "/despesas"
   | "/importar"
   | "/categorias"
+  | "/de-para"
   | "/lista-compras"
   | "/notas"
   | "/cartoes"
