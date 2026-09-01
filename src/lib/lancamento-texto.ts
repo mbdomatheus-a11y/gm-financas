@@ -350,7 +350,7 @@ export function interpretarTexto(raw: string, ctx: ContextoTexto = {}): Lancamen
   let categoria: string | null = null;
   let subcategoria: string | null = null;
   if (descricao) {
-    const c = classificar(descricao, { regras: ctx.regras, valor: valorParcela ?? 0 });
+    const c = classificar(descricao, { regras: ctx.regras ?? [], valor: valorParcela ?? 0 });
     if (c.confianca !== "baixa") {
       categoria = c.categoria;
       subcategoria = c.subcategoria;
