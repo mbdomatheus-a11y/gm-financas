@@ -20,6 +20,7 @@ import {
   ShoppingCart,
   DatabaseBackup,
   ReceiptText,
+  ArrowLeftRight,
 
 
 
