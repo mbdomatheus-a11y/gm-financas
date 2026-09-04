@@ -610,6 +610,41 @@ function ImportarPage() {
                 </Button>
               </div>
             </TabsContent>
+
+            <TabsContent value="prints" className="space-y-3">
+              <div
+                className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed p-8 text-center transition-colors hover:bg-muted/50"
+                onClick={() => imgInputRef.current?.click()}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  void onImages(e.dataTransfer.files);
+                }}
+              >
+                {lendoImagens ? (
+                  <Loader2 className="size-6 animate-spin text-muted-foreground" />
+                ) : (
+                  <ImageIcon className="size-6 text-muted-foreground" />
+                )}
+                <p className="text-sm font-medium">Arraste prints ou clique para selecionar</p>
+                <p className="text-xs text-muted-foreground">
+                  PNG, JPG ou WEBP · até 10 por vez · OCR no navegador (sem custo de IA)
+                </p>
+                <input
+                  ref={imgInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => void onImages(e.target.files)}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                O texto é lido por OCR no próprio navegador e passa pelo mesmo parser das faturas em
+                PDF. Linhas sem data/descrição/valor ficam em branco para preencher manualmente na
+                prévia.
+              </p>
+            </TabsContent>
           </Tabs>
 
           {faturas.length > 0 && (
