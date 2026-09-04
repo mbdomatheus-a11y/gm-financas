@@ -274,6 +274,62 @@ function ImportarPage() {
     toast.success(`${linhas.length} lançamento(s) interpretado(s).`);
   }
 
+  /** Processa prints (JPG/PNG/WEBP) por OCR no navegador e cria um lote editável por imagem. */
+  async function onImages(files: FileList | null) {
+    if (!files?.length) return;
+    const imgs = Array.from(files).filter((f) => /image\//.test(f.type) || /\.(png|jpe?g|webp)$/i.test(f.name));
+    if (!imgs.length) {
+      toast.error("Selecione imagens (PNG, JPG ou WEBP).");
+      return;
+    }
+    const lote = imgs.slice(0, 10);
+    if (imgs.length > 10) toast.info(`Limite de 10 imagens por lote. ${lote.length} processadas.`);
+    setLendoImagens(true);
+    try {
+      const novos: FaturaItem[] = [];
+      for (const [i, file] of lote.entries()) {
+        try {
+          const texto = await ocrImagem(file);
+          const { lancamentos, banco, finais } = lancamentosDeOcr(texto);
+          const arquivo_hash = await hashTextoOcr(`${file.name}-${texto}`);
+          const { data: jaExiste } = await supabase
+            .from("import_faturas")
+            .select("id")
+            .eq("arquivo_hash", arquivo_hash)
+            .maybeSingle();
+          const extraida = {
+            banco,
+            arquivo_nome: file.name,
+            arquivo_hash,
+            paginas: 1,
+            vencimento: null,
+            competencia: null,
+            total_declarado: null,
+            limite_total: null,
+            limite_utilizado: null,
+            limite_disponivel: null,
+            finais,
+            lancamentos: categorizar(lancamentos),
+            texto,
+          };
+          novos.push({
+            ...extraida,
+            arquivo: null,
+            duplicada: !!jaExiste,
+            destino: destinoPadrao(extraida),
+          });
+          toast.success(`${file.name}: ${lancamentos.length} linha(s) reconhecida(s).`);
+        } catch {
+          toast.error(`${file.name}: não consegui ler a imagem.`);
+        }
+      }
+      if (novos.length) setFaturas((prev) => [...prev, ...novos]);
+    } finally {
+      setLendoImagens(false);
+      if (imgInputRef.current) imgInputRef.current.value = "";
+    }
+  }
+
   function atualizarFatura(idx: number, patch: Partial<FaturaItem>) {
     setFaturas((prev) => prev.map((f, i) => (i === idx ? { ...f, ...patch } : f)));
   }
