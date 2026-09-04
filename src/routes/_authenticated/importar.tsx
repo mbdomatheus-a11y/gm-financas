@@ -109,8 +109,10 @@ function ImportarPage() {
   const { data: cartoes = [] } = useCartoes();
   const { data: bancos = [] } = useBancos();
   const inputRef = useRef<HTMLInputElement>(null);
+  const imgInputRef = useRef<HTMLInputElement>(null);
 
   const [lendo, setLendo] = useState(false);
+  const [lendoImagens, setLendoImagens] = useState(false);
   const [faturas, setFaturas] = useState<FaturaItem[]>([]);
   const [colado, setColado] = useState("");
 
