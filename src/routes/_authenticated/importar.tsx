@@ -48,6 +48,7 @@ import {
   type RegraUsuario,
 } from "@/lib/categorizacao";
 import { interpretarBloco } from "@/lib/lancamento-texto";
+import { lancamentosDeOcr, ocrImagem, hashTexto as hashTextoOcr } from "@/lib/ocr";
 import {
   BANCO_LABEL,
   dedupKey,
