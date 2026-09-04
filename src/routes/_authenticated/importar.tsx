@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   ClipboardPaste,
   FileText,
+  Image as ImageIcon,
   Loader2,
   Trash2,
   Upload,
