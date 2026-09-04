@@ -556,6 +556,9 @@ function ImportarPage() {
               <TabsTrigger value="texto">
                 <ClipboardPaste className="mr-2 size-4" /> Colar lançamentos
               </TabsTrigger>
+              <TabsTrigger value="prints">
+                <ImageIcon className="mr-2 size-4" /> Prints
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="pdf">
