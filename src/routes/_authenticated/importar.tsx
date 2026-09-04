@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   ClipboardPaste,
   FileText,
+  Image as ImageIcon,
   Loader2,
   Trash2,
   Upload,
@@ -47,6 +48,7 @@ import {
   type RegraUsuario,
 } from "@/lib/categorizacao";
 import { interpretarBloco } from "@/lib/lancamento-texto";
+import { lancamentosDeOcr, ocrImagem, hashTexto as hashTextoOcr } from "@/lib/ocr";
 import {
   BANCO_LABEL,
   dedupKey,
@@ -107,8 +109,10 @@ function ImportarPage() {
   const { data: cartoes = [] } = useCartoes();
   const { data: bancos = [] } = useBancos();
   const inputRef = useRef<HTMLInputElement>(null);
+  const imgInputRef = useRef<HTMLInputElement>(null);
 
   const [lendo, setLendo] = useState(false);
+  const [lendoImagens, setLendoImagens] = useState(false);
   const [faturas, setFaturas] = useState<FaturaItem[]>([]);
   const [colado, setColado] = useState("");
 
@@ -268,6 +272,62 @@ function ImportarPage() {
     setFaturas((prev) => [...prev, item]);
     setColado("");
     toast.success(`${linhas.length} lançamento(s) interpretado(s).`);
+  }
+
+  /** Processa prints (JPG/PNG/WEBP) por OCR no navegador e cria um lote editável por imagem. */
+  async function onImages(files: FileList | null) {
+    if (!files?.length) return;
+    const imgs = Array.from(files).filter((f) => /image\//.test(f.type) || /\.(png|jpe?g|webp)$/i.test(f.name));
+    if (!imgs.length) {
+      toast.error("Selecione imagens (PNG, JPG ou WEBP).");
+      return;
+    }
+    const lote = imgs.slice(0, 10);
+    if (imgs.length > 10) toast.info(`Limite de 10 imagens por lote. ${lote.length} processadas.`);
+    setLendoImagens(true);
+    try {
+      const novos: FaturaItem[] = [];
+      for (const [i, file] of lote.entries()) {
+        try {
+          const texto = await ocrImagem(file);
+          const { lancamentos, banco, finais } = lancamentosDeOcr(texto);
+          const arquivo_hash = await hashTextoOcr(`${file.name}-${texto}`);
+          const { data: jaExiste } = await supabase
+            .from("import_faturas")
+            .select("id")
+            .eq("arquivo_hash", arquivo_hash)
+            .maybeSingle();
+          const extraida = {
+            banco,
+            arquivo_nome: file.name,
+            arquivo_hash,
+            paginas: 1,
+            vencimento: null,
+            competencia: null,
+            total_declarado: null,
+            limite_total: null,
+            limite_utilizado: null,
+            limite_disponivel: null,
+            finais,
+            lancamentos: categorizar(lancamentos),
+            texto,
+          };
+          novos.push({
+            ...extraida,
+            arquivo: null,
+            duplicada: !!jaExiste,
+            destino: destinoPadrao(extraida),
+          });
+          toast.success(`${file.name}: ${lancamentos.length} linha(s) reconhecida(s).`);
+        } catch {
+          toast.error(`${file.name}: não consegui ler a imagem.`);
+        }
+      }
+      if (novos.length) setFaturas((prev) => [...prev, ...novos]);
+    } finally {
+      setLendoImagens(false);
+      if (imgInputRef.current) imgInputRef.current.value = "";
+    }
   }
 
   function atualizarFatura(idx: number, patch: Partial<FaturaItem>) {
@@ -496,6 +556,9 @@ function ImportarPage() {
               <TabsTrigger value="texto">
                 <ClipboardPaste className="mr-2 size-4" /> Colar lançamentos
               </TabsTrigger>
+              <TabsTrigger value="prints">
+                <ImageIcon className="mr-2 size-4" /> Prints
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="pdf">
@@ -546,6 +609,41 @@ function ImportarPage() {
                   <ClipboardPaste className="mr-2 size-4" /> Interpretar
                 </Button>
               </div>
+            </TabsContent>
+
+            <TabsContent value="prints" className="space-y-3">
+              <div
+                className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed p-8 text-center transition-colors hover:bg-muted/50"
+                onClick={() => imgInputRef.current?.click()}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  void onImages(e.dataTransfer.files);
+                }}
+              >
+                {lendoImagens ? (
+                  <Loader2 className="size-6 animate-spin text-muted-foreground" />
+                ) : (
+                  <ImageIcon className="size-6 text-muted-foreground" />
+                )}
+                <p className="text-sm font-medium">Arraste prints ou clique para selecionar</p>
+                <p className="text-xs text-muted-foreground">
+                  PNG, JPG ou WEBP · até 10 por vez · OCR no navegador (sem custo de IA)
+                </p>
+                <input
+                  ref={imgInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => void onImages(e.target.files)}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                O texto é lido por OCR no próprio navegador e passa pelo mesmo parser das faturas em
+                PDF. Linhas sem data/descrição/valor ficam em branco para preencher manualmente na
+                prévia.
+              </p>
             </TabsContent>
           </Tabs>
 
