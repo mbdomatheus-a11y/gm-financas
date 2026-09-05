@@ -21,17 +21,22 @@ function OAuthReturn() {
     const notify = (
       type: "appUserConnectorOAuthComplete" | "appUserConnectorOAuthFailed",
       code?: string,
+      erro?: string,
     ) => {
       window.opener?.postMessage(
-        { type, connectorId: "google_drive", code: code ?? null },
+        { type, connectorId: "google_drive", code: code ?? null, error: erro ?? null },
         window.location.origin,
       );
-      window.close();
+      if (type === "appUserConnectorOAuthComplete") window.close();
     };
 
     if (params.get("success") !== "true") {
-      setMessage(params.get("error") ?? "A autorização não foi concluída.");
-      notify("appUserConnectorOAuthFailed");
+      const erro =
+        params.get("error_description") ??
+        params.get("error") ??
+        "A autorização não foi concluída no Google.";
+      setMessage(erro);
+      notify("appUserConnectorOAuthFailed", undefined, erro);
       return;
     }
     const code = params.get("code");
@@ -40,12 +45,14 @@ function OAuthReturn() {
         notify("appUserConnectorOAuthComplete");
         return;
       }
-      setMessage("A autorização terminou sem código de troca.");
-      notify("appUserConnectorOAuthFailed");
+      const erro = "A autorização terminou sem código de troca.";
+      setMessage(erro);
+      notify("appUserConnectorOAuthFailed", undefined, erro);
       return;
     }
     notify("appUserConnectorOAuthComplete", code);
   }, []);
+
 
   return (
     <div className="flex min-h-screen items-center justify-center p-6 text-sm text-muted-foreground">
