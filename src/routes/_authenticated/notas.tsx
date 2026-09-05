@@ -203,14 +203,26 @@ function NotasPage() {
               return;
             }
             popup.close();
-            reject(new Error("Conexão com o Google Drive não concluída."));
+            const detalhe = (event.data as { error?: string | null })?.error;
+            reject(
+              new Error(
+                detalhe
+                  ? `Google Drive: ${detalhe}`
+                  : "Conexão com o Google Drive não concluída.",
+              ),
+            );
           };
           window.addEventListener("message", onMessage);
           poll = window.setInterval(() => {
             if (!popup.closed) return;
             cleanup();
-            reject(new Error("Janela fechada antes de concluir."));
+            reject(
+              new Error(
+                "A janela do Google foi fechada antes de concluir. Se o Google mostrou um erro, verifique se a sua conta está liberada no app e tente novamente.",
+              ),
+            );
           }, 500);
+
         });
         popup.location.href = authorizationUrl;
         code = await completion;
