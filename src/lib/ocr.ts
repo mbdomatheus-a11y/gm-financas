@@ -135,9 +135,31 @@ export function lancamentosDeTextoOcr(texto: string, anoBase = new Date().getFul
   const out: LancamentoExtraido[] = [];
   let seq = 0;
 
+  // Apps de banco costumam mostrar a data como cabeçalho de um grupo de lançamentos.
+  let dataContexto = "";
+  const hoje = new Date();
+  const iso = (d: Date) => d.toISOString().slice(0, 10);
+
   for (let i = 0; i < linhas.length; i++) {
     let linha = linhas[i]!;
     if (RE_RUIDO.test(linha)) continue;
+
+    if (/^hoje$/i.test(linha)) {
+      dataContexto = iso(hoje);
+      continue;
+    }
+    if (/^ontem$/i.test(linha)) {
+      dataContexto = iso(new Date(hoje.getTime() - 86400000));
+      continue;
+    }
+    const soData = linha.match(RE_DATA_INICIO);
+    if (soData && soData[0].trim().length === linha.length) {
+      const d = dataOcr(linha, anoBase);
+      if (d) {
+        dataContexto = d;
+        continue;
+      }
+    }
 
     let mValor = linha.match(RE_VALOR_FIM);
     if (!mValor) {
@@ -156,7 +178,7 @@ export function lancamentosDeTextoOcr(texto: string, anoBase = new Date().getFul
 
     let resto = linha.slice(0, linha.length - mValor[0].length).trim();
     const mData = resto.match(RE_DATA_INICIO);
-    let data = "";
+    let data = dataContexto;
     if (mData) {
       const d = dataOcr(mData[1]!, anoBase);
       if (d) {
@@ -164,6 +186,7 @@ export function lancamentosDeTextoOcr(texto: string, anoBase = new Date().getFul
         resto = resto.slice(mData[0].length).trim();
       }
     }
+
 
     const descricao = limparDescricao(resto);
     if (descricao.replace(/[^A-Za-zÀ-ÿ]/g, "").length < 3) continue;
