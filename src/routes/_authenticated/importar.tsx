@@ -291,6 +291,27 @@ function ImportarPage() {
         try {
           const texto = await ocrImagem(file);
           const { lancamentos, banco, finais } = lancamentosDeOcr(texto);
+          const linhas = lancamentos.length
+            ? lancamentos
+            : [
+                {
+                  id: `vazio-${i}`,
+                  data_compra: "",
+                  descricao: "",
+                  descricao_normalizada: "",
+                  valor: 0,
+                  moeda: "BRL",
+                  direcao: "debito",
+                  parcela_numero: 1,
+                  parcela_total: 1,
+                  cartao_final: null,
+                  responsavel: null,
+                  categoria: "outros",
+                  confianca_data: "baixa",
+                  valor_estimado: false,
+                  incluir: true,
+                } as (typeof lancamentos)[number],
+              ];
           const arquivo_hash = await hashTextoOcr(`${file.name}-${texto}`);
           const { data: jaExiste } = await supabase
             .from("import_faturas")
@@ -309,7 +330,7 @@ function ImportarPage() {
             limite_utilizado: null,
             limite_disponivel: null,
             finais,
-            lancamentos: categorizar(lancamentos),
+            lancamentos: categorizar(linhas),
             texto,
           };
           novos.push({
@@ -318,7 +339,13 @@ function ImportarPage() {
             duplicada: !!jaExiste,
             destino: destinoPadrao(extraida),
           });
-          toast.success(`${file.name}: ${lancamentos.length} linha(s) reconhecida(s).`);
+          if (lancamentos.length)
+            toast.success(`${file.name}: ${lancamentos.length} linha(s) reconhecida(s).`);
+          else
+            toast.warning(
+              `${file.name}: não reconheci lançamentos. Deixei uma linha em branco para preencher.`,
+            );
+
         } catch {
           toast.error(`${file.name}: não consegui ler a imagem.`);
         }
