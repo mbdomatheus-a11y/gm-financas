@@ -223,7 +223,7 @@ export function lancamentosDeTextoOcr(texto: string, anoBase = new Date().getFul
       responsavel: null,
       categoria: "outros",
       confianca_data: data ? "media" : "baixa",
-      valor_estimado: false,
+      valor_estimado: estimado,
       incluir: true,
     });
   }
