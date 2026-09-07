@@ -122,9 +122,23 @@ function limparDescricao(raw: string): string {
     .trim();
 }
 
+const RE_SUBTITULO = /^(cart[aã]o\s|cartao\s|conta\s|pix\b|d[eé]bito\b|cr[eé]dito\b)/i;
+const RE_PARCELA_LINHA = /parcela\s*(\d{1,2})\s*(?:de|\/)\s*(\d{1,2})/i;
+const RE_LIXO_FIM = /[\s>»›?)\]|~^"'`.,;:*·•\-–—]+$/;
+
+/** Remove ícones/setas que o OCR captura no fim da linha ("R$ 7,99 >"). */
+function limparFim(linha: string): string {
+  return linha.replace(RE_LIXO_FIM, "");
+}
+
+function contarValores(linha: string): number {
+  return (linha.match(/(?:R\$|RS|US\$)\s*-?\d/gi) ?? []).length;
+}
+
 /**
- * Parser tolerante para texto de OCR: aceita datas sem barra, valores com ponto decimal,
- * descrição e valor em linhas separadas e linhas sem data (data fica em branco na prévia).
+ * Parser tolerante para texto de OCR de apps de banco/fatura:
+ * data como cabeçalho de grupo, descrição quebrada em várias linhas,
+ * valor na mesma linha ou na seguinte e "Parcela 1 de 4" em linha própria.
  */
 export function lancamentosDeTextoOcr(texto: string, anoBase = new Date().getFullYear()) {
   const linhas = texto
@@ -134,65 +148,111 @@ export function lancamentosDeTextoOcr(texto: string, anoBase = new Date().getFul
 
   const out: LancamentoExtraido[] = [];
   let seq = 0;
-
-  // Apps de banco costumam mostrar a data como cabeçalho de um grupo de lançamentos.
   let dataContexto = "";
+  let pendente: string[] = [];
   const hoje = new Date();
   const iso = (d: Date) => d.toISOString().slice(0, 10);
 
-  for (let i = 0; i < linhas.length; i++) {
-    let linha = linhas[i]!;
-    if (RE_RUIDO.test(linha)) continue;
+  const empurrar = (descBruta: string, bruto: string, moedaLinha: string, estimado: boolean) => {
+    const descricao = limparDescricao(descBruta);
+    if (descricao.replace(/[^A-Za-zÀ-ÿ]/g, "").length < 3) return;
+    const valor = valorOcr(bruto);
+    if (!valor) return;
+    const parc = descricao.match(RE_PARCELA);
+    const numero = parc ? Number(parc[1]) : 1;
+    const total = parc ? Number(parc[2]) : 1;
+    out.push({
+      id: `o${seq++}`,
+      data_compra: dataContexto,
+      descricao,
+      descricao_normalizada: normalizarDescricao(descricao),
+      valor: Math.abs(valor),
+      moeda: /US\$|USD/i.test(moedaLinha) ? "USD" : "BRL",
+      direcao: valor < 0 ? "credito" : "debito",
+      parcela_numero: numero > 0 && numero <= total ? numero : 1,
+      parcela_total: total >= 1 && total <= 99 ? total : 1,
+      cartao_final: null,
+      responsavel: null,
+      categoria: "outros",
+      confianca_data: dataContexto ? "media" : "baixa",
+      valor_estimado: estimado,
+      incluir: true,
+    });
+  };
 
-    if (/^hoje$/i.test(linha)) {
+  for (let i = 0; i < linhas.length; i++) {
+    const original = linhas[i]!;
+    const linha = limparFim(original);
+    if (!linha) continue;
+
+    // Faixa de meses/resumo no topo do print (vários valores na mesma linha).
+    if (contarValores(linha) > 1) {
+      pendente = [];
+      continue;
+    }
+
+    // "Parcela 1 de 4" costuma vir depois do lançamento.
+    const mParc = linha.match(RE_PARCELA_LINHA);
+    if (mParc && !RE_VALOR_FIM.test(linha)) {
+      const ult = out[out.length - 1];
+      if (ult) {
+        const n = Number(mParc[1]);
+        const t = Number(mParc[2]);
+        if (t >= 1 && t <= 99 && n >= 1 && n <= t) {
+          ult.parcela_numero = n;
+          ult.parcela_total = t;
+        }
+      }
+      continue;
+    }
+
+    if (/^hoje\b/i.test(linha)) {
       dataContexto = iso(hoje);
+      pendente = [];
       continue;
     }
-    if (/^ontem$/i.test(linha)) {
+    if (/^ontem\b/i.test(linha)) {
       dataContexto = iso(new Date(hoje.getTime() - 86400000));
+      pendente = [];
       continue;
     }
+
     const soData = linha.match(RE_DATA_INICIO);
     if (soData && soData[0].trim().length === linha.length) {
       const d = dataOcr(linha, anoBase);
       if (d) {
         dataContexto = d;
+        pendente = [];
         continue;
       }
     }
 
     let mValor = linha.match(RE_VALOR_FIM);
+    let alvo = linha;
     if (!mValor) {
-      // valor pode estar na linha seguinte (layout de app de banco)
-      const prox = linhas[i + 1];
-      if (prox && RE_SO_VALOR.test(prox) && !RE_RUIDO.test(prox)) {
-        linha = `${linha} ${prox}`;
-        mValor = linha.match(RE_VALOR_FIM);
+      const prox = linhas[i + 1] ? limparFim(linhas[i + 1]!) : "";
+      if (prox && RE_SO_VALOR.test(prox)) {
+        alvo = `${linha} ${prox}`;
+        mValor = alvo.match(RE_VALOR_FIM);
         i++;
       }
     }
 
-    // Fallback: o OCR às vezes perde a vírgula ("8980" = 89,80).
-    let estimado = false;
-    let bruto = mValor?.[1] ?? null;
-    let consumido = mValor?.[0].length ?? 0;
-    if (!bruto && (RE_DATA_INICIO.test(linha) || dataContexto)) {
-      const cru = linha.match(/(-?\s*\d{3,8}\s*-?)$/);
-      const semSeparador = cru?.[1]?.replace(/\D/g, "") ?? "";
-      if (cru && semSeparador.length >= 3 && semSeparador.length <= 8) {
-        bruto = `${cru[1]!.trim().replace(/(\d{2})$/, ",$1")}`;
-        consumido = cru[0].length;
-        estimado = true;
-      }
+    if (!mValor) {
+      if (RE_RUIDO.test(linha) || RE_SUBTITULO.test(linha)) continue;
+      pendente.push(linha);
+      if (pendente.length > 3) pendente.shift();
+      continue;
     }
-    if (!bruto) continue;
 
-    const valor = valorOcr(bruto);
-    if (!valor) continue;
+    const bruto = mValor[1]!;
+    let resto = alvo.slice(0, alvo.length - mValor[0].length).trim();
 
-    let resto = linha.slice(0, linha.length - consumido).trim();
-    const mData = resto.match(RE_DATA_INICIO);
+    // Linha do tipo "Cartão físico R$ 28,05": o texto é subtítulo, a descrição está pendente.
+    if (RE_SUBTITULO.test(resto) || RE_RUIDO.test(resto)) resto = "";
+
     let data = dataContexto;
+    const mData = resto.match(RE_DATA_INICIO);
     if (mData) {
       const d = dataOcr(mData[1]!, anoBase);
       if (d) {
@@ -200,36 +260,16 @@ export function lancamentosDeTextoOcr(texto: string, anoBase = new Date().getFul
         resto = resto.slice(mData[0].length).trim();
       }
     }
-
-    const descricao = limparDescricao(resto);
-    if (descricao.replace(/[^A-Za-zÀ-ÿ]/g, "").length < 3) continue;
-
-
-    const parc = descricao.match(RE_PARCELA);
-    const numero = parc ? Number(parc[1]) : 1;
-    const total = parc ? Number(parc[2]) : 1;
-
-    out.push({
-      id: `o${seq++}`,
-      data_compra: data,
-      descricao,
-      descricao_normalizada: normalizarDescricao(descricao),
-      valor: Math.abs(valor),
-      moeda: /US\$|USD/i.test(linha) ? "USD" : "BRL",
-      direcao: valor < 0 ? "credito" : "debito",
-      parcela_numero: numero > 0 && numero <= total ? numero : 1,
-      parcela_total: total >= 1 && total <= 99 ? total : 1,
-      cartao_final: null,
-      responsavel: null,
-      categoria: "outros",
-      confianca_data: data ? "media" : "baixa",
-      valor_estimado: estimado,
-      incluir: true,
-    });
+    const anterior = dataContexto;
+    dataContexto = data;
+    empurrar([...pendente, resto].filter(Boolean).join(" "), bruto, alvo, false);
+    dataContexto = anterior || data;
+    pendente = [];
   }
 
   return out;
 }
+
 
 /** Extrai lançamentos do texto OCR aplicando o parser tolerante de prints. */
 export function lancamentosDeOcr(texto: string): {
