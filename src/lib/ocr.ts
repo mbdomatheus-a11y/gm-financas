@@ -171,12 +171,26 @@ export function lancamentosDeTextoOcr(texto: string, anoBase = new Date().getFul
         i++;
       }
     }
-    if (!mValor) continue;
 
-    const valor = valorOcr(mValor[1]!);
+    // Fallback: o OCR às vezes perde a vírgula ("8980" = 89,80).
+    let estimado = false;
+    let bruto = mValor?.[1] ?? null;
+    let consumido = mValor?.[0].length ?? 0;
+    if (!bruto && (RE_DATA_INICIO.test(linha) || dataContexto)) {
+      const cru = linha.match(/(-?\s*\d{3,8}\s*-?)$/);
+      const semSeparador = cru?.[1]?.replace(/\D/g, "") ?? "";
+      if (cru && semSeparador.length >= 3 && semSeparador.length <= 8) {
+        bruto = `${cru[1]!.trim().replace(/(\d{2})$/, ",$1")}`;
+        consumido = cru[0].length;
+        estimado = true;
+      }
+    }
+    if (!bruto) continue;
+
+    const valor = valorOcr(bruto);
     if (!valor) continue;
 
-    let resto = linha.slice(0, linha.length - mValor[0].length).trim();
+    let resto = linha.slice(0, linha.length - consumido).trim();
     const mData = resto.match(RE_DATA_INICIO);
     let data = dataContexto;
     if (mData) {
@@ -187,9 +201,9 @@ export function lancamentosDeTextoOcr(texto: string, anoBase = new Date().getFul
       }
     }
 
-
     const descricao = limparDescricao(resto);
     if (descricao.replace(/[^A-Za-zÀ-ÿ]/g, "").length < 3) continue;
+
 
     const parc = descricao.match(RE_PARCELA);
     const numero = parc ? Number(parc[1]) : 1;
