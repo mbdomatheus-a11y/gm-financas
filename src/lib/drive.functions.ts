@@ -136,6 +136,49 @@ async function ensureFolder(
   return body.id;
 }
 
+/** Aceita o ID puro ou o link completo da pasta compartilhada do Google Drive. */
+function extrairFolderId(entrada: string): string {
+  const texto = entrada.trim();
+  const m = texto.match(/folders\/([A-Za-z0-9_-]{10,})/) ?? texto.match(/[?&]id=([A-Za-z0-9_-]{10,})/);
+  return (m?.[1] ?? texto).trim();
+}
+
+export const getPastaDrive = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async () => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data } = await supabaseAdmin
+      .from("configuracoes_casal")
+      .select("valor")
+      .eq("chave", "drive_folder_id")
+      .maybeSingle();
+    return { folderId: data?.valor ?? null };
+  });
+
+export const setPastaDrive = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { valor: string }) => input)
+  .handler(async ({ data }) => {
+    const folderId = extrairFolderId(data.valor);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    if (!folderId) {
+      const { error } = await supabaseAdmin
+        .from("configuracoes_casal")
+        .delete()
+        .eq("chave", "drive_folder_id");
+      if (error) throw error;
+      return { folderId: null };
+    }
+    const { error } = await supabaseAdmin
+      .from("configuracoes_casal")
+      .upsert(
+        { chave: "drive_folder_id", valor: folderId, updated_at: new Date().toISOString() },
+        { onConflict: "chave" },
+      );
+    if (error) throw error;
+    return { folderId };
+  });
+
 export const uploadNotaArquivo = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(
