@@ -1092,15 +1092,15 @@ function ImportarPage() {
                             </SelectContent>
                           </Select>
                         </td>
-                        <td className="p-2">
-                          <div className="flex items-center gap-1">
+                        <td className="p-1">
+                          <div className="flex items-center gap-0.5">
                             <Select
                               value={l.categoria}
                               onValueChange={(v) =>
                                 atualizarLancamento(idx, l.id, { categoria: v, subcategoria: null })
                               }
                             >
-                              <SelectTrigger className="h-8 w-[170px] text-xs">
+                              <SelectTrigger className="h-7 w-full min-w-0 px-1 text-[11px]">
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
@@ -1114,11 +1114,11 @@ function ImportarPage() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="size-8"
+                              className="size-7 shrink-0"
                               title="Salvar como regra de de-para"
                               onClick={() => salvarRegra.mutate(l)}
                             >
-                              <BookmarkPlus className="size-4" />
+                              <BookmarkPlus className="size-3.5" />
                             </Button>
                           </div>
                           {l.confianca_categoria && (
@@ -1127,7 +1127,7 @@ function ImportarPage() {
                             </p>
                           )}
                         </td>
-                        <td className="p-2">
+                        <td className="p-1">
                           <Select
                             value={l.subcategoria ?? "none"}
                             onValueChange={(v) =>
@@ -1136,7 +1136,7 @@ function ImportarPage() {
                               })
                             }
                           >
-                            <SelectTrigger className="h-8 w-[150px] text-xs">
+                            <SelectTrigger className="h-7 w-full min-w-0 px-1 text-[11px]">
                               <SelectValue placeholder="—" />
                             </SelectTrigger>
                             <SelectContent>
@@ -1149,11 +1149,11 @@ function ImportarPage() {
                             </SelectContent>
                           </Select>
                         </td>
-                        <td className="p-2 text-right">
+                        <td className="p-1 text-right">
                           <Input
                             type="number"
                             step="0.01"
-                            className="h-8 w-[110px] text-right text-xs"
+                            className="h-7 w-full min-w-0 px-1 text-right text-[11px]"
                             value={l.valor}
                             onChange={(e) =>
                               atualizarLancamento(idx, l.id, { valor: Number(e.target.value) || 0 })
