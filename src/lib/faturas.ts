@@ -385,13 +385,39 @@ export function extrairLancamentos(texto: string, vencimento: string | null): La
   return out;
 }
 
-export async function processarFatura(file: File): Promise<FaturaExtraida> {
-  const [{ texto, paginas }, arquivo_hash] = await Promise.all([
+export type ConferenciaFatura = { ok: boolean; soma: number; diferenca: number | null };
+
+/**
+ * Lê a fatura tentando, nesta ordem: perfil salvo do emissor → leitura posicional
+ * genérica → leitura por linha de texto (fallback usado também pelo OCR de prints).
+ */
+export async function processarFatura(
+  file: File,
+  perfil?: PerfilLayout | null,
+): Promise<FaturaExtraida> {
+  const [{ texto, paginas, itens }, arquivo_hash] = await Promise.all([
     extrairTexto(file),
     hashArquivo(file),
   ]);
   const banco = detectarBanco(texto, file.name);
   const vencimento = extrairVencimento(texto);
+  const total_declarado = extrairTotal(texto);
+
+  const comPerfil = perfil ? extrairPosicional(itens, vencimento, perfil) : null;
+  const generico =
+    comPerfil && comPerfil.lancamentos.length ? comPerfil : extrairPosicional(itens, vencimento);
+  let lancamentos = generico.lancamentos;
+  let leitura: FaturaExtraida["leitura"] = comPerfil?.lancamentos.length
+    ? "perfil"
+    : "posicional";
+  let colunas = generico.colunas;
+
+  if (lancamentos.length === 0) {
+    lancamentos = extrairLancamentos(texto, vencimento);
+    leitura = "linhas";
+    colunas = {};
+  }
+
   return {
     banco,
     arquivo_nome: file.name,
@@ -399,13 +425,18 @@ export async function processarFatura(file: File): Promise<FaturaExtraida> {
     paginas,
     vencimento,
     competencia: vencimento ? vencimento.slice(0, 7) : null,
-    total_declarado: extrairTotal(texto),
+    total_declarado,
     ...extrairLimites(texto),
     finais: extrairFinais(texto),
-    lancamentos: extrairLancamentos(texto, vencimento),
+    lancamentos,
     texto,
+    assinatura: assinaturaDocumento(texto),
+    leitura,
+    colunas,
+    conferencia: conferirTotal(lancamentos, total_declarado),
   };
 }
+
 
 /** Vencimento da parcela N a partir do vencimento da fatura e do número da parcela atual. */
 export function vencimentoParcela(
