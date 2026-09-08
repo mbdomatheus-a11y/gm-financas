@@ -422,8 +422,10 @@ function ImportarPage() {
 
       let inseridos = 0;
       let ignorados = 0;
+      let fechadas = 0;
 
       for (const f of faturas) {
+        const cartoesTocados = new Set<string>();
         let path: string | null = null;
         if (f.arquivo) {
           path = `${lote.id}/${f.arquivo_hash}.pdf`;
