@@ -989,7 +989,7 @@ function ImportarPage() {
                   <tbody>
                     {f.lancamentos.map((l) => (
                       <tr key={l.id} className="border-t align-top">
-                        <td className="p-2">
+                        <td className="p-1">
                           <Checkbox
                             checked={l.incluir}
                             onCheckedChange={(v) => atualizarLancamento(idx, l.id, { incluir: !!v })}
