@@ -582,11 +582,16 @@ function ImportarPage() {
       }
       return { inseridos, ignorados, fechadas };
     },
-    onSuccess: ({ inseridos, ignorados }) => {
+    onSuccess: ({ inseridos, ignorados, fechadas }) => {
       qc.invalidateQueries({ queryKey: ["despesas"] });
       qc.invalidateQueries({ queryKey: ["parcelas"] });
+      qc.invalidateQueries({ queryKey: ["fatura-mes"] });
+      qc.invalidateQueries({ queryKey: ["import-faturas"] });
       setFaturas([]);
-      toast.success(`${inseridos} lançamento(s) importado(s). ${ignorados} duplicado(s) ignorado(s).`);
+      toast.success(
+        `${inseridos} lançamento(s) importado(s). ${ignorados} duplicado(s) ignorado(s).` +
+          (fechadas ? ` ${fechadas} competência(s) fechada(s).` : ""),
+      );
     },
     onError: (e: any) => toast.error(e?.message ?? "Falha ao importar."),
   });
