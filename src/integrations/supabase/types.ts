@@ -385,6 +385,57 @@ export type Database = {
           },
         ]
       }
+      fatura_layouts: {
+        Row: {
+          acertos: number
+          ancora_fim: string | null
+          ancora_inicio: string | null
+          assinatura: string
+          banco: string | null
+          colunas: Json
+          created_at: string
+          created_by: string | null
+          emissor: string | null
+          formato_data: string | null
+          formato_valor: string | null
+          id: string
+          ultimo_uso: string
+          updated_at: string
+        }
+        Insert: {
+          acertos?: number
+          ancora_fim?: string | null
+          ancora_inicio?: string | null
+          assinatura: string
+          banco?: string | null
+          colunas?: Json
+          created_at?: string
+          created_by?: string | null
+          emissor?: string | null
+          formato_data?: string | null
+          formato_valor?: string | null
+          id?: string
+          ultimo_uso?: string
+          updated_at?: string
+        }
+        Update: {
+          acertos?: number
+          ancora_fim?: string | null
+          ancora_inicio?: string | null
+          assinatura?: string
+          banco?: string | null
+          colunas?: Json
+          created_at?: string
+          created_by?: string | null
+          emissor?: string | null
+          formato_data?: string | null
+          formato_valor?: string | null
+          id?: string
+          ultimo_uso?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       fatura_mes: {
         Row: {
           banco_id: string | null
