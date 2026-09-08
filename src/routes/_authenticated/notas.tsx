@@ -49,6 +49,8 @@ import {
   completeDriveConnection,
   disconnectDrive,
   driveStatus,
+  getPastaDrive,
+  setPastaDrive,
   startDriveConnect,
   uploadNotaArquivo,
 } from "@/lib/drive.functions";
@@ -173,6 +175,22 @@ function NotasPage() {
   const consultar = useServerFn(consultarNota);
 
   const drive = useQuery({ queryKey: ["drive-status"], queryFn: () => status({}) });
+
+  const lerPasta = useServerFn(getPastaDrive);
+  const gravarPasta = useServerFn(setPastaDrive);
+  const pasta = useQuery({ queryKey: ["drive-pasta"], queryFn: () => lerPasta({}) });
+  const [pastaInput, setPastaInput] = useState("");
+  useEffect(() => {
+    if (pasta.data?.folderId) setPastaInput(pasta.data.folderId);
+  }, [pasta.data?.folderId]);
+  const salvarPasta = useMutation({
+    mutationFn: () => gravarPasta({ data: { valor: pastaInput } }),
+    onSuccess: () => {
+      toast.success("Pasta compartilhada salva.");
+      void qc.invalidateQueries({ queryKey: ["drive-pasta"] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Não consegui salvar a pasta."),
+  });
 
   const conectar = useMutation({
     mutationFn: async () => {
