@@ -195,12 +195,21 @@ export const uploadNotaArquivo = createServerFn({ method: "POST" })
     const key = await getConnectionKeyForUser(context.userId, CONNECTOR_ID);
     if (!key) throw new Error("Google Drive não está conectado para este usuário");
 
-    const rootId = await ensureFolder(key, ROOT_FOLDER);
-    const notasId = await ensureFolder(key, SUB_FOLDER, rootId);
-    const mesId = await ensureFolder(key, data.competencia, notasId);
+    // Pasta compartilhada única do casal, quando configurada; senão, cria a estrutura padrão.
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: cfg } = await supabaseAdmin
+      .from("configuracoes_casal")
+      .select("valor")
+      .eq("chave", "drive_folder_id")
+      .maybeSingle();
+    let destinoId = cfg?.valor ?? null;
+    if (!destinoId) {
+      const rootId = await ensureFolder(key, ROOT_FOLDER);
+      destinoId = await ensureFolder(key, SUB_FOLDER, rootId);
+    }
 
     const boundary = `lovable${Math.random().toString(36).slice(2)}`;
-    const metadata = JSON.stringify({ name: data.nome, parents: [mesId] });
+    const metadata = JSON.stringify({ name: data.nome, parents: [destinoId] });
     const body = Buffer.concat([
       Buffer.from(
         `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${metadata}\r\n--${boundary}\r\nContent-Type: ${data.mimeType}\r\nContent-Transfer-Encoding: base64\r\n\r\n`,
