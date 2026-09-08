@@ -970,56 +970,56 @@ function ImportarPage() {
                 será calibrado com o PDF de referência.
               </p>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-muted/50 text-xs text-muted-foreground">
+              <div>
+                <table className="w-full table-fixed text-xs">
+                  <thead className="bg-muted/50 text-[10px] uppercase tracking-wide text-muted-foreground">
                     <tr>
-                      <th className="w-10 p-2"></th>
-                      <th className="p-2 text-left">Data</th>
-                      <th className="p-2 text-left">Descrição</th>
-                      <th className="p-2 text-left">Parcela</th>
-                      <th className="p-2 text-left">Tipo</th>
-                      <th className="p-2 text-left">Final</th>
-                      <th className="p-2 text-left">Responsável</th>
-                      <th className="p-2 text-left">Categoria</th>
-                      <th className="p-2 text-left">Subcategoria</th>
-                      <th className="p-2 text-right">Valor</th>
+                      <th className="w-7 p-1"></th>
+                      <th className="w-[11%] p-1 text-left">Data</th>
+                      <th className="w-[16%] p-1 text-left">Descrição</th>
+                      <th className="w-[9%] p-1 text-left">Parcela</th>
+                      <th className="w-[9%] p-1 text-left">Tipo</th>
+                      <th className="w-[7%] p-1 text-left">Final</th>
+                      <th className="w-[12%] p-1 text-left">Responsável</th>
+                      <th className="w-[13%] p-1 text-left">Categoria</th>
+                      <th className="w-[11%] p-1 text-left">Subcategoria</th>
+                      <th className="w-[12%] p-1 text-right">Valor</th>
                     </tr>
                   </thead>
                   <tbody>
                     {f.lancamentos.map((l) => (
                       <tr key={l.id} className="border-t align-top">
-                        <td className="p-2">
+                        <td className="p-1">
                           <Checkbox
                             checked={l.incluir}
                             onCheckedChange={(v) => atualizarLancamento(idx, l.id, { incluir: !!v })}
                           />
                         </td>
-                        <td className="p-2">
+                        <td className="p-1">
                           <Input
                             type="date"
-                            className="h-8 w-[140px] text-xs"
+                            className="h-7 w-full min-w-0 px-1 text-[11px]"
                             value={l.data_compra}
                             onChange={(e) =>
                               atualizarLancamento(idx, l.id, { data_compra: e.target.value })
                             }
                           />
                         </td>
-                        <td className="min-w-[220px] p-2">
+                        <td className="p-1">
                           <Input
-                            className="h-8"
+                            className="h-7 w-full min-w-0 text-[11px]"
                             value={l.descricao}
                             onChange={(e) =>
                               atualizarLancamento(idx, l.id, { descricao: e.target.value })
                             }
                           />
                         </td>
-                        <td className="whitespace-nowrap p-2">
-                          <div className="flex items-center gap-1">
+                        <td className="p-1">
+                          <div className="flex items-center gap-0.5">
                             <Input
                               type="number"
                               min={1}
-                              className="h-8 w-14 text-xs"
+                              className="h-7 w-full min-w-0 px-1 text-[11px]"
                               value={l.parcela_numero}
                               onChange={(e) =>
                                 atualizarLancamento(idx, l.id, {
@@ -1027,11 +1027,11 @@ function ImportarPage() {
                                 })
                               }
                             />
-                            <span className="text-xs text-muted-foreground">/</span>
+                            <span className="text-[11px] text-muted-foreground">/</span>
                             <Input
                               type="number"
                               min={1}
-                              className="h-8 w-14 text-xs"
+                              className="h-7 w-full min-w-0 px-1 text-[11px]"
                               value={l.parcela_total}
                               onChange={(e) =>
                                 atualizarLancamento(idx, l.id, {
@@ -1041,14 +1041,14 @@ function ImportarPage() {
                             />
                           </div>
                         </td>
-                        <td className="p-2">
+                        <td className="p-1">
                           <Select
                             value={l.tipo ?? "variavel"}
                             onValueChange={(v) =>
                               atualizarLancamento(idx, l.id, { tipo: v as "fixa" | "variavel" })
                             }
                           >
-                            <SelectTrigger className="h-8 w-[110px] text-xs">
+                            <SelectTrigger className="h-7 w-full min-w-0 px-1 text-[11px]">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -1057,9 +1057,9 @@ function ImportarPage() {
                             </SelectContent>
                           </Select>
                         </td>
-                        <td className="p-2">
+                        <td className="p-1">
                           <Input
-                            className="h-8 w-[80px] text-xs"
+                            className="h-7 w-full min-w-0 px-1 text-[11px]"
                             placeholder="0000"
                             maxLength={4}
                             value={l.cartao_final ?? ""}
@@ -1070,7 +1070,7 @@ function ImportarPage() {
                             }
                           />
                         </td>
-                        <td className="p-2">
+                        <td className="p-1">
                           <Select
                             value={l.responsavel ?? "none"}
                             onValueChange={(v) =>
@@ -1079,7 +1079,7 @@ function ImportarPage() {
                               })
                             }
                           >
-                            <SelectTrigger className="h-8 w-[150px] text-xs">
+                            <SelectTrigger className="h-7 w-full min-w-0 px-1 text-[11px]">
                               <SelectValue placeholder="—" />
                             </SelectTrigger>
                             <SelectContent>
@@ -1092,15 +1092,15 @@ function ImportarPage() {
                             </SelectContent>
                           </Select>
                         </td>
-                        <td className="p-2">
-                          <div className="flex items-center gap-1">
+                        <td className="p-1">
+                          <div className="flex items-center gap-0.5">
                             <Select
                               value={l.categoria}
                               onValueChange={(v) =>
                                 atualizarLancamento(idx, l.id, { categoria: v, subcategoria: null })
                               }
                             >
-                              <SelectTrigger className="h-8 w-[170px] text-xs">
+                              <SelectTrigger className="h-7 w-full min-w-0 px-1 text-[11px]">
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
@@ -1114,11 +1114,11 @@ function ImportarPage() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="size-8"
+                              className="size-7 shrink-0"
                               title="Salvar como regra de de-para"
                               onClick={() => salvarRegra.mutate(l)}
                             >
-                              <BookmarkPlus className="size-4" />
+                              <BookmarkPlus className="size-3.5" />
                             </Button>
                           </div>
                           {l.confianca_categoria && (
@@ -1127,7 +1127,7 @@ function ImportarPage() {
                             </p>
                           )}
                         </td>
-                        <td className="p-2">
+                        <td className="p-1">
                           <Select
                             value={l.subcategoria ?? "none"}
                             onValueChange={(v) =>
@@ -1136,7 +1136,7 @@ function ImportarPage() {
                               })
                             }
                           >
-                            <SelectTrigger className="h-8 w-[150px] text-xs">
+                            <SelectTrigger className="h-7 w-full min-w-0 px-1 text-[11px]">
                               <SelectValue placeholder="—" />
                             </SelectTrigger>
                             <SelectContent>
@@ -1149,11 +1149,11 @@ function ImportarPage() {
                             </SelectContent>
                           </Select>
                         </td>
-                        <td className="p-2 text-right">
+                        <td className="p-1 text-right">
                           <Input
                             type="number"
                             step="0.01"
-                            className="h-8 w-[110px] text-right text-xs"
+                            className="h-7 w-full min-w-0 px-1 text-right text-[11px]"
                             value={l.valor}
                             onChange={(e) =>
                               atualizarLancamento(idx, l.id, { valor: Number(e.target.value) || 0 })
