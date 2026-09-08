@@ -603,7 +603,37 @@ function ImportarPage() {
             .update({ status: "fechada", fechada_em: new Date().toISOString() })
             .eq("id", fatura.id);
         }
+
+        // Memoriza o padrão deste emissor para as próximas faturas iguais.
+        if (f.assinatura && f.lancamentos.some((l) => l.incluir)) {
+          const { data: perfilAtual } = await supabase
+            .from("fatura_layouts")
+            .select("id, acertos")
+            .eq("assinatura", f.assinatura)
+            .maybeSingle();
+          if (perfilAtual) {
+            await supabase
+              .from("fatura_layouts")
+              .update({
+                acertos: (perfilAtual.acertos ?? 1) + 1,
+                ultimo_uso: new Date().toISOString(),
+                banco: f.banco,
+                ...(f.colunas && Object.keys(f.colunas).length ? { colunas: f.colunas } : {}),
+              })
+              .eq("id", perfilAtual.id);
+          } else {
+            await supabase.from("fatura_layouts").insert({
+              assinatura: f.assinatura,
+              banco: f.banco,
+              emissor: BANCO_LABEL[f.banco],
+              colunas: f.colunas ?? {},
+              formato_data: "auto",
+              formato_valor: "pt-BR",
+            });
+          }
+        }
       }
+
       return { inseridos, ignorados, fechadas };
     },
     onSuccess: ({ inseridos, ignorados, fechadas }) => {
