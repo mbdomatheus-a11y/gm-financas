@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuthData } from "@/hooks/useAuthData";
+import { useSession } from "@/hooks/useAuthData";
 import { useCartoes, useDespesas } from "@/hooks/useFinance";
 import { currentMonthKey, formatBRL, monthKey, monthLabelLong } from "@/lib/format";
 
