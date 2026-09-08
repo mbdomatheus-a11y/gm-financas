@@ -970,20 +970,20 @@ function ImportarPage() {
                 será calibrado com o PDF de referência.
               </p>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-muted/50 text-xs text-muted-foreground">
+              <div>
+                <table className="w-full table-fixed text-xs">
+                  <thead className="bg-muted/50 text-[10px] uppercase tracking-wide text-muted-foreground">
                     <tr>
-                      <th className="w-10 p-2"></th>
-                      <th className="p-2 text-left">Data</th>
-                      <th className="p-2 text-left">Descrição</th>
-                      <th className="p-2 text-left">Parcela</th>
-                      <th className="p-2 text-left">Tipo</th>
-                      <th className="p-2 text-left">Final</th>
-                      <th className="p-2 text-left">Responsável</th>
-                      <th className="p-2 text-left">Categoria</th>
-                      <th className="p-2 text-left">Subcategoria</th>
-                      <th className="p-2 text-right">Valor</th>
+                      <th className="w-7 p-1"></th>
+                      <th className="w-[11%] p-1 text-left">Data</th>
+                      <th className="w-[16%] p-1 text-left">Descrição</th>
+                      <th className="w-[9%] p-1 text-left">Parcela</th>
+                      <th className="w-[9%] p-1 text-left">Tipo</th>
+                      <th className="w-[7%] p-1 text-left">Final</th>
+                      <th className="w-[12%] p-1 text-left">Responsável</th>
+                      <th className="w-[13%] p-1 text-left">Categoria</th>
+                      <th className="w-[11%] p-1 text-left">Subcategoria</th>
+                      <th className="w-[12%] p-1 text-right">Valor</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -995,19 +995,19 @@ function ImportarPage() {
                             onCheckedChange={(v) => atualizarLancamento(idx, l.id, { incluir: !!v })}
                           />
                         </td>
-                        <td className="p-2">
+                        <td className="p-1">
                           <Input
                             type="date"
-                            className="h-8 w-[140px] text-xs"
+                            className="h-7 w-full min-w-0 px-1 text-[11px]"
                             value={l.data_compra}
                             onChange={(e) =>
                               atualizarLancamento(idx, l.id, { data_compra: e.target.value })
                             }
                           />
                         </td>
-                        <td className="min-w-[220px] p-2">
+                        <td className="p-1">
                           <Input
-                            className="h-8"
+                            className="h-7 w-full min-w-0 text-[11px]"
                             value={l.descricao}
                             onChange={(e) =>
                               atualizarLancamento(idx, l.id, { descricao: e.target.value })
