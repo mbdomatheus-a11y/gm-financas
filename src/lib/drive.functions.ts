@@ -239,7 +239,6 @@ export const uploadNotaArquivo = createServerFn({ method: "POST" })
       mimeType?: string;
     };
 
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin.from("nota_arquivos").insert({
       nota_id: data.notaId,
       drive_file_id: file.id,
