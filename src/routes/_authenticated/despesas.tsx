@@ -14,7 +14,9 @@ import {
   Trash2,
   TrendingDown,
   X,
+  Receipt,
 } from "lucide-react";
+import { FaturaMesDialog } from "@/components/FaturaMesDialog";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -448,9 +450,18 @@ function DespesasPage() {
       description={`${lista.length} lançamento(s) · ${formatBRL(resumo.total)}`}
       actions={
         can("despesas", "editar") && (
-          <Button size="sm" onClick={abrirNova}>
-            <Plus className="size-4" /> Nova
-          </Button>
+          <div className="flex items-center gap-2">
+            <FaturaMesDialog
+              trigger={
+                <Button size="sm" variant="outline">
+                  <Receipt className="size-4" /> Fatura do mês
+                </Button>
+              }
+            />
+            <Button size="sm" onClick={abrirNova}>
+              <Plus className="size-4" /> Nova
+            </Button>
+          </div>
         )
       }
     >

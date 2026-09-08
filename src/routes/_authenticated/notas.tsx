@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -49,6 +49,8 @@ import {
   completeDriveConnection,
   disconnectDrive,
   driveStatus,
+  getPastaDrive,
+  setPastaDrive,
   startDriveConnect,
   uploadNotaArquivo,
 } from "@/lib/drive.functions";
@@ -173,6 +175,22 @@ function NotasPage() {
   const consultar = useServerFn(consultarNota);
 
   const drive = useQuery({ queryKey: ["drive-status"], queryFn: () => status({}) });
+
+  const lerPasta = useServerFn(getPastaDrive);
+  const gravarPasta = useServerFn(setPastaDrive);
+  const pasta = useQuery({ queryKey: ["drive-pasta"], queryFn: () => lerPasta({}) });
+  const [pastaInput, setPastaInput] = useState("");
+  useEffect(() => {
+    if (pasta.data?.folderId) setPastaInput(pasta.data.folderId);
+  }, [pasta.data?.folderId]);
+  const salvarPasta = useMutation({
+    mutationFn: () => gravarPasta({ data: { valor: pastaInput } }),
+    onSuccess: () => {
+      toast.success("Pasta compartilhada salva.");
+      void qc.invalidateQueries({ queryKey: ["drive-pasta"] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Não consegui salvar a pasta."),
+  });
 
   const conectar = useMutation({
     mutationFn: async () => {
@@ -448,7 +466,9 @@ function NotasPage() {
                 <p className="text-sm font-semibold">Google Drive</p>
                 <p className="text-xs text-muted-foreground">
                   {drive.data?.connected
-                    ? "Conectado — fotos vão para Finanças do Casal / Notas fiscais"
+                    ? pasta.data?.folderId
+                      ? "Conectado — comprovantes vão para a pasta compartilhada do casal"
+                      : "Conectado — informe abaixo a pasta compartilhada do casal"
                     : "Conecte para guardar as fotos das notas na sua conta"}
                 </p>
               </div>
@@ -470,6 +490,30 @@ function NotasPage() {
               <Button size="sm" onClick={() => conectar.mutate()} disabled={conectar.isPending}>
                 {conectar.isPending ? "Conectando…" : "Conectar Google Drive"}
               </Button>
+            )}
+            {drive.data?.connected && (
+              <div className="w-full space-y-1 border-t pt-3">
+                <p className="text-xs font-medium">Pasta compartilhada do casal</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Input
+                    value={pastaInput}
+                    onChange={(e) => setPastaInput(e.target.value)}
+                    placeholder="Cole aqui o link da pasta do Google Drive"
+                    className="min-w-[220px] flex-1"
+                  />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => salvarPasta.mutate()}
+                    disabled={salvarPasta.isPending}
+                  >
+                    Salvar pasta
+                  </Button>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Todos os comprovantes vão direto para essa pasta, sem criar subpastas.
+                </p>
+              </div>
             )}
           </CardContent>
         </Card>

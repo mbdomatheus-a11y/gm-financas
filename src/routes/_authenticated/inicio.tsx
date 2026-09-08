@@ -4,6 +4,8 @@ import { ShoppingCart, Wallet, ArrowRight, ReceiptText, AlertTriangle } from "lu
 import { useQuery } from "@tanstack/react-query";
 
 import { AppLayout } from "@/components/AppLayout";
+import { FaturaMesDialog } from "@/components/FaturaMesDialog";
+import { VisaoGeralHome } from "@/components/VisaoGeralHome";
 import { Card, CardContent } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { useCotacao } from "@/hooks/useCotacao";
@@ -133,7 +135,13 @@ function InicioPage() {
   ];
 
   return (
-    <AppLayout title="Início" description="Por onde você quer começar hoje?">
+    <AppLayout
+      title="Início"
+      description="Por onde você quer começar hoje?"
+      actions={<FaturaMesDialog />}
+    >
+      <VisaoGeralHome />
+
       {aVencer.length > 0 && (
         <Link to="/notas">
           <Card className="mb-4 border-warning/40 bg-warning/5">

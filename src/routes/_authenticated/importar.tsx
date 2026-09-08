@@ -422,8 +422,10 @@ function ImportarPage() {
 
       let inseridos = 0;
       let ignorados = 0;
+      let fechadas = 0;
 
       for (const f of faturas) {
+        const cartoesTocados = new Set<string>();
         let path: string | null = null;
         if (f.arquivo) {
           path = `${lote.id}/${f.arquivo_hash}.pdf`;
@@ -542,16 +544,54 @@ function ImportarPage() {
           });
           const { error: parcErr } = await supabase.from("parcelas").insert(parcelas);
           if (parcErr) throw parcErr;
+          if (cartaoId) cartoesTocados.add(cartaoId);
           inseridos++;
         }
+
+        // Fatura real chegou: encerra a competência e remove a estimativa do mês.
+        const comp = f.competencia ?? (f.vencimento ? f.vencimento.slice(0, 7) : null);
+        if (comp && cartoesTocados.size) {
+          for (const cartaoId of cartoesTocados) {
+            const { data: rapida } = await supabase
+              .from("fatura_mes")
+              .select("id, despesa_avulsa_id")
+              .eq("cartao_id", cartaoId)
+              .eq("competencia", comp)
+              .maybeSingle();
+            if (!rapida) continue;
+            if (rapida.despesa_avulsa_id) {
+              await supabase.from("parcelas").delete().eq("despesa_id", rapida.despesa_avulsa_id);
+              await supabase.from("despesas").delete().eq("id", rapida.despesa_avulsa_id);
+            }
+            await supabase
+              .from("fatura_mes")
+              .update({
+                status: "fechada",
+                fechada_em: new Date().toISOString(),
+                despesa_avulsa_id: null,
+                total_real: f.total_declarado ?? null,
+              })
+              .eq("id", rapida.id);
+            fechadas++;
+          }
+          await supabase
+            .from("import_faturas")
+            .update({ status: "fechada", fechada_em: new Date().toISOString() })
+            .eq("id", fatura.id);
+        }
       }
-      return { inseridos, ignorados };
+      return { inseridos, ignorados, fechadas };
     },
-    onSuccess: ({ inseridos, ignorados }) => {
+    onSuccess: ({ inseridos, ignorados, fechadas }) => {
       qc.invalidateQueries({ queryKey: ["despesas"] });
       qc.invalidateQueries({ queryKey: ["parcelas"] });
+      qc.invalidateQueries({ queryKey: ["fatura-mes"] });
+      qc.invalidateQueries({ queryKey: ["import-faturas"] });
       setFaturas([]);
-      toast.success(`${inseridos} lançamento(s) importado(s). ${ignorados} duplicado(s) ignorado(s).`);
+      toast.success(
+        `${inseridos} lançamento(s) importado(s). ${ignorados} duplicado(s) ignorado(s).` +
+          (fechadas ? ` ${fechadas} competência(s) fechada(s).` : ""),
+      );
     },
     onError: (e: any) => toast.error(e?.message ?? "Falha ao importar."),
   });
