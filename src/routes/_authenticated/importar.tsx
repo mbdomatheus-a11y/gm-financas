@@ -198,7 +198,30 @@ function ImportarPage() {
           continue;
         }
         try {
-          const extraida = await processarFatura(file);
+          let extraida = await processarFatura(file);
+          // Se já aprendemos o padrão deste emissor, tenta a leitura guiada.
+          if (extraida.assinatura && (!extraida.conferencia?.ok || !extraida.lancamentos.length)) {
+            const { data: perfil } = await supabase
+              .from("fatura_layouts")
+              .select("assinatura, banco, colunas, ancora_inicio, ancora_fim")
+              .eq("assinatura", extraida.assinatura)
+              .maybeSingle();
+            if (perfil) {
+              const alt = await processarFatura(file, {
+                assinatura: perfil.assinatura,
+                banco: perfil.banco,
+                colunas: (perfil.colunas as any) ?? {},
+                ancora_inicio: perfil.ancora_inicio,
+                ancora_fim: perfil.ancora_fim,
+              });
+              if (
+                alt.lancamentos.length &&
+                (alt.conferencia?.ok || alt.lancamentos.length > extraida.lancamentos.length)
+              ) {
+                extraida = alt;
+              }
+            }
+          }
           const { data: jaExiste } = await supabase
             .from("import_faturas")
             .select("id")
@@ -212,6 +235,7 @@ function ImportarPage() {
             destino: destinoPadrao(extraida),
           });
         } catch {
+
           toast.error(`${file.name}: não consegui ler o PDF (pode ser digitalizado).`);
         }
       }
@@ -579,7 +603,37 @@ function ImportarPage() {
             .update({ status: "fechada", fechada_em: new Date().toISOString() })
             .eq("id", fatura.id);
         }
+
+        // Memoriza o padrão deste emissor para as próximas faturas iguais.
+        if (f.assinatura && f.lancamentos.some((l) => l.incluir)) {
+          const { data: perfilAtual } = await supabase
+            .from("fatura_layouts")
+            .select("id, acertos")
+            .eq("assinatura", f.assinatura)
+            .maybeSingle();
+          if (perfilAtual) {
+            await supabase
+              .from("fatura_layouts")
+              .update({
+                acertos: (perfilAtual.acertos ?? 1) + 1,
+                ultimo_uso: new Date().toISOString(),
+                banco: f.banco,
+                ...(f.colunas && Object.keys(f.colunas).length ? { colunas: f.colunas } : {}),
+              })
+              .eq("id", perfilAtual.id);
+          } else {
+            await supabase.from("fatura_layouts").insert({
+              assinatura: f.assinatura,
+              banco: f.banco,
+              emissor: BANCO_LABEL[f.banco],
+              colunas: f.colunas ?? {},
+              formato_data: "auto",
+              formato_valor: "pt-BR",
+            });
+          }
+        }
       }
+
       return { inseridos, ignorados, fechadas };
     },
     onSuccess: ({ inseridos, ignorados, fechadas }) => {
@@ -862,7 +916,36 @@ function ImportarPage() {
               </div>
             </div>
 
+            {f.conferencia ? (
+              <div
+                className={`rounded-lg border px-3 py-2 text-sm ${
+                  f.conferencia.ok
+                    ? "border-emerald-500/40 bg-emerald-500/10"
+                    : "border-amber-500/40 bg-amber-500/10"
+                }`}
+              >
+                {f.conferencia.ok ? (
+                  <span>
+                    Leitura conferida: {f.lancamentos.length} lançamento(s), soma{" "}
+                    {formatBRL(f.conferencia.soma)}
+                    {f.leitura === "perfil" ? " (padrão deste banco já memorizado)" : ""}.
+                  </span>
+                ) : (
+                  <span>
+                    A soma dos lançamentos ({formatBRL(f.conferencia.soma)}){" "}
+                    {f.conferencia.diferenca != null
+                      ? `está ${formatBRL(Math.abs(f.conferencia.diferenca))} ${
+                          f.conferencia.diferenca > 0 ? "abaixo" : "acima"
+                        } do total da fatura`
+                      : "não pôde ser comparada com o total da fatura"}
+                    . Confira as linhas abaixo antes de salvar.
+                  </span>
+                )}
+              </div>
+            ) : null}
+
             <div className="grid grid-cols-3 gap-2">
+
               {[
                 { label: "Limite total", valor: f.limite_total },
                 { label: "Limite utilizado", valor: f.limite_utilizado },

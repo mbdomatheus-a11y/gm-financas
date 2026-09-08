@@ -3,6 +3,14 @@ import workerSrc from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 
 
 import { addMonths, parseDate, toISODate } from "@/lib/format";
+import {
+  assinaturaDocumento,
+  conferirTotal,
+  extrairPosicional,
+  type ItemPdf,
+  type PerfilLayout,
+} from "@/lib/fatura-layout";
+
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
 
@@ -52,7 +60,13 @@ export type FaturaExtraida = {
   finais: string[];
   lancamentos: LancamentoExtraido[];
   texto: string;
+  assinatura?: string;
+  leitura?: "perfil" | "posicional" | "linhas";
+  colunas?: { data?: number | undefined; valor?: number | undefined; descricao?: number | undefined };
+  conferencia?: { ok: boolean; soma: number; diferenca: number | null };
+
 };
+
 
 const MESES: Record<string, number> = {
   jan: 1, fev: 2, mar: 3, abr: 4, mai: 5, jun: 6,
@@ -67,10 +81,13 @@ export async function hashArquivo(file: File): Promise<string> {
     .join("");
 }
 
-export async function extrairTexto(file: File): Promise<{ texto: string; paginas: number }> {
+export async function extrairTexto(
+  file: File,
+): Promise<{ texto: string; paginas: number; itens: ItemPdf[] }> {
   const data = new Uint8Array(await file.arrayBuffer());
   const doc = await pdfjs.getDocument({ data }).promise;
   const partes: string[] = [];
+  const itens: ItemPdf[] = [];
   for (let i = 1; i <= doc.numPages; i++) {
     const page = await doc.getPage(i);
     const content = await page.getTextContent();
@@ -78,6 +95,10 @@ export async function extrairTexto(file: File): Promise<{ texto: string; paginas
     let lastY: number | null = null;
     for (const item of content.items as any[]) {
       const y = Math.round(item.transform?.[5] ?? 0);
+      const x = Math.round(item.transform?.[4] ?? 0);
+      if (typeof item.str === "string" && item.str.trim()) {
+        itens.push({ str: item.str, x, y, w: Number(item.width ?? 0), page: i });
+      }
       if (lastY !== null && Math.abs(y - lastY) > 2) {
         partes.push(linha.trim());
         linha = "";
@@ -87,8 +108,9 @@ export async function extrairTexto(file: File): Promise<{ texto: string; paginas
     }
     if (linha.trim()) partes.push(linha.trim());
   }
-  return { texto: partes.filter(Boolean).join("\n"), paginas: doc.numPages };
+  return { texto: partes.filter(Boolean).join("\n"), paginas: doc.numPages, itens };
 }
+
 
 export function detectarBanco(texto: string, nomeArquivo: string): BancoFatura {
   const alvo = `${nomeArquivo} ${texto}`.toLowerCase();
@@ -369,13 +391,39 @@ export function extrairLancamentos(texto: string, vencimento: string | null): La
   return out;
 }
 
-export async function processarFatura(file: File): Promise<FaturaExtraida> {
-  const [{ texto, paginas }, arquivo_hash] = await Promise.all([
+export type ConferenciaFatura = { ok: boolean; soma: number; diferenca: number | null };
+
+/**
+ * Lê a fatura tentando, nesta ordem: perfil salvo do emissor → leitura posicional
+ * genérica → leitura por linha de texto (fallback usado também pelo OCR de prints).
+ */
+export async function processarFatura(
+  file: File,
+  perfil?: PerfilLayout | null,
+): Promise<FaturaExtraida> {
+  const [{ texto, paginas, itens }, arquivo_hash] = await Promise.all([
     extrairTexto(file),
     hashArquivo(file),
   ]);
   const banco = detectarBanco(texto, file.name);
   const vencimento = extrairVencimento(texto);
+  const total_declarado = extrairTotal(texto);
+
+  const comPerfil = perfil ? extrairPosicional(itens, vencimento, perfil) : null;
+  const generico =
+    comPerfil && comPerfil.lancamentos.length ? comPerfil : extrairPosicional(itens, vencimento);
+  let lancamentos = generico.lancamentos;
+  let leitura: FaturaExtraida["leitura"] = comPerfil?.lancamentos.length
+    ? "perfil"
+    : "posicional";
+  let colunas = generico.colunas;
+
+  if (lancamentos.length === 0) {
+    lancamentos = extrairLancamentos(texto, vencimento);
+    leitura = "linhas";
+    colunas = {};
+  }
+
   return {
     banco,
     arquivo_nome: file.name,
@@ -383,13 +431,18 @@ export async function processarFatura(file: File): Promise<FaturaExtraida> {
     paginas,
     vencimento,
     competencia: vencimento ? vencimento.slice(0, 7) : null,
-    total_declarado: extrairTotal(texto),
+    total_declarado,
     ...extrairLimites(texto),
     finais: extrairFinais(texto),
-    lancamentos: extrairLancamentos(texto, vencimento),
+    lancamentos,
     texto,
+    assinatura: assinaturaDocumento(texto),
+    leitura,
+    colunas,
+    conferencia: conferirTotal(lancamentos, total_declarado),
   };
 }
+
 
 /** Vencimento da parcela N a partir do vencimento da fatura e do número da parcela atual. */
 export function vencimentoParcela(
