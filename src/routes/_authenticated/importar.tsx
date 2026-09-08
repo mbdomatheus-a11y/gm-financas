@@ -1014,12 +1014,12 @@ function ImportarPage() {
                             }
                           />
                         </td>
-                        <td className="whitespace-nowrap p-2">
-                          <div className="flex items-center gap-1">
+                        <td className="p-1">
+                          <div className="flex items-center gap-0.5">
                             <Input
                               type="number"
                               min={1}
-                              className="h-8 w-14 text-xs"
+                              className="h-7 w-full min-w-0 px-1 text-[11px]"
                               value={l.parcela_numero}
                               onChange={(e) =>
                                 atualizarLancamento(idx, l.id, {
@@ -1027,11 +1027,11 @@ function ImportarPage() {
                                 })
                               }
                             />
-                            <span className="text-xs text-muted-foreground">/</span>
+                            <span className="text-[11px] text-muted-foreground">/</span>
                             <Input
                               type="number"
                               min={1}
-                              className="h-8 w-14 text-xs"
+                              className="h-7 w-full min-w-0 px-1 text-[11px]"
                               value={l.parcela_total}
                               onChange={(e) =>
                                 atualizarLancamento(idx, l.id, {
@@ -1041,14 +1041,14 @@ function ImportarPage() {
                             />
                           </div>
                         </td>
-                        <td className="p-2">
+                        <td className="p-1">
                           <Select
                             value={l.tipo ?? "variavel"}
                             onValueChange={(v) =>
                               atualizarLancamento(idx, l.id, { tipo: v as "fixa" | "variavel" })
                             }
                           >
-                            <SelectTrigger className="h-8 w-[110px] text-xs">
+                            <SelectTrigger className="h-7 w-full min-w-0 px-1 text-[11px]">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -1057,9 +1057,9 @@ function ImportarPage() {
                             </SelectContent>
                           </Select>
                         </td>
-                        <td className="p-2">
+                        <td className="p-1">
                           <Input
-                            className="h-8 w-[80px] text-xs"
+                            className="h-7 w-full min-w-0 px-1 text-[11px]"
                             placeholder="0000"
                             maxLength={4}
                             value={l.cartao_final ?? ""}
@@ -1070,7 +1070,7 @@ function ImportarPage() {
                             }
                           />
                         </td>
-                        <td className="p-2">
+                        <td className="p-1">
                           <Select
                             value={l.responsavel ?? "none"}
                             onValueChange={(v) =>
@@ -1079,7 +1079,7 @@ function ImportarPage() {
                               })
                             }
                           >
-                            <SelectTrigger className="h-8 w-[150px] text-xs">
+                            <SelectTrigger className="h-7 w-full min-w-0 px-1 text-[11px]">
                               <SelectValue placeholder="—" />
                             </SelectTrigger>
                             <SelectContent>
