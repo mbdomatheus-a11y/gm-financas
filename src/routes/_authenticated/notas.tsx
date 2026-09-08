@@ -491,6 +491,30 @@ function NotasPage() {
                 {conectar.isPending ? "Conectando…" : "Conectar Google Drive"}
               </Button>
             )}
+            {drive.data?.connected && (
+              <div className="w-full space-y-1 border-t pt-3">
+                <p className="text-xs font-medium">Pasta compartilhada do casal</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Input
+                    value={pastaInput}
+                    onChange={(e) => setPastaInput(e.target.value)}
+                    placeholder="Cole aqui o link da pasta do Google Drive"
+                    className="min-w-[220px] flex-1"
+                  />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => salvarPasta.mutate()}
+                    disabled={salvarPasta.isPending}
+                  >
+                    Salvar pasta
+                  </Button>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Todos os comprovantes vão direto para essa pasta, sem criar subpastas.
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
