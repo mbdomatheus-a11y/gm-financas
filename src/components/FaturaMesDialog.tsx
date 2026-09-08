@@ -42,7 +42,7 @@ export function FaturaMesDialog({ trigger }: { trigger?: React.ReactNode }) {
   const [inclui, setInclui] = useState("sim");
 
   const qc = useQueryClient();
-  const { user } = useAuthData();
+  const { user } = useSession();
   const { data: cartoes = [] } = useCartoes();
   const { data: despesas = [] } = useDespesas();
 
