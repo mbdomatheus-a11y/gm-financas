@@ -222,9 +222,15 @@ export function extrairPosicional(
     const data = acharData(celulas);
     const valor = acharValor(celulas);
 
-    // Valor solto numa linha abaixo da descrição.
-    if (!data && valor && pendente && celulas.length <= 2) {
-      const lanc = montar(pendente.data, pendente.descricao, valor.celula.texto, bruto, pendente.final);
+    // Valor solto numa linha abaixo da descrição (com ou sem continuação do texto).
+    if (!data && valor && pendente && celulas.length <= 3) {
+      const extra = celulas
+        .filter((_, i) => i !== valor.indice)
+        .map((c) => c.texto)
+        .join(" ")
+        .trim();
+      const desc = extra ? `${pendente.descricao} ${extra}`.trim() : pendente.descricao;
+      const lanc = montar(pendente.data, desc, valor.celula.texto, bruto, pendente.final);
       if (lanc) {
         out.push(lanc);
         xValor.push(valor.celula.x);
@@ -232,6 +238,7 @@ export function extrairPosicional(
       pendente = null;
       continue;
     }
+
 
     if (!data) {
       // Continuação da descrição da linha anterior.
