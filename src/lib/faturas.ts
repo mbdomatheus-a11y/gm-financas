@@ -3,6 +3,14 @@ import workerSrc from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 
 
 import { addMonths, parseDate, toISODate } from "@/lib/format";
+import {
+  assinaturaDocumento,
+  conferirTotal,
+  extrairPosicional,
+  type ItemPdf,
+  type PerfilLayout,
+} from "@/lib/fatura-layout";
+
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
 
