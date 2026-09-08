@@ -67,10 +67,13 @@ export async function hashArquivo(file: File): Promise<string> {
     .join("");
 }
 
-export async function extrairTexto(file: File): Promise<{ texto: string; paginas: number }> {
+export async function extrairTexto(
+  file: File,
+): Promise<{ texto: string; paginas: number; itens: ItemPdf[] }> {
   const data = new Uint8Array(await file.arrayBuffer());
   const doc = await pdfjs.getDocument({ data }).promise;
   const partes: string[] = [];
+  const itens: ItemPdf[] = [];
   for (let i = 1; i <= doc.numPages; i++) {
     const page = await doc.getPage(i);
     const content = await page.getTextContent();
@@ -78,6 +81,10 @@ export async function extrairTexto(file: File): Promise<{ texto: string; paginas
     let lastY: number | null = null;
     for (const item of content.items as any[]) {
       const y = Math.round(item.transform?.[5] ?? 0);
+      const x = Math.round(item.transform?.[4] ?? 0);
+      if (typeof item.str === "string" && item.str.trim()) {
+        itens.push({ str: item.str, x, y, w: Number(item.width ?? 0), page: i });
+      }
       if (lastY !== null && Math.abs(y - lastY) > 2) {
         partes.push(linha.trim());
         linha = "";
@@ -87,8 +94,9 @@ export async function extrairTexto(file: File): Promise<{ texto: string; paginas
     }
     if (linha.trim()) partes.push(linha.trim());
   }
-  return { texto: partes.filter(Boolean).join("\n"), paginas: doc.numPages };
+  return { texto: partes.filter(Boolean).join("\n"), paginas: doc.numPages, itens };
 }
+
 
 export function detectarBanco(texto: string, nomeArquivo: string): BancoFatura {
   const alvo = `${nomeArquivo} ${texto}`.toLowerCase();
