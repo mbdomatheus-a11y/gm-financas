@@ -60,10 +60,11 @@ export type FaturaExtraida = {
   finais: string[];
   lancamentos: LancamentoExtraido[];
   texto: string;
-  assinatura: string;
-  leitura: "perfil" | "posicional" | "linhas";
-  colunas: { data?: number | undefined; valor?: number | undefined; descricao?: number | undefined };
-  conferencia: { ok: boolean; soma: number; diferenca: number | null };
+  assinatura?: string;
+  leitura?: "perfil" | "posicional" | "linhas";
+  colunas?: { data?: number | undefined; valor?: number | undefined; descricao?: number | undefined };
+  conferencia?: { ok: boolean; soma: number; diferenca: number | null };
+
 };
 
 
