@@ -466,7 +466,9 @@ function NotasPage() {
                 <p className="text-sm font-semibold">Google Drive</p>
                 <p className="text-xs text-muted-foreground">
                   {drive.data?.connected
-                    ? "Conectado — fotos vão para Finanças do Casal / Notas fiscais"
+                    ? pasta.data?.folderId
+                      ? "Conectado — comprovantes vão para a pasta compartilhada do casal"
+                      : "Conectado — informe abaixo a pasta compartilhada do casal"
                     : "Conecte para guardar as fotos das notas na sua conta"}
                 </p>
               </div>
