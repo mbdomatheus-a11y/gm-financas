@@ -13,7 +13,7 @@ export type LinhaPdf = { page: number; y: number; celulas: Celula[]; texto: stri
 export type PerfilLayout = {
   assinatura: string;
   banco?: string | null;
-  colunas: { data?: number; valor?: number; descricao?: number };
+  colunas: { data?: number | undefined; valor?: number | undefined; descricao?: number | undefined };
   formato_data?: string | null;
   formato_valor?: string | null;
   ancora_inicio?: string | null;
@@ -171,7 +171,7 @@ function ehCredito(texto: string, valorBruto: string): boolean {
 
 export type ResultadoPosicional = {
   lancamentos: LancamentoExtraido[];
-  colunas: { data?: number; valor?: number; descricao?: number };
+  colunas: { data?: number | undefined; valor?: number | undefined; descricao?: number | undefined };
 };
 
 /** Extrai lançamentos usando as posições das colunas; funciona para layouts desconhecidos. */
