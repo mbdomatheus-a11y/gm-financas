@@ -243,6 +243,24 @@ export type Database = {
         }
         Relationships: []
       }
+      configuracoes_casal: {
+        Row: {
+          chave: string
+          updated_at: string
+          valor: string | null
+        }
+        Insert: {
+          chave: string
+          updated_at?: string
+          valor?: string | null
+        }
+        Update: {
+          chave?: string
+          updated_at?: string
+          valor?: string | null
+        }
+        Relationships: []
+      }
       despesas: {
         Row: {
           banco_id: string | null
@@ -367,6 +385,76 @@ export type Database = {
           },
         ]
       }
+      fatura_mes: {
+        Row: {
+          banco_id: string | null
+          cartao_id: string | null
+          competencia: string
+          created_at: string
+          created_by: string | null
+          despesa_avulsa_id: string | null
+          fechada_em: string | null
+          id: string
+          inclui_parcelas: boolean
+          status: string
+          total_informado: number
+          total_real: number | null
+          updated_at: string
+        }
+        Insert: {
+          banco_id?: string | null
+          cartao_id?: string | null
+          competencia: string
+          created_at?: string
+          created_by?: string | null
+          despesa_avulsa_id?: string | null
+          fechada_em?: string | null
+          id?: string
+          inclui_parcelas?: boolean
+          status?: string
+          total_informado?: number
+          total_real?: number | null
+          updated_at?: string
+        }
+        Update: {
+          banco_id?: string | null
+          cartao_id?: string | null
+          competencia?: string
+          created_at?: string
+          created_by?: string | null
+          despesa_avulsa_id?: string | null
+          fechada_em?: string | null
+          id?: string
+          inclui_parcelas?: boolean
+          status?: string
+          total_informado?: number
+          total_real?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fatura_mes_banco_id_fkey"
+            columns: ["banco_id"]
+            isOneToOne: false
+            referencedRelation: "bancos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fatura_mes_cartao_id_fkey"
+            columns: ["cartao_id"]
+            isOneToOne: false
+            referencedRelation: "cartoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fatura_mes_despesa_avulsa_id_fkey"
+            columns: ["despesa_avulsa_id"]
+            isOneToOne: false
+            referencedRelation: "despesas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       import_faturas: {
         Row: {
           arquivo_excluido_em: string | null
@@ -376,6 +464,7 @@ export type Database = {
           banco: string
           competencia: string | null
           created_at: string
+          fechada_em: string | null
           id: string
           limite_disponivel: number | null
           limite_total: number | null
@@ -397,6 +486,7 @@ export type Database = {
           banco: string
           competencia?: string | null
           created_at?: string
+          fechada_em?: string | null
           id?: string
           limite_disponivel?: number | null
           limite_total?: number | null
@@ -418,6 +508,7 @@ export type Database = {
           banco?: string
           competencia?: string | null
           created_at?: string
+          fechada_em?: string | null
           id?: string
           limite_disponivel?: number | null
           limite_total?: number | null
