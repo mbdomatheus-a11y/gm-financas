@@ -14,7 +14,9 @@ import {
   Trash2,
   TrendingDown,
   X,
+  Receipt,
 } from "lucide-react";
+import { FaturaMesDialog } from "@/components/FaturaMesDialog";
 import { toast } from "sonner";
 import { z } from "zod";
 
