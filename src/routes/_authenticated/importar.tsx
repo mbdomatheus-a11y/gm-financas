@@ -198,7 +198,30 @@ function ImportarPage() {
           continue;
         }
         try {
-          const extraida = await processarFatura(file);
+          let extraida = await processarFatura(file);
+          // Se já aprendemos o padrão deste emissor, tenta a leitura guiada.
+          if (extraida.assinatura && (!extraida.conferencia?.ok || !extraida.lancamentos.length)) {
+            const { data: perfil } = await supabase
+              .from("fatura_layouts")
+              .select("assinatura, banco, colunas, ancora_inicio, ancora_fim")
+              .eq("assinatura", extraida.assinatura)
+              .maybeSingle();
+            if (perfil) {
+              const alt = await processarFatura(file, {
+                assinatura: perfil.assinatura,
+                banco: perfil.banco,
+                colunas: (perfil.colunas as any) ?? {},
+                ancora_inicio: perfil.ancora_inicio,
+                ancora_fim: perfil.ancora_fim,
+              });
+              if (
+                alt.lancamentos.length &&
+                (alt.conferencia?.ok || alt.lancamentos.length > extraida.lancamentos.length)
+              ) {
+                extraida = alt;
+              }
+            }
+          }
           const { data: jaExiste } = await supabase
             .from("import_faturas")
             .select("id")
@@ -212,6 +235,7 @@ function ImportarPage() {
             destino: destinoPadrao(extraida),
           });
         } catch {
+
           toast.error(`${file.name}: não consegui ler o PDF (pode ser digitalizado).`);
         }
       }
