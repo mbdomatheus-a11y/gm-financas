@@ -60,7 +60,12 @@ export type FaturaExtraida = {
   finais: string[];
   lancamentos: LancamentoExtraido[];
   texto: string;
+  assinatura: string;
+  leitura: "perfil" | "posicional" | "linhas";
+  colunas: { data?: number | undefined; valor?: number | undefined; descricao?: number | undefined };
+  conferencia: { ok: boolean; soma: number; diferenca: number | null };
 };
+
 
 const MESES: Record<string, number> = {
   jan: 1, fev: 2, mar: 3, abr: 4, mai: 5, jun: 6,
