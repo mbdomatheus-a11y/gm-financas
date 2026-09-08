@@ -916,7 +916,36 @@ function ImportarPage() {
               </div>
             </div>
 
+            {f.conferencia ? (
+              <div
+                className={`rounded-lg border px-3 py-2 text-sm ${
+                  f.conferencia.ok
+                    ? "border-emerald-500/40 bg-emerald-500/10"
+                    : "border-amber-500/40 bg-amber-500/10"
+                }`}
+              >
+                {f.conferencia.ok ? (
+                  <span>
+                    Leitura conferida: {f.lancamentos.length} lançamento(s), soma{" "}
+                    {formatBRL(f.conferencia.soma)}
+                    {f.leitura === "perfil" ? " (padrão deste banco já memorizado)" : ""}.
+                  </span>
+                ) : (
+                  <span>
+                    A soma dos lançamentos ({formatBRL(f.conferencia.soma)}){" "}
+                    {f.conferencia.diferenca != null
+                      ? `está ${formatBRL(Math.abs(f.conferencia.diferenca))} ${
+                          f.conferencia.diferenca > 0 ? "abaixo" : "acima"
+                        } do total da fatura`
+                      : "não pôde ser comparada com o total da fatura"}
+                    . Confira as linhas abaixo antes de salvar.
+                  </span>
+                )}
+              </div>
+            ) : null}
+
             <div className="grid grid-cols-3 gap-2">
+
               {[
                 { label: "Limite total", valor: f.limite_total },
                 { label: "Limite utilizado", valor: f.limite_utilizado },
