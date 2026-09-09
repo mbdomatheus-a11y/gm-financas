@@ -335,8 +335,8 @@ function UsuariosPage() {
               </Select>
             </Field>
             <p className="rounded-lg bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
-              O usuário será criado com a senha temporária <strong>admin123</strong> e precisará
-              defini-la no primeiro acesso.
+              Uma senha provisória única será gerada e exibida uma única vez após a criação. O
+              usuário precisará definir a própria senha no primeiro acesso.
             </p>
           </div>
           <DialogFooter>
@@ -346,6 +346,24 @@ function UsuariosPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!senhaGerada} onOpenChange={(o) => !o && setSenhaGerada(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Senha provisória</DialogTitle>
+            <DialogDescription>
+              Anote e entregue esta senha ao usuário agora — ela não será exibida novamente.
+            </DialogDescription>
+          </DialogHeader>
+          <p className="select-all rounded-lg border bg-muted/60 px-3 py-3 text-center font-mono text-lg">
+            {senhaGerada}
+          </p>
+          <DialogFooter>
+            <Button onClick={() => setSenhaGerada(null)}>Já anotei</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
 
       <Dialog open={!!reset} onOpenChange={(o) => !o && setReset(null)}>
         <DialogContent className="sm:max-w-sm">
