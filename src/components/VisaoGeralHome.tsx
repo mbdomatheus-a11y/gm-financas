@@ -85,10 +85,12 @@ function Delta({ valor }: { valor: number | null }) {
   );
 }
 
-export function VisaoGeralHome() {
+export function VisaoGeralHome({ ocultarValores = false }: { ocultarValores?: boolean } = {}) {
   const cotacao = useCotacao();
   const { data: despesas = [] } = useDespesas();
   const { data: receitas = [] } = useReceitas();
+
+  const valorFmt = (v: number) => (ocultarValores ? "R$ ••••••" : formatBRL(v));
 
   const [agrupamento, setAgrupamento] = useState<Agrupamento>("cartao");
   const [mes, setMes] = useState(currentMonthKey());
@@ -184,12 +186,12 @@ export function VisaoGeralHome() {
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
             {menor && (
               <Badge variant="outline" className="border-success/40 text-success">
-                Mês mais leve: {monthLabel(menor.key)} · {formatBRL(menor.Despesas)}
+                Mês mais leve: {monthLabel(menor.key)} · {valorFmt(menor.Despesas)}
               </Badge>
             )}
             {maior && (
               <Badge variant="outline" className="border-destructive/40 text-destructive">
-                Mais pesado: {monthLabel(maior.key)} · {formatBRL(maior.Despesas)}
+                Mais pesado: {monthLabel(maior.key)} · {valorFmt(maior.Despesas)}
               </Badge>
             )}
           </div>
@@ -207,7 +209,7 @@ export function VisaoGeralHome() {
                 <XAxis dataKey="mes" tickLine={false} axisLine={false} fontSize={11} />
                 <YAxis hide />
                 <Tooltip
-                  formatter={(v: any, n: any) => [formatBRL(Number(v)), n]}
+                  formatter={(v: any, n: any) => [valorFmt(Number(v)), n]}
                   labelFormatter={(l: any) => String(l)}
                 />
                 <Bar dataKey="Despesas" radius={[6, 6, 0, 0]} cursor="pointer">
@@ -248,7 +250,7 @@ export function VisaoGeralHome() {
           <div>
             <CardTitle className="text-base">{monthLabelLong(mes)}</CardTitle>
             <p className="mt-0.5 flex items-center gap-2 text-sm text-muted-foreground">
-              Total {formatBRL(grupos.total)} <Delta valor={grupos.deltaTotal} /> vs. mês anterior
+              Total {valorFmt(grupos.total)} <Delta valor={grupos.deltaTotal} /> vs. mês anterior
             </p>
           </div>
           <Select value={agrupamento} onValueChange={(v) => setAgrupamento(v as Agrupamento)}>
@@ -289,7 +291,7 @@ export function VisaoGeralHome() {
                     <div className="flex items-center justify-between gap-2">
                       <span className="truncate text-sm font-medium">{g.grupo}</span>
                       <span className="shrink-0 text-sm font-semibold tabular-nums">
-                        {formatBRL(g.total)}
+                        {valorFmt(g.total)}
                       </span>
                     </div>
                     <div className="mt-1 flex items-center gap-2">
@@ -323,7 +325,7 @@ export function VisaoGeralHome() {
                           </p>
                         </div>
                         <span className="shrink-0 text-sm font-semibold tabular-nums">
-                          {formatBRL(p.valorBRL)}
+                          {valorFmt(p.valorBRL)}
                         </span>
                       </button>
                     ))}
