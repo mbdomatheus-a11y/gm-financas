@@ -93,16 +93,20 @@ function UsuariosPage() {
       const cpf = onlyDigits(novo.cpf);
       if (!isValidCpf(cpf)) throw new Error("CPF inválido");
       if (novo.nome.trim().length < 2) throw new Error("Informe o nome completo");
-      await criar({ data: { nome: novo.nome.trim(), cpf, role: novo.role as "admin" | "comum" } });
+      return await criar({
+        data: { nome: novo.nome.trim(), cpf, role: novo.role as "admin" | "comum" },
+      });
     },
-    onSuccess: () => {
-      toast.success("Usuário criado com senha temporária admin123");
+    onSuccess: (res: any) => {
+      toast.success("Usuário criado");
+      setSenhaGerada(res?.senhaTemporaria ?? null);
       setOpen(false);
       setNovo({ nome: "", cpf: "", role: "comum" });
       qc.invalidateQueries();
     },
     onError: (e: any) => toast.error(e.message ?? "Erro ao criar usuário"),
   });
+
 
   const redefinir = useMutation({
     mutationFn: async () => {
