@@ -4,7 +4,7 @@ import { Wallet, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
-import { ensureSeedUsers } from "@/lib/admin.functions";
+
 import { cpfToEmail, isValidCpf, maskCpf, onlyDigits } from "@/lib/cpf";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,7 +44,7 @@ function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    ensureSeedUsers().catch(() => undefined);
+    
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) navigate({ to: "/inicio" });
     });

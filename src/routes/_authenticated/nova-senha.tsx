@@ -40,10 +40,11 @@ function NovaSenhaPage() {
       toast.error("As senhas não coincidem");
       return;
     }
-    if (senha === "admin123") {
-      toast.error("Escolha uma senha diferente da provisória");
+    if (senha.length < 8) {
+      toast.error("Use ao menos 8 caracteres para a nova senha");
       return;
     }
+
     setLoading(true);
     const { error } = await supabase.auth.updateUser({ password: senha });
     if (error) {

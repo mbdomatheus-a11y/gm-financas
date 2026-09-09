@@ -18,6 +18,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -67,6 +68,7 @@ function UsuariosPage() {
   const setRole = useServerFn(adminSetRole);
 
   const [open, setOpen] = useState(false);
+  const [senhaGerada, setSenhaGerada] = useState<string | null>(null);
   const [novo, setNovo] = useState({ nome: "", cpf: "", role: "comum" });
   const [reset, setReset] = useState<{ id: string; nome: string } | null>(null);
   const [senha, setSenha] = useState("");
@@ -92,16 +94,20 @@ function UsuariosPage() {
       const cpf = onlyDigits(novo.cpf);
       if (!isValidCpf(cpf)) throw new Error("CPF inválido");
       if (novo.nome.trim().length < 2) throw new Error("Informe o nome completo");
-      await criar({ data: { nome: novo.nome.trim(), cpf, role: novo.role as "admin" | "comum" } });
+      return await criar({
+        data: { nome: novo.nome.trim(), cpf, role: novo.role as "admin" | "comum" },
+      });
     },
-    onSuccess: () => {
-      toast.success("Usuário criado com senha temporária admin123");
+    onSuccess: (res: any) => {
+      toast.success("Usuário criado");
+      setSenhaGerada(res?.senhaTemporaria ?? null);
       setOpen(false);
       setNovo({ nome: "", cpf: "", role: "comum" });
       qc.invalidateQueries();
     },
     onError: (e: any) => toast.error(e.message ?? "Erro ao criar usuário"),
   });
+
 
   const redefinir = useMutation({
     mutationFn: async () => {
@@ -330,8 +336,8 @@ function UsuariosPage() {
               </Select>
             </Field>
             <p className="rounded-lg bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
-              O usuário será criado com a senha temporária <strong>admin123</strong> e precisará
-              defini-la no primeiro acesso.
+              Uma senha provisória única será gerada e exibida uma única vez após a criação. O
+              usuário precisará definir a própria senha no primeiro acesso.
             </p>
           </div>
           <DialogFooter>
@@ -341,6 +347,24 @@ function UsuariosPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!senhaGerada} onOpenChange={(o) => !o && setSenhaGerada(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Senha provisória</DialogTitle>
+            <DialogDescription>
+              Anote e entregue esta senha ao usuário agora — ela não será exibida novamente.
+            </DialogDescription>
+          </DialogHeader>
+          <p className="select-all rounded-lg border bg-muted/60 px-3 py-3 text-center font-mono text-lg">
+            {senhaGerada}
+          </p>
+          <DialogFooter>
+            <Button onClick={() => setSenhaGerada(null)}>Já anotei</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
 
       <Dialog open={!!reset} onOpenChange={(o) => !o && setReset(null)}>
         <DialogContent className="sm:max-w-sm">
