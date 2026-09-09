@@ -2,36 +2,16 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-const SEED = [
-  { cpf: "08857166635", nome: "Titular 1" },
-  { cpf: "41412522803", nome: "Titular 2" },
-];
 const DOMAIN = "financascasal.app";
 
-export const ensureSeedUsers = createServerFn({ method: "POST" }).handler(async () => {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  for (const seed of SEED) {
-    const { data: existing } = await supabaseAdmin
-      .from("profiles")
-      .select("id")
-      .eq("cpf", seed.cpf)
-      .maybeSingle();
-    if (existing) continue;
+/** Gera uma senha provisória aleatória (mostrada uma única vez ao administrador). */
+function gerarSenhaTemporaria(): string {
+  const alfabeto = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => alfabeto[b % alfabeto.length]).join("");
+}
 
-    const { data: created, error } = await supabaseAdmin.auth.admin.createUser({
-      email: `${seed.cpf}@${DOMAIN}`,
-      password: "admin123",
-      email_confirm: true,
-    });
-    if (error || !created.user) continue;
-
-    await supabaseAdmin
-      .from("profiles")
-      .insert({ id: created.user.id, nome: seed.nome, cpf: seed.cpf, senha_temporaria: true });
-    await supabaseAdmin.from("user_roles").insert({ user_id: created.user.id, role: "admin" });
-  }
-  return { ok: true };
-});
 
 async function assertAdmin(context: { supabase: any; userId: string }) {
   const { data } = await context.supabase
