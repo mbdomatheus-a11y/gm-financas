@@ -67,6 +67,7 @@ function UsuariosPage() {
   const setRole = useServerFn(adminSetRole);
 
   const [open, setOpen] = useState(false);
+  const [senhaGerada, setSenhaGerada] = useState<string | null>(null);
   const [novo, setNovo] = useState({ nome: "", cpf: "", role: "comum" });
   const [reset, setReset] = useState<{ id: string; nome: string } | null>(null);
   const [senha, setSenha] = useState("");
