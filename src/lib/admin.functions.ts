@@ -37,9 +37,10 @@ export const adminCreateUser = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const senhaTemporaria = gerarSenhaTemporaria();
     const { data: created, error } = await supabaseAdmin.auth.admin.createUser({
       email: `${data.cpf}@${DOMAIN}`,
-      password: "admin123",
+      password: senhaTemporaria,
       email_confirm: true,
     });
     if (error || !created.user) throw new Error(error?.message ?? "Falha ao criar usuário");
@@ -47,7 +48,8 @@ export const adminCreateUser = createServerFn({ method: "POST" })
       .from("profiles")
       .insert({ id: created.user.id, nome: data.nome, cpf: data.cpf, senha_temporaria: true });
     await supabaseAdmin.from("user_roles").insert({ user_id: created.user.id, role: data.role });
-    return { ok: true };
+    return { ok: true, senhaTemporaria };
+
   });
 
 export const adminResetPassword = createServerFn({ method: "POST" })
