@@ -54,6 +54,14 @@ import {
   useProfilesList,
 } from "@/hooks/useFinance";
 import { usePermissoes, useSession } from "@/hooks/useAuthData";
+import {
+  competenciaDe,
+  PERIODICIDADES,
+  projetarCompetencias,
+  somarMeses,
+  type Periodicidade,
+  type RecorrenciaFixa,
+} from "@/lib/recorrencia";
 import { useCotacao } from "@/hooks/useCotacao";
 import {
   addMonths,
