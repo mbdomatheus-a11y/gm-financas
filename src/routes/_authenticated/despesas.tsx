@@ -179,13 +179,55 @@ function DespesasPage() {
 
   const valorDigitado = Number(String(form.valor_total).replace(",", ".")) || 0;
   const parcelasInformadas = Math.max(1, Number(form.total_parcelas) || 1);
-  const repetirMeses = Math.max(1, Number(form.repetir_meses) || 1);
-  // Fixa em 1x repete mensalmente pelo número de meses escolhido.
-  const recorrenteFixa = form.tipo === "fixa" && parcelasInformadas === 1;
-  const nParcelas = recorrenteFixa ? repetirMeses : parcelasInformadas;
-  // O valor digitado é sempre o valor de cada parcela/mês.
-  const valorNum = Number((valorDigitado * nParcelas).toFixed(2));
+  const ehFixa = form.tipo === "fixa";
+  const semPrazo = ehFixa && form.recorrencia_duracao === "sem_prazo";
+  const mesesPrazo = Math.max(1, Number(form.recorrencia_meses) || 1);
+  const percentualReajuste = Number(String(form.reajuste_percentual).replace(",", ".")) || 0;
+
+  /** Recorrência configurada no formulário (somente para despesas fixas). */
+  const recorrencia: RecorrenciaFixa | null = ehFixa
+    ? {
+        valor: valorDigitado,
+        inicio: form.data_primeira_parcela || form.data_compra,
+        semPrazo,
+        meses: semPrazo ? null : mesesPrazo,
+        reajuste:
+          form.reajuste_tipo === "composto" && percentualReajuste !== 0
+            ? {
+                percentual: percentualReajuste,
+                periodicidade: form.reajuste_periodicidade as Periodicidade,
+                inicio: form.reajuste_inicio || null,
+                indice: form.reajuste_indice || null,
+              }
+            : null,
+      }
+    : null;
+
+  /** Competências geradas para a recorrência (horizonte limitado quando sem prazo). */
+  const projecao = useMemo(() => {
+    if (!recorrencia || valorDigitado <= 0 || !recorrencia.inicio) return [];
+    const inicio = competenciaDe(recorrencia.inicio);
+    const qtd = recorrencia.semPrazo ? HORIZONTE_SEM_PRAZO : (recorrencia.meses ?? 1);
+    return projetarCompetencias(recorrencia, inicio, somarMeses(inicio, qtd - 1));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    valorDigitado,
+    ehFixa,
+    semPrazo,
+    mesesPrazo,
+    form.data_primeira_parcela,
+    form.data_compra,
+    form.reajuste_tipo,
+    percentualReajuste,
+    form.reajuste_periodicidade,
+    form.reajuste_inicio,
+  ]);
+
+  const nParcelas = ehFixa ? Math.max(1, projecao.length) : parcelasInformadas;
+  // Fixa: o valor gravado é o valor mensal. Variável: valor da parcela x parcelas.
+  const valorNum = ehFixa ? valorDigitado : Number((valorDigitado * nParcelas).toFixed(2));
   const previewParcela = valorDigitado;
+  const ultimaCompetencia = projecao.at(-1);
 
 
 
