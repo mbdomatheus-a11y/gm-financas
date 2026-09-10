@@ -925,25 +925,44 @@ function DespesasPage() {
                 onChange={(e) => setForm({ ...form, valor_total: e.target.value })}
                 placeholder="0,00"
               />
-              {nParcelas > 1 && valorDigitado > 0 && (
+              {valorDigitado > 0 && (
                 <p className="mt-1 text-[11px] text-muted-foreground">
-                  {nParcelas}x de {formatBRL(previewParcela)} — total {formatBRL(valorNum)}
-                  {recorrenteFixa ? " (repetição mensal)" : ""}
+                  {ehFixa
+                    ? `${formatBRL(valorDigitado)} por mês`
+                    : nParcelas > 1
+                      ? `${nParcelas}x de ${formatBRL(previewParcela)} — total ${formatBRL(valorNum)}`
+                      : ""}
                 </p>
               )}
             </Field>
-            {recorrenteFixa ? (
-              <Field label="Repetir por (meses)">
-                <Input
-                  type="number"
-                  min={1}
-                  max={120}
-                  value={form.repetir_meses}
-                  onChange={(e) => setForm({ ...form, repetir_meses: e.target.value })}
-                />
+            {ehFixa ? (
+              <Field label="Duração">
+                <Select
+                  value={form.recorrencia_duracao}
+                  onValueChange={(v) => setForm({ ...form, recorrencia_duracao: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="sem_prazo">Sem prazo</SelectItem>
+                    <SelectItem value="prazo">Prazo determinado</SelectItem>
+                  </SelectContent>
+                </Select>
               </Field>
             ) : (
               <div className="hidden sm:block" />
+            )}
+            {ehFixa && !semPrazo && (
+              <Field label="Parcelas/Meses">
+                <Input
+                  type="number"
+                  min={1}
+                  max={600}
+                  value={form.recorrencia_meses}
+                  onChange={(e) => setForm({ ...form, recorrencia_meses: e.target.value })}
+                />
+              </Field>
             )}
 
 
