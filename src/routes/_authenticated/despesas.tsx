@@ -54,6 +54,14 @@ import {
   useProfilesList,
 } from "@/hooks/useFinance";
 import { usePermissoes, useSession } from "@/hooks/useAuthData";
+import {
+  competenciaDe,
+  PERIODICIDADES,
+  projetarCompetencias,
+  somarMeses,
+  type Periodicidade,
+  type RecorrenciaFixa,
+} from "@/lib/recorrencia";
 import { useCotacao } from "@/hooks/useCotacao";
 import {
   addMonths,
@@ -72,7 +80,7 @@ import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/despesas")({
   validateSearch: (s: Record<string, unknown>): { cartao?: string } =>
-    typeof s['cartao'] === "string" && s['cartao'] ? { cartao: s['cartao'] } : {},
+    typeof s["cartao"] === "string" && s["cartao"] ? { cartao: s["cartao"] } : {},
   head: () => ({
     meta: [
       { title: "Despesas — Finanças do Casal" },
@@ -114,14 +122,21 @@ function novoForm(tipo: "fixa" | "variavel") {
     data_compra: toISODate(new Date()),
     pagamento: "",
     total_parcelas: "1",
-    repetir_meses: "24",
     data_primeira_parcela: toISODate(new Date()),
     responsavel: "",
     observacoes: "",
+    recorrencia_duracao: "sem_prazo",
+    recorrencia_meses: "12",
+    reajuste_tipo: "nenhum",
+    reajuste_percentual: "",
+    reajuste_periodicidade: "anual",
+    reajuste_indice: "",
+    reajuste_inicio: "",
   };
 }
 
-
+/** Horizonte de competências geradas para uma despesa fixa sem prazo. */
+const HORIZONTE_SEM_PRAZO = 36;
 
 function DespesasPage() {
   const qc = useQueryClient();
@@ -157,20 +172,59 @@ function DespesasPage() {
       replace: true,
     });
 
-
   const responsaveis = [...perfis.map((p: any) => p.nome), RESPONSAVEIS_EXTRA];
 
   const valorDigitado = Number(String(form.valor_total).replace(",", ".")) || 0;
   const parcelasInformadas = Math.max(1, Number(form.total_parcelas) || 1);
-  const repetirMeses = Math.max(1, Number(form.repetir_meses) || 1);
-  // Fixa em 1x repete mensalmente pelo número de meses escolhido.
-  const recorrenteFixa = form.tipo === "fixa" && parcelasInformadas === 1;
-  const nParcelas = recorrenteFixa ? repetirMeses : parcelasInformadas;
-  // O valor digitado é sempre o valor de cada parcela/mês.
-  const valorNum = Number((valorDigitado * nParcelas).toFixed(2));
+  const ehFixa = form.tipo === "fixa";
+  const semPrazo = ehFixa && form.recorrencia_duracao === "sem_prazo";
+  const mesesPrazo = Math.max(1, Number(form.recorrencia_meses) || 1);
+  const percentualReajuste = Number(String(form.reajuste_percentual).replace(",", ".")) || 0;
+
+  /** Recorrência configurada no formulário (somente para despesas fixas). */
+  const recorrencia: RecorrenciaFixa | null = ehFixa
+    ? {
+        valor: valorDigitado,
+        inicio: form.data_primeira_parcela || form.data_compra,
+        semPrazo,
+        meses: semPrazo ? null : mesesPrazo,
+        reajuste:
+          form.reajuste_tipo === "composto" && percentualReajuste !== 0
+            ? {
+                percentual: percentualReajuste,
+                periodicidade: form.reajuste_periodicidade as Periodicidade,
+                inicio: form.reajuste_inicio || null,
+                indice: form.reajuste_indice || null,
+              }
+            : null,
+      }
+    : null;
+
+  /** Competências geradas para a recorrência (horizonte limitado quando sem prazo). */
+  const projecao = useMemo(() => {
+    if (!recorrencia || valorDigitado <= 0 || !recorrencia.inicio) return [];
+    const inicio = competenciaDe(recorrencia.inicio);
+    const qtd = recorrencia.semPrazo ? HORIZONTE_SEM_PRAZO : (recorrencia.meses ?? 1);
+    return projetarCompetencias(recorrencia, inicio, somarMeses(inicio, qtd - 1));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    valorDigitado,
+    ehFixa,
+    semPrazo,
+    mesesPrazo,
+    form.data_primeira_parcela,
+    form.data_compra,
+    form.reajuste_tipo,
+    percentualReajuste,
+    form.reajuste_periodicidade,
+    form.reajuste_inicio,
+  ]);
+
+  const nParcelas = ehFixa ? Math.max(1, projecao.length) : parcelasInformadas;
+  // Fixa: o valor gravado é o valor mensal. Variável: valor da parcela x parcelas.
+  const valorNum = ehFixa ? valorDigitado : Number((valorDigitado * nParcelas).toFixed(2));
   const previewParcela = valorDigitado;
-
-
+  const ultimaCompetencia = projecao.at(-1);
 
   const possivelDuplicata = useMemo(() => {
     if (editId) return null;
@@ -185,7 +239,8 @@ function DespesasPage() {
           Math.abs(parseDate(d.data_compra).getTime() - parseDate(form.data_compra).getTime()) /
           86400000;
         const mesmoPagamento =
-          (tipoPg === "cartao" && d.cartao_id === idPg) || (tipoPg === "banco" && d.banco_id === idPg);
+          (tipoPg === "cartao" && d.cartao_id === idPg) ||
+          (tipoPg === "banco" && d.banco_id === idPg);
         return (mesmaDescricao || valorProximo) && diffDias <= 3 && (mesmoPagamento || !idPg);
       }) ?? null
     );
@@ -204,19 +259,30 @@ function DespesasPage() {
     setDuplicata(null);
     const n = Math.max(1, Number(d.total_parcelas) || 1);
     const fixa = (d.tipo ?? "fixa") === "fixa";
+    // Fixa nova já grava o valor mensal; registros antigos guardavam o total.
+    const mensal = d.recorrencia_inicio
+      ? Number(d.valor_total ?? 0)
+      : Number((Number(d.valor_total ?? 0) / n).toFixed(2));
     setForm({
+      ...novoForm(d.tipo ?? "fixa"),
       descricao: d.descricao ?? "",
-      valor_total: String(Number((Number(d.valor_total ?? 0) / n).toFixed(2))),
+      valor_total: String(fixa ? mensal : Number((Number(d.valor_total ?? 0) / n).toFixed(2))),
       moeda: d.moeda ?? "BRL",
       categoria: d.categoria ?? "",
       tipo: d.tipo ?? "fixa",
       data_compra: d.data_compra,
       pagamento: d.cartao_id ? `cartao:${d.cartao_id}` : d.banco_id ? `banco:${d.banco_id}` : "",
       total_parcelas: fixa ? "1" : String(n),
-      repetir_meses: fixa ? String(n) : "24",
-      data_primeira_parcela: d.data_primeira_parcela,
+      data_primeira_parcela: d.recorrencia_inicio ?? d.data_primeira_parcela,
       responsavel: d.responsavel ?? "",
       observacoes: d.observacoes ?? "",
+      recorrencia_duracao: d.recorrencia_meses ? "prazo" : "sem_prazo",
+      recorrencia_meses: String(d.recorrencia_meses ?? 12),
+      reajuste_tipo: d.reajuste_percentual ? "composto" : "nenhum",
+      reajuste_percentual: d.reajuste_percentual ? String(d.reajuste_percentual) : "",
+      reajuste_periodicidade: d.reajuste_periodicidade ?? "anual",
+      reajuste_indice: d.reajuste_indice ?? "",
+      reajuste_inicio: d.reajuste_inicio ?? "",
     });
 
     setOpen(true);
@@ -240,6 +306,13 @@ function DespesasPage() {
       const vinculos = {
         cartao_id: tipoPg === "cartao" ? (idPg ?? null) : null,
         banco_id: tipoPg === "banco" ? (idPg ?? null) : null,
+        recorrencia_inicio: ehFixa ? parsed.data_primeira_parcela : null,
+        recorrencia_sem_prazo: ehFixa ? semPrazo : false,
+        recorrencia_meses: ehFixa && !semPrazo ? mesesPrazo : null,
+        reajuste_percentual: recorrencia?.reajuste?.percentual ?? null,
+        reajuste_periodicidade: recorrencia?.reajuste?.periodicidade ?? null,
+        reajuste_indice: recorrencia?.reajuste?.indice ?? null,
+        reajuste_inicio: recorrencia?.reajuste?.inicio ?? null,
       };
 
       let despesaId = editId;
@@ -259,29 +332,45 @@ function DespesasPage() {
         despesaId = despesa.id;
       }
 
-      const pagasAntigas = new Set<number>(
-        editId
-          ? ((despesas.find((d: any) => d.id === editId)?.parcelas ?? []) as any[])
-              .filter((p: any) => p.paga)
-              .map((p: any) => p.numero)
-          : [],
+      const antigas = editId
+        ? ((despesas.find((d: any) => d.id === editId)?.parcelas ?? []) as any[])
+        : [];
+      const pagasPorNumero = new Set<number>(
+        antigas.filter((p: any) => p.paga).map((p: any) => p.numero),
+      );
+      // Na recorrência o pagamento pertence à competência, não ao número da parcela.
+      const pagasPorCompetencia = new Map<string, string | null>(
+        antigas
+          .filter((p: any) => p.paga)
+          .map((p: any) => [competenciaDe(p.vencimento), p.data_pagamento ?? null]),
       );
       if (editId) {
         const { error } = await supabase.from("parcelas").delete().eq("despesa_id", editId);
         if (error) throw error;
       }
 
-      const valores = dividirParcelas(parsed.valor_total, parsed.total_parcelas);
       const base = parseDate(parsed.data_primeira_parcela);
-      const parcelas = valores.map((valor, i) => ({
-        despesa_id: despesaId!,
-        numero: i + 1,
-        total: parsed.total_parcelas,
-        valor,
-        moeda: parsed.moeda,
-        vencimento: toISODate(addMonths(base, i)),
-        paga: pagasAntigas.has(i + 1),
-      }));
+      const parcelas = ehFixa
+        ? projecao.map((c, i) => ({
+            despesa_id: despesaId!,
+            numero: i + 1,
+            total: projecao.length,
+            valor: c.valor,
+            moeda: parsed.moeda,
+            vencimento: toISODate(addMonths(base, i)),
+            paga: pagasPorCompetencia.has(c.competencia),
+            data_pagamento: pagasPorCompetencia.get(c.competencia) ?? null,
+          }))
+        : dividirParcelas(parsed.valor_total, parsed.total_parcelas).map((valor, i) => ({
+            despesa_id: despesaId!,
+            numero: i + 1,
+            total: parsed.total_parcelas,
+            valor,
+            moeda: parsed.moeda,
+            vencimento: toISODate(addMonths(base, i)),
+            paga: pagasPorNumero.has(i + 1),
+            data_pagamento: null,
+          }));
       const { error: e2 } = await supabase.from("parcelas").insert(parcelas);
       if (e2) throw e2;
     },
@@ -331,8 +420,6 @@ function DespesasPage() {
     onError: (e: any) => toast.error(e.message ?? "Não foi possível mover"),
   });
 
-
-
   function tentarSalvar() {
     if (possivelDuplicata && !duplicata) {
       setDuplicata(possivelDuplicata);
@@ -361,7 +448,10 @@ function DespesasPage() {
     if (filtroBanco !== "todos" && d.banco_id !== filtroBanco) return false;
     if (filtroCategoria !== "todos" && d.categoria !== filtroCategoria) return false;
     if (filtroResponsavel !== "todos" && d.responsavel !== filtroResponsavel) return false;
-    if (busca && !`${d.descricao} ${d.categoria} ${d.responsavel}`.toLowerCase().includes(busca.toLowerCase()))
+    if (
+      busca &&
+      !`${d.descricao} ${d.categoria} ${d.responsavel}`.toLowerCase().includes(busca.toLowerCase())
+    )
       return false;
     return true;
   });
@@ -391,7 +481,10 @@ function DespesasPage() {
   const gruposLista = useMemo(() => {
     if (modoLista === "lista")
       return [{ key: "all", label: "", cor: "", itens: lista as any[], total: resumo.total }];
-    const mapa = new Map<string, { key: string; label: string; cor: string; itens: any[]; total: number }>();
+    const mapa = new Map<
+      string,
+      { key: string; label: string; cor: string; itens: any[]; total: number }
+    >();
     for (const d of lista as any[]) {
       const key = formaKey(d);
       const label = d.cartoes
@@ -431,7 +524,10 @@ function DespesasPage() {
       label: filtroResponsavel,
       clear: () => setFiltroResponsavel("todos"),
     },
-    filtroMes !== "todos" && { label: monthLabelLong(filtroMes), clear: () => setFiltroMes("todos") },
+    filtroMes !== "todos" && {
+      label: monthLabelLong(filtroMes),
+      clear: () => setFiltroMes("todos"),
+    },
     !!busca && { label: `"${busca}"`, clear: () => setBusca("") },
   ].filter(Boolean) as { label: string; clear: () => void }[];
 
@@ -469,7 +565,12 @@ function DespesasPage() {
         {[
           { label: "Total", valor: formatBRL(resumo.total), cor: "text-foreground", hint: "" },
           { label: "Pago", valor: formatBRL(resumo.pago), cor: "text-success", hint: "" },
-          { label: "Em aberto", valor: formatBRL(resumo.aberto), cor: "text-destructive", hint: "" },
+          {
+            label: "Em aberto",
+            valor: formatBRL(resumo.aberto),
+            cor: "text-destructive",
+            hint: "",
+          },
           {
             label: "Próximo vencimento",
             valor: resumo.proximo ? formatBRL(resumo.proximo.valor) : "—",
@@ -606,7 +707,6 @@ function DespesasPage() {
         )}
       </div>
 
-
       {lista.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center gap-2 py-12 text-center">
@@ -643,158 +743,169 @@ function DespesasPage() {
                 </div>
               )}
               <div className="divide-y">
-          {grupo.itens.map((d: any) => {
-            const parcelas = [...(d.parcelas ?? [])].sort((a: any, b: any) => a.numero - b.numero);
-            const pagas = parcelas.filter((p: any) => p.paga).length;
-            const aberta = expandida === d.id;
-            return (
-              <div key={d.id}>
-                <div
-                  onClick={() => abrirEdicao(d)}
-                  className={cn(
-                    "flex items-center gap-3 px-3 py-2.5 transition-colors hover:bg-muted/40",
-                    can("despesas", "editar") && "cursor-pointer",
-                  )}
-                >
-                  <div
-                    className="h-8 w-1 shrink-0 rounded-full"
-                    style={{ backgroundColor: d.cartoes?.cor ?? "var(--muted-foreground)" }}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold leading-tight">
-                      {identificacaoDespesa(d) && (
-                        <span className="text-primary">{identificacaoDespesa(d)} · </span>
-                      )}
-                      {d.descricao}
-                    </p>
-                    <p className="truncate text-[11px] text-muted-foreground">
-                      {formatDate(d.data_compra)} · {d.categoria}
-                      {d.total_parcelas > 1
-                        ? ` · ${d.total_parcelas}x de ${formatBRL(
-                            toBRL(Number(d.valor_total) / d.total_parcelas, d.moeda, cotacao),
-                          )}`
-                        : " · à vista"}
-                    </p>
-                  </div>
-                  {d.total_parcelas > 1 && (
-                    <div className="hidden w-24 shrink-0 sm:block">
-                      <Badge variant="secondary" className="text-[10px]">
-                        {pagas}/{d.total_parcelas} pagas
-                      </Badge>
-                      <Progress value={(pagas / d.total_parcelas) * 100} className="mt-1 h-1" />
-                    </div>
-                  )}
-
-
-                  <div className="shrink-0 text-right">
-                    <p className="text-sm font-bold tabular-nums">
-                      {formatBRL(toBRL(Number(d.valor_total), d.moeda, cotacao))}
-                    </p>
-                    {d.moeda === "USD" && (
-                      <p className="text-[10px] text-muted-foreground">
-                        {formatUSD(Number(d.valor_total))}
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex shrink-0 items-center">
-                    {can("despesas", "editar") && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-8 text-muted-foreground hover:text-primary"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          moverTipo.mutate({ id: d.id, tipo: d.tipo === "fixa" ? "variavel" : "fixa" });
-                        }}
-                        title={d.tipo === "fixa" ? "Mover para variável" : "Mover para fixa"}
-                        aria-label={d.tipo === "fixa" ? "Mover para variável" : "Mover para fixa"}
+                {grupo.itens.map((d: any) => {
+                  const parcelas = [...(d.parcelas ?? [])].sort(
+                    (a: any, b: any) => a.numero - b.numero,
+                  );
+                  const pagas = parcelas.filter((p: any) => p.paga).length;
+                  const aberta = expandida === d.id;
+                  return (
+                    <div key={d.id}>
+                      <div
+                        onClick={() => abrirEdicao(d)}
+                        className={cn(
+                          "flex items-center gap-3 px-3 py-2.5 transition-colors hover:bg-muted/40",
+                          can("despesas", "editar") && "cursor-pointer",
+                        )}
                       >
-                        <ArrowLeftRight className="size-4" />
-                      </Button>
-                    )}
-                    {can("despesas", "editar") && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-8 text-muted-foreground hover:text-primary"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          abrirEdicao(d);
-                        }}
-                        aria-label="Editar despesa"
-                      >
-                        <Pencil className="size-4" />
-                      </Button>
-                    )}
-
-                    {parcelas.length > 0 && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-8 text-muted-foreground"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setExpandida(aberta ? null : d.id);
-                        }}
-                        aria-label="Ver parcelas"
-                      >
-                        <ChevronDown
-                          className={cn("size-4 transition-transform", aberta && "rotate-180")}
+                        <div
+                          className="h-8 w-1 shrink-0 rounded-full"
+                          style={{ backgroundColor: d.cartoes?.cor ?? "var(--muted-foreground)" }}
                         />
-                      </Button>
-                    )}
-                    {can("despesas", "excluir") && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-8 text-muted-foreground hover:text-destructive"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          excluir.mutate(d.id);
-                        }}
-                        aria-label="Excluir despesa"
-                      >
-                        <Trash2 className="size-4" />
-                      </Button>
-                    )}
-                  </div>
-                </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold leading-tight">
+                            {identificacaoDespesa(d) && (
+                              <span className="text-primary">{identificacaoDespesa(d)} · </span>
+                            )}
+                            {d.descricao}
+                          </p>
+                          <p className="truncate text-[11px] text-muted-foreground">
+                            {formatDate(d.data_compra)} · {d.categoria}
+                            {d.total_parcelas > 1
+                              ? ` · ${d.total_parcelas}x de ${formatBRL(
+                                  toBRL(Number(d.valor_total) / d.total_parcelas, d.moeda, cotacao),
+                                )}`
+                              : " · à vista"}
+                          </p>
+                        </div>
+                        {d.total_parcelas > 1 && (
+                          <div className="hidden w-24 shrink-0 sm:block">
+                            <Badge variant="secondary" className="text-[10px]">
+                              {pagas}/{d.total_parcelas} pagas
+                            </Badge>
+                            <Progress
+                              value={(pagas / d.total_parcelas) * 100}
+                              className="mt-1 h-1"
+                            />
+                          </div>
+                        )}
 
-                {aberta && (
-                  <div className="space-y-2 border-t bg-muted/20 px-3 py-2.5">
-                    {d.total_parcelas > 1 && (
-                      <Progress value={(pagas / d.total_parcelas) * 100} className="h-1.5" />
-                    )}
-                    <div className="flex flex-wrap gap-1.5">
-                      {parcelas.map((p: any) => (
-                        <button
-                          key={p.id}
-                          onClick={() => togglePaga.mutate({ id: p.id, paga: !p.paga })}
-                          disabled={!can("despesas", "editar")}
-                          className={cn(
-                            "inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-medium tabular-nums transition-colors",
-                            p.paga
-                              ? "border-success/30 bg-success/10 text-success"
-                              : "border-border bg-background text-muted-foreground hover:border-primary/40",
+                        <div className="shrink-0 text-right">
+                          <p className="text-sm font-bold tabular-nums">
+                            {formatBRL(toBRL(Number(d.valor_total), d.moeda, cotacao))}
+                          </p>
+                          {d.moeda === "USD" && (
+                            <p className="text-[10px] text-muted-foreground">
+                              {formatUSD(Number(d.valor_total))}
+                            </p>
                           )}
-                          title={`Vence em ${formatDate(p.vencimento)}`}
-                        >
-                          {p.paga && <CheckCircle2 className="size-3" />}
-                          {p.numero}/{p.total} · {formatBRL(Number(p.valor))}
-                        </button>
-                      ))}
+                        </div>
+                        <div className="flex shrink-0 items-center">
+                          {can("despesas", "editar") && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="size-8 text-muted-foreground hover:text-primary"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                moverTipo.mutate({
+                                  id: d.id,
+                                  tipo: d.tipo === "fixa" ? "variavel" : "fixa",
+                                });
+                              }}
+                              title={d.tipo === "fixa" ? "Mover para variável" : "Mover para fixa"}
+                              aria-label={
+                                d.tipo === "fixa" ? "Mover para variável" : "Mover para fixa"
+                              }
+                            >
+                              <ArrowLeftRight className="size-4" />
+                            </Button>
+                          )}
+                          {can("despesas", "editar") && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="size-8 text-muted-foreground hover:text-primary"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                abrirEdicao(d);
+                              }}
+                              aria-label="Editar despesa"
+                            >
+                              <Pencil className="size-4" />
+                            </Button>
+                          )}
+
+                          {parcelas.length > 0 && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="size-8 text-muted-foreground"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setExpandida(aberta ? null : d.id);
+                              }}
+                              aria-label="Ver parcelas"
+                            >
+                              <ChevronDown
+                                className={cn(
+                                  "size-4 transition-transform",
+                                  aberta && "rotate-180",
+                                )}
+                              />
+                            </Button>
+                          )}
+                          {can("despesas", "excluir") && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="size-8 text-muted-foreground hover:text-destructive"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                excluir.mutate(d.id);
+                              }}
+                              aria-label="Excluir despesa"
+                            >
+                              <Trash2 className="size-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+
+                      {aberta && (
+                        <div className="space-y-2 border-t bg-muted/20 px-3 py-2.5">
+                          {d.total_parcelas > 1 && (
+                            <Progress value={(pagas / d.total_parcelas) * 100} className="h-1.5" />
+                          )}
+                          <div className="flex flex-wrap gap-1.5">
+                            {parcelas.map((p: any) => (
+                              <button
+                                key={p.id}
+                                onClick={() => togglePaga.mutate({ id: p.id, paga: !p.paga })}
+                                disabled={!can("despesas", "editar")}
+                                className={cn(
+                                  "inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-medium tabular-nums transition-colors",
+                                  p.paga
+                                    ? "border-success/30 bg-success/10 text-success"
+                                    : "border-border bg-background text-muted-foreground hover:border-primary/40",
+                                )}
+                                title={`Vence em ${formatDate(p.vencimento)}`}
+                              >
+                                {p.paga && <CheckCircle2 className="size-3" />}
+                                {p.numero}/{p.total} · {formatBRL(Number(p.valor))}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
+                  );
+                })}
               </div>
             </div>
           ))}
         </div>
       )}
-
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
@@ -831,28 +942,45 @@ function DespesasPage() {
                 onChange={(e) => setForm({ ...form, valor_total: e.target.value })}
                 placeholder="0,00"
               />
-              {nParcelas > 1 && valorDigitado > 0 && (
+              {valorDigitado > 0 && (
                 <p className="mt-1 text-[11px] text-muted-foreground">
-                  {nParcelas}x de {formatBRL(previewParcela)} — total {formatBRL(valorNum)}
-                  {recorrenteFixa ? " (repetição mensal)" : ""}
+                  {ehFixa
+                    ? `${formatBRL(valorDigitado)} por mês`
+                    : nParcelas > 1
+                      ? `${nParcelas}x de ${formatBRL(previewParcela)} — total ${formatBRL(valorNum)}`
+                      : ""}
                 </p>
               )}
             </Field>
-            {recorrenteFixa ? (
-              <Field label="Repetir por (meses)">
-                <Input
-                  type="number"
-                  min={1}
-                  max={120}
-                  value={form.repetir_meses}
-                  onChange={(e) => setForm({ ...form, repetir_meses: e.target.value })}
-                />
+            {ehFixa ? (
+              <Field label="Duração">
+                <Select
+                  value={form.recorrencia_duracao}
+                  onValueChange={(v) => setForm({ ...form, recorrencia_duracao: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="sem_prazo">Sem prazo</SelectItem>
+                    <SelectItem value="prazo">Prazo determinado</SelectItem>
+                  </SelectContent>
+                </Select>
               </Field>
             ) : (
               <div className="hidden sm:block" />
             )}
-
-
+            {ehFixa && !semPrazo && (
+              <Field label="Parcelas/Meses">
+                <Input
+                  type="number"
+                  min={1}
+                  max={600}
+                  value={form.recorrencia_meses}
+                  onChange={(e) => setForm({ ...form, recorrencia_meses: e.target.value })}
+                />
+              </Field>
+            )}
 
             <Field label="Moeda">
               <Select value={form.moeda} onValueChange={(v) => setForm({ ...form, moeda: v })}>
@@ -922,21 +1050,82 @@ function DespesasPage() {
                 </SelectContent>
               </Select>
             </Field>
-            <Field label="Número de parcelas *">
-              <Input
-                type="number"
-                min={1}
-                value={form.total_parcelas}
-                onChange={(e) => setForm({ ...form, total_parcelas: e.target.value })}
-              />
-            </Field>
-            <Field label="Data da 1ª parcela">
+            {!ehFixa && (
+              <Field label="Número de parcelas *">
+                <Input
+                  type="number"
+                  min={1}
+                  value={form.total_parcelas}
+                  onChange={(e) => setForm({ ...form, total_parcelas: e.target.value })}
+                />
+              </Field>
+            )}
+            <Field label={ehFixa ? "Data de início" : "Data da 1ª parcela"}>
               <Input
                 type="date"
                 value={form.data_primeira_parcela}
                 onChange={(e) => setForm({ ...form, data_primeira_parcela: e.target.value })}
               />
             </Field>
+            {ehFixa && (
+              <Field label="Reajuste" className="sm:col-span-2">
+                <Select
+                  value={form.reajuste_tipo}
+                  onValueChange={(v) => setForm({ ...form, reajuste_tipo: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="nenhum">Sem reajuste</SelectItem>
+                    <SelectItem value="composto">Reajuste composto periódico</SelectItem>
+                  </SelectContent>
+                </Select>
+              </Field>
+            )}
+            {ehFixa && form.reajuste_tipo === "composto" && (
+              <>
+                <Field label="Percentual (%)">
+                  <Input
+                    inputMode="decimal"
+                    placeholder="Ex.: 5"
+                    value={form.reajuste_percentual}
+                    onChange={(e) => setForm({ ...form, reajuste_percentual: e.target.value })}
+                  />
+                </Field>
+                <Field label="Periodicidade">
+                  <Select
+                    value={form.reajuste_periodicidade}
+                    onValueChange={(v) => setForm({ ...form, reajuste_periodicidade: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PERIODICIDADES.map((p) => (
+                        <SelectItem key={p.value} value={p.value}>
+                          {p.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field label="Índice (opcional)">
+                  <Input
+                    placeholder="Ex.: IPCA, IGP-M"
+                    value={form.reajuste_indice}
+                    onChange={(e) => setForm({ ...form, reajuste_indice: e.target.value })}
+                  />
+                </Field>
+                <Field label="1º reajuste em">
+                  <Input
+                    type="date"
+                    value={form.reajuste_inicio}
+                    onChange={(e) => setForm({ ...form, reajuste_inicio: e.target.value })}
+                  />
+                </Field>
+              </>
+            )}
             <Field label="Responsável">
               <Select
                 value={form.responsavel}
@@ -963,13 +1152,18 @@ function DespesasPage() {
             </Field>
           </div>
 
-          {nParcelas > 1 && valorDigitado > 0 && (
+          {valorDigitado > 0 && (ehFixa || nParcelas > 1) && (
             <p className="rounded-lg bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
-              {recorrenteFixa
-                ? `Despesa fixa repetida por ${nParcelas} meses de ${formatBRL(previewParcela)} — total ${formatBRL(valorNum)}.`
+              {ehFixa
+                ? `${formatBRL(valorDigitado)} por mês a partir de ${monthLabelLong(competenciaDe(form.data_primeira_parcela || form.data_compra))}` +
+                  (semPrazo
+                    ? ", sem prazo."
+                    : ` até ${monthLabelLong(ultimaCompetencia?.competencia ?? "")} (${mesesPrazo} meses).`) +
+                  (recorrencia?.reajuste
+                    ? ` Reajuste ${recorrencia.reajuste.periodicidade} de ${recorrencia.reajuste.percentual}%${recorrencia.reajuste.indice ? ` (${recorrencia.reajuste.indice})` : ""} — último mês projetado: ${formatBRL(ultimaCompetencia?.valor ?? valorDigitado)}.`
+                    : "")
                 : `${nParcelas}x de ${formatBRL(previewParcela)} — total ${formatBRL(valorNum)}.`}
             </p>
-
           )}
 
           <DialogFooter>

@@ -58,10 +58,7 @@ function paraCentavos(valor: number): number {
 }
 
 /** Quantas vezes o reajuste já foi aplicado até a competência informada. */
-export function aplicacoesDeReajuste(
-  r: RecorrenciaFixa,
-  competencia: string,
-): number {
+export function aplicacoesDeReajuste(r: RecorrenciaFixa, competencia: string): number {
   const cfg = r.reajuste;
   if (!cfg || !Number.isFinite(cfg.percentual) || cfg.percentual === 0) return 0;
   const inicioReajuste = cfg.inicio
@@ -113,8 +110,7 @@ export function projetarCompetencias(
 ): CompetenciaProjetada[] {
   const inicio = competenciaDe(r.inicio);
   const primeira = mesesEntreCompetencias(de, inicio) > 0 ? inicio : competenciaDe(de);
-  const ultimaPorPrazo =
-    !r.semPrazo && r.meses ? somarMeses(inicio, r.meses - 1) : null;
+  const ultimaPorPrazo = !r.semPrazo && r.meses ? somarMeses(inicio, r.meses - 1) : null;
   const limite =
     ultimaPorPrazo && mesesEntreCompetencias(ultimaPorPrazo, competenciaDe(ate)) > 0
       ? ultimaPorPrazo
