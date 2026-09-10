@@ -263,19 +263,30 @@ function DespesasPage() {
     setDuplicata(null);
     const n = Math.max(1, Number(d.total_parcelas) || 1);
     const fixa = (d.tipo ?? "fixa") === "fixa";
+    // Fixa nova já grava o valor mensal; registros antigos guardavam o total.
+    const mensal = d.recorrencia_inicio
+      ? Number(d.valor_total ?? 0)
+      : Number((Number(d.valor_total ?? 0) / n).toFixed(2));
     setForm({
+      ...novoForm(d.tipo ?? "fixa"),
       descricao: d.descricao ?? "",
-      valor_total: String(Number((Number(d.valor_total ?? 0) / n).toFixed(2))),
+      valor_total: String(fixa ? mensal : Number((Number(d.valor_total ?? 0) / n).toFixed(2))),
       moeda: d.moeda ?? "BRL",
       categoria: d.categoria ?? "",
       tipo: d.tipo ?? "fixa",
       data_compra: d.data_compra,
       pagamento: d.cartao_id ? `cartao:${d.cartao_id}` : d.banco_id ? `banco:${d.banco_id}` : "",
       total_parcelas: fixa ? "1" : String(n),
-      repetir_meses: fixa ? String(n) : "24",
-      data_primeira_parcela: d.data_primeira_parcela,
+      data_primeira_parcela: d.recorrencia_inicio ?? d.data_primeira_parcela,
       responsavel: d.responsavel ?? "",
       observacoes: d.observacoes ?? "",
+      recorrencia_duracao: d.recorrencia_meses ? "prazo" : "sem_prazo",
+      recorrencia_meses: String(d.recorrencia_meses ?? 12),
+      reajuste_tipo: d.reajuste_percentual ? "composto" : "nenhum",
+      reajuste_percentual: d.reajuste_percentual ? String(d.reajuste_percentual) : "",
+      reajuste_periodicidade: d.reajuste_periodicidade ?? "anual",
+      reajuste_indice: d.reajuste_indice ?? "",
+      reajuste_inicio: d.reajuste_inicio ?? "",
     });
 
     setOpen(true);
