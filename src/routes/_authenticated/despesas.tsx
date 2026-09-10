@@ -1035,21 +1035,82 @@ function DespesasPage() {
                 </SelectContent>
               </Select>
             </Field>
-            <Field label="Número de parcelas *">
-              <Input
-                type="number"
-                min={1}
-                value={form.total_parcelas}
-                onChange={(e) => setForm({ ...form, total_parcelas: e.target.value })}
-              />
-            </Field>
-            <Field label="Data da 1ª parcela">
+            {!ehFixa && (
+              <Field label="Número de parcelas *">
+                <Input
+                  type="number"
+                  min={1}
+                  value={form.total_parcelas}
+                  onChange={(e) => setForm({ ...form, total_parcelas: e.target.value })}
+                />
+              </Field>
+            )}
+            <Field label={ehFixa ? "Data de início" : "Data da 1ª parcela"}>
               <Input
                 type="date"
                 value={form.data_primeira_parcela}
                 onChange={(e) => setForm({ ...form, data_primeira_parcela: e.target.value })}
               />
             </Field>
+            {ehFixa && (
+              <Field label="Reajuste" className="sm:col-span-2">
+                <Select
+                  value={form.reajuste_tipo}
+                  onValueChange={(v) => setForm({ ...form, reajuste_tipo: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="nenhum">Sem reajuste</SelectItem>
+                    <SelectItem value="composto">Reajuste composto periódico</SelectItem>
+                  </SelectContent>
+                </Select>
+              </Field>
+            )}
+            {ehFixa && form.reajuste_tipo === "composto" && (
+              <>
+                <Field label="Percentual (%)">
+                  <Input
+                    inputMode="decimal"
+                    placeholder="Ex.: 5"
+                    value={form.reajuste_percentual}
+                    onChange={(e) => setForm({ ...form, reajuste_percentual: e.target.value })}
+                  />
+                </Field>
+                <Field label="Periodicidade">
+                  <Select
+                    value={form.reajuste_periodicidade}
+                    onValueChange={(v) => setForm({ ...form, reajuste_periodicidade: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PERIODICIDADES.map((p) => (
+                        <SelectItem key={p.value} value={p.value}>
+                          {p.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field label="Índice (opcional)">
+                  <Input
+                    placeholder="Ex.: IPCA, IGP-M"
+                    value={form.reajuste_indice}
+                    onChange={(e) => setForm({ ...form, reajuste_indice: e.target.value })}
+                  />
+                </Field>
+                <Field label="1º reajuste em">
+                  <Input
+                    type="date"
+                    value={form.reajuste_inicio}
+                    onChange={(e) => setForm({ ...form, reajuste_inicio: e.target.value })}
+                  />
+                </Field>
+              </>
+            )}
             <Field label="Responsável">
               <Select
                 value={form.responsavel}
