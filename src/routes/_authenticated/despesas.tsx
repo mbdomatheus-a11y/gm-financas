@@ -122,12 +122,21 @@ function novoForm(tipo: "fixa" | "variavel") {
     data_compra: toISODate(new Date()),
     pagamento: "",
     total_parcelas: "1",
-    repetir_meses: "24",
     data_primeira_parcela: toISODate(new Date()),
     responsavel: "",
     observacoes: "",
+    recorrencia_duracao: "sem_prazo",
+    recorrencia_meses: "12",
+    reajuste_tipo: "nenhum",
+    reajuste_percentual: "",
+    reajuste_periodicidade: "anual",
+    reajuste_indice: "",
+    reajuste_inicio: "",
   };
 }
+
+/** Horizonte de competências geradas para uma despesa fixa sem prazo. */
+const HORIZONTE_SEM_PRAZO = 36;
 
 
 
