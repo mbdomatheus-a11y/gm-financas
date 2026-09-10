@@ -80,7 +80,7 @@ import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/despesas")({
   validateSearch: (s: Record<string, unknown>): { cartao?: string } =>
-    typeof s['cartao'] === "string" && s['cartao'] ? { cartao: s['cartao'] } : {},
+    typeof s["cartao"] === "string" && s["cartao"] ? { cartao: s["cartao"] } : {},
   head: () => ({
     meta: [
       { title: "Despesas — Finanças do Casal" },
@@ -138,8 +138,6 @@ function novoForm(tipo: "fixa" | "variavel") {
 /** Horizonte de competências geradas para uma despesa fixa sem prazo. */
 const HORIZONTE_SEM_PRAZO = 36;
 
-
-
 function DespesasPage() {
   const qc = useQueryClient();
   const cotacao = useCotacao();
@@ -173,7 +171,6 @@ function DespesasPage() {
       search: (s: any) => ({ ...s, cartao: v === "todos" ? undefined : v }),
       replace: true,
     });
-
 
   const responsaveis = [...perfis.map((p: any) => p.nome), RESPONSAVEIS_EXTRA];
 
@@ -229,8 +226,6 @@ function DespesasPage() {
   const previewParcela = valorDigitado;
   const ultimaCompetencia = projecao.at(-1);
 
-
-
   const possivelDuplicata = useMemo(() => {
     if (editId) return null;
     if (!form.descricao && !valorNum) return null;
@@ -244,7 +239,8 @@ function DespesasPage() {
           Math.abs(parseDate(d.data_compra).getTime() - parseDate(form.data_compra).getTime()) /
           86400000;
         const mesmoPagamento =
-          (tipoPg === "cartao" && d.cartao_id === idPg) || (tipoPg === "banco" && d.banco_id === idPg);
+          (tipoPg === "cartao" && d.cartao_id === idPg) ||
+          (tipoPg === "banco" && d.banco_id === idPg);
         return (mesmaDescricao || valorProximo) && diffDias <= 3 && (mesmoPagamento || !idPg);
       }) ?? null
     );
@@ -318,7 +314,6 @@ function DespesasPage() {
         reajuste_indice: recorrencia?.reajuste?.indice ?? null,
         reajuste_inicio: recorrencia?.reajuste?.inicio ?? null,
       };
-
 
       let despesaId = editId;
       if (editId) {
@@ -425,8 +420,6 @@ function DespesasPage() {
     onError: (e: any) => toast.error(e.message ?? "Não foi possível mover"),
   });
 
-
-
   function tentarSalvar() {
     if (possivelDuplicata && !duplicata) {
       setDuplicata(possivelDuplicata);
@@ -455,7 +448,10 @@ function DespesasPage() {
     if (filtroBanco !== "todos" && d.banco_id !== filtroBanco) return false;
     if (filtroCategoria !== "todos" && d.categoria !== filtroCategoria) return false;
     if (filtroResponsavel !== "todos" && d.responsavel !== filtroResponsavel) return false;
-    if (busca && !`${d.descricao} ${d.categoria} ${d.responsavel}`.toLowerCase().includes(busca.toLowerCase()))
+    if (
+      busca &&
+      !`${d.descricao} ${d.categoria} ${d.responsavel}`.toLowerCase().includes(busca.toLowerCase())
+    )
       return false;
     return true;
   });
@@ -485,7 +481,10 @@ function DespesasPage() {
   const gruposLista = useMemo(() => {
     if (modoLista === "lista")
       return [{ key: "all", label: "", cor: "", itens: lista as any[], total: resumo.total }];
-    const mapa = new Map<string, { key: string; label: string; cor: string; itens: any[]; total: number }>();
+    const mapa = new Map<
+      string,
+      { key: string; label: string; cor: string; itens: any[]; total: number }
+    >();
     for (const d of lista as any[]) {
       const key = formaKey(d);
       const label = d.cartoes
@@ -525,7 +524,10 @@ function DespesasPage() {
       label: filtroResponsavel,
       clear: () => setFiltroResponsavel("todos"),
     },
-    filtroMes !== "todos" && { label: monthLabelLong(filtroMes), clear: () => setFiltroMes("todos") },
+    filtroMes !== "todos" && {
+      label: monthLabelLong(filtroMes),
+      clear: () => setFiltroMes("todos"),
+    },
     !!busca && { label: `"${busca}"`, clear: () => setBusca("") },
   ].filter(Boolean) as { label: string; clear: () => void }[];
 
@@ -563,7 +565,12 @@ function DespesasPage() {
         {[
           { label: "Total", valor: formatBRL(resumo.total), cor: "text-foreground", hint: "" },
           { label: "Pago", valor: formatBRL(resumo.pago), cor: "text-success", hint: "" },
-          { label: "Em aberto", valor: formatBRL(resumo.aberto), cor: "text-destructive", hint: "" },
+          {
+            label: "Em aberto",
+            valor: formatBRL(resumo.aberto),
+            cor: "text-destructive",
+            hint: "",
+          },
           {
             label: "Próximo vencimento",
             valor: resumo.proximo ? formatBRL(resumo.proximo.valor) : "—",
@@ -700,7 +707,6 @@ function DespesasPage() {
         )}
       </div>
 
-
       {lista.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center gap-2 py-12 text-center">
@@ -737,158 +743,169 @@ function DespesasPage() {
                 </div>
               )}
               <div className="divide-y">
-          {grupo.itens.map((d: any) => {
-            const parcelas = [...(d.parcelas ?? [])].sort((a: any, b: any) => a.numero - b.numero);
-            const pagas = parcelas.filter((p: any) => p.paga).length;
-            const aberta = expandida === d.id;
-            return (
-              <div key={d.id}>
-                <div
-                  onClick={() => abrirEdicao(d)}
-                  className={cn(
-                    "flex items-center gap-3 px-3 py-2.5 transition-colors hover:bg-muted/40",
-                    can("despesas", "editar") && "cursor-pointer",
-                  )}
-                >
-                  <div
-                    className="h-8 w-1 shrink-0 rounded-full"
-                    style={{ backgroundColor: d.cartoes?.cor ?? "var(--muted-foreground)" }}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold leading-tight">
-                      {identificacaoDespesa(d) && (
-                        <span className="text-primary">{identificacaoDespesa(d)} · </span>
-                      )}
-                      {d.descricao}
-                    </p>
-                    <p className="truncate text-[11px] text-muted-foreground">
-                      {formatDate(d.data_compra)} · {d.categoria}
-                      {d.total_parcelas > 1
-                        ? ` · ${d.total_parcelas}x de ${formatBRL(
-                            toBRL(Number(d.valor_total) / d.total_parcelas, d.moeda, cotacao),
-                          )}`
-                        : " · à vista"}
-                    </p>
-                  </div>
-                  {d.total_parcelas > 1 && (
-                    <div className="hidden w-24 shrink-0 sm:block">
-                      <Badge variant="secondary" className="text-[10px]">
-                        {pagas}/{d.total_parcelas} pagas
-                      </Badge>
-                      <Progress value={(pagas / d.total_parcelas) * 100} className="mt-1 h-1" />
-                    </div>
-                  )}
-
-
-                  <div className="shrink-0 text-right">
-                    <p className="text-sm font-bold tabular-nums">
-                      {formatBRL(toBRL(Number(d.valor_total), d.moeda, cotacao))}
-                    </p>
-                    {d.moeda === "USD" && (
-                      <p className="text-[10px] text-muted-foreground">
-                        {formatUSD(Number(d.valor_total))}
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex shrink-0 items-center">
-                    {can("despesas", "editar") && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-8 text-muted-foreground hover:text-primary"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          moverTipo.mutate({ id: d.id, tipo: d.tipo === "fixa" ? "variavel" : "fixa" });
-                        }}
-                        title={d.tipo === "fixa" ? "Mover para variável" : "Mover para fixa"}
-                        aria-label={d.tipo === "fixa" ? "Mover para variável" : "Mover para fixa"}
+                {grupo.itens.map((d: any) => {
+                  const parcelas = [...(d.parcelas ?? [])].sort(
+                    (a: any, b: any) => a.numero - b.numero,
+                  );
+                  const pagas = parcelas.filter((p: any) => p.paga).length;
+                  const aberta = expandida === d.id;
+                  return (
+                    <div key={d.id}>
+                      <div
+                        onClick={() => abrirEdicao(d)}
+                        className={cn(
+                          "flex items-center gap-3 px-3 py-2.5 transition-colors hover:bg-muted/40",
+                          can("despesas", "editar") && "cursor-pointer",
+                        )}
                       >
-                        <ArrowLeftRight className="size-4" />
-                      </Button>
-                    )}
-                    {can("despesas", "editar") && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-8 text-muted-foreground hover:text-primary"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          abrirEdicao(d);
-                        }}
-                        aria-label="Editar despesa"
-                      >
-                        <Pencil className="size-4" />
-                      </Button>
-                    )}
-
-                    {parcelas.length > 0 && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-8 text-muted-foreground"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setExpandida(aberta ? null : d.id);
-                        }}
-                        aria-label="Ver parcelas"
-                      >
-                        <ChevronDown
-                          className={cn("size-4 transition-transform", aberta && "rotate-180")}
+                        <div
+                          className="h-8 w-1 shrink-0 rounded-full"
+                          style={{ backgroundColor: d.cartoes?.cor ?? "var(--muted-foreground)" }}
                         />
-                      </Button>
-                    )}
-                    {can("despesas", "excluir") && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-8 text-muted-foreground hover:text-destructive"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          excluir.mutate(d.id);
-                        }}
-                        aria-label="Excluir despesa"
-                      >
-                        <Trash2 className="size-4" />
-                      </Button>
-                    )}
-                  </div>
-                </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold leading-tight">
+                            {identificacaoDespesa(d) && (
+                              <span className="text-primary">{identificacaoDespesa(d)} · </span>
+                            )}
+                            {d.descricao}
+                          </p>
+                          <p className="truncate text-[11px] text-muted-foreground">
+                            {formatDate(d.data_compra)} · {d.categoria}
+                            {d.total_parcelas > 1
+                              ? ` · ${d.total_parcelas}x de ${formatBRL(
+                                  toBRL(Number(d.valor_total) / d.total_parcelas, d.moeda, cotacao),
+                                )}`
+                              : " · à vista"}
+                          </p>
+                        </div>
+                        {d.total_parcelas > 1 && (
+                          <div className="hidden w-24 shrink-0 sm:block">
+                            <Badge variant="secondary" className="text-[10px]">
+                              {pagas}/{d.total_parcelas} pagas
+                            </Badge>
+                            <Progress
+                              value={(pagas / d.total_parcelas) * 100}
+                              className="mt-1 h-1"
+                            />
+                          </div>
+                        )}
 
-                {aberta && (
-                  <div className="space-y-2 border-t bg-muted/20 px-3 py-2.5">
-                    {d.total_parcelas > 1 && (
-                      <Progress value={(pagas / d.total_parcelas) * 100} className="h-1.5" />
-                    )}
-                    <div className="flex flex-wrap gap-1.5">
-                      {parcelas.map((p: any) => (
-                        <button
-                          key={p.id}
-                          onClick={() => togglePaga.mutate({ id: p.id, paga: !p.paga })}
-                          disabled={!can("despesas", "editar")}
-                          className={cn(
-                            "inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-medium tabular-nums transition-colors",
-                            p.paga
-                              ? "border-success/30 bg-success/10 text-success"
-                              : "border-border bg-background text-muted-foreground hover:border-primary/40",
+                        <div className="shrink-0 text-right">
+                          <p className="text-sm font-bold tabular-nums">
+                            {formatBRL(toBRL(Number(d.valor_total), d.moeda, cotacao))}
+                          </p>
+                          {d.moeda === "USD" && (
+                            <p className="text-[10px] text-muted-foreground">
+                              {formatUSD(Number(d.valor_total))}
+                            </p>
                           )}
-                          title={`Vence em ${formatDate(p.vencimento)}`}
-                        >
-                          {p.paga && <CheckCircle2 className="size-3" />}
-                          {p.numero}/{p.total} · {formatBRL(Number(p.valor))}
-                        </button>
-                      ))}
+                        </div>
+                        <div className="flex shrink-0 items-center">
+                          {can("despesas", "editar") && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="size-8 text-muted-foreground hover:text-primary"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                moverTipo.mutate({
+                                  id: d.id,
+                                  tipo: d.tipo === "fixa" ? "variavel" : "fixa",
+                                });
+                              }}
+                              title={d.tipo === "fixa" ? "Mover para variável" : "Mover para fixa"}
+                              aria-label={
+                                d.tipo === "fixa" ? "Mover para variável" : "Mover para fixa"
+                              }
+                            >
+                              <ArrowLeftRight className="size-4" />
+                            </Button>
+                          )}
+                          {can("despesas", "editar") && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="size-8 text-muted-foreground hover:text-primary"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                abrirEdicao(d);
+                              }}
+                              aria-label="Editar despesa"
+                            >
+                              <Pencil className="size-4" />
+                            </Button>
+                          )}
+
+                          {parcelas.length > 0 && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="size-8 text-muted-foreground"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setExpandida(aberta ? null : d.id);
+                              }}
+                              aria-label="Ver parcelas"
+                            >
+                              <ChevronDown
+                                className={cn(
+                                  "size-4 transition-transform",
+                                  aberta && "rotate-180",
+                                )}
+                              />
+                            </Button>
+                          )}
+                          {can("despesas", "excluir") && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="size-8 text-muted-foreground hover:text-destructive"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                excluir.mutate(d.id);
+                              }}
+                              aria-label="Excluir despesa"
+                            >
+                              <Trash2 className="size-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+
+                      {aberta && (
+                        <div className="space-y-2 border-t bg-muted/20 px-3 py-2.5">
+                          {d.total_parcelas > 1 && (
+                            <Progress value={(pagas / d.total_parcelas) * 100} className="h-1.5" />
+                          )}
+                          <div className="flex flex-wrap gap-1.5">
+                            {parcelas.map((p: any) => (
+                              <button
+                                key={p.id}
+                                onClick={() => togglePaga.mutate({ id: p.id, paga: !p.paga })}
+                                disabled={!can("despesas", "editar")}
+                                className={cn(
+                                  "inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-medium tabular-nums transition-colors",
+                                  p.paga
+                                    ? "border-success/30 bg-success/10 text-success"
+                                    : "border-border bg-background text-muted-foreground hover:border-primary/40",
+                                )}
+                                title={`Vence em ${formatDate(p.vencimento)}`}
+                              >
+                                {p.paga && <CheckCircle2 className="size-3" />}
+                                {p.numero}/{p.total} · {formatBRL(Number(p.valor))}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
+                  );
+                })}
               </div>
             </div>
           ))}
         </div>
       )}
-
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
@@ -964,8 +981,6 @@ function DespesasPage() {
                 />
               </Field>
             )}
-
-
 
             <Field label="Moeda">
               <Select value={form.moeda} onValueChange={(v) => setForm({ ...form, moeda: v })}>
