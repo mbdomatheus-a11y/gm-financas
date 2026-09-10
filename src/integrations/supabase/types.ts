@@ -287,6 +287,13 @@ export type Database = {
           moeda: string
           observacoes: string | null
           origem: string
+          reajuste_indice: string | null
+          reajuste_inicio: string | null
+          reajuste_percentual: number | null
+          reajuste_periodicidade: string | null
+          recorrencia_inicio: string | null
+          recorrencia_meses: number | null
+          recorrencia_sem_prazo: boolean
           regra_id: string | null
           responsavel: string | null
           subcategoria: string | null
@@ -320,6 +327,13 @@ export type Database = {
           moeda?: string
           observacoes?: string | null
           origem?: string
+          reajuste_indice?: string | null
+          reajuste_inicio?: string | null
+          reajuste_percentual?: number | null
+          reajuste_periodicidade?: string | null
+          recorrencia_inicio?: string | null
+          recorrencia_meses?: number | null
+          recorrencia_sem_prazo?: boolean
           regra_id?: string | null
           responsavel?: string | null
           subcategoria?: string | null
@@ -353,6 +367,13 @@ export type Database = {
           moeda?: string
           observacoes?: string | null
           origem?: string
+          reajuste_indice?: string | null
+          reajuste_inicio?: string | null
+          reajuste_percentual?: number | null
+          reajuste_periodicidade?: string | null
+          recorrencia_inicio?: string | null
+          recorrencia_meses?: number | null
+          recorrencia_sem_prazo?: boolean
           regra_id?: string | null
           responsavel?: string | null
           subcategoria?: string | null
