@@ -1137,13 +1137,18 @@ function DespesasPage() {
             </Field>
           </div>
 
-          {nParcelas > 1 && valorDigitado > 0 && (
+          {valorDigitado > 0 && (ehFixa || nParcelas > 1) && (
             <p className="rounded-lg bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
-              {recorrenteFixa
-                ? `Despesa fixa repetida por ${nParcelas} meses de ${formatBRL(previewParcela)} — total ${formatBRL(valorNum)}.`
+              {ehFixa
+                ? `${formatBRL(valorDigitado)} por mês a partir de ${monthLabelLong(competenciaDe(form.data_primeira_parcela || form.data_compra))}` +
+                  (semPrazo
+                    ? ", sem prazo."
+                    : ` até ${monthLabelLong(ultimaCompetencia?.competencia ?? "")} (${mesesPrazo} meses).`) +
+                  (recorrencia?.reajuste
+                    ? ` Reajuste ${recorrencia.reajuste.periodicidade} de ${recorrencia.reajuste.percentual}%${recorrencia.reajuste.indice ? ` (${recorrencia.reajuste.indice})` : ""} — último mês projetado: ${formatBRL(ultimaCompetencia?.valor ?? valorDigitado)}.`
+                    : "")
                 : `${nParcelas}x de ${formatBRL(previewParcela)} — total ${formatBRL(valorNum)}.`}
             </p>
-
           )}
 
           <DialogFooter>
