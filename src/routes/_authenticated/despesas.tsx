@@ -310,7 +310,15 @@ function DespesasPage() {
       const vinculos = {
         cartao_id: tipoPg === "cartao" ? (idPg ?? null) : null,
         banco_id: tipoPg === "banco" ? (idPg ?? null) : null,
+        recorrencia_inicio: ehFixa ? parsed.data_primeira_parcela : null,
+        recorrencia_sem_prazo: ehFixa ? semPrazo : false,
+        recorrencia_meses: ehFixa && !semPrazo ? mesesPrazo : null,
+        reajuste_percentual: recorrencia?.reajuste?.percentual ?? null,
+        reajuste_periodicidade: recorrencia?.reajuste?.periodicidade ?? null,
+        reajuste_indice: recorrencia?.reajuste?.indice ?? null,
+        reajuste_inicio: recorrencia?.reajuste?.inicio ?? null,
       };
+
 
       let despesaId = editId;
       if (editId) {
