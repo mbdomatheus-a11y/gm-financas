@@ -337,29 +337,45 @@ function DespesasPage() {
         despesaId = despesa.id;
       }
 
-      const pagasAntigas = new Set<number>(
-        editId
-          ? ((despesas.find((d: any) => d.id === editId)?.parcelas ?? []) as any[])
-              .filter((p: any) => p.paga)
-              .map((p: any) => p.numero)
-          : [],
+      const antigas = editId
+        ? ((despesas.find((d: any) => d.id === editId)?.parcelas ?? []) as any[])
+        : [];
+      const pagasPorNumero = new Set<number>(
+        antigas.filter((p: any) => p.paga).map((p: any) => p.numero),
+      );
+      // Na recorrência o pagamento pertence à competência, não ao número da parcela.
+      const pagasPorCompetencia = new Map<string, string | null>(
+        antigas
+          .filter((p: any) => p.paga)
+          .map((p: any) => [competenciaDe(p.vencimento), p.data_pagamento ?? null]),
       );
       if (editId) {
         const { error } = await supabase.from("parcelas").delete().eq("despesa_id", editId);
         if (error) throw error;
       }
 
-      const valores = dividirParcelas(parsed.valor_total, parsed.total_parcelas);
       const base = parseDate(parsed.data_primeira_parcela);
-      const parcelas = valores.map((valor, i) => ({
-        despesa_id: despesaId!,
-        numero: i + 1,
-        total: parsed.total_parcelas,
-        valor,
-        moeda: parsed.moeda,
-        vencimento: toISODate(addMonths(base, i)),
-        paga: pagasAntigas.has(i + 1),
-      }));
+      const parcelas = ehFixa
+        ? projecao.map((c, i) => ({
+            despesa_id: despesaId!,
+            numero: i + 1,
+            total: projecao.length,
+            valor: c.valor,
+            moeda: parsed.moeda,
+            vencimento: toISODate(addMonths(base, i)),
+            paga: pagasPorCompetencia.has(c.competencia),
+            data_pagamento: pagasPorCompetencia.get(c.competencia) ?? null,
+          }))
+        : dividirParcelas(parsed.valor_total, parsed.total_parcelas).map((valor, i) => ({
+            despesa_id: despesaId!,
+            numero: i + 1,
+            total: parsed.total_parcelas,
+            valor,
+            moeda: parsed.moeda,
+            vencimento: toISODate(addMonths(base, i)),
+            paga: pagasPorNumero.has(i + 1),
+            data_pagamento: null,
+          }));
       const { error: e2 } = await supabase.from("parcelas").insert(parcelas);
       if (e2) throw e2;
     },
