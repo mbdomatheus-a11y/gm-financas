@@ -765,7 +765,11 @@ function DespesasPage() {
               )}
               <div className="divide-y">
                 {grupo.itens.map((d: any) => {
-                  const parcelas = [...(d.parcelas ?? [])].sort(
+                   const parcelas = [
+                     ...(filtroMes === "todos"
+                       ? (d.parcelas ?? [])
+                       : lancamentosDoFiltro.filter((p) => p.despesa_id === d.id)),
+                   ].sort(
                     (a: any, b: any) => a.numero - b.numero,
                   );
                   const pagas = parcelas.filter((p: any) => p.paga).length;
@@ -804,7 +808,11 @@ function DespesasPage() {
                         {d.total_parcelas > 1 && (
                           <div className="hidden w-24 shrink-0 sm:block">
                             <Badge variant="secondary" className="text-[10px]">
-                              {pagas}/{d.total_parcelas} pagas
+                              {d.tipo === "fixa" && filtroMes !== "todos"
+                                ? parcelas[0]?.paga
+                                  ? "paga no mês"
+                                  : "em aberto no mês"
+                                : `${pagas}/${d.total_parcelas} pagas`}
                             </Badge>
                             <Progress
                               value={(pagas / d.total_parcelas) * 100}
@@ -915,7 +923,9 @@ function DespesasPage() {
                                 title={`Vence em ${formatDate(p.vencimento)}`}
                               >
                                 {p.paga && <CheckCircle2 className="size-3" />}
-                                {p.numero}/{p.total} · {formatBRL(Number(p.valor))}
+                                {d.tipo === "fixa"
+                                  ? monthLabelLong(monthKey(p.vencimento))
+                                  : `${p.numero}/${p.total}`} · {formatBRL(Number(p.valor))}
                               </button>
                             ))}
                           </div>
