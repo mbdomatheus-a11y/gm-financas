@@ -56,6 +56,7 @@ import {
 import { usePermissoes, useSession } from "@/hooks/useAuthData";
 import {
   competenciaDe,
+  lancamentosPorCompetencias,
   PERIODICIDADES,
   projetarCompetencias,
   somarMeses,
@@ -158,7 +159,7 @@ function DespesasPage() {
   const [form, setForm] = useState<any>(novoForm("fixa"));
   const [duplicata, setDuplicata] = useState<any | null>(null);
   const [busca, setBusca] = useState("");
-  const [filtroMes, setFiltroMes] = useState("todos");
+  const [filtroMes, setFiltroMes] = useState(monthKey(new Date()));
   const [filtroBanco, setFiltroBanco] = useState("todos");
   const [filtroCategoria, setFiltroCategoria] = useState("todos");
   const [filtroResponsavel, setFiltroResponsavel] = useState("todos");
@@ -428,12 +429,23 @@ function DespesasPage() {
     salvar.mutate();
   }
 
-  const meses = useMemo(
+  const meses = useMemo(() => {
+    const now = new Date();
+    return Array.from({ length: 61 }, (_, i) =>
+      monthKey(new Date(now.getFullYear(), now.getMonth() + 36 - i, 1)),
+    );
+  }, []);
+
+  const lancamentosDoFiltro = useMemo(
     () =>
-      Array.from(new Set(despesas.map((d: any) => monthKey(d.data_compra))))
-        .sort()
-        .reverse(),
-    [despesas],
+      filtroMes === "todos"
+        ? []
+        : lancamentosPorCompetencias(despesas as any[], [filtroMes]),
+    [despesas, filtroMes],
+  );
+  const lancamentoPorDespesa = useMemo(
+    () => new Map(lancamentosDoFiltro.map((p) => [p.despesa_id, p])),
+    [lancamentosDoFiltro],
   );
 
   const formaKey = (d: any) =>
@@ -441,7 +453,7 @@ function DespesasPage() {
 
   const lista = despesas.filter((d: any) => {
     if (d.tipo !== tab) return false;
-    if (filtroMes !== "todos" && monthKey(d.data_compra) !== filtroMes) return false;
+    if (filtroMes !== "todos" && !lancamentoPorDespesa.has(d.id)) return false;
     if (filtroCartao !== "todos") {
       if (filtroCartao === "sem" ? !!d.cartao_id : d.cartao_id !== filtroCartao) return false;
     }
@@ -456,6 +468,11 @@ function DespesasPage() {
     return true;
   });
 
+  const valorVisivel = (d: any) =>
+    filtroMes === "todos"
+      ? Number(d.valor_total)
+      : Number(lancamentoPorDespesa.get(d.id)?.valor ?? 0);
+
   const resumo = useMemo(() => {
     let total = 0;
     let pago = 0;
@@ -464,8 +481,12 @@ function DespesasPage() {
     const hoje = toISODate(new Date());
     for (const d of lista as any[]) {
       const brl = (v: number) => toBRL(v, d.moeda, cotacao);
-      total += brl(Number(d.valor_total));
-      for (const p of d.parcelas ?? []) {
+      const parcelasVisiveis =
+        filtroMes === "todos"
+          ? (d.parcelas ?? [])
+          : lancamentosDoFiltro.filter((p) => p.despesa_id === d.id);
+      total += brl(valorVisivel(d));
+      for (const p of parcelasVisiveis) {
         if (p.paga) pago += brl(Number(p.valor));
         else {
           aberto += brl(Number(p.valor));
@@ -475,7 +496,7 @@ function DespesasPage() {
       }
     }
     return { total, pago, aberto, proximo };
-  }, [lista, cotacao]);
+  }, [lista, cotacao, filtroMes, lancamentosDoFiltro, lancamentoPorDespesa]);
 
   /** Agrupa a lista por forma de pagamento (cartão/banco) ou devolve um grupo único. */
   const gruposLista = useMemo(() => {
@@ -495,11 +516,11 @@ function DespesasPage() {
       const cor = d.cartoes?.cor ?? "var(--muted-foreground)";
       const g = mapa.get(key) ?? { key, label, cor, itens: [] as any[], total: 0 };
       g.itens.push(d);
-      g.total += toBRL(Number(d.valor_total), d.moeda, cotacao);
+       g.total += toBRL(valorVisivel(d), d.moeda, cotacao);
       mapa.set(key, g);
     }
     return Array.from(mapa.values()).sort((a, b) => b.total - a.total);
-  }, [lista, modoLista, cotacao, resumo.total]);
+  }, [lista, modoLista, cotacao, resumo.total, filtroMes, lancamentoPorDespesa]);
 
   const chips = [
     filtroCartao !== "todos" && {
@@ -771,7 +792,9 @@ function DespesasPage() {
                           </p>
                           <p className="truncate text-[11px] text-muted-foreground">
                             {formatDate(d.data_compra)} · {d.categoria}
-                            {d.total_parcelas > 1
+                            {d.tipo === "fixa"
+                              ? ` · ${filtroMes === "todos" ? "valor mensal" : monthLabelLong(filtroMes)}`
+                              : d.total_parcelas > 1
                               ? ` · ${d.total_parcelas}x de ${formatBRL(
                                   toBRL(Number(d.valor_total) / d.total_parcelas, d.moeda, cotacao),
                                 )}`
@@ -792,7 +815,7 @@ function DespesasPage() {
 
                         <div className="shrink-0 text-right">
                           <p className="text-sm font-bold tabular-nums">
-                            {formatBRL(toBRL(Number(d.valor_total), d.moeda, cotacao))}
+                             {formatBRL(toBRL(valorVisivel(d), d.moeda, cotacao))}
                           </p>
                           {d.moeda === "USD" && (
                             <p className="text-[10px] text-muted-foreground">

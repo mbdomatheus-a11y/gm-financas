@@ -64,6 +64,7 @@ import {
   monthLabelLong,
   toBRL,
 } from "@/lib/format";
+import { lancamentosPorCompetencias } from "@/lib/recorrencia";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
@@ -156,9 +157,8 @@ function DashboardPage() {
   }, []);
 
   const parcelas = useMemo(
-    () =>
-      despesas.flatMap((d: any) => (d.parcelas ?? []).map((p: any) => ({ ...p, despesa: d }))),
-    [despesas],
+    () => lancamentosPorCompetencias(despesas as any[], mesesSelecionaveis),
+    [despesas, mesesSelecionaveis],
   );
 
   const grupoDe = useMemo(
@@ -202,7 +202,7 @@ function DashboardPage() {
       .reduce((s: number, p: any) => s + toBRL(Number(p.valor), p.despesa.moeda, cotacao), 0);
 
     const dividaTotal = parcelas
-      .filter((p: any) => !p.paga)
+      .filter((p: any) => !p.paga && p.despesa.tipo !== "fixa")
       .reduce((s: number, p: any) => s + toBRL(Number(p.valor), p.despesa.moeda, cotacao), 0);
 
     const porCategoria = new Map<string, number>();
@@ -249,7 +249,7 @@ function DashboardPage() {
     const gruposFinais = temOutros ? [...grupos, "Outros grupos"] : grupos;
 
     const parceladas = despesas
-      .filter((d: any) => d.total_parcelas > 1)
+      .filter((d: any) => d.tipo !== "fixa" && d.total_parcelas > 1)
       .map((d: any) => ({
         id: d.id,
         descricao: d.descricao,
@@ -352,7 +352,7 @@ function DashboardPage() {
         descricao: p.despesa.descricao,
         identificacao: identificacaoDespesa(p.despesa),
         vencimento: p.vencimento,
-        parcela: `${p.numero}/${p.total}`,
+        parcela: p.despesa.tipo === "fixa" ? "competência mensal" : `${p.numero}/${p.total}`,
         valor: toBRL(Number(p.valor), p.despesa.moeda, cotacao),
       }))
       .sort((a: any, b: any) => a.vencimento.localeCompare(b.vencimento))
@@ -400,7 +400,7 @@ function DashboardPage() {
         despesa: p.despesa,
         descricao: p.despesa.descricao,
         identificacao: identificacaoDespesa(p.despesa),
-        parcela: `${p.numero}/${p.total}`,
+        parcela: p.despesa.tipo === "fixa" ? "competência mensal" : `${p.numero}/${p.total}`,
         vencimento: p.vencimento,
         paga: p.paga,
         valor: toBRL(Number(p.valor), p.despesa.moeda, cotacao),

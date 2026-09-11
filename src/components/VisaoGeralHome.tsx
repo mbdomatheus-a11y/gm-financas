@@ -34,6 +34,7 @@ import {
   monthLabelLong,
   toBRL,
 } from "@/lib/format";
+import { lancamentosPorCompetencias } from "@/lib/recorrencia";
 
 type Agrupamento = "cartao" | "categoria" | "responsavel" | "tipo";
 
@@ -97,11 +98,6 @@ export function VisaoGeralHome({ ocultarValores = false }: { ocultarValores?: bo
   const [aberto, setAberto] = useState<string | null>(null);
   const [editando, setEditando] = useState<any | null>(null);
 
-  const parcelas = useMemo(
-    () => (despesas as any[]).flatMap((d) => (d.parcelas ?? []).map((p: any) => ({ ...p, despesa: d }))),
-    [despesas],
-  );
-
   const grupoDe = useMemo(
     () => (d: any) =>
       agrupamento === "cartao"
@@ -123,6 +119,11 @@ export function VisaoGeralHome({ ocultarValores = false }: { ocultarValores?: bo
       monthKey(new Date(now.getFullYear(), now.getMonth() - 5 + i, 1)),
     );
   }, []);
+
+  const parcelas = useMemo(
+    () => lancamentosPorCompetencias(despesas as any[], meses),
+    [despesas, meses],
+  );
 
   const serie = useMemo(() => {
     return meses.map((key) => {
@@ -318,7 +319,11 @@ export function VisaoGeralHome({ ocultarValores = false }: { ocultarValores?: bo
                           <p className="truncate text-sm">{p.despesa.descricao}</p>
                           <p className="truncate text-[11px] text-muted-foreground">
                             {formatDate(p.vencimento)}
-                            {p.total > 1 ? ` · parcela ${p.numero}/${p.total}` : ""}
+                            {p.despesa.tipo === "fixa"
+                              ? " · competência mensal"
+                              : p.total > 1
+                                ? ` · parcela ${p.numero}/${p.total}`
+                                : ""}
                             {identificacaoDespesa(p.despesa)
                               ? ` · ${identificacaoDespesa(p.despesa)}`
                               : ""}

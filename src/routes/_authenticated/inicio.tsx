@@ -14,6 +14,7 @@ import { useDespesas, useReceitas } from "@/hooks/useFinance";
 import { usePrivacidadeValores } from "@/hooks/usePrivacidadeValores";
 import { currentMonthKey, formatBRL, formatDate, monthKey, toBRL } from "@/lib/format";
 import { diasRestantes, statusGarantia } from "@/lib/nfe";
+import { lancamentosPorCompetencias } from "@/lib/recorrencia";
 
 
 export const Route = createFileRoute("/_authenticated/inicio")({
@@ -78,10 +79,10 @@ function InicioPage() {
     const rec = receitas
       .filter((r: any) => monthKey(r.data_recebimento) === mes)
       .reduce((s: number, r: any) => s + toBRL(Number(r.valor), r.moeda, cotacao), 0);
-    let des = 0;
-    for (const d of despesas as any[])
-      for (const p of d.parcelas ?? [])
-        if (monthKey(p.vencimento) === mes) des += toBRL(Number(p.valor), d.moeda, cotacao);
+    const des = lancamentosPorCompetencias(despesas as any[], [mes]).reduce(
+      (s, p) => s + toBRL(Number(p.valor), p.despesa.moeda, cotacao),
+      0,
+    );
     return { rec, des, saldo: rec - des };
   }, [receitas, despesas, cotacao]);
 
