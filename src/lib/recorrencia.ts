@@ -155,3 +155,88 @@ export function recorrenciaDaDespesa(d: any): RecorrenciaFixa | null {
         : null,
   };
 }
+
+export interface LancamentoCompetencia {
+  id: string;
+  despesa_id: string;
+  numero: number;
+  total: number;
+  valor: number;
+  moeda: string;
+  vencimento: string;
+  paga: boolean;
+  data_pagamento: string | null;
+  competencia: string;
+  projetada: boolean;
+  despesa: any;
+}
+
+function vencimentoDaCompetencia(inicio: string, competencia: string): string {
+  const dia = Math.min(28, Number(inicio.slice(8, 10)) || 1);
+  return `${competencia}-${String(dia).padStart(2, "0")}`;
+}
+
+/**
+ * Monta uma única ocorrência por despesa e competência. Recorrências novas são
+ * calculadas pela regra; parcelas persistidas servem apenas para recuperar o pagamento.
+ * Despesas variáveis e fixas legadas continuam usando suas parcelas existentes.
+ */
+export function lancamentosPorCompetencias(
+  despesas: any[],
+  competencias: string[],
+): LancamentoCompetencia[] {
+  const desejadas = new Set(competencias.map(competenciaDe));
+  const out: LancamentoCompetencia[] = [];
+
+  for (const despesa of despesas) {
+    const parcelas = (despesa.parcelas ?? []) as any[];
+    const recorrencia = despesa.recorrencia_inicio ? recorrenciaDaDespesa(despesa) : null;
+
+    if (!recorrencia) {
+      for (const parcela of parcelas) {
+        const competencia = competenciaDe(parcela.vencimento);
+        if (!desejadas.has(competencia)) continue;
+        out.push({
+          ...parcela,
+          id: String(parcela.id),
+          despesa_id: String(parcela.despesa_id ?? despesa.id),
+          valor: Number(parcela.valor),
+          moeda: parcela.moeda ?? despesa.moeda,
+          paga: Boolean(parcela.paga),
+          data_pagamento: parcela.data_pagamento ?? null,
+          competencia,
+          projetada: false,
+          despesa,
+        });
+      }
+      continue;
+    }
+
+    const existentes = new Map(
+      parcelas.map((parcela) => [competenciaDe(parcela.vencimento), parcela] as const),
+    );
+    for (const competencia of desejadas) {
+      const valor = valorNaCompetencia(recorrencia, competencia);
+      if (valor == null) continue;
+      const existente = existentes.get(competencia);
+      const ordem = ordemDaCompetencia(recorrencia, competencia);
+      out.push({
+        id: existente?.id ?? `rec:${despesa.id}:${competencia}`,
+        despesa_id: String(despesa.id),
+        numero: ordem + 1,
+        total: recorrencia.semPrazo ? 0 : (recorrencia.meses ?? 0),
+        valor,
+        moeda: despesa.moeda,
+        vencimento:
+          existente?.vencimento ?? vencimentoDaCompetencia(recorrencia.inicio, competencia),
+        paga: Boolean(existente?.paga),
+        data_pagamento: existente?.data_pagamento ?? null,
+        competencia,
+        projetada: !existente,
+        despesa,
+      });
+    }
+  }
+
+  return out;
+}
