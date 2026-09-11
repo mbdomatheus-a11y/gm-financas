@@ -198,7 +198,7 @@ function DashboardPage() {
     const variaveis = totalDespesas - fixas;
 
     const mensalizado = parcelasMes
-      .filter((p: any) => p.despesa.total_parcelas > 1)
+      .filter((p: any) => p.despesa.tipo !== "fixa" && p.despesa.total_parcelas > 1)
       .reduce((s: number, p: any) => s + toBRL(Number(p.valor), p.despesa.moeda, cotacao), 0);
 
     const dividaTotal = parcelas

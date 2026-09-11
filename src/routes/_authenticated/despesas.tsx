@@ -805,7 +805,7 @@ function DespesasPage() {
                               : " · à vista"}
                           </p>
                         </div>
-                        {d.total_parcelas > 1 && (
+                        {d.tipo !== "fixa" && d.total_parcelas > 1 && (
                           <div className="hidden w-24 shrink-0 sm:block">
                             <Badge variant="secondary" className="text-[10px]">
                               {d.tipo === "fixa" && filtroMes !== "todos"
@@ -905,7 +905,7 @@ function DespesasPage() {
 
                       {aberta && (
                         <div className="space-y-2 border-t bg-muted/20 px-3 py-2.5">
-                          {d.total_parcelas > 1 && (
+                          {d.tipo !== "fixa" && d.total_parcelas > 1 && (
                             <Progress value={(pagas / d.total_parcelas) * 100} className="h-1.5" />
                           )}
                           <div className="flex flex-wrap gap-1.5">
