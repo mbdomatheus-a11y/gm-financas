@@ -82,7 +82,12 @@ export const Route = createFileRoute("/_authenticated/importar")({
 
 const BANCOS: BancoFatura[] = ["itau", "nubank", "pernambucanas", "santander", "desconhecido"];
 
-type FaturaItem = FaturaExtraida & { arquivo: File | null; duplicada?: boolean; destino?: string };
+type FaturaItem = FaturaExtraida & {
+  arquivo: File | null;
+  duplicada?: boolean;
+  destino?: string;
+  total_declarado_edicao?: string;
+};
 
 /** Normaliza nomes para comparar "Itaú" com "itau", "Banco Santander" com "santander" etc. */
 function chaveNome(v: string) {
@@ -868,9 +873,35 @@ function ImportarPage() {
                 <Label className="text-xs">Total declarado</Label>
                 <Input
                   className="h-9"
-                  value={f.total_declarado ?? ""}
-                  onChange={(e) =>
-                    atualizarFatura(idx, { total_declarado: Number(e.target.value) || null })
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="0,00"
+                  value={
+                    f.total_declarado_edicao ??
+                    (f.total_declarado == null ? "" : String(f.total_declarado).replace(".", ","))
+                  }
+                  onChange={(e) => {
+                    const digitado = e.target.value;
+                    if (!/^\d*(?:[.,]\d{0,2})?$/.test(digitado)) return;
+
+                    const normalizado = digitado.replace(",", ".");
+                    const valor = normalizado && !/[.,]$/.test(digitado) ? Number(normalizado) : null;
+                    atualizarFatura(idx, {
+                      total_declarado_edicao: digitado,
+                      ...(valor != null && Number.isFinite(valor)
+                        ? { total_declarado: valor }
+                        : digitado === ""
+                          ? { total_declarado: null }
+                          : {}),
+                    });
+                  }}
+                  onBlur={() =>
+                    atualizarFatura(idx, {
+                      total_declarado_edicao:
+                        f.total_declarado == null
+                          ? ""
+                          : f.total_declarado.toFixed(2).replace(".", ","),
+                    })
                   }
                 />
               </div>
