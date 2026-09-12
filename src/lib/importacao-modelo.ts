@@ -138,7 +138,8 @@ export function normalizarCentavosPorTipo(
 export function extrairParcelaSegura(texto: string): { atual: number; total: number } | null {
   const padroes = [
     /\bparc(?:ela)?\.?\s*(\d{1,2})\s*(?:\/|de)\s*(\d{1,2})\b/i,
-    /\b(\d{1,2})\s*(?:\/|de|d)\s*(\d{1,2})\b/i,
+    /\b(\d{1,2})\s*(?:de|d)\s*(\d{1,2})\b/i,
+    /\b([1-9]\d?)\s*\/\s*([1-9]\d?)\b/i,
   ];
   for (const padrao of padroes) {
     const match = texto.match(padrao);
