@@ -1,7 +1,7 @@
 # Roadmap
 
 - [ ] Concluir a Etapa 5 de despesas fixas quando retomada pelo usuário.
-- [ ] Importação inteligente — Etapa 1: modelo interno e testes-base.
+- [x] Importação inteligente — Etapa 1: modelo interno e testes-base.
 - [ ] Importação inteligente — Etapa 2: PDF robusto e OCR de digitalizados.
 - [ ] Importação inteligente — Etapa 3: sinais, tipos e reconciliação.
 - [ ] Importação inteligente — Etapa 4: texto livre independente da ordem.
