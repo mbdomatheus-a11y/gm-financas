@@ -3,7 +3,13 @@
  * usa as coordenadas dos fragmentos do PDF para descobrir onde estão data,
  * descrição e valor.
  */
-import { corrigirTexto, normalizarDescricao, parseValor, type LancamentoExtraido } from "@/lib/faturas";
+import {
+  corrigirTexto,
+  normalizarDescricao,
+  parseValor,
+  type LancamentoExtraido,
+} from "@/lib/faturas";
+import { ehLinhaResumoFatura } from "@/lib/fatura-metadados";
 
 export type ItemPdf = { str: string; x: number; y: number; w: number; page: number };
 
@@ -13,7 +19,11 @@ export type LinhaPdf = { page: number; y: number; celulas: Celula[]; texto: stri
 export type PerfilLayout = {
   assinatura: string;
   banco?: string | null;
-  colunas: { data?: number | undefined; valor?: number | undefined; descricao?: number | undefined };
+  colunas: {
+    data?: number | undefined;
+    valor?: number | undefined;
+    descricao?: number | undefined;
+  };
   formato_data?: string | null;
   formato_valor?: string | null;
   ancora_inicio?: string | null;
@@ -21,10 +31,30 @@ export type PerfilLayout = {
 };
 
 const MESES: Record<string, number> = {
-  jan: 1, fev: 2, mar: 3, abr: 4, mai: 5, jun: 6,
-  jul: 7, ago: 8, set: 9, out: 10, nov: 11, dez: 12,
-  january: 1, february: 2, march: 3, april: 4, may: 5, june: 6,
-  july: 7, august: 8, september: 9, october: 10, november: 11, december: 12,
+  jan: 1,
+  fev: 2,
+  mar: 3,
+  abr: 4,
+  mai: 5,
+  jun: 6,
+  jul: 7,
+  ago: 8,
+  set: 9,
+  out: 10,
+  nov: 11,
+  dez: 12,
+  january: 1,
+  february: 2,
+  march: 3,
+  april: 4,
+  may: 5,
+  june: 6,
+  july: 7,
+  august: 8,
+  september: 9,
+  october: 10,
+  november: 11,
+  december: 12,
 };
 
 const RE_DATA =
@@ -32,21 +62,70 @@ const RE_DATA =
 const RE_VALOR = /^-?\(?\s*(?:R\$|US\$|USD|BRL)?\s*-?\d{1,3}(?:\.\d{3})*,\d{2}\s*\)?-?$/i;
 const RE_VALOR_SIMPLES = /^-?\(?\s*(?:R\$|US\$|USD)?\s*-?\d+[.,]\d{2}\s*\)?-?$/i;
 const RE_PARCELA = /(\d{1,2})\s*(?:\/|de|ª\s*de)\s*(\d{1,2})/i;
-const RE_FINAL_LINHA = /(?:final|cart[aã]o|com\s+final)\D{0,12}(\d{4})\b|\*{2,4}\s?(\d{4})|x{4}\s?(\d{4})/i;
+const RE_FINAL_LINHA =
+  /(?:final|cart[aã]o|com\s+final)\D{0,12}(\d{4})\b|\*{2,4}\s?(\d{4})|x{4}\s?(\d{4})/i;
 
 /** Linhas que nunca são um gasto, em qualquer banco. */
 const RUIDO = [
-  "pagamento minimo", "pagamento mínimo", "total a pagar", "total da fatura", "valor total",
-  "saldo anterior", "fatura anterior", "encargos", "juros", "cet", "iof previsto",
-  "limite", "proximas faturas", "próximas faturas", "resumo", "vencimento", "atendimento",
-  "ouvidoria", "sac", "central de", "www.", "cnpj", "pagina", "página", "demonstrativo",
-  "parcelamento da fatura", "programa de pontos", "pontos acumulados", "multa",
+  "pagamento minimo",
+  "pagamento mínimo",
+  "total a pagar",
+  "total da fatura",
+  "valor total",
+  "saldo anterior",
+  "fatura anterior",
+  "cet",
+  "iof previsto",
+  "limite",
+  "proximas faturas",
+  "próximas faturas",
+  "resumo",
+  "vencimento",
+  "atendimento",
+  "ouvidoria",
+  "sac",
+  "central de",
+  "www.",
+  "cnpj",
+  "pagina",
+  "página",
+  "demonstrativo",
+  "parcelamento da fatura",
+  "programa de pontos",
+  "pontos acumulados",
+  "valor do documento",
+  "codigo de barras",
+  "código de barras",
+  "linha digitavel",
+  "linha digitável",
+  "boleto",
+  "oferta",
+  "contrate",
+  "aproveite",
+  "saldo futuro",
 ];
 
-const CREDITO = ["pagamento", "estorno", "devolucao", "devolução", "credito recebido", "cashback", "reembolso", "ajuste a credito"];
+const SECAO_IGNORADA =
+  /^(pr[oó]ximas faturas|saldo futuro|lan[cç]amentos futuros|ofertas?|benef[ií]cios|boleto|demonstrativo de limites?)\b/i;
+const SECAO_LANCAMENTOS =
+  /^(compras?|despesas?|lan[cç]amentos?|movimenta[cç][aã]o|pagamentos?(?: e demais cr[eé]ditos)?|cr[eé]ditos?|estornos?)\b/i;
+
+const CREDITO = [
+  "pagamento",
+  "estorno",
+  "devolucao",
+  "devolução",
+  "credito recebido",
+  "cashback",
+  "reembolso",
+  "ajuste a credito",
+];
 
 function semAcento(s: string) {
-  return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  return s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
 }
 
 export function agruparLinhas(itens: ItemPdf[]): LinhaPdf[] {
@@ -64,7 +143,11 @@ export function agruparLinhas(itens: ItemPdf[]): LinhaPdf[] {
   }
   for (const l of linhas) {
     l.celulas.sort((a, b) => a.x - b.x);
-    l.texto = l.celulas.map((c) => c.texto).join(" ").replace(/\s+/g, " ").trim();
+    l.texto = l.celulas
+      .map((c) => c.texto)
+      .join(" ")
+      .replace(/\s+/g, " ")
+      .trim();
   }
   return linhas;
 }
@@ -81,14 +164,15 @@ function semRepetidas(linhas: LinhaPdf[]): LinhaPdf[] {
   }
   return linhas.filter((l) => {
     const k = semAcento(l.texto).replace(/\d+/g, "#");
-    return (cont.get(k)?.size ?? 0) < paginas;
+    const repeticoes = cont.get(k)?.size ?? 0;
+    return repeticoes < Math.max(2, paginas - 1);
   });
 }
 
 function ehRuido(texto: string): boolean {
   const t = semAcento(texto);
   if (t.length < 3) return true;
-  return RUIDO.some((r) => t.includes(semAcento(r)));
+  return ehLinhaResumoFatura(texto) || RUIDO.some((r) => t.includes(semAcento(r)));
 }
 
 /** Divide uma célula que veio com data/descrição/valor colados. */
@@ -133,7 +217,11 @@ function acharValor(celulas: Celula[]): { celula: Celula; indice: number } | nul
   return null;
 }
 
-export function parseDataFlexivel(raw: string, anoBase: number, mesRef?: number | null): string | null {
+export function parseDataFlexivel(
+  raw: string,
+  anoBase: number,
+  mesRef?: number | null,
+): string | null {
   const t = raw.trim().toLowerCase();
   const iso = t.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
@@ -171,7 +259,11 @@ function ehCredito(texto: string, valorBruto: string): boolean {
 
 export type ResultadoPosicional = {
   lancamentos: LancamentoExtraido[];
-  colunas: { data?: number | undefined; valor?: number | undefined; descricao?: number | undefined };
+  colunas: {
+    data?: number | undefined;
+    valor?: number | undefined;
+    descricao?: number | undefined;
+  };
 };
 
 /** Extrai lançamentos usando as posições das colunas; funciona para layouts desconhecidos. */
@@ -192,10 +284,23 @@ export function extrairPosicional(
   let seq = 0;
   let pendente: { data: string; descricao: string; final: string | null } | null = null;
   let dentro = !perfil?.ancora_inicio;
+  let secaoIgnorada = false;
 
   for (const linha of linhas) {
     const bruto = linha.texto;
     if (!bruto) continue;
+
+    if (SECAO_IGNORADA.test(bruto)) {
+      secaoIgnorada = true;
+      pendente = null;
+      continue;
+    }
+    if (SECAO_LANCAMENTOS.test(bruto)) {
+      secaoIgnorada = false;
+      pendente = null;
+      continue;
+    }
+    if (secaoIgnorada) continue;
 
     if (perfil?.ancora_inicio && !dentro) {
       if (semAcento(bruto).includes(semAcento(perfil.ancora_inicio))) dentro = true;
@@ -239,7 +344,6 @@ export function extrairPosicional(
       continue;
     }
 
-
     if (!data) {
       // Continuação da descrição da linha anterior.
       if (pendente && !valor && bruto.length > 2 && bruto.length < 60) {
@@ -258,8 +362,14 @@ export function extrairPosicional(
       .trim();
     if (!meio) continue;
 
-    if (perfil?.colunas?.data != null && Math.abs(data.celula.x - perfil.colunas.data) > 60) continue;
-    if (valor && perfil?.colunas?.valor != null && Math.abs(valor.celula.x - perfil.colunas.valor) > 80) continue;
+    if (perfil?.colunas?.data != null && Math.abs(data.celula.x - perfil.colunas.data) > 60)
+      continue;
+    if (
+      valor &&
+      perfil?.colunas?.valor != null &&
+      Math.abs(valor.celula.x - perfil.colunas.valor) > 80
+    )
+      continue;
 
     if (!valor) {
       pendente = { data: iso, descricao: meio, final: finalAtual };
@@ -311,7 +421,9 @@ export function extrairPosicional(
   }
 
   const mediana = (v: number[]) =>
-    v.length ? Number([...v].sort((a, b) => a - b)[Math.floor(v.length / 2)]!.toFixed(1)) : undefined;
+    v.length
+      ? Number([...v].sort((a, b) => a - b)[Math.floor(v.length / 2)]!.toFixed(1))
+      : undefined;
 
   return {
     lancamentos: out,
@@ -322,7 +434,7 @@ export function extrairPosicional(
 /** Assinatura estável do emissor: primeiras palavras fixas do documento, sem números. */
 export function assinaturaDocumento(texto: string): string {
   const base = semAcento(texto)
-    .replace(/[\d.,/\-]+/g, " ")
+    .replace(/[\d.,/-]+/g, " ")
     .replace(/[^a-z ]+/g, " ")
     .replace(/\s+/g, " ")
     .trim()
@@ -341,9 +453,7 @@ export function conferirTotal(
   totalDeclarado: number | null,
 ): { ok: boolean; soma: number; diferenca: number | null } {
   const soma = Number(
-    lancamentos
-      .reduce((s, l) => s + (l.direcao === "credito" ? -l.valor : l.valor), 0)
-      .toFixed(2),
+    lancamentos.reduce((s, l) => s + (l.direcao === "credito" ? -l.valor : l.valor), 0).toFixed(2),
   );
   if (totalDeclarado == null) return { ok: lancamentos.length > 0, soma, diferenca: null };
   const diferenca = Number((totalDeclarado - soma).toFixed(2));

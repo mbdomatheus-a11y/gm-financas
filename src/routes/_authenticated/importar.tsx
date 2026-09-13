@@ -52,6 +52,7 @@ import { lancamentosDeOcr, ocrImagem, hashTexto as hashTextoOcr } from "@/lib/oc
 import {
   BANCO_LABEL,
   dedupKey,
+  ErroLeituraPdf,
   processarFatura,
   vencimentoParcela,
   type BancoFatura,
@@ -71,7 +72,8 @@ export const Route = createFileRoute("/_authenticated/importar")({
       { property: "og:title", content: "Importar Lançamentos — Finanças do Casal" },
       {
         property: "og:description",
-        content: "Faturas em PDF e texto colado com prévia totalmente editável e de-para de categorias.",
+        content:
+          "Faturas em PDF e texto colado com prévia totalmente editável e de-para de categorias.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -239,9 +241,12 @@ function ImportarPage() {
             duplicada: !!jaExiste,
             destino: destinoPadrao(extraida),
           });
-        } catch {
-
-          toast.error(`${file.name}: não consegui ler o PDF (pode ser digitalizado).`);
+        } catch (erro) {
+          if (erro instanceof ErroLeituraPdf) {
+            toast.error(`${file.name}: ${erro.message}`);
+          } else {
+            toast.error(`${file.name}: ocorreu um erro ao ler o PDF.`);
+          }
         }
       }
       setFaturas((prev) => [...prev, ...novos]);
@@ -306,7 +311,9 @@ function ImportarPage() {
   /** Processa prints (JPG/PNG/WEBP) por OCR no navegador e cria um lote editável por imagem. */
   async function onImages(files: FileList | null) {
     if (!files?.length) return;
-    const imgs = Array.from(files).filter((f) => /image\//.test(f.type) || /\.(png|jpe?g|webp)$/i.test(f.name));
+    const imgs = Array.from(files).filter(
+      (f) => /image\//.test(f.type) || /\.(png|jpe?g|webp)$/i.test(f.name),
+    );
     if (!imgs.length) {
       toast.error("Selecione imagens (PNG, JPG ou WEBP).");
       return;
@@ -374,7 +381,6 @@ function ImportarPage() {
             toast.warning(
               `${file.name}: não reconheci lançamentos. Deixei uma linha em branco para preencher.`,
             );
-
         } catch {
           toast.error(`${file.name}: não consegui ler a imagem.`);
         }
@@ -419,7 +425,10 @@ function ImportarPage() {
         .eq("estabelecimento_normalizado", chave)
         .maybeSingle();
       if (existente) {
-        const { error } = await supabase.from("categoria_regras").update(item).eq("id", existente.id);
+        const { error } = await supabase
+          .from("categoria_regras")
+          .update(item)
+          .eq("id", existente.id);
         if (error) throw error;
       } else {
         const { error } = await supabase.from("categoria_regras").insert(item);
@@ -510,7 +519,8 @@ function ImportarPage() {
           // Vincula ao cartão pelo final; senão usa o destino escolhido para a fatura.
           const cartaoLinha = acharCartao(f.banco, l.cartao_final);
           const [tipoDestino, idDestino] = String(f.destino ?? "").split(":");
-          const cartaoId = cartaoLinha?.id ?? (tipoDestino === "cartao" ? (idDestino ?? null) : null);
+          const cartaoId =
+            cartaoLinha?.id ?? (tipoDestino === "cartao" ? (idDestino ?? null) : null);
           const bancoId = cartaoId ? null : tipoDestino === "banco" ? (idDestino ?? null) : null;
           const cartaoDestino = cartaoId
             ? ((cartoes as any[]).find((c) => c.id === cartaoId) ?? null)
@@ -885,7 +895,8 @@ function ImportarPage() {
                     if (!/^\d*(?:[.,]\d{0,2})?$/.test(digitado)) return;
 
                     const normalizado = digitado.replace(",", ".");
-                    const valor = normalizado && !/[.,]$/.test(digitado) ? Number(normalizado) : null;
+                    const valor =
+                      normalizado && !/[.,]$/.test(digitado) ? Number(normalizado) : null;
                     atualizarFatura(idx, {
                       total_declarado_edicao: digitado,
                       ...(valor != null && Number.isFinite(valor)
@@ -976,7 +987,6 @@ function ImportarPage() {
             ) : null}
 
             <div className="grid grid-cols-3 gap-2">
-
               {[
                 { label: "Limite total", valor: f.limite_total },
                 { label: "Limite utilizado", valor: f.limite_utilizado },
@@ -1023,7 +1033,9 @@ function ImportarPage() {
                         <td className="p-1">
                           <Checkbox
                             checked={l.incluir}
-                            onCheckedChange={(v) => atualizarLancamento(idx, l.id, { incluir: !!v })}
+                            onCheckedChange={(v) =>
+                              atualizarLancamento(idx, l.id, { incluir: !!v })
+                            }
                           />
                         </td>
                         <td className="p-1">

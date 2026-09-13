@@ -1,6 +1,6 @@
 import * as pdfjs from "pdfjs-dist";
+import type { PDFDocumentProxy, PDFPageProxy, TextItem } from "pdfjs-dist/types/src/display/api";
 import workerSrc from "pdfjs-dist/build/pdf.worker.min.mjs?url";
-
 
 import { addMonths, parseDate, toISODate } from "@/lib/format";
 import {
@@ -10,7 +10,7 @@ import {
   type ItemPdf,
   type PerfilLayout,
 } from "@/lib/fatura-layout";
-
+import { ehLinhaResumoFatura, extrairMetadadosFatura } from "@/lib/fatura-metadados";
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
 
@@ -61,16 +61,44 @@ export type FaturaExtraida = {
   lancamentos: LancamentoExtraido[];
   texto: string;
   assinatura?: string;
-  leitura?: "perfil" | "posicional" | "linhas";
-  colunas?: { data?: number | undefined; valor?: number | undefined; descricao?: number | undefined };
+  leitura?: "perfil" | "posicional" | "linhas" | "ocr";
+  colunas?: {
+    data?: number | undefined;
+    valor?: number | undefined;
+    descricao?: number | undefined;
+  };
   conferencia?: { ok: boolean; soma: number; diferenca: number | null };
-
+  periodo?: { inicio: string | null; fim: string | null };
+  titulares?: string[];
+  subtotais?: Array<{ rotulo: string; valor: number }>;
+  origem_texto?: "pdf" | "ocr";
 };
 
+export type CodigoErroLeituraPdf = "arquivo_invalido" | "senha_necessaria" | "sem_conteudo_util";
+
+export class ErroLeituraPdf extends Error {
+  constructor(
+    public readonly codigo: CodigoErroLeituraPdf,
+    mensagem: string,
+  ) {
+    super(mensagem);
+    this.name = "ErroLeituraPdf";
+  }
+}
 
 const MESES: Record<string, number> = {
-  jan: 1, fev: 2, mar: 3, abr: 4, mai: 5, jun: 6,
-  jul: 7, ago: 8, set: 9, out: 10, nov: 11, dez: 12,
+  jan: 1,
+  fev: 2,
+  mar: 3,
+  abr: 4,
+  mai: 5,
+  jun: 6,
+  jul: 7,
+  ago: 8,
+  set: 9,
+  out: 10,
+  nov: 11,
+  dez: 12,
 };
 
 export async function hashArquivo(file: File): Promise<string> {
@@ -83,34 +111,75 @@ export async function hashArquivo(file: File): Promise<string> {
 
 export async function extrairTexto(
   file: File,
-): Promise<{ texto: string; paginas: number; itens: ItemPdf[] }> {
+): Promise<{ texto: string; paginas: number; itens: ItemPdf[]; origem: "pdf" | "ocr" }> {
   const data = new Uint8Array(await file.arrayBuffer());
-  const doc = await pdfjs.getDocument({ data }).promise;
+  let doc: PDFDocumentProxy;
+  try {
+    doc = await pdfjs.getDocument({ data }).promise;
+  } catch (erro) {
+    const detalhe = erro instanceof Error ? `${erro.name} ${erro.message}` : String(erro);
+    if (/password|senha/i.test(detalhe)) {
+      throw new ErroLeituraPdf("senha_necessaria", "O PDF está protegido por senha.");
+    }
+    throw new ErroLeituraPdf(
+      "arquivo_invalido",
+      "O arquivo não é um PDF válido ou está corrompido.",
+    );
+  }
   const partes: string[] = [];
   const itens: ItemPdf[] = [];
+  const paginasSemTexto: Array<{ numero: number; page: PDFPageProxy }> = [];
   for (let i = 1; i <= doc.numPages; i++) {
     const page = await doc.getPage(i);
     const content = await page.getTextContent();
+    const inicioItens = itens.length;
     let linha = "";
     let lastY: number | null = null;
-    for (const item of content.items as any[]) {
-      const y = Math.round(item.transform?.[5] ?? 0);
-      const x = Math.round(item.transform?.[4] ?? 0);
-      if (typeof item.str === "string" && item.str.trim()) {
-        itens.push({ str: item.str, x, y, w: Number(item.width ?? 0), page: i });
+    for (const item of content.items) {
+      if (!("str" in item)) continue;
+      const textoItem = item as TextItem;
+      const y = Math.round(textoItem.transform?.[5] ?? 0);
+      const x = Math.round(textoItem.transform?.[4] ?? 0);
+      if (textoItem.str.trim()) {
+        itens.push({ str: textoItem.str, x, y, w: Number(textoItem.width ?? 0), page: i });
       }
       if (lastY !== null && Math.abs(y - lastY) > 2) {
         partes.push(linha.trim());
         linha = "";
       }
-      linha += `${item.str} `;
+      linha += `${textoItem.str} `;
       lastY = y;
     }
     if (linha.trim()) partes.push(linha.trim());
+    const caracteres = itens.slice(inicioItens).reduce((s, item) => s + item.str.trim().length, 0);
+    if (caracteres < 20) paginasSemTexto.push({ numero: i, page });
   }
-  return { texto: partes.filter(Boolean).join("\n"), paginas: doc.numPages, itens };
-}
 
+  let origem: "pdf" | "ocr" = "pdf";
+  if (paginasSemTexto.length && typeof document !== "undefined") {
+    const { ocrPaginaPdf } = await import("@/lib/ocr");
+    for (const { numero, page } of paginasSemTexto) {
+      const viewport = page.getViewport({ scale: 2 });
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.ceil(viewport.width);
+      canvas.height = Math.ceil(viewport.height);
+      const contexto = canvas.getContext("2d");
+      if (!contexto) continue;
+      await page.render({ canvas, canvasContext: contexto, viewport }).promise;
+      const textoOcr = (await ocrPaginaPdf(canvas)).trim();
+      if (textoOcr) {
+        partes.push(`--- Página ${numero} (OCR) ---`, textoOcr);
+        origem = "ocr";
+      }
+    }
+  }
+
+  const texto = partes.filter(Boolean).join("\n");
+  if (texto.replace(/[^A-Za-zÀ-ÿ0-9]/g, "").length < 10) {
+    throw new ErroLeituraPdf("sem_conteudo_util", "O PDF não possui texto ou imagem legível.");
+  }
+  return { texto, paginas: doc.numPages, itens, origem };
+}
 
 export function detectarBanco(texto: string, nomeArquivo: string): BancoFatura {
   const alvo = `${nomeArquivo} ${texto}`.toLowerCase();
@@ -122,9 +191,27 @@ export function detectarBanco(texto: string, nomeArquivo: string): BancoFatura {
 }
 
 const MOJIBAKE: Record<string, string> = {
-  "Ã¡": "á", "Ã ": "à", "Ã¢": "â", "Ã£": "ã", "Ã©": "é", "Ãª": "ê", "Ã­": "í",
-  "Ã³": "ó", "Ã´": "ô", "Ãµ": "õ", "Ãº": "ú", "Ã§": "ç", "Ã‰": "É", "Ãƒ": "Ã",
-  "Ã‡": "Ç", "Ã”": "Ô", "Ã•": "Õ", "Ã\u0081": "Á", "Ãš": "Ú", "Âº": "º", "Âª": "ª",
+  "Ã¡": "á",
+  "Ã ": "à",
+  "Ã¢": "â",
+  "Ã£": "ã",
+  "Ã©": "é",
+  Ãª: "ê",
+  "Ã­": "í",
+  "Ã³": "ó",
+  "Ã´": "ô",
+  Ãµ: "õ",
+  Ãº: "ú",
+  "Ã§": "ç",
+  "Ã‰": "É",
+  Ãƒ: "Ã",
+  "Ã‡": "Ç",
+  "Ã”": "Ô",
+  "Ã•": "Õ",
+  "Ã\u0081": "Á",
+  Ãš: "Ú",
+  Âº: "º",
+  Âª: "ª",
 };
 /** Só corrige quando o texto realmente veio com bytes UTF-8 lidos como latin-1. */
 const RE_MOJIBAKE = /[ÃÂ][\u0080-\u00bf\u2013-\u2030\u0152-\u0178]/;
@@ -138,7 +225,6 @@ export function corrigirTexto(raw: string): string {
     for (const [de, para] of Object.entries(MOJIBAKE)) s = s.split(de).join(para);
   }
   s = s.replace(/\s+/g, " ").trim();
-
 
   const letras = s.replace(/[^A-Za-zÀ-ÿ]/g, "");
   const tudoMaiusculo = letras.length > 3 && letras === letras.toUpperCase();
@@ -154,7 +240,6 @@ export function corrigirTexto(raw: string): string {
     })
     .join(" ");
 }
-
 
 export function normalizarDescricao(descricao: string): string {
   return descricao
@@ -241,7 +326,9 @@ function primeiroValor(texto: string, re: RegExp): number | null {
 
 /** Tabelas do tipo "Utilizado | Disponível | Limite total" com os valores em outra linha. */
 function limitesTabela(texto: string): LimitesFatura | null {
-  const m = texto.match(/limites?\s+(?:dispon[ií]ve(?:l|is)|do\s+cart[aã]o|de\s+cr[eé]dito)([\s\S]{0,260})/i);
+  const m = texto.match(
+    /limites?\s+(?:dispon[ií]ve(?:l|is)|do\s+cart[aã]o|de\s+cr[eé]dito)([\s\S]{0,260})/i,
+  );
   if (!m) return null;
   const bloco = m[1]!;
   const primeiroNum = bloco.search(/\d{1,3}(?:\.\d{3})*,\d{2}/);
@@ -282,15 +369,15 @@ function limitesTabela(texto: string): LimitesFatura | null {
 
 /** Itaú: "LINHA DE CRÉDITO / Limite Rotativo ..." + saldos da fatura. */
 function limitesItau(texto: string): LimitesFatura | null {
-  const rot = texto.match(
-    new RegExp(String.raw`limite\s+rotativo[^\d]{0,120}` + VALOR, "i"),
-  );
+  const rot = texto.match(new RegExp(String.raw`limite\s+rotativo[^\d]{0,120}` + VALOR, "i"));
   if (!rot) return null;
   const total = parseValor(rot[1]!);
   if (!(total > 0)) return null;
 
   const saldos = Array.from(
-    texto.matchAll(new RegExp(String.raw`saldo\s+(?:pr[oó]xima\s+fatura|futuro)[^\n]*?` + VALOR, "gi")),
+    texto.matchAll(
+      new RegExp(String.raw`saldo\s+(?:pr[oó]xima\s+fatura|futuro)[^\n]*?` + VALOR, "gi"),
+    ),
     (m) => parseValor(m[1]!),
   ).filter((v) => v > 0);
 
@@ -326,7 +413,8 @@ export function extrairLimites(texto: string): LimitesFatura {
 
   // Tabelas e o layout do Itaú são mais confiáveis que o casamento genérico por rótulo.
   let limite_total = tabela?.limite_total ?? itau?.limite_total ?? total ?? null;
-  let limite_disponivel = tabela?.limite_disponivel ?? itau?.limite_disponivel ?? disponivel ?? null;
+  let limite_disponivel =
+    tabela?.limite_disponivel ?? itau?.limite_disponivel ?? disponivel ?? null;
   let limite_utilizado = tabela?.limite_utilizado ?? itau?.limite_utilizado ?? utilizado ?? null;
 
   // Coerência: o limite total nunca é menor que utilizado/disponível.
@@ -346,8 +434,6 @@ export function extrairLimites(texto: string): LimitesFatura {
   return { limite_total, limite_utilizado, limite_disponivel };
 }
 
-
-
 /** Extração genérica: linhas "data descrição valor". Os parsers por banco refinam esse resultado. */
 export function extrairLancamentos(texto: string, vencimento: string | null): LancamentoExtraido[] {
   const anoBase = vencimento ? Number(vencimento.slice(0, 4)) : new Date().getFullYear();
@@ -356,6 +442,7 @@ export function extrairLancamentos(texto: string, vencimento: string | null): La
   let seq = 0;
 
   for (const linha of texto.split("\n")) {
+    if (ehLinhaResumoFatura(linha)) continue;
     const m = linha.trim().match(RE_LINHA);
     if (!m) continue;
     const data = parseDataBR(m[1]!.trim(), anoBase);
@@ -401,7 +488,7 @@ export async function processarFatura(
   file: File,
   perfil?: PerfilLayout | null,
 ): Promise<FaturaExtraida> {
-  const [{ texto, paginas, itens }, arquivo_hash] = await Promise.all([
+  const [{ texto, paginas, itens, origem }, arquivo_hash] = await Promise.all([
     extrairTexto(file),
     hashArquivo(file),
   ]);
@@ -413,15 +500,20 @@ export async function processarFatura(
   const generico =
     comPerfil && comPerfil.lancamentos.length ? comPerfil : extrairPosicional(itens, vencimento);
   let lancamentos = generico.lancamentos;
-  let leitura: FaturaExtraida["leitura"] = comPerfil?.lancamentos.length
-    ? "perfil"
-    : "posicional";
+  let leitura: FaturaExtraida["leitura"] = comPerfil?.lancamentos.length ? "perfil" : "posicional";
   let colunas = generico.colunas;
 
   if (lancamentos.length === 0) {
     lancamentos = extrairLancamentos(texto, vencimento);
-    leitura = "linhas";
+    leitura = origem === "ocr" ? "ocr" : "linhas";
     colunas = {};
+  }
+
+  if (!lancamentos.length && !vencimento && total_declarado == null) {
+    throw new ErroLeituraPdf(
+      "sem_conteudo_util",
+      "O documento foi aberto, mas não contém uma fatura reconhecível.",
+    );
   }
 
   return {
@@ -440,9 +532,10 @@ export async function processarFatura(
     leitura,
     colunas,
     conferencia: conferirTotal(lancamentos, total_declarado),
+    ...extrairMetadadosFatura(texto),
+    origem_texto: origem,
   };
 }
-
 
 /** Vencimento da parcela N a partir do vencimento da fatura e do número da parcela atual. */
 export function vencimentoParcela(
