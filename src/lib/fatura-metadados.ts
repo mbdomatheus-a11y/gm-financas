@@ -55,6 +55,11 @@ function capitalizar(raw: string): string {
     .join(" ");
 }
 
+function capitalizarRotulo(raw: string): string {
+  const texto = raw.trim().toLocaleLowerCase("pt-BR");
+  return texto.charAt(0).toLocaleUpperCase("pt-BR") + texto.slice(1);
+}
+
 /** Identifica dados de capa e resumos sem transformá-los em despesas. */
 export function extrairMetadadosFatura(texto: string): MetadadosFatura {
   const periodoMatch = texto.match(
@@ -73,7 +78,7 @@ export function extrairMetadadosFatura(texto: string): MetadadosFatura {
     const valorBruto = m?.[2];
     if (!rotulo || !valorBruto || /total\s+(?:da\s+)?fatura|total\s+a\s+pagar/i.test(rotulo)) continue;
     const valor = parseValorLocal(valorBruto);
-    if (valor) subtotais.push({ rotulo: capitalizar(rotulo), valor: Math.abs(valor) });
+    if (valor) subtotais.push({ rotulo: capitalizarRotulo(rotulo), valor: Math.abs(valor) });
   }
   return {
     periodo: periodoMatch
