@@ -52,6 +52,7 @@ import { lancamentosDeOcr, ocrImagem, hashTexto as hashTextoOcr } from "@/lib/oc
 import {
   BANCO_LABEL,
   dedupKey,
+  ErroLeituraPdf,
   processarFatura,
   vencimentoParcela,
   type BancoFatura,
@@ -239,9 +240,12 @@ function ImportarPage() {
             duplicada: !!jaExiste,
             destino: destinoPadrao(extraida),
           });
-        } catch {
-
-          toast.error(`${file.name}: não consegui ler o PDF (pode ser digitalizado).`);
+        } catch (erro) {
+          if (erro instanceof ErroLeituraPdf) {
+            toast.error(`${file.name}: ${erro.message}`);
+          } else {
+            toast.error(`${file.name}: ocorreu um erro ao ler o PDF.`);
+          }
         }
       }
       setFaturas((prev) => [...prev, ...novos]);

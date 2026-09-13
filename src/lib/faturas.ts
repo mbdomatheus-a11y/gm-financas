@@ -64,8 +64,24 @@ export type FaturaExtraida = {
   leitura?: "perfil" | "posicional" | "linhas";
   colunas?: { data?: number | undefined; valor?: number | undefined; descricao?: number | undefined };
   conferencia?: { ok: boolean; soma: number; diferenca: number | null };
+  periodo?: { inicio: string | null; fim: string | null };
+  titulares?: string[];
+  subtotais?: Array<{ rotulo: string; valor: number }>;
+  origem_texto?: "pdf" | "ocr";
 
 };
+
+export type CodigoErroLeituraPdf = "arquivo_invalido" | "senha_necessaria" | "sem_conteudo_util";
+
+export class ErroLeituraPdf extends Error {
+  constructor(
+    public readonly codigo: CodigoErroLeituraPdf,
+    mensagem: string,
+  ) {
+    super(mensagem);
+    this.name = "ErroLeituraPdf";
+  }
+}
 
 
 const MESES: Record<string, number> = {
@@ -83,14 +99,25 @@ export async function hashArquivo(file: File): Promise<string> {
 
 export async function extrairTexto(
   file: File,
-): Promise<{ texto: string; paginas: number; itens: ItemPdf[] }> {
+): Promise<{ texto: string; paginas: number; itens: ItemPdf[]; origem: "pdf" | "ocr" }> {
   const data = new Uint8Array(await file.arrayBuffer());
-  const doc = await pdfjs.getDocument({ data }).promise;
+  let doc: Awaited<ReturnType<typeof pdfjs.getDocument>["promise"]>;
+  try {
+    doc = await pdfjs.getDocument({ data }).promise;
+  } catch (erro) {
+    const detalhe = erro instanceof Error ? `${erro.name} ${erro.message}` : String(erro);
+    if (/password|senha/i.test(detalhe)) {
+      throw new ErroLeituraPdf("senha_necessaria", "O PDF está protegido por senha.");
+    }
+    throw new ErroLeituraPdf("arquivo_invalido", "O arquivo não é um PDF válido ou está corrompido.");
+  }
   const partes: string[] = [];
   const itens: ItemPdf[] = [];
+  const paginasSemTexto: Array<{ numero: number; page: Awaited<ReturnType<typeof doc.getPage>> }> = [];
   for (let i = 1; i <= doc.numPages; i++) {
     const page = await doc.getPage(i);
     const content = await page.getTextContent();
+    const inicioItens = itens.length;
     let linha = "";
     let lastY: number | null = null;
     for (const item of content.items as any[]) {
@@ -107,8 +134,34 @@ export async function extrairTexto(
       lastY = y;
     }
     if (linha.trim()) partes.push(linha.trim());
+    const caracteres = itens.slice(inicioItens).reduce((s, item) => s + item.str.trim().length, 0);
+    if (caracteres < 20) paginasSemTexto.push({ numero: i, page });
   }
-  return { texto: partes.filter(Boolean).join("\n"), paginas: doc.numPages, itens };
+
+  let origem: "pdf" | "ocr" = "pdf";
+  if (paginasSemTexto.length && typeof document !== "undefined") {
+    const { ocrPaginaPdf } = await import("@/lib/ocr");
+    for (const { numero, page } of paginasSemTexto) {
+      const viewport = page.getViewport({ scale: 2 });
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.ceil(viewport.width);
+      canvas.height = Math.ceil(viewport.height);
+      const contexto = canvas.getContext("2d");
+      if (!contexto) continue;
+      await page.render({ canvas, canvasContext: contexto, viewport }).promise;
+      const textoOcr = (await ocrPaginaPdf(canvas)).trim();
+      if (textoOcr) {
+        partes.push(`--- Página ${numero} (OCR) ---`, textoOcr);
+        origem = "ocr";
+      }
+    }
+  }
+
+  const texto = partes.filter(Boolean).join("\n");
+  if (texto.replace(/[^A-Za-zÀ-ÿ0-9]/g, "").length < 10) {
+    throw new ErroLeituraPdf("sem_conteudo_util", "O PDF não possui texto ou imagem legível.");
+  }
+  return { texto, paginas: doc.numPages, itens, origem };
 }
 
 
@@ -217,6 +270,39 @@ export function extrairTotal(texto: string): number | null {
     /(total\s+(?:da\s+)?fatura|valor\s+total|total\s+a\s+pagar)[^\d-]{0,30}(-?\s?R?\$?\s?[\d.]+,\d{2})/i,
   );
   return m ? parseValor(m[2]!) : null;
+}
+
+function dataIsoEncontrada(raw: string): string | null {
+  const m = raw.match(/(\d{2})[/.\-](\d{2})[/.\-](\d{2,4})/);
+  if (!m) return null;
+  const ano = m[3]!.length === 2 ? `20${m[3]}` : m[3];
+  return `${ano}-${m[2]}-${m[1]}`;
+}
+
+/** Identifica dados de capa e resumos sem transformá-los em despesas. */
+export function extrairMetadadosFatura(texto: string): Pick<FaturaExtraida, "periodo" | "titulares" | "subtotais"> {
+  const periodoMatch = texto.match(
+    /(?:per[ií]odo|compras?\s+de)\D{0,20}(\d{2}[/.\-]\d{2}[/.\-]\d{2,4})\D{1,20}(?:a|at[eé])\D{0,10}(\d{2}[/.\-]\d{2}[/.\-]\d{2,4})/i,
+  );
+  const titulares = new Set<string>();
+  for (const linha of texto.split("\n")) {
+    const m = linha.match(/(?:titular|cart[aã]o\s+de)\s*[:\-]?\s*([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ .'-]{2,60})/i);
+    if (m) titulares.add(corrigirTexto(m[1]!));
+  }
+  const subtotais: Array<{ rotulo: string; valor: number }> = [];
+  for (const linha of texto.split("\n")) {
+    const m = linha.match(/^\s*((?:sub)?total(?:\s+(?:do|da|cart[aã]o|compras?|despesas?)[^\d]{0,40})?)\s+(R?\$?\s*[\d.]+,\d{2})\s*$/i);
+    if (!m || /total\s+(?:da\s+)?fatura|total\s+a\s+pagar/i.test(m[1]!)) continue;
+    const valor = parseValor(m[2]!);
+    if (valor) subtotais.push({ rotulo: corrigirTexto(m[1]!), valor: Math.abs(valor) });
+  }
+  return {
+    periodo: periodoMatch
+      ? { inicio: dataIsoEncontrada(periodoMatch[1]!), fim: dataIsoEncontrada(periodoMatch[2]!) }
+      : { inicio: null, fim: null },
+    titulares: Array.from(titulares),
+    subtotais,
+  };
 }
 
 export type LimitesFatura = {
@@ -401,7 +487,7 @@ export async function processarFatura(
   file: File,
   perfil?: PerfilLayout | null,
 ): Promise<FaturaExtraida> {
-  const [{ texto, paginas, itens }, arquivo_hash] = await Promise.all([
+  const [{ texto, paginas, itens, origem }, arquivo_hash] = await Promise.all([
     extrairTexto(file),
     hashArquivo(file),
   ]);
@@ -440,6 +526,8 @@ export async function processarFatura(
     leitura,
     colunas,
     conferencia: conferirTotal(lancamentos, total_declarado),
+    ...extrairMetadadosFatura(texto),
+    origem_texto: origem,
   };
 }
 

@@ -55,6 +55,13 @@ export async function ocrImagem(file: File): Promise<string> {
   return data.text ?? "";
 }
 
+/** OCR local de uma página de PDF já renderizada, sem enviar o documento para serviços externos. */
+export async function ocrPaginaPdf(canvas: HTMLCanvasElement): Promise<string> {
+  const { default: Tesseract } = await import("tesseract.js");
+  const { data } = await Tesseract.recognize(canvas, "por", { logger: () => {} });
+  return data.text ?? "";
+}
+
 const RE_VALOR_FIM =
   /(-?\s*(?:R\$|RS|US\$)?\s*-?\d{1,3}(?:[.\s]\d{3})*[,.]\d{2}\s*-?)\s*$/i;
 const RE_SO_VALOR = /^(-?\s*(?:R\$|RS|US\$)?\s*-?\d{1,3}(?:[.\s]\d{3})*[,.]\d{2}\s*-?)$/i;

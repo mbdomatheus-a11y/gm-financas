@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import { FATURAS_ANONIMIZADAS } from "./importacao-fixtures";
+import { extrairLancamentos, extrairMetadadosFatura, extrairTotal, extrairVencimento } from "./faturas";
 import {
   classificarTipoSemantico,
   extrairFinalCartaoSeguro,
@@ -86,5 +87,34 @@ describe("amostras anonimizadas", () => {
     const texto = Object.values(FATURAS_ANONIMIZADAS).flat().join("\n");
     expect(texto).not.toMatch(/\b\d{3}\.\d{3}\.\d{3}-\d{2}\b/);
     expect(texto).not.toMatch(/\b\d{16}\b/);
+  });
+});
+
+describe("estrutura robusta da fatura", () => {
+  test("identifica período, titular, vencimento, total e subtotal", () => {
+    const texto = [
+      "Titular: PESSOA TESTE",
+      "Período 01/08/2026 a 31/08/2026",
+      "Vencimento 10/09/2026",
+      "Subtotal do cartão R$ 205,42",
+      "Total da fatura R$ 705,65",
+    ].join("\n");
+    expect(extrairVencimento(texto)).toBe("2026-09-10");
+    expect(extrairTotal(texto)).toBe(705.65);
+    expect(extrairMetadadosFatura(texto)).toEqual({
+      periodo: { inicio: "2026-08-01", fim: "2026-08-31" },
+      titulares: ["Pessoa Teste"],
+      subtotais: [{ rotulo: "Subtotal do cartão", valor: 205.42 }],
+    });
+  });
+
+  test("resumos, limites e próximas faturas não viram lançamentos", () => {
+    const texto = [
+      "08/08 COMPRA REAL R$ 122,08",
+      "10/08 TOTAL DA FATURA R$ 705,65",
+      "11/08 LIMITE DISPONÍVEL R$ 2.000,00",
+      "12/08 PRÓXIMAS FATURAS R$ 244,16",
+    ].join("\n");
+    expect(extrairLancamentos(texto, "2026-09-10").map((l) => l.descricao)).toEqual(["Compra Real"]);
   });
 });

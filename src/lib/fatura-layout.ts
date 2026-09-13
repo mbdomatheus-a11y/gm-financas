@@ -37,11 +37,16 @@ const RE_FINAL_LINHA = /(?:final|cart[aã]o|com\s+final)\D{0,12}(\d{4})\b|\*{2,4
 /** Linhas que nunca são um gasto, em qualquer banco. */
 const RUIDO = [
   "pagamento minimo", "pagamento mínimo", "total a pagar", "total da fatura", "valor total",
-  "saldo anterior", "fatura anterior", "encargos", "juros", "cet", "iof previsto",
+  "saldo anterior", "fatura anterior", "cet", "iof previsto",
   "limite", "proximas faturas", "próximas faturas", "resumo", "vencimento", "atendimento",
   "ouvidoria", "sac", "central de", "www.", "cnpj", "pagina", "página", "demonstrativo",
-  "parcelamento da fatura", "programa de pontos", "pontos acumulados", "multa",
+  "parcelamento da fatura", "programa de pontos", "pontos acumulados", "valor do documento",
+  "codigo de barras", "código de barras", "linha digitavel", "linha digitável", "boleto",
+  "oferta", "contrate", "aproveite", "saldo futuro",
 ];
+
+const SECAO_IGNORADA = /^(pr[oó]ximas faturas|saldo futuro|lan[cç]amentos futuros|ofertas?|benef[ií]cios|boleto|demonstrativo de limites?)\b/i;
+const SECAO_LANCAMENTOS = /^(compras?|despesas?|lan[cç]amentos?|movimenta[cç][aã]o|pagamentos?(?: e demais cr[eé]ditos)?|cr[eé]ditos?|estornos?)\b/i;
 
 const CREDITO = ["pagamento", "estorno", "devolucao", "devolução", "credito recebido", "cashback", "reembolso", "ajuste a credito"];
 
@@ -81,7 +86,8 @@ function semRepetidas(linhas: LinhaPdf[]): LinhaPdf[] {
   }
   return linhas.filter((l) => {
     const k = semAcento(l.texto).replace(/\d+/g, "#");
-    return (cont.get(k)?.size ?? 0) < paginas;
+    const repeticoes = cont.get(k)?.size ?? 0;
+    return repeticoes < Math.max(2, paginas - 1);
   });
 }
 
@@ -192,10 +198,23 @@ export function extrairPosicional(
   let seq = 0;
   let pendente: { data: string; descricao: string; final: string | null } | null = null;
   let dentro = !perfil?.ancora_inicio;
+  let secaoIgnorada = false;
 
   for (const linha of linhas) {
     const bruto = linha.texto;
     if (!bruto) continue;
+
+    if (SECAO_IGNORADA.test(bruto)) {
+      secaoIgnorada = true;
+      pendente = null;
+      continue;
+    }
+    if (SECAO_LANCAMENTOS.test(bruto)) {
+      secaoIgnorada = false;
+      pendente = null;
+      continue;
+    }
+    if (secaoIgnorada) continue;
 
     if (perfil?.ancora_inicio && !dentro) {
       if (semAcento(bruto).includes(semAcento(perfil.ancora_inicio))) dentro = true;
