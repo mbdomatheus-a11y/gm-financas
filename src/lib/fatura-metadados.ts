@@ -38,7 +38,7 @@ function parseValorLocal(raw: string): number {
 }
 
 function dataIsoEncontrada(raw: string): string | null {
-  const m = raw.match(/(\d{2})[/.\-](\d{2})[/.\-](\d{2,4})/);
+  const m = raw.match(/(\d{2})[/.-](\d{2})[/.-](\d{2,4})/);
   if (!m) return null;
   const [, dia, mes, anoBruto] = m;
   if (!dia || !mes || !anoBruto) return null;
@@ -68,12 +68,12 @@ function capitalizarRotulo(raw: string): string {
 /** Identifica dados de capa e resumos sem transformá-los em despesas. */
 export function extrairMetadadosFatura(texto: string): MetadadosFatura {
   const periodoMatch = texto.match(
-    /(?:per[ií]odo|compras?\s+de)\D{0,20}(\d{2}[/.\-]\d{2}[/.\-]\d{2,4})\D{1,20}(?:a|at[eé])\D{0,10}(\d{2}[/.\-]\d{2}[/.\-]\d{2,4})/i,
+    /(?:per[ií]odo|compras?\s+de)\D{0,20}(\d{2}[/.-]\d{2}[/.-]\d{2,4})\D{1,20}(?:a|at[eé])\D{0,10}(\d{2}[/.-]\d{2}[/.-]\d{2,4})/i,
   );
   const titulares = new Set<string>();
   for (const linha of texto.split("\n")) {
     const m = linha.match(
-      /(?:titular|cart[aã]o\s+de)\s*[:\-]?\s*([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ .'-]{2,60})/i,
+      /(?:titular|cart[aã]o\s+de)\s*[:-]?\s*([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ .'-]{2,60})/i,
     );
     const nome = m?.[1];
     if (nome) titulares.add(capitalizar(nome));

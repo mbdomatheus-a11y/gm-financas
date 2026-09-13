@@ -434,7 +434,7 @@ export function extrairPosicional(
 /** Assinatura estável do emissor: primeiras palavras fixas do documento, sem números. */
 export function assinaturaDocumento(texto: string): string {
   const base = semAcento(texto)
-    .replace(/[\d.,/\-]+/g, " ")
+    .replace(/[\d.,/-]+/g, " ")
     .replace(/[^a-z ]+/g, " ")
     .replace(/\s+/g, " ")
     .trim()

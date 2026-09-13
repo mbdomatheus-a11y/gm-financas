@@ -1,4 +1,5 @@
 import * as pdfjs from "pdfjs-dist";
+import type { PDFDocumentProxy, PDFPageProxy, TextItem } from "pdfjs-dist/types/src/display/api";
 import workerSrc from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 
 import { addMonths, parseDate, toISODate } from "@/lib/format";
@@ -112,7 +113,7 @@ export async function extrairTexto(
   file: File,
 ): Promise<{ texto: string; paginas: number; itens: ItemPdf[]; origem: "pdf" | "ocr" }> {
   const data = new Uint8Array(await file.arrayBuffer());
-  let doc: any;
+  let doc: PDFDocumentProxy;
   try {
     doc = await pdfjs.getDocument({ data }).promise;
   } catch (erro) {
@@ -127,24 +128,26 @@ export async function extrairTexto(
   }
   const partes: string[] = [];
   const itens: ItemPdf[] = [];
-  const paginasSemTexto: Array<{ numero: number; page: any }> = [];
+  const paginasSemTexto: Array<{ numero: number; page: PDFPageProxy }> = [];
   for (let i = 1; i <= doc.numPages; i++) {
     const page = await doc.getPage(i);
     const content = await page.getTextContent();
     const inicioItens = itens.length;
     let linha = "";
     let lastY: number | null = null;
-    for (const item of content.items as any[]) {
-      const y = Math.round(item.transform?.[5] ?? 0);
-      const x = Math.round(item.transform?.[4] ?? 0);
-      if (typeof item.str === "string" && item.str.trim()) {
-        itens.push({ str: item.str, x, y, w: Number(item.width ?? 0), page: i });
+    for (const item of content.items) {
+      if (!("str" in item)) continue;
+      const textoItem = item as TextItem;
+      const y = Math.round(textoItem.transform?.[5] ?? 0);
+      const x = Math.round(textoItem.transform?.[4] ?? 0);
+      if (textoItem.str.trim()) {
+        itens.push({ str: textoItem.str, x, y, w: Number(textoItem.width ?? 0), page: i });
       }
       if (lastY !== null && Math.abs(y - lastY) > 2) {
         partes.push(linha.trim());
         linha = "";
       }
-      linha += `${item.str} `;
+      linha += `${textoItem.str} `;
       lastY = y;
     }
     if (linha.trim()) partes.push(linha.trim());
