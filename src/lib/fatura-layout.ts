@@ -10,6 +10,8 @@ import {
   type LancamentoExtraido,
 } from "@/lib/faturas";
 import { ehLinhaResumoFatura } from "@/lib/fatura-metadados";
+import { ehValorCredito } from "@/lib/lancamento-direcao";
+import { identificarParcela } from "@/lib/parcela";
 
 export type ItemPdf = { str: string; x: number; y: number; w: number; page: number };
 
@@ -59,9 +61,10 @@ const MESES: Record<string, number> = {
 
 const RE_DATA =
   /^(\d{2}\/\d{2}(?:\/\d{2,4})?|\d{4}-\d{2}-\d{2}|\d{1,2}\s*(?:de\s*)?[a-zç]{3,9}\.?(?:\s*(?:de\s*)?\d{2,4})?)$/i;
-const RE_VALOR = /^-?\(?\s*(?:R\$|US\$|USD|BRL)?\s*-?\d{1,3}(?:\.\d{3})*,\d{2}\s*\)?-?$/i;
-const RE_VALOR_SIMPLES = /^-?\(?\s*(?:R\$|US\$|USD)?\s*-?\d+[.,]\d{2}\s*\)?-?$/i;
-const RE_PARCELA = /(\d{1,2})\s*(?:\/|de|ª\s*de)\s*(\d{1,2})/i;
+// O valor pode terminar em "-" (despesa comum) ou "+" (crédito/estorno) em
+// notação D/C de alguns emissores — ver lancamento-direcao.ts.
+const RE_VALOR = /^-?\(?\s*(?:R\$|US\$|USD|BRL)?\s*-?\d{1,3}(?:\.\d{3})*,\d{2}\s*\)?[+-]?$/i;
+const RE_VALOR_SIMPLES = /^-?\(?\s*(?:R\$|US\$|USD)?\s*-?\d+[.,]\d{2}\s*\)?[+-]?$/i;
 const RE_FINAL_LINHA =
   /(?:final|cart[aã]o|com\s+final)\D{0,12}(\d{4})\b|\*{2,4}\s?(\d{4})|x{4}\s?(\d{4})/i;
 
@@ -109,17 +112,6 @@ const SECAO_IGNORADA =
   /^(pr[oó]ximas faturas|saldo futuro|lan[cç]amentos futuros|ofertas?|benef[ií]cios|boleto|demonstrativo de limites?)\b/i;
 const SECAO_LANCAMENTOS =
   /^(compras?|despesas?|lan[cç]amentos?|movimenta[cç][aã]o|pagamentos?(?: e demais cr[eé]ditos)?|cr[eé]ditos?|estornos?)\b/i;
-
-const CREDITO = [
-  "pagamento",
-  "estorno",
-  "devolucao",
-  "devolução",
-  "credito recebido",
-  "cashback",
-  "reembolso",
-  "ajuste a credito",
-];
 
 function semAcento(s: string) {
   return s
@@ -211,7 +203,7 @@ function acharValor(celulas: Celula[]): { celula: Celula; indice: number } | nul
     const c = celulas[i]!;
     const alvo = c.texto.trim();
     if (RE_VALOR.test(alvo) || RE_VALOR_SIMPLES.test(alvo)) return { celula: c, indice: i };
-    const m = alvo.match(/(-?\(?\s*(?:R\$|US\$)?\s*-?\d{1,3}(?:\.\d{3})*,\d{2}\s*\)?-?)$/);
+    const m = alvo.match(/(-?\(?\s*(?:R\$|US\$)?\s*-?\d{1,3}(?:\.\d{3})*,\d{2}\s*\)?[+-]?)$/);
     if (m) return { celula: { ...c, texto: m[1]! }, indice: i };
   }
   return null;
@@ -248,13 +240,6 @@ export function parseDataFlexivel(
     return `${ano}-${String(mes).padStart(2, "0")}-${txt[1]!.padStart(2, "0")}`;
   }
   return null;
-}
-
-function ehCredito(texto: string, valorBruto: string): boolean {
-  const t = semAcento(texto);
-  if (/^\(.*\)$/.test(valorBruto.trim())) return true;
-  if (/-\s*$/.test(valorBruto) || /^\s*-/.test(valorBruto)) return true;
-  return CREDITO.some((c) => t.includes(semAcento(c)));
 }
 
 export type ResultadoPosicional = {
@@ -397,10 +382,10 @@ export function extrairPosicional(
     if (!descricao || descricao.replace(/[^A-Za-zÀ-ÿ]/g, "").length < 2) return null;
     const valor = parseValor(valorTexto);
     if (!valor) return null;
-    const parc = descricao.match(RE_PARCELA);
-    const numero = parc ? Number(parc[1]) : 1;
-    const total = parc ? Number(parc[2]) : 1;
-    const credito = ehCredito(linhaCompleta, valorTexto) || valor < 0;
+    const parc = identificarParcela(descricao);
+    const numero = parc?.atual ?? 1;
+    const total = parc?.total ?? 1;
+    const credito = ehValorCredito(valorTexto, linhaCompleta);
     return {
       id: `p${seq++}`,
       data_compra: dataIso,

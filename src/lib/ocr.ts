@@ -5,6 +5,8 @@ import {
   normalizarDescricao,
   type LancamentoExtraido,
 } from "@/lib/faturas";
+import { ehValorCredito } from "@/lib/lancamento-direcao";
+import { identificarParcela } from "@/lib/parcela";
 
 /**
  * OCR client-side com tesseract.js (WASM). Zero custo de IA.
@@ -68,11 +70,12 @@ export async function ocrPaginaPdf(canvas: HTMLCanvasElement): Promise<string> {
   return data.text ?? "";
 }
 
-const RE_VALOR_FIM = /(-?\s*(?:R\$|RS|US\$)?\s*-?\d{1,3}(?:[.\s]\d{3})*[,.]\d{2}\s*-?)\s*$/i;
-const RE_SO_VALOR = /^(-?\s*(?:R\$|RS|US\$)?\s*-?\d{1,3}(?:[.\s]\d{3})*[,.]\d{2}\s*-?)$/i;
+// O valor pode terminar em "-" (despesa comum) ou "+" (crédito/estorno) em
+// notação D/C de alguns emissores — ver lancamento-direcao.ts.
+const RE_VALOR_FIM = /(-?\s*(?:R\$|RS|US\$)?\s*-?\d{1,3}(?:[.\s]\d{3})*[,.]\d{2}\s*[+-]?)\s*$/i;
+const RE_SO_VALOR = /^(-?\s*(?:R\$|RS|US\$)?\s*-?\d{1,3}(?:[.\s]\d{3})*[,.]\d{2}\s*[+-]?)$/i;
 const RE_DATA_INICIO =
   /^(\d{1,2}\s*[-/.]\s*\d{1,2}(?:\s*[-/.]\s*\d{2,4})?|\d{1,2}\s+de\s+[a-zç]{3,}|\d{1,2}\s+[a-zç]{3}\.?|\d{4}|\d{8})(?=\s|$)/i;
-const RE_PARCELA = /(\d{1,2})\s*(?:\/|de|x)\s*(\d{1,2})/i;
 const RE_RUIDO =
   /^(total|saldo|limite|fatura|vencimento|melhor dia|dispon|pagamento (recebido|efetuado)|pagto|extrato|lançamentos|lancamentos|movimenta|entradas|saídas|saidas|resumo|conta|agência|agencia)/i;
 
@@ -95,7 +98,10 @@ const MESES: Record<string, number> = {
 function valorOcr(raw: string): number {
   const limpo = raw.replace(/\s/g, "").replace(/R\$|RS|US\$/gi, "");
   const negativo = /^-/.test(limpo) || /-$/.test(limpo);
-  const nums = limpo.replace(/-/g, "");
+  // "+" também precisa sair antes do Number() (notação de crédito de
+  // alguns emissores, ex. "459,96+"), senão a conversão falha e o valor
+  // some em silêncio.
+  const nums = limpo.replace(/[-+]/g, "");
   let normal: string;
   if (/,\d{2}$/.test(nums)) normal = nums.replace(/\./g, "").replace(",", ".");
   else if (/\.\d{2}$/.test(nums)) {
@@ -180,9 +186,9 @@ export function lancamentosDeTextoOcr(texto: string, anoBase = new Date().getFul
     if (descricao.replace(/[^A-Za-zÀ-ÿ]/g, "").length < 3) return;
     const valor = valorOcr(bruto);
     if (!valor) return;
-    const parc = descricao.match(RE_PARCELA);
-    const numero = parc ? Number(parc[1]) : 1;
-    const total = parc ? Number(parc[2]) : 1;
+    const parc = identificarParcela(descricao);
+    const numero = parc?.atual ?? 1;
+    const total = parc?.total ?? 1;
     out.push({
       id: `o${seq++}`,
       data_compra: dataContexto,
@@ -190,7 +196,7 @@ export function lancamentosDeTextoOcr(texto: string, anoBase = new Date().getFul
       descricao_normalizada: normalizarDescricao(descricao),
       valor: Math.abs(valor),
       moeda: /US\$|USD/i.test(moedaLinha) ? "USD" : "BRL",
-      direcao: valor < 0 ? "credito" : "debito",
+      direcao: ehValorCredito(bruto, descricao) ? "credito" : "debito",
       parcela_numero: numero > 0 && numero <= total ? numero : 1,
       parcela_total: total >= 1 && total <= 99 ? total : 1,
       cartao_final: null,
