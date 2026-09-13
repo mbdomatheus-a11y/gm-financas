@@ -4,6 +4,7 @@
  * descrição e valor.
  */
 import { corrigirTexto, normalizarDescricao, parseValor, type LancamentoExtraido } from "@/lib/faturas";
+import { ehLinhaResumoFatura } from "@/lib/fatura-metadados";
 
 export type ItemPdf = { str: string; x: number; y: number; w: number; page: number };
 
@@ -94,7 +95,7 @@ function semRepetidas(linhas: LinhaPdf[]): LinhaPdf[] {
 function ehRuido(texto: string): boolean {
   const t = semAcento(texto);
   if (t.length < 3) return true;
-  return RUIDO.some((r) => t.includes(semAcento(r)));
+  return ehLinhaResumoFatura(texto) || RUIDO.some((r) => t.includes(semAcento(r)));
 }
 
 /** Divide uma célula que veio com data/descrição/valor colados. */

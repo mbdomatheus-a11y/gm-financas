@@ -10,6 +10,7 @@ import {
   type ItemPdf,
   type PerfilLayout,
 } from "@/lib/fatura-layout";
+import { ehLinhaResumoFatura, extrairMetadadosFatura } from "@/lib/fatura-metadados";
 
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
@@ -101,7 +102,7 @@ export async function extrairTexto(
   file: File,
 ): Promise<{ texto: string; paginas: number; itens: ItemPdf[]; origem: "pdf" | "ocr" }> {
   const data = new Uint8Array(await file.arrayBuffer());
-  let doc: Awaited<ReturnType<typeof pdfjs.getDocument>["promise"]>;
+  let doc: any;
   try {
     doc = await pdfjs.getDocument({ data }).promise;
   } catch (erro) {
@@ -113,7 +114,7 @@ export async function extrairTexto(
   }
   const partes: string[] = [];
   const itens: ItemPdf[] = [];
-  const paginasSemTexto: Array<{ numero: number; page: Awaited<ReturnType<typeof doc.getPage>> }> = [];
+  const paginasSemTexto: Array<{ numero: number; page: any }> = [];
   for (let i = 1; i <= doc.numPages; i++) {
     const page = await doc.getPage(i);
     const content = await page.getTextContent();
@@ -272,39 +273,6 @@ export function extrairTotal(texto: string): number | null {
   return m ? parseValor(m[2]!) : null;
 }
 
-function dataIsoEncontrada(raw: string): string | null {
-  const m = raw.match(/(\d{2})[/.\-](\d{2})[/.\-](\d{2,4})/);
-  if (!m) return null;
-  const ano = m[3]!.length === 2 ? `20${m[3]}` : m[3];
-  return `${ano}-${m[2]}-${m[1]}`;
-}
-
-/** Identifica dados de capa e resumos sem transformá-los em despesas. */
-export function extrairMetadadosFatura(texto: string): Pick<FaturaExtraida, "periodo" | "titulares" | "subtotais"> {
-  const periodoMatch = texto.match(
-    /(?:per[ií]odo|compras?\s+de)\D{0,20}(\d{2}[/.\-]\d{2}[/.\-]\d{2,4})\D{1,20}(?:a|at[eé])\D{0,10}(\d{2}[/.\-]\d{2}[/.\-]\d{2,4})/i,
-  );
-  const titulares = new Set<string>();
-  for (const linha of texto.split("\n")) {
-    const m = linha.match(/(?:titular|cart[aã]o\s+de)\s*[:\-]?\s*([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ .'-]{2,60})/i);
-    if (m) titulares.add(corrigirTexto(m[1]!));
-  }
-  const subtotais: Array<{ rotulo: string; valor: number }> = [];
-  for (const linha of texto.split("\n")) {
-    const m = linha.match(/^\s*((?:sub)?total(?:\s+(?:do|da|cart[aã]o|compras?|despesas?)[^\d]{0,40})?)\s+(R?\$?\s*[\d.]+,\d{2})\s*$/i);
-    if (!m || /total\s+(?:da\s+)?fatura|total\s+a\s+pagar/i.test(m[1]!)) continue;
-    const valor = parseValor(m[2]!);
-    if (valor) subtotais.push({ rotulo: corrigirTexto(m[1]!), valor: Math.abs(valor) });
-  }
-  return {
-    periodo: periodoMatch
-      ? { inicio: dataIsoEncontrada(periodoMatch[1]!), fim: dataIsoEncontrada(periodoMatch[2]!) }
-      : { inicio: null, fim: null },
-    titulares: Array.from(titulares),
-    subtotais,
-  };
-}
-
 export type LimitesFatura = {
   limite_total: number | null;
   limite_utilizado: number | null;
@@ -442,6 +410,7 @@ export function extrairLancamentos(texto: string, vencimento: string | null): La
   let seq = 0;
 
   for (const linha of texto.split("\n")) {
+    if (ehLinhaResumoFatura(linha)) continue;
     const m = linha.trim().match(RE_LINHA);
     if (!m) continue;
     const data = parseDataBR(m[1]!.trim(), anoBase);

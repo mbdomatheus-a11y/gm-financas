@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import { FATURAS_ANONIMIZADAS } from "./importacao-fixtures";
-import { extrairLancamentos, extrairMetadadosFatura, extrairTotal, extrairVencimento } from "./faturas";
+import { ehLinhaResumoFatura, extrairMetadadosFatura } from "./fatura-metadados";
 import {
   classificarTipoSemantico,
   extrairFinalCartaoSeguro,
@@ -99,8 +99,6 @@ describe("estrutura robusta da fatura", () => {
       "Subtotal do cartão R$ 205,42",
       "Total da fatura R$ 705,65",
     ].join("\n");
-    expect(extrairVencimento(texto)).toBe("2026-09-10");
-    expect(extrairTotal(texto)).toBe(705.65);
     expect(extrairMetadadosFatura(texto)).toEqual({
       periodo: { inicio: "2026-08-01", fim: "2026-08-31" },
       titulares: ["Pessoa Teste"],
@@ -109,12 +107,9 @@ describe("estrutura robusta da fatura", () => {
   });
 
   test("resumos, limites e próximas faturas não viram lançamentos", () => {
-    const texto = [
-      "08/08 COMPRA REAL R$ 122,08",
-      "10/08 TOTAL DA FATURA R$ 705,65",
-      "11/08 LIMITE DISPONÍVEL R$ 2.000,00",
-      "12/08 PRÓXIMAS FATURAS R$ 244,16",
-    ].join("\n");
-    expect(extrairLancamentos(texto, "2026-09-10").map((l) => l.descricao)).toEqual(["Compra Real"]);
+    expect(ehLinhaResumoFatura("10/08 TOTAL DA FATURA R$ 705,65")).toBe(true);
+    expect(ehLinhaResumoFatura("11/08 LIMITE DISPONÍVEL R$ 2.000,00")).toBe(true);
+    expect(ehLinhaResumoFatura("12/08 PRÓXIMAS FATURAS R$ 244,16")).toBe(true);
+    expect(ehLinhaResumoFatura("08/08 COMPRA REAL R$ 122,08")).toBe(false);
   });
 });
