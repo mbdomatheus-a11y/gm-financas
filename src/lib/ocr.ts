@@ -71,7 +71,7 @@ export async function ocrPaginaPdf(canvas: HTMLCanvasElement): Promise<string> {
 const RE_VALOR_FIM = /(-?\s*(?:R\$|RS|US\$)?\s*-?\d{1,3}(?:[.\s]\d{3})*[,.]\d{2}\s*-?)\s*$/i;
 const RE_SO_VALOR = /^(-?\s*(?:R\$|RS|US\$)?\s*-?\d{1,3}(?:[.\s]\d{3})*[,.]\d{2}\s*-?)$/i;
 const RE_DATA_INICIO =
-  /^(\d{1,2}\s*[/.\-]\s*\d{1,2}(?:\s*[/.\-]\s*\d{2,4})?|\d{1,2}\s+de\s+[a-zç]{3,}|\d{1,2}\s+[a-zç]{3}\.?|\d{4}|\d{8})(?=\s|$)/i;
+  /^(\d{1,2}\s*[-/.]\s*\d{1,2}(?:\s*[-/.]\s*\d{2,4})?|\d{1,2}\s+de\s+[a-zç]{3,}|\d{1,2}\s+[a-zç]{3}\.?|\d{4}|\d{8})(?=\s|$)/i;
 const RE_PARCELA = /(\d{1,2})\s*(?:\/|de|x)\s*(\d{1,2})/i;
 const RE_RUIDO =
   /^(total|saldo|limite|fatura|vencimento|melhor dia|dispon|pagamento (recebido|efetuado)|pagto|extrato|lançamentos|lancamentos|movimenta|entradas|saídas|saidas|resumo|conta|agência|agencia)/i;
@@ -110,7 +110,7 @@ function valorOcr(raw: string): number {
 
 function dataOcr(raw: string, anoBase: number): string | null {
   const txt = raw.replace(/\s+/g, " ").trim();
-  const sep = txt.match(/^(\d{1,2})\s*[/.\-]\s*(\d{1,2})(?:\s*[/.\-]\s*(\d{2,4}))?$/);
+  const sep = txt.match(/^(\d{1,2})\s*[-/.]\s*(\d{1,2})(?:\s*[-/.]\s*(\d{2,4}))?$/);
   if (sep) {
     const d = Number(sep[1]);
     const m = Number(sep[2]);
