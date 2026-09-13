@@ -1,7 +1,11 @@
+import { lerValorMonetario } from "./importacao-modelo";
+
 export type MetadadosFatura = {
   periodo: { inicio: string | null; fim: string | null };
   titulares: string[];
   subtotais: Array<{ rotulo: string; valor: number }>;
+  /** Total declarado pela fatura ("total da fatura"/"total a pagar"), em centavos, para conferência exata. */
+  totalFaturaCentavos: number | null;
 };
 
 const TERMOS_RESUMO = [
@@ -79,14 +83,23 @@ export function extrairMetadadosFatura(texto: string): MetadadosFatura {
     if (nome) titulares.add(capitalizar(nome));
   }
   const subtotais: MetadadosFatura["subtotais"] = [];
+  let totalFaturaCentavos: number | null = null;
   for (const linha of texto.split("\n")) {
+    // O total geral ("total da fatura"/"total a pagar") tem gramática livre demais
+    // para o regex de subtotal (que só aceita qualificadores como "do cartão"), por
+    // isso é reconhecido à parte, por conteúdo, antes de tentar casar como subtotal.
+    if (/total\s+(?:da\s+)?fatura|total\s+a\s+pagar/.test(semAcento(linha))) {
+      const valorMatch = linha.match(/(R?\$?\s*[\d.]+,\d{2})\s*$/i);
+      const lido = valorMatch ? lerValorMonetario(valorMatch[1] ?? "") : null;
+      if (lido && totalFaturaCentavos == null) totalFaturaCentavos = lido.centavosAbsolutos;
+      continue;
+    }
     const m = linha.match(
       /^\s*((?:sub)?total(?:\s+(?:do|da|cart[aã]o|compras?|despesas?)[^\d]{0,40})?)\s+(R?\$?\s*[\d.]+,\d{2})\s*$/i,
     );
     const rotulo = m?.[1]?.replace(/\s*R\$\s*$/i, "").trim();
     const valorBruto = m?.[2];
-    if (!rotulo || !valorBruto || /total\s+(?:da\s+)?fatura|total\s+a\s+pagar/i.test(rotulo))
-      continue;
+    if (!rotulo || !valorBruto) continue;
     const valor = parseValorLocal(valorBruto);
     if (valor) subtotais.push({ rotulo: capitalizarRotulo(rotulo), valor: Math.abs(valor) });
   }
@@ -99,5 +112,6 @@ export function extrairMetadadosFatura(texto: string): MetadadosFatura {
       : { inicio: null, fim: null },
     titulares: Array.from(titulares),
     subtotais,
+    totalFaturaCentavos,
   };
 }

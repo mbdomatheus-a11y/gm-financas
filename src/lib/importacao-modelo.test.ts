@@ -103,7 +103,17 @@ describe("estrutura robusta da fatura", () => {
       periodo: { inicio: "2026-08-01", fim: "2026-08-31" },
       titulares: ["Pessoa Teste"],
       subtotais: [{ rotulo: "Subtotal do cartão", valor: 205.42 }],
+      totalFaturaCentavos: 70565,
     });
+  });
+
+  test("reconhece total a pagar e total sem símbolo de moeda", () => {
+    expect(extrairMetadadosFatura("Total a pagar R$ 1.234,56").totalFaturaCentavos).toBe(123456);
+    expect(extrairMetadadosFatura("TOTAL DA FATURA 29,90").totalFaturaCentavos).toBe(2990);
+  });
+
+  test("sem total declarado, o campo fica nulo (não zero)", () => {
+    expect(extrairMetadadosFatura("08/08 COMPRA REAL R$ 122,08").totalFaturaCentavos).toBeNull();
   });
 
   test("resumos, limites e próximas faturas não viram lançamentos", () => {
