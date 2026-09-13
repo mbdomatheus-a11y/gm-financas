@@ -62,7 +62,7 @@ export type FaturaExtraida = {
   lancamentos: LancamentoExtraido[];
   texto: string;
   assinatura?: string;
-  leitura?: "perfil" | "posicional" | "linhas";
+  leitura?: "perfil" | "posicional" | "linhas" | "ocr";
   colunas?: { data?: number | undefined; valor?: number | undefined; descricao?: number | undefined };
   conferencia?: { ok: boolean; soma: number; diferenca: number | null };
   periodo?: { inicio: string | null; fim: string | null };
@@ -475,8 +475,15 @@ export async function processarFatura(
 
   if (lancamentos.length === 0) {
     lancamentos = extrairLancamentos(texto, vencimento);
-    leitura = "linhas";
+    leitura = origem === "ocr" ? "ocr" : "linhas";
     colunas = {};
+  }
+
+  if (!lancamentos.length && !vencimento && total_declarado == null) {
+    throw new ErroLeituraPdf(
+      "sem_conteudo_util",
+      "O documento foi aberto, mas não contém uma fatura reconhecível.",
+    );
   }
 
   return {

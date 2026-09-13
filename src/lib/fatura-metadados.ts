@@ -62,7 +62,7 @@ export function extrairMetadadosFatura(texto: string): MetadadosFatura {
   const subtotais: MetadadosFatura["subtotais"] = [];
   for (const linha of texto.split("\n")) {
     const m = linha.match(/^\s*((?:sub)?total(?:\s+(?:do|da|cart[aã]o|compras?|despesas?)[^\d]{0,40})?)\s+(R?\$?\s*[\d.]+,\d{2})\s*$/i);
-    const rotulo = m?.[1];
+    const rotulo = m?.[1]?.replace(/\s*R\$\s*$/i, "").trim();
     const valorBruto = m?.[2];
     if (!rotulo || !valorBruto || /total\s+(?:da\s+)?fatura|total\s+a\s+pagar/i.test(rotulo)) continue;
     const valor = parseValorLocal(valorBruto);
