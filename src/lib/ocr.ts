@@ -1,4 +1,10 @@
-import { corrigirTexto, detectarBanco, extrairFinais, normalizarDescricao, type LancamentoExtraido } from "@/lib/faturas";
+import {
+  corrigirTexto,
+  detectarBanco,
+  extrairFinais,
+  normalizarDescricao,
+  type LancamentoExtraido,
+} from "@/lib/faturas";
 
 /**
  * OCR client-side com tesseract.js (WASM). Zero custo de IA.
@@ -62,8 +68,7 @@ export async function ocrPaginaPdf(canvas: HTMLCanvasElement): Promise<string> {
   return data.text ?? "";
 }
 
-const RE_VALOR_FIM =
-  /(-?\s*(?:R\$|RS|US\$)?\s*-?\d{1,3}(?:[.\s]\d{3})*[,.]\d{2}\s*-?)\s*$/i;
+const RE_VALOR_FIM = /(-?\s*(?:R\$|RS|US\$)?\s*-?\d{1,3}(?:[.\s]\d{3})*[,.]\d{2}\s*-?)\s*$/i;
 const RE_SO_VALOR = /^(-?\s*(?:R\$|RS|US\$)?\s*-?\d{1,3}(?:[.\s]\d{3})*[,.]\d{2}\s*-?)$/i;
 const RE_DATA_INICIO =
   /^(\d{1,2}\s*[/.\-]\s*\d{1,2}(?:\s*[/.\-]\s*\d{2,4})?|\d{1,2}\s+de\s+[a-zç]{3,}|\d{1,2}\s+[a-zç]{3}\.?|\d{4}|\d{8})(?=\s|$)/i;
@@ -72,8 +77,18 @@ const RE_RUIDO =
   /^(total|saldo|limite|fatura|vencimento|melhor dia|dispon|pagamento (recebido|efetuado)|pagto|extrato|lançamentos|lancamentos|movimenta|entradas|saídas|saidas|resumo|conta|agência|agencia)/i;
 
 const MESES: Record<string, number> = {
-  jan: 1, fev: 2, mar: 3, abr: 4, mai: 5, jun: 6,
-  jul: 7, ago: 8, set: 9, out: 10, nov: 11, dez: 12,
+  jan: 1,
+  fev: 2,
+  mar: 3,
+  abr: 4,
+  mai: 5,
+  jun: 6,
+  jul: 7,
+  ago: 8,
+  set: 9,
+  out: 10,
+  nov: 11,
+  dez: 12,
 };
 
 /** Aceita 1.234,56 e também 1234.56 (o OCR costuma trocar vírgula por ponto). */
@@ -276,7 +291,6 @@ export function lancamentosDeTextoOcr(texto: string, anoBase = new Date().getFul
 
   return out;
 }
-
 
 /** Extrai lançamentos do texto OCR aplicando o parser tolerante de prints. */
 export function lancamentosDeOcr(texto: string): {

@@ -19,7 +19,10 @@ const TERMOS_RESUMO = [
 ];
 
 function semAcento(texto: string) {
-  return texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  return texto
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
 }
 
 export function ehLinhaResumoFatura(texto: string): boolean {
@@ -28,7 +31,9 @@ export function ehLinhaResumoFatura(texto: string): boolean {
 }
 
 function parseValorLocal(raw: string): number {
-  const numero = Number(raw.replace(/\s/g, "").replace(/R\$/gi, "").replace(/\./g, "").replace(",", "."));
+  const numero = Number(
+    raw.replace(/\s/g, "").replace(/R\$/gi, "").replace(/\./g, "").replace(",", "."),
+  );
   return Number.isFinite(numero) ? numero : 0;
 }
 
@@ -67,22 +72,30 @@ export function extrairMetadadosFatura(texto: string): MetadadosFatura {
   );
   const titulares = new Set<string>();
   for (const linha of texto.split("\n")) {
-    const m = linha.match(/(?:titular|cart[aã]o\s+de)\s*[:\-]?\s*([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ .'-]{2,60})/i);
+    const m = linha.match(
+      /(?:titular|cart[aã]o\s+de)\s*[:\-]?\s*([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ .'-]{2,60})/i,
+    );
     const nome = m?.[1];
     if (nome) titulares.add(capitalizar(nome));
   }
   const subtotais: MetadadosFatura["subtotais"] = [];
   for (const linha of texto.split("\n")) {
-    const m = linha.match(/^\s*((?:sub)?total(?:\s+(?:do|da|cart[aã]o|compras?|despesas?)[^\d]{0,40})?)\s+(R?\$?\s*[\d.]+,\d{2})\s*$/i);
+    const m = linha.match(
+      /^\s*((?:sub)?total(?:\s+(?:do|da|cart[aã]o|compras?|despesas?)[^\d]{0,40})?)\s+(R?\$?\s*[\d.]+,\d{2})\s*$/i,
+    );
     const rotulo = m?.[1]?.replace(/\s*R\$\s*$/i, "").trim();
     const valorBruto = m?.[2];
-    if (!rotulo || !valorBruto || /total\s+(?:da\s+)?fatura|total\s+a\s+pagar/i.test(rotulo)) continue;
+    if (!rotulo || !valorBruto || /total\s+(?:da\s+)?fatura|total\s+a\s+pagar/i.test(rotulo))
+      continue;
     const valor = parseValorLocal(valorBruto);
     if (valor) subtotais.push({ rotulo: capitalizarRotulo(rotulo), valor: Math.abs(valor) });
   }
   return {
     periodo: periodoMatch
-      ? { inicio: dataIsoEncontrada(periodoMatch[1] ?? ""), fim: dataIsoEncontrada(periodoMatch[2] ?? "") }
+      ? {
+          inicio: dataIsoEncontrada(periodoMatch[1] ?? ""),
+          fim: dataIsoEncontrada(periodoMatch[2] ?? ""),
+        }
       : { inicio: null, fim: null },
     titulares: Array.from(titulares),
     subtotais,
