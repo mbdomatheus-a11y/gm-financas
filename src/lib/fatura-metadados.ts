@@ -42,10 +42,17 @@ function dataIsoEncontrada(raw: string): string | null {
 }
 
 function capitalizar(raw: string): string {
+  const minusculas = new Set(["da", "de", "do", "das", "dos", "e", "em"]);
   return raw
     .trim()
     .toLocaleLowerCase("pt-BR")
-    .replace(/(^|\s)([a-zà-ÿ])/g, (_, espaco: string, letra: string) => `${espaco}${letra.toLocaleUpperCase("pt-BR")}`);
+    .split(/\s+/)
+    .map((palavra, indice) =>
+      indice > 0 && minusculas.has(palavra)
+        ? palavra
+        : palavra.charAt(0).toLocaleUpperCase("pt-BR") + palavra.slice(1),
+    )
+    .join(" ");
 }
 
 /** Identifica dados de capa e resumos sem transformá-los em despesas. */
