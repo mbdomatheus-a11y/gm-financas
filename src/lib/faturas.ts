@@ -14,10 +14,15 @@ import { ehLinhaResumoFatura, extrairMetadadosFatura } from "@/lib/fatura-metada
 import { extrairLimites, type LimitesFatura } from "@/lib/fatura-limites";
 import { ehValorCredito } from "@/lib/lancamento-direcao";
 import { identificarParcela } from "@/lib/parcela";
-import { corrigirTexto, normalizarDescricao, parseValor } from "@/lib/texto-fatura";
+import {
+  corrigirTexto,
+  limparDescricaoComercial,
+  normalizarDescricao,
+  parseValor,
+} from "@/lib/texto-fatura";
 
 export { extrairLimites, type LimitesFatura };
-export { corrigirTexto, normalizarDescricao, parseValor };
+export { corrigirTexto, limparDescricaoComercial, normalizarDescricao, parseValor };
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
 
@@ -258,14 +263,15 @@ export function extrairLancamentos(texto: string, vencimento: string | null): La
     if (!m) continue;
     const data = parseDataBR(m[1]!.trim(), anoBase);
     if (!data) continue;
-    const descricao = corrigirTexto(m[2]!);
-    if (!descricao || descricao.length < 3) continue;
+    const descricaoBruta = corrigirTexto(m[2]!);
+    if (!descricaoBruta || descricaoBruta.length < 3) continue;
     const valor = parseValor(m[3]!);
     if (valor === 0) continue;
 
-    const parc = identificarParcela(descricao);
+    const parc = identificarParcela(descricaoBruta);
     const numero = parc?.atual ?? 1;
     const total = parc?.total ?? 1;
+    const descricao = limparDescricaoComercial(descricaoBruta);
     const moeda: "BRL" | "USD" = /US\$|USD|dolar|dólar/i.test(linha) ? "USD" : "BRL";
 
     out.push({

@@ -72,6 +72,37 @@ export function normalizarDescricao(descricao: string): string {
     .trim();
 }
 
+// A partir de "PARC" (com ou sem ".ELA") tudo que vem depois é informação de
+// parcela — já extraída à parte por `identificarParcela` — e não deveria
+// aparecer na descrição (ex.: "PERNAMBUCANAS 377 PARC.9/10 São Paulo/Brasil
+// 0" tem cidade/UF coladas depois da parcela).
+const RE_PARC_E_RESTO = /\bPARC(?:ELA)?\.?\s*\d[\s\S]*$/i;
+
+// Sufixo de cidade/local colado no fim da descrição, no formato "Cidade/código"
+// (ex.: "CURITIBA/076", "Sao PAULO/076") — comum em faturas do Itaú. Exige
+// que o trecho logo antes da "/" comece com letra (no máx. 3 palavras) pra
+// nunca confundir com uma parcela "nua" tipo "02/03" (aí antes da "/" vêm só
+// dígitos, não letras). Só remove a ÚLTIMA ocorrência: se a cidade aparecer
+// também mais cedo na descrição (colada sem separador ao nome do
+// estabelecimento), aquela primeira menção fica — não dá pra saber com
+// certeza que não faz parte do nome do estabelecimento.
+const RE_SUFIXO_CIDADE_CODIGO = /\s+(?:[A-Za-zÀ-ÿ]+\s*){1,3}\/\d{1,4}\s*$/;
+
+/**
+ * Remove da descrição informação de parcela e o sufixo final de
+ * cidade/código que alguns emissores colam no texto do lançamento — essa
+ * informação já é capturada em campos próprios (`parcela_numero`/
+ * `parcela_total`) ou simplesmente não é usada pelo app. Nunca devolve uma
+ * string vazia: se a limpeza apagaria tudo, mantém o texto original.
+ */
+export function limparDescricaoComercial(descricao: string): string {
+  let s = descricao.replace(RE_PARC_E_RESTO, "").trim();
+  // Sobra um separador solto quando o formato é "Nome - Parcela N/M".
+  s = s.replace(/[-–,]\s*$/, "").trim();
+  s = s.replace(RE_SUFIXO_CIDADE_CODIGO, "").trim();
+  return s || descricao.trim();
+}
+
 export function parseValor(raw: string): number {
   const limpo = raw.replace(/\s/g, "").replace(/[R$US]/gi, "");
   const negativo = /^-/.test(limpo) || /-$/.test(limpo);

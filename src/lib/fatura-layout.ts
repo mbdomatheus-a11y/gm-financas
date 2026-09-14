@@ -7,7 +7,12 @@ import type { LancamentoExtraido } from "@/lib/faturas";
 import { ehLinhaResumoFatura } from "@/lib/fatura-metadados";
 import { ehValorCredito } from "@/lib/lancamento-direcao";
 import { identificarParcela } from "@/lib/parcela";
-import { corrigirTexto, normalizarDescricao, parseValor } from "@/lib/texto-fatura";
+import {
+  corrigirTexto,
+  limparDescricaoComercial,
+  normalizarDescricao,
+  parseValor,
+} from "@/lib/texto-fatura";
 
 export type ItemPdf = { str: string; x: number; y: number; w: number; page: number };
 
@@ -592,13 +597,14 @@ export function extrairPosicional(
     linhaCompleta: string,
     final: string | null,
   ): LancamentoExtraido | null {
-    const descricao = corrigirTexto(descBruta.replace(/\s{2,}/g, " "));
-    if (!descricao || descricao.replace(/[^A-Za-zÀ-ÿ]/g, "").length < 2) return null;
+    const descricaoBruta = corrigirTexto(descBruta.replace(/\s{2,}/g, " "));
+    if (!descricaoBruta || descricaoBruta.replace(/[^A-Za-zÀ-ÿ]/g, "").length < 2) return null;
     const valor = parseValor(valorTexto);
     if (!valor) return null;
-    const parc = identificarParcela(descricao);
+    const parc = identificarParcela(descricaoBruta);
     const numero = parc?.atual ?? 1;
     const total = parc?.total ?? 1;
+    const descricao = limparDescricaoComercial(descricaoBruta);
     const credito = ehValorCredito(valorTexto, linhaCompleta);
     return {
       id: `p${seq++}`,

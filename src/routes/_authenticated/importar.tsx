@@ -1255,7 +1255,9 @@ function ImportarPage() {
                             <Input
                               type="number"
                               step="0.01"
-                              className="h-7 w-full min-w-0 px-1 text-right text-[11px]"
+                              className={`h-7 w-full min-w-0 px-1 text-right text-[11px] font-medium ${
+                                l.direcao === "credito" ? "text-success" : "text-destructive"
+                              }`}
                               value={l.valor}
                               onChange={(e) =>
                                 atualizarLancamento(idx, l.id, {
@@ -1263,7 +1265,11 @@ function ImportarPage() {
                                 })
                               }
                             />
-                            <p className="mt-1 text-[10px] text-muted-foreground">
+                            <p
+                              className={`mt-1 text-[10px] font-medium ${
+                                l.direcao === "credito" ? "text-success" : "text-destructive"
+                              }`}
+                            >
                               {l.direcao === "credito" ? "crédito" : "débito"} ·{" "}
                               {formatBRL(l.valor * l.parcela_total)}
                             </p>

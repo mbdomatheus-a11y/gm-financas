@@ -2,6 +2,7 @@ import {
   corrigirTexto,
   detectarBanco,
   extrairFinais,
+  limparDescricaoComercial,
   normalizarDescricao,
   type LancamentoExtraido,
 } from "@/lib/faturas";
@@ -182,13 +183,14 @@ export function lancamentosDeTextoOcr(texto: string, anoBase = new Date().getFul
   const iso = (d: Date) => d.toISOString().slice(0, 10);
 
   const empurrar = (descBruta: string, bruto: string, moedaLinha: string, estimado: boolean) => {
-    const descricao = limparDescricao(descBruta);
-    if (descricao.replace(/[^A-Za-zÀ-ÿ]/g, "").length < 3) return;
+    const descricaoBruta = limparDescricao(descBruta);
+    if (descricaoBruta.replace(/[^A-Za-zÀ-ÿ]/g, "").length < 3) return;
     const valor = valorOcr(bruto);
     if (!valor) return;
-    const parc = identificarParcela(descricao);
+    const parc = identificarParcela(descricaoBruta);
     const numero = parc?.atual ?? 1;
     const total = parc?.total ?? 1;
+    const descricao = limparDescricaoComercial(descricaoBruta);
     out.push({
       id: `o${seq++}`,
       data_compra: dataContexto,
