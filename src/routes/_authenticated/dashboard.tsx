@@ -69,13 +69,13 @@ import { lancamentosPorCompetencias } from "@/lib/recorrencia";
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
     meta: [
-      { title: "Dashboard — Finanças do Casal" },
+      { title: "Dashboard — Control ALL" },
       {
         name: "description",
         content:
           "Resumo do mês: receitas, despesas, saldo, valor mensalizado das parcelas e dívida total em aberto.",
       },
-      { property: "og:title", content: "Dashboard — Finanças do Casal" },
+      { property: "og:title", content: "Dashboard — Control ALL" },
       {
         property: "og:description",
         content: "Resumo financeiro do casal com gráficos de categorias e evolução mensal.",

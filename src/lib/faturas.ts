@@ -227,7 +227,7 @@ function parseDataBR(raw: string, anoBase: number): string | null {
 // notação D/C de alguns emissores — ver lancamento-direcao.ts.
 const RE_LINHA =
   /^(\d{2}\/\d{2}(?:\/\d{2,4})?|\d{1,2}\s+[a-zç]{3})\s+(.+?)\s+(-?\s?(?:R\$|US\$)?\s?-?\d{1,3}(?:\.\d{3})*,\d{2}\s?[+-]?)$/i;
-const RE_FINAL = /final\s*(?:com\s*)?(\d{4})|\(?\*{2,4}\s?(\d{4})\)?|x{4}\s?(\d{4})/gi;
+const RE_FINAL = /final\s*(?:com\s*)?(\d{4})|\(?[*•]{2,4}\s?(\d{4})\)?|x{4}\s?(\d{4})/gi;
 
 export function extrairFinais(texto: string): string[] {
   const out = new Set<string>();

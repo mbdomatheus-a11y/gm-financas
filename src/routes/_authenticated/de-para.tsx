@@ -20,13 +20,13 @@ import { lerPlanilhaDePara, modeloCsv, type LinhaDePara } from "@/lib/depara";
 export const Route = createFileRoute("/_authenticated/de-para")({
   head: () => ({
     meta: [
-      { title: "De-para de categorias — Finanças do Casal" },
+      { title: "De-para de categorias — Control ALL" },
       {
         name: "description",
         content:
           "Suba uma planilha Excel ou CSV com o de-para de descrição para categoria e mantenha a categorização automática das despesas sempre calibrada.",
       },
-      { property: "og:title", content: "De-para de categorias — Finanças do Casal" },
+      { property: "og:title", content: "De-para de categorias — Control ALL" },
       {
         property: "og:description",
         content: "Regras de categorização automática alimentadas por planilha Excel ou CSV.",

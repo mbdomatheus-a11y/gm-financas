@@ -46,12 +46,12 @@ import {
 export const Route = createFileRoute("/_authenticated/receitas")({
   head: () => ({
     meta: [
-      { title: "Receitas — Finanças do Casal" },
+      { title: "Receitas — Control ALL" },
       {
         name: "description",
         content: "Cadastre e acompanhe salários, freelances e rendimentos do casal por mês.",
       },
-      { property: "og:title", content: "Receitas — Finanças do Casal" },
+      { property: "og:title", content: "Receitas — Control ALL" },
       { property: "og:description", content: "Controle de receitas recorrentes e avulsas do casal." },
     ],
   }),

@@ -35,12 +35,12 @@ import { formatBRL, formatDate, toISODate } from "@/lib/format";
 export const Route = createFileRoute("/_authenticated/investimentos")({
   head: () => ({
     meta: [
-      { title: "Investimentos — Finanças do Casal" },
+      { title: "Investimentos — Control ALL" },
       {
         name: "description",
         content: "Acompanhe aportes, resgates, rentabilidade e patrimônio investido do casal.",
       },
-      { property: "og:title", content: "Investimentos — Finanças do Casal" },
+      { property: "og:title", content: "Investimentos — Control ALL" },
       {
         property: "og:description",
         content: "Carteira de investimentos do casal com aportes, resgates e rendimento.",

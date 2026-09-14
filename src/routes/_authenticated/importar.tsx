@@ -65,13 +65,13 @@ import {
 export const Route = createFileRoute("/_authenticated/importar")({
   head: () => ({
     meta: [
-      { title: "Importar Lançamentos — Finanças do Casal" },
+      { title: "Importar Lançamentos — Control ALL" },
       {
         name: "description",
         content:
           "Importe faturas em PDF ou cole lançamentos de texto, revise tudo linha a linha com categorização automática e confirme para lançar nas despesas.",
       },
-      { property: "og:title", content: "Importar Lançamentos — Finanças do Casal" },
+      { property: "og:title", content: "Importar Lançamentos — Control ALL" },
       {
         property: "og:description",
         content:

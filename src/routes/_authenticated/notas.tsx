@@ -59,13 +59,13 @@ import { consultarNota } from "@/lib/nfe.functions";
 export const Route = createFileRoute("/_authenticated/notas")({
   head: () => ({
     meta: [
-      { title: "Notas fiscais e garantias — Finanças do Casal" },
+      { title: "Notas fiscais e garantias — Control ALL" },
       {
         name: "description",
         content:
           "Guarde comprovantes por foto ou leitura do QR Code da nota, com chave de acesso, itens e alerta de fim da garantia.",
       },
-      { property: "og:title", content: "Notas fiscais e garantias — Finanças do Casal" },
+      { property: "og:title", content: "Notas fiscais e garantias — Control ALL" },
       {
         property: "og:description",
         content: "Comprovantes no Google Drive, chave de acesso e aviso antes da garantia expirar.",

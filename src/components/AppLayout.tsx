@@ -21,9 +21,7 @@ import {
   DatabaseBackup,
   ReceiptText,
   ArrowLeftRight,
-
-
-
+  Calculator,
 } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -46,11 +44,11 @@ type NavTo =
   | "/cartoes"
   | "/investimentos"
   | "/compartilhar"
+  | "/ferramentas"
   | "/usuarios"
   | "/backup"
   | "/personalizacao"
   | "/conta";
-
 
 type NavItem = {
   to: NavTo;
@@ -65,24 +63,85 @@ type NavItem = {
 const NAV: NavItem[] = [
   { to: "/inicio", label: "Início", short: "Início", icon: Home, mobile: true },
   { to: "/dashboard", label: "Dashboard", short: "Finanças", icon: LayoutDashboard, mobile: true },
-  { to: "/lista-compras", label: "Lista de compras", short: "Compras", icon: ShoppingCart, mobile: true },
+  {
+    to: "/lista-compras",
+    label: "Lista de compras",
+    short: "Compras",
+    icon: ShoppingCart,
+    mobile: true,
+  },
   { to: "/receitas", label: "Receitas", short: "Receitas", icon: TrendingUp, modulo: "receitas" },
-  { to: "/despesas", label: "Despesas", short: "Despesas", icon: TrendingDown, modulo: "despesas", mobile: true },
-  { to: "/importar", label: "Importar Faturas", short: "Faturas", icon: FileUp, modulo: "despesas" },
+  {
+    to: "/despesas",
+    label: "Despesas",
+    short: "Despesas",
+    icon: TrendingDown,
+    modulo: "despesas",
+    mobile: true,
+  },
+  {
+    to: "/importar",
+    label: "Importar Faturas",
+    short: "Faturas",
+    icon: FileUp,
+    modulo: "despesas",
+  },
   { to: "/categorias", label: "Categorias", short: "Categ.", icon: Tags },
-  { to: "/de-para", label: "De-para de categorias", short: "De-para", icon: ArrowLeftRight, modulo: "despesas" },
+  {
+    to: "/de-para",
+    label: "De-para de categorias",
+    short: "De-para",
+    icon: ArrowLeftRight,
+    modulo: "despesas",
+  },
   { to: "/notas", label: "Notas fiscais", short: "Notas", icon: ReceiptText },
+  { to: "/ferramentas", label: "Control ALL", short: "Ferram.", icon: Calculator },
 
-  { to: "/cartoes", label: "Cartões e Bancos", short: "Cartões", icon: CreditCard, modulo: "cartoes" },
+  {
+    to: "/cartoes",
+    label: "Cartões e Bancos",
+    short: "Cartões",
+    icon: CreditCard,
+    modulo: "cartoes",
+  },
 
-  { to: "/investimentos", label: "Investimentos", short: "Invest.", icon: PiggyBank, modulo: "investimentos" },
-  { to: "/compartilhar", label: "Compartilhar", short: "Compart.", icon: Share2, modulo: "compartilhar" },
-  { to: "/usuarios", label: "Usuários e Privilégios", short: "Usuários", icon: Users, adminOnly: true },
-  { to: "/backup", label: "Backup e Reset", short: "Backup", icon: DatabaseBackup, adminOnly: true },
-  { to: "/personalizacao", label: "Personalização", short: "Tema", icon: Palette, modulo: "personalizacao" },
+  {
+    to: "/investimentos",
+    label: "Investimentos",
+    short: "Invest.",
+    icon: PiggyBank,
+    modulo: "investimentos",
+  },
+  {
+    to: "/compartilhar",
+    label: "Compartilhar",
+    short: "Compart.",
+    icon: Share2,
+    modulo: "compartilhar",
+  },
+  {
+    to: "/usuarios",
+    label: "Usuários e Privilégios",
+    short: "Usuários",
+    icon: Users,
+    adminOnly: true,
+  },
+  {
+    to: "/backup",
+    label: "Backup e Reset",
+    short: "Backup",
+    icon: DatabaseBackup,
+    adminOnly: true,
+  },
+  {
+    to: "/personalizacao",
+    label: "Personalização",
+    short: "Tema",
+    icon: Palette,
+    modulo: "personalizacao",
+  },
   { to: "/conta", label: "Configurações da conta", short: "Conta", icon: Settings },
 ];
-
 
 export function AppLayout({
   title,
@@ -151,12 +210,16 @@ export function AppLayout({
           <Wallet className="size-4.5 text-primary-foreground" />
         </div>
         <div className="min-w-0">
-          <p className="truncate text-sm font-bold leading-tight">Finanças do Casal</p>
+          <p className="truncate text-sm font-bold leading-tight">Control ALL</p>
           <p className="truncate text-xs text-muted-foreground">{profile?.nome ?? ""}</p>
         </div>
       </Link>
       <NavLinks onNavigate={onNavigate} />
-      <Button variant="ghost" className="justify-start gap-3 text-muted-foreground" onClick={signOut}>
+      <Button
+        variant="ghost"
+        className="justify-start gap-3 text-muted-foreground"
+        onClick={signOut}
+      >
         <LogOut className="size-4.5" /> Sair
       </Button>
     </div>
@@ -191,9 +254,7 @@ export function AppLayout({
 
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-base font-semibold leading-tight sm:text-lg">{title}</h1>
-            {description && (
-              <p className="truncate text-xs text-muted-foreground">{description}</p>
-            )}
+            {description && <p className="truncate text-xs text-muted-foreground">{description}</p>}
           </div>
           <div className="flex shrink-0 items-center gap-2">{actions}</div>
         </header>

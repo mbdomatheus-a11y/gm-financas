@@ -88,18 +88,27 @@ const RE_PARC_E_RESTO = /\bPARC(?:ELA)?\.?\s*\d[\s\S]*$/i;
 // certeza que não faz parte do nome do estabelecimento.
 const RE_SUFIXO_CIDADE_CODIGO = /\s+(?:[A-Za-zÀ-ÿ]+\s*){1,3}\/\d{1,4}\s*$/;
 
+// Conversão de moeda colada no fim da descrição (compra internacional, ex.:
+// "Anthropic* Claude Sub BRL 110.00 = USD 21.52 Conversão: BRL 5.29 = USD 1
+// = R$ 5,29") — informação redundante pro que o app mostra, o valor final em
+// BRL já vai no campo `valor` do lançamento.
+const RE_CONVERSAO_MOEDA = /\s+(?:BRL|USD)\s+[\d.,]+\s*=[\s\S]*$/i;
+
 /**
- * Remove da descrição informação de parcela e o sufixo final de
- * cidade/código que alguns emissores colam no texto do lançamento — essa
- * informação já é capturada em campos próprios (`parcela_numero`/
- * `parcela_total`) ou simplesmente não é usada pelo app. Nunca devolve uma
- * string vazia: se a limpeza apagaria tudo, mantém o texto original.
+ * Remove da descrição informação de parcela, conversão de moeda e o sufixo
+ * final de cidade/código que alguns emissores colam no texto do lançamento
+ * — essa informação já é capturada em campos próprios (`parcela_numero`/
+ * `parcela_total`, `valor`) ou simplesmente não é usada pelo app. Nunca
+ * devolve uma string vazia: se a limpeza apagaria tudo, mantém o texto
+ * original.
  */
 export function limparDescricaoComercial(descricao: string): string {
-  let s = descricao.replace(RE_PARC_E_RESTO, "").trim();
+  let s = descricao.replace(RE_CONVERSAO_MOEDA, "").trim();
+  s = s.replace(RE_PARC_E_RESTO, "").trim();
   // Sobra um separador solto quando o formato é "Nome - Parcela N/M".
   s = s.replace(/[-–,]\s*$/, "").trim();
   s = s.replace(RE_SUFIXO_CIDADE_CODIGO, "").trim();
+  s = s.replace(/"/g, "").trim();
   return s || descricao.trim();
 }
 

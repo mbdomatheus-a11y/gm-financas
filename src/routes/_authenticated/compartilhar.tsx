@@ -21,13 +21,13 @@ import { currentMonthKey, formatBRL, monthKey, monthLabel, toBRL } from "@/lib/f
 export const Route = createFileRoute("/_authenticated/compartilhar")({
   head: () => ({
     meta: [
-      { title: "Compartilhar resumo — Finanças do Casal" },
+      { title: "Compartilhar resumo — Control ALL" },
       {
         name: "description",
         content:
           "Gere uma imagem do resumo financeiro do mês para compartilhar no WhatsApp ou salvar.",
       },
-      { property: "og:title", content: "Compartilhar resumo — Finanças do Casal" },
+      { property: "og:title", content: "Compartilhar resumo — Control ALL" },
       {
         property: "og:description",
         content: "Resumo mensal do casal em imagem pronta para compartilhar.",
@@ -133,7 +133,7 @@ function CompartilharPage() {
 
     ctx.fillStyle = "rgba(255,255,255,0.5)";
     ctx.font = "400 26px system-ui, sans-serif";
-    ctx.fillText(`Gerado por ${perfil?.nome ?? "Finanças do Casal"}`, 80, H - 80);
+    ctx.fillText(`Gerado por ${perfil?.nome ?? "Control ALL"}`, 80, H - 80);
 
     return canvas;
   }

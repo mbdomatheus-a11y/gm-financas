@@ -21,13 +21,13 @@ import {
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Entrar — Finanças Casal Total Controle" },
+      { title: "Entrar — Control ALL" },
       {
         name: "description",
         content:
           "Acesse o painel de finanças pessoais do casal: receitas, despesas, parcelas, cartões e investimentos em um só lugar.",
       },
-      { property: "og:title", content: "Entrar — Finanças Casal Total Controle" },
+      { property: "og:title", content: "Entrar — Control ALL" },
       {
         property: "og:description",
         content: "Controle compartilhado de receitas, despesas, parcelamentos e investimentos.",
@@ -91,7 +91,7 @@ function LoginPage() {
           <div className="gradient-brand mb-4 flex size-14 items-center justify-center rounded-2xl shadow-soft">
             <Wallet className="size-7 text-primary-foreground" />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight">Finanças Casal Total Controle</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Control ALL</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Entre com seu CPF para acessar o painel
           </p>

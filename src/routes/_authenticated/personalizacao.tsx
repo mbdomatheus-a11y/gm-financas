@@ -10,12 +10,12 @@ import { usePreferencias } from "@/hooks/usePreferencias";
 export const Route = createFileRoute("/_authenticated/personalizacao")({
   head: () => ({
     meta: [
-      { title: "Personalização — Finanças do Casal" },
+      { title: "Personalização — Control ALL" },
       {
         name: "description",
         content: "Escolha tema claro ou escuro, paleta de cores, fonte e layout do menu do app.",
       },
-      { property: "og:title", content: "Personalização — Finanças do Casal" },
+      { property: "og:title", content: "Personalização — Control ALL" },
       { property: "og:description", content: "Deixe o app com a cara do casal: tema, cores e fontes." },
     ],
   }),

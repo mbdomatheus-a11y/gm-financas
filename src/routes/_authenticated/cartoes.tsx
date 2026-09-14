@@ -36,12 +36,12 @@ import { formatBRL, toBRL } from "@/lib/format";
 export const Route = createFileRoute("/_authenticated/cartoes")({
   head: () => ({
     meta: [
-      { title: "Cartões e Bancos — Finanças do Casal" },
+      { title: "Cartões e Bancos — Control ALL" },
       {
         name: "description",
         content: "Cadastre cartões de crédito, contas bancárias e acompanhe a fatura de cada um.",
       },
-      { property: "og:title", content: "Cartões e Bancos — Finanças do Casal" },
+      { property: "og:title", content: "Cartões e Bancos — Control ALL" },
       {
         property: "og:description",
         content: "Gestão de cartões, limites, faturas e contas bancárias do casal.",

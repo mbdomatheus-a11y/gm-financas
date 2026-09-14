@@ -67,8 +67,16 @@ const RE_DATA =
 // notação D/C de alguns emissores — ver lancamento-direcao.ts.
 const RE_VALOR = /^-?\(?\s*(?:R\$|US\$|USD|BRL)?\s*-?\d{1,3}(?:\.\d{3})*,\d{2}\s*\)?[+-]?$/i;
 const RE_VALOR_SIMPLES = /^-?\(?\s*(?:R\$|US\$|USD)?\s*-?\d+[.,]\d{2}\s*\)?[+-]?$/i;
+// O marcador de final de cartão varia por emissor: "final 1234", "**** 1234"
+// (asteriscos), "xxxx 1234" ou "•••• 1234" (Nubank, com o caractere de
+// marcador "•", não asterisco).
 const RE_FINAL_LINHA =
-  /(?:final|cart[aã]o|com\s+final)\D{0,12}(\d{4})\b|\*{2,4}\s?(\d{4})|x{4}\s?(\d{4})/i;
+  /(?:final|cart[aã]o|com\s+final)\D{0,12}(\d{4})\b|[*•]{2,4}\s?(\d{4})|x{4}\s?(\d{4})/i;
+// Mesmo marcador, mas ancorado no INÍCIO do texto — usado pra separar
+// "•••• 5360 Petz" em final="5360" + descrição="Petz" quando o marcador vem
+// colado na própria linha da transação (não numa linha de cabeçalho só do
+// cartão).
+const RE_MARCADOR_CARTAO_INLINE = /^[*•]{2,4}\s?(\d{4})\b\s*/;
 
 /** Linhas que nunca são um gasto, em qualquer banco. */
 const RUIDO = [
@@ -110,8 +118,14 @@ const RUIDO = [
   "saldo futuro",
 ];
 
+// "saldo futuro" fica só em RUIDO (linha única, sem estado persistente): em
+// pelo menos um emissor (Pernambucanas) essa frase não abre uma seção de
+// verdade — é só uma linha informativa entre transações reais do período
+// atual, então tratá-la como abertura de seção ignorada (persistente até a
+// próxima "SECAO_LANCAMENTOS") derrubava as transações reais que vêm logo
+// depois dela.
 const SECAO_IGNORADA =
-  /^(pr[oó]ximas faturas|saldo futuro|lan[cç]amentos futuros|ofertas?|benef[ií]cios|boleto|demonstrativo de limites?)\b/i;
+  /^(pr[oó]ximas faturas|lan[cç]amentos futuros|ofertas?|benef[ií]cios|boleto|demonstrativo de limites?)\b/i;
 const SECAO_LANCAMENTOS =
   /^(compras?|despesas?|lan[cç]amentos?|movimenta[cç][aã]o|pagamentos?(?: e demais cr[eé]ditos)?|cr[eé]ditos?|estornos?)\b/i;
 
@@ -169,13 +183,37 @@ function ehRuido(texto: string): boolean {
   return ehLinhaResumoFatura(texto) || RUIDO.some((r) => t.includes(semAcento(r)));
 }
 
+// Algumas faturas (ex.: Santander) imprimem a data e o começo da descrição
+// como UM ÚNICO fragmento de texto no PDF, separados por um espaço só (ex.:
+// "29/06 UNIDAS SEMINOVOS VVGL") — diferente do caso de 2+ espaços tratado
+// em `explodirCelulas` abaixo. Sem separar isso em duas células, a data
+// "engole" a descrição inteira quando extraída (`acharData`/
+// `acharDataProxima` só devolvem a data, descartando o resto do texto da
+// célula).
+const RE_DATA_COLADA = /^(\d{2}\/\d{2}(?:\/\d{2,4})?)\s+(\S.*)$/;
+
+function separarDataGrudada(c: Celula): Celula[] {
+  const m = c.texto.match(RE_DATA_COLADA);
+  if (!m) return [c];
+  const [, data, resto] = m;
+  // Não separa um intervalo tipo "15/08 - 14/09" (período de tabela de
+  // encargos, não é data+descrição de transação).
+  if (/^-\s*\d{1,2}\/\d{1,2}/.test(resto!)) return [c];
+  const passo = c.w / Math.max(c.texto.length, 1);
+  const idxResto = c.texto.indexOf(resto!, data!.length);
+  return [
+    { texto: data!, x: c.x, w: data!.length * passo },
+    { texto: resto!, x: c.x + Math.max(idxResto, 0) * passo, w: resto!.length * passo },
+  ];
+}
+
 /** Divide uma célula que veio com data/descrição/valor colados. */
 function explodirCelulas(linha: LinhaPdf): Celula[] {
   const out: Celula[] = [];
   for (const c of linha.celulas) {
     const partes = c.texto.split(/\s{2,}/).filter(Boolean);
     if (partes.length <= 1) {
-      out.push(c);
+      out.push(...separarDataGrudada(c));
       continue;
     }
     let off = 0;
@@ -251,25 +289,48 @@ function acharDataProxima(
  * devolver `[]` e deixar a linha para o fluxo normal (de uma transação só),
  * que é o caso disparadamente mais comum.
  */
+// Em algumas faturas (ex.: Santander) a data e o começo da descrição saem
+// como UMA célula só do PDF (ex.: "17/08 DEB AUTOM DE FATURA EM C/"), não
+// duas células separadas — mesmo quando é uma das transações de uma linha
+// com duas coladas lado a lado. Reconhece isso do mesmo jeito que
+// `acharData`, mas devolvendo também o resto do texto da célula (a
+// descrição que ficou grudada), pra não perder esse pedaço.
+function celulaComoData(c: Celula): { dataTexto: string; resto: string } | null {
+  const t = c.texto.trim();
+  if (RE_DATA.test(t)) return { dataTexto: t, resto: "" };
+  const m = t.match(RE_DATA_PREFIXO);
+  if (m) return { dataTexto: m[1]!, resto: t.slice(m[0].length).trim() };
+  return null;
+}
+
 function dividirTransacoesDaLinha(
   celulas: Celula[],
 ): Array<{ data: Celula; meio: Celula[]; valor: Celula }> {
-  const datas: number[] = [];
+  const datas: Array<{ indice: number; dataTexto: string; resto: string }> = [];
   const valores: number[] = [];
   celulas.forEach((c, i) => {
+    const info = celulaComoData(c);
+    if (info) datas.push({ indice: i, ...info });
     const t = c.texto.trim();
-    if (RE_DATA.test(t)) datas.push(i);
     if (RE_VALOR.test(t) || RE_VALOR_SIMPLES.test(t)) valores.push(i);
   });
   if (datas.length < 2 || datas.length !== valores.length) return [];
 
   const segmentos: Array<{ data: Celula; meio: Celula[]; valor: Celula }> = [];
   for (let k = 0; k < datas.length; k++) {
-    const di = datas[k]!;
+    const { indice: di, dataTexto, resto } = datas[k]!;
     const vi = valores[k]!;
     if (vi <= di) return [];
     if (k > 0 && di <= valores[k - 1]!) return [];
-    segmentos.push({ data: celulas[di]!, meio: celulas.slice(di + 1, vi), valor: celulas[vi]! });
+    const celulaOriginal = celulas[di]!;
+    const restoComoCelula: Celula[] = resto
+      ? [{ texto: resto, x: celulaOriginal.x, w: celulaOriginal.w }]
+      : [];
+    segmentos.push({
+      data: { ...celulaOriginal, texto: dataTexto },
+      meio: [...restoComoCelula, ...celulas.slice(di + 1, vi)],
+      valor: celulas[vi]!,
+    });
   }
   return segmentos;
 }
@@ -446,6 +507,23 @@ export function extrairPosicional(
         ? { data: dataResgatada, valor: valorAntecipado }
         : null;
 
+    // Uma linha "mesclada" é uma transação real com texto de outra coluna
+    // colado NA FRENTE dela, na mesma linha (ex.: resíduo de uma seção
+    // ignorada, ou de uma tabela de encargos/limites vizinha). Só é
+    // reconhecida quando sobra algo ANTES da data resgatada nesta mesma
+    // linha (`indice > 0`) — nunca só por causa do estado ainda ligado de
+    // `secaoIgnorada` vindo de uma linha anterior: uma transação limpa (sem
+    // nada colado na frente dela mesma) que aparece logo depois de uma
+    // seção tipo "Próximas Faturas" continua sendo ignorada de propósito,
+    // isso não é bug de coluna, é a seção mesmo dizendo "isso ainda não
+    // venceu". Nos casos em que a linha é mesmo mesclada, a data confiável é
+    // a que `transacaoEmbutida` já validou (a mais próxima do valor, com o
+    // texto entre as duas limpo) — não a primeira célula com cara de data,
+    // que pode ser o resíduo da coluna vizinha (ex.: "Saldo Próxima Fatura
+    // em 12/09/2026" ou o período "15/08 - 14/09" de uma tabela de
+    // encargos).
+    const linhaMesclada = !!transacaoEmbutida && transacaoEmbutida.data.indice > 0;
+
     if (SECAO_IGNORADA.test(bruto)) {
       if (!transacaoEmbutida) {
         const resgate = valorAntecipado ? tentarResgatarSemColuna(celulas, valorAntecipado) : null;
@@ -467,7 +545,12 @@ export function extrairPosicional(
       pendente = null;
       continue;
     }
-    if (secaoIgnorada) continue;
+    // Uma seção ignorada pode ficar colada, em faturas de duas colunas, com
+    // transações reais da coluna vizinha em VÁRIAS linhas seguidas — não só
+    // na linha que originalmente ligou o modo ignorado. Só deixa passar
+    // quando há evidência de mescla na própria linha (`linhaMesclada`); uma
+    // linha limpa continua pulada enquanto a seção seguir ignorada.
+    if (secaoIgnorada && !linhaMesclada) continue;
 
     if (perfil?.ancora_inicio && !dentro) {
       if (semAcento(bruto).includes(semAcento(perfil.ancora_inicio))) dentro = true;
@@ -529,7 +612,10 @@ export function extrairPosicional(
       continue;
     }
 
-    const data = acharData(celulas) ?? (transacaoEmbutida ? transacaoEmbutida.data : null);
+    const data =
+      linhaMesclada && transacaoEmbutida
+        ? transacaoEmbutida.data
+        : (acharData(celulas) ?? (transacaoEmbutida ? transacaoEmbutida.data : null));
     const valor = valorAntecipado;
 
     // Valor solto numa linha abaixo da descrição (com ou sem continuação do texto).
@@ -598,7 +684,15 @@ export function extrairPosicional(
     linhaCompleta: string,
     final: string | null,
   ): LancamentoExtraido | null {
-    const descricaoBruta = corrigirTexto(descBruta.replace(/\s{2,}/g, " "));
+    // Alguns emissores (ex.: Nubank) não imprimem o final do cartão numa
+    // linha de cabeçalho própria — colam "•••• NNNN" (ou "**** NNNN"/"xxxx
+    // NNNN") no início de cada linha de transação. Separa esse marcador do
+    // resto da descrição antes de qualquer outra limpeza.
+    const marcadorInline = descBruta.trim().match(RE_MARCADOR_CARTAO_INLINE);
+    const semMarcador = marcadorInline
+      ? descBruta.slice(descBruta.indexOf(marcadorInline[0]) + marcadorInline[0].length)
+      : descBruta;
+    const descricaoBruta = corrigirTexto(semMarcador.replace(/\s{2,}/g, " "));
     if (!descricaoBruta || descricaoBruta.replace(/[^A-Za-zÀ-ÿ]/g, "").length < 2) return null;
     const valor = parseValor(valorTexto);
     if (!valor) return null;
@@ -617,7 +711,7 @@ export function extrairPosicional(
       direcao: credito ? "credito" : "debito",
       parcela_numero: numero > 0 && numero <= total ? numero : 1,
       parcela_total: total >= 1 && total <= 99 ? total : 1,
-      cartao_final: final,
+      cartao_final: final ?? marcadorInline?.[1] ?? null,
       responsavel: null,
       categoria: "outros",
       confianca_data: /\d{2}\/\d{2}\/\d{2,4}/.test(dataIso) ? "alta" : "alta",

@@ -36,12 +36,12 @@ import { maskCpf, onlyDigits, isValidCpf } from "@/lib/cpf";
 export const Route = createFileRoute("/_authenticated/usuarios")({
   head: () => ({
     meta: [
-      { title: "Usuários e Privilégios — Finanças do Casal" },
+      { title: "Usuários e Privilégios — Control ALL" },
       {
         name: "description",
         content: "Área administrativa para criar usuários, definir privilégios e redefinir senhas.",
       },
-      { property: "og:title", content: "Usuários e Privilégios — Finanças do Casal" },
+      { property: "og:title", content: "Usuários e Privilégios — Control ALL" },
       { property: "og:description", content: "Gestão de acessos e permissões por módulo." },
     ],
   }),

@@ -166,6 +166,53 @@ describe("extrairPosicional — resgate de transação colada (bug das duas colu
   });
 });
 
+describe("extrairPosicional — regressão fatura Santander real (data colada na descrição)", () => {
+  // O PDF do Santander sai do pdfjs com a data e o começo da descrição como
+  // UM fragmento de texto só ("29/06 UNIDAS SEMINOVOS VVGL", um espaço
+  // simples, não dois) — sem separar isso a data "engolia" a célula inteira
+  // e a descrição sumia.
+  test("separa data colada com a descrição num lançamento de uma coluna só", () => {
+    const itens = [
+      item("1", 16, 700),
+      item("29/06 UNIDAS SEMINOVOS VVGL", 33, 700),
+      item("03/12", 168, 700),
+      item("1.666,66", 203, 700),
+    ];
+    const r = extrairPosicional(itens, "2026-09-15");
+    expect(r.lancamentos).toHaveLength(1);
+    expect(r.lancamentos[0]).toMatchObject({
+      data_compra: "2026-06-29",
+      valor: 1666.66,
+      parcela_numero: 3,
+      parcela_total: 12,
+    });
+    expect(r.lancamentos[0]!.descricao).toContain("Unidas Seminovos Vvgl");
+  });
+
+  test("separa duas transações reais de titulares diferentes coladas na mesma linha, com data colada na descrição", () => {
+    // Réplica da linha real: pagamento do titular principal (esquerda) e
+    // despesa do titular adicional (direita) na mesma linha impressa,
+    // ambos com data+descrição grudadas na própria célula.
+    const itens = [
+      item("17/08 DEB AUTOM DE FATURA EM C/", 33, 472),
+      item("-3.953,64", 201, 472),
+      item("3", 311, 472),
+      item("12/08 VEND PERTO MACHINES", 327, 472),
+      item("7,99", 508, 472),
+    ];
+    const r = extrairPosicional(itens, "2026-09-15");
+    expect(r.lancamentos).toHaveLength(2);
+    expect(r.lancamentos[0]).toMatchObject({
+      data_compra: "2026-08-17",
+      valor: 3953.64,
+      direcao: "credito",
+    });
+    expect(r.lancamentos[0]!.descricao).toContain("Deb Autom");
+    expect(r.lancamentos[1]).toMatchObject({ data_compra: "2026-08-12", valor: 7.99 });
+    expect(r.lancamentos[1]!.descricao).toContain("Vend Perto Machines");
+  });
+});
+
 describe("extrairPosicional — duas transações reais na mesma linha (tabela em duas colunas)", () => {
   test("separa duas transações independentes impressas lado a lado", () => {
     // Réplica de uma fatura real do Itaú: a tabela de lançamentos é impressa
@@ -208,5 +255,103 @@ describe("extrairPosicional — duas transações reais na mesma linha (tabela e
     ];
     const r = extrairPosicional(itens, "2026-03-15");
     expect(r.lancamentos).toHaveLength(1);
+  });
+});
+
+describe("extrairPosicional — regressão fatura Pernambucanas real (2026-09)", () => {
+  // Réplica simplificada de uma fatura real onde a frase "Saldo Futuro a
+  // Vencer (Compras Parceladas, Produtos e Serviços Financeiros) em
+  // 12/09/2026" (só uma linha informativa do painel de limites, não o
+  // início de uma seção de transações futuras de verdade) ficava colada, na
+  // mesma linha impressa, com transações reais da tabela de lançamentos —
+  // derrubando 8 das 17 transações da fatura porque a frase disparava o
+  // modo de "seção ignorada" (pensado para casos como "Próximas Faturas",
+  // que é uma seção real) e esse modo persistia até o fim do documento.
+  test("não perde transações reais coladas com 'saldo futuro a vencer'", () => {
+    const itens = [
+      item("Saldo Futuro a Vencer (Compras Parceladas, Produtos e", 50, 626),
+      item("Serviços Financeiros) em 12/09/2026", 50, 620),
+      item("31/07/2026", 350, 620),
+      item("72 PARC.2/5", 390, 620),
+      item("SAO PAULO/SP", 470, 620),
+      item("26,10-", 526, 620),
+      item("03/08/2026", 350, 611),
+      item("377 PARC.2/2", 390, 611),
+      item("São Paulo/S", 470, 611),
+      item("16,87-", 526, 611),
+    ];
+    const r = extrairPosicional(itens, "2026-09-15");
+    expect(r.lancamentos).toHaveLength(2);
+    expect(r.lancamentos[0]).toMatchObject({ data_compra: "2026-07-31", valor: 26.1 });
+    expect(r.lancamentos[0]!.descricao).not.toContain("12/09/2026");
+    expect(r.lancamentos[1]).toMatchObject({ data_compra: "2026-08-03", valor: 16.87 });
+  });
+});
+
+describe("extrairPosicional — formato Nubank (data 'DD MES' + marcador '•••• NNNN')", () => {
+  test("extrai uma compra parcelada com o marcador de cartão colado na linha", () => {
+    const itens = [
+      item("08 AGO", 40, 700),
+      item("••••", 90, 700),
+      item("5360", 120, 700),
+      item("Petz - Parcela 2/3", 160, 700),
+      item("R$ 122,08", 480, 700),
+    ];
+    const r = extrairPosicional(itens, "2026-09-15");
+    expect(r.lancamentos).toHaveLength(1);
+    expect(r.lancamentos[0]).toMatchObject({
+      data_compra: "2026-08-08",
+      descricao: "Petz",
+      valor: 122.08,
+      parcela_numero: 2,
+      parcela_total: 3,
+      cartao_final: "5360",
+      direcao: "debito",
+    });
+  });
+
+  test("extrai um IOF sem marcador de cartão, com a descrição entre aspas", () => {
+    const itens = [
+      item("08 AGO", 40, 690),
+      item('IOF de "Anthropic* Claude Sub"', 90, 690),
+      item("R$ 3,99", 480, 690),
+    ];
+    const r = extrairPosicional(itens, "2026-09-15");
+    expect(r.lancamentos).toHaveLength(1);
+    expect(r.lancamentos[0]!.descricao).not.toContain('"');
+    expect(r.lancamentos[0]!.valor).toBe(3.99);
+  });
+
+  test("usa o valor final em BRL, não a taxa de conversão, numa compra internacional", () => {
+    const itens = [
+      item("08 AGO", 40, 680),
+      item("••••", 90, 680),
+      item("3310", 120, 680),
+      item("Anthropic* Claude Sub BRL 110.00 = USD 21.52", 160, 680),
+      item("Conversão: BRL 5.29 = USD 1", 420, 680),
+      item("= R$ 5,29", 470, 680),
+      item("R$ 113,94", 510, 680),
+    ];
+    const r = extrairPosicional(itens, "2026-09-15");
+    expect(r.lancamentos).toHaveLength(1);
+    expect(r.lancamentos[0]!.valor).toBe(113.94);
+    expect(r.lancamentos[0]!.descricao).toBe("Anthropic* Claude Sub");
+    expect(r.lancamentos[0]!.cartao_final).toBe("3310");
+  });
+});
+
+describe("extrairPosicional — resgate de transação colada (bug das duas colunas), continuação", () => {
+  test("mantém exclusão de uma seção realmente futura mesmo com 'saldo futuro' ativo antes dela", () => {
+    // Depois de uma linha de "saldo futuro" (agora sem efeito persistente),
+    // uma seção "Próximas Faturas" de verdade continua sendo ignorada.
+    const itens = [
+      item("Saldo Futuro a Vencer", 50, 630),
+      item("Próximas Faturas", 50, 610),
+      item("15/10/2026", 303, 600),
+      item("Compra Futura", 340, 600),
+      item("50,00-", 530, 600),
+    ];
+    const r = extrairPosicional(itens, "2026-09-15");
+    expect(r.lancamentos).toHaveLength(0);
   });
 });

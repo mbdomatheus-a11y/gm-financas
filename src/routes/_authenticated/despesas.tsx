@@ -84,13 +84,13 @@ export const Route = createFileRoute("/_authenticated/despesas")({
     typeof s["cartao"] === "string" && s["cartao"] ? { cartao: s["cartao"] } : {},
   head: () => ({
     meta: [
-      { title: "Despesas — Finanças do Casal" },
+      { title: "Despesas — Control ALL" },
       {
         name: "description",
         content:
           "Despesas fixas e variáveis com parcelamento automático, alerta de duplicidade e controle de parcelas pagas.",
       },
-      { property: "og:title", content: "Despesas — Finanças do Casal" },
+      { property: "og:title", content: "Despesas — Control ALL" },
       {
         property: "og:description",
         content: "Controle de despesas fixas, variáveis e parcelamentos do casal.",

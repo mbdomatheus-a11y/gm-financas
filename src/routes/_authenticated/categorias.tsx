@@ -25,12 +25,12 @@ import { usePermissoes } from "@/hooks/useAuthData";
 export const Route = createFileRoute("/_authenticated/categorias")({
   head: () => ({
     meta: [
-      { title: "Categorias — Finanças do Casal" },
+      { title: "Categorias — Control ALL" },
       {
         name: "description",
         content: "Crie, edite e remova categorias de receitas e despesas usadas nos lançamentos.",
       },
-      { property: "og:title", content: "Categorias — Finanças do Casal" },
+      { property: "og:title", content: "Categorias — Control ALL" },
       { property: "og:description", content: "Organize os lançamentos do casal por categoria." },
     ],
   }),

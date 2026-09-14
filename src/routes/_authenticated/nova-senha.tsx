@@ -13,9 +13,9 @@ import { Label } from "@/components/ui/label";
 export const Route = createFileRoute("/_authenticated/nova-senha")({
   head: () => ({
     meta: [
-      { title: "Criar nova senha — Finanças do Casal" },
+      { title: "Criar nova senha — Control ALL" },
       { name: "description", content: "Defina uma nova senha de acesso à sua conta." },
-      { property: "og:title", content: "Criar nova senha — Finanças do Casal" },
+      { property: "og:title", content: "Criar nova senha — Control ALL" },
       { property: "og:description", content: "Defina uma nova senha de acesso à sua conta." },
     ],
   }),

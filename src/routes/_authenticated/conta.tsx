@@ -19,12 +19,12 @@ import { maskCpf } from "@/lib/cpf";
 export const Route = createFileRoute("/_authenticated/conta")({
   head: () => ({
     meta: [
-      { title: "Minha conta — Finanças do Casal" },
+      { title: "Minha conta — Control ALL" },
       {
         name: "description",
         content: "Veja seus dados de acesso, altere sua senha e encerre a sessão com segurança.",
       },
-      { property: "og:title", content: "Minha conta — Finanças do Casal" },
+      { property: "og:title", content: "Minha conta — Control ALL" },
       { property: "og:description", content: "Dados de acesso e segurança da sua conta." },
     ],
   }),

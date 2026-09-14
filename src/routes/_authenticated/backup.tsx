@@ -23,13 +23,13 @@ import { usePermissoes } from "@/hooks/useAuthData";
 export const Route = createFileRoute("/_authenticated/backup")({
   head: () => ({
     meta: [
-      { title: "Backup e Reset — Finanças do Casal" },
+      { title: "Backup e Reset — Control ALL" },
       {
         name: "description",
         content:
           "Exporte todos os dados do casal em JSON, importe de volta quando quiser e reinicie receitas ou despesas com segurança.",
       },
-      { property: "og:title", content: "Backup e Reset — Finanças do Casal" },
+      { property: "og:title", content: "Backup e Reset — Control ALL" },
       {
         property: "og:description",
         content: "Backup completo em JSON, restauração e reset administrativo de lançamentos.",

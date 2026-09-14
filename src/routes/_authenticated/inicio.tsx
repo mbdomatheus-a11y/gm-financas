@@ -1,6 +1,16 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo } from "react";
-import { ShoppingCart, Wallet, ArrowRight, ReceiptText, AlertTriangle, Eye, EyeOff } from "lucide-react";
+import { useMemo, useState } from "react";
+import {
+  ShoppingCart,
+  Wallet,
+  ArrowRight,
+  ReceiptText,
+  AlertTriangle,
+  Eye,
+  EyeOff,
+  Calculator,
+  CalendarClock,
+} from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
 import { AppLayout } from "@/components/AppLayout";
@@ -8,24 +18,26 @@ import { FaturaMesDialog } from "@/components/FaturaMesDialog";
 import { VisaoGeralHome } from "@/components/VisaoGeralHome";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useCotacao } from "@/hooks/useCotacao";
 import { useDespesas, useReceitas } from "@/hooks/useFinance";
 import { usePrivacidadeValores } from "@/hooks/usePrivacidadeValores";
-import { currentMonthKey, formatBRL, formatDate, monthKey, toBRL } from "@/lib/format";
+import { currentMonthKey, formatBRL, formatDate, monthKey, toBRL, toISODate } from "@/lib/format";
+import { diferencaEntreDatas } from "@/lib/calculadora-datas";
 import { diasRestantes, statusGarantia } from "@/lib/nfe";
 import { lancamentosPorCompetencias } from "@/lib/recorrencia";
-
 
 export const Route = createFileRoute("/_authenticated/inicio")({
   head: () => ({
     meta: [
-      { title: "Início — Finanças do Casal" },
+      { title: "Início — Control ALL" },
       {
         name: "description",
         content: "Escolha entre acompanhar as finanças do casal ou organizar a lista de compras.",
       },
-      { property: "og:title", content: "Início — Finanças do Casal" },
+      { property: "og:title", content: "Início — Control ALL" },
       {
         property: "og:description",
         content: "Central do casal: finanças completas e lista de compras compartilhada.",
@@ -71,6 +83,17 @@ function InicioPage() {
   const { data: pendentes = [] } = useListaResumo();
   const { data: garantias = [] } = useGarantias();
   const { ocultarValores, toggle: toggleOcultar } = usePrivacidadeValores();
+
+  const hoje = toISODate(new Date());
+  const [dataCalcInicio, setDataCalcInicio] = useState(hoje);
+  const [dataCalcFim, setDataCalcFim] = useState(hoje);
+  const diasEntreDatas = useMemo(
+    () =>
+      dataCalcInicio && dataCalcFim
+        ? diferencaEntreDatas(dataCalcInicio, dataCalcFim, "dias")
+        : null,
+    [dataCalcInicio, dataCalcFim],
+  );
 
   const valorFmt = (val: number) => (ocultarValores ? "R$ ••••••" : formatBRL(val));
 
@@ -136,6 +159,13 @@ function InicioPage() {
         },
       ],
     },
+    {
+      to: "/ferramentas" as const,
+      titulo: "Control ALL",
+      descricao: "Calculadora de datas e de horários — ferramentas de uso geral.",
+      icon: Calculator,
+      stats: [],
+    },
   ];
 
   return (
@@ -185,7 +215,7 @@ function InicioPage() {
           </Button>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {AREAS.map((a) => {
             const Icon = a.icon;
             return (
@@ -204,16 +234,20 @@ function InicioPage() {
                       <p className="text-base font-semibold">{a.titulo}</p>
                       <p className="mt-1 text-sm text-muted-foreground">{a.descricao}</p>
                     </div>
-                    <div className="grid grid-cols-3 gap-2">
-                      {a.stats.map((s) => (
-                        <div key={s.label} className="rounded-lg border bg-muted/30 px-2 py-1.5">
-                          <p className="truncate text-[10px] uppercase tracking-wide text-muted-foreground">
-                            {s.label}
-                          </p>
-                          <p className={`truncate text-sm font-bold tabular-nums ${s.cor}`}>{s.valor}</p>
-                        </div>
-                      ))}
-                    </div>
+                    {a.stats.length > 0 && (
+                      <div className="grid grid-cols-3 gap-2">
+                        {a.stats.map((s) => (
+                          <div key={s.label} className="rounded-lg border bg-muted/30 px-2 py-1.5">
+                            <p className="truncate text-[10px] uppercase tracking-wide text-muted-foreground">
+                              {s.label}
+                            </p>
+                            <p className={`truncate text-sm font-bold tabular-nums ${s.cor}`}>
+                              {s.valor}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               </Link>
@@ -221,6 +255,58 @@ function InicioPage() {
           })}
         </div>
       </div>
+
+      {/* 1.5. Calculadora rápida de datas (atalho do módulo Control ALL) */}
+      <Card className="mb-6">
+        <CardContent className="p-4">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <CalendarClock className="size-4.5 text-primary" />
+              <p className="text-sm font-semibold">Diferença entre datas</p>
+            </div>
+            <Link
+              to="/ferramentas"
+              className="flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+            >
+              Mais calculadoras <ArrowRight className="size-3.5" />
+            </Link>
+          </div>
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="home-data-inicio" className="text-xs">
+                Data inicial
+              </Label>
+              <Input
+                id="home-data-inicio"
+                type="date"
+                value={dataCalcInicio}
+                onChange={(e) => setDataCalcInicio(e.target.value)}
+                className="w-40"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="home-data-fim" className="text-xs">
+                Data final
+              </Label>
+              <Input
+                id="home-data-fim"
+                type="date"
+                value={dataCalcFim}
+                onChange={(e) => setDataCalcFim(e.target.value)}
+                className="w-40"
+              />
+            </div>
+            {diasEntreDatas != null && (
+              <div className="rounded-lg border bg-muted/30 px-4 py-2">
+                <p className="text-xl font-bold tabular-nums">
+                  {diasEntreDatas}{" "}
+                  <span className="text-sm font-medium text-muted-foreground">dias</span>
+                </p>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* 2. Alerta de garantias a vencer se houver */}
       {aVencer.length > 0 && (

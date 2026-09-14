@@ -47,13 +47,13 @@ import { addMonths, formatDate, toISODate } from "@/lib/format";
 export const Route = createFileRoute("/_authenticated/lista-compras")({
   head: () => ({
     meta: [
-      { title: "Lista de compras — Finanças do Casal" },
+      { title: "Lista de compras — Control ALL" },
       {
         name: "description",
         content:
           "Lista de compras compartilhada do casal com datas, alertas de recompra, itens únicos e exportação.",
       },
-      { property: "og:title", content: "Lista de compras — Finanças do Casal" },
+      { property: "og:title", content: "Lista de compras — Control ALL" },
       {
         property: "og:description",
         content: "Adicione, marque, repita e exporte os itens que o casal precisa comprar.",
