@@ -37,6 +37,7 @@ import {
   useBancos,
   useCartoes,
   useCategorias,
+  useDespesas,
   useProfilesList,
 } from "@/hooks/useFinance";
 import { formatBRL } from "@/lib/format";
@@ -51,6 +52,7 @@ import { interpretarBloco } from "@/lib/lancamento-texto";
 import { lancamentosDeOcr, ocrImagem, hashTexto as hashTextoOcr } from "@/lib/ocr";
 import {
   BANCO_LABEL,
+  conferirTotal,
   dedupKey,
   ErroLeituraPdf,
   processarFatura,
@@ -100,6 +102,27 @@ function chaveNome(v: string) {
     .replace(/[^a-z0-9]/g, "");
 }
 
+/**
+ * Encontra uma despesa fixa já cadastrada que provavelmente é o mesmo
+ * lançamento recorrente (mesma descrição normalizada, ou valor a até 2% de
+ * diferença). Sem janela de data — fixa recorrente aparece ~30 dias depois,
+ * não em poucos dias como duplicata de digitação — critério usado em
+ * `/despesas`, adaptado aqui pra recorrência mensal.
+ */
+function encontrarFixaDuplicada(
+  despesasFixas: any[],
+  l: Pick<LancamentoExtraido, "descricao_normalizada" | "valor">,
+): any | null {
+  if (!l.descricao_normalizada && !l.valor) return null;
+  return (
+    despesasFixas.find((d) => {
+      const mesmaDescricao = d.descricao_normalizada === l.descricao_normalizada;
+      const valorProximo = Math.abs(Number(d.valor_total) - l.valor) <= l.valor * 0.02;
+      return mesmaDescricao || valorProximo;
+    }) ?? null
+  );
+}
+
 async function hashTexto(texto: string) {
   const buf = new TextEncoder().encode(texto);
   const digest = await crypto.subtle.digest("SHA-256", buf);
@@ -115,6 +138,16 @@ function ImportarPage() {
   const { data: categorias = [] } = useCategorias("despesa");
   const { data: cartoes = [] } = useCartoes();
   const { data: bancos = [] } = useBancos();
+  const { data: despesasTodas = [] } = useDespesas();
+  // Despesas fixas já cadastradas (de importações/telas anteriores) — usadas
+  // pra avisar quando um lançamento desta importação parece ser a mesma
+  // despesa fixa aparecendo de novo (ex.: assinatura recorrente que chegou
+  // numa fatura de mês seguinte), já que essas agora são projetadas
+  // automaticamente pra frente e não precisam ser reimportadas.
+  const despesasFixas = useMemo(
+    () => (despesasTodas as any[]).filter((d) => d.tipo === "fixa"),
+    [despesasTodas],
+  );
   const inputRef = useRef<HTMLInputElement>(null);
   const imgInputRef = useRef<HTMLInputElement>(null);
 
@@ -543,6 +576,16 @@ function ImportarPage() {
               data_compra: l.data_compra,
               total_parcelas: l.parcela_total,
               data_primeira_parcela: primeira,
+              // Marcar "Fixa" na importação já registra a recorrência (sem
+              // prazo, mensal, sem reajuste) a partir deste mês — assim ela
+              // passa a aparecer sozinha em todos os meses futuros, do
+              // mesmo jeito que uma despesa fixa cadastrada em /despesas.
+              // Só faz sentido pra lançamento não parcelado (parcela 1/1):
+              // um item parcelado marcado como fixa por engano não deveria
+              // virar recorrência sem prazo pelo valor total das parcelas.
+              ...(l.tipo === "fixa" && l.parcela_total <= 1
+                ? { recorrencia_inicio: primeira, recorrencia_sem_prazo: true }
+                : {}),
               responsavel: l.responsavel,
               cartao_id: cartaoId,
               banco_id: bancoId,
@@ -880,7 +923,7 @@ function ImportarPage() {
                 />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Total declarado</Label>
+                <Label className="text-xs">Total da fatura</Label>
                 <Input
                   className="h-9"
                   type="text"
@@ -915,6 +958,10 @@ function ImportarPage() {
                     })
                   }
                 />
+                <p className="text-[11px] text-muted-foreground">
+                  Pré-preenchido com a soma dos lançamentos (exceto pagamento de fatura). Troque
+                  pelo valor real da sua fatura para conferir se falta algum lançamento.
+                </p>
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">Finais detectados</Label>
@@ -996,33 +1043,41 @@ function ImportarPage() {
               </div>
             </div>
 
-            {f.conferencia ? (
-              <div
-                className={`rounded-lg border px-3 py-2 text-sm ${
-                  f.conferencia.ok
-                    ? "border-emerald-500/40 bg-emerald-500/10"
-                    : "border-amber-500/40 bg-amber-500/10"
-                }`}
-              >
-                {f.conferencia.ok ? (
-                  <span>
-                    Leitura conferida: {f.lancamentos.length} lançamento(s), soma{" "}
-                    {formatBRL(f.conferencia.soma)}
-                    {f.leitura === "perfil" ? " (padrão deste banco já memorizado)" : ""}.
-                  </span>
-                ) : (
-                  <span>
-                    A soma dos lançamentos ({formatBRL(f.conferencia.soma)}){" "}
-                    {f.conferencia.diferenca != null
-                      ? `está ${formatBRL(Math.abs(f.conferencia.diferenca))} ${
-                          f.conferencia.diferenca > 0 ? "abaixo" : "acima"
-                        } do total da fatura`
-                      : "não pôde ser comparada com o total da fatura"}
-                    . Confira as linhas abaixo antes de salvar.
-                  </span>
-                )}
-              </div>
-            ) : null}
+            {(() => {
+              // Recalculada a cada render (não é mais o snapshot da extração):
+              // reflete lançamentos desmarcados/editados e qualquer valor que
+              // o usuário tenha digitado em "Total da fatura" — é assim que o
+              // usuário percebe, na hora, se ficou faltando algo.
+              const incluidos = f.lancamentos.filter((l) => l.incluir);
+              const conf = conferirTotal(incluidos, f.total_declarado);
+              return (
+                <div
+                  className={`rounded-lg border px-3 py-2 text-sm ${
+                    conf.ok
+                      ? "border-emerald-500/40 bg-emerald-500/10"
+                      : "border-amber-500/40 bg-amber-500/10"
+                  }`}
+                >
+                  {conf.ok ? (
+                    <span>
+                      Leitura conferida: {incluidos.length} lançamento(s), soma{" "}
+                      {formatBRL(conf.soma)}
+                      {f.leitura === "perfil" ? " (padrão deste banco já memorizado)" : ""}.
+                    </span>
+                  ) : (
+                    <span>
+                      A soma dos lançamentos ({formatBRL(conf.soma)}){" "}
+                      {conf.diferenca != null
+                        ? `está ${formatBRL(Math.abs(conf.diferenca))} ${
+                            conf.diferenca > 0 ? "abaixo" : "acima"
+                          } do total da fatura`
+                        : "não pôde ser comparada com o total da fatura"}
+                      . Confira as linhas abaixo antes de salvar.
+                    </span>
+                  )}
+                </div>
+              );
+            })()}
 
             <div className="grid grid-cols-3 gap-2">
               {[
@@ -1154,6 +1209,17 @@ function ImportarPage() {
                                 <SelectItem value="fixa">Fixa</SelectItem>
                               </SelectContent>
                             </Select>
+                            {(() => {
+                              const fixaExistente = encontrarFixaDuplicada(despesasFixas, l);
+                              return fixaExistente ? (
+                                <p className="mt-1 text-[10px] font-medium text-amber-600">
+                                  Já existe como fixa: "{fixaExistente.descricao}" (
+                                  {formatBRL(Number(fixaExistente.valor_total))}). Deve aparecer
+                                  sozinha nos lançamentos deste mês — considere desmarcar esta linha
+                                  pra não contar em dobro.
+                                </p>
+                              ) : null;
+                            })()}
                           </td>
                           <td className="p-1">
                             <Input

@@ -139,9 +139,14 @@ export function VisaoGeralHome({ ocultarValores = false }: { ocultarValores?: bo
         Despesas: Number(des.toFixed(2)),
         Receitas: Number(rec.toFixed(2)),
         Saldo: Number((rec - des).toFixed(2)),
+        // % da renda do mês já comprometida com despesas — null quando não há
+        // renda cadastrada naquele mês (não dá pra calcular percentual).
+        Comprometido: rec > 0 ? Number(((des / rec) * 100).toFixed(1)) : null,
       };
     });
   }, [meses, parcelas, receitas, cotacao]);
+
+  const mesSelecionado = serie.find((s) => s.key === mes) ?? null;
 
   const comGasto = serie.filter((s) => s.Despesas > 0);
   const menor = comGasto.length
@@ -195,6 +200,21 @@ export function VisaoGeralHome({ ocultarValores = false }: { ocultarValores?: bo
                 Mais pesado: {monthLabel(maior.key)} · {valorFmt(maior.Despesas)}
               </Badge>
             )}
+            {mesSelecionado?.Comprometido != null && (
+              <Badge
+                variant="outline"
+                className={
+                  mesSelecionado.Comprometido >= 100
+                    ? "border-destructive/40 text-destructive"
+                    : mesSelecionado.Comprometido >= 70
+                      ? "border-warning/40 text-warning"
+                      : "border-success/40 text-success"
+                }
+              >
+                Renda comprometida em {monthLabel(mesSelecionado.key)}:{" "}
+                {mesSelecionado.Comprometido.toFixed(0)}%
+              </Badge>
+            )}
           </div>
         </CardHeader>
         <CardContent className="pt-2">
@@ -209,8 +229,13 @@ export function VisaoGeralHome({ ocultarValores = false }: { ocultarValores?: bo
               >
                 <XAxis dataKey="mes" tickLine={false} axisLine={false} fontSize={11} />
                 <YAxis hide />
+                <YAxis yAxisId="pct" hide domain={[0, "dataMax + 20"]} />
                 <Tooltip
-                  formatter={(v: any, n: any) => [valorFmt(Number(v)), n]}
+                  formatter={(v: any, n: any) =>
+                    n === "Renda comprometida"
+                      ? [v == null ? "sem renda no mês" : `${Number(v).toFixed(0)}%`, n]
+                      : [valorFmt(Number(v)), n]
+                  }
                   labelFormatter={(l: any) => String(l)}
                 />
                 <Bar dataKey="Despesas" radius={[6, 6, 0, 0]} cursor="pointer">
@@ -237,11 +262,23 @@ export function VisaoGeralHome({ ocultarValores = false }: { ocultarValores?: bo
                   strokeWidth={2}
                   dot={false}
                 />
+                <Line
+                  yAxisId="pct"
+                  type="monotone"
+                  dataKey="Comprometido"
+                  name="Renda comprometida"
+                  stroke="var(--warning)"
+                  strokeWidth={2}
+                  strokeDasharray="4 3"
+                  dot={false}
+                  connectNulls
+                />
               </ComposedChart>
             </ResponsiveContainer>
           </div>
           <p className="mt-1 text-center text-[11px] text-muted-foreground">
-            Toque em um mês para ver os agrupamentos abaixo.
+            Toque em um mês para ver os agrupamentos abaixo. Linha tracejada: % da renda do mês
+            comprometida com despesas.
           </p>
         </CardContent>
       </Card>

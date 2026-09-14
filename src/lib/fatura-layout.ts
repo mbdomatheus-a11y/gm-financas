@@ -3,6 +3,7 @@
  * usa as coordenadas dos fragmentos do PDF para descobrir onde estão data,
  * descrição e valor.
  */
+import { detectarTipoLancamento } from "@/lib/categorizacao";
 import type { LancamentoExtraido } from "@/lib/faturas";
 import { ehLinhaResumoFatura } from "@/lib/fatura-metadados";
 import { ehValorCredito } from "@/lib/lancamento-direcao";
@@ -647,14 +648,28 @@ export function assinaturaDocumento(texto: string): string {
   return `${base.slice(0, 60)}#${(h >>> 0).toString(36)}`;
 }
 
-/** Confere a soma dos lançamentos contra o total declarado da fatura. */
+/**
+ * Soma dos lançamentos que compõem o "total real" da fatura: débitos somados,
+ * créditos subtraídos, EXCETO lançamentos de pagamento de fatura (ex.:
+ * "PAGAMENTO", "DEBITO AUTOMATICO") — esses não fazem parte do total do
+ * período atual e não devem ser usados nem para preencher nem para conferir
+ * o campo "Total da fatura".
+ */
+export function calcularTotalFatura(lancamentos: LancamentoExtraido[]): number {
+  return Number(
+    lancamentos
+      .filter((l) => detectarTipoLancamento(l.descricao, l.valor) !== "pagamento")
+      .reduce((s, l) => s + (l.direcao === "credito" ? -l.valor : l.valor), 0)
+      .toFixed(2),
+  );
+}
+
+/** Confere a soma dos lançamentos (ver `calcularTotalFatura`) contra o total declarado da fatura. */
 export function conferirTotal(
   lancamentos: LancamentoExtraido[],
   totalDeclarado: number | null,
 ): { ok: boolean; soma: number; diferenca: number | null } {
-  const soma = Number(
-    lancamentos.reduce((s, l) => s + (l.direcao === "credito" ? -l.valor : l.valor), 0).toFixed(2),
-  );
+  const soma = calcularTotalFatura(lancamentos);
   if (totalDeclarado == null) return { ok: lancamentos.length > 0, soma, diferenca: null };
   const diferenca = Number((totalDeclarado - soma).toFixed(2));
   return { ok: Math.abs(diferenca) <= Math.max(1, totalDeclarado * 0.01), soma, diferenca };

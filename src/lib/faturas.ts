@@ -5,6 +5,7 @@ import workerSrc from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { addMonths, parseDate, toISODate } from "@/lib/format";
 import {
   assinaturaDocumento,
+  calcularTotalFatura,
   conferirTotal,
   extrairPosicional,
   type ItemPdf,
@@ -22,6 +23,7 @@ import {
 } from "@/lib/texto-fatura";
 
 export { extrairLimites, type LimitesFatura };
+export { calcularTotalFatura, conferirTotal };
 export { corrigirTexto, limparDescricaoComercial, normalizarDescricao, parseValor };
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
@@ -311,7 +313,14 @@ export async function processarFatura(
   ]);
   const banco = detectarBanco(texto, file.name);
   const vencimento = extrairVencimento(texto);
-  const total_declarado = extrairTotal(texto);
+  // O texto do PDF às vezes traz o total colado a outro campo (ex.: "VALOR
+  // TOTAL FATURA PAGAMENTO MÍNIMO ... R$ 705,42") e a extração acaba pegando
+  // um valor que não é o total real. Por isso o campo "Total da fatura" não
+  // usa mais esse texto: ele é a soma dos lançamentos (ver `calcularTotalFatura`),
+  // assim o usuário consegue conferir contra a fatura de verdade e perceber se
+  // falta algum lançamento. O texto extraído só serve de fallback quando a
+  // leitura não encontrou nenhum lançamento (nada para somar).
+  const totalTexto = extrairTotal(texto);
 
   const comPerfil = perfil ? extrairPosicional(itens, vencimento, perfil) : null;
   const generico =
@@ -326,12 +335,17 @@ export async function processarFatura(
     colunas = {};
   }
 
-  if (!lancamentos.length && !vencimento && total_declarado == null) {
+  if (!lancamentos.length && !vencimento && totalTexto == null) {
     throw new ErroLeituraPdf(
       "sem_conteudo_util",
       "O documento foi aberto, mas não contém uma fatura reconhecível.",
     );
   }
+
+  // Sem lançamentos não há o que somar — cai para o valor lido do texto (se
+  // houver) só pra não deixar o campo vazio; com lançamentos, o calculado
+  // manda, mesmo que dê 0 (fatura só com pagamento, por exemplo).
+  const total_declarado = lancamentos.length ? calcularTotalFatura(lancamentos) : totalTexto;
 
   return {
     banco,
