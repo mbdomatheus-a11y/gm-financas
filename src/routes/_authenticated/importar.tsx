@@ -918,9 +918,47 @@ function ImportarPage() {
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">Finais detectados</Label>
-                <p className="flex h-9 items-center text-sm text-muted-foreground">
-                  {f.finais.length ? f.finais.join(", ") : "nenhum"}
-                </p>
+                <div className="flex items-center gap-1">
+                  <Input
+                    className="h-9 text-sm"
+                    placeholder="0000, 0000"
+                    value={f.finais.join(", ")}
+                    onChange={(e) =>
+                      atualizarFatura(idx, {
+                        finais: e.target.value
+                          .split(/[,\s]+/)
+                          .map((v) => v.replace(/\D/g, "").slice(0, 4))
+                          .filter(Boolean),
+                      })
+                    }
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-9 shrink-0 whitespace-nowrap px-2 text-xs"
+                    disabled={!f.finais.length}
+                    title="Usa o primeiro final da lista em todos os lançamentos abaixo"
+                    onClick={() => {
+                      const final = f.finais[0] ?? null;
+                      setFaturas((prev) =>
+                        prev.map((x, i) =>
+                          i === idx
+                            ? {
+                                ...x,
+                                lancamentos: x.lancamentos.map((l) => ({
+                                  ...l,
+                                  cartao_final: final,
+                                })),
+                              }
+                            : x,
+                        ),
+                      );
+                    }}
+                  >
+                    Aplicar a todos
+                  </Button>
+                </div>
               </div>
               <div className="space-y-1 sm:col-span-2">
                 <Label className="text-xs">Responsável de todas as linhas</Label>
@@ -1012,13 +1050,21 @@ function ImportarPage() {
               </p>
             ) : (
               <div>
+                <div className="flex items-center justify-between border-b bg-muted/30 px-3 py-1.5 text-xs text-muted-foreground">
+                  <span>
+                    <span className="font-medium text-foreground">
+                      {f.lancamentos.filter((l) => l.incluir).length}
+                    </span>{" "}
+                    de {f.lancamentos.length} lançamento(s) selecionado(s) nesta fatura
+                  </span>
+                </div>
                 <table className="w-full table-fixed text-xs">
                   <thead className="bg-muted/50 text-[10px] uppercase tracking-wide text-muted-foreground">
                     <tr>
                       <th className="w-7 p-1"></th>
-                      <th className="w-[11%] p-1 text-left">Data</th>
-                      <th className="w-[16%] p-1 text-left">Descrição</th>
-                      <th className="w-[9%] p-1 text-left">Parcela</th>
+                      <th className="w-[7%] p-1 text-left">Data</th>
+                      <th className="w-[22%] p-1 text-left">Descrição</th>
+                      <th className="w-[7%] p-1 text-left">Parcela</th>
                       <th className="w-[9%] p-1 text-left">Tipo</th>
                       <th className="w-[7%] p-1 text-left">Final</th>
                       <th className="w-[12%] p-1 text-left">Responsável</th>
@@ -1041,7 +1087,7 @@ function ImportarPage() {
                         <td className="p-1">
                           <Input
                             type="date"
-                            className="h-7 w-full min-w-0 px-1 text-[11px]"
+                            className="h-7 w-full min-w-0 px-0.5 text-[10px]"
                             value={l.data_compra}
                             onChange={(e) =>
                               atualizarLancamento(idx, l.id, { data_compra: e.target.value })
@@ -1049,12 +1095,20 @@ function ImportarPage() {
                           />
                         </td>
                         <td className="p-1">
-                          <Input
-                            className="h-7 w-full min-w-0 text-[11px]"
+                          <Textarea
+                            className="min-h-7 w-full min-w-0 resize-none overflow-hidden rounded-md px-1.5 py-1 text-[11px] leading-tight"
+                            rows={1}
                             value={l.descricao}
-                            onChange={(e) =>
-                              atualizarLancamento(idx, l.id, { descricao: e.target.value })
-                            }
+                            onChange={(e) => {
+                              atualizarLancamento(idx, l.id, { descricao: e.target.value });
+                              e.target.style.height = "auto";
+                              e.target.style.height = `${e.target.scrollHeight}px`;
+                            }}
+                            ref={(el) => {
+                              if (!el) return;
+                              el.style.height = "auto";
+                              el.style.height = `${el.scrollHeight}px`;
+                            }}
                           />
                         </td>
                         <td className="p-1">
@@ -1062,7 +1116,7 @@ function ImportarPage() {
                             <Input
                               type="number"
                               min={1}
-                              className="h-7 w-full min-w-0 px-1 text-[11px]"
+                              className="h-7 w-full min-w-0 px-0.5 text-[10px]"
                               value={l.parcela_numero}
                               onChange={(e) =>
                                 atualizarLancamento(idx, l.id, {
@@ -1070,11 +1124,11 @@ function ImportarPage() {
                                 })
                               }
                             />
-                            <span className="text-[11px] text-muted-foreground">/</span>
+                            <span className="text-[10px] text-muted-foreground">/</span>
                             <Input
                               type="number"
                               min={1}
-                              className="h-7 w-full min-w-0 px-1 text-[11px]"
+                              className="h-7 w-full min-w-0 px-0.5 text-[10px]"
                               value={l.parcela_total}
                               onChange={(e) =>
                                 atualizarLancamento(idx, l.id, {
