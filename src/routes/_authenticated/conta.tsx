@@ -61,7 +61,7 @@ function ContaPage() {
     await qc.cancelQueries();
     qc.clear();
     await supabase.auth.signOut();
-    navigate({ to: "/", replace: true });
+    navigate({ to: "/entrar", replace: true });
   }
 
   return (
@@ -103,9 +103,17 @@ function ContaPage() {
               <Input type="password" value={senha} onChange={(e) => setSenha(e.target.value)} />
             </Field>
             <Field label="Confirmar nova senha">
-              <Input type="password" value={confirma} onChange={(e) => setConfirma(e.target.value)} />
+              <Input
+                type="password"
+                value={confirma}
+                onChange={(e) => setConfirma(e.target.value)}
+              />
             </Field>
-            <Button className="w-full" onClick={() => alterar.mutate()} disabled={alterar.isPending}>
+            <Button
+              className="w-full"
+              onClick={() => alterar.mutate()}
+              disabled={alterar.isPending}
+            >
               Salvar nova senha
             </Button>
           </CardContent>

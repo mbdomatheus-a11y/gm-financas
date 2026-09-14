@@ -175,7 +175,7 @@ export function AppLayout({
     await qc.cancelQueries();
     qc.clear();
     await supabase.auth.signOut();
-    navigate({ to: "/", replace: true });
+    navigate({ to: "/entrar", replace: true });
   }
 
   const NavLinks = ({ onNavigate }: { onNavigate?: (() => void) | undefined }) => (

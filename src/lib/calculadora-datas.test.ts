@@ -26,6 +26,20 @@ describe("diferencaEntreDatas", () => {
     expect(diferencaEntreDatas("2026-05-05", "2026-05-05", "dias")).toBe(0);
     expect(diferencaEntreDatas("2026-05-05", "2026-05-05", "horas")).toBe(0);
   });
+
+  test("converte para segundos", () => {
+    expect(diferencaEntreDatas("2026-01-01", "2026-01-02", "segundos")).toBe(86_400);
+  });
+
+  test("converte para anos (aproximado, com casas decimais)", () => {
+    // ~1 ano exato (365.2425 dias) arredondado pra 2 casas
+    expect(diferencaEntreDatas("2026-01-01", "2027-01-01", "anos")).toBeCloseTo(1, 1);
+  });
+
+  test("converte para séculos", () => {
+    // 100 anos ~ 36524.25 dias
+    expect(diferencaEntreDatas("1926-01-01", "2026-01-01", "seculos")).toBeCloseTo(1, 1);
+  });
 });
 
 describe("somarIntervaloData", () => {
@@ -40,6 +54,10 @@ describe("somarIntervaloData", () => {
   test("soma meses e anos", () => {
     expect(somarIntervaloData("2026-01-15", 2, "meses")).toBe("2026-03-15");
     expect(somarIntervaloData("2026-01-15", 1, "anos")).toBe("2027-01-15");
+  });
+
+  test("soma séculos", () => {
+    expect(somarIntervaloData("2026-01-15", 1, "seculos")).toBe("2126-01-15");
   });
 });
 
