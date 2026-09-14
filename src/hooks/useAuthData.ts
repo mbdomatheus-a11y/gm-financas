@@ -57,6 +57,7 @@ export type Modulo =
   | "despesas"
   | "cartoes"
   | "investimentos"
+  | "veiculos"
   | "compartilhar"
   | "personalizacao";
 

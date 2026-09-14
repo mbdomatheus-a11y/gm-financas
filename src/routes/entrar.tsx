@@ -150,7 +150,14 @@ function EntrarForm() {
           id="identificador"
           autoComplete="username"
           placeholder="voce@email.com ou 000.000.000-00"
-          value={ehEmail ? identificador : maskCpf(identificador)}
+          value={
+            // Só aplica a máscara de CPF quando o que já foi digitado é
+            // compatível com CPF (dígitos/pontuação) — caso contrário
+            // (qualquer letra, típico de e-mail) mostra o valor cru, senão
+            // a máscara apagaria cada letra digitada e pareceria que o
+            // campo "não aceita letra".
+            /^[\d.-]*$/.test(identificador) ? maskCpf(identificador) : identificador
+          }
           onChange={(e) => setIdentificador(e.target.value)}
           className="h-11"
         />

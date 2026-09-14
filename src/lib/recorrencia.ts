@@ -2,6 +2,9 @@ import { monthKey } from "@/lib/format";
 
 export type Periodicidade = "mensal" | "semestral" | "anual";
 
+/** Horizonte padrão (em meses) para materializar ocorrências de uma recorrência sem prazo. */
+export const HORIZONTE_SEM_PRAZO = 36;
+
 export const PERIODICIDADES: { value: Periodicidade; label: string; meses: number }[] = [
   { value: "mensal", label: "Mensal", meses: 1 },
   { value: "semestral", label: "Semestral", meses: 6 },
@@ -12,12 +15,26 @@ export function mesesDaPeriodicidade(p: Periodicidade): number {
   return p === "mensal" ? 1 : p === "semestral" ? 6 : 12;
 }
 
+/** "percentual": reajuste composto (%); "fixo": incremento fixo em R$ a cada aplicação. */
+export type ModoReajuste = "percentual" | "fixo";
+
 export interface ReajusteConfig {
+  /** Padrão "percentual" quando ausente, para compatibilidade com dados existentes. */
+  modo?: ModoReajuste;
   percentual: number;
+  /** Usado somente quando modo === "fixo": incremento em R$ aplicado a cada período. */
+  valorFixo?: number;
   periodicidade: Periodicidade;
   /** Competência (ou data) do primeiro reajuste. Sem valor, usa o mês seguinte ao início. */
   inicio?: string | null;
   indice?: string | null;
+}
+
+/** Verifica se a configuração de reajuste realmente produz algum efeito. */
+function reajusteAtivo(cfg: ReajusteConfig | null | undefined): boolean {
+  if (!cfg) return false;
+  if (cfg.modo === "fixo") return Number.isFinite(cfg.valorFixo) && cfg.valorFixo !== 0;
+  return Number.isFinite(cfg.percentual) && cfg.percentual !== 0;
 }
 
 export interface RecorrenciaFixa {
@@ -60,7 +77,7 @@ function paraCentavos(valor: number): number {
 /** Quantas vezes o reajuste já foi aplicado até a competência informada. */
 export function aplicacoesDeReajuste(r: RecorrenciaFixa, competencia: string): number {
   const cfg = r.reajuste;
-  if (!cfg || !Number.isFinite(cfg.percentual) || cfg.percentual === 0) return 0;
+  if (!cfg || !reajusteAtivo(cfg)) return 0;
   const inicioReajuste = cfg.inicio
     ? competenciaDe(cfg.inicio)
     : somarMeses(competenciaDe(r.inicio), mesesDaPeriodicidade(cfg.periodicidade));
@@ -89,8 +106,12 @@ export function valorNaCompetencia(r: RecorrenciaFixa, competencia: string): num
   if (!ativaNaCompetencia(r, competencia)) return null;
   let cents = paraCentavos(r.valor);
   const n = aplicacoesDeReajuste(r, competencia);
-  const fator = 1 + (r.reajuste?.percentual ?? 0) / 100;
-  for (let i = 0; i < n; i++) cents = Math.round(cents * fator);
+  if (r.reajuste?.modo === "fixo") {
+    cents += paraCentavos(r.reajuste.valorFixo ?? 0) * n;
+  } else {
+    const fator = 1 + (r.reajuste?.percentual ?? 0) / 100;
+    for (let i = 0; i < n; i++) cents = Math.round(cents * fator);
+  }
   return cents / 100;
 }
 
@@ -153,6 +174,38 @@ export function recorrenciaDaDespesa(d: any): RecorrenciaFixa | null {
             indice: d.reajuste_indice ?? null,
           }
         : null,
+  };
+}
+
+/** Lê a recorrência a partir de uma linha de `receitas` (mensal recorrente, sem prazo). */
+export function recorrenciaDaReceita(r: any): RecorrenciaFixa | null {
+  const valor = Number(r.valor) || 0;
+  const inicio = r.recorrencia_inicio ?? r.data_recebimento;
+  if (!inicio) return null;
+  const semPrazo = r.recorrencia_sem_prazo !== false && !r.recorrencia_meses;
+  const modo: ModoReajuste = r.reajuste_modo === "fixo" ? "fixo" : "percentual";
+  const percentual = Number(r.reajuste_percentual);
+  const valorFixo = Number(r.reajuste_valor_fixo);
+  const ativo =
+    !!r.reajuste_periodicidade &&
+    (modo === "fixo"
+      ? Number.isFinite(valorFixo) && valorFixo !== 0
+      : Number.isFinite(percentual) && percentual !== 0);
+  return {
+    valor,
+    inicio,
+    semPrazo,
+    meses: r.recorrencia_meses ?? null,
+    reajuste: ativo
+      ? {
+          modo,
+          percentual: modo === "percentual" ? percentual : 0,
+          valorFixo: modo === "fixo" ? valorFixo : 0,
+          periodicidade: r.reajuste_periodicidade as Periodicidade,
+          inicio: r.reajuste_inicio ?? null,
+          indice: r.reajuste_indice ?? null,
+        }
+      : null,
   };
 }
 

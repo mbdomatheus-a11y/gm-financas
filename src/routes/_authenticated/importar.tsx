@@ -155,6 +155,9 @@ function ImportarPage() {
   const [lendoImagens, setLendoImagens] = useState(false);
   const [faturas, setFaturas] = useState<FaturaItem[]>([]);
   const [colado, setColado] = useState("");
+  const [pdfsComSenha, setPdfsComSenha] = useState<
+    { file: File; senha: string; erro: string | null; tentando: boolean }[]
+  >([]);
 
   const { data: regras = [] } = useQuery({
     queryKey: ["categoria-regras"],
@@ -227,6 +230,50 @@ function ImportarPage() {
     };
   }, [faturas]);
 
+  /** Processa um único PDF (com senha opcional) até virar um FaturaItem pronto pra revisão. */
+  async function processarArquivoUnico(file: File, senha?: string): Promise<FaturaItem> {
+    let extraida = await processarFatura(file, undefined, senha);
+    // Se já aprendemos o padrão deste emissor, tenta a leitura guiada.
+    if (extraida.assinatura && (!extraida.conferencia?.ok || !extraida.lancamentos.length)) {
+      const { data: perfil } = await supabase
+        .from("fatura_layouts")
+        .select("assinatura, banco, colunas, ancora_inicio, ancora_fim")
+        .eq("assinatura", extraida.assinatura)
+        .maybeSingle();
+      if (perfil) {
+        const alt = await processarFatura(
+          file,
+          {
+            assinatura: perfil.assinatura,
+            banco: perfil.banco,
+            colunas: (perfil.colunas as any) ?? {},
+            ancora_inicio: perfil.ancora_inicio,
+            ancora_fim: perfil.ancora_fim,
+          },
+          senha,
+        );
+        if (
+          alt.lancamentos.length &&
+          (alt.conferencia?.ok || alt.lancamentos.length > extraida.lancamentos.length)
+        ) {
+          extraida = alt;
+        }
+      }
+    }
+    const { data: jaExiste } = await supabase
+      .from("import_faturas")
+      .select("id")
+      .eq("arquivo_hash", extraida.arquivo_hash)
+      .maybeSingle();
+    return {
+      ...extraida,
+      lancamentos: categorizar(extraida.lancamentos),
+      arquivo: file,
+      duplicada: !!jaExiste,
+      destino: destinoPadrao(extraida),
+    };
+  }
+
   async function onFiles(files: FileList | null) {
     if (!files?.length) return;
     setLendo(true);
@@ -238,44 +285,11 @@ function ImportarPage() {
           continue;
         }
         try {
-          let extraida = await processarFatura(file);
-          // Se já aprendemos o padrão deste emissor, tenta a leitura guiada.
-          if (extraida.assinatura && (!extraida.conferencia?.ok || !extraida.lancamentos.length)) {
-            const { data: perfil } = await supabase
-              .from("fatura_layouts")
-              .select("assinatura, banco, colunas, ancora_inicio, ancora_fim")
-              .eq("assinatura", extraida.assinatura)
-              .maybeSingle();
-            if (perfil) {
-              const alt = await processarFatura(file, {
-                assinatura: perfil.assinatura,
-                banco: perfil.banco,
-                colunas: (perfil.colunas as any) ?? {},
-                ancora_inicio: perfil.ancora_inicio,
-                ancora_fim: perfil.ancora_fim,
-              });
-              if (
-                alt.lancamentos.length &&
-                (alt.conferencia?.ok || alt.lancamentos.length > extraida.lancamentos.length)
-              ) {
-                extraida = alt;
-              }
-            }
-          }
-          const { data: jaExiste } = await supabase
-            .from("import_faturas")
-            .select("id")
-            .eq("arquivo_hash", extraida.arquivo_hash)
-            .maybeSingle();
-          novos.push({
-            ...extraida,
-            lancamentos: categorizar(extraida.lancamentos),
-            arquivo: file,
-            duplicada: !!jaExiste,
-            destino: destinoPadrao(extraida),
-          });
+          novos.push(await processarArquivoUnico(file));
         } catch (erro) {
-          if (erro instanceof ErroLeituraPdf) {
+          if (erro instanceof ErroLeituraPdf && erro.codigo === "senha_necessaria") {
+            setPdfsComSenha((prev) => [...prev, { file, senha: "", erro: null, tentando: false }]);
+          } else if (erro instanceof ErroLeituraPdf) {
             toast.error(`${file.name}: ${erro.message}`);
           } else {
             toast.error(`${file.name}: ocorreu um erro ao ler o PDF.`);
@@ -287,6 +301,29 @@ function ImportarPage() {
     } finally {
       setLendo(false);
       if (inputRef.current) inputRef.current.value = "";
+    }
+  }
+
+  /** Tenta de novo um PDF protegido, agora com a senha informada pelo usuário. */
+  async function tentarComSenha(file: File) {
+    const alvo = pdfsComSenha.find((p) => p.file === file);
+    if (!alvo || !alvo.senha) return;
+    setPdfsComSenha((prev) =>
+      prev.map((p) => (p.file === file ? { ...p, tentando: true, erro: null } : p)),
+    );
+    try {
+      const item = await processarArquivoUnico(file, alvo.senha);
+      setFaturas((prev) => [...prev, item]);
+      setPdfsComSenha((prev) => prev.filter((p) => p.file !== file));
+      toast.success(`${file.name}: fatura lida.`);
+    } catch (erro) {
+      const mensagem =
+        erro instanceof ErroLeituraPdf
+          ? erro.message
+          : "Não foi possível ler o PDF com essa senha.";
+      setPdfsComSenha((prev) =>
+        prev.map((p) => (p.file === file ? { ...p, tentando: false, erro: mensagem } : p)),
+      );
     }
   }
 
@@ -768,6 +805,59 @@ function ImportarPage() {
                   onChange={(e) => void onFiles(e.target.files)}
                 />
               </div>
+
+              {pdfsComSenha.length > 0 && (
+                <div className="mt-3 space-y-2">
+                  {pdfsComSenha.map((p) => (
+                    <div
+                      key={p.file.name + p.file.size}
+                      className="flex flex-col gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 dark:border-amber-900 dark:bg-amber-950/40 sm:flex-row sm:items-center"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium">{p.file.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          PDF protegido por senha — informe a senha para ler.
+                        </p>
+                        {p.erro && <p className="text-xs text-destructive">{p.erro}</p>}
+                      </div>
+                      <div className="flex gap-2">
+                        <Input
+                          type="password"
+                          placeholder="Senha do PDF"
+                          value={p.senha}
+                          className="h-9 w-40"
+                          onChange={(e) =>
+                            setPdfsComSenha((prev) =>
+                              prev.map((x) =>
+                                x.file === p.file ? { ...x, senha: e.target.value } : x,
+                              ),
+                            )
+                          }
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") void tentarComSenha(p.file);
+                          }}
+                        />
+                        <Button
+                          size="sm"
+                          disabled={!p.senha || p.tentando}
+                          onClick={() => void tentarComSenha(p.file)}
+                        >
+                          {p.tentando ? <Loader2 className="size-4 animate-spin" /> : "Desbloquear"}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() =>
+                            setPdfsComSenha((prev) => prev.filter((x) => x.file !== p.file))
+                          }
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </TabsContent>
 
             <TabsContent value="texto" className="space-y-3">

@@ -1,0 +1,499 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { useRef, useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  AlertTriangle,
+  Car,
+  FileText,
+  Loader2,
+  Paperclip,
+  Pencil,
+  Plus,
+  Trash2,
+} from "lucide-react";
+import { toast } from "sonner";
+import { z } from "zod";
+
+import { AppLayout } from "@/components/AppLayout";
+import { Field } from "@/routes/_authenticated/receitas";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { supabase } from "@/integrations/supabase/client";
+import { useSession, usePermissoes } from "@/hooks/useAuthData";
+import { useVeiculos } from "@/hooks/useFinance";
+import { formatDate } from "@/lib/format";
+import { alertasDoVeiculo, type AlertaVeiculo } from "@/lib/veiculo-alertas";
+
+export const Route = createFileRoute("/_authenticated/veiculos")({
+  head: () => ({
+    meta: [
+      { title: "Meu Veículo — Control ALL" },
+      {
+        name: "description",
+        content:
+          "Cadastro de veículos com alertas de troca de óleo, IPVA e seguro, e anexo de orçamentos.",
+      },
+      { property: "og:title", content: "Meu Veículo — Control ALL" },
+      {
+        property: "og:description",
+        content: "Controle de veículos: documentos, KM, IPVA, seguro e revisões.",
+      },
+    ],
+  }),
+  component: VeiculosPage,
+});
+
+const schema = z.object({
+  nome: z.string().trim().min(2, "Informe um apelido para o veículo").max(80),
+  placa: z.string().max(10).nullable(),
+  chassi: z.string().max(40).nullable(),
+  renavam: z.string().max(20).nullable(),
+  marca: z.string().max(40).nullable(),
+  modelo: z.string().max(60).nullable(),
+  ano: z.number().int().nullable(),
+  data_compra: z.string().nullable(),
+  km_atual: z.number().int().nonnegative().nullable(),
+  km_proxima_troca_oleo: z.number().int().nonnegative().nullable(),
+  data_proxima_troca_oleo: z.string().nullable(),
+  data_vencimento_ipva: z.string().nullable(),
+  data_vencimento_seguro: z.string().nullable(),
+  motorista_principal: z.string().max(80).nullable(),
+  observacoes: z.string().max(500).nullable(),
+});
+
+const emptyForm = {
+  nome: "",
+  placa: "",
+  chassi: "",
+  renavam: "",
+  marca: "",
+  modelo: "",
+  ano: "",
+  data_compra: "",
+  km_atual: "",
+  km_proxima_troca_oleo: "",
+  data_proxima_troca_oleo: "",
+  data_vencimento_ipva: "",
+  data_vencimento_seguro: "",
+  motorista_principal: "",
+  observacoes: "",
+};
+
+function urgenciaCor(a: AlertaVeiculo) {
+  return a.urgencia === "critica" ? "text-destructive" : "text-warning";
+}
+
+function VeiculosPage() {
+  const qc = useQueryClient();
+  const { can } = usePermissoes();
+  const { user } = useSession();
+  const { data: veiculos = [] } = useVeiculos();
+
+  const [open, setOpen] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [form, setForm] = useState<any>(emptyForm);
+  const [enviandoDoc, setEnviandoDoc] = useState<string | null>(null);
+  const fileInputs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  function abrirNovo() {
+    setEditId(null);
+    setForm(emptyForm);
+    setOpen(true);
+  }
+
+  function abrirEdicao(v: any) {
+    if (!can("veiculos", "editar")) return;
+    setEditId(v.id);
+    setForm({
+      nome: v.nome ?? "",
+      placa: v.placa ?? "",
+      chassi: v.chassi ?? "",
+      renavam: v.renavam ?? "",
+      marca: v.marca ?? "",
+      modelo: v.modelo ?? "",
+      ano: v.ano != null ? String(v.ano) : "",
+      data_compra: v.data_compra ?? "",
+      km_atual: v.km_atual != null ? String(v.km_atual) : "",
+      km_proxima_troca_oleo: v.km_proxima_troca_oleo != null ? String(v.km_proxima_troca_oleo) : "",
+      data_proxima_troca_oleo: v.data_proxima_troca_oleo ?? "",
+      data_vencimento_ipva: v.data_vencimento_ipva ?? "",
+      data_vencimento_seguro: v.data_vencimento_seguro ?? "",
+      motorista_principal: v.motorista_principal ?? "",
+      observacoes: v.observacoes ?? "",
+    });
+    setOpen(true);
+  }
+
+  const salvar = useMutation({
+    mutationFn: async () => {
+      const parsed = schema.parse({
+        nome: form.nome,
+        placa: form.placa || null,
+        chassi: form.chassi || null,
+        renavam: form.renavam || null,
+        marca: form.marca || null,
+        modelo: form.modelo || null,
+        ano: form.ano ? Number(form.ano) : null,
+        data_compra: form.data_compra || null,
+        km_atual: form.km_atual !== "" ? Number(form.km_atual) : null,
+        km_proxima_troca_oleo:
+          form.km_proxima_troca_oleo !== "" ? Number(form.km_proxima_troca_oleo) : null,
+        data_proxima_troca_oleo: form.data_proxima_troca_oleo || null,
+        data_vencimento_ipva: form.data_vencimento_ipva || null,
+        data_vencimento_seguro: form.data_vencimento_seguro || null,
+        motorista_principal: form.motorista_principal || null,
+        observacoes: form.observacoes || null,
+      });
+      if (editId) {
+        const { error } = await supabase.from("veiculos").update(parsed).eq("id", editId);
+        if (error) throw error;
+        return;
+      }
+      const { error } = await supabase
+        .from("veiculos")
+        .insert({ ...parsed, created_by: user?.id ?? null });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success(editId ? "Veículo atualizado" : "Veículo cadastrado");
+      setOpen(false);
+      setEditId(null);
+      setForm(emptyForm);
+      qc.invalidateQueries({ queryKey: ["veiculos"] });
+    },
+    onError: (e: any) => toast.error(e?.errors?.[0]?.message ?? e.message),
+  });
+
+  const excluir = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("veiculos").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Veículo excluído");
+      qc.invalidateQueries({ queryKey: ["veiculos"] });
+    },
+  });
+
+  const excluirDocumento = useMutation({
+    mutationFn: async (doc: { id: string; storage_path: string }) => {
+      await supabase.storage.from("anexos").remove([doc.storage_path]);
+      const { error } = await supabase.from("veiculo_documentos").delete().eq("id", doc.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Documento removido");
+      qc.invalidateQueries({ queryKey: ["veiculos"] });
+    },
+  });
+
+  async function enviarDocumento(veiculoId: string, file: File) {
+    setEnviandoDoc(veiculoId);
+    try {
+      const path = `veiculos/${veiculoId}/${Date.now()}-${file.name}`;
+      const up = await supabase.storage.from("anexos").upload(path, file, { upsert: true });
+      if (up.error) throw up.error;
+      const { error } = await supabase.from("veiculo_documentos").insert({
+        veiculo_id: veiculoId,
+        nome: file.name,
+        storage_path: path,
+        tipo: "orcamento",
+        criado_por: user?.id ?? null,
+      });
+      if (error) throw error;
+      toast.success("Orçamento anexado");
+      qc.invalidateQueries({ queryKey: ["veiculos"] });
+    } catch (e: any) {
+      toast.error(e?.message ?? "Não foi possível anexar o arquivo");
+    } finally {
+      setEnviandoDoc(null);
+    }
+  }
+
+  async function abrirDocumento(storagePath: string) {
+    const { data, error } = await supabase.storage
+      .from("anexos")
+      .createSignedUrl(storagePath, 60 * 5);
+    if (error || !data?.signedUrl) {
+      toast.error("Não foi possível abrir o documento");
+      return;
+    }
+    window.open(data.signedUrl, "_blank");
+  }
+
+  return (
+    <AppLayout
+      title="Meu Veículo"
+      description="Documentos, quilometragem e alertas de IPVA, seguro e revisão"
+      actions={
+        can("veiculos", "editar") && (
+          <Button size="sm" onClick={abrirNovo}>
+            <Plus className="size-4" /> Novo veículo
+          </Button>
+        )
+      }
+    >
+      <div className="space-y-3">
+        {veiculos.length === 0 && (
+          <Card>
+            <CardContent className="flex flex-col items-center gap-2 py-12 text-center">
+              <Car className="size-8 text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">Nenhum veículo cadastrado.</p>
+            </CardContent>
+          </Card>
+        )}
+        {veiculos.map((v: any) => {
+          const alertas = alertasDoVeiculo(v);
+          const documentos = (v.veiculo_documentos ?? []) as any[];
+          return (
+            <Card key={v.id}>
+              <CardContent className="space-y-3 p-4">
+                <div className="flex items-start gap-3">
+                  <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                    <Car className="size-5 text-primary" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold">{v.nome}</p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {[v.marca, v.modelo, v.ano].filter(Boolean).join(" ")}
+                      {v.placa ? ` · placa ${v.placa}` : ""}
+                      {v.motorista_principal ? ` · ${v.motorista_principal}` : ""}
+                    </p>
+                    {v.km_atual != null && (
+                      <p className="text-xs text-muted-foreground">
+                        {Number(v.km_atual).toLocaleString("pt-BR")} km
+                      </p>
+                    )}
+                  </div>
+                  {can("veiculos", "editar") && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-muted-foreground hover:text-primary"
+                      onClick={() => abrirEdicao(v)}
+                      aria-label="Editar veículo"
+                    >
+                      <Pencil className="size-4" />
+                    </Button>
+                  )}
+                  {can("veiculos", "excluir") && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-muted-foreground hover:text-destructive"
+                      onClick={() => excluir.mutate(v.id)}
+                      aria-label="Excluir veículo"
+                    >
+                      <Trash2 className="size-4" />
+                    </Button>
+                  )}
+                </div>
+
+                {alertas.length > 0 && (
+                  <div className="space-y-1 rounded-lg border border-warning/40 bg-warning/5 p-2">
+                    {alertas.map((a, i) => (
+                      <p key={i} className={`flex items-center gap-1.5 text-xs ${urgenciaCor(a)}`}>
+                        <AlertTriangle className="size-3.5 shrink-0" /> {a.mensagem}
+                      </p>
+                    ))}
+                  </div>
+                )}
+
+                <div className="flex flex-wrap items-center gap-2">
+                  {v.data_vencimento_ipva && (
+                    <Badge variant="secondary">IPVA {formatDate(v.data_vencimento_ipva)}</Badge>
+                  )}
+                  {v.data_vencimento_seguro && (
+                    <Badge variant="secondary">Seguro {formatDate(v.data_vencimento_seguro)}</Badge>
+                  )}
+                  {documentos.map((d) => (
+                    <Badge
+                      key={d.id}
+                      variant="outline"
+                      className="cursor-pointer gap-1"
+                      onClick={() => abrirDocumento(d.storage_path)}
+                    >
+                      <FileText className="size-3" /> {d.nome}
+                      {can("veiculos", "excluir") && (
+                        <Trash2
+                          className="size-3 text-muted-foreground hover:text-destructive"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            excluirDocumento.mutate(d);
+                          }}
+                        />
+                      )}
+                    </Badge>
+                  ))}
+                </div>
+
+                {can("veiculos", "editar") && (
+                  <div>
+                    <input
+                      ref={(el) => {
+                        fileInputs.current[v.id] = el;
+                      }}
+                      type="file"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) void enviarDocumento(v.id, file);
+                        e.target.value = "";
+                      }}
+                    />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={enviandoDoc === v.id}
+                      onClick={() => fileInputs.current[v.id]?.click()}
+                    >
+                      {enviandoDoc === v.id ? (
+                        <Loader2 className="size-4 animate-spin" />
+                      ) : (
+                        <Paperclip className="size-4" />
+                      )}
+                      Anexar orçamento
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
+      <Dialog
+        open={open}
+        onOpenChange={(o) => {
+          setOpen(o);
+          if (!o) {
+            setEditId(null);
+            setForm(emptyForm);
+          }
+        }}
+      >
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{editId ? "Editar veículo" : "Novo veículo"}</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Apelido do veículo" className="sm:col-span-2">
+              <Input
+                value={form.nome}
+                onChange={(e) => setForm({ ...form, nome: e.target.value })}
+                placeholder="Ex.: Carro do Guilherme"
+              />
+            </Field>
+            <Field label="Marca">
+              <Input
+                value={form.marca}
+                onChange={(e) => setForm({ ...form, marca: e.target.value })}
+              />
+            </Field>
+            <Field label="Modelo">
+              <Input
+                value={form.modelo}
+                onChange={(e) => setForm({ ...form, modelo: e.target.value })}
+              />
+            </Field>
+            <Field label="Ano">
+              <Input
+                inputMode="numeric"
+                value={form.ano}
+                onChange={(e) => setForm({ ...form, ano: e.target.value })}
+              />
+            </Field>
+            <Field label="Placa">
+              <Input
+                value={form.placa}
+                onChange={(e) => setForm({ ...form, placa: e.target.value })}
+              />
+            </Field>
+            <Field label="Chassi (opcional)">
+              <Input
+                value={form.chassi}
+                onChange={(e) => setForm({ ...form, chassi: e.target.value })}
+              />
+            </Field>
+            <Field label="Renavam">
+              <Input
+                value={form.renavam}
+                onChange={(e) => setForm({ ...form, renavam: e.target.value })}
+              />
+            </Field>
+            <Field label="Data da compra">
+              <Input
+                type="date"
+                value={form.data_compra}
+                onChange={(e) => setForm({ ...form, data_compra: e.target.value })}
+              />
+            </Field>
+            <Field label="Motorista principal">
+              <Input
+                value={form.motorista_principal}
+                onChange={(e) => setForm({ ...form, motorista_principal: e.target.value })}
+              />
+            </Field>
+            <Field label="KM atual">
+              <Input
+                inputMode="numeric"
+                value={form.km_atual}
+                onChange={(e) => setForm({ ...form, km_atual: e.target.value })}
+              />
+            </Field>
+            <Field label="KM da próxima troca de óleo">
+              <Input
+                inputMode="numeric"
+                value={form.km_proxima_troca_oleo}
+                onChange={(e) => setForm({ ...form, km_proxima_troca_oleo: e.target.value })}
+              />
+            </Field>
+            <Field label="Data da próxima troca de óleo">
+              <Input
+                type="date"
+                value={form.data_proxima_troca_oleo}
+                onChange={(e) => setForm({ ...form, data_proxima_troca_oleo: e.target.value })}
+              />
+            </Field>
+            <Field label="Vencimento do IPVA">
+              <Input
+                type="date"
+                value={form.data_vencimento_ipva}
+                onChange={(e) => setForm({ ...form, data_vencimento_ipva: e.target.value })}
+              />
+            </Field>
+            <Field label="Vencimento do seguro">
+              <Input
+                type="date"
+                value={form.data_vencimento_seguro}
+                onChange={(e) => setForm({ ...form, data_vencimento_seguro: e.target.value })}
+              />
+            </Field>
+            <Field label="Observações" className="sm:col-span-2">
+              <Textarea
+                rows={2}
+                value={form.observacoes}
+                onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
+              />
+            </Field>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => salvar.mutate()} disabled={salvar.isPending}>
+              {editId ? "Salvar alterações" : "Salvar veículo"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </AppLayout>
+  );
+}

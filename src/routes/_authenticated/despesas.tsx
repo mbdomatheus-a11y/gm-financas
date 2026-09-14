@@ -17,6 +17,7 @@ import {
   Receipt,
 } from "lucide-react";
 import { FaturaMesDialog } from "@/components/FaturaMesDialog";
+import { IndiceReajusteField } from "@/components/IndiceReajusteField";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -421,6 +422,45 @@ function DespesasPage() {
     onError: (e: any) => toast.error(e.message ?? "Não foi possível mover"),
   });
 
+  /** Marca/desmarca em lote todas as parcelas de um conjunto de despesas na competência filtrada
+   * (usado tanto para "marcar fatura importada como paga" quanto para lançamentos fixos/variáveis). */
+  const marcarLote = useMutation({
+    mutationFn: async ({ ids, paga }: { ids: string[]; paga: boolean }) => {
+      if (ids.length === 0) return;
+      const { error } = await supabase
+        .from("parcelas")
+        .update({ paga, data_pagamento: paga ? toISODate(new Date()) : null })
+        .in("id", ids);
+      if (error) throw error;
+    },
+    onSuccess: (_data, vars) => {
+      toast.success(
+        vars.paga
+          ? `${vars.ids.length} lançamento(s) marcado(s) como pago(s)`
+          : `${vars.ids.length} lançamento(s) marcado(s) como em aberto`,
+      );
+      qc.invalidateQueries();
+    },
+    onError: (e: any) => toast.error(e.message ?? "Não foi possível atualizar os lançamentos"),
+  });
+
+  /** Ids reais de parcela (ignora ocorrências projetadas sem linha no banco ainda) das despesas
+   * informadas, na competência filtrada, filtrando por status atual de pagamento. */
+  function idsDoLote(despesasDoGrupo: any[], statusAlvo: "abertas" | "pagas"): string[] {
+    if (filtroMes === "todos") return [];
+    const ids: string[] = [];
+    for (const d of despesasDoGrupo) {
+      const parcelasDoMes = lancamentosDoFiltro.filter((p) => p.despesa_id === d.id);
+      for (const p of parcelasDoMes) {
+        if (p.projetada) continue;
+        if (statusAlvo === "abertas" && p.paga) continue;
+        if (statusAlvo === "pagas" && !p.paga) continue;
+        ids.push(String(p.id));
+      }
+    }
+    return ids;
+  }
+
   function tentarSalvar() {
     if (possivelDuplicata && !duplicata) {
       setDuplicata(possivelDuplicata);
@@ -437,10 +477,7 @@ function DespesasPage() {
   }, []);
 
   const lancamentosDoFiltro = useMemo(
-    () =>
-      filtroMes === "todos"
-        ? []
-        : lancamentosPorCompetencias(despesas as any[], [filtroMes]),
+    () => (filtroMes === "todos" ? [] : lancamentosPorCompetencias(despesas as any[], [filtroMes])),
     [despesas, filtroMes],
   );
   const lancamentoPorDespesa = useMemo(
@@ -516,7 +553,7 @@ function DespesasPage() {
       const cor = d.cartoes?.cor ?? "var(--muted-foreground)";
       const g = mapa.get(key) ?? { key, label, cor, itens: [] as any[], total: 0 };
       g.itens.push(d);
-       g.total += toBRL(valorVisivel(d), d.moeda, cotacao);
+      g.total += toBRL(valorVisivel(d), d.moeda, cotacao);
       mapa.set(key, g);
     }
     return Array.from(mapa.values()).sort((a, b) => b.total - a.total);
@@ -728,6 +765,35 @@ function DespesasPage() {
         )}
       </div>
 
+      {modoLista === "lista" &&
+        filtroMes !== "todos" &&
+        can("despesas", "editar") &&
+        lista.length > 0 && (
+          <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border bg-muted/20 px-3 py-2">
+            <span className="text-xs text-muted-foreground">
+              {tab === "fixa" ? "Fixas" : "Variáveis"} de {monthLabelLong(filtroMes)}:
+            </span>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 text-xs"
+              disabled={marcarLote.isPending || idsDoLote(lista, "abertas").length === 0}
+              onClick={() => marcarLote.mutate({ ids: idsDoLote(lista, "abertas"), paga: true })}
+            >
+              <CheckCircle2 className="size-3.5" /> Marcar todas pagas
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 text-xs"
+              disabled={marcarLote.isPending || idsDoLote(lista, "pagas").length === 0}
+              onClick={() => marcarLote.mutate({ ids: idsDoLote(lista, "pagas"), paga: false })}
+            >
+              Desfazer todas
+            </Button>
+          </div>
+        )}
+
       {lista.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center gap-2 py-12 text-center">
@@ -761,17 +827,31 @@ function DespesasPage() {
                       {resumo.total > 0 ? ((grupo.total / resumo.total) * 100).toFixed(0) : 0}%
                     </p>
                   </div>
+                  {can("despesas", "editar") && filtroMes !== "todos" && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 shrink-0 text-xs"
+                      disabled={
+                        marcarLote.isPending || idsDoLote(grupo.itens, "abertas").length === 0
+                      }
+                      onClick={() =>
+                        marcarLote.mutate({ ids: idsDoLote(grupo.itens, "abertas"), paga: true })
+                      }
+                      aria-label="Marcar fatura importada como paga"
+                    >
+                      <CheckCircle2 className="size-3.5" /> Marcar fatura paga
+                    </Button>
+                  )}
                 </div>
               )}
               <div className="divide-y">
                 {grupo.itens.map((d: any) => {
-                   const parcelas = [
-                     ...(filtroMes === "todos"
-                       ? (d.parcelas ?? [])
-                       : lancamentosDoFiltro.filter((p) => p.despesa_id === d.id)),
-                   ].sort(
-                    (a: any, b: any) => a.numero - b.numero,
-                  );
+                  const parcelas = [
+                    ...(filtroMes === "todos"
+                      ? (d.parcelas ?? [])
+                      : lancamentosDoFiltro.filter((p) => p.despesa_id === d.id)),
+                  ].sort((a: any, b: any) => a.numero - b.numero);
                   const pagas = parcelas.filter((p: any) => p.paga).length;
                   const aberta = expandida === d.id;
                   return (
@@ -799,10 +879,14 @@ function DespesasPage() {
                             {d.tipo === "fixa"
                               ? ` · ${filtroMes === "todos" ? "valor mensal" : monthLabelLong(filtroMes)}`
                               : d.total_parcelas > 1
-                              ? ` · ${d.total_parcelas}x de ${formatBRL(
-                                  toBRL(Number(d.valor_total) / d.total_parcelas, d.moeda, cotacao),
-                                )}`
-                              : " · à vista"}
+                                ? ` · ${d.total_parcelas}x de ${formatBRL(
+                                    toBRL(
+                                      Number(d.valor_total) / d.total_parcelas,
+                                      d.moeda,
+                                      cotacao,
+                                    ),
+                                  )}`
+                                : " · à vista"}
                           </p>
                         </div>
                         {d.tipo !== "fixa" && d.total_parcelas > 1 && (
@@ -823,7 +907,7 @@ function DespesasPage() {
 
                         <div className="shrink-0 text-right">
                           <p className="text-sm font-bold tabular-nums">
-                             {formatBRL(toBRL(valorVisivel(d), d.moeda, cotacao))}
+                            {formatBRL(toBRL(valorVisivel(d), d.moeda, cotacao))}
                           </p>
                           {d.moeda === "USD" && (
                             <p className="text-[10px] text-muted-foreground">
@@ -925,7 +1009,8 @@ function DespesasPage() {
                                 {p.paga && <CheckCircle2 className="size-3" />}
                                 {d.tipo === "fixa"
                                   ? monthLabelLong(monthKey(p.vencimento))
-                                  : `${p.numero}/${p.total}`} · {formatBRL(Number(p.valor))}
+                                  : `${p.numero}/${p.total}`}{" "}
+                                · {formatBRL(Number(p.valor))}
                               </button>
                             ))}
                           </div>
@@ -1144,10 +1229,16 @@ function DespesasPage() {
                   </Select>
                 </Field>
                 <Field label="Índice (opcional)">
-                  <Input
-                    placeholder="Ex.: IPCA, IGP-M"
-                    value={form.reajuste_indice}
-                    onChange={(e) => setForm({ ...form, reajuste_indice: e.target.value })}
+                  <IndiceReajusteField
+                    indice={form.reajuste_indice}
+                    onIndiceChange={(v) => setForm({ ...form, reajuste_indice: v })}
+                    periodicidade={form.reajuste_periodicidade as Periodicidade}
+                    onValorBuscado={(percentual) =>
+                      setForm({
+                        ...form,
+                        reajuste_percentual: String(percentual).replace(".", ","),
+                      })
+                    }
                   />
                 </Field>
                 <Field label="1º reajuste em">

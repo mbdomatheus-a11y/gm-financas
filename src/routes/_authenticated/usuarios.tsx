@@ -60,6 +60,7 @@ const MODULOS: { key: Modulo; label: string }[] = [
   { key: "despesas", label: "Despesas" },
   { key: "cartoes", label: "Cartões e Bancos" },
   { key: "investimentos", label: "Investimentos" },
+  { key: "veiculos", label: "Meu Veículo" },
   { key: "compartilhar", label: "Compartilhar" },
   { key: "personalizacao", label: "Personalização" },
 ];

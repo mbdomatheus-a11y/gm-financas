@@ -22,6 +22,7 @@ import {
   ReceiptText,
   ArrowLeftRight,
   Calculator,
+  Car,
 } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -43,6 +44,7 @@ type NavTo =
   | "/notas"
   | "/cartoes"
   | "/investimentos"
+  | "/veiculos"
   | "/compartilhar"
   | "/ferramentas"
   | "/usuarios"
@@ -111,6 +113,13 @@ const NAV: NavItem[] = [
     short: "Invest.",
     icon: PiggyBank,
     modulo: "investimentos",
+  },
+  {
+    to: "/veiculos",
+    label: "Meu Veículo",
+    short: "Veículo",
+    icon: Car,
+    modulo: "veiculos",
   },
   {
     to: "/compartilhar",

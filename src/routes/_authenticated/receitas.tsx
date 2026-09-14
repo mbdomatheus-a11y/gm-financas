@@ -6,6 +6,17 @@ import { toast } from "sonner";
 import { z } from "zod";
 
 import { AppLayout } from "@/components/AppLayout";
+import { IndiceReajusteField } from "@/components/IndiceReajusteField";
+import {
+  competenciaDe,
+  HORIZONTE_SEM_PRAZO,
+  PERIODICIDADES,
+  projetarCompetencias,
+  somarMeses,
+  type ModoReajuste,
+  type Periodicidade,
+  type RecorrenciaFixa,
+} from "@/lib/recorrencia";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -28,7 +39,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
-import { useCategorias, useProfilesList, useReceitas, RESPONSAVEIS_EXTRA } from "@/hooks/useFinance";
+import {
+  useCategorias,
+  useProfilesList,
+  useReceitas,
+  RESPONSAVEIS_EXTRA,
+} from "@/hooks/useFinance";
 import { usePermissoes, useSession } from "@/hooks/useAuthData";
 import { useCotacao } from "@/hooks/useCotacao";
 import {
@@ -52,7 +68,10 @@ export const Route = createFileRoute("/_authenticated/receitas")({
         content: "Cadastre e acompanhe salários, freelances e rendimentos do casal por mês.",
       },
       { property: "og:title", content: "Receitas — Control ALL" },
-      { property: "og:description", content: "Controle de receitas recorrentes e avulsas do casal." },
+      {
+        property: "og:description",
+        content: "Controle de receitas recorrentes e avulsas do casal.",
+      },
     ],
   }),
   component: ReceitasPage,
@@ -80,6 +99,12 @@ const emptyForm = {
   frequencia: "mensal",
   responsavel: "",
   observacoes: "",
+  reajuste_tipo: "nenhum" as "nenhum" | ModoReajuste,
+  reajuste_percentual: "",
+  reajuste_valor_fixo: "",
+  reajuste_periodicidade: "anual" as Periodicidade,
+  reajuste_indice: "",
+  reajuste_inicio: "",
 };
 
 function ReceitasPage() {
@@ -94,23 +119,36 @@ function ReceitasPage() {
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<any>(emptyForm);
-  const [filtroMes, setFiltroMes] = useState("todos");
+  const [filtroMes, setFiltroMes] = useState("atual_proximo");
   const [filtroCat, setFiltroCat] = useState("todas");
   const [filtroResp, setFiltroResp] = useState("todos");
 
   const meses = useMemo(
-    () => Array.from(new Set(receitas.map((r: any) => monthKey(r.data_recebimento)))).sort().reverse(),
+    () =>
+      Array.from(new Set(receitas.map((r: any) => monthKey(r.data_recebimento))))
+        .sort()
+        .reverse(),
     [receitas],
   );
 
+  const mesSeguinte = useMemo(() => monthKey(addMonths(new Date(), 1)), []);
+
   const lista = receitas.filter((r: any) => {
-    if (filtroMes !== "todos" && monthKey(r.data_recebimento) !== filtroMes) return false;
+    const mk = monthKey(r.data_recebimento);
+    if (filtroMes === "atual_proximo") {
+      if (mk !== currentMonthKey() && mk !== mesSeguinte) return false;
+    } else if (filtroMes !== "todos" && mk !== filtroMes) {
+      return false;
+    }
     if (filtroCat !== "todas" && r.categoria !== filtroCat) return false;
     if (filtroResp !== "todos" && r.responsavel !== filtroResp) return false;
     return true;
   });
 
-  const total = lista.reduce((s: number, r: any) => s + toBRL(Number(r.valor), r.moeda, cotacao), 0);
+  const total = lista.reduce(
+    (s: number, r: any) => s + toBRL(Number(r.valor), r.moeda, cotacao),
+    0,
+  );
 
   const grupos = useMemo(() => {
     const map = new Map<string, any[]>();
@@ -133,7 +171,6 @@ function ReceitasPage() {
   const estaAberto = (mes: string) =>
     fechados[mes] === undefined ? mes === mesAtual || grupos.length === 1 : !fechados[mes];
 
-
   function abrirNova() {
     setEditId(null);
     setForm(emptyForm);
@@ -153,9 +190,66 @@ function ReceitasPage() {
       frequencia: r.frequencia ?? "mensal",
       responsavel: r.responsavel ?? "",
       observacoes: r.observacoes ?? "",
+      reajuste_tipo:
+        r.reajuste_modo === "fixo" ? "fixo" : r.reajuste_percentual ? "percentual" : "nenhum",
+      reajuste_percentual: r.reajuste_percentual ? String(r.reajuste_percentual) : "",
+      reajuste_valor_fixo: r.reajuste_valor_fixo ? String(r.reajuste_valor_fixo) : "",
+      reajuste_periodicidade: r.reajuste_periodicidade ?? "anual",
+      reajuste_indice: r.reajuste_indice ?? "",
+      reajuste_inicio: r.reajuste_inicio ?? "",
     });
     setOpen(true);
   }
+
+  const ehMensalRecorrente = form.recorrente && form.frequencia === "mensal";
+  const valorDigitado = Number(String(form.valor).replace(",", ".")) || 0;
+  const percentualReajuste = Number(String(form.reajuste_percentual).replace(",", ".")) || 0;
+  const valorFixoReajuste = Number(String(form.reajuste_valor_fixo).replace(",", ".")) || 0;
+
+  /** Recorrência mensal sem prazo configurada no formulário (só quando frequência = mensal). */
+  const recorrencia: RecorrenciaFixa | null = ehMensalRecorrente
+    ? {
+        valor: valorDigitado,
+        inicio: form.data_recebimento,
+        semPrazo: true,
+        meses: null,
+        reajuste:
+          form.reajuste_tipo !== "nenhum" &&
+          ((form.reajuste_tipo === "percentual" && percentualReajuste !== 0) ||
+            (form.reajuste_tipo === "fixo" && valorFixoReajuste !== 0))
+            ? {
+                modo: form.reajuste_tipo,
+                percentual: percentualReajuste,
+                valorFixo: valorFixoReajuste,
+                periodicidade: form.reajuste_periodicidade,
+                inicio: form.reajuste_inicio || null,
+                indice: form.reajuste_indice || null,
+              }
+            : null,
+      }
+    : null;
+
+  /** Só usada como prévia (badge com o próximo valor reajustado) — a geração real acontece no salvar. */
+  const projecaoPreview = useMemo(() => {
+    if (!recorrencia || valorDigitado <= 0 || !recorrencia.inicio) return [];
+    const inicio = competenciaDe(recorrencia.inicio);
+    return projetarCompetencias(recorrencia, inicio, somarMeses(inicio, HORIZONTE_SEM_PRAZO - 1));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    ehMensalRecorrente,
+    valorDigitado,
+    form.data_recebimento,
+    form.reajuste_tipo,
+    percentualReajuste,
+    valorFixoReajuste,
+    form.reajuste_periodicidade,
+    form.reajuste_inicio,
+  ]);
+  const proximoReajuste = projecaoPreview.find((c, i) => {
+    if (i === 0) return false;
+    const anterior = projecaoPreview[i - 1];
+    return !!anterior && c.valor !== anterior.valor;
+  });
 
   const salvar = useMutation({
     mutationFn: async () => {
@@ -173,17 +267,51 @@ function ReceitasPage() {
       }
 
       const base = { ...parsed, created_by: user?.id ?? null };
-      const rows = [base];
-      if (parsed.recorrente) {
+      let rows: any[];
+
+      if (recorrencia && parsed.recorrente) {
+        // Mensal recorrente: mesmo motor de "sem prazo" + reajuste das despesas fixas —
+        // materializa um horizonte de meses à frente em vez de travar num total fixo.
+        const inicio = competenciaDe(recorrencia.inicio);
+        const projecao = projetarCompetencias(
+          recorrencia,
+          inicio,
+          somarMeses(inicio, HORIZONTE_SEM_PRAZO - 1),
+        );
+        const baseDate = new Date(`${parsed.data_recebimento}T12:00:00`);
+        rows = projecao.map((c) => ({
+          ...base,
+          valor: c.valor,
+          data_recebimento: toISODate(addMonths(baseDate, c.ordem)),
+          recorrencia_inicio: recorrencia.inicio,
+          recorrencia_sem_prazo: true,
+          recorrencia_meses: null,
+          reajuste_modo: recorrencia.reajuste?.modo ?? null,
+          reajuste_percentual:
+            recorrencia.reajuste?.modo === "percentual" ? recorrencia.reajuste.percentual : null,
+          reajuste_valor_fixo:
+            recorrencia.reajuste?.modo === "fixo" ? recorrencia.reajuste.valorFixo : null,
+          reajuste_periodicidade: recorrencia.reajuste?.periodicidade ?? null,
+          reajuste_indice: recorrencia.reajuste?.indice ?? null,
+          reajuste_inicio: recorrencia.reajuste?.inicio ?? null,
+        }));
+      } else if (parsed.recorrente) {
+        // Semanal/bimestral: mantém o modelo simples anterior (12 ocorrências, valor fixo).
+        rows = [base];
         const step = parsed.frequencia === "semanal" ? 0 : 1;
         for (let i = 1; i <= 11; i++) {
           const d =
             parsed.frequencia === "semanal"
-              ? new Date(new Date(`${parsed.data_recebimento}T12:00:00`).getTime() + i * 7 * 86400000)
+              ? new Date(
+                  new Date(`${parsed.data_recebimento}T12:00:00`).getTime() + i * 7 * 86400000,
+                )
               : addMonths(new Date(`${parsed.data_recebimento}T12:00:00`), i * (step || 1));
           rows.push({ ...base, data_recebimento: toISODate(d) });
         }
+      } else {
+        rows = [base];
       }
+
       const { error } = await supabase.from("receitas").insert(rows);
       if (error) throw error;
     },
@@ -228,6 +356,7 @@ function ReceitasPage() {
             <SelectValue placeholder="Mês" />
           </SelectTrigger>
           <SelectContent>
+            <SelectItem value="atual_proximo">Mês atual e próximo</SelectItem>
             <SelectItem value="todos">Todos os meses</SelectItem>
             {meses.map((m) => (
               <SelectItem key={m} value={m}>
@@ -264,6 +393,19 @@ function ReceitasPage() {
         </Select>
       </div>
 
+      {filtroMes === "atual_proximo" && (
+        <p className="mb-3 text-xs text-muted-foreground">
+          Mostrando só o mês atual e o próximo.{" "}
+          <button
+            type="button"
+            className="font-medium text-primary underline-offset-4 hover:underline"
+            onClick={() => setFiltroMes("todos")}
+          >
+            Ver todos os meses
+          </button>
+        </p>
+      )}
+
       <div className="space-y-4">
         {lista.length === 0 && (
           <Card>
@@ -285,7 +427,9 @@ function ReceitasPage() {
                 <ChevronDown
                   className={`size-4 shrink-0 text-muted-foreground transition-transform ${aberto ? "" : "-rotate-90"}`}
                 />
-                <span className="flex-1 truncate text-sm font-semibold">{monthLabelLong(g.mes)}</span>
+                <span className="flex-1 truncate text-sm font-semibold">
+                  {monthLabelLong(g.mes)}
+                </span>
                 <Badge variant="secondary" className="shrink-0 text-[10px]">
                   {g.itens.length} lançamento{g.itens.length > 1 ? "s" : ""}
                 </Badge>
@@ -314,6 +458,10 @@ function ReceitasPage() {
                         <p className="truncate text-[11px] text-muted-foreground">
                           {r.categoria} · {formatDate(r.data_recebimento)}
                           {r.recorrente ? ` · ${r.frequencia}` : ""}
+                          {r.recorrencia_sem_prazo ? " · sem prazo" : ""}
+                          {r.reajuste_periodicidade
+                            ? ` · reajuste ${r.reajuste_modo === "fixo" ? "fixo" : "%"} ${r.reajuste_periodicidade}`
+                            : ""}
                         </p>
                       </div>
                       <div className="shrink-0 text-right">
@@ -365,17 +513,27 @@ function ReceitasPage() {
         })}
       </div>
 
-
       {lista.some((r: any) => r.recorrente) && (
         <p className="mt-4 text-xs text-muted-foreground">
           <Badge variant="secondary" className="mr-2">
             Recorrentes
           </Badge>
-          Lançamentos futuros são gerados automaticamente por 12 ocorrências.
+          Receitas mensais recorrentes não têm mais data fim: são geradas automaticamente por{" "}
+          {HORIZONTE_SEM_PRAZO} meses à frente (mesmo modelo das despesas fixas), com reajuste
+          periódico opcional. Semanais/bimestrais continuam com 12 ocorrências fixas.
         </p>
       )}
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog
+        open={open}
+        onOpenChange={(o) => {
+          setOpen(o);
+          if (!o) {
+            setEditId(null);
+            setForm(emptyForm);
+          }
+        }}
+      >
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>{editId ? "Editar receita" : "Nova receita"}</DialogTitle>
@@ -408,7 +566,10 @@ function ReceitasPage() {
               </Select>
             </Field>
             <Field label="Categoria">
-              <Select value={form.categoria} onValueChange={(v) => setForm({ ...form, categoria: v })}>
+              <Select
+                value={form.categoria}
+                onValueChange={(v) => setForm({ ...form, categoria: v })}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
@@ -469,7 +630,106 @@ function ReceitasPage() {
                   <span className="text-sm text-muted-foreground">Lançamento único</span>
                 )}
               </div>
+              {ehMensalRecorrente && (
+                <p className="mt-1.5 text-xs text-muted-foreground">
+                  Sem data fim — lançamentos são gerados automaticamente por {HORIZONTE_SEM_PRAZO}{" "}
+                  meses à frente.
+                </p>
+              )}
             </Field>
+
+            {ehMensalRecorrente && (
+              <div className="space-y-3 rounded-lg border p-3 sm:col-span-2">
+                <p className="text-xs font-medium">Reajuste periódico (opcional)</p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Field label="Tipo de reajuste">
+                    <Select
+                      value={form.reajuste_tipo}
+                      onValueChange={(v) => setForm({ ...form, reajuste_tipo: v })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="nenhum">Sem reajuste</SelectItem>
+                        <SelectItem value="percentual">Percentual (%)</SelectItem>
+                        <SelectItem value="fixo">Valor fixo (R$)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  {form.reajuste_tipo !== "nenhum" && (
+                    <Field label="Periodicidade">
+                      <Select
+                        value={form.reajuste_periodicidade}
+                        onValueChange={(v) => setForm({ ...form, reajuste_periodicidade: v })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {PERIODICIDADES.map((p) => (
+                            <SelectItem key={p.value} value={p.value}>
+                              {p.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                  )}
+                  {form.reajuste_tipo === "percentual" && (
+                    <Field label="Percentual de reajuste (%)">
+                      <Input
+                        inputMode="decimal"
+                        value={form.reajuste_percentual}
+                        onChange={(e) => setForm({ ...form, reajuste_percentual: e.target.value })}
+                        placeholder="Ex.: 4"
+                      />
+                    </Field>
+                  )}
+                  {form.reajuste_tipo === "fixo" && (
+                    <Field label="Aumento fixo por reajuste (R$)">
+                      <Input
+                        inputMode="decimal"
+                        value={form.reajuste_valor_fixo}
+                        onChange={(e) => setForm({ ...form, reajuste_valor_fixo: e.target.value })}
+                        placeholder="Ex.: 400,00"
+                      />
+                    </Field>
+                  )}
+                  {form.reajuste_tipo !== "nenhum" && (
+                    <Field label="Mês do 1º reajuste (opcional)">
+                      <Input
+                        type="month"
+                        value={form.reajuste_inicio}
+                        onChange={(e) => setForm({ ...form, reajuste_inicio: e.target.value })}
+                      />
+                    </Field>
+                  )}
+                  {form.reajuste_tipo === "percentual" && (
+                    <Field label="Índice (opcional)" className="sm:col-span-2">
+                      <IndiceReajusteField
+                        indice={form.reajuste_indice}
+                        onIndiceChange={(v) => setForm({ ...form, reajuste_indice: v })}
+                        periodicidade={form.reajuste_periodicidade}
+                        onValorBuscado={(percentual) =>
+                          setForm({
+                            ...form,
+                            reajuste_percentual: String(percentual).replace(".", ","),
+                          })
+                        }
+                      />
+                    </Field>
+                  )}
+                </div>
+                {proximoReajuste && (
+                  <p className="text-xs text-muted-foreground">
+                    Ex.: em {monthLabelLong(proximoReajuste.competencia)} o valor passa a{" "}
+                    <strong>{formatBRL(proximoReajuste.valor)}</strong>.
+                  </p>
+                )}
+              </div>
+            )}
+
             <Field label="Observações" className="sm:col-span-2">
               <Textarea
                 value={form.observacoes}

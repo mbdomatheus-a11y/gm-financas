@@ -1,12 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowDownRight, ArrowUpRight, PiggyBank, Plus, Trash2 } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Pencil, PiggyBank, Plus, Trash2 } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { toast } from "sonner";
 import { z } from "zod";
 
 import { AppLayout } from "@/components/AppLayout";
+import { ProjecaoRendimento } from "@/components/ProjecaoRendimento";
 import { Field } from "@/routes/_authenticated/receitas";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,6 +32,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { RESPONSAVEIS_EXTRA, useInvestimentos, useProfilesList } from "@/hooks/useFinance";
 import { usePermissoes } from "@/hooks/useAuthData";
 import { formatBRL, formatDate, toISODate } from "@/lib/format";
+import { TIPOS_RENDIMENTO, type TipoRendimento } from "@/lib/rendimento";
 
 export const Route = createFileRoute("/_authenticated/investimentos")({
   head: () => ({
@@ -63,6 +65,8 @@ const schema = z.object({
   rentabilidade: z.string().max(60).nullable(),
   responsavel: z.string().min(1, "Informe o responsável"),
   observacoes: z.string().max(500).nullable(),
+  tipo_rendimento: z.enum(["cdi", "selic", "ipca_mais", "fixo"]).nullable(),
+  percentual_rendimento: z.number().nullable(),
 });
 
 function InvestimentosPage() {
@@ -72,9 +76,10 @@ function InvestimentosPage() {
   const { data: perfis = [] } = useProfilesList();
 
   const [open, setOpen] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
   const [mov, setMov] = useState<{ id: string; tipo: "aporte" | "resgate" } | null>(null);
   const [valorMov, setValorMov] = useState("");
-  const [form, setForm] = useState<any>({
+  const emptyForm = {
     nome: "",
     tipo: "",
     instituicao: "",
@@ -84,11 +89,42 @@ function InvestimentosPage() {
     rentabilidade: "",
     responsavel: "",
     observacoes: "",
-  });
+    tipo_rendimento: "",
+    percentual_rendimento: "",
+  };
+  const [form, setForm] = useState<any>(emptyForm);
+
+  function abrirNovo() {
+    setEditId(null);
+    setForm(emptyForm);
+    setOpen(true);
+  }
+
+  function abrirEdicao(i: any) {
+    if (!can("investimentos", "editar")) return;
+    setEditId(i.id);
+    setForm({
+      nome: i.nome ?? "",
+      tipo: i.tipo ?? "",
+      instituicao: i.instituicao ?? "",
+      valor_investido: String(i.valor_investido ?? ""),
+      valor_atual: String(i.valor_atual ?? ""),
+      data_investimento: i.data_investimento,
+      rentabilidade: i.rentabilidade ?? "",
+      responsavel: i.responsavel ?? "",
+      observacoes: i.observacoes ?? "",
+      tipo_rendimento: i.tipo_rendimento ?? "",
+      percentual_rendimento: i.percentual_rendimento != null ? String(i.percentual_rendimento) : "",
+    });
+    setOpen(true);
+  }
 
   const responsaveis = [...perfis.map((p: any) => p.nome), RESPONSAVEIS_EXTRA];
 
-  const totalInvestido = investimentos.reduce((s: number, i: any) => s + Number(i.valor_investido), 0);
+  const totalInvestido = investimentos.reduce(
+    (s: number, i: any) => s + Number(i.valor_investido),
+    0,
+  );
   const totalAtual = investimentos.reduce((s: number, i: any) => s + Number(i.valor_atual), 0);
   const rendimento = totalAtual - totalInvestido;
 
@@ -112,13 +148,24 @@ function InvestimentosPage() {
         rentabilidade: form.rentabilidade || null,
         responsavel: form.responsavel,
         observacoes: form.observacoes || null,
+        tipo_rendimento: form.tipo_rendimento || null,
+        percentual_rendimento: form.percentual_rendimento
+          ? Number(String(form.percentual_rendimento).replace(",", "."))
+          : null,
       });
+      if (editId) {
+        const { error } = await supabase.from("investimentos").update(parsed).eq("id", editId);
+        if (error) throw error;
+        return;
+      }
       const { error } = await supabase.from("investimentos").insert(parsed);
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Investimento cadastrado");
+      toast.success(editId ? "Investimento atualizado" : "Investimento cadastrado");
       setOpen(false);
+      setEditId(null);
+      setForm(emptyForm);
       qc.invalidateQueries();
     },
     onError: (e: any) => toast.error(e?.errors?.[0]?.message ?? e.message),
@@ -174,7 +221,7 @@ function InvestimentosPage() {
       description="Patrimônio aplicado e rendimento acumulado"
       actions={
         can("investimentos", "editar") && (
-          <Button size="sm" onClick={() => setOpen(true)}>
+          <Button size="sm" onClick={abrirNovo}>
             <Plus className="size-4" /> Novo
           </Button>
         )
@@ -213,7 +260,13 @@ function InvestimentosPage() {
           <CardContent className="h-56">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie data={porTipo} dataKey="value" nameKey="name" innerRadius={45} outerRadius={80}>
+                <Pie
+                  data={porTipo}
+                  dataKey="value"
+                  nameKey="name"
+                  innerRadius={45}
+                  outerRadius={80}
+                >
                   {porTipo.map((_, i) => (
                     <Cell key={i} fill={CORES[i % CORES.length]} />
                   ))}
@@ -259,6 +312,17 @@ function InvestimentosPage() {
                       {formatBRL(lucro)} ({pct.toFixed(1)}%)
                     </p>
                   </div>
+                  {can("investimentos", "editar") && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-muted-foreground hover:text-primary"
+                      onClick={() => abrirEdicao(i)}
+                      aria-label="Editar investimento"
+                    >
+                      <Pencil className="size-4" />
+                    </Button>
+                  )}
                   {can("investimentos", "excluir") && (
                     <Button
                       variant="ghost"
@@ -273,6 +337,13 @@ function InvestimentosPage() {
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   {i.rentabilidade && <Badge variant="secondary">{i.rentabilidade}</Badge>}
+                  {i.tipo_rendimento && i.percentual_rendimento != null && (
+                    <Badge variant="outline">
+                      {i.percentual_rendimento}
+                      {TIPOS_RENDIMENTO.find((t) => t.value === i.tipo_rendimento)
+                        ?.sufixoPercentual ?? ""}
+                    </Badge>
+                  )}
                   {can("investimentos", "editar") && (
                     <>
                       <Button
@@ -295,20 +366,39 @@ function InvestimentosPage() {
                     {(i.investimento_movimentos ?? []).length} movimento(s)
                   </span>
                 </div>
+                {i.tipo_rendimento && i.percentual_rendimento != null && (
+                  <ProjecaoRendimento
+                    valorAtual={Number(i.valor_atual)}
+                    tipoRendimento={i.tipo_rendimento as TipoRendimento}
+                    percentualRendimento={Number(i.percentual_rendimento)}
+                  />
+                )}
               </CardContent>
             </Card>
           );
         })}
       </div>
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog
+        open={open}
+        onOpenChange={(o) => {
+          setOpen(o);
+          if (!o) {
+            setEditId(null);
+            setForm(emptyForm);
+          }
+        }}
+      >
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Novo investimento</DialogTitle>
+            <DialogTitle>{editId ? "Editar investimento" : "Novo investimento"}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Nome" className="sm:col-span-2">
-              <Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} />
+              <Input
+                value={form.nome}
+                onChange={(e) => setForm({ ...form, nome: e.target.value })}
+              />
             </Field>
             <Field label="Tipo">
               <Select value={form.tipo} onValueChange={(v) => setForm({ ...form, tipo: v })}>
@@ -353,13 +443,48 @@ function InvestimentosPage() {
                 onChange={(e) => setForm({ ...form, data_investimento: e.target.value })}
               />
             </Field>
-            <Field label="Rentabilidade">
+            <Field label="Rentabilidade (rótulo livre)">
               <Input
                 value={form.rentabilidade}
                 onChange={(e) => setForm({ ...form, rentabilidade: e.target.value })}
                 placeholder="Ex.: 110% do CDI"
               />
             </Field>
+            <Field label="Correção e rendimento">
+              <Select
+                value={form.tipo_rendimento || "nenhum"}
+                onValueChange={(v) =>
+                  setForm({ ...form, tipo_rendimento: v === "nenhum" ? "" : v })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="nenhum">Sem cálculo automático</SelectItem>
+                  {TIPOS_RENDIMENTO.map((t) => (
+                    <SelectItem key={t.value} value={t.value}>
+                      {t.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+            {form.tipo_rendimento && (
+              <Field
+                label={
+                  TIPOS_RENDIMENTO.find((t) => t.value === form.tipo_rendimento)
+                    ?.sufixoPercentual ?? "%"
+                }
+              >
+                <Input
+                  inputMode="decimal"
+                  value={form.percentual_rendimento}
+                  onChange={(e) => setForm({ ...form, percentual_rendimento: e.target.value })}
+                  placeholder={form.tipo_rendimento === "cdi" ? "Ex.: 110" : "Ex.: 6"}
+                />
+              </Field>
+            )}
             <Field label="Responsável" className="sm:col-span-2">
               <Select
                 value={form.responsavel}
@@ -387,7 +512,7 @@ function InvestimentosPage() {
           </div>
           <DialogFooter>
             <Button onClick={() => salvar.mutate()} disabled={salvar.isPending}>
-              Salvar investimento
+              {editId ? "Salvar alterações" : "Salvar investimento"}
             </Button>
           </DialogFooter>
         </DialogContent>

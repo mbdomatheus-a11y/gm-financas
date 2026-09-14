@@ -22,12 +22,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useCotacao } from "@/hooks/useCotacao";
-import { useDespesas, useReceitas } from "@/hooks/useFinance";
+import { useDespesas, useReceitas, useVeiculos } from "@/hooks/useFinance";
 import { usePrivacidadeValores } from "@/hooks/usePrivacidadeValores";
 import { currentMonthKey, formatBRL, formatDate, monthKey, toBRL, toISODate } from "@/lib/format";
 import { diferencaEntreDatas } from "@/lib/calculadora-datas";
 import { diasRestantes, statusGarantia } from "@/lib/nfe";
 import { lancamentosPorCompetencias } from "@/lib/recorrencia";
+import { alertasDosVeiculos } from "@/lib/veiculo-alertas";
 
 export const Route = createFileRoute("/_authenticated/inicio")({
   head: () => ({
@@ -82,6 +83,7 @@ function InicioPage() {
   const { data: despesas = [] } = useDespesas();
   const { data: pendentes = [] } = useListaResumo();
   const { data: garantias = [] } = useGarantias();
+  const { data: veiculos = [] } = useVeiculos();
   const { ocultarValores, toggle: toggleOcultar } = usePrivacidadeValores();
 
   const hoje = toISODate(new Date());
@@ -117,6 +119,7 @@ function InicioPage() {
     const st = statusGarantia(g.garantia_fim);
     return st === "critica" || st === "atencao";
   });
+  const alertasVeiculos = useMemo(() => alertasDosVeiculos(veiculos as any[]), [veiculos]);
 
   const AREAS = [
     {
@@ -325,6 +328,28 @@ function InicioPage() {
                       (g) =>
                         `${g.estabelecimento ?? g.descricao ?? "Nota"} — ${formatDate(g.garantia_fim!)} (${diasRestantes(g.garantia_fim)}d)`,
                     )
+                    .join(" · ")}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+      )}
+
+      {/* 2b. Alerta de veículos (óleo/revisão, IPVA, seguro) se houver */}
+      {alertasVeiculos.length > 0 && (
+        <Link to="/veiculos">
+          <Card className="mb-6 border-warning/40 bg-warning/5 transition-colors hover:bg-warning/10">
+            <CardContent className="flex items-start gap-3 p-4">
+              <AlertTriangle className="mt-0.5 size-4.5 text-warning" />
+              <div className="text-sm">
+                <p className="font-medium">
+                  {alertasVeiculos.length} alerta{alertasVeiculos.length > 1 ? "s" : ""} de veículo
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {alertasVeiculos
+                    .slice(0, 3)
+                    .map((a) => `${a.veiculoNome} — ${a.mensagem}`)
                     .join(" · ")}
                 </p>
               </div>

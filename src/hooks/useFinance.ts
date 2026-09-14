@@ -97,6 +97,20 @@ export function useInvestimentos() {
   });
 }
 
+export function useVeiculos() {
+  return useQuery({
+    queryKey: ["veiculos"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("veiculos")
+        .select("*, veiculo_documentos(*)")
+        .order("nome");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+}
+
 export function useProfilesList() {
   return useQuery({
     queryKey: ["profiles-list"],
@@ -134,4 +148,3 @@ export function useFaturasImportadas() {
 }
 
 export const RESPONSAVEIS_EXTRA = "Casal / Compartilhado";
-

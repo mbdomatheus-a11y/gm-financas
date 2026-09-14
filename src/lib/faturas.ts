@@ -125,15 +125,21 @@ export async function hashArquivo(file: File): Promise<string> {
 
 export async function extrairTexto(
   file: File,
+  senha?: string,
 ): Promise<{ texto: string; paginas: number; itens: ItemPdf[]; origem: "pdf" | "ocr" }> {
   const data = new Uint8Array(await file.arrayBuffer());
   let doc: PDFDocumentProxy;
   try {
-    doc = await pdfjs.getDocument({ data }).promise;
+    doc = await pdfjs.getDocument(senha ? { data, password: senha } : { data }).promise;
   } catch (erro) {
     const detalhe = erro instanceof Error ? `${erro.name} ${erro.message}` : String(erro);
     if (/password|senha/i.test(detalhe)) {
-      throw new ErroLeituraPdf("senha_necessaria", "O PDF está protegido por senha.");
+      // Sem senha informada: pede senha. Com senha informada e ainda assim
+      // rejeitado: a senha está errada — mesmo código, a UI decide o texto.
+      throw new ErroLeituraPdf(
+        "senha_necessaria",
+        senha ? "Senha incorreta. Tente novamente." : "O PDF está protegido por senha.",
+      );
     }
     throw new ErroLeituraPdf(
       "arquivo_invalido",
@@ -306,9 +312,10 @@ export type ConferenciaFatura = { ok: boolean; soma: number; diferenca: number |
 export async function processarFatura(
   file: File,
   perfil?: PerfilLayout | null,
+  senha?: string,
 ): Promise<FaturaExtraida> {
   const [{ texto, paginas, itens, origem }, arquivo_hash] = await Promise.all([
-    extrairTexto(file),
+    extrairTexto(file, senha),
     hashArquivo(file),
   ]);
   const banco = detectarBanco(texto, file.name);

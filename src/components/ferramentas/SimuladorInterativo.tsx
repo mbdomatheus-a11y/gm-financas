@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { AlertTriangle, Syringe } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -17,37 +17,53 @@ type SeringaTipo = "100ui_1ml" | "50ui_0.5ml" | "3ml" | "20ml";
 
 const SERINGAS: Record<
   SeringaTipo,
-  { label: string; capacidadeMax: number; unidade: "UI" | "mL"; titulo: string; marcas: string[] }
+  {
+    label: string;
+    capacidadeMax: number; // sempre em mL
+    unidade: "UI" | "mL";
+    titulo: string;
+    passoMaior: number; // intervalo entre marcas grandes numeradas, na unidade de exibição
+    passoMenor: number; // intervalo entre traços finos, na unidade de exibição
+  }
 > = {
   "100ui_1ml": {
     label: "Seringa de 1 mL (escala de 100 UI)",
     capacidadeMax: 1.0,
     unidade: "UI",
     titulo: "Seringa de 1 mL — escala de 100 UI",
-    marcas: ["0 UI", "20 UI", "40 UI", "60 UI", "80 UI", "100 UI"],
+    passoMaior: 10,
+    passoMenor: 2,
   },
   "50ui_0.5ml": {
     label: "Seringa de 0,5 mL (escala de 50 UI)",
     capacidadeMax: 0.5,
     unidade: "UI",
     titulo: "Seringa de 0,5 mL — escala de 50 UI",
-    marcas: ["0 UI", "10 UI", "20 UI", "30 UI", "40 UI", "50 UI"],
+    passoMaior: 5,
+    passoMenor: 1,
   },
   "3ml": {
     label: "Seringa geral de 3 mL (escala em mL)",
     capacidadeMax: 3.0,
     unidade: "mL",
     titulo: "Seringa geral de 3 mL",
-    marcas: ["0 mL", "0.5 mL", "1.0 mL", "1.5 mL", "2.0 mL", "2.5 mL", "3.0 mL"],
+    passoMaior: 0.5,
+    passoMenor: 0.1,
   },
   "20ml": {
     label: "Seringa geral de 20 mL (escala em mL)",
     capacidadeMax: 20.0,
     unidade: "mL",
     titulo: "Seringa geral de 20 mL",
-    marcas: ["0 mL", "5 mL", "10 mL", "15 mL", "20 mL"],
+    passoMaior: 5,
+    passoMenor: 1,
   },
 };
+
+/** Converte um volume em mL para a unidade de exibição da seringa (UI ou mL). */
+function volumeParaUnidade(volumeMl: number, seringa: (typeof SERINGAS)[SeringaTipo]): number {
+  return seringa.unidade === "UI" ? volumeMl * 100 : volumeMl;
+}
 
 function paraNumero(v: string): number {
   return parseFloat(v) || 0;
@@ -116,10 +132,64 @@ export function SimuladorInterativo() {
     recalcularDeMg(doseMg, frascoMg, v);
   }
 
+  const barraRef = useRef<HTMLDivElement>(null);
+  const [arrastando, setArrastando] = useState(false);
+
+  /** Define o volume (mL) direto a partir de uma posição arrastada na barra,
+   * e recalcula mg/UI a partir dele — mesma lógica de recalcularDeUi, mas
+   * partindo do volume já calculado em vez de reconverter a partir do texto. */
+  function definirVolumePorArraste(vol: number) {
+    const fMg = paraNumero(frascoMg);
+    const fMl = paraNumero(frascoMl);
+    const volClamped = Math.min(seringa.capacidadeMax, Math.max(0, vol));
+    setVolume(volClamped);
+    setDoseUi((volClamped * 100).toFixed(1));
+    if (fMg > 0 && fMl > 0) {
+      setDoseMg(((volClamped * fMg) / fMl).toFixed(2));
+    }
+  }
+
+  function volumeNaPosicao(clientX: number): number {
+    const el = barraRef.current;
+    if (!el) return volume;
+    const rect = el.getBoundingClientRect();
+    const fracao = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+    return fracao * seringa.capacidadeMax;
+  }
+
+  function onPointerDownBarra(e: React.PointerEvent<HTMLDivElement>) {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setArrastando(true);
+    definirVolumePorArraste(volumeNaPosicao(e.clientX));
+  }
+  function onPointerMoveBarra(e: React.PointerEvent<HTMLDivElement>) {
+    if (!arrastando) return;
+    definirVolumePorArraste(volumeNaPosicao(e.clientX));
+  }
+  function onPointerUpBarra(e: React.PointerEvent<HTMLDivElement>) {
+    e.currentTarget.releasePointerCapture(e.pointerId);
+    setArrastando(false);
+  }
+
   const seringa = SERINGAS[seringaTipo];
   const percentual = Math.min(100, Math.max(0, (volume / seringa.capacidadeMax) * 100));
   const labelPreenchido =
-    seringa.unidade === "UI" ? `${(volume * 100).toFixed(0)} UI` : `${volume.toFixed(2)} mL`;
+    seringa.unidade === "UI" ? `${(volume * 100).toFixed(1)} UI` : `${volume.toFixed(3)} mL`;
+
+  // Traços da régua: maiores (numerados) e menores (finos), sempre
+  // posicionados proporcionalmente à escala real, não só espaçados por CSS.
+  const tracosMaiores = useMemo(() => {
+    const max = volumeParaUnidade(seringa.capacidadeMax, seringa);
+    const lista: number[] = [];
+    for (let v = 0; v <= max + 1e-9; v += seringa.passoMaior) lista.push(Math.round(v * 100) / 100);
+    return lista;
+  }, [seringa]);
+  const tracosMenores = useMemo(() => {
+    const max = volumeParaUnidade(seringa.capacidadeMax, seringa);
+    const lista: number[] = [];
+    for (let v = 0; v <= max + 1e-9; v += seringa.passoMenor) lista.push(Math.round(v * 100) / 100);
+    return lista;
+  }, [seringa]);
 
   const alerta = useMemo(() => {
     if (volume <= 0) return null;
@@ -253,23 +323,85 @@ export function SimuladorInterativo() {
           </div>
 
           <div className="rounded-lg border border-dashed p-4">
-            <p className="mb-2 flex items-center gap-1.5 text-sm font-medium">
-              <Syringe className="size-4" /> {seringa.titulo}
-            </p>
-            <div className="relative h-11 overflow-hidden rounded border-2 border-muted-foreground/30 bg-muted">
+            <div className="mb-2 flex items-center justify-between">
+              <p className="flex items-center gap-1.5 text-sm font-medium">
+                <Syringe className="size-4" /> {seringa.titulo}
+              </p>
+              <span className="text-xs text-muted-foreground">arraste na régua para ajustar</span>
+            </div>
+
+            {/* Barra arrastável: clique ou toque em qualquer ponto e arraste
+                para definir a dose direto na escala — atualiza mg/UI acima. */}
+            <div
+              ref={barraRef}
+              onPointerDown={onPointerDownBarra}
+              onPointerMove={onPointerMoveBarra}
+              onPointerUp={onPointerUpBarra}
+              onPointerCancel={onPointerUpBarra}
+              className={cn(
+                "relative h-14 touch-none select-none overflow-hidden rounded border-2 bg-muted",
+                arrastando ? "border-primary" : "border-muted-foreground/30",
+              )}
+              role="slider"
+              aria-label={`Volume na ${seringa.titulo}`}
+              aria-valuemin={0}
+              aria-valuemax={seringa.capacidadeMax}
+              aria-valuenow={volume}
+            >
               <div
-                className="h-full border-r-4 border-primary bg-primary/40 transition-[width] duration-200 ease-out"
+                className="h-full bg-primary/40 transition-[width] duration-100 ease-out"
                 style={{ width: `${percentual}%` }}
               />
-              <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-sm font-bold">
+              {/* Traços finos (menores) */}
+              {tracosMenores.map((v) => {
+                const pos = (v / volumeParaUnidade(seringa.capacidadeMax, seringa)) * 100;
+                return (
+                  <div
+                    key={`menor-${v}`}
+                    className="absolute top-0 h-1/3 w-px bg-muted-foreground/30"
+                    style={{ left: `${pos}%` }}
+                  />
+                );
+              })}
+              {/* Traços grandes (numerados) */}
+              {tracosMaiores.map((v) => {
+                const pos = (v / volumeParaUnidade(seringa.capacidadeMax, seringa)) * 100;
+                return (
+                  <div
+                    key={`maior-${v}`}
+                    className="absolute top-0 h-2/3 w-0.5 bg-muted-foreground/60"
+                    style={{ left: `${pos}%` }}
+                  />
+                );
+              })}
+              {/* Ponteiro/êmbolo: sempre visível, mesmo com volume muito baixo */}
+              <div
+                className="absolute top-0 h-full w-1 -translate-x-1/2 bg-primary shadow-[0_0_0_3px_rgba(0,0,0,0.06)]"
+                style={{ left: `${percentual}%` }}
+              />
+              <span className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded bg-card/90 px-1.5 py-0.5 text-sm font-bold shadow-sm">
                 {labelPreenchido}
               </span>
             </div>
-            <div className="mt-1.5 flex justify-between text-[11px] font-semibold text-muted-foreground">
-              {seringa.marcas.map((m) => (
-                <span key={m}>{m}</span>
-              ))}
+
+            <div className="relative mt-1 h-4 text-[11px] font-semibold text-muted-foreground">
+              {tracosMaiores.map((v) => {
+                const pos = (v / volumeParaUnidade(seringa.capacidadeMax, seringa)) * 100;
+                return (
+                  <span
+                    key={`label-${v}`}
+                    className="absolute -translate-x-1/2"
+                    style={{ left: `${pos}%` }}
+                  >
+                    {v % 1 === 0 ? v : v.toFixed(1)}
+                  </span>
+                );
+              })}
             </div>
+            <p className="mt-3 text-[11px] text-muted-foreground">
+              Escala em {seringa.unidade} · traço maior a cada {seringa.passoMaior}{" "}
+              {seringa.unidade}, traço fino a cada {seringa.passoMenor} {seringa.unidade}.
+            </p>
           </div>
 
           {alerta && (
