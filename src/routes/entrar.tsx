@@ -1,14 +1,18 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Wallet, Loader2, ArrowLeft } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
+import { Wallet, Loader2, ArrowLeft, UserPlus, LogIn as LogInIcon } from "lucide-react";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
 
 import { cpfToEmail, isValidCpf, maskCpf, onlyDigits } from "@/lib/cpf";
+import { aceitarConvite } from "@/lib/convites.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { TurnstileWidget } from "@/components/TurnstileWidget";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
@@ -19,13 +23,15 @@ import {
 } from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/entrar")({
+  validateSearch: (s: Record<string, unknown>): { convite?: string } =>
+    typeof s["convite"] === "string" && s["convite"] ? { convite: s["convite"] } : {},
   head: () => ({
     meta: [
       { title: "Entrar — Control ALL" },
       {
         name: "description",
         content:
-          "Acesse o painel de finanças pessoais do casal: receitas, despesas, parcelas, cartões e investimentos em um só lugar.",
+          "Acesse o painel de finanças pessoais: receitas, despesas, parcelas, cartões e investimentos em um só lugar.",
       },
       { property: "og:title", content: "Entrar — Control ALL" },
       {
@@ -39,49 +45,13 @@ export const Route = createFileRoute("/entrar")({
 
 function LoginPage() {
   const navigate = useNavigate();
-  const [cpf, setCpf] = useState("");
-  const [senha, setSenha] = useState("");
-  const [loading, setLoading] = useState(false);
+  const search = Route.useSearch();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) navigate({ to: "/inicio" });
     });
   }, [navigate]);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!isValidCpf(cpf)) {
-      toast.error("CPF inválido");
-      return;
-    }
-    if (senha.length < 6) {
-      toast.error("A senha deve ter ao menos 6 caracteres");
-      return;
-    }
-    setLoading(true);
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: cpfToEmail(cpf),
-      password: senha,
-    });
-    setLoading(false);
-    if (error || !data.user) {
-      toast.error("CPF ou senha incorretos");
-      return;
-    }
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("senha_temporaria, ativo")
-      .eq("id", data.user.id)
-      .maybeSingle();
-    if (profile && profile.ativo === false) {
-      await supabase.auth.signOut();
-      toast.error("Usuário inativo. Fale com um administrador.");
-      return;
-    }
-    toast.success("Bem-vindo de volta!");
-    navigate({ to: profile?.senha_temporaria ? "/nova-senha" : "/inicio" });
-  }
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-10">
@@ -99,69 +69,312 @@ function LoginPage() {
           </div>
           <h1 className="text-2xl font-bold tracking-tight">Control ALL</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Entre com seu CPF para acessar o painel
+            Entre ou crie sua conta para acessar o painel
           </p>
         </div>
 
-        <form
-          onSubmit={handleSubmit}
-          className="space-y-4 rounded-2xl border bg-card p-6 shadow-card"
-        >
-          <div className="space-y-2">
-            <Label htmlFor="cpf">CPF</Label>
-            <Input
-              id="cpf"
-              inputMode="numeric"
-              autoComplete="username"
-              placeholder="000.000.000-00"
-              value={cpf}
-              onChange={(e) => setCpf(maskCpf(e.target.value))}
-              className="h-11"
-            />
-            {cpf.length > 0 && onlyDigits(cpf).length === 11 && !isValidCpf(cpf) && (
-              <p className="text-xs text-destructive">CPF inválido</p>
-            )}
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="senha">Senha</Label>
-            <Input
-              id="senha"
-              type="password"
-              autoComplete="current-password"
-              placeholder="••••••••"
-              value={senha}
-              onChange={(e) => setSenha(e.target.value)}
-              className="h-11"
-            />
-          </div>
-          <Button type="submit" className="h-11 w-full" disabled={loading}>
-            {loading && <Loader2 className="mr-2 size-4 animate-spin" />}
-            Entrar
-          </Button>
+        <Tabs defaultValue={search.convite ? "criar" : "entrar"} className="w-full">
+          <TabsList className="mb-4 grid w-full grid-cols-2">
+            <TabsTrigger value="entrar" className="gap-1.5">
+              <LogInIcon className="size-3.5" /> Entrar
+            </TabsTrigger>
+            <TabsTrigger value="criar" className="gap-1.5">
+              <UserPlus className="size-3.5" /> Criar conta
+            </TabsTrigger>
+          </TabsList>
 
-          <Dialog>
-            <DialogTrigger asChild>
-              <button
-                type="button"
-                className="w-full text-center text-xs text-muted-foreground underline-offset-4 hover:underline"
-              >
-                Esqueci minha senha
-              </button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Recuperação de senha</DialogTitle>
-                <DialogDescription>
-                  Como o acesso é feito por CPF (sem e-mail cadastrado), a redefinição é feita por
-                  um administrador. Peça a um admin para abrir{" "}
-                  <strong>Usuários e Privilégios</strong> e redefinir sua senha — você receberá uma
-                  senha provisória e será obrigado a criar uma nova no próximo login.
-                </DialogDescription>
-              </DialogHeader>
-            </DialogContent>
-          </Dialog>
-        </form>
+          <TabsContent value="entrar">
+            <EntrarForm />
+          </TabsContent>
+          <TabsContent value="criar">
+            <CriarContaForm token={search.convite} />
+          </TabsContent>
+        </Tabs>
       </div>
     </main>
+  );
+}
+
+/** Login por e-mail (contas novas) OU CPF (contas antigas, compatibilidade). */
+function EntrarForm() {
+  const navigate = useNavigate();
+  const [identificador, setIdentificador] = useState("");
+  const [senha, setSenha] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const ehEmail = identificador.includes("@");
+  const cpfDigitado = ehEmail ? "" : identificador;
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    let email: string;
+    if (ehEmail) {
+      email = identificador.trim();
+    } else {
+      if (!isValidCpf(cpfDigitado)) {
+        toast.error("CPF inválido");
+        return;
+      }
+      email = cpfToEmail(cpfDigitado);
+    }
+    if (senha.length < 6) {
+      toast.error("A senha deve ter ao menos 6 caracteres");
+      return;
+    }
+    setLoading(true);
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password: senha });
+    setLoading(false);
+    if (error || !data.user) {
+      toast.error("Credenciais incorretas");
+      return;
+    }
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("senha_temporaria, ativo")
+      .eq("id", data.user.id)
+      .maybeSingle();
+    if (profile && profile.ativo === false) {
+      await supabase.auth.signOut();
+      toast.error("Usuário inativo. Fale com um administrador.");
+      return;
+    }
+    toast.success("Bem-vindo de volta!");
+    navigate({ to: profile?.senha_temporaria ? "/nova-senha" : "/inicio" });
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4 rounded-2xl border bg-card p-6 shadow-card">
+      <div className="space-y-2">
+        <Label htmlFor="identificador">E-mail ou CPF</Label>
+        <Input
+          id="identificador"
+          autoComplete="username"
+          placeholder="voce@email.com ou 000.000.000-00"
+          value={ehEmail ? identificador : maskCpf(identificador)}
+          onChange={(e) => setIdentificador(e.target.value)}
+          className="h-11"
+        />
+        {!ehEmail && onlyDigits(cpfDigitado).length === 11 && !isValidCpf(cpfDigitado) && (
+          <p className="text-xs text-destructive">CPF inválido</p>
+        )}
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="senha">Senha</Label>
+        <Input
+          id="senha"
+          type="password"
+          autoComplete="current-password"
+          placeholder="••••••••"
+          value={senha}
+          onChange={(e) => setSenha(e.target.value)}
+          className="h-11"
+        />
+      </div>
+      <Button type="submit" className="h-11 w-full" disabled={loading}>
+        {loading && <Loader2 className="mr-2 size-4 animate-spin" />}
+        Entrar
+      </Button>
+
+      <Dialog>
+        <DialogTrigger asChild>
+          <button
+            type="button"
+            className="w-full text-center text-xs text-muted-foreground underline-offset-4 hover:underline"
+          >
+            Esqueci minha senha
+          </button>
+        </DialogTrigger>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Recuperação de senha</DialogTitle>
+            <DialogDescription>
+              Contas antigas (criadas por CPF): peça a um administrador para abrir{" "}
+              <strong>Usuários e Privilégios</strong> e redefinir sua senha — você receberá uma
+              senha provisória e será obrigado a criar uma nova no próximo login. Contas criadas por
+              convite (com e-mail): fale com quem te convidou ou com um administrador — a
+              recuperação automática por e-mail ainda não está disponível.
+            </DialogDescription>
+          </DialogHeader>
+        </DialogContent>
+      </Dialog>
+    </form>
+  );
+}
+
+const emptyCadastro = {
+  nome: "",
+  cpf: "",
+  email: "",
+  telefone: "",
+  dataNascimento: "",
+  senha: "",
+  confirmarSenha: "",
+};
+
+/** Cadastro por convite — só funciona com um token válido na URL (?convite=...). */
+function CriarContaForm({ token }: { token: string | undefined }) {
+  const navigate = useNavigate();
+  const aceitar = useServerFn(aceitarConvite);
+  const [form, setForm] = useState(emptyCadastro);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  if (!token) {
+    return (
+      <div className="space-y-3 rounded-2xl border bg-card p-6 text-center shadow-card">
+        <UserPlus className="mx-auto size-8 text-muted-foreground" />
+        <p className="text-sm text-muted-foreground">
+          O cadastro é só por convite. Peça um link de convite a quem já usa o Control ALL — ele
+          pode gerar um em <strong>Minha conta</strong> ou, se for admin, em{" "}
+          <strong>Usuários e Privilégios</strong>.
+        </p>
+      </div>
+    );
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const cpf = onlyDigits(form.cpf);
+    if (!isValidCpf(cpf)) {
+      toast.error("CPF inválido");
+      return;
+    }
+    if (form.nome.trim().length < 2) {
+      toast.error("Informe o nome completo");
+      return;
+    }
+    if (!form.email.includes("@")) {
+      toast.error("E-mail inválido");
+      return;
+    }
+    if (form.telefone.trim().length < 8) {
+      toast.error("Informe um telefone válido");
+      return;
+    }
+    if (!form.dataNascimento) {
+      toast.error("Informe a data de nascimento");
+      return;
+    }
+    if (form.senha.length < 8) {
+      toast.error("A senha deve ter ao menos 8 caracteres");
+      return;
+    }
+    if (form.senha !== form.confirmarSenha) {
+      toast.error("As senhas não conferem");
+      return;
+    }
+    if (!turnstileToken) {
+      toast.error("Confirme a verificação de segurança");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await aceitar({
+        data: {
+          token: token!,
+          nome: form.nome.trim(),
+          cpf,
+          email: form.email.trim(),
+          telefone: form.telefone.trim(),
+          dataNascimento: form.dataNascimento,
+          senha: form.senha,
+          turnstileToken,
+        },
+      });
+      toast.success("Conta criada! Entrando…");
+      const { error } = await supabase.auth.signInWithPassword({
+        email: res.email,
+        password: form.senha,
+      });
+      if (error) {
+        toast.info("Conta criada — faça login na aba Entrar.");
+        return;
+      }
+      navigate({ to: "/inicio" });
+    } catch (err: any) {
+      toast.error(err?.message ?? "Não foi possível criar a conta");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-3 rounded-2xl border bg-card p-6 shadow-card">
+      <div className="space-y-1.5">
+        <Label htmlFor="c-nome">Nome completo</Label>
+        <Input
+          id="c-nome"
+          value={form.nome}
+          onChange={(e) => setForm({ ...form, nome: e.target.value })}
+        />
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="c-cpf">CPF</Label>
+        <Input
+          id="c-cpf"
+          inputMode="numeric"
+          value={maskCpf(form.cpf)}
+          onChange={(e) => setForm({ ...form, cpf: onlyDigits(e.target.value).slice(0, 11) })}
+          placeholder="000.000.000-00"
+        />
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="c-email">E-mail</Label>
+        <Input
+          id="c-email"
+          type="email"
+          autoComplete="email"
+          value={form.email}
+          onChange={(e) => setForm({ ...form, email: e.target.value })}
+        />
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="c-telefone">Telefone</Label>
+        <Input
+          id="c-telefone"
+          inputMode="tel"
+          placeholder="(00) 00000-0000"
+          value={form.telefone}
+          onChange={(e) => setForm({ ...form, telefone: e.target.value })}
+        />
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="c-nascimento">Data de nascimento</Label>
+        <Input
+          id="c-nascimento"
+          type="date"
+          value={form.dataNascimento}
+          onChange={(e) => setForm({ ...form, dataNascimento: e.target.value })}
+        />
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="c-senha">Senha</Label>
+        <Input
+          id="c-senha"
+          type="password"
+          autoComplete="new-password"
+          value={form.senha}
+          onChange={(e) => setForm({ ...form, senha: e.target.value })}
+        />
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="c-confirma">Confirmar senha</Label>
+        <Input
+          id="c-confirma"
+          type="password"
+          autoComplete="new-password"
+          value={form.confirmarSenha}
+          onChange={(e) => setForm({ ...form, confirmarSenha: e.target.value })}
+        />
+      </div>
+
+      <TurnstileWidget onVerify={setTurnstileToken} />
+
+      <Button type="submit" className="h-11 w-full" disabled={loading}>
+        {loading && <Loader2 className="mr-2 size-4 animate-spin" />}
+        Criar conta
+      </Button>
+    </form>
   );
 }

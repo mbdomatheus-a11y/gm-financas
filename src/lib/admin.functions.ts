@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { maskCpfPrivate } from "@/lib/cpf";
 
 const DOMAIN = "financascasal.app";
 
@@ -11,7 +12,6 @@ function gerarSenhaTemporaria(): string {
   crypto.getRandomValues(bytes);
   return Array.from(bytes, (b) => alfabeto[b % alfabeto.length]).join("");
 }
-
 
 async function assertAdmin(context: { supabase: any; userId: string }) {
   const { data } = await context.supabase
@@ -49,7 +49,6 @@ export const adminCreateUser = createServerFn({ method: "POST" })
       .insert({ id: created.user.id, nome: data.nome, cpf: data.cpf, senha_temporaria: true });
     await supabaseAdmin.from("user_roles").insert({ user_id: created.user.id, role: data.role });
     return { ok: true, senhaTemporaria };
-
   });
 
 export const adminResetPassword = createServerFn({ method: "POST" })
@@ -66,6 +65,42 @@ export const adminResetPassword = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     await supabaseAdmin.from("profiles").update({ senha_temporaria: true }).eq("id", data.userId);
     return { ok: true };
+  });
+
+/**
+ * Roster de cadastro de TODOS os usuários (todos os grupos) — só admin.
+ * Devolve apenas dado de cadastro (CPF mascarado, nunca financeiro), como
+ * combinado: admin enxerga "quem é", não os dados financeiros de grupos
+ * que não são o dele. Usa o cliente service-role de propósito, pra não
+ * depender de a policy de `profiles` continuar liberando select global pra
+ * admin caso ela mude no futuro.
+ */
+export const adminListarUsuarios = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const db = supabaseAdmin as any;
+    const { data, error } = await db
+      .from("profiles")
+      .select(
+        "id, nome, cpf, email, telefone, data_nascimento, ativo, grupo_id, convidado_por, created_at, grupos:grupo_id(nome)",
+      )
+      .order("created_at", { ascending: true });
+    if (error) throw new Error(error.message);
+    return (data ?? []).map((p: any) => ({
+      id: p.id as string,
+      nome: p.nome as string,
+      cpfMascarado: maskCpfPrivate(p.cpf ?? ""),
+      email: (p.email as string | null) ?? null,
+      telefone: (p.telefone as string | null) ?? null,
+      dataNascimento: (p.data_nascimento as string | null) ?? null,
+      ativo: !!p.ativo,
+      grupoId: (p.grupo_id as string | null) ?? null,
+      grupoNome: (p.grupos?.nome as string | undefined) ?? null,
+      convidadoPor: (p.convidado_por as string | null) ?? null,
+      criadoEm: p.created_at as string,
+    }));
   });
 
 export const adminSetRole = createServerFn({ method: "POST" })

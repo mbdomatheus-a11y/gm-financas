@@ -2,10 +2,11 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { KeyRound, Pencil, ShieldCheck, UserPlus, Users } from "lucide-react";
+import { KeyRound, Pencil, ShieldCheck, UserPlus, Users, Users2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppLayout } from "@/components/AppLayout";
+import { ConvitesCard } from "@/components/ConvitesCard";
 import { Field } from "@/routes/_authenticated/receitas";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -30,8 +31,14 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useProfilesList, useRolesList } from "@/hooks/useFinance";
 import { usePermissoes, type Modulo } from "@/hooks/useAuthData";
-import { adminCreateUser, adminResetPassword, adminSetRole } from "@/lib/admin.functions";
+import {
+  adminCreateUser,
+  adminListarUsuarios,
+  adminResetPassword,
+  adminSetRole,
+} from "@/lib/admin.functions";
 import { maskCpf, onlyDigits, isValidCpf } from "@/lib/cpf";
+import { formatDate } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/usuarios")({
   head: () => ({
@@ -66,6 +73,13 @@ function UsuariosPage() {
   const criar = useServerFn(adminCreateUser);
   const resetar = useServerFn(adminResetPassword);
   const setRole = useServerFn(adminSetRole);
+  const listarRoster = useServerFn(adminListarUsuarios);
+
+  const { data: roster = [], isLoading: carregandoRoster } = useQuery({
+    queryKey: ["admin-roster"],
+    enabled: isAdmin,
+    queryFn: async () => listarRoster(),
+  });
 
   const [open, setOpen] = useState(false);
   const [senhaGerada, setSenhaGerada] = useState<string | null>(null);
@@ -107,7 +121,6 @@ function UsuariosPage() {
     },
     onError: (e: any) => toast.error(e.message ?? "Erro ao criar usuário"),
   });
-
 
   const redefinir = useMutation({
     mutationFn: async () => {
@@ -200,6 +213,49 @@ function UsuariosPage() {
         </Button>
       }
     >
+      <div className="mb-4 grid gap-4 lg:grid-cols-2">
+        <ConvitesCard />
+
+        <Card>
+          <CardContent className="space-y-3 p-4">
+            <p className="flex items-center gap-2 text-sm font-semibold">
+              <Users2 className="size-4" /> Cadastro de todos os usuários
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Só cadastro (nome, CPF, contato) — os dados financeiros de cada grupo continuam
+              visíveis só pra quem está naquele grupo.
+            </p>
+            {carregandoRoster ? (
+              <p className="text-xs text-muted-foreground">Carregando…</p>
+            ) : (
+              <div className="max-h-80 space-y-2 overflow-y-auto">
+                {roster.map((u: any) => (
+                  <div key={u.id} className="rounded-lg border px-3 py-2 text-xs">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-medium">{u.nome}</span>
+                      <Badge
+                        variant={u.ativo ? "secondary" : "destructive"}
+                        className="text-[10px]"
+                      >
+                        {u.ativo ? "ativo" : "inativo"}
+                      </Badge>
+                    </div>
+                    <p className="mt-0.5 text-muted-foreground">
+                      CPF {u.cpfMascarado}
+                      {u.email ? ` · ${u.email}` : ""}
+                      {u.telefone ? ` · ${u.telefone}` : ""}
+                    </p>
+                    <p className="text-muted-foreground">
+                      Grupo: {u.grupoNome ?? "—"} · desde {formatDate(u.criadoEm)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
       <div className="space-y-3">
         {perfis.map((p: any) => {
           const role = roleDe(p.id);
@@ -255,7 +311,11 @@ function UsuariosPage() {
                     <ShieldCheck className="size-4" />
                     {role === "admin" ? "Tornar comum" : "Tornar administrador"}
                   </Button>
-                  <Button size="sm" variant="ghost" onClick={() => setDetalhe(aberto ? null : p.id)}>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setDetalhe(aberto ? null : p.id)}
+                  >
                     {aberto ? "Ocultar privilégios" : "Editar privilégios"}
                   </Button>
                 </div>
@@ -284,16 +344,18 @@ function UsuariosPage() {
                           return (
                             <tr key={m.key} className="border-t">
                               <td className="p-2">{m.label}</td>
-                              {(["pode_ver", "pode_editar", "pode_excluir"] as const).map((campo) => (
-                                <td key={campo} className="p-2 text-center">
-                                  <Switch
-                                    checked={atual[campo]}
-                                    onCheckedChange={(v) =>
-                                      salvarPermissao.mutate({ ...atual, [campo]: v })
-                                    }
-                                  />
-                                </td>
-                              ))}
+                              {(["pode_ver", "pode_editar", "pode_excluir"] as const).map(
+                                (campo) => (
+                                  <td key={campo} className="p-2 text-center">
+                                    <Switch
+                                      checked={atual[campo]}
+                                      onCheckedChange={(v) =>
+                                        salvarPermissao.mutate({ ...atual, [campo]: v })
+                                      }
+                                    />
+                                  </td>
+                                ),
+                              )}
                             </tr>
                           );
                         })}
@@ -314,7 +376,10 @@ function UsuariosPage() {
           </DialogHeader>
           <div className="grid gap-4">
             <Field label="Nome completo">
-              <Input value={novo.nome} onChange={(e) => setNovo({ ...novo, nome: e.target.value })} />
+              <Input
+                value={novo.nome}
+                onChange={(e) => setNovo({ ...novo, nome: e.target.value })}
+              />
             </Field>
             <Field label="CPF">
               <Input
@@ -364,7 +429,6 @@ function UsuariosPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
 
       <Dialog open={!!reset} onOpenChange={(o) => !o && setReset(null)}>
         <DialogContent className="sm:max-w-sm">
