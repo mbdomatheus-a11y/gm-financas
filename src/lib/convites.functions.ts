@@ -135,18 +135,24 @@ export const aceitarConvite = createServerFn({ method: "POST" })
       );
     }
 
-    const { error: profileError } = await db.from("profiles").insert({
-      id: created.user.id,
-      nome: data.nome,
-      cpf: onlyDigits(data.cpf),
-      email: data.email,
-      telefone: data.telefone,
-      data_nascimento: data.dataNascimento,
-      grupo_id: convite.grupo_id,
-      convidado_por: convite.criado_por,
-      ativo: true,
-      senha_temporaria: false,
-    });
+    // upsert (não insert): um trigger `handle_new_user` já cria uma linha
+    // mínima em `profiles` ao inserir em `auth.users` — precisamos
+    // sobrescrever com os dados completos do convite, não colidir com ela.
+    const { error: profileError } = await db.from("profiles").upsert(
+      {
+        id: created.user.id,
+        nome: data.nome,
+        cpf: onlyDigits(data.cpf),
+        email: data.email,
+        telefone: data.telefone,
+        data_nascimento: data.dataNascimento,
+        grupo_id: convite.grupo_id,
+        convidado_por: convite.criado_por,
+        ativo: true,
+        senha_temporaria: false,
+      },
+      { onConflict: "id" },
+    );
     if (profileError) {
       // Evita deixar um usuário de auth órfão (sem perfil) se o insert falhar.
       await supabaseAdmin.auth.admin.deleteUser(created.user.id);
