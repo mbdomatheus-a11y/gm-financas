@@ -14,8 +14,10 @@ import { ehLinhaResumoFatura, extrairMetadadosFatura } from "@/lib/fatura-metada
 import { extrairLimites, type LimitesFatura } from "@/lib/fatura-limites";
 import { ehValorCredito } from "@/lib/lancamento-direcao";
 import { identificarParcela } from "@/lib/parcela";
+import { corrigirTexto, normalizarDescricao, parseValor } from "@/lib/texto-fatura";
 
 export { extrairLimites, type LimitesFatura };
+export { corrigirTexto, normalizarDescricao, parseValor };
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
 
@@ -195,79 +197,9 @@ export function detectarBanco(texto: string, nomeArquivo: string): BancoFatura {
   return "desconhecido";
 }
 
-const MOJIBAKE: Record<string, string> = {
-  "Ã¡": "á",
-  "Ã ": "à",
-  "Ã¢": "â",
-  "Ã£": "ã",
-  "Ã©": "é",
-  Ãª: "ê",
-  "Ã­": "í",
-  "Ã³": "ó",
-  "Ã´": "ô",
-  Ãµ: "õ",
-  Ãº: "ú",
-  "Ã§": "ç",
-  "Ã‰": "É",
-  Ãƒ: "Ã",
-  "Ã‡": "Ç",
-  "Ã”": "Ô",
-  "Ã•": "Õ",
-  "Ã\u0081": "Á",
-  Ãš: "Ú",
-  Âº: "º",
-  Âª: "ª",
-};
-/** Só corrige quando o texto realmente veio com bytes UTF-8 lidos como latin-1. */
-const RE_MOJIBAKE = /[ÃÂ][\u0080-\u00bf\u2013-\u2030\u0152-\u0178]/;
-
-const MINUSCULAS = new Set(["de", "da", "do", "das", "dos", "e", "em", "no", "na", "para", "com"]);
-
-/** Corrige acentuação quebrada do PDF e deixa nomes em maiúsculas com capitalização legível. */
-export function corrigirTexto(raw: string): string {
-  let s = raw;
-  if (RE_MOJIBAKE.test(s)) {
-    for (const [de, para] of Object.entries(MOJIBAKE)) s = s.split(de).join(para);
-  }
-  s = s.replace(/\s+/g, " ").trim();
-
-  const letras = s.replace(/[^A-Za-zÀ-ÿ]/g, "");
-  const tudoMaiusculo = letras.length > 3 && letras === letras.toUpperCase();
-  if (!tudoMaiusculo) return s;
-
-  return s
-    .split(" ")
-    .map((p, i) => {
-      const baixo = p.toLocaleLowerCase("pt-BR");
-      if (/\d/.test(p) || (p.length <= 3 && !/[aeiouáéíóúâêôãõ]/i.test(p))) return p; // siglas
-      if (i > 0 && MINUSCULAS.has(baixo)) return baixo;
-      return baixo.charAt(0).toLocaleUpperCase("pt-BR") + baixo.slice(1);
-    })
-    .join(" ");
-}
-
-export function normalizarDescricao(descricao: string): string {
-  return descricao
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toUpperCase()
-    .replace(/\b\d{2}\/\d{2}\b/g, "")
-    .replace(/PARC(ELA)?\s*\d+\s*(DE|\/)\s*\d+/g, "")
-    .replace(/[^A-Z0-9 ]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-export function parseValor(raw: string): number {
-  const limpo = raw.replace(/\s/g, "").replace(/[R$US]/gi, "");
-  const negativo = /^-/.test(limpo) || /-$/.test(limpo);
-  // Além do "-", um valor pode vir com "+" no final (notação de crédito de
-  // alguns emissores, ex. "459,96+") — precisa ser removido antes do
-  // Number() também, senão a conversão falha e o valor vira 0 em silêncio.
-  const num = Number(limpo.replace(/[-+]/g, "").replace(/\./g, "").replace(",", "."));
-  if (!Number.isFinite(num)) return 0;
-  return negativo ? -num : num;
-}
+// corrigirTexto/normalizarDescricao/parseValor moraram aqui antes; agora
+// vivem em @/lib/texto-fatura (reexportadas acima) pra poder ser usadas
+// também por fatura-layout.ts sem puxar o pdfjs-dist.
 
 function parseDataBR(raw: string, anoBase: number): string | null {
   const dm = raw.match(/^(\d{2})\/(\d{2})(?:\/(\d{2,4}))?$/);

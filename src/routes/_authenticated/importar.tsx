@@ -1058,213 +1058,221 @@ function ImportarPage() {
                     de {f.lancamentos.length} lançamento(s) selecionado(s) nesta fatura
                   </span>
                 </div>
-                <table className="w-full table-fixed text-xs">
-                  <thead className="bg-muted/50 text-[10px] uppercase tracking-wide text-muted-foreground">
-                    <tr>
-                      <th className="w-7 p-1"></th>
-                      <th className="w-[7%] p-1 text-left">Data</th>
-                      <th className="w-[22%] p-1 text-left">Descrição</th>
-                      <th className="w-[7%] p-1 text-left">Parcela</th>
-                      <th className="w-[9%] p-1 text-left">Tipo</th>
-                      <th className="w-[7%] p-1 text-left">Final</th>
-                      <th className="w-[12%] p-1 text-left">Responsável</th>
-                      <th className="w-[13%] p-1 text-left">Categoria</th>
-                      <th className="w-[11%] p-1 text-left">Subcategoria</th>
-                      <th className="w-[12%] p-1 text-right">Valor</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {f.lancamentos.map((l) => (
-                      <tr key={l.id} className="border-t align-top">
-                        <td className="p-1">
-                          <Checkbox
-                            checked={l.incluir}
-                            onCheckedChange={(v) =>
-                              atualizarLancamento(idx, l.id, { incluir: !!v })
-                            }
-                          />
-                        </td>
-                        <td className="p-1">
-                          <Input
-                            type="date"
-                            className="h-7 w-full min-w-0 px-0.5 text-[10px]"
-                            value={l.data_compra}
-                            onChange={(e) =>
-                              atualizarLancamento(idx, l.id, { data_compra: e.target.value })
-                            }
-                          />
-                        </td>
-                        <td className="p-1">
-                          <Textarea
-                            className="min-h-7 w-full min-w-0 resize-none overflow-hidden rounded-md px-1.5 py-1 text-[11px] leading-tight"
-                            rows={1}
-                            value={l.descricao}
-                            onChange={(e) => {
-                              atualizarLancamento(idx, l.id, { descricao: e.target.value });
-                              e.target.style.height = "auto";
-                              e.target.style.height = `${e.target.scrollHeight}px`;
-                            }}
-                            ref={(el) => {
-                              if (!el) return;
-                              el.style.height = "auto";
-                              el.style.height = `${el.scrollHeight}px`;
-                            }}
-                          />
-                        </td>
-                        <td className="p-1">
-                          <div className="flex items-center gap-0.5">
-                            <Input
-                              type="number"
-                              min={1}
-                              className="h-7 w-full min-w-0 px-0.5 text-[10px]"
-                              value={l.parcela_numero}
-                              onChange={(e) =>
-                                atualizarLancamento(idx, l.id, {
-                                  parcela_numero: Math.max(1, Number(e.target.value) || 1),
-                                })
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[920px] table-fixed text-xs">
+                    <thead className="bg-muted/50 text-[10px] uppercase tracking-wide text-muted-foreground">
+                      <tr>
+                        <th className="w-7 p-1"></th>
+                        <th className="w-[108px] p-1 text-left">Data</th>
+                        <th className="w-[22%] p-1 text-left">Descrição</th>
+                        <th className="w-[112px] p-1 text-left">Parcela</th>
+                        <th className="w-[9%] p-1 text-left">Tipo</th>
+                        <th className="w-[7%] p-1 text-left">Final</th>
+                        <th className="w-[12%] p-1 text-left">Responsável</th>
+                        <th className="w-[13%] p-1 text-left">Categoria</th>
+                        <th className="w-[11%] p-1 text-left">Subcategoria</th>
+                        <th className="w-[12%] p-1 text-right">Valor</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {f.lancamentos.map((l) => (
+                        <tr key={l.id} className="border-t align-top">
+                          <td className="p-1">
+                            <Checkbox
+                              checked={l.incluir}
+                              onCheckedChange={(v) =>
+                                atualizarLancamento(idx, l.id, { incluir: !!v })
                               }
                             />
-                            <span className="text-[10px] text-muted-foreground">/</span>
+                          </td>
+                          <td className="p-1">
                             <Input
-                              type="number"
-                              min={1}
-                              className="h-7 w-full min-w-0 px-0.5 text-[10px]"
-                              value={l.parcela_total}
+                              type="date"
+                              className="h-7 w-full min-w-0 px-1 text-[11px]"
+                              value={l.data_compra}
                               onChange={(e) =>
-                                atualizarLancamento(idx, l.id, {
-                                  parcela_total: Math.max(1, Number(e.target.value) || 1),
-                                })
+                                atualizarLancamento(idx, l.id, { data_compra: e.target.value })
                               }
                             />
-                          </div>
-                        </td>
-                        <td className="p-1">
-                          <Select
-                            value={l.tipo ?? "variavel"}
-                            onValueChange={(v) =>
-                              atualizarLancamento(idx, l.id, { tipo: v as "fixa" | "variavel" })
-                            }
-                          >
-                            <SelectTrigger className="h-7 w-full min-w-0 px-1 text-[11px]">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="variavel">Variável</SelectItem>
-                              <SelectItem value="fixa">Fixa</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </td>
-                        <td className="p-1">
-                          <Input
-                            className="h-7 w-full min-w-0 px-1 text-[11px]"
-                            placeholder="0000"
-                            maxLength={4}
-                            value={l.cartao_final ?? ""}
-                            onChange={(e) =>
-                              atualizarLancamento(idx, l.id, {
-                                cartao_final: e.target.value.replace(/\D/g, "").slice(0, 4) || null,
-                              })
-                            }
-                          />
-                        </td>
-                        <td className="p-1">
-                          <Select
-                            value={l.responsavel ?? "none"}
-                            onValueChange={(v) =>
-                              atualizarLancamento(idx, l.id, {
-                                responsavel: v === "none" ? null : v,
-                              })
-                            }
-                          >
-                            <SelectTrigger className="h-7 w-full min-w-0 px-1 text-[11px]">
-                              <SelectValue placeholder="—" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="none">—</SelectItem>
-                              {responsaveis.map((r) => (
-                                <SelectItem key={r} value={r}>
-                                  {r}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </td>
-                        <td className="p-1">
-                          <div className="flex items-center gap-0.5">
+                          </td>
+                          <td className="p-1">
+                            <Textarea
+                              className="min-h-7 w-full min-w-0 resize-none overflow-hidden rounded-md px-1.5 py-1 text-[11px] leading-tight"
+                              rows={1}
+                              value={l.descricao}
+                              onChange={(e) => {
+                                atualizarLancamento(idx, l.id, { descricao: e.target.value });
+                                e.target.style.height = "auto";
+                                e.target.style.height = `${e.target.scrollHeight}px`;
+                              }}
+                              ref={(el) => {
+                                if (!el) return;
+                                el.style.height = "auto";
+                                el.style.height = `${el.scrollHeight}px`;
+                              }}
+                            />
+                          </td>
+                          <td className="p-1">
+                            <div className="flex items-center gap-1">
+                              <Input
+                                type="number"
+                                min={1}
+                                className="h-7 w-12 min-w-0 px-1 text-center text-[11px] [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                value={l.parcela_numero}
+                                onChange={(e) =>
+                                  atualizarLancamento(idx, l.id, {
+                                    parcela_numero: Math.max(1, Number(e.target.value) || 1),
+                                  })
+                                }
+                              />
+                              <span className="text-[10px] text-muted-foreground">/</span>
+                              <Input
+                                type="number"
+                                min={1}
+                                className="h-7 w-12 min-w-0 px-1 text-center text-[11px] [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                value={l.parcela_total}
+                                onChange={(e) =>
+                                  atualizarLancamento(idx, l.id, {
+                                    parcela_total: Math.max(1, Number(e.target.value) || 1),
+                                  })
+                                }
+                              />
+                            </div>
+                          </td>
+                          <td className="p-1">
                             <Select
-                              value={l.categoria}
+                              value={l.tipo ?? "variavel"}
                               onValueChange={(v) =>
-                                atualizarLancamento(idx, l.id, { categoria: v, subcategoria: null })
+                                atualizarLancamento(idx, l.id, { tipo: v as "fixa" | "variavel" })
                               }
                             >
                               <SelectTrigger className="h-7 w-full min-w-0 px-1 text-[11px]">
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
-                                {listaCategorias.map((c) => (
-                                  <SelectItem key={c} value={c}>
-                                    {c}
+                                <SelectItem value="variavel">Variável</SelectItem>
+                                <SelectItem value="fixa">Fixa</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </td>
+                          <td className="p-1">
+                            <Input
+                              className="h-7 w-full min-w-0 px-1 text-[11px]"
+                              placeholder="0000"
+                              maxLength={4}
+                              value={l.cartao_final ?? ""}
+                              onChange={(e) =>
+                                atualizarLancamento(idx, l.id, {
+                                  cartao_final:
+                                    e.target.value.replace(/\D/g, "").slice(0, 4) || null,
+                                })
+                              }
+                            />
+                          </td>
+                          <td className="p-1">
+                            <Select
+                              value={l.responsavel ?? "none"}
+                              onValueChange={(v) =>
+                                atualizarLancamento(idx, l.id, {
+                                  responsavel: v === "none" ? null : v,
+                                })
+                              }
+                            >
+                              <SelectTrigger className="h-7 w-full min-w-0 px-1 text-[11px]">
+                                <SelectValue placeholder="—" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="none">—</SelectItem>
+                                {responsaveis.map((r) => (
+                                  <SelectItem key={r} value={r}>
+                                    {r}
                                   </SelectItem>
                                 ))}
                               </SelectContent>
                             </Select>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="size-7 shrink-0"
-                              title="Salvar como regra de de-para"
-                              onClick={() => salvarRegra.mutate(l)}
+                          </td>
+                          <td className="p-1">
+                            <div className="flex items-center gap-0.5">
+                              <Select
+                                value={l.categoria}
+                                onValueChange={(v) =>
+                                  atualizarLancamento(idx, l.id, {
+                                    categoria: v,
+                                    subcategoria: null,
+                                  })
+                                }
+                              >
+                                <SelectTrigger className="h-7 w-full min-w-0 px-1 text-[11px]">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {listaCategorias.map((c) => (
+                                    <SelectItem key={c} value={c}>
+                                      {c}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="size-7 shrink-0"
+                                title="Salvar como regra de de-para"
+                                onClick={() => salvarRegra.mutate(l)}
+                              >
+                                <BookmarkPlus className="size-3.5" />
+                              </Button>
+                            </div>
+                            {l.confianca_categoria && (
+                              <p className="mt-1 text-[10px] text-muted-foreground">
+                                Confiança: {CONFIANCA_LABEL[l.confianca_categoria]}
+                              </p>
+                            )}
+                          </td>
+                          <td className="p-1">
+                            <Select
+                              value={l.subcategoria ?? "none"}
+                              onValueChange={(v) =>
+                                atualizarLancamento(idx, l.id, {
+                                  subcategoria: v === "none" ? null : v,
+                                })
+                              }
                             >
-                              <BookmarkPlus className="size-3.5" />
-                            </Button>
-                          </div>
-                          {l.confianca_categoria && (
+                              <SelectTrigger className="h-7 w-full min-w-0 px-1 text-[11px]">
+                                <SelectValue placeholder="—" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="none">—</SelectItem>
+                                {subcategoriasDe(l.categoria).map((s) => (
+                                  <SelectItem key={s} value={s}>
+                                    {s}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </td>
+                          <td className="p-1 text-right">
+                            <Input
+                              type="number"
+                              step="0.01"
+                              className="h-7 w-full min-w-0 px-1 text-right text-[11px]"
+                              value={l.valor}
+                              onChange={(e) =>
+                                atualizarLancamento(idx, l.id, {
+                                  valor: Number(e.target.value) || 0,
+                                })
+                              }
+                            />
                             <p className="mt-1 text-[10px] text-muted-foreground">
-                              Confiança: {CONFIANCA_LABEL[l.confianca_categoria]}
+                              {l.direcao === "credito" ? "crédito" : "débito"} ·{" "}
+                              {formatBRL(l.valor * l.parcela_total)}
                             </p>
-                          )}
-                        </td>
-                        <td className="p-1">
-                          <Select
-                            value={l.subcategoria ?? "none"}
-                            onValueChange={(v) =>
-                              atualizarLancamento(idx, l.id, {
-                                subcategoria: v === "none" ? null : v,
-                              })
-                            }
-                          >
-                            <SelectTrigger className="h-7 w-full min-w-0 px-1 text-[11px]">
-                              <SelectValue placeholder="—" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="none">—</SelectItem>
-                              {subcategoriasDe(l.categoria).map((s) => (
-                                <SelectItem key={s} value={s}>
-                                  {s}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </td>
-                        <td className="p-1 text-right">
-                          <Input
-                            type="number"
-                            step="0.01"
-                            className="h-7 w-full min-w-0 px-1 text-right text-[11px]"
-                            value={l.valor}
-                            onChange={(e) =>
-                              atualizarLancamento(idx, l.id, { valor: Number(e.target.value) || 0 })
-                            }
-                          />
-                          <p className="mt-1 text-[10px] text-muted-foreground">
-                            {l.direcao === "credito" ? "crédito" : "débito"} ·{" "}
-                            {formatBRL(l.valor * l.parcela_total)}
-                          </p>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
           </CardContent>

@@ -3,15 +3,11 @@
  * usa as coordenadas dos fragmentos do PDF para descobrir onde estão data,
  * descrição e valor.
  */
-import {
-  corrigirTexto,
-  normalizarDescricao,
-  parseValor,
-  type LancamentoExtraido,
-} from "@/lib/faturas";
+import type { LancamentoExtraido } from "@/lib/faturas";
 import { ehLinhaResumoFatura } from "@/lib/fatura-metadados";
 import { ehValorCredito } from "@/lib/lancamento-direcao";
 import { identificarParcela } from "@/lib/parcela";
+import { corrigirTexto, normalizarDescricao, parseValor } from "@/lib/texto-fatura";
 
 export type ItemPdf = { str: string; x: number; y: number; w: number; page: number };
 
@@ -187,12 +183,18 @@ function explodirCelulas(linha: LinhaPdf): Celula[] {
   return out;
 }
 
+// Data solta no início de uma célula — mas não quando ela é, na verdade, o
+// começo de um intervalo tipo "15/08 - 14/09" (cabeçalho de período de
+// tabela de encargos/juros que às vezes gruda na mesma linha): esse não é
+// case de transação nenhuma, é só coincidência de formato.
+const RE_DATA_PREFIXO = /^(\d{2}\/\d{2}(?:\/\d{2,4})?)\b(?!\s*-\s*\d{1,2}\/\d{1,2})/;
+
 function acharData(celulas: Celula[]): { celula: Celula; indice: number } | null {
   for (let i = 0; i < Math.min(celulas.length, 3); i++) {
     const c = celulas[i]!;
     const alvo = c.texto.trim();
     if (RE_DATA.test(alvo)) return { celula: c, indice: i };
-    const m = alvo.match(/^(\d{2}\/\d{2}(?:\/\d{2,4})?)\b/);
+    const m = alvo.match(RE_DATA_PREFIXO);
     if (m) return { celula: { ...c, texto: m[1]! }, indice: i };
   }
   return null;
@@ -207,6 +209,63 @@ function acharValor(celulas: Celula[]): { celula: Celula; indice: number } | nul
     if (m) return { celula: { ...c, texto: m[1]! }, indice: i };
   }
   return null;
+}
+
+/**
+ * Como acharData, mas sem se limitar às 3 primeiras células: procura, de trás
+ * pra frente a partir do valor, a data mais próxima dele.
+ *
+ * Usada só para "resgatar" transações reais coladas atrás de texto de outra
+ * coluna do PDF (ver `agruparLinhas`/PDFs em duas colunas): nesse caso a data
+ * de verdade não está mais nas 3 primeiras células porque algo foi colado na
+ * frente, mas ainda está logo antes do valor da própria transação.
+ */
+function acharDataProxima(
+  celulas: Celula[],
+  antesDe: number,
+): { celula: Celula; indice: number } | null {
+  for (let i = antesDe - 1; i >= 0; i--) {
+    const c = celulas[i]!;
+    const alvo = c.texto.trim();
+    if (RE_DATA.test(alvo)) return { celula: c, indice: i };
+    const m = alvo.match(RE_DATA_PREFIXO);
+    if (m) return { celula: { ...c, texto: m[1]! }, indice: i };
+  }
+  return null;
+}
+
+/**
+ * Detecta duas (ou mais) transações reais e independentes grudadas na mesma
+ * linha impressa — layout comum em faturas que imprimem a tabela em duas
+ * colunas lado a lado (ver comentário de uso em `extrairPosicional`).
+ *
+ * Só reconhece o padrão quando as datas e valores aparecem em pares
+ * perfeitamente alternados (data, ..., valor, data, ..., valor, ...) — uma
+ * data fora de ordem, ou contagens diferentes de data/valor, faz a função
+ * devolver `[]` e deixar a linha para o fluxo normal (de uma transação só),
+ * que é o caso disparadamente mais comum.
+ */
+function dividirTransacoesDaLinha(
+  celulas: Celula[],
+): Array<{ data: Celula; meio: Celula[]; valor: Celula }> {
+  const datas: number[] = [];
+  const valores: number[] = [];
+  celulas.forEach((c, i) => {
+    const t = c.texto.trim();
+    if (RE_DATA.test(t)) datas.push(i);
+    if (RE_VALOR.test(t) || RE_VALOR_SIMPLES.test(t)) valores.push(i);
+  });
+  if (datas.length < 2 || datas.length !== valores.length) return [];
+
+  const segmentos: Array<{ data: Celula; meio: Celula[]; valor: Celula }> = [];
+  for (let k = 0; k < datas.length; k++) {
+    const di = datas[k]!;
+    const vi = valores[k]!;
+    if (vi <= di) return [];
+    if (k > 0 && di <= valores[k - 1]!) return [];
+    segmentos.push({ data: celulas[di]!, meio: celulas.slice(di + 1, vi), valor: celulas[vi]! });
+  }
+  return segmentos;
 }
 
 export function parseDataFlexivel(
@@ -271,14 +330,131 @@ export function extrairPosicional(
   let dentro = !perfil?.ancora_inicio;
   let secaoIgnorada = false;
 
+  const mediana = (v: number[]) =>
+    v.length
+      ? Number([...v].sort((a, b) => a - b)[Math.floor(v.length / 2)]!.toFixed(1))
+      : undefined;
+
+  // Variante do problema das duas colunas em que a própria data acaba numa
+  // "linha" agrupada separada da descrição+valor (baseline do número um
+  // pouco diferente do resto do texto, ficando a mais de 2.5pt de distância
+  // em y). Nesse caso a linha com o conteúdo real chega primeiro sem nenhuma
+  // data própria — se, descontado o texto de outra coluna colado na frente
+  // (usando como âncora a posição x onde a descrição normalmente começa
+  // neste documento, já aprendida a partir dos lançamentos já processados),
+  // sobrar uma descrição+valor plausível, guarda como pendente para ser
+  // completada pela data solta que costuma vir na linha seguinte.
+  let pendenteSemData: {
+    descricao: string;
+    valorTexto: string;
+    final: string | null;
+    linhaCompleta: string;
+  } | null = null;
+
+  function tentarResgatarSemColuna(
+    celulas: Celula[],
+    valor: { celula: Celula; indice: number },
+  ): { descricao: string; valorTexto: string; linhaCompleta: string } | null {
+    const limiar = (mediana(xDesc) ?? mediana(xData)) as number | undefined;
+    if (limiar == null) return null;
+    const relevantes = celulas.slice(0, valor.indice + 1).filter((c) => c.x >= limiar - 20);
+    if (relevantes.length < 2 || relevantes.length >= celulas.length) return null;
+    const descricao = relevantes
+      .slice(0, -1)
+      .map((c) => c.texto)
+      .join(" ")
+      .trim();
+    if (!descricao || ehRuido(descricao)) return null;
+    return {
+      descricao,
+      valorTexto: valor.celula.texto,
+      linhaCompleta: relevantes.map((c) => c.texto).join(" "),
+    };
+  }
+
   for (const linha of linhas) {
     const bruto = linha.texto;
     if (!bruto) continue;
 
+    // PDFs em duas colunas (ex.: painel de limites à esquerda + tabela de
+    // lançamentos à direita) fazem o `agruparLinhas` colar, numa mesma
+    // "linha", texto de coluna nenhuma relação com o outro só porque calhou
+    // de ter o mesmo Y. Isso gera linhas tipo "Limite Rotativo R$ 11.200,00
+    // 21/01/2026 LOJA X 27,59-" ou "Saldo Futuro a Vencer R$ 1.414,06
+    // 31/07/2026 LOJA Y 40,00-": um trecho de resumo/seção colado na frente
+    // de uma transação de verdade. Sem tratar isso, o trecho colado faz a
+    // linha inteira ser descartada como ruído (`ehRuido`) ou, pior, entrar
+    // num modo de "seção ignorada" que é permanente e derruba todo o resto
+    // do documento.
+    //
+    // `transacaoEmbutida` procura, olhando de trás pra frente a partir do
+    // valor, uma transação plausível colada no fim da linha — mas só
+    // "resgata" a linha se o trecho ENTRE a data resgatada e o valor (ou
+    // seja, a descrição de verdade da transação) não tiver, ele mesmo,
+    // termos de ruído/resumo. Isso evita resgatar por engano uma linha que
+    // é puramente um resumo (ex.: "Vencimento 15/08/2026 Valor Total R$
+    // 1.234,56", onde "Valor Total" também é ruído) — só linhas onde o lixo
+    // está genuinamente restrito ao trecho ANTES da data são resgatadas.
+    const celulas = explodirCelulas(linha);
+    const valorAntecipado = acharValor(celulas);
+
+    // Antes de mais nada: essa linha é só a data solta que estávamos
+    // esperando para completar um `pendenteSemData` da linha anterior?
+    if (pendenteSemData && !valorAntecipado) {
+      const dataSolta = acharData(celulas);
+      const resto = celulas
+        .filter((_, i) => i !== dataSolta?.indice)
+        .map((c) => c.texto)
+        .join(" ")
+        .trim();
+      if (dataSolta && !resto) {
+        const iso = parseDataFlexivel(dataSolta.celula.texto, anoBase, mesRef);
+        const pend = pendenteSemData;
+        pendenteSemData = null;
+        if (iso) {
+          const lanc = montar(iso, pend.descricao, pend.valorTexto, pend.linhaCompleta, finalAtual);
+          if (lanc) out.push(lanc);
+        }
+        continue;
+      }
+      // Não era a data esperada — descarta o pendente em vez de arriscar
+      // grudar num lançamento errado.
+      pendenteSemData = null;
+    }
+    const dataResgatada = valorAntecipado
+      ? acharDataProxima(celulas, valorAntecipado.indice)
+      : null;
+    const meioResgatado =
+      dataResgatada && valorAntecipado
+        ? celulas
+            .slice(dataResgatada.indice + 1, valorAntecipado.indice)
+            .map((c) => c.texto)
+            .join(" ")
+            .trim()
+        : "";
+    const transacaoEmbutida =
+      dataResgatada &&
+      valorAntecipado &&
+      dataResgatada.indice < valorAntecipado.indice &&
+      !ehRuido(meioResgatado)
+        ? { data: dataResgatada, valor: valorAntecipado }
+        : null;
+
     if (SECAO_IGNORADA.test(bruto)) {
-      secaoIgnorada = true;
-      pendente = null;
-      continue;
+      if (!transacaoEmbutida) {
+        const resgate = valorAntecipado ? tentarResgatarSemColuna(celulas, valorAntecipado) : null;
+        if (resgate) {
+          pendenteSemData = { ...resgate, final: finalAtual };
+          pendente = null;
+          continue;
+        }
+        secaoIgnorada = true;
+        pendente = null;
+        continue;
+      }
+      // Linha mesclada: o gatilho de "seção ignorada" veio só do texto colado
+      // antes da transação real — não entra em modo ignorado por causa disso,
+      // processa a transação normalmente mais abaixo.
     }
     if (SECAO_LANCAMENTOS.test(bruto)) {
       secaoIgnorada = false;
@@ -296,7 +472,39 @@ export function extrairPosicional(
       continue;
     }
 
-    const celulas = explodirCelulas(linha);
+    // Alguns bancos (ex.: Itaú) imprimem DUAS transações reais e
+    // independentes lado a lado na mesma linha impressa, pra economizar
+    // espaço vertical — não é o mesmo bug de "coluna estranha colada", são
+    // duas transações de verdade mesmo. Sem tratar isso, `agruparLinhas`
+    // gruda as duas na mesma linha e o restante do código só enxerga a
+    // primeira data e o último valor, produzindo uma descrição só com as
+    // duas descrições e valores do meio grudados (ex.: "PAG*RiotGameSa
+    // 02/03 44,30 14/08 DROGARIA SAO PAULO 447S"). Se a linha tiver duas ou
+    // mais datas e o mesmo número de valores, bem-comportados e alternados,
+    // trata cada par como um lançamento separado.
+    const transacoesDaLinha = dividirTransacoesDaLinha(celulas);
+    if (transacoesDaLinha.length >= 2) {
+      for (const seg of transacoesDaLinha) {
+        const iso = parseDataFlexivel(seg.data.texto, anoBase, mesRef);
+        if (!iso) continue;
+        const meioTexto = seg.meio
+          .map((c) => c.texto)
+          .join(" ")
+          .trim();
+        if (!meioTexto) continue;
+        const linhaSegmento = `${seg.data.texto} ${meioTexto} ${seg.valor.texto}`;
+        const lanc = montar(iso, meioTexto, seg.valor.texto, linhaSegmento, finalAtual);
+        if (lanc) {
+          out.push(lanc);
+          xData.push(seg.data.x);
+          xValor.push(seg.valor.x);
+          xDesc.push(seg.meio[0]?.x ?? 0);
+        }
+      }
+      pendente = null;
+      continue;
+    }
+
     const mFinal = bruto.match(RE_FINAL_LINHA);
     const soCartao = mFinal && !acharValor(celulas);
     if (soCartao) {
@@ -304,13 +512,19 @@ export function extrairPosicional(
       continue;
     }
 
-    if (ehRuido(bruto)) {
+    if (ehRuido(bruto) && !transacaoEmbutida) {
+      const resgate = valorAntecipado ? tentarResgatarSemColuna(celulas, valorAntecipado) : null;
+      if (resgate) {
+        pendenteSemData = { ...resgate, final: finalAtual };
+        pendente = null;
+        continue;
+      }
       pendente = null;
       continue;
     }
 
-    const data = acharData(celulas);
-    const valor = acharValor(celulas);
+    const data = acharData(celulas) ?? (transacaoEmbutida ? transacaoEmbutida.data : null);
+    const valor = valorAntecipado;
 
     // Valor solto numa linha abaixo da descrição (com ou sem continuação do texto).
     if (!data && valor && pendente && celulas.length <= 3) {
@@ -404,11 +618,6 @@ export function extrairPosicional(
       incluir: !credito,
     };
   }
-
-  const mediana = (v: number[]) =>
-    v.length
-      ? Number([...v].sort((a, b) => a - b)[Math.floor(v.length / 2)]!.toFixed(1))
-      : undefined;
 
   return {
     lancamentos: out,
