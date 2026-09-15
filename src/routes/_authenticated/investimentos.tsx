@@ -29,6 +29,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
+import { appSupabase } from "@/integrations/supabase/app-types";
 import { RESPONSAVEIS_EXTRA, useInvestimentos, useProfilesList } from "@/hooks/useFinance";
 import { usePermissoes } from "@/hooks/useAuthData";
 import { formatBRL, formatDate, toISODate } from "@/lib/format";
@@ -154,11 +155,11 @@ function InvestimentosPage() {
           : null,
       });
       if (editId) {
-        const { error } = await supabase.from("investimentos").update(parsed).eq("id", editId);
+        const { error } = await appSupabase.from("investimentos").update(parsed).eq("id", editId);
         if (error) throw error;
         return;
       }
-      const { error } = await supabase.from("investimentos").insert(parsed);
+      const { error } = await appSupabase.from("investimentos").insert(parsed);
       if (error) throw error;
     },
     onSuccess: () => {

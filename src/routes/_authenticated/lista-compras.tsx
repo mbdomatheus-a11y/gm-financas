@@ -40,6 +40,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
+import { appSupabase } from "@/integrations/supabase/app-types";
 import { useSession } from "@/hooks/useAuthData";
 import { useProfilesList } from "@/hooks/useFinance";
 import { addMonths, formatDate, toISODate } from "@/lib/format";
@@ -129,7 +130,7 @@ function ListaComprasPage() {
       if (texto.length < 2) throw new Error("Informe o nome do item");
       if (itens.length >= LIMITE) throw new Error(`Limite de ${LIMITE} itens atingido`);
       const { data: auth } = await supabase.auth.getUser();
-      const { error } = await supabase.from("lista_compras").insert({
+      const { error } = await appSupabase.from("lista_compras").insert({
         nome: texto,
         categoria,
         lista,
@@ -187,7 +188,7 @@ function ListaComprasPage() {
       const atuais: string[] = item.aprovado_por ?? [];
       const jaAprovou = atuais.includes(user.id);
       const novaLista = jaAprovou ? atuais.filter((id) => id !== user.id) : [...atuais, user.id];
-      const { error } = await supabase
+      const { error } = await appSupabase
         .from("lista_compras")
         .update({ aprovado_por: novaLista })
         .eq("id", item.id);
