@@ -29,6 +29,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
+import { appSupabase } from "@/integrations/supabase/app-types";
 import { useSession, usePermissoes } from "@/hooks/useAuthData";
 import { useVeiculos } from "@/hooks/useFinance";
 import { formatDate } from "@/lib/format";
@@ -155,11 +156,11 @@ function VeiculosPage() {
         observacoes: form.observacoes || null,
       });
       if (editId) {
-        const { error } = await supabase.from("veiculos").update(parsed).eq("id", editId);
+        const { error } = await appSupabase.from("veiculos").update(parsed).eq("id", editId);
         if (error) throw error;
         return;
       }
-      const { error } = await supabase
+      const { error } = await appSupabase
         .from("veiculos")
         .insert({ ...parsed, created_by: user?.id ?? null });
       if (error) throw error;
@@ -176,7 +177,7 @@ function VeiculosPage() {
 
   const excluir = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("veiculos").delete().eq("id", id);
+      const { error } = await appSupabase.from("veiculos").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -188,7 +189,7 @@ function VeiculosPage() {
   const excluirDocumento = useMutation({
     mutationFn: async (doc: { id: string; storage_path: string }) => {
       await supabase.storage.from("anexos").remove([doc.storage_path]);
-      const { error } = await supabase.from("veiculo_documentos").delete().eq("id", doc.id);
+      const { error } = await appSupabase.from("veiculo_documentos").delete().eq("id", doc.id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -203,7 +204,7 @@ function VeiculosPage() {
       const path = `veiculos/${veiculoId}/${Date.now()}-${file.name}`;
       const up = await supabase.storage.from("anexos").upload(path, file, { upsert: true });
       if (up.error) throw up.error;
-      const { error } = await supabase.from("veiculo_documentos").insert({
+      const { error } = await appSupabase.from("veiculo_documentos").insert({
         veiculo_id: veiculoId,
         nome: file.name,
         storage_path: path,
