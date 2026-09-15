@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,10 +28,15 @@ const UNIDADES_TEMPO: { id: UnidadeTempo; label: string }[] = [
  * dois lugares.
  */
 export function DiferencaEntreDatas() {
-  const hoje = toISODate(new Date());
-  const [inicio, setInicio] = useState(hoje);
-  const [fim, setFim] = useState(hoje);
+  const [inicio, setInicio] = useState("");
+  const [fim, setFim] = useState("");
   const [unidade, setUnidade] = useState<UnidadeTempo>("dias");
+
+  useEffect(() => {
+    const hoje = toISODate(new Date());
+    setInicio(hoje);
+    setFim(hoje);
+  }, []);
 
   const resultado = useMemo(
     () => (inicio && fim ? diferencaEntreDatas(inicio, fim, unidade) : null),
