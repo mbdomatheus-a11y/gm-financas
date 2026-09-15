@@ -7,6 +7,7 @@ import { toast } from "sonner";
 
 import { AppLayout } from "@/components/AppLayout";
 import { ConvitesCard } from "@/components/ConvitesCard";
+import { PermissoesUsuariosCard } from "@/components/PermissoesUsuariosCard";
 import { Field } from "@/routes/_authenticated/receitas";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -30,13 +31,8 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfilesList, useRolesList } from "@/hooks/useFinance";
-import { usePermissoes, type Modulo } from "@/hooks/useAuthData";
-import {
-  adminCreateUser,
-  adminListarUsuarios,
-  adminResetPassword,
-  adminSetRole,
-} from "@/lib/admin.functions";
+import { usePermissoes } from "@/hooks/useAuthData";
+import { adminCreateUser, adminListarUsuarios, adminResetPassword } from "@/lib/admin.functions";
 import { maskCpf, onlyDigits, isValidCpf } from "@/lib/cpf";
 import { formatDate } from "@/lib/format";
 
@@ -55,16 +51,6 @@ export const Route = createFileRoute("/_authenticated/usuarios")({
   component: UsuariosPage,
 });
 
-const MODULOS: { key: Modulo; label: string }[] = [
-  { key: "receitas", label: "Receitas" },
-  { key: "despesas", label: "Despesas" },
-  { key: "cartoes", label: "Cartões e Bancos" },
-  { key: "investimentos", label: "Investimentos" },
-  { key: "veiculos", label: "Meu Veículo" },
-  { key: "compartilhar", label: "Compartilhar" },
-  { key: "personalizacao", label: "Personalização" },
-];
-
 function UsuariosPage() {
   const qc = useQueryClient();
   const { isAdmin } = usePermissoes();
@@ -73,7 +59,6 @@ function UsuariosPage() {
 
   const criar = useServerFn(adminCreateUser);
   const resetar = useServerFn(adminResetPassword);
-  const setRole = useServerFn(adminSetRole);
   const listarRoster = useServerFn(adminListarUsuarios);
 
   const { data: roster = [], isLoading: carregandoRoster } = useQuery({
@@ -87,22 +72,9 @@ function UsuariosPage() {
   const [novo, setNovo] = useState({ nome: "", cpf: "", role: "comum" });
   const [reset, setReset] = useState<{ id: string; nome: string } | null>(null);
   const [senha, setSenha] = useState("");
-  const [detalhe, setDetalhe] = useState<string | null>(null);
   const [editar, setEditar] = useState<{ id: string; nome: string } | null>(null);
 
-  const { data: permissoes = [] } = useQuery({
-    queryKey: ["permissoes-todas"],
-    enabled: isAdmin,
-    queryFn: async () => {
-      const { data, error } = await supabase.from("permissoes").select("*");
-      if (error) throw error;
-      return data ?? [];
-    },
-  });
-
   const roleDe = (id: string) => roles.find((r: any) => r.user_id === id)?.role ?? "comum";
-  const permDe = (id: string, modulo: string) =>
-    permissoes.find((p: any) => p.user_id === id && p.modulo === modulo);
 
   const criarUsuario = useMutation({
     mutationFn: async () => {
@@ -138,16 +110,6 @@ function UsuariosPage() {
     onError: (e: any) => toast.error(e.message),
   });
 
-  const alterarRole = useMutation({
-    mutationFn: async ({ id, role }: { id: string; role: "admin" | "comum" }) =>
-      setRole({ data: { userId: id, role } }),
-    onSuccess: () => {
-      toast.success("Privilégio atualizado");
-      qc.invalidateQueries();
-    },
-    onError: (e: any) => toast.error(e.message),
-  });
-
   const salvarNome = useMutation({
     mutationFn: async () => {
       if (!editar) return;
@@ -170,23 +132,6 @@ function UsuariosPage() {
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries(),
-  });
-
-  const salvarPermissao = useMutation({
-    mutationFn: async (row: {
-      user_id: string;
-      modulo: string;
-      pode_ver: boolean;
-      pode_editar: boolean;
-      pode_excluir: boolean;
-    }) => {
-      const { error } = await supabase
-        .from("permissoes")
-        .upsert(row, { onConflict: "user_id,modulo" });
-      if (error) throw error;
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["permissoes-todas"] }),
-    onError: (e: any) => toast.error(e.message),
   });
 
   if (!isAdmin) {
@@ -257,10 +202,9 @@ function UsuariosPage() {
         </Card>
       </div>
 
-      <div className="space-y-3">
+      <div className="mb-4 space-y-3">
         {perfis.map((p: any) => {
           const role = roleDe(p.id);
-          const aberto = detalhe === p.id;
           return (
             <Card key={p.id}>
               <CardContent className="space-y-3 p-4">
@@ -302,73 +246,14 @@ function UsuariosPage() {
                   >
                     <KeyRound className="size-4" /> Redefinir senha
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() =>
-                      alterarRole.mutate({ id: p.id, role: role === "admin" ? "comum" : "admin" })
-                    }
-                  >
-                    <ShieldCheck className="size-4" />
-                    {role === "admin" ? "Tornar comum" : "Tornar administrador"}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => setDetalhe(aberto ? null : p.id)}
-                  >
-                    {aberto ? "Ocultar privilégios" : "Editar privilégios"}
-                  </Button>
                 </div>
-
-                {aberto && (
-                  <div className="overflow-x-auto rounded-xl border">
-                    <table className="w-full text-sm">
-                      <thead className="bg-muted/50 text-xs text-muted-foreground">
-                        <tr>
-                          <th className="p-2 text-left font-medium">Módulo</th>
-                          <th className="p-2 font-medium">Ver</th>
-                          <th className="p-2 font-medium">Editar</th>
-                          <th className="p-2 font-medium">Excluir</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {MODULOS.map((m) => {
-                          const row = permDe(p.id, m.key);
-                          const atual = {
-                            user_id: p.id,
-                            modulo: m.key,
-                            pode_ver: row?.pode_ver ?? true,
-                            pode_editar: row?.pode_editar ?? true,
-                            pode_excluir: row?.pode_excluir ?? false,
-                          };
-                          return (
-                            <tr key={m.key} className="border-t">
-                              <td className="p-2">{m.label}</td>
-                              {(["pode_ver", "pode_editar", "pode_excluir"] as const).map(
-                                (campo) => (
-                                  <td key={campo} className="p-2 text-center">
-                                    <Switch
-                                      checked={atual[campo]}
-                                      onCheckedChange={(v) =>
-                                        salvarPermissao.mutate({ ...atual, [campo]: v })
-                                      }
-                                    />
-                                  </td>
-                                ),
-                              )}
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
               </CardContent>
             </Card>
           );
         })}
       </div>
+
+      <PermissoesUsuariosCard />
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-md">

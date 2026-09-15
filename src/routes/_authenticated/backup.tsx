@@ -1,7 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Download, Upload, RotateCcw, ShieldAlert, Database } from "lucide-react";
+import {
+  Download,
+  Upload,
+  RotateCcw,
+  ShieldAlert,
+  Database,
+  CheckSquare,
+  Square,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { AppLayout } from "@/components/AppLayout";
@@ -9,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -27,12 +36,12 @@ export const Route = createFileRoute("/_authenticated/backup")({
       {
         name: "description",
         content:
-          "Exporte todos os dados do casal em JSON, importe de volta quando quiser e reinicie receitas ou despesas com segurança.",
+          "Exporte, restaure ou reinicie os dados do casal módulo por módulo: receitas, despesas, notas fiscais, de-para, veículo e mais.",
       },
       { property: "og:title", content: "Backup e Reset — Control ALL" },
       {
         property: "og:description",
-        content: "Backup completo em JSON, restauração e reset administrativo de lançamentos.",
+        content: "Backup seletivo em JSON, restauração e reset administrativo por módulo.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -41,33 +50,98 @@ export const Route = createFileRoute("/_authenticated/backup")({
   component: BackupPage,
 });
 
-/** Ordem importa: pais antes de filhos, para importar sem quebrar vínculos. */
-const TABELAS = [
-  "bancos",
-  "cartoes",
-  "categorias",
-  "cartao_vinculos",
-  "import_lotes",
-  "import_faturas",
-  "receitas",
-  "despesas",
-  "parcelas",
-  "investimentos",
-  "investimento_movimentos",
-  "lista_compras",
+/**
+ * Um módulo por linha de UI. `tabelas` é usado no backup/restauração (ordem
+ * não importa ali, é upsert). `resetOrder` é usado só no reset e importa:
+ * filhos antes de pais, mesmo quando a maioria das FKs já é CASCADE/SET NULL
+ * — deixamos explícito para não depender só do comportamento do banco.
+ */
+const MODULOS = [
+  {
+    key: "receitas",
+    label: "Receitas",
+    tabelas: ["receitas"],
+    resetOrder: ["receitas"],
+  },
+  {
+    key: "despesas",
+    label: "Despesas (fixas, variáveis, parcelas e fatura do mês)",
+    tabelas: ["despesas", "parcelas", "parcela_auditoria", "fatura_mes"],
+    resetOrder: ["parcela_auditoria", "parcelas", "fatura_mes", "despesas"],
+  },
+  {
+    key: "cartoes_bancos",
+    label: "Cartões e bancos",
+    tabelas: ["cartoes", "bancos", "cartao_vinculos"],
+    resetOrder: ["cartao_vinculos", "cartoes", "bancos"],
+  },
+  {
+    key: "categorias",
+    label: "Categorias",
+    tabelas: ["categorias"],
+    resetOrder: ["categorias"],
+  },
+  {
+    key: "de_para",
+    label: "De-para de categorias",
+    tabelas: ["categoria_regras"],
+    resetOrder: ["categoria_regras"],
+  },
+  {
+    key: "investimentos",
+    label: "Investimentos",
+    tabelas: ["investimentos", "investimento_movimentos"],
+    resetOrder: ["investimento_movimentos", "investimentos"],
+  },
+  {
+    key: "veiculos",
+    label: "Meu Veículo (documentos e eventos)",
+    tabelas: ["veiculos", "veiculo_documentos", "veiculo_eventos"],
+    resetOrder: ["veiculo_eventos", "veiculo_documentos", "veiculos"],
+  },
+  {
+    key: "notas_fiscais",
+    label: "Notas fiscais",
+    tabelas: ["notas_fiscais", "nota_itens", "nota_arquivos", "nota_vinculos"],
+    resetOrder: ["nota_vinculos", "nota_arquivos", "nota_itens", "notas_fiscais"],
+  },
+  {
+    key: "lista_compras",
+    label: "Lista de compras",
+    tabelas: ["lista_compras"],
+    resetOrder: ["lista_compras"],
+  },
+  {
+    key: "importacao",
+    label: "Faturas importadas (histórico, comprovantes e layouts aprendidos)",
+    tabelas: ["import_lotes", "import_faturas", "fatura_layouts", "comprovantes"],
+    resetOrder: ["comprovantes", "import_faturas", "import_lotes", "fatura_layouts"],
+  },
+  {
+    key: "configuracoes",
+    label: "Configurações do casal (ex.: pasta do Google Drive)",
+    tabelas: ["configuracoes_casal"],
+    resetOrder: ["configuracoes_casal"],
+  },
 ] as const;
 
-type Tabela = (typeof TABELAS)[number];
-type Backup = { versao: number; gerado_em: string; dados: Record<string, any[]> };
+type ModuloKey = (typeof MODULOS)[number]["key"];
+type Backup = {
+  versao: number;
+  gerado_em: string;
+  modulos: ModuloKey[];
+  dados: Record<string, any[]>;
+};
 
-async function baixarTudo(): Promise<Backup> {
+async function baixarModulos(chaves: ModuloKey[]): Promise<Backup> {
   const dados: Record<string, any[]> = {};
-  for (const t of TABELAS) {
-    const { data, error } = await supabase.from(t).select("*");
+  const tabelas = MODULOS.filter((m) => chaves.includes(m.key)).flatMap((m) => m.tabelas);
+  for (const t of tabelas) {
+    const { data, error } = await supabase.from(t as any).select("*");
     if (error) throw new Error(`${t}: ${error.message}`);
     dados[t] = data ?? [];
   }
-  return { versao: 1, gerado_em: new Date().toISOString(), dados };
+  return { versao: 2, gerado_em: new Date().toISOString(), modulos: chaves, dados };
 }
 
 function BackupPage() {
@@ -76,15 +150,34 @@ function BackupPage() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [busy, setBusy] = useState<string | null>(null);
-  const [backupFeito, setBackupFeito] = useState(false);
+  const [selecionados, setSelecionados] = useState<Set<ModuloKey>>(
+    new Set(MODULOS.map((m) => m.key)),
+  );
+  const [modulosBackupados, setModulosBackupados] = useState<Set<ModuloKey>>(new Set());
   const [resumo, setResumo] = useState<Record<string, number> | null>(null);
-  const [reset, setReset] = useState<null | "receitas" | "despesas">(null);
+  const [reset, setReset] = useState<(typeof MODULOS)[number] | null>(null);
   const [confirma, setConfirma] = useState("");
 
+  function toggle(chave: ModuloKey) {
+    setSelecionados((s) => {
+      const next = new Set(s);
+      if (next.has(chave)) next.delete(chave);
+      else next.add(chave);
+      return next;
+    });
+  }
+
+  const todosSelecionados = selecionados.size === MODULOS.length;
+
   async function exportar() {
+    if (selecionados.size === 0) {
+      toast.error("Selecione ao menos um módulo");
+      return;
+    }
     setBusy("export");
     try {
-      const backup = await baixarTudo();
+      const chaves = Array.from(selecionados);
+      const backup = await baixarModulos(chaves);
       const contagem: Record<string, number> = {};
       for (const [k, v] of Object.entries(backup.dados)) contagem[k] = v.length;
       setResumo(contagem);
@@ -93,10 +186,11 @@ function BackupPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `financas-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      const sufixo = todosSelecionados ? "completo" : chaves.join("-");
+      a.download = `financas-backup-${sufixo}-${new Date().toISOString().slice(0, 10)}.json`;
       a.click();
       URL.revokeObjectURL(url);
-      setBackupFeito(true);
+      setModulosBackupados((s) => new Set([...s, ...chaves]));
       toast.success("Backup gerado com sucesso");
     } catch (e: any) {
       toast.error(e.message ?? "Falha ao gerar backup");
@@ -110,15 +204,14 @@ function BackupPage() {
     try {
       const json = JSON.parse(await file.text()) as Backup;
       if (!json?.dados) throw new Error("Arquivo inválido");
+      const todasTabelas = MODULOS.flatMap((m) => m.tabelas);
       let total = 0;
-      for (const t of TABELAS) {
+      for (const t of todasTabelas) {
         const linhas = json.dados[t];
         if (!linhas?.length) continue;
         for (let i = 0; i < linhas.length; i += 200) {
           const lote = linhas.slice(i, i + 200);
-          const { error } = await supabase
-            .from(t as Tabela)
-            .upsert(lote as any, { onConflict: "id" });
+          const { error } = await supabase.from(t as any).upsert(lote as any, { onConflict: "id" });
           if (error) throw new Error(`${t}: ${error.message}`);
           total += lote.length;
         }
@@ -137,23 +230,15 @@ function BackupPage() {
     if (!reset) return;
     setBusy("reset");
     try {
-      if (reset === "receitas") {
-        const { error } = await supabase.from("receitas").delete().not("id", "is", null);
+      for (const tabela of reset.resetOrder) {
+        const { error } = await supabase
+          .from(tabela as any)
+          .delete()
+          .not("id", "is", null);
         if (error) throw error;
-      } else {
-        const p = await supabase.from("parcelas").delete().not("id", "is", null);
-        if (p.error) throw p.error;
-        const d = await supabase.from("despesas").delete().not("id", "is", null);
-        if (d.error) throw d.error;
-        // limpa o histórico de faturas importadas para permitir reimportar os mesmos PDFs
-        const f = await supabase.from("import_faturas").delete().not("id", "is", null);
-        if (f.error) throw f.error;
-        const l = await supabase.from("import_lotes").delete().not("id", "is", null);
-        if (l.error) throw l.error;
       }
-
       await qc.invalidateQueries();
-      toast.success(reset === "receitas" ? "Receitas zeradas" : "Despesas zeradas");
+      toast.success(`${reset.label} zerado(a)`);
       setReset(null);
       setConfirma("");
     } catch (e: any) {
@@ -179,22 +264,50 @@ function BackupPage() {
   return (
     <AppLayout
       title="Backup e Reset"
-      description="Exporte tudo em JSON, restaure quando quiser e reinicie lançamentos"
+      description="Escolha os módulos, exporte, restaure ou reinicie individualmente"
     >
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardContent className="space-y-3 p-5">
             <div className="flex items-center gap-2">
               <Download className="size-4.5 text-primary" />
-              <p className="font-semibold">1. Backup completo (JSON)</p>
+              <p className="font-semibold">1. Backup seletivo (JSON)</p>
             </div>
             <p className="text-sm text-muted-foreground">
-              Baixa receitas, despesas, parcelas, cartões, bancos, categorias, investimentos,
-              faturas importadas e lista de compras em um único arquivo.
+              Marque os módulos que quer incluir neste arquivo. Dá pra fazer um backup só de notas
+              fiscais, só do de-para, ou de tudo de uma vez.
             </p>
+            <button
+              type="button"
+              className="flex items-center gap-2 text-xs font-medium text-primary"
+              onClick={() =>
+                setSelecionados(todosSelecionados ? new Set() : new Set(MODULOS.map((m) => m.key)))
+              }
+            >
+              {todosSelecionados ? (
+                <CheckSquare className="size-3.5" />
+              ) : (
+                <Square className="size-3.5" />
+              )}
+              Selecionar tudo
+            </button>
+            <div className="space-y-1.5">
+              {MODULOS.map((m) => (
+                <label
+                  key={m.key}
+                  className="flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs hover:bg-muted/40"
+                >
+                  <Checkbox
+                    checked={selecionados.has(m.key)}
+                    onCheckedChange={() => toggle(m.key)}
+                  />
+                  {m.label}
+                </label>
+              ))}
+            </div>
             <Button onClick={exportar} disabled={busy !== null} className="gap-2">
               <Download className="size-4" />
-              {busy === "export" ? "Gerando..." : "Baixar backup"}
+              {busy === "export" ? "Gerando..." : `Baixar backup (${selecionados.size})`}
             </Button>
             {resumo && (
               <div className="flex flex-wrap gap-1.5 pt-1">
@@ -215,8 +328,8 @@ function BackupPage() {
               <p className="font-semibold">2. Restaurar backup</p>
             </div>
             <p className="text-sm text-muted-foreground">
-              Reimporta um arquivo gerado aqui. Registros com o mesmo identificador são
-              atualizados, então você recomeça exatamente de onde parou.
+              Reimporta um arquivo gerado aqui — completo ou de um módulo só. Registros com o mesmo
+              identificador são atualizados, então você recomeça exatamente de onde parou.
             </p>
             <Input
               ref={fileRef}
@@ -236,40 +349,38 @@ function BackupPage() {
           <CardContent className="space-y-3 p-5">
             <div className="flex items-center gap-2">
               <Database className="size-4.5 text-destructive" />
-              <p className="font-semibold">3. Reset administrativo</p>
+              <p className="font-semibold">3. Reset por módulo</p>
             </div>
             <p className="text-sm text-muted-foreground">
-              Apaga <strong>todas</strong> as receitas ou <strong>todas</strong> as despesas (com
-              suas parcelas). Disponível apenas depois de baixar o backup nesta sessão.
+              Apaga só os dados do módulo escolhido — dá pra resetar as notas fiscais ou o veículo
+              sem mexer no resto. Cada módulo só libera o reset depois que você baixar um backup
+              dele nesta sessão.
             </p>
-            {!backupFeito && (
-              <p className="text-xs font-medium text-destructive">
-                Faça o backup acima para liberar os botões de reset.
-              </p>
-            )}
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant="destructive"
-                disabled={!backupFeito || busy !== null}
-                onClick={() => {
-                  setReset("receitas");
-                  setConfirma("");
-                }}
-                className="gap-2"
-              >
-                <RotateCcw className="size-4" /> Resetar receitas
-              </Button>
-              <Button
-                variant="destructive"
-                disabled={!backupFeito || busy !== null}
-                onClick={() => {
-                  setReset("despesas");
-                  setConfirma("");
-                }}
-                className="gap-2"
-              >
-                <RotateCcw className="size-4" /> Resetar despesas
-              </Button>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {MODULOS.map((m) => {
+                const liberado = modulosBackupados.has(m.key);
+                return (
+                  <div
+                    key={m.key}
+                    className="flex items-center justify-between gap-2 rounded-lg border px-3 py-2"
+                  >
+                    <span className="text-xs">{m.label}</span>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      className="h-7 shrink-0 gap-1 text-[11px]"
+                      disabled={!liberado || busy !== null}
+                      title={liberado ? undefined : "Baixe o backup deste módulo primeiro"}
+                      onClick={() => {
+                        setReset(m);
+                        setConfirma("");
+                      }}
+                    >
+                      <RotateCcw className="size-3.5" /> Resetar
+                    </Button>
+                  </div>
+                );
+              })}
             </div>
           </CardContent>
         </Card>
@@ -278,7 +389,7 @@ function BackupPage() {
       <Dialog open={reset !== null} onOpenChange={(o) => !o && setReset(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Confirmar reset de {reset}</DialogTitle>
+            <DialogTitle>Confirmar reset de {reset?.label}</DialogTitle>
             <DialogDescription>
               Esta ação é irreversível. Digite <strong>RESETAR</strong> para confirmar.
             </DialogDescription>

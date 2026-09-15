@@ -104,7 +104,7 @@ export function useVeiculos() {
     queryFn: async () => {
       const { data, error } = await appSupabase
         .from("veiculos")
-        .select("*, veiculo_documentos(*)")
+        .select("*, veiculo_documentos(*), veiculo_eventos(*)")
         .order("nome");
       if (error) throw error;
       return data ?? [];

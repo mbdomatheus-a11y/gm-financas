@@ -4,12 +4,14 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
   Car,
+  ChevronDown,
   FileText,
   Loader2,
   Paperclip,
   Pencil,
   Plus,
   Trash2,
+  Wrench,
 } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -28,12 +30,25 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { appSupabase } from "@/integrations/supabase/app-types";
 import { useSession, usePermissoes } from "@/hooks/useAuthData";
 import { useVeiculos } from "@/hooks/useFinance";
-import { formatDate } from "@/lib/format";
+import { cn } from "@/lib/utils";
+import { formatBRL, formatDate, toISODate } from "@/lib/format";
 import { alertasDoVeiculo, type AlertaVeiculo } from "@/lib/veiculo-alertas";
+import {
+  labelTipoEvento,
+  TIPOS_EVENTO_VEICULO,
+  type TipoEventoVeiculo,
+} from "@/lib/veiculo-eventos";
 
 export const Route = createFileRoute("/_authenticated/veiculos")({
   head: () => ({
@@ -94,6 +109,22 @@ function urgenciaCor(a: AlertaVeiculo) {
   return a.urgencia === "critica" ? "text-destructive" : "text-warning";
 }
 
+const eventoSchema = z.object({
+  tipo: z.string().min(1, "Selecione o tipo"),
+  data: z.string().min(10, "Informe a data"),
+  km: z.number().int().nonnegative().nullable(),
+  custo: z.number().nonnegative().nullable(),
+  descricao: z.string().max(300).nullable(),
+});
+
+const eventoFormVazio = {
+  tipo: "troca_oleo" as TipoEventoVeiculo,
+  data: toISODate(new Date()),
+  km: "",
+  custo: "",
+  descricao: "",
+};
+
 function VeiculosPage() {
   const qc = useQueryClient();
   const { can } = usePermissoes();
@@ -105,6 +136,11 @@ function VeiculosPage() {
   const [form, setForm] = useState<any>(emptyForm);
   const [enviandoDoc, setEnviandoDoc] = useState<string | null>(null);
   const fileInputs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  const [historicoAberto, setHistoricoAberto] = useState<Record<string, boolean>>({});
+  const [filtroTipoEvento, setFiltroTipoEvento] = useState<Record<string, string>>({});
+  const [eventoVeiculoId, setEventoVeiculoId] = useState<string | null>(null);
+  const [eventoForm, setEventoForm] = useState<any>(eventoFormVazio);
 
   function abrirNovo() {
     setEditId(null);
@@ -194,6 +230,43 @@ function VeiculosPage() {
     },
     onSuccess: () => {
       toast.success("Documento removido");
+      qc.invalidateQueries({ queryKey: ["veiculos"] });
+    },
+  });
+
+  const salvarEvento = useMutation({
+    mutationFn: async () => {
+      if (!eventoVeiculoId) return;
+      const parsed = eventoSchema.parse({
+        tipo: eventoForm.tipo,
+        data: eventoForm.data,
+        km: eventoForm.km !== "" ? Number(eventoForm.km) : null,
+        custo: eventoForm.custo !== "" ? Number(String(eventoForm.custo).replace(",", ".")) : null,
+        descricao: eventoForm.descricao || null,
+      });
+      const { error } = await supabase.from("veiculo_eventos").insert({
+        veiculo_id: eventoVeiculoId,
+        ...parsed,
+        criado_por: user?.id ?? null,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Evento registrado");
+      setEventoVeiculoId(null);
+      setEventoForm(eventoFormVazio);
+      qc.invalidateQueries({ queryKey: ["veiculos"] });
+    },
+    onError: (e: any) => toast.error(e?.errors?.[0]?.message ?? e.message ?? "Erro ao salvar"),
+  });
+
+  const excluirEvento = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("veiculo_eventos").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Evento removido");
       qc.invalidateQueries({ queryKey: ["veiculos"] });
     },
   });
@@ -367,6 +440,112 @@ function VeiculosPage() {
                     </Button>
                   </div>
                 )}
+
+                {(() => {
+                  const eventos = ((v.veiculo_eventos ?? []) as any[]).sort((a, b) =>
+                    a.data < b.data ? 1 : -1,
+                  );
+                  const filtro = filtroTipoEvento[v.id] ?? "todos";
+                  const eventosFiltrados =
+                    filtro === "todos" ? eventos : eventos.filter((e) => e.tipo === filtro);
+                  const aberto = !!historicoAberto[v.id];
+                  return (
+                    <div className="border-t pt-3">
+                      <button
+                        type="button"
+                        onClick={() => setHistoricoAberto((s) => ({ ...s, [v.id]: !aberto }))}
+                        className="flex w-full items-center gap-2 text-left text-xs font-semibold text-muted-foreground hover:text-foreground"
+                      >
+                        <Wrench className="size-3.5" />
+                        Histórico de manutenção ({eventos.length})
+                        <ChevronDown
+                          className={cn(
+                            "ml-auto size-3.5 transition-transform",
+                            aberto && "rotate-180",
+                          )}
+                        />
+                      </button>
+                      {aberto && (
+                        <div className="mt-2 space-y-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Select
+                              value={filtro}
+                              onValueChange={(val) =>
+                                setFiltroTipoEvento((s) => ({ ...s, [v.id]: val }))
+                              }
+                            >
+                              <SelectTrigger className="h-8 w-auto text-xs">
+                                <SelectValue placeholder="Filtrar por tipo" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="todos">Todos os tipos</SelectItem>
+                                {TIPOS_EVENTO_VEICULO.map((t) => (
+                                  <SelectItem key={t.value} value={t.value}>
+                                    {t.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            {can("veiculos", "editar") && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-8 text-xs"
+                                onClick={() => {
+                                  setEventoVeiculoId(v.id);
+                                  setEventoForm(eventoFormVazio);
+                                }}
+                              >
+                                <Plus className="size-3.5" /> Novo evento
+                              </Button>
+                            )}
+                          </div>
+                          {eventosFiltrados.length === 0 ? (
+                            <p className="px-1 text-xs text-muted-foreground">
+                              Nenhum evento{filtro !== "todos" ? " desse tipo" : ""} registrado.
+                            </p>
+                          ) : (
+                            <div className="space-y-1.5">
+                              {eventosFiltrados.map((e: any) => (
+                                <div
+                                  key={e.id}
+                                  className="flex items-start gap-2 rounded-lg border px-2.5 py-1.5 text-xs"
+                                >
+                                  <div className="min-w-0 flex-1">
+                                    <p className="font-medium">
+                                      {labelTipoEvento(e.tipo)}{" "}
+                                      <span className="font-normal text-muted-foreground">
+                                        · {formatDate(e.data)}
+                                        {e.km != null
+                                          ? ` · ${Number(e.km).toLocaleString("pt-BR")} km`
+                                          : ""}
+                                        {e.custo != null ? ` · ${formatBRL(Number(e.custo))}` : ""}
+                                      </span>
+                                    </p>
+                                    {e.descricao && (
+                                      <p className="text-muted-foreground">{e.descricao}</p>
+                                    )}
+                                  </div>
+                                  {can("veiculos", "excluir") && (
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="size-6 shrink-0 text-muted-foreground hover:text-destructive"
+                                      onClick={() => excluirEvento.mutate(e.id)}
+                                      aria-label="Excluir evento"
+                                    >
+                                      <Trash2 className="size-3.5" />
+                                    </Button>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </CardContent>
             </Card>
           );
@@ -491,6 +670,76 @@ function VeiculosPage() {
           <DialogFooter>
             <Button onClick={() => salvar.mutate()} disabled={salvar.isPending}>
               {editId ? "Salvar alterações" : "Salvar veículo"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!eventoVeiculoId}
+        onOpenChange={(o) => {
+          if (!o) {
+            setEventoVeiculoId(null);
+            setEventoForm(eventoFormVazio);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Novo evento de manutenção</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Tipo" className="sm:col-span-2">
+              <Select
+                value={eventoForm.tipo}
+                onValueChange={(v) => setEventoForm({ ...eventoForm, tipo: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {TIPOS_EVENTO_VEICULO.map((t) => (
+                    <SelectItem key={t.value} value={t.value}>
+                      {t.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field label="Data">
+              <Input
+                type="date"
+                value={eventoForm.data}
+                onChange={(e) => setEventoForm({ ...eventoForm, data: e.target.value })}
+              />
+            </Field>
+            <Field label="KM (opcional)">
+              <Input
+                inputMode="numeric"
+                value={eventoForm.km}
+                onChange={(e) => setEventoForm({ ...eventoForm, km: e.target.value })}
+              />
+            </Field>
+            <Field label="Custo (opcional)" className="sm:col-span-2">
+              <Input
+                inputMode="decimal"
+                placeholder="0,00"
+                value={eventoForm.custo}
+                onChange={(e) => setEventoForm({ ...eventoForm, custo: e.target.value })}
+              />
+            </Field>
+            <Field label="Descrição (opcional)" className="sm:col-span-2">
+              <Textarea
+                rows={2}
+                value={eventoForm.descricao}
+                onChange={(e) => setEventoForm({ ...eventoForm, descricao: e.target.value })}
+                placeholder="Ex.: Óleo 5W30 + filtro, oficina do Zé"
+              />
+            </Field>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => salvarEvento.mutate()} disabled={salvarEvento.isPending}>
+              Salvar evento
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, Pencil, Plus, Trash2, TrendingUp } from "lucide-react";
+import { ChevronDown, Pencil, Plus, Search, Trash2, TrendingUp, X } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -122,6 +122,7 @@ function ReceitasPage() {
   const [filtroMes, setFiltroMes] = useState("atual_proximo");
   const [filtroCat, setFiltroCat] = useState("todas");
   const [filtroResp, setFiltroResp] = useState("todos");
+  const [busca, setBusca] = useState("");
 
   const meses = useMemo(
     () =>
@@ -142,8 +143,35 @@ function ReceitasPage() {
     }
     if (filtroCat !== "todas" && r.categoria !== filtroCat) return false;
     if (filtroResp !== "todos" && r.responsavel !== filtroResp) return false;
+    if (
+      busca &&
+      !`${r.descricao} ${r.categoria} ${r.responsavel}`.toLowerCase().includes(busca.toLowerCase())
+    )
+      return false;
     return true;
   });
+
+  const chips = [
+    filtroMes !== "atual_proximo" &&
+      filtroMes !== "todos" && {
+        label: filtroMes,
+        clear: () => setFiltroMes("atual_proximo"),
+      },
+    filtroMes === "todos" && {
+      label: "Todos os meses",
+      clear: () => setFiltroMes("atual_proximo"),
+    },
+    filtroCat !== "todas" && { label: filtroCat, clear: () => setFiltroCat("todas") },
+    filtroResp !== "todos" && { label: filtroResp, clear: () => setFiltroResp("todos") },
+    !!busca && { label: `"${busca}"`, clear: () => setBusca("") },
+  ].filter(Boolean) as { label: string; clear: () => void }[];
+
+  function limparFiltros() {
+    setFiltroMes("atual_proximo");
+    setFiltroCat("todas");
+    setFiltroResp("todos");
+    setBusca("");
+  }
 
   const total = lista.reduce(
     (s: number, r: any) => s + toBRL(Number(r.valor), r.moeda, cotacao),
@@ -350,7 +378,17 @@ function ReceitasPage() {
         )
       }
     >
-      <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+      <div className="relative mb-2">
+        <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          value={busca}
+          onChange={(e) => setBusca(e.target.value)}
+          placeholder="Buscar descrição, categoria ou responsável"
+          className="h-9 pl-8"
+        />
+      </div>
+
+      <div className="mb-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
         <Select value={filtroMes} onValueChange={setFiltroMes}>
           <SelectTrigger>
             <SelectValue placeholder="Mês" />
@@ -392,6 +430,24 @@ function ReceitasPage() {
           </SelectContent>
         </Select>
       </div>
+
+      {chips.length > 0 && (
+        <div className="mb-3 flex flex-wrap items-center gap-1.5">
+          {chips.map((c) => (
+            <button
+              key={c.label}
+              onClick={c.clear}
+              className="inline-flex items-center gap-1 rounded-full border bg-muted/50 px-2.5 py-1 text-[11px] font-medium hover:bg-muted"
+            >
+              {c.label}
+              <X className="size-3" />
+            </button>
+          ))}
+          <Button variant="ghost" size="sm" className="h-6 text-[11px]" onClick={limparFiltros}>
+            Limpar filtros
+          </Button>
+        </div>
+      )}
 
       {filtroMes === "atual_proximo" && (
         <p className="mb-3 text-xs text-muted-foreground">
