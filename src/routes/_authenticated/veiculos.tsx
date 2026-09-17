@@ -244,7 +244,7 @@ function VeiculosPage() {
         custo: eventoForm.custo !== "" ? Number(String(eventoForm.custo).replace(",", ".")) : null,
         descricao: eventoForm.descricao || null,
       });
-      const { error } = await supabase.from("veiculo_eventos").insert({
+      const { error } = await appSupabase.from("veiculo_eventos").insert({
         veiculo_id: eventoVeiculoId,
         ...parsed,
         criado_por: user?.id ?? null,
@@ -262,7 +262,7 @@ function VeiculosPage() {
 
   const excluirEvento = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("veiculo_eventos").delete().eq("id", id);
+      const { error } = await appSupabase.from("veiculo_eventos").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {

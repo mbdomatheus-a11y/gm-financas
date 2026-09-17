@@ -48,6 +48,19 @@ type VeiculoDocumentoRow = {
   veiculo_id: string;
 };
 
+type VeiculoEventoRow = {
+  criado_por: string | null;
+  created_at: string;
+  custo: number | null;
+  data: string;
+  descricao: string | null;
+  grupo_id: string | null;
+  id: string;
+  km: number | null;
+  tipo: string;
+  veiculo_id: string;
+};
+
 type TableDefinition<Row, Insert, Update, Relationships extends readonly unknown[]> = {
   Row: Row;
   Insert: Insert;
@@ -81,6 +94,17 @@ type VeiculoDocumentoTable = TableDefinition<
   ]
 >;
 
+type VeiculoEventoTable = TableDefinition<
+  VeiculoEventoRow,
+  Omit<VeiculoEventoRow, "created_at" | "grupo_id" | "id"> & {
+    created_at?: string;
+    grupo_id?: string | null;
+    id?: string;
+  },
+  Partial<VeiculoEventoRow>,
+  []
+>;
+
 type AppTables = Omit<
   Database["public"]["Tables"],
   "investimentos" | "lista_compras"
@@ -97,6 +121,7 @@ type AppTables = Omit<
     Update: ListaComprasTable["Update"] & Partial<ListaComprasFields>;
     Relationships: ListaComprasTable["Relationships"];
   };
+  veiculo_eventos: VeiculoEventoTable;
   veiculo_documentos: VeiculoDocumentoTable;
   veiculos: VeiculoTable;
 };
