@@ -229,7 +229,17 @@ export const uploadNotaArquivo = createServerFn({ method: "POST" })
     );
     if (!res.ok) {
       const text = await res.text();
-      throw new Error(`Falha no upload para o Drive (${res.status}): ${text.slice(0, 200)}`);
+      const apiDesativada =
+        res.status === 403 &&
+        /Google Drive API has not been used|accessNotConfigured|SERVICE_DISABLED/i.test(text);
+      console.error(`Google Drive upload failed [${res.status}]: ${text}`);
+      return {
+        ok: false as const,
+        code: apiDesativada ? "drive_api_disabled" : "drive_upload_failed",
+        message: apiDesativada
+          ? "A API do Google Drive está desativada no projeto Google desta conexão. Ative a Google Drive API no Google Cloud e tente novamente."
+          : `O Google Drive recusou o envio (${res.status}). Tente novamente.`,
+      };
     }
     const file = (await res.json()) as {
       id: string;
@@ -250,5 +260,5 @@ export const uploadNotaArquivo = createServerFn({ method: "POST" })
     });
     if (error) throw error;
 
-    return { ok: true, fileId: file.id };
+    return { ok: true as const, fileId: file.id };
   });

@@ -302,7 +302,7 @@ function NotasPage() {
           const competencia = dados.data_compra.slice(0, 7);
           for (const file of fotosPendentes) {
             const base64 = await fileParaBase64(file);
-            await enviarArquivo({
+            const resultado = await enviarArquivo({
               data: {
                 notaId: notaId!,
                 nome: file.name || `nota-${Date.now()}.jpg`,
@@ -311,6 +311,12 @@ function NotasPage() {
                 competencia,
               },
             });
+            if (!resultado.ok) {
+              toast.warning(`Nota salva sem o comprovante. ${resultado.message}`, {
+                duration: 10000,
+              });
+              break;
+            }
           }
         }
       }
@@ -345,7 +351,7 @@ function NotasPage() {
       const competencia = (nota?.data_compra ?? toISODate(new Date())).slice(0, 7);
       for (const file of files) {
         const base64 = await fileParaBase64(file);
-        await enviarArquivo({
+        const resultado = await enviarArquivo({
           data: {
             notaId,
             nome: file.name || `nota-${Date.now()}.jpg`,
@@ -354,6 +360,7 @@ function NotasPage() {
             competencia,
           },
         });
+        if (!resultado.ok) throw new Error(resultado.message);
       }
     },
     onSuccess: () => {
