@@ -238,13 +238,30 @@ function InicioPage() {
                       <p className="mt-1 text-sm text-muted-foreground">{a.descricao}</p>
                     </div>
                     {a.stats.length > 0 && (
-                      <div className="grid grid-cols-3 gap-2">
+                      <div
+                        className={
+                          a.to === "/dashboard"
+                            ? "grid grid-cols-1 gap-1.5"
+                            : "grid grid-cols-3 gap-2"
+                        }
+                      >
                         {a.stats.map((s) => (
-                          <div key={s.label} className="rounded-lg border bg-muted/30 px-2 py-1.5">
-                            <p className="truncate text-[10px] uppercase tracking-wide text-muted-foreground">
+                          <div
+                            key={s.label}
+                            className={
+                              a.to === "/dashboard"
+                                ? "grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg border bg-muted/30 px-2.5 py-1.5"
+                                : "min-w-0 rounded-lg border bg-muted/30 px-2 py-1.5"
+                            }
+                          >
+                            <p className="min-w-0 truncate text-[10px] uppercase tracking-wide text-muted-foreground">
                               {s.label}
                             </p>
-                            <p className={`truncate text-sm font-bold tabular-nums ${s.cor}`}>
+                            <p
+                              className={`${
+                                a.to === "/dashboard" ? "whitespace-nowrap text-right" : "truncate"
+                              } text-sm font-bold tabular-nums ${s.cor}`}
+                            >
                               {s.valor}
                             </p>
                           </div>
