@@ -261,6 +261,61 @@ export type Database = {
         }
         Relationships: []
       }
+      convites: {
+        Row: {
+          criado_em: string
+          criado_por: string
+          expira_em: string
+          grupo_id: string
+          id: string
+          token: string
+          usado: boolean
+          usado_por: string | null
+        }
+        Insert: {
+          criado_em?: string
+          criado_por: string
+          expira_em?: string
+          grupo_id: string
+          id?: string
+          token?: string
+          usado?: boolean
+          usado_por?: string | null
+        }
+        Update: {
+          criado_em?: string
+          criado_por?: string
+          expira_em?: string
+          grupo_id?: string
+          id?: string
+          token?: string
+          usado?: boolean
+          usado_por?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "convites_criado_por_fkey"
+            columns: ["criado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "convites_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "grupos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "convites_usado_por_fkey"
+            columns: ["usado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       despesas: {
         Row: {
           banco_id: string | null
@@ -526,6 +581,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      grupos: {
+        Row: {
+          created_at: string
+          id: string
+          nome: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          nome?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          nome?: string
+        }
+        Relationships: []
       }
       import_faturas: {
         Row: {
@@ -1082,29 +1155,59 @@ export type Database = {
       profiles: {
         Row: {
           ativo: boolean
+          convidado_por: string | null
           cpf: string
           created_at: string
+          data_nascimento: string | null
+          email: string | null
+          grupo_id: string | null
           id: string
           nome: string
           senha_temporaria: boolean
+          telefone: string | null
         }
         Insert: {
           ativo?: boolean
+          convidado_por?: string | null
           cpf: string
           created_at?: string
+          data_nascimento?: string | null
+          email?: string | null
+          grupo_id?: string | null
           id: string
           nome: string
           senha_temporaria?: boolean
+          telefone?: string | null
         }
         Update: {
           ativo?: boolean
+          convidado_por?: string | null
           cpf?: string
           created_at?: string
+          data_nascimento?: string | null
+          email?: string | null
+          grupo_id?: string | null
           id?: string
           nome?: string
           senha_temporaria?: boolean
+          telefone?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_convidado_por_fkey"
+            columns: ["convidado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "grupos"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       receitas: {
         Row: {
