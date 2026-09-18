@@ -8,7 +8,13 @@ export default defineTool({
   description: "Lista despesas recentes do casal, com filtro opcional por categoria.",
   inputSchema: {
     categoria: z.string().optional().describe("Categoria exata para filtrar."),
-    limite: z.number().int().min(1).max(100).optional().describe("Quantidade de resultados, de 1 a 100."),
+    limite: z
+      .number()
+      .int()
+      .min(1)
+      .max(100)
+      .optional()
+      .describe("Quantidade de resultados, de 1 a 100."),
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async ({ categoria, limite }, ctx) => {
