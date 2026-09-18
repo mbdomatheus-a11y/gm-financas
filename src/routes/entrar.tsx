@@ -218,29 +218,27 @@ const emptyCadastro = {
   confirmarSenha: "",
 };
 
-/** Cadastro por convite — só funciona com um token válido na URL (?convite=...). */
+/**
+ * Cadastro por convite — o usuário informa o código de convite direto no
+ * formulário (não depende mais de um link com domínio específico, que
+ * podia apontar para um domínio de preview errado). O parâmetro `?convite=`
+ * na URL continua funcionando como atalho pra pré-preencher o campo, mas
+ * não é obrigatório.
+ */
 function CriarContaForm({ token }: { token: string | undefined }) {
   const navigate = useNavigate();
   const aceitar = useServerFn(aceitarConvite);
   const [form, setForm] = useState(emptyCadastro);
+  const [tokenInput, setTokenInput] = useState(token ?? "");
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  if (!token) {
-    return (
-      <div className="space-y-3 rounded-2xl border bg-card p-6 text-center shadow-card">
-        <UserPlus className="mx-auto size-8 text-muted-foreground" />
-        <p className="text-sm text-muted-foreground">
-          O cadastro é só por convite. Peça um link de convite a quem já usa o Control ALL — ele
-          pode gerar um em <strong>Minha conta</strong> ou, se for admin, em{" "}
-          <strong>Usuários e Privilégios</strong>.
-        </p>
-      </div>
-    );
-  }
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!tokenInput.trim()) {
+      toast.error("Informe o código de convite");
+      return;
+    }
     const cpf = onlyDigits(form.cpf);
     if (!isValidCpf(cpf)) {
       toast.error("CPF inválido");
@@ -279,7 +277,7 @@ function CriarContaForm({ token }: { token: string | undefined }) {
     try {
       const res = await aceitar({
         data: {
-          token: token!,
+          token: tokenInput.trim(),
           nome: form.nome.trim(),
           cpf,
           email: form.email.trim(),
@@ -308,6 +306,22 @@ function CriarContaForm({ token }: { token: string | undefined }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3 rounded-2xl border bg-card p-6 shadow-card">
+      <div className="space-y-1.5">
+        <Label htmlFor="c-token">Código de convite</Label>
+        <Input
+          id="c-token"
+          autoComplete="off"
+          placeholder="Cole aqui o código que você recebeu"
+          value={tokenInput}
+          onChange={(e) => setTokenInput(e.target.value)}
+          className="font-mono"
+        />
+        <p className="text-xs text-muted-foreground">
+          O cadastro é só por convite. Peça o código a quem já usa o Control ALL — ele pode gerar
+          um em <strong>Minha conta</strong> ou, se for admin, em{" "}
+          <strong>Usuários e Privilégios</strong>. Cada pessoa pode gerar até 3 códigos.
+        </p>
+      </div>
       <div className="space-y-1.5">
         <Label htmlFor="c-nome">Nome completo</Label>
         <Input
