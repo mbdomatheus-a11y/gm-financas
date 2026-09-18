@@ -69,7 +69,8 @@ export const Route = createFileRoute("/_authenticated/notas")({
       { property: "og:title", content: "Notas fiscais e garantias — Control ALL" },
       {
         property: "og:description",
-        content: "Comprovantes em pasta compartilhada, chave de acesso e aviso antes da garantia expirar.",
+        content:
+          "Comprovantes em pasta compartilhada, chave de acesso e aviso antes da garantia expirar.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -225,9 +226,7 @@ function NotasPage() {
             const detalhe = (event.data as { error?: string | null })?.error;
             reject(
               new Error(
-                detalhe
-                  ? `Google Drive: ${detalhe}`
-                  : "Conexão com o Google Drive não concluída.",
+                detalhe ? `Google Drive: ${detalhe}` : "Conexão com o Google Drive não concluída.",
               ),
             );
           };
@@ -241,7 +240,6 @@ function NotasPage() {
               ),
             );
           }, 500);
-
         });
         popup.location.href = authorizationUrl;
         code = await completion;
@@ -373,7 +371,8 @@ function NotasPage() {
 
   async function aoLerCodigo({ chave, texto }: { chave: string; texto: string }) {
     setLeitor(false);
-    if (!chaveValida(chave)) toast.warning("A chave lida não passou na validação; confira os dados.");
+    if (!chaveValida(chave))
+      toast.warning("A chave lida não passou na validação; confira os dados.");
     const dados = dadosDaChave(chave);
     const base: NotaForm = {
       ...FORM_VAZIO,
@@ -506,39 +505,39 @@ function NotasPage() {
             </div>
             <div className="border-t pt-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="flex size-9 items-center justify-center rounded-xl bg-primary/10">
-                <HardDrive className="size-4.5 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold">Envio automático pelo Google Drive</p>
-                <p className="text-xs text-muted-foreground">
-                  {drive.data?.connected
-                    ? pasta.data?.provider === "Google Drive"
-                      ? "Conectado e pronto para enviar à pasta selecionada"
-                      : "Conectado — selecione uma pasta do Google Drive para envio automático"
-                    : "Opcional: conecte para enviar os arquivos sem sair do aplicativo"}
-                </p>
-              </div>
-            </div>
-            {drive.data?.connected ? (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  desconectar({}).then(() => {
-                    toast.success("Google Drive desconectado.");
-                    void qc.invalidateQueries({ queryKey: ["drive-status"] });
-                  })
-                }
-              >
-                Desconectar
-              </Button>
-            ) : (
-              <Button size="sm" onClick={() => conectar.mutate()} disabled={conectar.isPending}>
-                {conectar.isPending ? "Conectando…" : "Conectar Google Drive"}
-              </Button>
-            )}
+                <div className="flex items-center gap-3">
+                  <div className="flex size-9 items-center justify-center rounded-xl bg-primary/10">
+                    <HardDrive className="size-4.5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold">Envio automático pelo Google Drive</p>
+                    <p className="text-xs text-muted-foreground">
+                      {drive.data?.connected
+                        ? pasta.data?.provider === "Google Drive"
+                          ? "Conectado e pronto para enviar à pasta selecionada"
+                          : "Conectado — selecione uma pasta do Google Drive para envio automático"
+                        : "Opcional: conecte para enviar os arquivos sem sair do aplicativo"}
+                    </p>
+                  </div>
+                </div>
+                {drive.data?.connected ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      desconectar({}).then(() => {
+                        toast.success("Google Drive desconectado.");
+                        void qc.invalidateQueries({ queryKey: ["drive-status"] });
+                      })
+                    }
+                  >
+                    Desconectar
+                  </Button>
+                ) : (
+                  <Button size="sm" onClick={() => conectar.mutate()} disabled={conectar.isPending}>
+                    {conectar.isPending ? "Conectando…" : "Conectar Google Drive"}
+                  </Button>
+                )}
               </div>
               <p className="mt-2 text-[11px] text-muted-foreground">
                 Em outros serviços, use “Abrir pasta” para enviar ou consultar os comprovantes.
@@ -558,7 +557,10 @@ function NotasPage() {
                 <p className="text-xs text-muted-foreground">
                   {aVencer
                     .slice(0, 3)
-                    .map((n) => `${n.estabelecimento ?? n.descricao ?? "Nota"} (${diasRestantes(n.garantia_fim)}d)`)
+                    .map(
+                      (n) =>
+                        `${n.estabelecimento ?? n.descricao ?? "Nota"} (${diasRestantes(n.garantia_fim)}d)`,
+                    )
                     .join(" · ")}
                 </p>
               </div>
@@ -672,8 +674,12 @@ function NotasPage() {
             >
               <QrCode className="size-5 text-primary" />
               <span className="text-left">
-                <span className="block text-sm font-semibold">Ler nota (QR / código de barras)</span>
-                <span className="block text-xs text-muted-foreground">Captura a chave de acesso</span>
+                <span className="block text-sm font-semibold">
+                  Ler nota (QR / código de barras)
+                </span>
+                <span className="block text-xs text-muted-foreground">
+                  Captura a chave de acesso
+                </span>
               </span>
             </Button>
             <Button
@@ -713,7 +719,9 @@ function NotasPage() {
               {form.chave_acesso && (
                 <div className="rounded-xl border bg-muted/40 p-3 text-xs">
                   <p className="font-medium">Chave de acesso</p>
-                  <p className="break-all text-muted-foreground">{formatarChave(form.chave_acesso)}</p>
+                  <p className="break-all text-muted-foreground">
+                    {formatarChave(form.chave_acesso)}
+                  </p>
                   <p className="mt-1 text-muted-foreground">
                     {form.status_captura === "auto"
                       ? "Dados obtidos automaticamente"
@@ -788,7 +796,10 @@ function NotasPage() {
                     value={
                       calcularFimGarantia(form.data_compra, Number(form.garantia_meses) || 0)
                         ? formatDate(
-                            calcularFimGarantia(form.data_compra, Number(form.garantia_meses) || 0)!,
+                            calcularFimGarantia(
+                              form.data_compra,
+                              Number(form.garantia_meses) || 0,
+                            )!,
                           )
                         : "—"
                     }
@@ -813,7 +824,9 @@ function NotasPage() {
 
               {itensLidos.length > 0 && (
                 <div className="rounded-xl border p-3">
-                  <p className="mb-2 text-xs font-medium">{itensLidos.length} itens lidos da nota</p>
+                  <p className="mb-2 text-xs font-medium">
+                    {itensLidos.length} itens lidos da nota
+                  </p>
                   <ul className="max-h-40 space-y-1 overflow-y-auto text-xs text-muted-foreground">
                     {itensLidos.map((i, idx) => (
                       <li key={idx} className="flex justify-between gap-3">
@@ -926,7 +939,9 @@ function NotasPage() {
                       disabled={anexar.isPending}
                       onClick={() => {
                         if (!drive.data?.connected || pasta.data?.provider !== "Google Drive") {
-                          toast.warning("Para envio automático, conecte o Google Drive e selecione uma pasta dele.");
+                          toast.warning(
+                            "Para envio automático, conecte o Google Drive e selecione uma pasta dele.",
+                          );
                           return;
                         }
                         notaAlvoUpload.current = notaDetalhe.id;
