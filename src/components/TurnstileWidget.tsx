@@ -1,7 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 
-/** Site key do Cloudflare Turnstile — pública, pode ficar no código-fonte. */
-const SITE_KEY = "0x4AAAAAAE0AU2NW5HL44cRd";
+/**
+ * Site key do Cloudflare Turnstile — pública, pode ficar no código-fonte.
+ * Trocada em 2026-09-18 (novo widget Turnstile, criado junto com a
+ * reconexão do Supabase externo). A secret key correspondente NÃO fica
+ * aqui — só nos Secrets do Lovable / variáveis de ambiente da Vercel,
+ * como `TURNSTILE_SECRET_KEY` (ver src/lib/turnstile.functions.ts).
+ */
+const SITE_KEY = "0x4AAAAAAE7_9ZrRkf0ZfJ7F";
 
 declare global {
   interface Window {

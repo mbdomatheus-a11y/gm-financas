@@ -1,11 +1,14 @@
 /**
- * Interruptor temporário do Cloudflare Turnstile no cadastro por convite.
+ * Interruptor do Cloudflare Turnstile no cadastro por convite.
  *
- * Desativado em 2026-09-18: o desafio do Turnstile estava bloqueando o
- * cadastro de convidados ("Não foi possível conectar ao site" / erro do
- * Cloudflare na tela de criar conta).
+ * Histórico: desativado em 2026-09-18 porque o desafio do Turnstile estava
+ * bloqueando o cadastro de convidados (o site estava com o backend preso
+ * num Supabase errado/desconectado nessa época, ver
+ * claude/status-migracao-supabase.md). Reativado em 2026-09-18, depois de
+ * conectar o Supabase externo `wjapagkdgjlavonbmjdu` no Lovable.
  *
- * REATIVAR em ~2026-09-23: voltar `TURNSTILE_ATIVO` para `true`, validar
- * (`tsc --noEmit`, `bun test`, `bun run build`) e entregar de novo.
+ * Antes de reativar de novo (se for desligado no futuro), confirme que
+ * `TURNSTILE_SECRET_KEY` está configurada nos Secrets do Lovable — sem ela
+ * `verificarTurnstileToken` sempre falha (ver src/lib/turnstile.functions.ts).
  */
-export const TURNSTILE_ATIVO = false;
+export const TURNSTILE_ATIVO = true;
