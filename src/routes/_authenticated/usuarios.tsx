@@ -7,6 +7,7 @@ import { toast } from "sonner";
 
 import { AppLayout } from "@/components/AppLayout";
 import { ConvitesCard } from "@/components/ConvitesCard";
+import { AdminConvitesCard } from "@/components/AdminConvitesCard";
 import { PermissoesUsuariosCard } from "@/components/PermissoesUsuariosCard";
 import { Field } from "@/routes/_authenticated/receitas";
 import { Button } from "@/components/ui/button";
@@ -251,6 +252,10 @@ function UsuariosPage() {
             </Card>
           );
         })}
+      </div>
+
+      <div className="mb-4">
+        <AdminConvitesCard />
       </div>
 
       <PermissoesUsuariosCard />

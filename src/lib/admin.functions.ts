@@ -103,6 +103,58 @@ export const adminListarUsuarios = createServerFn({ method: "GET" })
     }));
   });
 
+/**
+ * Lista TODOS os convites gerados por TODOS os usuários (não só os seus) —
+ * só admin. Usa service role de propósito: a policy de `convites` é
+ * `criado_por = auth.uid()`, sem bypass pra admin, então uma consulta com o
+ * cliente normal só devolveria os convites do próprio admin.
+ */
+export const adminListarConvites = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const db = supabaseAdmin as any;
+    const { data, error } = await db
+      .from("convites")
+      .select(
+        "id, token, usado, usado_por, criado_em, expira_em, criado_por, criador:criado_por(nome)",
+      )
+      .order("criado_em", { ascending: false });
+    if (error) throw new Error(error.message);
+    return (data ?? []).map((c: any) => ({
+      id: c.id as string,
+      token: c.token as string,
+      usado: !!c.usado,
+      usadoPor: (c.usado_por as string | null) ?? null,
+      criadoEm: c.criado_em as string,
+      expiraEm: c.expira_em as string,
+      criadoPorId: c.criado_por as string,
+      criadoPorNome: (c.criador?.nome as string | undefined) ?? "—",
+    }));
+  });
+
+/** Cancela qualquer convite ainda não usado, de qualquer pessoa — só admin. */
+export const adminCancelarConvite = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ conviteId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const db = supabaseAdmin as any;
+    const { data: convite, error } = await db
+      .from("convites")
+      .select("usado")
+      .eq("id", data.conviteId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!convite) throw new Error("Convite não encontrado.");
+    if (convite.usado) throw new Error("Este convite já foi usado — não é possível cancelar.");
+    const { error: delError } = await db.from("convites").delete().eq("id", data.conviteId);
+    if (delError) throw new Error(delError.message);
+    return { ok: true as const };
+  });
+
 export const adminSetRole = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>

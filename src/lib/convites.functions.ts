@@ -49,6 +49,73 @@ export const criarConvite = createServerFn({ method: "POST" })
     return convite as { id: string; token: string; criado_em: string; expira_em: string };
   });
 
+/** Envia um convite já existente (pendente, não usado, não expirado) por e-mail via Resend. */
+export const enviarConvitePorEmail = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        conviteId: z.string().uuid(),
+        email: z.string().trim().email("E-mail inválido"),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: convite, error } = await context.supabase
+      .from("convites")
+      .select("token, usado, expira_em, criado_por")
+      .eq("id", data.conviteId)
+      .eq("criado_por", context.userId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!convite) throw new Error("Convite não encontrado.");
+    if (convite.usado) throw new Error("Este convite já foi usado.");
+    if (new Date(convite.expira_em).getTime() < Date.now()) {
+      throw new Error("Este convite expirou. Gere um novo.");
+    }
+
+    const { enviarEmail } = await import("@/lib/email.server");
+    const resultado = await enviarEmail({
+      to: data.email,
+      subject: "Você foi convidado para o Control ALL",
+      html: `
+        <p>Você recebeu um convite para criar sua conta no <strong>Control ALL</strong>.</p>
+        <p>Código de convite:</p>
+        <p style="font-family:monospace;font-size:18px;letter-spacing:1px">${convite.token}</p>
+        <p>Acesse o site, na aba "Criar conta", e cole esse código no campo de convite.</p>
+        <p style="color:#888;font-size:12px">Se você não esperava este e-mail, pode ignorá-lo.</p>
+      `,
+    });
+    if (!resultado.ok) throw new Error(resultado.erro);
+    return { ok: true as const };
+  });
+
+/**
+ * Cancela um convite próprio ainda não usado (RLS de `convites` já restringe
+ * a `criado_por = auth.uid()` — não precisa checar dono na mão aqui). Um
+ * convite usado não pode ser cancelado, a conta já existe.
+ */
+export const cancelarConvite = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ conviteId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { data: convite, error } = await context.supabase
+      .from("convites")
+      .select("usado")
+      .eq("id", data.conviteId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!convite) throw new Error("Convite não encontrado.");
+    if (convite.usado) throw new Error("Este convite já foi usado — não é possível cancelar.");
+
+    const { error: delError } = await context.supabase
+      .from("convites")
+      .delete()
+      .eq("id", data.conviteId);
+    if (delError) throw new Error(delError.message);
+    return { ok: true as const };
+  });
+
 /** Lista os convites já criados pelo usuário logado (pendentes e usados). */
 export const listarMeusConvites = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
