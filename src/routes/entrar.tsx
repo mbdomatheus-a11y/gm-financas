@@ -89,7 +89,7 @@ function LoginPage() {
           </TabsList>
 
           <TabsContent value="entrar">
-            <EntrarForm next={search.next} />
+            <EntrarForm {...(search.next ? { next: search.next } : {})} />
           </TabsContent>
           <TabsContent value="criar">
             <CriarContaForm token={search.convite} />

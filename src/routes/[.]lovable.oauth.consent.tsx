@@ -27,6 +27,16 @@ function safeNext(pathname: string, search: string) {
 
 export const Route = createFileRoute("/.lovable/oauth/consent")({
   ssr: false,
+  head: () => ({
+    meta: [
+      { title: "Autorizar agente — Control ALL" },
+      { name: "description", content: "Autorize um agente a consultar seus dados no Control ALL." },
+      { property: "og:title", content: "Autorizar agente — Control ALL" },
+      { property: "og:description", content: "Autorização segura para integrações de agentes do Control ALL." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   validateSearch: (search: Record<string, unknown>) => ({
     authorization_id:
       typeof search["authorization_id"] === "string" ? search["authorization_id"] : "",

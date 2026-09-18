@@ -33,6 +33,7 @@ import { Route as AuthenticatedPersonalizacaoRouteImport } from './routes/_authe
 import { Route as AuthenticatedReceitasRouteImport } from './routes/_authenticated/receitas'
 import { Route as AuthenticatedUsuariosRouteImport } from './routes/_authenticated/usuarios'
 import { Route as AuthenticatedVeiculosRouteImport } from './routes/_authenticated/veiculos'
+import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as OauthGoogleDriveReturnRouteImport } from './routes/oauth/google-drive/return'
 
 const IndexRoute = IndexRouteImport.update({
@@ -160,6 +161,11 @@ const AuthenticatedVeiculosRoute = AuthenticatedVeiculosRouteImport.update({
   path: '/veiculos',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
+  id: '/.lovable/oauth/consent',
+  path: '/.lovable/oauth/consent',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OauthGoogleDriveReturnRoute = OauthGoogleDriveReturnRouteImport.update({
   id: '/oauth/google-drive/return',
   path: '/oauth/google-drive/return',
@@ -190,6 +196,7 @@ export interface FileRoutesByFullPath {
   '/receitas': typeof AuthenticatedReceitasRoute
   '/usuarios': typeof AuthenticatedUsuariosRoute
   '/veiculos': typeof AuthenticatedVeiculosRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/oauth/google-drive/return': typeof OauthGoogleDriveReturnRoute
 }
 export interface FileRoutesByTo {
@@ -216,6 +223,7 @@ export interface FileRoutesByTo {
   '/receitas': typeof AuthenticatedReceitasRoute
   '/usuarios': typeof AuthenticatedUsuariosRoute
   '/veiculos': typeof AuthenticatedVeiculosRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/oauth/google-drive/return': typeof OauthGoogleDriveReturnRoute
 }
 export interface FileRoutesById {
@@ -244,6 +252,7 @@ export interface FileRoutesById {
   '/_authenticated/receitas': typeof AuthenticatedReceitasRoute
   '/_authenticated/usuarios': typeof AuthenticatedUsuariosRoute
   '/_authenticated/veiculos': typeof AuthenticatedVeiculosRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/oauth/google-drive/return': typeof OauthGoogleDriveReturnRoute
 }
 export interface FileRouteTypes {
@@ -272,6 +281,7 @@ export interface FileRouteTypes {
     | '/receitas'
     | '/usuarios'
     | '/veiculos'
+    | '/.lovable/oauth/consent'
     | '/oauth/google-drive/return'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -298,6 +308,7 @@ export interface FileRouteTypes {
     | '/receitas'
     | '/usuarios'
     | '/veiculos'
+    | '/.lovable/oauth/consent'
     | '/oauth/google-drive/return'
   id:
     | '__root__'
@@ -325,6 +336,7 @@ export interface FileRouteTypes {
     | '/_authenticated/receitas'
     | '/_authenticated/usuarios'
     | '/_authenticated/veiculos'
+    | '/.lovable/oauth/consent'
     | '/oauth/google-drive/return'
   fileRoutesById: FileRoutesById
 }
@@ -334,6 +346,7 @@ export interface RootRouteChildren {
   EntrarRoute: typeof EntrarRoute
   McpRoute: typeof McpRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   OauthGoogleDriveReturnRoute: typeof OauthGoogleDriveReturnRoute
 }
 
@@ -507,6 +520,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedVeiculosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/.lovable/oauth/consent': {
+      id: '/.lovable/oauth/consent'
+      path: '/.lovable/oauth/consent'
+      fullPath: '/.lovable/oauth/consent'
+      preLoaderRoute: typeof DotlovableOauthConsentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/oauth/google-drive/return': {
       id: '/oauth/google-drive/return'
       path: '/oauth/google-drive/return'
@@ -571,6 +591,7 @@ const rootRouteChildren: RootRouteChildren = {
   McpRoute: McpRoute,
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
+  DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   OauthGoogleDriveReturnRoute: OauthGoogleDriveReturnRoute,
 }
 export const routeTree = rootRouteImport
