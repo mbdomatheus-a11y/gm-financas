@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { TurnstileWidget } from "@/components/TurnstileWidget";
+import { TURNSTILE_ATIVO } from "@/lib/turnstile-config";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
@@ -268,7 +269,7 @@ function CriarContaForm({ token }: { token: string | undefined }) {
       toast.error("As senhas não conferem");
       return;
     }
-    if (!turnstileToken) {
+    if (TURNSTILE_ATIVO && !turnstileToken) {
       toast.error("Confirme a verificação de segurança");
       return;
     }
@@ -284,7 +285,7 @@ function CriarContaForm({ token }: { token: string | undefined }) {
           telefone: form.telefone.trim(),
           dataNascimento: form.dataNascimento,
           senha: form.senha,
-          turnstileToken,
+          turnstileToken: turnstileToken ?? undefined,
         },
       });
       toast.success("Conta criada! Entrando…");
@@ -390,7 +391,7 @@ function CriarContaForm({ token }: { token: string | undefined }) {
         />
       </div>
 
-      <TurnstileWidget onVerify={setTurnstileToken} />
+      {TURNSTILE_ATIVO && <TurnstileWidget onVerify={setTurnstileToken} />}
 
       <Button type="submit" className="h-11 w-full" disabled={loading}>
         {loading && <Loader2 className="mr-2 size-4 animate-spin" />}

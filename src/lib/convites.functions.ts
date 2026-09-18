@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { isValidCpf, onlyDigits } from "@/lib/cpf";
 import { verificarTurnstileToken } from "@/lib/turnstile.functions";
+import { TURNSTILE_ATIVO } from "@/lib/turnstile-config";
 
 /** Máximo de convites (aceitos + pendentes não expirados) por pessoa. */
 const COTA_CONVITES = 3;
@@ -94,14 +95,16 @@ export const aceitarConvite = createServerFn({ method: "POST" })
         telefone: z.string().trim().min(8).max(20),
         dataNascimento: z.string().min(10),
         senha: z.string().min(8).max(72),
-        turnstileToken: z.string().min(1),
+        turnstileToken: z.string().optional(),
       })
       .parse(d),
   )
   .handler(async ({ data }) => {
-    const turnstileOk = await verificarTurnstileToken(data.turnstileToken);
-    if (!turnstileOk)
-      throw new Error("Verificação de segurança falhou. Recarregue e tente de novo.");
+    if (TURNSTILE_ATIVO) {
+      const turnstileOk = await verificarTurnstileToken(data.turnstileToken ?? "");
+      if (!turnstileOk)
+        throw new Error("Verificação de segurança falhou. Recarregue e tente de novo.");
+    }
     if (!isValidCpf(data.cpf)) throw new Error("CPF inválido");
 
     const nascimento = new Date(data.dataNascimento);
