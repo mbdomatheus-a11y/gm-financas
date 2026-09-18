@@ -127,6 +127,13 @@
       "when": 1789650000017,
       "tag": "0017_create_vehicle_management_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1789727553417,
+      "tag": "0018_finalize_existing_schema",
+      "breakpoints": true
     }
   ]
 }
