@@ -12,6 +12,8 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as EntrarRouteImport } from './routes/entrar'
+import { Route as McpRouteImport } from './routes/mcp'
+import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as AuthenticatedBackupRouteImport } from './routes/_authenticated/backup'
 import { Route as AuthenticatedCartoesRouteImport } from './routes/_authenticated/cartoes'
 import { Route as AuthenticatedCategoriasRouteImport } from './routes/_authenticated/categorias'
@@ -31,6 +33,7 @@ import { Route as AuthenticatedPersonalizacaoRouteImport } from './routes/_authe
 import { Route as AuthenticatedReceitasRouteImport } from './routes/_authenticated/receitas'
 import { Route as AuthenticatedUsuariosRouteImport } from './routes/_authenticated/usuarios'
 import { Route as AuthenticatedVeiculosRouteImport } from './routes/_authenticated/veiculos'
+import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as OauthGoogleDriveReturnRouteImport } from './routes/oauth/google-drive/return'
 
 const IndexRoute = IndexRouteImport.update({
@@ -47,6 +50,17 @@ const EntrarRoute = EntrarRouteImport.update({
   path: '/entrar',
   getParentRoute: () => rootRouteImport,
 } as any)
+const McpRoute = McpRouteImport.update({
+  id: '/mcp',
+  path: '/mcp',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const Char91DotwellKnownChar93OauthProtectedResourceRoute =
+  Char91DotwellKnownChar93OauthProtectedResourceRouteImport.update({
+    id: '/.well-known/oauth-protected-resource',
+    path: '/.well-known/oauth-protected-resource',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AuthenticatedBackupRoute = AuthenticatedBackupRouteImport.update({
   id: '/backup',
   path: '/backup',
@@ -147,6 +161,11 @@ const AuthenticatedVeiculosRoute = AuthenticatedVeiculosRouteImport.update({
   path: '/veiculos',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
+  id: '/.lovable/oauth/consent',
+  path: '/.lovable/oauth/consent',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OauthGoogleDriveReturnRoute = OauthGoogleDriveReturnRouteImport.update({
   id: '/oauth/google-drive/return',
   path: '/oauth/google-drive/return',
@@ -156,6 +175,8 @@ const OauthGoogleDriveReturnRoute = OauthGoogleDriveReturnRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/entrar': typeof EntrarRoute
+  '/mcp': typeof McpRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/backup': typeof AuthenticatedBackupRoute
   '/cartoes': typeof AuthenticatedCartoesRoute
   '/categorias': typeof AuthenticatedCategoriasRoute
@@ -175,11 +196,14 @@ export interface FileRoutesByFullPath {
   '/receitas': typeof AuthenticatedReceitasRoute
   '/usuarios': typeof AuthenticatedUsuariosRoute
   '/veiculos': typeof AuthenticatedVeiculosRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/oauth/google-drive/return': typeof OauthGoogleDriveReturnRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/entrar': typeof EntrarRoute
+  '/mcp': typeof McpRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/backup': typeof AuthenticatedBackupRoute
   '/cartoes': typeof AuthenticatedCartoesRoute
   '/categorias': typeof AuthenticatedCategoriasRoute
@@ -199,6 +223,7 @@ export interface FileRoutesByTo {
   '/receitas': typeof AuthenticatedReceitasRoute
   '/usuarios': typeof AuthenticatedUsuariosRoute
   '/veiculos': typeof AuthenticatedVeiculosRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/oauth/google-drive/return': typeof OauthGoogleDriveReturnRoute
 }
 export interface FileRoutesById {
@@ -206,6 +231,8 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/entrar': typeof EntrarRoute
+  '/mcp': typeof McpRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/_authenticated/backup': typeof AuthenticatedBackupRoute
   '/_authenticated/cartoes': typeof AuthenticatedCartoesRoute
   '/_authenticated/categorias': typeof AuthenticatedCategoriasRoute
@@ -225,6 +252,7 @@ export interface FileRoutesById {
   '/_authenticated/receitas': typeof AuthenticatedReceitasRoute
   '/_authenticated/usuarios': typeof AuthenticatedUsuariosRoute
   '/_authenticated/veiculos': typeof AuthenticatedVeiculosRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/oauth/google-drive/return': typeof OauthGoogleDriveReturnRoute
 }
 export interface FileRouteTypes {
@@ -232,6 +260,8 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/entrar'
+    | '/mcp'
+    | '/.well-known/oauth-protected-resource'
     | '/backup'
     | '/cartoes'
     | '/categorias'
@@ -251,11 +281,14 @@ export interface FileRouteTypes {
     | '/receitas'
     | '/usuarios'
     | '/veiculos'
+    | '/.lovable/oauth/consent'
     | '/oauth/google-drive/return'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/entrar'
+    | '/mcp'
+    | '/.well-known/oauth-protected-resource'
     | '/backup'
     | '/cartoes'
     | '/categorias'
@@ -275,12 +308,15 @@ export interface FileRouteTypes {
     | '/receitas'
     | '/usuarios'
     | '/veiculos'
+    | '/.lovable/oauth/consent'
     | '/oauth/google-drive/return'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/entrar'
+    | '/mcp'
+    | '/.well-known/oauth-protected-resource'
     | '/_authenticated/backup'
     | '/_authenticated/cartoes'
     | '/_authenticated/categorias'
@@ -300,6 +336,7 @@ export interface FileRouteTypes {
     | '/_authenticated/receitas'
     | '/_authenticated/usuarios'
     | '/_authenticated/veiculos'
+    | '/.lovable/oauth/consent'
     | '/oauth/google-drive/return'
   fileRoutesById: FileRoutesById
 }
@@ -307,6 +344,9 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   EntrarRoute: typeof EntrarRoute
+  McpRoute: typeof McpRoute
+  Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   OauthGoogleDriveReturnRoute: typeof OauthGoogleDriveReturnRoute
 }
 
@@ -331,6 +371,20 @@ declare module '@tanstack/react-router' {
       path: '/entrar'
       fullPath: '/entrar'
       preLoaderRoute: typeof EntrarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mcp': {
+      id: '/mcp'
+      path: '/mcp'
+      fullPath: '/mcp'
+      preLoaderRoute: typeof McpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.well-known/oauth-protected-resource': {
+      id: '/.well-known/oauth-protected-resource'
+      path: '/.well-known/oauth-protected-resource'
+      fullPath: '/.well-known/oauth-protected-resource'
+      preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/backup': {
@@ -466,6 +520,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedVeiculosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/.lovable/oauth/consent': {
+      id: '/.lovable/oauth/consent'
+      path: '/.lovable/oauth/consent'
+      fullPath: '/.lovable/oauth/consent'
+      preLoaderRoute: typeof DotlovableOauthConsentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/oauth/google-drive/return': {
       id: '/oauth/google-drive/return'
       path: '/oauth/google-drive/return'
@@ -527,6 +588,10 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   EntrarRoute: EntrarRoute,
+  McpRoute: McpRoute,
+  Char91DotwellKnownChar93OauthProtectedResourceRoute:
+    Char91DotwellKnownChar93OauthProtectedResourceRoute,
+  DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   OauthGoogleDriveReturnRoute: OauthGoogleDriveReturnRoute,
 }
 export const routeTree = rootRouteImport

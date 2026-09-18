@@ -24,8 +24,12 @@ import {
 } from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/entrar")({
-  validateSearch: (s: Record<string, unknown>): { convite?: string } =>
-    typeof s["convite"] === "string" && s["convite"] ? { convite: s["convite"] } : {},
+  validateSearch: (s: Record<string, unknown>): { convite?: string; next?: string } => ({
+    ...(typeof s["convite"] === "string" && s["convite"] ? { convite: s["convite"] } : {}),
+    ...(typeof s["next"] === "string" && s["next"].startsWith("/") && !s["next"].startsWith("//")
+      ? { next: s["next"] }
+      : {}),
+  }),
   head: () => ({
     meta: [
       { title: "Entrar — Control ALL" },
@@ -50,9 +54,9 @@ function LoginPage() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: "/inicio" });
+      if (data.session) window.location.assign(search.next ?? "/inicio");
     });
-  }, [navigate]);
+  }, [search.next]);
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-10">
@@ -85,7 +89,7 @@ function LoginPage() {
           </TabsList>
 
           <TabsContent value="entrar">
-            <EntrarForm />
+            <EntrarForm {...(search.next ? { next: search.next } : {})} />
           </TabsContent>
           <TabsContent value="criar">
             <CriarContaForm token={search.convite} />
@@ -97,7 +101,7 @@ function LoginPage() {
 }
 
 /** Login por e-mail (contas novas) OU CPF (contas antigas, compatibilidade). */
-function EntrarForm() {
+function EntrarForm({ next }: { next?: string }) {
   const navigate = useNavigate();
   const [identificador, setIdentificador] = useState("");
   const [senha, setSenha] = useState("");
@@ -140,7 +144,11 @@ function EntrarForm() {
       return;
     }
     toast.success("Bem-vindo de volta!");
-    navigate({ to: profile?.senha_temporaria ? "/nova-senha" : "/inicio" });
+    if (profile?.senha_temporaria) {
+      navigate({ to: "/nova-senha" });
+    } else {
+      window.location.assign(next ?? "/inicio");
+    }
   }
 
   return (
@@ -298,8 +306,8 @@ function CriarContaForm({ token }: { token: string | undefined }) {
         return;
       }
       navigate({ to: "/inicio" });
-    } catch (err: any) {
-      toast.error(err?.message ?? "Não foi possível criar a conta");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Não foi possível criar a conta");
     } finally {
       setLoading(false);
     }
@@ -318,8 +326,8 @@ function CriarContaForm({ token }: { token: string | undefined }) {
           className="font-mono"
         />
         <p className="text-xs text-muted-foreground">
-          O cadastro é só por convite. Peça o código a quem já usa o Control ALL — ele pode gerar
-          um em <strong>Minha conta</strong> ou, se for admin, em{" "}
+          O cadastro é só por convite. Peça o código a quem já usa o Control ALL — ele pode gerar um
+          em <strong>Minha conta</strong> ou, se for admin, em{" "}
           <strong>Usuários e Privilégios</strong>. Cada pessoa pode gerar até 3 códigos.
         </p>
       </div>
