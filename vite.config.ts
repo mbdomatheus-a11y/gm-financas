@@ -46,4 +46,9 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  // Hard-pina o alvo de deploy pra Vercel (em vez do padrão Cloudflare do
+  // Lovable). Só tem efeito FORA de um build da Lovable — dentro do editor
+  // deles, `LOVABLE_NITRO_PRESET` continua mandando, então isso não quebra
+  // o preview/build interno da Lovable. Migração pra Vercel em 2026-09-18.
+  nitro: { preset: "vercel" },
 });
