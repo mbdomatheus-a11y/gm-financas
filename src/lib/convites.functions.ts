@@ -10,37 +10,29 @@ const COTA_CONVITES = 3;
 
 /**
  * Cria um convite pro grupo do usuário logado, respeitando a cota de
- * COTA_CONVITES por pessoa (convites aceitos + ainda pendentes contam).
- * Usa o cliente service-role só porque `convites`/contagem cruzada de
- * `profiles.convidado_por` precisa enxergar mais do que a policy padrão de
- * "próprio perfil" permitiria a um usuário comum — nunca expõe dado de
- * fora do necessário pra essa contagem.
+ * COTA_CONVITES por pessoa. Convites usados e pendentes não expirados contam.
+ * A consulta usa a sessão validada e as políticas da própria tabela.
  */
 export const criarConvite = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const db = supabaseAdmin as any;
     const meuId = context.userId;
 
-    const [aceitosRes, pendentesRes] = await Promise.all([
-      db.from("profiles").select("id", { count: "exact", head: true }).eq("convidado_por", meuId),
-      db
-        .from("convites")
-        .select("id", { count: "exact", head: true })
-        .eq("criado_por", meuId)
-        .eq("usado", false)
-        .gt("expira_em", new Date().toISOString()),
-    ]);
-    if (aceitosRes.error) throw new Error(aceitosRes.error.message);
-    if (pendentesRes.error) throw new Error(pendentesRes.error.message);
+    const { data: convites, error: convitesError } = await context.supabase
+      .from("convites")
+      .select("usado, expira_em")
+      .eq("criado_por", meuId);
+    if (convitesError) throw new Error(convitesError.message);
 
-    const usados = (aceitosRes.count ?? 0) + (pendentesRes.count ?? 0);
+    const agora = Date.now();
+    const usados = (convites ?? []).filter(
+      (convite) => convite.usado || new Date(convite.expira_em).getTime() >= agora,
+    ).length;
     if (usados >= COTA_CONVITES) {
       throw new Error(`Você já atingiu o limite de ${COTA_CONVITES} convites.`);
     }
 
-    const { data: perfil, error: perfilError } = await db
+    const { data: perfil, error: perfilError } = await context.supabase
       .from("profiles")
       .select("grupo_id")
       .eq("id", meuId)
@@ -48,7 +40,7 @@ export const criarConvite = createServerFn({ method: "POST" })
     if (perfilError) throw new Error(perfilError.message);
     if (!perfil?.grupo_id) throw new Error("Não foi possível identificar o seu grupo.");
 
-    const { data: convite, error } = await db
+    const { data: convite, error } = await context.supabase
       .from("convites")
       .insert({ grupo_id: perfil.grupo_id, criado_por: meuId })
       .select("id, token, criado_em, expira_em")
@@ -61,9 +53,7 @@ export const criarConvite = createServerFn({ method: "POST" })
 export const listarMeusConvites = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const db = supabaseAdmin as any;
-    const { data, error } = await db
+    const { data, error } = await context.supabase
       .from("convites")
       .select("id, token, usado, usado_por, criado_em, expira_em")
       .eq("criado_por", context.userId)
