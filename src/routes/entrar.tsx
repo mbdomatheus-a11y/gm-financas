@@ -56,7 +56,7 @@ function LoginPage() {
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) window.location.assign(search.next ?? "/inicio");
     });
-  }, [navigate]);
+  }, [search.next]);
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-10">
@@ -306,8 +306,8 @@ function CriarContaForm({ token }: { token: string | undefined }) {
         return;
       }
       navigate({ to: "/inicio" });
-    } catch (err: any) {
-      toast.error(err?.message ?? "Não foi possível criar a conta");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Não foi possível criar a conta");
     } finally {
       setLoading(false);
     }
