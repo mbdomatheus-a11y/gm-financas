@@ -24,8 +24,12 @@ import {
 } from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/entrar")({
-  validateSearch: (s: Record<string, unknown>): { convite?: string } =>
-    typeof s["convite"] === "string" && s["convite"] ? { convite: s["convite"] } : {},
+  validateSearch: (s: Record<string, unknown>): { convite?: string; next?: string } => ({
+    ...(typeof s["convite"] === "string" && s["convite"] ? { convite: s["convite"] } : {}),
+    ...(typeof s["next"] === "string" && s["next"].startsWith("/") && !s["next"].startsWith("//")
+      ? { next: s["next"] }
+      : {}),
+  }),
   head: () => ({
     meta: [
       { title: "Entrar — Control ALL" },
@@ -50,7 +54,7 @@ function LoginPage() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: "/inicio" });
+      if (data.session) window.location.assign(search.next ?? "/inicio");
     });
   }, [navigate]);
 
@@ -85,7 +89,7 @@ function LoginPage() {
           </TabsList>
 
           <TabsContent value="entrar">
-            <EntrarForm />
+            <EntrarForm next={search.next} />
           </TabsContent>
           <TabsContent value="criar">
             <CriarContaForm token={search.convite} />
@@ -97,7 +101,7 @@ function LoginPage() {
 }
 
 /** Login por e-mail (contas novas) OU CPF (contas antigas, compatibilidade). */
-function EntrarForm() {
+function EntrarForm({ next }: { next?: string }) {
   const navigate = useNavigate();
   const [identificador, setIdentificador] = useState("");
   const [senha, setSenha] = useState("");
@@ -140,7 +144,11 @@ function EntrarForm() {
       return;
     }
     toast.success("Bem-vindo de volta!");
-    navigate({ to: profile?.senha_temporaria ? "/nova-senha" : "/inicio" });
+    if (profile?.senha_temporaria) {
+      navigate({ to: "/nova-senha" });
+    } else {
+      window.location.assign(next ?? "/inicio");
+    }
   }
 
   return (
