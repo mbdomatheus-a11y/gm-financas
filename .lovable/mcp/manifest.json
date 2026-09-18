@@ -1,0 +1,81 @@
+{
+  "version": 1,
+  "sdk_version": "2.2.1",
+  "path": "/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://sjkmdsjcbifdzzgwtsgm.supabase.co/auth/v1",
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "financas",
+      "version": "0.1.0",
+      "title": "Finanças"
+    },
+    "tools": [
+      {
+        "name": "consultar_resumo_mensal",
+        "title": "Consultar resumo mensal",
+        "description": "Consulta receitas, despesas e saldo de uma competência mensal do casal.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "competencia": {
+              "description": "Mês no formato AAAA-MM; omita para o mês atual.",
+              "type": "string"
+            }
+          }
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "listar_despesas",
+        "title": "Listar despesas",
+        "description": "Lista despesas recentes do casal, com filtro opcional por categoria.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "categoria": {
+              "description": "Categoria exata para filtrar.",
+              "type": "string"
+            },
+            "limite": {
+              "description": "Quantidade de resultados, de 1 a 100.",
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            }
+          }
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "listar_investimentos",
+        "title": "Listar investimentos",
+        "description": "Consulta a carteira de investimentos e seus valores atuais.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": null,
+        "outputSchema": null
+      }
+    ]
+  }
+}

@@ -40,10 +40,17 @@ export default defineTool({
 
     const receitas = receitasResult.data.reduce((total, item) => total + Number(item.valor), 0);
     const despesas = despesasResult.data.reduce(
-      (total, item) => total + (item.direcao === "credito" ? -Number(item.valor_total) : Number(item.valor_total)),
+      (total, item) =>
+        total + (item.direcao === "credito" ? -Number(item.valor_total) : Number(item.valor_total)),
       0,
     );
-    const resumo = { competencia: periodo.competencia, receitas, despesas, saldo: receitas - despesas, moeda: "BRL" };
+    const resumo = {
+      competencia: periodo.competencia,
+      receitas,
+      despesas,
+      saldo: receitas - despesas,
+      moeda: "BRL",
+    };
     return {
       content: [{ type: "text", text: JSON.stringify(resumo) }],
       structuredContent: resumo,

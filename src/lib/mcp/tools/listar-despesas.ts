@@ -16,7 +16,9 @@ export default defineTool({
     const quantidade = Math.min(100, Math.max(1, limite ?? 20));
     let query = supabase
       .from("despesas")
-      .select("id, descricao, valor_total, moeda, categoria, tipo, data_compra, total_parcelas, responsavel")
+      .select(
+        "id, descricao, valor_total, moeda, categoria, tipo, data_compra, total_parcelas, responsavel",
+      )
       .order("data_compra", { ascending: false })
       .limit(quantidade);
     if (categoria?.trim()) query = query.eq("categoria", categoria.trim());

@@ -326,8 +326,8 @@ function CriarContaForm({ token }: { token: string | undefined }) {
           className="font-mono"
         />
         <p className="text-xs text-muted-foreground">
-          O cadastro é só por convite. Peça o código a quem já usa o Control ALL — ele pode gerar
-          um em <strong>Minha conta</strong> ou, se for admin, em{" "}
+          O cadastro é só por convite. Peça o código a quem já usa o Control ALL — ele pode gerar um
+          em <strong>Minha conta</strong> ou, se for admin, em{" "}
           <strong>Usuários e Privilégios</strong>. Cada pessoa pode gerar até 3 códigos.
         </p>
       </div>

@@ -32,7 +32,10 @@ export const Route = createFileRoute("/.lovable/oauth/consent")({
       { title: "Autorizar agente — Control ALL" },
       { name: "description", content: "Autorize um agente a consultar seus dados no Control ALL." },
       { property: "og:title", content: "Autorizar agente — Control ALL" },
-      { property: "og:description", content: "Autorização segura para integrações de agentes do Control ALL." },
+      {
+        property: "og:description",
+        content: "Autorização segura para integrações de agentes do Control ALL.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -106,12 +109,21 @@ function ConsentPage() {
         </div>
         <h1 className="text-xl font-semibold">Conectar {clientName}</h1>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
-          O agente poderá consultar o resumo mensal, as despesas e os investimentos acessíveis à sua conta.
+          O agente poderá consultar o resumo mensal, as despesas e os investimentos acessíveis à sua
+          conta.
         </p>
-        {error && <p role="alert" className="mt-4 text-sm text-destructive">{error}</p>}
+        {error && (
+          <p role="alert" className="mt-4 text-sm text-destructive">
+            {error}
+          </p>
+        )}
         <div className="mt-6 flex justify-end gap-2">
-          <Button variant="outline" disabled={busy} onClick={() => decide(false)}>Negar</Button>
-          <Button disabled={busy} onClick={() => decide(true)}>Autorizar</Button>
+          <Button variant="outline" disabled={busy} onClick={() => decide(false)}>
+            Negar
+          </Button>
+          <Button disabled={busy} onClick={() => decide(true)}>
+            Autorizar
+          </Button>
         </div>
       </section>
     </main>
