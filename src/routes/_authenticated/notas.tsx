@@ -7,6 +7,7 @@ import {
   Camera,
   Copy,
   ExternalLink,
+  FolderOpen,
   HardDrive,
   Image as ImageIcon,
   Plus,
@@ -68,7 +69,7 @@ export const Route = createFileRoute("/_authenticated/notas")({
       { property: "og:title", content: "Notas fiscais e garantias — Control ALL" },
       {
         property: "og:description",
-        content: "Comprovantes no Google Drive, chave de acesso e aviso antes da garantia expirar.",
+        content: "Comprovantes em pasta compartilhada, chave de acesso e aviso antes da garantia expirar.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -181,8 +182,8 @@ function NotasPage() {
   const pasta = useQuery({ queryKey: ["drive-pasta"], queryFn: () => lerPasta({}) });
   const [pastaInput, setPastaInput] = useState("");
   useEffect(() => {
-    if (pasta.data?.folderId) setPastaInput(pasta.data.folderId);
-  }, [pasta.data?.folderId]);
+    if (pasta.data?.folderUrl) setPastaInput(pasta.data.folderUrl);
+  }, [pasta.data?.folderUrl]);
   const salvarPasta = useMutation({
     mutationFn: () => gravarPasta({ data: { valor: pastaInput } }),
     onSuccess: () => {
@@ -464,19 +465,59 @@ function NotasPage() {
 
       <div className="space-y-4">
         <Card>
-          <CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
+          <CardContent className="space-y-4 py-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="flex size-9 items-center justify-center rounded-xl bg-primary/10">
+                  <FolderOpen className="size-4.5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold">Pasta dos comprovantes</p>
+                  <p className="text-xs text-muted-foreground">
+                    {pasta.data?.folderUrl
+                      ? `${pasta.data.provider ?? "Serviço"} selecionado`
+                      : "Use uma pasta compartilhada do serviço que preferir"}
+                  </p>
+                </div>
+              </div>
+              {pasta.data?.folderUrl && (
+                <Button variant="outline" size="sm" asChild>
+                  <a href={pasta.data.folderUrl} target="_blank" rel="noreferrer">
+                    <ExternalLink className="size-4" /> Abrir pasta
+                  </a>
+                </Button>
+              )}
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Input
+                value={pastaInput}
+                onChange={(e) => setPastaInput(e.target.value)}
+                placeholder="Cole o link do OneDrive, MEGA, iCloud Drive, Google Drive…"
+                className="min-w-[220px] flex-1"
+              />
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => salvarPasta.mutate()}
+                disabled={salvarPasta.isPending}
+              >
+                Salvar pasta
+              </Button>
+            </div>
+            <div className="border-t pt-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className="flex size-9 items-center justify-center rounded-xl bg-primary/10">
                 <HardDrive className="size-4.5 text-primary" />
               </div>
               <div>
-                <p className="text-sm font-semibold">Google Drive</p>
+                <p className="text-sm font-semibold">Envio automático pelo Google Drive</p>
                 <p className="text-xs text-muted-foreground">
                   {drive.data?.connected
-                    ? pasta.data?.folderId
-                      ? "Conectado — comprovantes vão para a pasta compartilhada do casal"
-                      : "Conectado — informe abaixo a pasta compartilhada do casal"
-                    : "Conecte para guardar as fotos das notas na sua conta"}
+                    ? pasta.data?.provider === "Google Drive"
+                      ? "Conectado e pronto para enviar à pasta selecionada"
+                      : "Conectado — selecione uma pasta do Google Drive para envio automático"
+                    : "Opcional: conecte para enviar os arquivos sem sair do aplicativo"}
                 </p>
               </div>
             </div>
@@ -498,30 +539,11 @@ function NotasPage() {
                 {conectar.isPending ? "Conectando…" : "Conectar Google Drive"}
               </Button>
             )}
-            {drive.data?.connected && (
-              <div className="w-full space-y-1 border-t pt-3">
-                <p className="text-xs font-medium">Pasta compartilhada do casal</p>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Input
-                    value={pastaInput}
-                    onChange={(e) => setPastaInput(e.target.value)}
-                    placeholder="Cole aqui o link da pasta do Google Drive"
-                    className="min-w-[220px] flex-1"
-                  />
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => salvarPasta.mutate()}
-                    disabled={salvarPasta.isPending}
-                  >
-                    Salvar pasta
-                  </Button>
-                </div>
-                <p className="text-[11px] text-muted-foreground">
-                  Todos os comprovantes vão direto para essa pasta, sem criar subpastas.
-                </p>
               </div>
-            )}
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                Em outros serviços, use “Abrir pasta” para enviar ou consultar os comprovantes.
+              </p>
+            </div>
           </CardContent>
         </Card>
 
@@ -807,7 +829,9 @@ function NotasPage() {
 
               {fotosPendentes.length > 0 && (
                 <p className="text-xs text-muted-foreground">
-                  {fotosPendentes.length} arquivo(s) serão enviados ao seu Google Drive ao salvar.
+                  {drive.data?.connected && pasta.data?.provider === "Google Drive"
+                    ? `${fotosPendentes.length} arquivo(s) serão enviados ao Google Drive ao salvar.`
+                    : `${fotosPendentes.length} arquivo(s) aguardam envio. A nota será salva mesmo sem o anexo.`}
                 </p>
               )}
 
@@ -901,8 +925,8 @@ function NotasPage() {
                       className="size-20 flex-col gap-1 text-[11px]"
                       disabled={anexar.isPending}
                       onClick={() => {
-                        if (!drive.data?.connected) {
-                          toast.warning("Conecte o Google Drive primeiro.");
+                        if (!drive.data?.connected || pasta.data?.provider !== "Google Drive") {
+                          toast.warning("Para envio automático, conecte o Google Drive e selecione uma pasta dele.");
                           return;
                         }
                         notaAlvoUpload.current = notaDetalhe.id;
