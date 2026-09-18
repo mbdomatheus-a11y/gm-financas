@@ -1,5 +1,7 @@
 # Roadmap
 
+- [x] Corrigir o cadastro de veículos ausente no banco atual.
+- [x] Permitir pasta de comprovantes por link (OneDrive, MEGA, iCloud Drive, Google Drive e outros).
 - [ ] Concluir a Etapa 5 de despesas fixas quando retomada pelo usuário.
 - [x] Importação inteligente — Etapa 1: modelo interno e testes-base.
 - [x] Importação inteligente — Etapa 2: PDF robusto e OCR de digitalizados.

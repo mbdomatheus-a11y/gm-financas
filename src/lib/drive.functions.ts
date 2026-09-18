@@ -52,7 +52,8 @@ export const completeDriveConnection = createServerFn({ method: "POST" })
       GATEWAY_BASE_URL,
       data.code,
     );
-    if (connectorId !== CONNECTOR_ID) throw new Error("OAuth completion returned the wrong connector");
+    if (connectorId !== CONNECTOR_ID)
+      throw new Error("OAuth completion returned the wrong connector");
     await saveConnectionKeyForUser(context.userId, connectorId, connectionAPIKey);
     return { ok: true };
   });
@@ -68,9 +69,8 @@ export const driveStatus = createServerFn({ method: "POST" })
 export const disconnectDrive = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { getConnectionKeyForUser, deleteConnectionForUser } = await import(
-      "@/server/appUserConnections.server"
-    );
+    const { getConnectionKeyForUser, deleteConnectionForUser } =
+      await import("@/server/appUserConnections.server");
     const { disconnectAppUser } = await import("@/integrations/lovable/appUserConnector");
     const key = await getConnectionKeyForUser(context.userId, CONNECTOR_ID);
     if (key) {
@@ -139,8 +139,25 @@ async function ensureFolder(
 /** Aceita o ID puro ou o link completo da pasta compartilhada do Google Drive. */
 function extrairFolderId(entrada: string): string {
   const texto = entrada.trim();
-  const m = texto.match(/folders\/([A-Za-z0-9_-]{10,})/) ?? texto.match(/[?&]id=([A-Za-z0-9_-]{10,})/);
+  const m =
+    texto.match(/folders\/([A-Za-z0-9_-]{10,})/) ?? texto.match(/[?&]id=([A-Za-z0-9_-]{10,})/);
   return (m?.[1] ?? texto).trim();
+}
+
+function identificarServico(url: string): string {
+  const host = new URL(url).hostname.toLowerCase();
+  if (host.includes("drive.google.com")) return "Google Drive";
+  if (
+    host.includes("onedrive.live.com") ||
+    host.includes("1drv.ms") ||
+    host.includes("sharepoint.com")
+  ) {
+    return "OneDrive";
+  }
+  if (host.includes("mega.nz") || host.includes("mega.io")) return "MEGA";
+  if (host.includes("icloud.com")) return "iCloud Drive";
+  if (host.includes("dropbox.com")) return "Dropbox";
+  return "Outro serviço";
 }
 
 export const getPastaDrive = createServerFn({ method: "POST" })
@@ -149,34 +166,68 @@ export const getPastaDrive = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data } = await supabaseAdmin
       .from("configuracoes_casal")
-      .select("valor")
-      .eq("chave", "drive_folder_id")
-      .maybeSingle();
-    return { folderId: data?.valor ?? null };
+      .select("chave,valor")
+      .in("chave", ["comprovantes_pasta_url", "drive_folder_id"]);
+    const folderUrl = data?.find((item) => item.chave === "comprovantes_pasta_url")?.valor ?? null;
+    const folderId = data?.find((item) => item.chave === "drive_folder_id")?.valor ?? null;
+    return {
+      folderId,
+      folderUrl,
+      provider: folderUrl ? identificarServico(folderUrl) : null,
+    };
   });
 
 export const setPastaDrive = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { valor: string }) => input)
   .handler(async ({ data }) => {
-    const folderId = extrairFolderId(data.valor);
+    const valor = data.valor.trim();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    if (!folderId) {
+    if (!valor) {
       const { error } = await supabaseAdmin
         .from("configuracoes_casal")
         .delete()
-        .eq("chave", "drive_folder_id");
+        .in("chave", ["comprovantes_pasta_url", "drive_folder_id"]);
       if (error) throw error;
-      return { folderId: null };
+      return { folderId: null, folderUrl: null, provider: null };
     }
-    const { error } = await supabaseAdmin
-      .from("configuracoes_casal")
-      .upsert(
-        { chave: "drive_folder_id", valor: folderId, updated_at: new Date().toISOString() },
-        { onConflict: "chave" },
-      );
+    let pastaUrl: URL;
+    try {
+      pastaUrl = new URL(valor);
+    } catch {
+      throw new Error("Cole o link completo da pasta, começando com http:// ou https://.");
+    }
+    if (pastaUrl.protocol !== "https:" && pastaUrl.protocol !== "http:") {
+      throw new Error("O endereço da pasta precisa ser um link válido.");
+    }
+
+    const provider = identificarServico(pastaUrl.toString());
+    const folderId = provider === "Google Drive" ? extrairFolderId(pastaUrl.toString()) : null;
+    const { error } = await supabaseAdmin.from("configuracoes_casal").upsert(
+      {
+        chave: "comprovantes_pasta_url",
+        valor: pastaUrl.toString(),
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "chave" },
+    );
     if (error) throw error;
-    return { folderId };
+    if (folderId) {
+      const { error: folderError } = await supabaseAdmin
+        .from("configuracoes_casal")
+        .upsert(
+          { chave: "drive_folder_id", valor: folderId, updated_at: new Date().toISOString() },
+          { onConflict: "chave" },
+        );
+      if (folderError) throw folderError;
+    } else {
+      const { error: limparError } = await supabaseAdmin
+        .from("configuracoes_casal")
+        .delete()
+        .eq("chave", "drive_folder_id");
+      if (limparError) throw limparError;
+    }
+    return { folderId, folderUrl: pastaUrl.toString(), provider };
   });
 
 export const uploadNotaArquivo = createServerFn({ method: "POST" })

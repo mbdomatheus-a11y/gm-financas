@@ -1272,6 +1272,175 @@ export type Database = {
         }
         Relationships: []
       }
+      veiculo_documentos: {
+        Row: {
+          created_at: string
+          criado_por: string | null
+          id: string
+          nome: string
+          storage_path: string
+          tipo: string
+          veiculo_id: string
+        }
+        Insert: {
+          created_at?: string
+          criado_por?: string | null
+          id?: string
+          nome: string
+          storage_path: string
+          tipo: string
+          veiculo_id: string
+        }
+        Update: {
+          created_at?: string
+          criado_por?: string | null
+          id?: string
+          nome?: string
+          storage_path?: string
+          tipo?: string
+          veiculo_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "veiculo_documentos_veiculo_id_fkey"
+            columns: ["veiculo_id"]
+            isOneToOne: false
+            referencedRelation: "veiculos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      veiculo_eventos: {
+        Row: {
+          created_at: string
+          criado_por: string | null
+          custo: number | null
+          data: string
+          descricao: string | null
+          grupo_id: string | null
+          id: string
+          km: number | null
+          tipo: string
+          veiculo_id: string
+        }
+        Insert: {
+          created_at?: string
+          criado_por?: string | null
+          custo?: number | null
+          data: string
+          descricao?: string | null
+          grupo_id?: string | null
+          id?: string
+          km?: number | null
+          tipo: string
+          veiculo_id: string
+        }
+        Update: {
+          created_at?: string
+          criado_por?: string | null
+          custo?: number | null
+          data?: string
+          descricao?: string | null
+          grupo_id?: string | null
+          id?: string
+          km?: number | null
+          tipo?: string
+          veiculo_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "veiculo_eventos_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "grupos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "veiculo_eventos_veiculo_id_fkey"
+            columns: ["veiculo_id"]
+            isOneToOne: false
+            referencedRelation: "veiculos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      veiculos: {
+        Row: {
+          ano: number | null
+          chassi: string | null
+          created_at: string
+          created_by: string | null
+          data_compra: string | null
+          data_proxima_troca_oleo: string | null
+          data_vencimento_ipva: string | null
+          data_vencimento_seguro: string | null
+          grupo_id: string | null
+          id: string
+          km_atual: number | null
+          km_proxima_troca_oleo: number | null
+          marca: string | null
+          modelo: string | null
+          motorista_principal: string | null
+          nome: string
+          observacoes: string | null
+          placa: string | null
+          renavam: string | null
+          updated_at: string
+        }
+        Insert: {
+          ano?: number | null
+          chassi?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_compra?: string | null
+          data_proxima_troca_oleo?: string | null
+          data_vencimento_ipva?: string | null
+          data_vencimento_seguro?: string | null
+          grupo_id?: string | null
+          id?: string
+          km_atual?: number | null
+          km_proxima_troca_oleo?: number | null
+          marca?: string | null
+          modelo?: string | null
+          motorista_principal?: string | null
+          nome: string
+          observacoes?: string | null
+          placa?: string | null
+          renavam?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ano?: number | null
+          chassi?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_compra?: string | null
+          data_proxima_troca_oleo?: string | null
+          data_vencimento_ipva?: string | null
+          data_vencimento_seguro?: string | null
+          grupo_id?: string | null
+          id?: string
+          km_atual?: number | null
+          km_proxima_troca_oleo?: number | null
+          marca?: string | null
+          modelo?: string | null
+          motorista_principal?: string | null
+          nome?: string
+          observacoes?: string | null
+          placa?: string | null
+          renavam?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "veiculos_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "grupos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
