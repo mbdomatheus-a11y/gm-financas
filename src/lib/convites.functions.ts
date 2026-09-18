@@ -117,6 +117,19 @@ export const aceitarConvite = createServerFn({ method: "POST" })
       throw new Error("Este convite expirou. Peça um novo link.");
     }
 
+    // Cada convidado entra num grupo NOVO e isolado — não no grupo de quem
+    // convidou. O convite libera a conta (é o "selo" de confiança), mas os
+    // dados de cada pessoa/casal ficam separados dos de quem os convidou.
+    // Bug corrigido em 2026-09-18: antes o código reaproveitava
+    // `convite.grupo_id` (o grupo de quem gerou o convite), então todo
+    // convidado passava a enxergar os dados financeiros de quem o convidou.
+    const { data: grupoNovo, error: grupoError } = await db
+      .from("grupos")
+      .insert({ nome: `Grupo de ${data.nome.trim()}` })
+      .select("id")
+      .single();
+    if (grupoError) throw new Error(grupoError.message);
+
     const { data: created, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: data.email,
       password: data.senha,
@@ -139,7 +152,7 @@ export const aceitarConvite = createServerFn({ method: "POST" })
         email: data.email,
         telefone: data.telefone,
         data_nascimento: data.dataNascimento,
-        grupo_id: convite.grupo_id,
+        grupo_id: grupoNovo.id,
         convidado_por: convite.criado_por,
         ativo: true,
         senha_temporaria: false,
@@ -150,6 +163,16 @@ export const aceitarConvite = createServerFn({ method: "POST" })
       // Evita deixar um usuário de auth órfão (sem perfil) se o insert falhar.
       await supabaseAdmin.auth.admin.deleteUser(created.user.id);
       throw new Error(profileError.message);
+    }
+
+    // O convidado é o único membro do próprio grupo novo — precisa ser admin
+    // dele pra gerenciar o próprio grupo (convidar mais gente, permissões).
+    const { error: roleError } = await db
+      .from("user_roles")
+      .insert({ user_id: created.user.id, role: "admin" });
+    if (roleError) {
+      await supabaseAdmin.auth.admin.deleteUser(created.user.id);
+      throw new Error(roleError.message);
     }
 
     await db
