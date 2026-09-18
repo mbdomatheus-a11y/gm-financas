@@ -5,15 +5,134 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1789652538622,
-      "tag": "0000_add_groups_and_invitations",
+      "when": 1789650000000,
+      "tag": "0000_20260815214618_2175c567-c3b1-414a-afcf-e4fcbbc937e0",
       "breakpoints": true
     },
     {
       "idx": 1,
       "version": "7",
-      "when": 1789696701911,
-      "tag": "0001_create_vehicle_management_tables",
+      "when": 1789650000001,
+      "tag": "0001_20260815214636_54e9f390-b8b2-47b6-a907-f5ee31f200ab",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789650000002,
+      "tag": "0002_20260816171248_a01a8351-a026-464a-8ab5-115a56a4dbda",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1789650000003,
+      "tag": "0003_20260817013812_a7c1622b-cb3f-4d07-93ac-7ddd53495f2a",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1789650000004,
+      "tag": "0004_20260817013857_d7628ba4-fafb-4a4e-9e66-8bd2d7a67811",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1789650000005,
+      "tag": "0005_20260820002559_2cabf487-9de3-4f27-a012-5c62bbdc192a",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1789650000006,
+      "tag": "0006_20260823032632_b4d6c96c-2767-45c5-8d52-7561dc77d966",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1789650000007,
+      "tag": "0007_20260824023229_d175217a-00f0-4fa8-9a1d-6063109cc38f",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1789650000008,
+      "tag": "0008_20260830011044_ef56676b-6785-42f1-bea0-40e442b9fbae",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1789650000009,
+      "tag": "0009_20260831015144_115035ea-a3bc-44a4-b18b-cc630515f628",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1789650000010,
+      "tag": "0010_20260831023326_9a8b7ace-231f-44d8-8191-031994f39203",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1789650000011,
+      "tag": "0011_20260901013233_eed0d88a-6efd-42c3-9e78-9058e3d84b9c",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1789650000012,
+      "tag": "0012_20260908025135_38eabe87-88f1-4dac-9a10-5b6843a54aee",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1789650000013,
+      "tag": "0013_20260908221935_34737379-b5dd-498e-8b74-56af2fd0f1a4",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1789650000014,
+      "tag": "0014_20260910015422_945fb184-e6cc-4069-ad1f-6218d98eb13d",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1789650000015,
+      "tag": "0015_20260914031219_0fffb85c-dd1b-4f35-b281-fa3061f6475b",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1789650000016,
+      "tag": "0016_add_groups_and_invitations",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1789650000017,
+      "tag": "0017_create_vehicle_management_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1789727553417,
+      "tag": "0018_finalize_existing_schema",
       "breakpoints": true
     }
   ]

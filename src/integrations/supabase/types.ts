@@ -784,6 +784,8 @@ export type Database = {
       lista_compras: {
         Row: {
           alerta_em: string | null
+          aprovacoes_necessarias: number
+          aprovado_por: string[]
           categoria: string
           comprado: boolean
           comprado_em: string | null
@@ -799,6 +801,8 @@ export type Database = {
         }
         Insert: {
           alerta_em?: string | null
+          aprovacoes_necessarias?: number
+          aprovado_por?: string[]
           categoria?: string
           comprado?: boolean
           comprado_em?: string | null
@@ -814,6 +818,8 @@ export type Database = {
         }
         Update: {
           alerta_em?: string | null
+          aprovacoes_necessarias?: number
+          aprovado_por?: string[]
           categoria?: string
           comprado?: boolean
           comprado_em?: string | null
