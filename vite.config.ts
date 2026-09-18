@@ -7,6 +7,7 @@
 import { execSync } from "node:child_process";
 
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
+import { mcpPlugin } from "@lovable.dev/mcp-js/stacks/tanstack/vite";
 
 /**
  * Hash do commit atual (curto) + "-dev" se houver mudança não commitada no
@@ -34,6 +35,7 @@ function versaoDoCommit(): string {
 
 export default defineConfig({
   vite: {
+    plugins: [mcpPlugin()],
     define: {
       __APP_VERSION__: JSON.stringify(versaoDoCommit()),
       __APP_BUILD_TIME__: JSON.stringify(new Date().toISOString()),
