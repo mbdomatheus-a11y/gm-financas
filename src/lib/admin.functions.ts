@@ -88,6 +88,9 @@ export const adminListarUsuarios = createServerFn({ method: "GET" })
       )
       .order("created_at", { ascending: true });
     if (error) throw new Error(error.message);
+    const { data: roles } = await db.from("user_roles").select("user_id, role");
+    const { ehAdminPrincipal } = await import("@/lib/conta-exclusao.server");
+    const solicitanteEhPrincipal = await ehAdminPrincipal(context.userId);
     return (data ?? []).map((p: any) => ({
       id: p.id as string,
       nome: p.nome as string,
@@ -100,7 +103,40 @@ export const adminListarUsuarios = createServerFn({ method: "GET" })
       grupoNome: (p.grupos?.nome as string | undefined) ?? null,
       convidadoPor: (p.convidado_por as string | null) ?? null,
       criadoEm: p.created_at as string,
+      role: (roles ?? []).find((r: any) => r.user_id === p.id)?.role ?? "comum",
+      solicitanteEhPrincipal,
     }));
+  });
+
+/**
+ * Remove uma conta comum com duas confirmações literais e guarda uma cópia
+ * do cadastro/vínculo por 90 dias. Somente o administrador principal pode
+ * executar. Nenhuma conta administrativa pode ser alvo.
+ */
+export const adminExcluirUsuario = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        userId: z.string().uuid(),
+        confirmacao1: z.literal("DELETAR"),
+        confirmacao2: z.literal("Confirmo Delete"),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const { ehAdminPrincipal, arquivarEExcluirConta } = await import(
+      "@/lib/conta-exclusao.server"
+    );
+    if (!(await ehAdminPrincipal(context.userId))) {
+      throw new Error("Somente Matheus, administrador principal, pode excluir usuários.");
+    }
+    if (data.userId === context.userId) {
+      throw new Error("A conta administrativa principal não pode ser excluída.");
+    }
+    await arquivarEExcluirConta({ userId: data.userId, excluidaPor: context.userId });
+    return { ok: true as const, recuperavelPorDias: 90 };
   });
 
 /**
@@ -140,6 +176,10 @@ export const adminCancelarConvite = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({ conviteId: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
+    const { ehAdminPrincipal } = await import("@/lib/conta-exclusao.server");
+    if (!(await ehAdminPrincipal(context.userId))) {
+      throw new Error("Somente o administrador principal pode revogar convites de outras pessoas.");
+    }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const db = supabaseAdmin as any;
     const { data: convite, error } = await db

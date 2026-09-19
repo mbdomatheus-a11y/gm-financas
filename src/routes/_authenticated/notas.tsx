@@ -56,6 +56,7 @@ import {
   uploadNotaArquivo,
 } from "@/lib/drive.functions";
 import { consultarNota } from "@/lib/nfe.functions";
+import { usePermissoes } from "@/hooks/useAuthData";
 
 export const Route = createFileRoute("/_authenticated/notas")({
   head: () => ({
@@ -153,6 +154,7 @@ function SeloGarantia({ fim }: { fim: string | null }) {
 }
 
 function NotasPage() {
+  const { exclusaoBloqueada } = usePermissoes();
   const qc = useQueryClient();
   const { data: notas = [], isLoading } = useNotas();
   const [filtro, setFiltro] = useState<Filtro>("todas");
@@ -334,6 +336,7 @@ function NotasPage() {
 
   const excluir = useMutation({
     mutationFn: async (id: string) => {
+      if (exclusaoBloqueada) throw new Error("Seu perfil não possui permissão para excluir dados.");
       const { error } = await supabase.from("notas_fiscais").delete().eq("id", id);
       if (error) throw error;
     },

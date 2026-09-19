@@ -64,6 +64,8 @@ export type Modulo =
 export function usePermissoes() {
   const { user } = useSession();
   const { data: isAdmin } = useIsAdmin();
+  const { data: profile } = useProfile();
+  const exclusaoBloqueada = profile?.cpf === "41412522803";
   const query = useQuery({
     queryKey: ["permissoes", user?.id],
     enabled: !!user?.id,
@@ -75,6 +77,7 @@ export function usePermissoes() {
   });
 
   const can = (modulo: Modulo, acao: "ver" | "editar" | "excluir" = "ver") => {
+    if (acao === "excluir" && exclusaoBloqueada) return false;
     if (isAdmin) return true;
     const row = query.data?.find((p) => p.modulo === modulo);
     if (!row) return acao !== "excluir";
@@ -83,5 +86,5 @@ export function usePermissoes() {
     return row.pode_excluir;
   };
 
-  return { ...query, can, isAdmin: !!isAdmin };
+  return { ...query, can, isAdmin: !!isAdmin, exclusaoBloqueada };
 }

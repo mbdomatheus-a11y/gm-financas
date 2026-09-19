@@ -264,8 +264,7 @@ function CriarContaForm({ token }: { token: string | undefined }) {
 
     setLoading(true);
     try {
-      const res = await aceitar({
-        data: {
+      const dadosCadastro = {
           token: tokenInput.trim(),
           nome: form.nome.trim(),
           cpf,
@@ -274,8 +273,20 @@ function CriarContaForm({ token }: { token: string | undefined }) {
           dataNascimento: form.dataNascimento,
           senha: form.senha,
           turnstileToken: turnstileToken ?? undefined,
-        },
-      });
+      };
+      let res;
+      try {
+        res = await aceitar({ data: dadosCadastro });
+      } catch (err: unknown) {
+        if (err instanceof Error && err.message.includes("RECUPERACAO_DISPONIVEL")) {
+          const recuperar = window.confirm(
+            "Encontramos uma conta excluída há menos de 90 dias com lançamentos preservados. Deseja recuperar os dados anteriores? Clique em Cancelar para criar uma conta nova, sem recuperar.",
+          );
+          res = await aceitar({ data: { ...dadosCadastro, recuperarDados: recuperar } });
+        } else {
+          throw err;
+        }
+      }
       toast.success("Conta criada! Entrando…");
       const { error } = await supabase.auth.signInWithPassword({
         email: res.email,

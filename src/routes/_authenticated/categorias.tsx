@@ -61,7 +61,7 @@ const schema = z.object({
 
 function CategoriasPage() {
   const qc = useQueryClient();
-  const { can } = usePermissoes();
+  const { can, exclusaoBloqueada } = usePermissoes();
   const [tipo, setTipo] = useState<"despesa" | "receita">("despesa");
   const { data: categorias = [] } = useCategorias(tipo);
 
@@ -102,6 +102,7 @@ function CategoriasPage() {
 
   const excluir = useMutation({
     mutationFn: async (id: string) => {
+      if (exclusaoBloqueada) throw new Error("Seu perfil não possui permissão para excluir dados.");
       const { error } = await supabase.from("categorias").delete().eq("id", id);
       if (error) throw error;
     },

@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { LogOut, ShieldCheck } from "lucide-react";
+import { LogOut, ShieldCheck, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
@@ -17,6 +17,16 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile, usePermissoes } from "@/hooks/useAuthData";
 import { maskCpf } from "@/lib/cpf";
+import { useServerFn } from "@tanstack/react-start";
+import { excluirMinhaConta } from "@/lib/conta-exclusao.functions";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/_authenticated/conta")({
   head: () => ({
@@ -40,6 +50,11 @@ function ContaPage() {
   const { isAdmin } = usePermissoes();
   const [senha, setSenha] = useState("");
   const [confirma, setConfirma] = useState("");
+  const excluirConta = useServerFn(excluirMinhaConta);
+  const [dialogExclusao, setDialogExclusao] = useState(false);
+  const [modoExclusao, setModoExclusao] = useState<"recuperavel" | "definitiva">("recuperavel");
+  const [confirmacao1, setConfirmacao1] = useState("");
+  const [confirmacao2, setConfirmacao2] = useState("");
 
   const alterar = useMutation({
     mutationFn: async () => {
@@ -57,6 +72,24 @@ function ContaPage() {
       setConfirma("");
     },
     onError: (e: any) => toast.error(e.message),
+  });
+
+  const excluir = useMutation({
+    mutationFn: () =>
+      excluirConta({
+        data: {
+          modo: modoExclusao,
+          confirmacao1: confirmacao1 as "DELETAR",
+          confirmacao2: confirmacao2 as "Confirmo Delete",
+        },
+      }),
+    onSuccess: async () => {
+      await qc.cancelQueries();
+      qc.clear();
+      await supabase.auth.signOut();
+      navigate({ to: "/entrar", replace: true });
+    },
+    onError: (e: any) => toast.error(e.message ?? "Não foi possível excluir a conta"),
   });
 
   async function sair() {
@@ -123,7 +156,54 @@ function ContaPage() {
 
         <ConvitesCard />
         {isAdmin && <PermissoesUsuariosCard compact />}
+
+        <Card className="border-destructive/30 lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-sm text-destructive">
+              <Trash2 className="size-4" /> Excluir minha conta
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Você pode guardar uma cópia recuperável por 90 dias ou excluir a conta sem
+              possibilidade de recuperação. Contas administrativas não podem usar esta opção.
+            </p>
+            <Button
+              variant="destructive"
+              disabled={isAdmin}
+              title={isAdmin ? "Administradores não podem excluir a própria conta" : undefined}
+              onClick={() => setDialogExclusao(true)}
+            >
+              Excluir minha conta
+            </Button>
+          </CardContent>
+        </Card>
       </div>
+
+      <Dialog open={dialogExclusao} onOpenChange={setDialogExclusao}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Confirmar exclusão da conta</DialogTitle>
+            <DialogDescription>Esta ação encerra seu acesso imediatamente.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-2">
+              <Button variant={modoExclusao === "recuperavel" ? "default" : "outline"} onClick={() => setModoExclusao("recuperavel")}>Guardar por 90 dias</Button>
+              <Button variant={modoExclusao === "definitiva" ? "destructive" : "outline"} onClick={() => setModoExclusao("definitiva")}>Sem recuperação</Button>
+            </div>
+            <Field label='Digite "DELETAR"'>
+              <Input value={confirmacao1} onChange={(e) => setConfirmacao1(e.target.value)} />
+            </Field>
+            <Field label='Digite "Confirmo Delete"'>
+              <Input value={confirmacao2} onChange={(e) => setConfirmacao2(e.target.value)} />
+            </Field>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogExclusao(false)}>Cancelar</Button>
+            <Button variant="destructive" disabled={confirmacao1 !== "DELETAR" || confirmacao2 !== "Confirmo Delete" || excluir.isPending} onClick={() => excluir.mutate()}>Excluir conta</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }

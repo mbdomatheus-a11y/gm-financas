@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { KeyRound, Pencil, ShieldCheck, UserPlus, Users, Users2 } from "lucide-react";
+import { KeyRound, Pencil, ShieldCheck, Trash2, UserPlus, Users, Users2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppLayout } from "@/components/AppLayout";
@@ -33,7 +33,12 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useProfilesList, useRolesList } from "@/hooks/useFinance";
 import { usePermissoes } from "@/hooks/useAuthData";
-import { adminCreateUser, adminListarUsuarios, adminResetPassword } from "@/lib/admin.functions";
+import {
+  adminCreateUser,
+  adminExcluirUsuario,
+  adminListarUsuarios,
+  adminResetPassword,
+} from "@/lib/admin.functions";
 import { maskCpf, onlyDigits, isValidCpf } from "@/lib/cpf";
 import { formatDate } from "@/lib/format";
 
@@ -61,6 +66,7 @@ function UsuariosPage() {
   const criar = useServerFn(adminCreateUser);
   const resetar = useServerFn(adminResetPassword);
   const listarRoster = useServerFn(adminListarUsuarios);
+  const excluirUsuario = useServerFn(adminExcluirUsuario);
 
   const { data: roster = [], isLoading: carregandoRoster } = useQuery({
     queryKey: ["admin-roster"],
@@ -74,6 +80,9 @@ function UsuariosPage() {
   const [reset, setReset] = useState<{ id: string; nome: string } | null>(null);
   const [senha, setSenha] = useState("");
   const [editar, setEditar] = useState<{ id: string; nome: string } | null>(null);
+  const [excluir, setExcluir] = useState<{ id: string; nome: string } | null>(null);
+  const [confirmacao1, setConfirmacao1] = useState("");
+  const [confirmacao2, setConfirmacao2] = useState("");
 
   const roleDe = (id: string) => roles.find((r: any) => r.user_id === id)?.role ?? "comum";
 
@@ -133,6 +142,27 @@ function UsuariosPage() {
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries(),
+  });
+
+  const excluirMutation = useMutation({
+    mutationFn: async () => {
+      if (!excluir) return;
+      await excluirUsuario({
+        data: {
+          userId: excluir.id,
+          confirmacao1: confirmacao1 as "DELETAR",
+          confirmacao2: confirmacao2 as "Confirmo Delete",
+        },
+      });
+    },
+    onSuccess: () => {
+      toast.success("Conta excluída. A cópia para recuperação ficará disponível por 90 dias.");
+      setExcluir(null);
+      setConfirmacao1("");
+      setConfirmacao2("");
+      qc.invalidateQueries();
+    },
+    onError: (e: any) => toast.error(e.message ?? "Não foi possível excluir a conta"),
   });
 
   if (!isAdmin) {
@@ -195,6 +225,27 @@ function UsuariosPage() {
                     <p className="text-muted-foreground">
                       Grupo: {u.grupoNome ?? "—"} · desde {formatDate(u.criadoEm)}
                     </p>
+                    <div className="mt-2 flex items-center justify-between gap-2">
+                      <Badge variant={u.role === "admin" ? "default" : "outline"} className="text-[10px]">
+                        {u.role === "admin" ? "Administrador" : "Usuário comum"}
+                      </Badge>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        className="h-7 text-xs"
+                        disabled={!u.solicitanteEhPrincipal || u.role === "admin"}
+                        title={
+                          u.role === "admin"
+                            ? "Contas administrativas não podem ser excluídas"
+                            : !u.solicitanteEhPrincipal
+                              ? "Somente o administrador principal pode excluir usuários"
+                              : "Excluir usuário"
+                        }
+                        onClick={() => setExcluir({ id: u.id, nome: u.nome })}
+                      >
+                        <Trash2 className="size-3.5" /> Excluir
+                      </Button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -355,6 +406,40 @@ function UsuariosPage() {
           <DialogFooter>
             <Button onClick={() => salvarNome.mutate()} disabled={salvarNome.isPending}>
               Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!excluir} onOpenChange={(o) => !o && setExcluir(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Excluir a conta de {excluir?.nome}</DialogTitle>
+            <DialogDescription>
+              O acesso será removido e uma cópia recuperável do cadastro ficará guardada por
+              90 dias. Contas administrativas nunca podem ser excluídas por esta tela.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Field label='Digite "DELETAR"'>
+              <Input value={confirmacao1} onChange={(e) => setConfirmacao1(e.target.value)} />
+            </Field>
+            <Field label='Digite "Confirmo Delete"'>
+              <Input value={confirmacao2} onChange={(e) => setConfirmacao2(e.target.value)} />
+            </Field>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setExcluir(null)}>Cancelar</Button>
+            <Button
+              variant="destructive"
+              disabled={
+                confirmacao1 !== "DELETAR" ||
+                confirmacao2 !== "Confirmo Delete" ||
+                excluirMutation.isPending
+              }
+              onClick={() => excluirMutation.mutate()}
+            >
+              Excluir conta
             </Button>
           </DialogFooter>
         </DialogContent>

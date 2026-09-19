@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
-import { useSession } from "@/hooks/useAuthData";
+import { usePermissoes, useSession } from "@/hooks/useAuthData";
 import { useCategorias } from "@/hooks/useFinance";
 import { chaveEstabelecimento } from "@/lib/categorizacao";
 import { lerPlanilhaDePara, modeloCsv, type LinhaDePara } from "@/lib/depara";
@@ -41,6 +41,7 @@ export const Route = createFileRoute("/_authenticated/de-para")({
 function DeParaPage() {
   const qc = useQueryClient();
   const { user } = useSession();
+  const { exclusaoBloqueada } = usePermissoes();
   const inputRef = useRef<HTMLInputElement>(null);
   const { data: categorias = [] } = useCategorias("despesa");
 
@@ -175,6 +176,7 @@ function DeParaPage() {
 
   const remover = useMutation({
     mutationFn: async (id: string) => {
+      if (exclusaoBloqueada) throw new Error("Seu perfil não possui permissão para excluir dados.");
       const { error } = await supabase.from("categoria_regras").delete().eq("id", id);
       if (error) throw error;
     },

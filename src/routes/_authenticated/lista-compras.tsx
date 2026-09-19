@@ -41,7 +41,7 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { appSupabase } from "@/integrations/supabase/app-types";
-import { useSession } from "@/hooks/useAuthData";
+import { usePermissoes, useSession } from "@/hooks/useAuthData";
 import { useProfilesList } from "@/hooks/useFinance";
 import { addMonths, formatDate, toISODate } from "@/lib/format";
 
@@ -80,6 +80,7 @@ function categoriaLabel(id: string) {
 }
 
 function ListaComprasPage() {
+  const { exclusaoBloqueada } = usePermissoes();
   const qc = useQueryClient();
   const { user } = useSession();
   const { data: profiles = [] } = useProfilesList();
@@ -252,6 +253,7 @@ function ListaComprasPage() {
 
   const excluir = useMutation({
     mutationFn: async (id: string) => {
+      if (exclusaoBloqueada) throw new Error("Seu perfil não possui permissão para excluir dados.");
       const { error } = await supabase.from("lista_compras").delete().eq("id", id);
       if (error) throw error;
     },
@@ -264,6 +266,7 @@ function ListaComprasPage() {
 
   const limparComprados = useMutation({
     mutationFn: async () => {
+      if (exclusaoBloqueada) throw new Error("Seu perfil não possui permissão para excluir dados.");
       const ids = comprados.map((i) => i.id);
       if (!ids.length) return;
       const { error } = await supabase.from("lista_compras").delete().in("id", ids);

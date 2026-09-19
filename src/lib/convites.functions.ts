@@ -153,6 +153,7 @@ export const aceitarConvite = createServerFn({ method: "POST" })
         dataNascimento: z.string().min(10),
         senha: z.string().min(8).max(72),
         turnstileToken: z.string().optional(),
+        recuperarDados: z.boolean().optional(),
       })
       .parse(d),
   )
@@ -184,18 +185,37 @@ export const aceitarConvite = createServerFn({ method: "POST" })
       throw new Error("Este convite expirou. Peça um novo link.");
     }
 
+    const { data: contaArquivada, error: archiveError } = await db
+      .from("contas_excluidas")
+      .select("id, grupo_id, expira_em")
+      .eq("cpf", onlyDigits(data.cpf))
+      .is("restaurada_em", null)
+      .is("excluida_definitivamente_em", null)
+      .gt("expira_em", new Date().toISOString())
+      .order("excluida_em", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (archiveError) throw new Error(archiveError.message);
+    if (contaArquivada && data.recuperarDados === undefined) {
+      throw new Error("RECUPERACAO_DISPONIVEL");
+    }
+
     // Cada convidado entra num grupo NOVO e isolado — não no grupo de quem
     // convidou. O convite libera a conta (é o "selo" de confiança), mas os
     // dados de cada pessoa/casal ficam separados dos de quem os convidou.
     // Bug corrigido em 2026-09-18: antes o código reaproveitava
     // `convite.grupo_id` (o grupo de quem gerou o convite), então todo
     // convidado passava a enxergar os dados financeiros de quem o convidou.
-    const { data: grupoNovo, error: grupoError } = await db
-      .from("grupos")
-      .insert({ nome: `Grupo de ${data.nome.trim()}` })
-      .select("id")
-      .single();
-    if (grupoError) throw new Error(grupoError.message);
+    let grupoId = contaArquivada && data.recuperarDados ? contaArquivada.grupo_id : null;
+    if (!grupoId) {
+      const { data: grupoNovo, error: grupoError } = await db
+        .from("grupos")
+        .insert({ nome: `Grupo de ${data.nome.trim()}` })
+        .select("id")
+        .single();
+      if (grupoError) throw new Error(grupoError.message);
+      grupoId = grupoNovo.id;
+    }
 
     const { data: created, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: data.email,
@@ -219,7 +239,7 @@ export const aceitarConvite = createServerFn({ method: "POST" })
         email: data.email,
         telefone: data.telefone,
         data_nascimento: data.dataNascimento,
-        grupo_id: grupoNovo.id,
+        grupo_id: grupoId,
         convidado_por: convite.criado_por,
         ativo: true,
         senha_temporaria: false,
@@ -246,6 +266,13 @@ export const aceitarConvite = createServerFn({ method: "POST" })
       .from("convites")
       .update({ usado: true, usado_por: created.user.id })
       .eq("id", convite.id);
+
+    if (contaArquivada && data.recuperarDados) {
+      await db
+        .from("contas_excluidas")
+        .update({ restaurada_em: new Date().toISOString() })
+        .eq("id", contaArquivada.id);
+    }
 
     return { ok: true, email: data.email };
   });

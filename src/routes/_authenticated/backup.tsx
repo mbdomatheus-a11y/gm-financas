@@ -145,7 +145,7 @@ async function baixarModulos(chaves: ModuloKey[]): Promise<Backup> {
 }
 
 function BackupPage() {
-  const { isAdmin } = usePermissoes();
+  const { isAdmin, exclusaoBloqueada } = usePermissoes();
   const qc = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -228,6 +228,10 @@ function BackupPage() {
 
   async function executarReset() {
     if (!reset) return;
+    if (exclusaoBloqueada) {
+      toast.error("Este administrador não possui permissão para excluir dados.");
+      return;
+    }
     setBusy("reset");
     try {
       for (const tabela of reset.resetOrder) {
@@ -369,8 +373,14 @@ function BackupPage() {
                       size="sm"
                       variant="destructive"
                       className="h-7 shrink-0 gap-1 text-[11px]"
-                      disabled={!liberado || busy !== null}
-                      title={liberado ? undefined : "Baixe o backup deste módulo primeiro"}
+                      disabled={exclusaoBloqueada || !liberado || busy !== null}
+                      title={
+                        exclusaoBloqueada
+                          ? "Este administrador não pode excluir dados"
+                          : liberado
+                            ? undefined
+                            : "Baixe o backup deste módulo primeiro"
+                      }
                       onClick={() => {
                         setReset(m);
                         setConfirma("");

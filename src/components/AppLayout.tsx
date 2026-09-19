@@ -61,16 +61,16 @@ type NavItem = {
   adminOnly?: boolean;
 };
 
-type MundoId = "financas" | "lista" | "notas";
+type MundoId = "financas" | "lista" | "notas" | "calculadora";
 
 /**
  * Navegação em "mundos" (2026-09-18): em vez de uma lista única com tudo
- * misturado, a Home mostra só 3 caixas (Finanças, Lista, Notas fiscais) e,
+ * misturado, a Home mostra só 4 caixas (Finanças, Lista, Notas fiscais e Calculadora) e,
  * dentro de cada uma, o menu lateral passa a mostrar só os itens daquele
  * mundo — pra não misturar despesas/investimentos com a lista de compras,
  * por exemplo. "Início" fica sempre fixo no topo do menu como botão de
  * voltar. Ferramentas administrativas/utilitárias (Compartilhar,
- * Calculadora, Usuários, Backup, Personalização, Conta) ficam numa seção
+ * Usuários, Backup, Personalização, Conta) ficam numa seção
  * global, visível o tempo todo, independente do mundo atual.
  */
 const MUNDOS: Record<MundoId, { titulo: string; home: NavTo; items: NavItem[] }> = {
@@ -131,6 +131,11 @@ const MUNDOS: Record<MundoId, { titulo: string; home: NavTo; items: NavItem[] }>
     home: "/notas",
     items: [{ to: "/notas", label: "Notas fiscais", short: "Notas", icon: ReceiptText }],
   },
+  calculadora: {
+    titulo: "Calculadora",
+    home: "/ferramentas",
+    items: [{ to: "/ferramentas", label: "Calculadora", short: "Calculadora", icon: Calculator }],
+  },
 };
 
 /** Itens sempre visíveis, independente do mundo atual (ou de estar na Home). */
@@ -142,7 +147,6 @@ const GLOBAL: NavItem[] = [
     icon: Share2,
     modulo: "compartilhar",
   },
-  { to: "/ferramentas", label: "Calculadora", short: "Calc.", icon: Calculator },
   {
     to: "/usuarios",
     label: "Usuários e Privilégios",
