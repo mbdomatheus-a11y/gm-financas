@@ -4,7 +4,7 @@ Atualizado em 2026-09-19. Status: **feito**, **parcial** ou **pendente**. “Fei
 
 ## 1. Importação de faturas
 
-**Pendente.** A importação, revisão e aprendizagem de layout existem, mas ainda não há envio voluntário de PDF desconhecido para uma fila administrativa, consentimento específico, retenção automática, status administrativo nem log de descarte. Não é seguro receber documentos financeiros para análise antes desses controles.
+**Parcial.** Banco e fila administrativa privada, consentimento, prazo de descarte de 30 dias, status e notificação de correção foram criados. Falta expor o envio de arquivo pela tela de importação e automatizar o descarte físico após o prazo.
 
 ## 2. Aprendizado de categorias e De/Para
 
@@ -16,15 +16,15 @@ Atualizado em 2026-09-19. Status: **feito**, **parcial** ou **pendente**. “Fei
 
 ## 4. Cadastro, login e credenciais
 
-**Parcial.** E-mail ou CPF válido, sugestões de domínio, lembrança somente do identificador e recuperação de senha existem. Senhas ficam no Supabase Auth. Falta limitação de tentativas de login no servidor e validação completa de duplicidade por todos os fluxos de convite.
+**Feito com validação pendente.** E-mail ou CPF válido, sugestões de domínio, lembrança somente do identificador, recuperação de senha e bloqueio de 15 minutos após três falhas na interface foram implementados. Senhas não são salvas pelo site. Falta teste real de ponta a ponta.
 
 ## 5. Termos de Uso e LGPD
 
-**Parcial.** Há rascunho completo e revisado para não prometer anonimato nem ausência absoluta de operadores. O contato provisório `emailadmin@nomedosite.com.br` é apenas marcador e não recebe mensagens. Faltam página pública, aceite versionado, reaceite, registros e revisão jurídica antes da publicação final.
+**Parcial.** Páginas públicas, aceite versionado no cadastro e registro no banco foram implementados. O contato provisório publicado é `mbdo.matheus@gmail.com`. Revisão jurídica independente continua necessária antes de alegar conformidade definitiva.
 
 ## 6. Solicitações de privacidade e exclusão
 
-**Pendente.** A exclusão de conta e a retenção de até 90 dias existem, mas falta o formulário de direitos, validação de identidade, protocolo, fila administrativa e histórico.
+**Parcial.** O formulário pede e-mail, telefone, CPF e motivo, gera protocolo e cria uma fila administrativa. Falta procedimento operacional de validação de identidade e resposta dentro dos prazos aplicáveis.
 
 ## 7. Simulador e seringa
 
@@ -44,11 +44,11 @@ Atualizado em 2026-09-19. Status: **feito**, **parcial** ou **pendente**. “Fei
 
 ## 11. Comunicados e alertas administrativos
 
-**Pendente.** Falta criação, segmentação, aceite e trilha de leitura de comunicados globais.
+**Parcial.** Há criação de comunicado administrativo e tabela de aceite. Falta o banner modal para todos os usuários e leitura/aceite na interface do destinatário.
 
 ## 12. Analytics do sistema
 
-**Pendente.** Falta painel agregado, definição de usuário ativo, medição de sessão e retenção de logs.
+**Parcial.** Painel agregado mostra contas, ativas e média de sessões concluídas sem expor dados financeiros. Falta cálculo de espaço por usuário e definição visual de atividade nos últimos 30 dias.
 
 ## 13. Investimentos
 
