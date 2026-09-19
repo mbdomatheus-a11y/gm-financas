@@ -1,4 +1,11 @@
 @import "tailwindcss" source(none);
+
+/* A imagem fica estável; a luz percorre as linhas como uma rede discreta. */
+.brand-mark { position: relative; display: inline-flex; overflow: hidden; isolation: isolate; border-radius: 0.8rem; background: #eaf4fb; }
+.brand-mark-image { display: block; width: 100%; height: 100%; object-fit: cover; object-position: center; }
+.brand-mark-flow { position: absolute; inset: -35%; z-index: 1; pointer-events: none; opacity: .23; mix-blend-mode: screen; background: linear-gradient(115deg, transparent 40%, rgba(125,220,255,.05) 45%, rgba(180,241,255,.9) 50%, rgba(125,220,255,.05) 55%, transparent 60%); animation: brand-network-flow 7s ease-in-out infinite; }
+@keyframes brand-network-flow { 0%,100% { transform: translateX(-26%) translateY(6%); opacity: .10; } 50% { transform: translateX(25%) translateY(-6%); opacity: .34; } }
+@media (prefers-reduced-motion: reduce) { .brand-mark-flow { animation: none; opacity: .14; } }
 @source "../src";
 @import "tw-animate-css";
 

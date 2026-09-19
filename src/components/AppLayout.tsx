@@ -36,6 +36,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { AlertsBell } from "@/components/AlertsBell";
+import { BrandMark } from "@/components/BrandMark";
 
 type NavTo =
   | "/inicio"
@@ -296,9 +297,7 @@ export function AppLayout({
   const SidebarInner = ({ onNavigate }: { onNavigate?: (() => void) | undefined }) => (
     <div className="flex h-full flex-col gap-4 p-4">
       <Link to="/dashboard" onClick={onNavigate} className="flex items-center gap-3 px-2 py-1">
-        <div className="gradient-brand flex size-9 items-center justify-center rounded-xl">
-          <Wallet className="size-4.5 text-primary-foreground" />
-        </div>
+        <BrandMark className="size-9 rounded-xl" />
         <div className="min-w-0">
           <p className="truncate text-sm font-bold leading-tight">Control ALL</p>
           <p className="truncate text-xs text-muted-foreground">{profile?.nome ?? ""}</p>
