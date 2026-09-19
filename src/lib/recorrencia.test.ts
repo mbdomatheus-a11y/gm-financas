@@ -1,11 +1,25 @@
 import { describe, expect, test } from "bun:test";
 import {
   aplicacoesDeReajuste,
+  lancamentosPorCompetencias,
   recorrenciaDaReceita,
   somarMeses,
   valorNaCompetencia,
   type RecorrenciaFixa,
 } from "@/lib/recorrencia";
+
+test("substituição de ocorrência não altera a regra recorrente nem o mês seguinte", () => {
+  const despesa = {
+    id: "fixa-1", tipo: "fixa", valor_total: 150, moeda: "BRL",
+    recorrencia_inicio: "2026-08-10", recorrencia_sem_prazo: true,
+    parcelas: [{ id: "mes-09", despesa_id: "fixa-1", vencimento: "2026-09-10",
+      valor: 115.84, origem: "importacao_substituicao", paga: false }],
+  };
+  const [setembro, outubro] = lancamentosPorCompetencias([despesa], ["2026-09", "2026-10"]);
+  expect(setembro?.valor).toBe(115.84);
+  expect(outubro?.valor).toBe(150);
+  expect(despesa.valor_total).toBe(150);
+});
 
 describe("valorNaCompetencia — reajuste percentual (compatibilidade com despesas)", () => {
   const base: RecorrenciaFixa = {

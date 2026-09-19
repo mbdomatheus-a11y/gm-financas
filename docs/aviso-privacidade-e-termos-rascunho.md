@@ -1,12 +1,12 @@
 # Aviso de Privacidade e Termos de Uso: rascunho para revisão
 
-Versão de trabalho: 2026-09-19. **Não publicar nem exigir aceite enquanto o canal de privacidade estiver indefinido e o texto não tiver revisão jurídica.** Este documento deve ser adaptado à operação real antes de virar compromisso público.
+Versão de trabalho: 2026-09-19. **Não publicar como texto final nem exigir aceite enquanto o canal de privacidade não receber mensagens de verdade e o texto não tiver revisão jurídica.** O endereço abaixo é apenas um marcador solicitado pelo proprietário, não uma caixa postal configurada.
 
 ## Aviso de Privacidade
 
 ### 1. Quem trata os dados
 
-A Control All LTDA é a responsável pelas decisões sobre o tratamento de dados pessoais no Control All. Contato para privacidade e exercício de direitos: **[E-MAIL A DEFINIR]**. Se aplicável, informar também identificação empresarial e endereço de contato adequados.
+A Control All LTDA é a responsável pelas decisões sobre o tratamento de dados pessoais no Control All. Contato provisório para substituir antes da publicação: **emailadmin@nomedosite.com.br**. Este endereço é ilustrativo, não foi verificado nem configurado para receber solicitações. Se aplicável, informar também identificação empresarial e endereço de contato adequados.
 
 ### 2. Quais dados são tratados
 

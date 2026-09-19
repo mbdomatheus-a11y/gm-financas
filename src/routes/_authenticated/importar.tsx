@@ -3,6 +3,7 @@ import { useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
+  BookmarkMinus,
   BookmarkPlus,
   CheckCircle2,
   ClipboardPaste,
@@ -33,7 +34,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
-import { useSession } from "@/hooks/useAuthData";
+import { usePermissoes, useSession } from "@/hooks/useAuthData";
 import {
   RESPONSAVEIS_EXTRA,
   useBancos,
@@ -43,6 +44,8 @@ import {
   useProfilesList,
 } from "@/hooks/useFinance";
 import { formatBRL } from "@/lib/format";
+import { encontrarCorrespondenciaFixa, type FixaCandidata } from "@/lib/correspondencia-fixa";
+import { mesesEntreCompetencias, somarMeses, vencimentoDaCompetencia } from "@/lib/recorrencia";
 import {
   CONFIANCA_LABEL,
   chaveEstabelecimento,
@@ -95,6 +98,8 @@ type FaturaItem = FaturaExtraida & {
   total_declarado_edicao?: string;
 };
 
+type AcaoFixa = "manter" | "substituir" | "ignorar" | "vincular";
+
 /** Normaliza nomes para comparar "Itaú" com "itau", "Banco Santander" com "santander" etc. */
 function chaveNome(v: string) {
   return v
@@ -102,27 +107,6 @@ function chaveNome(v: string) {
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .replace(/[^a-z0-9]/g, "");
-}
-
-/**
- * Encontra uma despesa fixa já cadastrada que provavelmente é o mesmo
- * lançamento recorrente (mesma descrição normalizada, ou valor a até 2% de
- * diferença). Sem janela de data — fixa recorrente aparece ~30 dias depois,
- * não em poucos dias como duplicata de digitação — critério usado em
- * `/despesas`, adaptado aqui pra recorrência mensal.
- */
-function encontrarFixaDuplicada(
-  despesasFixas: any[],
-  l: Pick<LancamentoExtraido, "descricao_normalizada" | "valor">,
-): any | null {
-  if (!l.descricao_normalizada && !l.valor) return null;
-  return (
-    despesasFixas.find((d) => {
-      const mesmaDescricao = d.descricao_normalizada === l.descricao_normalizada;
-      const valorProximo = Math.abs(Number(d.valor_total) - l.valor) <= l.valor * 0.02;
-      return mesmaDescricao || valorProximo;
-    }) ?? null
-  );
 }
 
 async function hashTexto(texto: string) {
@@ -136,6 +120,7 @@ async function hashTexto(texto: string) {
 function ImportarPage() {
   const qc = useQueryClient();
   const { user } = useSession();
+  const { exclusaoBloqueada } = usePermissoes();
   const { data: profiles = [] } = useProfilesList();
   const { data: categorias = [] } = useCategorias("despesa");
   const { data: cartoes = [] } = useCartoes();
@@ -147,7 +132,7 @@ function ImportarPage() {
   // numa fatura de mês seguinte), já que essas agora são projetadas
   // automaticamente pra frente e não precisam ser reimportadas.
   const despesasFixas = useMemo(
-    () => (despesasTodas as any[]).filter((d) => d.tipo === "fixa"),
+    () => (despesasTodas as FixaCandidata[]).filter((d) => d.tipo === "fixa"),
     [despesasTodas],
   );
   const inputRef = useRef<HTMLInputElement>(null);
@@ -157,6 +142,7 @@ function ImportarPage() {
   const [lendo, setLendo] = useState(false);
   const [lendoImagens, setLendoImagens] = useState(false);
   const [faturas, setFaturas] = useState<FaturaItem[]>([]);
+  const [acoesFixas, setAcoesFixas] = useState<Record<string, { acao: AcaoFixa; fixaId: string }>>({});
   const [colado, setColado] = useState("");
   const [cadastroDestino, setCadastroDestino] = useState<{
     arquivoHash: string;
@@ -544,6 +530,7 @@ function ImportarPage() {
         .from("categoria_regras")
         .select("id")
         .eq("estabelecimento_normalizado", chave)
+        .eq("tipo_regra", "de_para")
         .maybeSingle();
       if (existente) {
         const { error } = await supabase
@@ -571,11 +558,30 @@ function ImportarPage() {
   }
 
   const salvarRegra = useMutation({
-    mutationFn: gravarRegra,
-    onSuccess: () => {
+    mutationFn: async (l: LancamentoExtraido) => {
+      const chave = chaveEstabelecimento(l.descricao);
+      const { data: existente, error } = await supabase
+        .from("categoria_regras")
+        .select("id, categoria, subcategoria")
+        .eq("estabelecimento_normalizado", chave)
+        .eq("tipo_regra", "de_para")
+        .maybeSingle();
+      if (error) throw error;
+      if (existente && existente.categoria === l.categoria &&
+          (existente.subcategoria ?? null) === (l.subcategoria ?? null)) {
+        if (exclusaoBloqueada) throw new Error("Seu perfil não possui permissão para remover regras.");
+        const { error: removerErro } = await supabase.from("categoria_regras")
+          .delete().eq("id", existente.id);
+        if (removerErro) throw removerErro;
+        return "removida" as const;
+      }
+      await gravarRegra(l);
+      return "salva" as const;
+    },
+    onSuccess: (acao) => {
       qc.invalidateQueries({ queryKey: ["categoria-regras"] });
       qc.invalidateQueries({ queryKey: ["categorias", "despesa"] });
-      toast.success("Regra de de-para salva.");
+      toast.success(acao === "removida" ? "Regra de de-para removida." : "Regra de de-para salva.");
     },
     onError: (e: any) => toast.error(e?.message ?? "Falha ao salvar a regra."),
   });
@@ -674,6 +680,58 @@ function ImportarPage() {
           const cartaoDestino = cartaoId
             ? ((cartoes as any[]).find((c) => c.id === cartaoId) ?? null)
             : null;
+
+          const acaoFixa = acoesFixas[`${f.arquivo_hash}:${l.id}`];
+          if (acaoFixa?.acao === "ignorar") {
+            ignorados++;
+            continue;
+          }
+          if (acaoFixa && (acaoFixa.acao === "substituir" || acaoFixa.acao === "vincular")) {
+            const { data: fixa, error: fixaErro } = await supabase.from("despesas")
+              .select("id, descricao, valor_total, tipo, direcao, cartao_id, cartao_final, banco_id, recorrencia_inicio, recorrencia_meses, data_primeira_parcela, total_parcelas")
+              .eq("id", acaoFixa.fixaId).eq("grupo_id", grupoId).single();
+            if (fixaErro || !fixa) throw new Error("A despesa fixa escolhida não está disponível neste grupo.");
+            const correspondencia = encontrarCorrespondenciaFixa([fixa], {
+              descricao: l.descricao, valor: l.valor, direcao: l.direcao,
+              data_compra: l.data_compra, parcela_total: l.parcela_total,
+              cartao_final: l.cartao_final, cartao_id: cartaoId, banco_id: bancoId,
+              competencia: f.competencia,
+            });
+            if (!correspondencia) throw new Error("A correspondência com a despesa fixa mudou. Revise esta linha.");
+            const competencia = (f.competencia ?? l.data_compra).slice(0, 7);
+            const { data: parcelaExistente, error: parcelaErro } = await supabase.from("parcelas")
+              .select("id, fatura_id")
+              .eq("despesa_id", fixa.id)
+              .gte("vencimento", `${competencia}-01`)
+              .lt("vencimento", `${somarMeses(competencia, 1)}-01`)
+              .maybeSingle();
+            if (parcelaErro) throw parcelaErro;
+            if (parcelaExistente?.fatura_id && parcelaExistente.fatura_id !== fatura.id) {
+              throw new Error("Esta ocorrência já está vinculada a outra fatura. Revise antes de substituir.");
+            }
+            const inicio = fixa.recorrencia_inicio ?? fixa.data_primeira_parcela;
+            const numero = mesesEntreCompetencias(inicio, competencia) + 1;
+            const valores = {
+              fatura_id: fatura.id,
+              origem: acaoFixa.acao === "substituir" ? "importacao_substituicao" : "importacao_vinculo",
+              ...(acaoFixa.acao === "substituir" ? { valor: l.valor, valor_estimado: false } : {}),
+            };
+            if (parcelaExistente) {
+              const { error } = await supabase.from("parcelas").update(valores).eq("id", parcelaExistente.id);
+              if (error) throw error;
+            } else {
+              const { error } = await supabase.from("parcelas").insert({
+                despesa_id: fixa.id, grupo_id: grupoId, numero,
+                total: fixa.recorrencia_meses ?? Math.max(numero, 1),
+                valor: acaoFixa.acao === "substituir" ? l.valor : Number(fixa.valor_total),
+                moeda: l.moeda, vencimento: vencimentoDaCompetencia(inicio, competencia),
+                paga: false, ...valores,
+              });
+              if (error) throw error;
+            }
+            inseridos++;
+            continue;
+          }
 
           const { data: despesa, error: despErr } = await supabase
             .from("despesas")
@@ -827,6 +885,7 @@ function ImportarPage() {
       qc.invalidateQueries({ queryKey: ["import-faturas"] });
       qc.invalidateQueries({ queryKey: ["categoria-regras"] });
       setFaturas([]);
+      setAcoesFixas({});
       classificacoesEditadas.current.clear();
       toast.success(
         `${inseridos} lançamento(s) importado(s). ${ignorados} duplicado(s) ignorado(s).` +
@@ -1412,14 +1471,45 @@ function ImportarPage() {
                               </SelectContent>
                             </Select>
                             {(() => {
-                              const fixaExistente = encontrarFixaDuplicada(despesasFixas, l);
-                              return fixaExistente ? (
-                                <p className="mt-1 text-[10px] font-medium text-amber-600">
-                                  Já existe como fixa: "{fixaExistente.descricao}" (
-                                  {formatBRL(Number(fixaExistente.valor_total))}). Deve aparecer
-                                  sozinha nos lançamentos deste mês — considere desmarcar esta linha
-                                  pra não contar em dobro.
-                                </p>
+                              const cartaoLinha = acharCartao(f.banco, l.cartao_final);
+                              const [tipoDestino, idDestino] = String(f.destino ?? "").split(":");
+                              const correspondencia = encontrarCorrespondenciaFixa(despesasFixas, {
+                                descricao: l.descricao,
+                                valor: l.valor,
+                                direcao: l.direcao,
+                                data_compra: l.data_compra,
+                                parcela_total: l.parcela_total,
+                                cartao_final: l.cartao_final,
+                                cartao_id: cartaoLinha?.id ?? (tipoDestino === "cartao" ? idDestino ?? null : null),
+                                banco_id: tipoDestino === "banco" ? idDestino ?? null : null,
+                                competencia: f.competencia,
+                              });
+                              return correspondencia ? (
+                                <div className="mt-1 space-y-1 text-[10px] font-medium text-amber-600">
+                                  <p>{correspondencia.titulo}: "{correspondencia.fixa.descricao}" (
+                                    {formatBRL(Number(correspondencia.fixa.valor_total))}).</p>
+                                  <p>Critérios: {correspondencia.motivos.join(", ")}.</p>
+                                  <Select
+                                    value={acoesFixas[`${f.arquivo_hash}:${l.id}`]?.acao ?? "manter"}
+                                    onValueChange={(valor) => {
+                                      const acao = valor as AcaoFixa;
+                                      setAcoesFixas((atual) => ({ ...atual,
+                                        [`${f.arquivo_hash}:${l.id}`]: { acao, fixaId: correspondencia.fixa.id },
+                                      }));
+                                      atualizarLancamento(idx, l.id, { incluir: acao !== "ignorar" });
+                                    }}
+                                  >
+                                    <SelectTrigger className="h-7 text-[10px] text-foreground">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="manter">Manter os dois lançamentos</SelectItem>
+                                      <SelectItem value="substituir">Substituir só a ocorrência deste mês</SelectItem>
+                                      <SelectItem value="ignorar">Ignorar o lançamento importado</SelectItem>
+                                      <SelectItem value="vincular">Vincular à fixa sem trocar o valor</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
                               ) : null;
                             })()}
                           </td>
@@ -1481,15 +1571,27 @@ function ImportarPage() {
                                   ))}
                                 </SelectContent>
                               </Select>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="size-7 shrink-0"
-                                title="Salvar como regra de de-para"
-                                onClick={() => salvarRegra.mutate(l)}
-                              >
-                                <BookmarkPlus className="size-3.5" />
-                              </Button>
+                              {(() => {
+                                const adicionada = regras.some((r) =>
+                                  r.tipo_regra === "de_para" &&
+                                  r.estabelecimento_normalizado === chaveEstabelecimento(l.descricao) &&
+                                  r.categoria === l.categoria &&
+                                  (r.subcategoria ?? null) === (l.subcategoria ?? null));
+                                return (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 shrink-0 px-1 text-[10px]"
+                                    title={adicionada ? "Remover regra de de-para" : "Salvar como regra de de-para"}
+                                    disabled={salvarRegra.isPending || (adicionada && exclusaoBloqueada)}
+                                    onClick={() => salvarRegra.mutate(l)}
+                                  >
+                                    {adicionada ? <BookmarkMinus className="mr-1 size-3.5" /> :
+                                      <BookmarkPlus className="mr-1 size-3.5" />}
+                                    {adicionada ? "Remover regra" : "Salvar como regra"}
+                                  </Button>
+                                );
+                              })()}
                             </div>
                             {l.confianca_categoria && (
                               <p className="mt-1 text-[10px] text-muted-foreground">

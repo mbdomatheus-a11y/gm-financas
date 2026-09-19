@@ -224,7 +224,7 @@ export interface LancamentoCompetencia {
   despesa: any;
 }
 
-function vencimentoDaCompetencia(inicio: string, competencia: string): string {
+export function vencimentoDaCompetencia(inicio: string, competencia: string): string {
   const dia = Math.min(28, Number(inicio.slice(8, 10)) || 1);
   return `${competencia}-${String(dia).padStart(2, "0")}`;
 }
@@ -278,7 +278,9 @@ export function lancamentosPorCompetencias(
         despesa_id: String(despesa.id),
         numero: ordem + 1,
         total: recorrencia.semPrazo ? 0 : (recorrencia.meses ?? 0),
-        valor,
+        valor: existente?.origem === "importacao_substituicao"
+          ? Number(existente.valor)
+          : valor,
         moeda: despesa.moeda,
         vencimento:
           existente?.vencimento ?? vencimentoDaCompetencia(recorrencia.inicio, competencia),

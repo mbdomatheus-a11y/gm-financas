@@ -151,6 +151,7 @@ function DeParaPage() {
           .from("categoria_regras")
           .select("id")
           .eq("estabelecimento_normalizado", item.estabelecimento_normalizado)
+          .eq("tipo_regra", "de_para")
           .maybeSingle();
         if (existente) {
           const { error } = await supabase
