@@ -1,6 +1,7 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { InactivityGuard } from "@/components/InactivityGuard";
+import { ComunicadosModal } from "@/components/ComunicadosModal";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -21,6 +22,7 @@ export const Route = createFileRoute("/_authenticated")({
   },
   component: () => (
     <InactivityGuard>
+      <ComunicadosModal />
       <Outlet />
     </InactivityGuard>
   ),

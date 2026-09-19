@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useRef, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { prepararEnvioLayout } from "@/lib/layout-fatura.functions";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
@@ -136,6 +138,15 @@ function ImportarPage() {
     [despesasTodas],
   );
   const inputRef = useRef<HTMLInputElement>(null);
+  const layoutRef = useRef<HTMLInputElement>(null);
+  const prepararLayout = useServerFn(prepararEnvioLayout);
+  const [enviandoLayout, setEnviandoLayout] = useState(false);
+
+  async function enviarParaModelagem(files: FileList | null) {
+    const file = files?.[0]; if (!file) return;
+    if (file.size > 10 * 1024 * 1024) { toast.error("O arquivo pode ter no máximo 10 MB."); return; }
+    setEnviandoLayout(true); try { const envio = await prepararLayout({data:{nome:file.name}}); const {error}=await supabase.storage.from('layouts_analise').uploadToSignedUrl(envio.path,envio.token,file); if(error)throw error; toast.success('Fatura enviada para análise. Usaremos apenas o layout e o arquivo será descartado em até 30 dias.'); } catch(e:any){toast.error(e.message??'Não foi possível enviar.');} finally {setEnviandoLayout(false); if(layoutRef.current)layoutRef.current.value='';}
+  }
   const imgInputRef = useRef<HTMLInputElement>(null);
   const classificacoesEditadas = useRef(new Set<string>());
 
@@ -930,6 +941,7 @@ function ImportarPage() {
             </TabsList>
 
             <TabsContent value="pdf">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-dashed bg-muted/30 p-3 text-xs text-muted-foreground"><span>Seu banco não foi reconhecido? Envie uma cópia para modelagem. Os dados não serão usados e o arquivo será descartado em até 30 dias.</span><Button size="sm" variant="outline" disabled={enviandoLayout} onClick={()=>layoutRef.current?.click()}>{enviandoLayout?'Enviando…':'Enviar para análise'}</Button><input ref={layoutRef} className="hidden" type="file" accept="application/pdf,image/jpeg,image/png" onChange={e=>void enviarParaModelagem(e.target.files)}/></div>
               <div
                 className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed p-8 text-center transition-colors hover:bg-muted/50"
                 onClick={() => inputRef.current?.click()}
