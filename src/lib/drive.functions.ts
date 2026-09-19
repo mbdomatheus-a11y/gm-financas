@@ -176,10 +176,10 @@ export const setPastaDrive = createServerFn({ method: "POST" })
     try {
       pastaUrl = new URL(valor);
     } catch {
-      throw new Error("Cole o link completo da pasta, começando com http:// ou https://.");
+      throw new Error("Cole o link completo da pasta, começando com https://.");
     }
-    if (pastaUrl.protocol !== "https:" && pastaUrl.protocol !== "http:") {
-      throw new Error("O endereço da pasta precisa ser um link válido.");
+    if (pastaUrl.protocol !== "https:") {
+      throw new Error("O endereço da pasta precisa usar HTTPS.");
     }
 
     const provider = identificarServico(pastaUrl.toString());

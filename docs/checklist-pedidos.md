@@ -16,6 +16,7 @@ Conferência em 2026-09-19. "No código" significa implementado no repositório,
 - [x] Código de conexão individual com Google Drive preparado com OAuth direto, token criptografado e escopo `drive.file`. **Ainda não ativo para usuários finais:** precisa da configuração do Google Cloud e do deploy descritos em [configurar-google-drive.md](configurar-google-drive.md).
 - [x] O build local foi desvinculado dos pacotes e rotas do Lovable; produção Vercel compilou localmente.
 - [x] A leitura de de-para usa uma biblioteca mantida para XLSX e leitor CSV próprio. A biblioteca `xlsx` vulnerável foi removida. Arquivos `.xls` antigos devem ser convertidos para `.xlsx` ou CSV.
+- [x] Cabeçalhos básicos de segurança do Vercel preparados no `vercel.json`; falta validar no endereço público depois da publicação.
 
 ## Implementado parcialmente ou sem validação final
 
