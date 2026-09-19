@@ -176,7 +176,7 @@ export function SimuladorInterativo() {
   const labelPreenchido =
     seringa.unidade === "UI" ? `${(volume * 100).toFixed(1)} UI` : `${volume.toFixed(3)} mL`;
 
-  // Traços da régua: maiores (numerados) e menores (finos), sempre
+  // Traços da régua: maiores (numerados) e intermediários (finos), sempre
   // posicionados proporcionalmente à escala real, não só espaçados por CSS.
   const tracosMaiores = useMemo(() => {
     const max = volumeParaUnidade(seringa.capacidadeMax, seringa);
@@ -208,12 +208,15 @@ export function SimuladorInterativo() {
     return {
       tipo: "success" as const,
       mensagem:
-        "Volume perfeitamente visível e mensurável na escala selecionada — o traço indicado acima é onde o êmbolo deveria parar.",
+        "Visualização didática da posição do êmbolo. Esta simulação não representa a precisão de uma seringa real.",
     };
   }, [volume, seringa, seringaTipo]);
 
   return (
     <div className="relative">
+      <div className="pointer-events-none absolute -right-1 -top-5 z-10 -rotate-12 select-none rounded-sm border border-warning/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-warning/50">
+        Uso somente acadêmico
+      </div>
       {!aceito && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
           <div className="w-full max-w-md rounded-2xl bg-card p-6 text-center shadow-2xl">
@@ -238,14 +241,6 @@ export function SimuladorInterativo() {
       )}
 
       <div className={cn("relative overflow-hidden", !aceito && "pointer-events-none blur-[2px]")}>
-        {/* Tarja discreta, sempre visível sobre o conteúdo do simulador */}
-        <div className="pointer-events-none absolute inset-x-[-15%] top-[42%] z-10 -rotate-6 select-none">
-          <div className="whitespace-nowrap bg-warning/20 py-1 text-center text-[10px] font-bold uppercase tracking-widest text-warning sm:text-xs">
-            Uso somente acadêmico — não use para decisões clínicas reais &nbsp;·&nbsp; Uso somente
-            acadêmico — não use para decisões clínicas reais &nbsp;·&nbsp; Uso somente acadêmico
-          </div>
-        </div>
-
         <div className="space-y-5">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-3 rounded-lg border border-warning/30 bg-warning/5 p-4">
@@ -352,13 +347,13 @@ export function SimuladorInterativo() {
                 className="h-full bg-primary/40 transition-[width] duration-100 ease-out"
                 style={{ width: `${percentual}%` }}
               />
-              {/* Traços finos (menores) */}
+              {/* Marcas intermediárias existentes na escala, sem criar graduações fictícias. */}
               {tracosMenores.map((v) => {
                 const pos = (v / volumeParaUnidade(seringa.capacidadeMax, seringa)) * 100;
                 return (
                   <div
                     key={`menor-${v}`}
-                    className="absolute top-0 h-1/3 w-px bg-muted-foreground/30"
+                    className="pointer-events-none absolute top-0 h-1/2 w-px bg-muted-foreground/55"
                     style={{ left: `${pos}%` }}
                   />
                 );
@@ -369,7 +364,7 @@ export function SimuladorInterativo() {
                 return (
                   <div
                     key={`maior-${v}`}
-                    className="absolute top-0 h-2/3 w-0.5 bg-muted-foreground/60"
+                    className="pointer-events-none absolute top-0 h-4/5 w-0.5 bg-muted-foreground/75"
                     style={{ left: `${pos}%` }}
                   />
                 );

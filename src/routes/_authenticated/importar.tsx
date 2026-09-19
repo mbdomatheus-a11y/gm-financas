@@ -9,6 +9,7 @@ import {
   FileText,
   Image as ImageIcon,
   Loader2,
+  Plus,
   Trash2,
   Upload,
 } from "lucide-react";
@@ -23,6 +24,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -156,6 +158,12 @@ function ImportarPage() {
   const [lendoImagens, setLendoImagens] = useState(false);
   const [faturas, setFaturas] = useState<FaturaItem[]>([]);
   const [colado, setColado] = useState("");
+  const [cadastroDestino, setCadastroDestino] = useState<{
+    arquivoHash: string;
+    tipo: "banco" | "cartao";
+  } | null>(null);
+  const [nomeBancoNovo, setNomeBancoNovo] = useState("");
+  const [cartaoNovo, setCartaoNovo] = useState({ apelido: "", final: "", titular: "", bancoId: "" });
   const [pdfsComSenha, setPdfsComSenha] = useState<
     { file: File; senha: string; erro: string | null; tentando: boolean }[]
   >([]);
@@ -467,6 +475,46 @@ function ImportarPage() {
     setFaturas((prev) => prev.map((f, i) => (i === idx ? { ...f, ...patch } : f)));
   }
 
+  const cadastrarDestino = useMutation({
+    mutationFn: async () => {
+      if (!cadastroDestino) throw new Error("Escolha uma fatura.");
+      if (cadastroDestino.tipo === "banco") {
+        const nome = nomeBancoNovo.trim();
+        if (nome.length < 2) throw new Error("Informe o nome do banco ou conta.");
+        const { data, error } = await supabase.from("bancos")
+          .insert({ nome, tipo_conta: "outros", titular: profiles[0]?.nome ?? null })
+          .select("*").single();
+        if (error) throw error;
+        qc.setQueryData(["bancos"], (anterior: typeof bancos | undefined) => [...(anterior ?? []), data]);
+        return `banco:${data.id}`;
+      }
+      const final = cartaoNovo.final.trim();
+      if (!/^\d{4}$/.test(final)) throw new Error("Informe os quatro últimos dígitos do cartão.");
+      if (!cartaoNovo.titular.trim()) throw new Error("Informe o titular do cartão.");
+      const { data, error } = await supabase.from("cartoes")
+        .insert({
+          apelido: cartaoNovo.apelido.trim() || `Cartão •${final}`,
+          final,
+          titular: cartaoNovo.titular.trim(),
+          banco_id: cartaoNovo.bancoId || null,
+          bandeira: "Não informada",
+          tipo: "credito",
+        })
+        .select("*, bancos(nome)").single();
+      if (error) throw error;
+      qc.setQueryData(["cartoes"], (anterior: typeof cartoes | undefined) => [...(anterior ?? []), data]);
+      return `cartao:${data.id}`;
+    },
+    onSuccess: (destino) => {
+      setFaturas((atuais) => atuais.map((f) =>
+        f.arquivo_hash === cadastroDestino?.arquivoHash ? { ...f, destino } : f,
+      ));
+      setCadastroDestino(null);
+      toast.success("Cadastro concluído. Continue a importação normalmente.");
+    },
+    onError: (erro: Error) => toast.error(erro.message),
+  });
+
   function atualizarLancamento(idx: number, id: string, patch: Partial<LancamentoExtraido>) {
     if ("categoria" in patch || "subcategoria" in patch) {
       classificacoesEditadas.current.add(`${faturas[idx]?.arquivo_hash}:${id}`);
@@ -507,11 +555,18 @@ function ImportarPage() {
         const { error } = await supabase.from("categoria_regras").insert(item);
         if (error) throw error;
       }
-      const existeCategoria = (categorias as any[]).some(
-        (c) => String(c.nome).toLowerCase() === l.categoria.toLowerCase(),
-      );
-      if (!existeCategoria) {
-        await supabase.from("categorias").insert({ nome: l.categoria, tipo: "despesa" });
+      const { data: categoriaExistente, error: buscaCategoriaErro } = await supabase
+        .from("categorias")
+        .select("id")
+        .eq("tipo", "despesa")
+        .ilike("nome", l.categoria)
+        .limit(1)
+        .maybeSingle();
+      if (buscaCategoriaErro) throw buscaCategoriaErro;
+      if (!categoriaExistente) {
+        const { error } = await supabase.from("categorias")
+          .insert({ nome: l.categoria, tipo: "despesa" });
+        if (error) throw error;
       }
   }
 
@@ -1012,6 +1067,25 @@ function ImportarPage() {
                     ))}
                   </SelectContent>
                 </Select>
+                <div className="mt-1 flex flex-wrap gap-2">
+                  <Button type="button" size="sm" variant="ghost" className="h-7 px-1 text-xs" onClick={() => {
+                    setNomeBancoNovo(f.banco === "desconhecido" ? "" : BANCO_LABEL[f.banco]);
+                    setCadastroDestino({ arquivoHash: f.arquivo_hash, tipo: "banco" });
+                  }}>
+                    <Plus className="mr-1 size-3" /> Cadastrar banco
+                  </Button>
+                  <Button type="button" size="sm" variant="ghost" className="h-7 px-1 text-xs" onClick={() => {
+                    setCartaoNovo({
+                      apelido: "",
+                      final: f.finais[0] ?? "",
+                      titular: profiles[0]?.nome ?? "",
+                      bancoId: "",
+                    });
+                    setCadastroDestino({ arquivoHash: f.arquivo_hash, tipo: "cartao" });
+                  }}>
+                    <Plus className="mr-1 size-3" /> Cadastrar cartão
+                  </Button>
+                </div>
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">Banco</Label>
@@ -1478,6 +1552,58 @@ function ImportarPage() {
           </CardContent>
         </Card>
       ))}
+      <Dialog open={!!cadastroDestino} onOpenChange={(aberto) => !aberto && setCadastroDestino(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {cadastroDestino?.tipo === "banco" ? "Cadastrar banco ou conta" : "Cadastrar cartão"}
+            </DialogTitle>
+          </DialogHeader>
+          {cadastroDestino?.tipo === "banco" ? (
+            <div className="space-y-2">
+              <Label htmlFor="novo-banco-importacao">Nome do banco ou conta</Label>
+              <Input id="novo-banco-importacao" value={nomeBancoNovo}
+                onChange={(evento) => setNomeBancoNovo(evento.target.value)} />
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <Label htmlFor="novo-cartao-apelido">Apelido do cartão (opcional)</Label>
+                <Input id="novo-cartao-apelido" value={cartaoNovo.apelido}
+                  onChange={(evento) => setCartaoNovo({ ...cartaoNovo, apelido: evento.target.value })} />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="novo-cartao-final">Quatro últimos dígitos</Label>
+                <Input id="novo-cartao-final" inputMode="numeric" maxLength={4} value={cartaoNovo.final}
+                  onChange={(evento) => setCartaoNovo({ ...cartaoNovo, final: evento.target.value.replace(/\D/g, "") })} />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="novo-cartao-titular">Titular</Label>
+                <Input id="novo-cartao-titular" value={cartaoNovo.titular}
+                  onChange={(evento) => setCartaoNovo({ ...cartaoNovo, titular: evento.target.value })} />
+              </div>
+              <div className="space-y-1">
+                <Label>Banco cadastrado (opcional)</Label>
+                <Select value={cartaoNovo.bancoId || "nenhum"}
+                  onValueChange={(valor) => setCartaoNovo({ ...cartaoNovo, bancoId: valor === "nenhum" ? "" : valor })}>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="nenhum">Sem banco vinculado</SelectItem>
+                    {bancos.map((banco) => <SelectItem key={banco.id} value={banco.id}>{banco.nome}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setCadastroDestino(null)}>Cancelar</Button>
+            <Button type="button" disabled={cadastrarDestino.isPending}
+              onClick={() => cadastrarDestino.mutate()}>
+              {cadastrarDestino.isPending ? "Salvando..." : "Salvar e continuar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }
