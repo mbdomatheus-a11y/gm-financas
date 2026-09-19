@@ -1,165 +1,46 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
-import { CalendarClock, CalendarPlus, LogIn, Syringe, Timer, Wallet } from "lucide-react";
-
+import { ArrowRight, BarChart3, BellRing, Check, FileHeart, FileUp, ListChecks, MapPin, PawPrint, PlayCircle, ReceiptText, ShieldCheck, Sparkles, Wallet } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BrandAnimado } from "@/components/ferramentas/BrandAnimado";
-import { DiferencaEntreDatas } from "@/components/ferramentas/DiferencaEntreDatas";
-import { DataMaisIntervalo } from "@/components/ferramentas/DataMaisIntervalo";
-import { CalculadoraHorarios } from "@/components/ferramentas/CalculadoraHorarios";
-import { SimuladorInterativo } from "@/components/ferramentas/SimuladorInterativo";
 
 export const Route = createFileRoute("/")({
-  head: () => ({
-    meta: [
-      { title: "Control ALL — Calculadoras de data, horário e diluição grátis" },
-      {
-        name: "description",
-        content:
-          "Ferramentas gratuitas de uso geral: diferença entre datas (com anos e séculos), data mais um intervalo, soma de horários e um simulador interativo de diluição/seringa para uso acadêmico.",
-      },
-      { property: "og:title", content: "Control ALL — Calculadoras grátis" },
-      {
-        property: "og:description",
-        content:
-          "Ferramentas de uso geral: calculadora de datas, horários e um simulador interativo acadêmico.",
-      },
-    ],
-  }),
-  component: LandingPage,
+  head: () => ({ meta: [
+    { title: "Control ALL | Organização financeira e da vida" },
+    { name: "description", content: "Organize finanças, documentos, rotina da família, pets e exames em um só lugar." },
+    { property: "og:title", content: "Control ALL | Tudo da sua vida, organizado" },
+    { property: "og:description", content: "Controle finanças, lista, documentos, pets, exames e lembretes." },
+  ] }), component: LandingPage,
 });
+
+const modulos = [
+  { icon: Wallet, titulo: "Finanças", texto: "Receitas, despesas, cartões, investimentos e faturas importadas com revisão." },
+  { icon: ListChecks, titulo: "Lista", texto: "Compras compartilhadas, links, observações e aprovações." },
+  { icon: ReceiptText, titulo: "Notas fiscais", texto: "Guarde comprovantes, garantias e lembretes de vencimento." },
+  { icon: PawPrint, titulo: "Pet", texto: "Carteira de vacinação, vermifugação, dados do animal e alertas." },
+  { icon: MapPin, titulo: "Onde está?", texto: "Saiba onde cada item está guardado, com quantidade e foto." },
+  { icon: FileHeart, titulo: "Exames", texto: "Histórico privado, anexos e evolução de resultados com seu aceite." },
+];
 
 function LandingPage() {
   const navigate = useNavigate();
-
-  // Só visitante sem sessão fica nesta página — quem já está logado é
-  // levado direto pro hub de finanças, sem precisar navegar de novo.
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: "/inicio" });
-    });
-  }, [navigate]);
-
-  return (
-    <main className="min-h-screen bg-background">
-      <header className="sticky top-0 z-20 border-b bg-background/80 backdrop-blur-md">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-2">
-            <div className="gradient-brand flex size-8 items-center justify-center rounded-lg">
-              <Wallet className="size-4 text-primary-foreground" />
-            </div>
-            <span className="text-sm font-bold">Control ALL</span>
-          </div>
-          <Button asChild size="sm" variant="outline" className="gap-1.5">
-            <Link to="/entrar">
-              <LogIn className="size-3.5" /> Entrar
-            </Link>
-          </Button>
-        </div>
-      </header>
-
-      <div className="mx-auto max-w-5xl px-4 py-10 sm:py-14">
-        <div className="mb-10 text-center">
-          <BrandAnimado className="justify-center" />
-          <p className="mx-auto mt-4 max-w-xl text-sm text-muted-foreground sm:text-base">
-            Calculadoras gratuitas de uso geral — datas, horários e diluição — sem cadastro, sem
-            salvar nada. Prefere controlar as finanças da família também?{" "}
-            <Link
-              to="/entrar"
-              className="font-medium text-primary underline-offset-4 hover:underline"
-            >
-              Conheça o Control ALL completo
-            </Link>
-            .
-          </p>
-        </div>
-
-        <Tabs defaultValue="tempo" className="w-full">
-          <TabsList className="mb-6 grid h-auto w-full grid-cols-2 gap-1 bg-muted p-1 sm:grid-cols-4">
-            <TabsTrigger value="tempo" className="gap-1.5 py-2 text-xs sm:text-sm">
-              <CalendarClock className="size-4" /> Entre datas
-            </TabsTrigger>
-            <TabsTrigger value="intervalo" className="gap-1.5 py-2 text-xs sm:text-sm">
-              <CalendarPlus className="size-4" /> Data + intervalo
-            </TabsTrigger>
-            <TabsTrigger value="horarios" className="gap-1.5 py-2 text-xs sm:text-sm">
-              <Timer className="size-4" /> Horários
-            </TabsTrigger>
-            <TabsTrigger value="simulador" className="gap-1.5 py-2 text-xs sm:text-sm">
-              <Syringe className="size-4" /> Simulador
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="tempo">
-            <Card>
-              <CardContent className="p-5 sm:p-6">
-                <h2 className="mb-1 text-base font-semibold">Diferença entre datas</h2>
-                <p className="mb-4 text-sm text-muted-foreground">
-                  Quantos segundos, minutos, horas, dias, anos ou séculos há entre duas datas.
-                </p>
-                <DiferencaEntreDatas />
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="intervalo">
-            <Card>
-              <CardContent className="p-5 sm:p-6">
-                <h2 className="mb-1 text-base font-semibold">Data mais (ou menos) um intervalo</h2>
-                <p className="mb-4 text-sm text-muted-foreground">
-                  Ex.: que dia é 01/01/2028 mais 90 dias, ou 6 meses antes de uma data.
-                </p>
-                <DataMaisIntervalo />
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="horarios">
-            <Card>
-              <CardContent className="p-5 sm:p-6">
-                <h2 className="mb-1 text-base font-semibold">Soma e subtração de horários</h2>
-                <p className="mb-4 text-sm text-muted-foreground">Ex.: 08:00 + 7:20 − 1:15.</p>
-                <CalculadoraHorarios />
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="simulador">
-            <Card>
-              <CardContent className="p-5 sm:p-6">
-                <h2 className="mb-1 text-base font-semibold">Simulador Interativo</h2>
-                <p className="mb-4 text-sm text-muted-foreground">
-                  Conversor de dose/diluição e visualização de seringa — só para uso acadêmico.
-                </p>
-                <SimuladorInterativo />
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-
-        <Card className="mt-10 border-primary/30 bg-primary/5">
-          <CardContent className="flex flex-col items-center gap-3 p-6 text-center sm:flex-row sm:justify-between sm:text-left">
-            <div>
-              <p className="font-medium">Já usa o Control ALL pras finanças da casa?</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Entre com seu CPF pra ver receitas, despesas, cartões e investimentos.
-              </p>
-            </div>
-            <Button asChild className="shrink-0 gap-1.5">
-              <Link to="/entrar">
-                <LogIn className="size-4" /> Entrar
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
-
-        <p className="mt-6 text-center text-xs text-muted-foreground">
-          Nada do que você digita aqui é salvo — cada cálculo acontece só no seu navegador.
-        </p>
-      </div>
-    </main>
-  );
+  useEffect(() => { supabase.auth.getSession().then(({ data }) => { if (data.session) navigate({ to: "/inicio" }); }); }, [navigate]);
+  return <main className="min-h-screen bg-background text-foreground">
+    <header className="sticky top-0 z-20 border-b bg-background/90 backdrop-blur-md"><div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
+      <Link to="/" className="flex items-center gap-2 font-bold"><span className="gradient-brand flex size-8 items-center justify-center rounded-lg"><Wallet className="size-4 text-primary-foreground" /></span>Control ALL</Link>
+      <nav className="hidden items-center gap-5 text-sm text-muted-foreground md:flex"><a href="#recursos">Recursos</a><a href="#modulos">Módulos</a><a href="#demonstracao">Demonstração</a><a href="#precos">Preços</a><Link to="/termos-de-uso">Termos</Link><Link to="/privacidade">Privacidade</Link></nav>
+      <Button asChild size="sm"><Link to="/entrar">Entrar <ArrowRight className="size-4" /></Link></Button>
+    </div></header>
+    <section className="overflow-hidden border-b bg-gradient-to-b from-primary/10 via-background to-background"><div className="mx-auto grid max-w-6xl gap-10 px-4 py-16 md:grid-cols-[1.1fr_.9fr] md:py-24">
+      <div className="flex flex-col justify-center"><BrandAnimado className="mb-5" /><p className="mb-3 inline-flex w-fit items-center gap-2 rounded-full border bg-background px-3 py-1 text-xs font-medium"><Sparkles className="size-3.5 text-primary" /> Uma casa mais leve começa com clareza</p><h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl">A vida da sua família organizada em um só lugar.</h1><p className="mt-5 max-w-xl text-base leading-7 text-muted-foreground">Do dinheiro aos documentos, do pet aos exames: o Control ALL transforma tarefas espalhadas em uma rotina simples, privada e compartilhável quando você quiser.</p><div className="mt-7 flex flex-wrap gap-3"><Button asChild size="lg"><Link to="/entrar">Começar agora <ArrowRight className="size-4" /></Link></Button><Button asChild size="lg" variant="outline"><a href="#demonstracao"><PlayCircle className="size-4" /> Ver demonstração</a></Button></div><p className="mt-3 text-xs text-muted-foreground">R$ 4,99 por mês. Cobrança será habilitada no lançamento comercial.</p></div>
+      <Card className="border-primary/20 bg-card/80 shadow-xl"><CardContent className="space-y-4 p-5"><div className="flex items-center justify-between"><div><p className="text-sm text-muted-foreground">Visão de exemplo</p><b>Seu mês em ordem</b></div><BarChart3 className="size-7 text-primary" /></div><div className="grid grid-cols-2 gap-3"><div className="rounded-xl bg-emerald-500/10 p-3"><p className="text-xs text-muted-foreground">Entradas</p><b className="text-emerald-700">R$ 8.240,00</b></div><div className="rounded-xl bg-primary/10 p-3"><p className="text-xs text-muted-foreground">Planejado</p><b>R$ 5.190,00</b></div></div><div className="space-y-2 rounded-xl border p-3 text-sm"><p className="font-medium">Próximos cuidados</p><p className="flex items-center gap-2 text-muted-foreground"><BellRing className="size-4 text-primary" /> Garantia do liquidificador em 12 dias</p><p className="flex items-center gap-2 text-muted-foreground"><PawPrint className="size-4 text-primary" /> Reforço da vacina do pet em breve</p><p className="flex items-center gap-2 text-muted-foreground"><FileHeart className="size-4 text-primary" /> 3 resultados aguardando revisão</p></div><p className="text-center text-xs text-muted-foreground">Dados fictícios para demonstração.</p></CardContent></Card>
+    </div></section>
+    <section id="recursos" className="mx-auto max-w-6xl px-4 py-16"><div className="mb-8 max-w-2xl"><p className="text-sm font-semibold text-primary">RECURSOS</p><h2 className="mt-2 text-3xl font-bold">Organização que acompanha a vida real.</h2></div><div className="grid gap-4 sm:grid-cols-3"><Card><CardContent className="p-5"><ShieldCheck className="size-6 text-primary"/><h3 className="mt-3 font-semibold">Privacidade por padrão</h3><p className="mt-1 text-sm text-muted-foreground">Dados pessoais e exames privados. Compartilhamento só com a sua escolha.</p></CardContent></Card><Card><CardContent className="p-5"><FileUp className="size-6 text-primary"/><h3 className="mt-3 font-semibold">Importe e confira</h3><p className="mt-1 text-sm text-muted-foreground">Faturas e exames entram como prévia para você corrigir e aprovar.</p></CardContent></Card><Card><CardContent className="p-5"><BellRing className="size-6 text-primary"/><h3 className="mt-3 font-semibold">Não deixe passar</h3><p className="mt-1 text-sm text-muted-foreground">Alertas de contas, garantias, manutenção, vacinas e lembretes.</p></CardContent></Card></div></section>
+    <section id="modulos" className="border-y bg-muted/30"><div className="mx-auto max-w-6xl px-4 py-16"><p className="text-sm font-semibold text-primary">MÓDULOS</p><h2 className="mt-2 text-3xl font-bold">Cada parte da rotina, no seu lugar.</h2><div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{modulos.map(({icon:Icon,titulo,texto})=><Card key={titulo}><CardContent className="p-5"><Icon className="size-6 text-primary"/><h3 className="mt-3 font-semibold">{titulo}</h3><p className="mt-1 text-sm leading-6 text-muted-foreground">{texto}</p></CardContent></Card>)}</div></div></section>
+    <section id="demonstracao" className="mx-auto max-w-6xl px-4 py-16"><div className="grid items-center gap-8 md:grid-cols-2"><div><p className="text-sm font-semibold text-primary">DEMONSTRAÇÃO</p><h2 className="mt-2 text-3xl font-bold">Veja antes de decidir.</h2><p className="mt-4 text-muted-foreground">Esta área será visual e segura, com lançamentos fictícios. Também terá espaço para vídeos curtos explicando cada módulo, sem expor dados reais de nenhuma pessoa.</p><Button className="mt-6" variant="outline"><PlayCircle className="size-4" /> Vídeo de apresentação em breve</Button></div><Card className="border-dashed"><CardContent className="flex min-h-56 flex-col items-center justify-center p-8 text-center"><PlayCircle className="size-11 text-primary"/><b className="mt-3">Demonstração visual do Control ALL</b><p className="mt-1 text-sm text-muted-foreground">Vídeos e telas fictícias serão exibidos aqui.</p></CardContent></Card></div></section>
+    <section id="precos" className="border-t bg-primary/5"><div className="mx-auto max-w-6xl px-4 py-16 text-center"><p className="text-sm font-semibold text-primary">PREÇOS</p><h2 className="mt-2 text-3xl font-bold">Simples para começar.</h2><Card className="mx-auto mt-7 max-w-sm border-primary"><CardContent className="p-7"><p className="font-semibold">Control ALL</p><p className="mt-3 text-4xl font-bold">R$ 4,99<span className="text-base font-normal text-muted-foreground">/mês</span></p><p className="mt-3 text-sm text-muted-foreground">Preço de lançamento previsto.</p><ul className="mt-5 space-y-2 text-left text-sm">{["Módulos pessoais e financeiros","Alertas e histórico","Compartilhamento controlado","Privacidade por padrão"].map(i=><li className="flex gap-2" key={i}><Check className="size-4 text-primary"/>{i}</li>)}</ul><Button asChild className="mt-6 w-full"><Link to="/entrar">Criar conta</Link></Button></CardContent></Card></div></section>
+    <footer className="border-t px-4 py-7 text-center text-xs text-muted-foreground">© {new Date().getFullYear()} Control ALL LTDA · <Link to="/termos-de-uso" className="underline">Termos de Uso</Link> · <Link to="/privacidade" className="underline">Aviso de Privacidade</Link></footer>
+  </main>;
 }

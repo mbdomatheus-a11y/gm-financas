@@ -6,10 +6,14 @@ import { alertasDosVeiculos } from "@/lib/veiculo-alertas";
 import { diasRestantes } from "@/lib/nfe";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useServerFn } from "@tanstack/react-start";
+import { meuHistoricoAlertas } from "@/lib/comunicados.functions";
 
 type Aviso = { texto: string; destino: "/notas" | "/veiculos" | "/lista-compras" };
 
 export function AlertsBell() {
+  const historicoFn = useServerFn(meuHistoricoAlertas);
+  const { data: historico = [] } = useQuery({ queryKey: ["historico-alertas"], queryFn: () => historicoFn() });
   const { data: avisos = [] } = useQuery({
     queryKey: ["alertas-globais"],
     queryFn: async (): Promise<Aviso[]> => {
@@ -94,6 +98,7 @@ export function AlertsBell() {
             </Link>
           ))
         )}
+        {historico.length > 0 && <><p className="mt-2 border-t px-2 py-2 text-xs font-semibold uppercase text-muted-foreground">Histórico de avisos</p>{historico.slice(0, 8).map((aviso: any) => <div key={aviso.id} className="rounded-md px-2 py-2 text-sm"><p className="font-medium">{aviso.titulo}</p><p className="line-clamp-2 text-xs text-muted-foreground">{aviso.mensagem}</p></div>)}</>}
       </PopoverContent>
     </Popover>
   );

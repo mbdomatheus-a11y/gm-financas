@@ -7,7 +7,8 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
+import { inject, type BeforeSendEvent } from "@vercel/analytics";
 
 import appCss from "../styles.css?url";
 import { Toaster } from "@/components/ui/sonner";
@@ -112,6 +113,22 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+
+  // O app possui URLs com convite e recuperação de senha. Analytics deve
+  // registrar somente o caminho, nunca parâmetros que possam identificar ou
+  // permitir acesso a uma conta.
+  useEffect(() => {
+    inject({
+      beforeSend: (event: BeforeSendEvent) => {
+        try {
+          const url = new URL(event.url);
+          return { ...event, url: `${url.origin}${url.pathname}` };
+        } catch {
+          return null;
+        }
+      },
+    });
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>

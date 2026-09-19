@@ -2,19 +2,36 @@ import { createHash } from "node:crypto";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { isValidCpf, onlyDigits } from "@/lib/cpf";
 
 const emailAdmin = "mbdo.matheus@gmail.com";
-const pedidoSchema = z.object({ email: z.string().trim().email(), telefone: z.string().trim().min(8).max(24), cpf: z.string().regex(/^\d{11}$/), motivo: z.string().trim().max(2000).optional() });
+const pedidoSchema = z.object({ email: z.string().trim().email(), telefone: z.string().trim().min(8).max(24), cpf: z.string().transform(onlyDigits).refine(isValidCpf, "Informe um CPF válido."), motivo: z.string().trim().max(2000).optional() });
 const cpfHash = (cpf: string) => createHash("sha256").update(cpf).digest("hex");
 
 export const enviarSolicitacaoPrivacidade = createServerFn({ method: "POST" })
   .inputValidator((value: unknown) => pedidoSchema.parse(value))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: pedido, error } = await (supabaseAdmin as any).from("solicitacoes_privacidade").insert({ ...data, cpf_hash: cpfHash(data.cpf), tipo: "exclusao" }).select("protocolo").single();
-    if (error) throw new Error("Não foi possível registrar a solicitação.");
-    const { enviarEmail } = await import("@/lib/email.server");
-    await enviarEmail({ to: emailAdmin, subject: "Control ALL: nova solicitação de privacidade", html: `<p>Há uma nova solicitação de exclusão. Protocolo: <strong>${pedido.protocolo}</strong>.</p>` });
+    // Nunca persistir o CPF em texto claro nesta solicitação pública.
+    const { data: pedido, error } = await (supabaseAdmin as any).from("solicitacoes_privacidade").insert({
+      email: data.email,
+      telefone: data.telefone,
+      cpf_hash: cpfHash(data.cpf),
+      motivo: data.motivo || null,
+      tipo: "exclusao",
+    }).select("protocolo").single();
+    if (error) {
+      console.error("Falha ao registrar solicitação de privacidade", { code: error.code, message: error.message });
+      throw new Error("Não foi possível registrar a solicitação. Tente novamente em alguns minutos.");
+    }
+    // O protocolo já foi persistido. Falha no e-mail provisório não pode fazer
+    // o usuário acreditar que sua solicitação foi perdida.
+    try {
+      const { enviarEmail } = await import("@/lib/email.server");
+      await enviarEmail({ to: emailAdmin, subject: "Control ALL: nova solicitação de privacidade", html: `<p>Há uma nova solicitação de exclusão. Protocolo: <strong>${pedido.protocolo}</strong>.</p>` });
+    } catch (emailError) {
+      console.error("Solicitação registrada, mas e-mail administrativo falhou", emailError);
+    }
     return { protocolo: pedido.protocolo as string };
   });
 
