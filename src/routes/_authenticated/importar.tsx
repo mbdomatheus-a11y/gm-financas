@@ -521,6 +521,16 @@ function ImportarPage() {
 
   const confirmar = useMutation({
     mutationFn: async () => {
+      if (!user?.id) throw new Error("Entre na sua conta para importar faturas.");
+      const { data: perfil, error: perfilErr } = await supabase
+        .from("profiles")
+        .select("grupo_id")
+        .eq("id", user.id)
+        .single();
+      if (perfilErr) throw perfilErr;
+      if (!perfil.grupo_id) throw new Error("Não foi possível identificar o seu grupo.");
+      const grupoId = perfil.grupo_id;
+
       const { data: lote, error: loteErr } = await supabase
         .from("import_lotes")
         .insert({ created_by: user?.id ?? null, status: "confirmado" })
@@ -549,6 +559,7 @@ function ImportarPage() {
           .upsert(
             {
               lote_id: lote.id,
+              grupo_id: grupoId,
               banco: f.banco,
               arquivo_nome: f.arquivo_nome,
               arquivo_hash: f.arquivo_hash,
@@ -565,7 +576,7 @@ function ImportarPage() {
               paginas: f.paginas,
               status: "importada",
             },
-            { onConflict: "arquivo_hash" },
+            { onConflict: "grupo_id,arquivo_hash" },
           )
           .select("id")
           .single();
@@ -576,6 +587,7 @@ function ImportarPage() {
           const { data: existente } = await supabase
             .from("despesas")
             .select("id")
+            .eq("grupo_id", grupoId)
             .eq("dedup_key", chave)
             .maybeSingle();
           if (existente) {
@@ -632,6 +644,7 @@ function ImportarPage() {
               origem: "importacao",
               fatura_id: fatura.id,
               dedup_key: chave,
+              grupo_id: grupoId,
               created_by: user?.id ?? null,
             })
             .select("id")
@@ -659,6 +672,7 @@ function ImportarPage() {
               confianca_data: l.confianca_data,
               fatura_id: fatura.id,
               dedup_key: `${chave}#${numero}`,
+              grupo_id: grupoId,
             };
           });
           const { error: parcErr } = await supabase.from("parcelas").insert(parcelas);
