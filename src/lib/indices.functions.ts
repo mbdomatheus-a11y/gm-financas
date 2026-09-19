@@ -87,17 +87,25 @@ export const buscarValorIndice = createServerFn({ method: "POST" })
       .object({
         indice: z.enum(["IPCA", "INCC-DI", "IGP-DI", "IGP-M", "CDI", "SELIC"]),
         periodicidade: z.enum(["mensal", "semestral", "anual"]),
+        mediaMeses: z.union([z.literal(6), z.literal(12), z.literal(24)]).optional(),
       })
       .parse(d),
   )
   .handler(async ({ data }) => {
     const info = INDICES_REAJUSTE.find((i) => i.codigo === data.indice);
     if (!info) throw new Error("Índice desconhecido.");
-    const meses = MESES_POR_PERIODICIDADE[data.periodicidade] ?? 12;
+    const meses = data.mediaMeses ?? MESES_POR_PERIODICIDADE[data.periodicidade] ?? 12;
 
     if (info.frequencia === "mensal") {
       const serie = await buscarSerieBacen(info.serieSgs, meses);
-      const percentual = acumular(serie.map((s) => s.valor));
+      if (data.mediaMeses && serie.length < meses)
+        throw new Error(
+          "O Banco Central ainda não disponibilizou meses suficientes para esta média.",
+        );
+      const acumulado = acumular(serie.map((s) => s.valor));
+      const percentual = data.mediaMeses
+        ? (Math.pow(1 + acumulado / 100, 1 / serie.length) - 1) * 100
+        : acumulado;
       return {
         percentual: Number(percentual.toFixed(4)),
         dataBase: serie.at(-1)?.data ?? null,
@@ -108,7 +116,20 @@ export const buscarValorIndice = createServerFn({ method: "POST" })
     // o período, com folga, e acumula.
     const diasUteis = Math.ceil(meses * 22 * 1.2);
     const serie = await buscarSerieBacen(info.serieSgs, diasUteis);
-    const percentual = acumular(serie.map((s) => s.valor));
+    const mesesSelecionados = new Set(
+      [...new Set(serie.map((s) => s.data.slice(0, 7)))].slice(-meses),
+    );
+    if (data.mediaMeses && mesesSelecionados.size < meses)
+      throw new Error(
+        "O Banco Central ainda não disponibilizou meses suficientes para esta média.",
+      );
+    const amostra = data.mediaMeses
+      ? serie.filter((s) => mesesSelecionados.has(s.data.slice(0, 7)))
+      : serie;
+    const acumulado = acumular(amostra.map((s) => s.valor));
+    const percentual = data.mediaMeses
+      ? (Math.pow(1 + acumulado / 100, 1 / Math.max(mesesSelecionados.size, 1)) - 1) * 100
+      : acumulado;
     return {
       percentual: Number(percentual.toFixed(4)),
       dataBase: serie.at(-1)?.data ?? null,

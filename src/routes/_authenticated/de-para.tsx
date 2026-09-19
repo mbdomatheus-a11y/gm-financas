@@ -73,9 +73,7 @@ function DeParaPage() {
     () =>
       Array.from(
         new Set(
-          previa
-            .map((l) => l.categoria)
-            .filter((c) => !nomesCategorias.has(c.toLowerCase())),
+          previa.map((l) => l.categoria).filter((c) => !nomesCategorias.has(c.toLowerCase())),
         ),
       ),
     [previa, nomesCategorias],
@@ -86,9 +84,15 @@ function DeParaPage() {
     if (!q) return regras as any[];
     return (regras as any[]).filter(
       (r) =>
-        String(r.texto_original ?? "").toLowerCase().includes(q) ||
-        String(r.estabelecimento_normalizado ?? "").toLowerCase().includes(q) ||
-        String(r.categoria ?? "").toLowerCase().includes(q),
+        String(r.texto_original ?? "")
+          .toLowerCase()
+          .includes(q) ||
+        String(r.estabelecimento_normalizado ?? "")
+          .toLowerCase()
+          .includes(q) ||
+        String(r.categoria ?? "")
+          .toLowerCase()
+          .includes(q),
     );
   }, [regras, busca]);
 
@@ -104,8 +108,12 @@ function DeParaPage() {
       setPrevia(linhas);
       setArquivo(file.name);
       toast.success(`${linhas.length} linha(s) lida(s).`);
-    } catch {
-      toast.error("Não consegui ler este arquivo. Use Excel (.xlsx) ou CSV.");
+    } catch (erro) {
+      toast.error(
+        erro instanceof Error
+          ? erro.message
+          : "Não consegui ler este arquivo. Use Excel (.xlsx) ou CSV.",
+      );
     } finally {
       setLendo(false);
       if (inputRef.current) inputRef.current.value = "";
@@ -115,7 +123,9 @@ function DeParaPage() {
   const salvar = useMutation({
     mutationFn: async (linhas: LinhaDePara[]) => {
       const faltantes = Array.from(
-        new Set(linhas.map((l) => l.categoria).filter((c) => !nomesCategorias.has(c.toLowerCase()))),
+        new Set(
+          linhas.map((l) => l.categoria).filter((c) => !nomesCategorias.has(c.toLowerCase())),
+        ),
       );
       if (faltantes.length) {
         const { error } = await supabase
@@ -166,7 +176,13 @@ function DeParaPage() {
   });
 
   const atualizar = useMutation({
-    mutationFn: async ({ id, patch }: { id: string; patch: Partial<{ categoria: string; subcategoria: string | null; ativo: boolean }> }) => {
+    mutationFn: async ({
+      id,
+      patch,
+    }: {
+      id: string;
+      patch: Partial<{ categoria: string; subcategoria: string | null; ativo: boolean }>;
+    }) => {
       const { error } = await supabase.from("categoria_regras").update(patch).eq("id", id);
       if (error) throw error;
     },
@@ -229,7 +245,7 @@ function DeParaPage() {
             <input
               ref={inputRef}
               type="file"
-              accept=".xlsx,.xls,.csv,text/csv"
+              accept=".xlsx,.csv,text/csv"
               className="hidden"
               onChange={(e) => void onFile(e.target.files?.[0])}
             />
@@ -425,7 +441,9 @@ function DeParaPage() {
                   {filtradas.map((r) => (
                     <tr key={r.id} className="border-t">
                       <td className="p-2">
-                        <p className="font-medium">{r.texto_original ?? r.estabelecimento_normalizado}</p>
+                        <p className="font-medium">
+                          {r.texto_original ?? r.estabelecimento_normalizado}
+                        </p>
                         <p className="text-[11px] text-muted-foreground">
                           {r.estabelecimento_normalizado}
                         </p>
@@ -459,7 +477,9 @@ function DeParaPage() {
                       <td className="p-2">
                         <Switch
                           checked={r.ativo !== false}
-                          onCheckedChange={(v) => atualizar.mutate({ id: r.id, patch: { ativo: v } })}
+                          onCheckedChange={(v) =>
+                            atualizar.mutate({ id: r.id, patch: { ativo: v } })
+                          }
                         />
                       </td>
                       <td className="p-2">

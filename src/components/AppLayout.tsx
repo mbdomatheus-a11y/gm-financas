@@ -31,6 +31,7 @@ import { useApplyPreferencias, usePreferencias } from "@/hooks/usePreferencias";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
+import { AlertsBell } from "@/components/AlertsBell";
 
 type NavTo =
   | "/inicio"
@@ -79,7 +80,13 @@ const MUNDOS: Record<MundoId, { titulo: string; home: NavTo; items: NavItem[] }>
     home: "/dashboard",
     items: [
       { to: "/dashboard", label: "Dashboard", short: "Dashboard", icon: LayoutDashboard },
-      { to: "/receitas", label: "Receitas", short: "Receitas", icon: TrendingUp, modulo: "receitas" },
+      {
+        to: "/receitas",
+        label: "Receitas",
+        short: "Receitas",
+        icon: TrendingUp,
+        modulo: "receitas",
+      },
       {
         to: "/despesas",
         label: "Despesas",
@@ -212,10 +219,7 @@ export function AppLayout({
   const itensDoMundo = (mundo?.items ?? []).filter(podeVer);
   const itensGlobais = GLOBAL.filter(podeVer);
 
-  const mobileItems = [
-    INICIO,
-    ...(mundo ? itensDoMundo : itensGlobais).slice(0, 3),
-  ];
+  const mobileItems = [INICIO, ...(mundo ? itensDoMundo : itensGlobais).slice(0, 3)];
   const bottomNav = prefs.layout_menu === "bottom";
 
   async function signOut() {
@@ -328,7 +332,10 @@ export function AppLayout({
             <h1 className="truncate text-base font-semibold leading-tight sm:text-lg">{title}</h1>
             {description && <p className="truncate text-xs text-muted-foreground">{description}</p>}
           </div>
-          <div className="flex shrink-0 items-center gap-2">{actions}</div>
+          <div className="flex shrink-0 items-center gap-2">
+            <AlertsBell />
+            {actions}
+          </div>
         </header>
 
         <main className="mx-auto w-full max-w-7xl px-4 pb-28 pt-5 lg:pb-10">{children}</main>

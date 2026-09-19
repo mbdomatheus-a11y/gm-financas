@@ -2,7 +2,16 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { KeyRound, Pencil, ShieldCheck, Trash2, UserPlus, Users, Users2 } from "lucide-react";
+import {
+  Clock3,
+  KeyRound,
+  Pencil,
+  ShieldCheck,
+  Trash2,
+  UserPlus,
+  Users,
+  Users2,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { AppLayout } from "@/components/AppLayout";
@@ -41,6 +50,7 @@ import {
 } from "@/lib/admin.functions";
 import { maskCpf, onlyDigits, isValidCpf } from "@/lib/cpf";
 import { formatDate } from "@/lib/format";
+import { definirTempoInatividade, obterTempoInatividade } from "@/lib/inatividade.functions";
 
 export const Route = createFileRoute("/_authenticated/usuarios")({
   head: () => ({
@@ -67,6 +77,23 @@ function UsuariosPage() {
   const resetar = useServerFn(adminResetPassword);
   const listarRoster = useServerFn(adminListarUsuarios);
   const excluirUsuario = useServerFn(adminExcluirUsuario);
+  const obterTempo = useServerFn(obterTempoInatividade);
+  const definirTempo = useServerFn(definirTempoInatividade);
+  const { data: tempoSessao } = useQuery({
+    queryKey: ["inatividade-minutos"],
+    queryFn: () => obterTempo(),
+  });
+  const [tempoDigitado, setTempoDigitado] = useState<string | null>(null);
+  const salvarTempo = useMutation({
+    mutationFn: () =>
+      definirTempo({ data: { minutos: Number(tempoDigitado ?? tempoSessao?.minutos ?? 5) } }),
+    onSuccess: () => {
+      toast.success("Prazo de inatividade atualizado para todos os usuários.");
+      setTempoDigitado(null);
+      qc.invalidateQueries({ queryKey: ["inatividade-minutos"] });
+    },
+    onError: (erro: any) => toast.error(erro.message ?? "Não foi possível alterar o prazo."),
+  });
 
   const { data: roster = [], isLoading: carregandoRoster } = useQuery({
     queryKey: ["admin-roster"],
@@ -190,6 +217,42 @@ function UsuariosPage() {
         </Button>
       }
     >
+      <Card className="mb-4">
+        <CardContent className="flex flex-wrap items-end gap-3 p-4">
+          <div className="min-w-52 flex-1">
+            <label
+              htmlFor="inatividade-minutos"
+              className="flex items-center gap-2 text-sm font-semibold"
+            >
+              <Clock3 className="size-4" /> Desconectar por inatividade
+            </label>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Aviso no último minuto. Prazo para todos os usuários, entre 2 e 120 minutos.
+            </p>
+          </div>
+          <Input
+            id="inatividade-minutos"
+            type="number"
+            min={2}
+            max={120}
+            className="w-24"
+            value={tempoDigitado ?? String(tempoSessao?.minutos ?? 5)}
+            onChange={(e) => setTempoDigitado(e.target.value)}
+          />
+          <Button
+            size="sm"
+            disabled={
+              salvarTempo.isPending ||
+              !tempoDigitado ||
+              Number(tempoDigitado) < 2 ||
+              Number(tempoDigitado) > 120
+            }
+            onClick={() => salvarTempo.mutate()}
+          >
+            Salvar prazo
+          </Button>
+        </CardContent>
+      </Card>
       <div className="mb-4 grid gap-4 lg:grid-cols-2">
         <ConvitesCard />
 
@@ -226,7 +289,10 @@ function UsuariosPage() {
                       Grupo: {u.grupoNome ?? "—"} · desde {formatDate(u.criadoEm)}
                     </p>
                     <div className="mt-2 flex items-center justify-between gap-2">
-                      <Badge variant={u.role === "admin" ? "default" : "outline"} className="text-[10px]">
+                      <Badge
+                        variant={u.role === "admin" ? "default" : "outline"}
+                        className="text-[10px]"
+                      >
                         {u.role === "admin" ? "Administrador" : "Usuário comum"}
                       </Badge>
                       <Button
@@ -416,8 +482,8 @@ function UsuariosPage() {
           <DialogHeader>
             <DialogTitle>Excluir a conta de {excluir?.nome}</DialogTitle>
             <DialogDescription>
-              O acesso será removido e uma cópia recuperável do cadastro ficará guardada por
-              90 dias. Contas administrativas nunca podem ser excluídas por esta tela.
+              O acesso será removido e uma cópia recuperável do cadastro ficará guardada por 90
+              dias. Contas administrativas nunca podem ser excluídas por esta tela.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -429,7 +495,9 @@ function UsuariosPage() {
             </Field>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setExcluir(null)}>Cancelar</Button>
+            <Button variant="outline" onClick={() => setExcluir(null)}>
+              Cancelar
+            </Button>
             <Button
               variant="destructive"
               disabled={

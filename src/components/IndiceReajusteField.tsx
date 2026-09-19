@@ -29,6 +29,7 @@ interface IndiceReajusteFieldProps {
   periodicidade: Periodicidade;
   /** Chamado quando a busca automática retorna um valor, para preencher o percentual do reajuste. */
   onValorBuscado: (percentual: number) => void;
+  onMediaMensalBuscada?: (percentual: number) => void;
 }
 
 /**
@@ -42,22 +43,29 @@ export function IndiceReajusteField({
   onIndiceChange,
   periodicidade,
   onValorBuscado,
+  onMediaMensalBuscada,
 }: IndiceReajusteFieldProps) {
   const conhecido = INDICES_REAJUSTE.some((i) => i.codigo === indice);
   const selecao = indice ? (conhecido ? indice : OUTRO) : "";
   const [dataBase, setDataBase] = useState<string | null>(null);
+  const [mediaMeses, setMediaMeses] = useState<0 | 6 | 12 | 24>(0);
 
   const buscar = useServerFn(buscarValorIndice);
   const mutation = useMutation({
     mutationFn: async () =>
       buscar({
-        data: { indice: indice as CodigoIndiceReajuste, periodicidade },
+        data: {
+          indice: indice as CodigoIndiceReajuste,
+          periodicidade,
+          ...(mediaMeses ? { mediaMeses } : {}),
+        },
       }),
     onSuccess: (res) => {
-      onValorBuscado(res.percentual);
+      if (mediaMeses && onMediaMensalBuscada) onMediaMensalBuscada(res.percentual);
+      else onValorBuscado(res.percentual);
       setDataBase(res.dataBase);
       toast.success(
-        `${indice} acumulado: ${res.percentual.toFixed(2).replace(".", ",")}%${
+        `${indice} ${mediaMeses ? `média mensal de ${mediaMeses} meses` : "acumulado"}: ${res.percentual.toFixed(2).replace(".", ",")}%${
           res.dataBase ? ` (base ${formatDate(res.dataBase)})` : ""
         }`,
       );
@@ -93,7 +101,7 @@ export function IndiceReajusteField({
             type="button"
             variant="outline"
             size="icon"
-            title={`Buscar ${indice} acumulado (${periodicidade}) no Banco Central`}
+            title={`Buscar ${indice} no Banco Central`}
             disabled={mutation.isPending}
             onClick={() => mutation.mutate()}
           >
@@ -105,6 +113,27 @@ export function IndiceReajusteField({
           </Button>
         )}
       </div>
+      {conhecido && (
+        <Select
+          value={String(mediaMeses)}
+          onValueChange={(value) => setMediaMeses(Number(value) as 0 | 6 | 12 | 24)}
+        >
+          <SelectTrigger aria-label="Período usado no cálculo do índice">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="0">Acumulado da periodicidade escolhida</SelectItem>
+            <SelectItem value="6">Média mensal dos últimos 6 meses</SelectItem>
+            <SelectItem value="12">Média mensal dos últimos 12 meses</SelectItem>
+            <SelectItem value="24">Média mensal dos últimos 24 meses</SelectItem>
+          </SelectContent>
+        </Select>
+      )}
+      {mediaMeses > 0 && (
+        <p className="text-xs text-muted-foreground">
+          A média será aplicada como reajuste mensal. Clique no botão de atualização para calcular.
+        </p>
+      )}
       {!conhecido && (
         <input
           type="text"

@@ -1770,6 +1770,7 @@ export type Database = {
         Row: {
           created_at: string
           criado_por: string | null
+          evento_id: string | null
           grupo_id: string | null
           id: string
           nome: string
@@ -1780,6 +1781,7 @@ export type Database = {
         Insert: {
           created_at?: string
           criado_por?: string | null
+          evento_id?: string | null
           grupo_id?: string | null
           id?: string
           nome: string
@@ -1790,6 +1792,7 @@ export type Database = {
         Update: {
           created_at?: string
           criado_por?: string | null
+          evento_id?: string | null
           grupo_id?: string | null
           id?: string
           nome?: string
@@ -1798,6 +1801,13 @@ export type Database = {
           veiculo_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "veiculo_documentos_evento_id_fkey"
+            columns: ["evento_id"]
+            isOneToOne: false
+            referencedRelation: "veiculo_eventos"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "veiculo_documentos_grupo_id_fkey"
             columns: ["grupo_id"]

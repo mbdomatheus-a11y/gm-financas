@@ -271,20 +271,30 @@ function VeiculosPage() {
     },
   });
 
-  async function enviarDocumento(veiculoId: string, file: File) {
-    setEnviandoDoc(veiculoId);
+  async function enviarDocumento(veiculoId: string, eventoId: string, file: File) {
+    setEnviandoDoc(eventoId);
     try {
-      const path = `veiculos/${veiculoId}/${Date.now()}-${file.name}`;
-      const up = await supabase.storage.from("anexos").upload(path, file, { upsert: true });
+      if (
+        file.size > 10 * 1024 * 1024 ||
+        !["application/pdf", "image/jpeg", "image/png", "image/webp"].includes(file.type)
+      ) {
+        throw new Error("Envie PDF ou imagem de até 10 MB.");
+      }
+      const path = `veiculos/${veiculoId}/eventos/${eventoId}/${crypto.randomUUID()}-${file.name.replace(/[\\/\r\n]/g, "_")}`;
+      const up = await supabase.storage.from("anexos").upload(path, file, { upsert: false });
       if (up.error) throw up.error;
       const { error } = await appSupabase.from("veiculo_documentos").insert({
         veiculo_id: veiculoId,
+        evento_id: eventoId,
         nome: file.name,
         storage_path: path,
         tipo: "orcamento",
         criado_por: user?.id ?? null,
       });
-      if (error) throw error;
+      if (error) {
+        await supabase.storage.from("anexos").remove([path]);
+        throw error;
+      }
       toast.success("Orçamento anexado");
       qc.invalidateQueries({ queryKey: ["veiculos"] });
     } catch (e: any) {
@@ -390,56 +400,28 @@ function VeiculosPage() {
                   {v.data_vencimento_seguro && (
                     <Badge variant="secondary">Seguro {formatDate(v.data_vencimento_seguro)}</Badge>
                   )}
-                  {documentos.map((d) => (
-                    <Badge
-                      key={d.id}
-                      variant="outline"
-                      className="cursor-pointer gap-1"
-                      onClick={() => abrirDocumento(d.storage_path)}
-                    >
-                      <FileText className="size-3" /> {d.nome}
-                      {can("veiculos", "excluir") && (
-                        <Trash2
-                          className="size-3 text-muted-foreground hover:text-destructive"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            excluirDocumento.mutate(d);
-                          }}
-                        />
-                      )}
-                    </Badge>
-                  ))}
+                  {documentos
+                    .filter((d) => !d.evento_id)
+                    .map((d) => (
+                      <Badge
+                        key={d.id}
+                        variant="outline"
+                        className="cursor-pointer gap-1"
+                        onClick={() => abrirDocumento(d.storage_path)}
+                      >
+                        <FileText className="size-3" /> {d.nome}
+                        {can("veiculos", "excluir") && (
+                          <Trash2
+                            className="size-3 text-muted-foreground hover:text-destructive"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              excluirDocumento.mutate(d);
+                            }}
+                          />
+                        )}
+                      </Badge>
+                    ))}
                 </div>
-
-                {can("veiculos", "editar") && (
-                  <div>
-                    <input
-                      ref={(el) => {
-                        fileInputs.current[v.id] = el;
-                      }}
-                      type="file"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) void enviarDocumento(v.id, file);
-                        e.target.value = "";
-                      }}
-                    />
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={enviandoDoc === v.id}
-                      onClick={() => fileInputs.current[v.id]?.click()}
-                    >
-                      {enviandoDoc === v.id ? (
-                        <Loader2 className="size-4 animate-spin" />
-                      ) : (
-                        <Paperclip className="size-4" />
-                      )}
-                      Anexar orçamento
-                    </Button>
-                  </div>
-                )}
 
                 {(() => {
                   const eventos = ((v.veiculo_eventos ?? []) as any[]).sort((a, b) =>
@@ -525,6 +507,60 @@ function VeiculosPage() {
                                     {e.descricao && (
                                       <p className="text-muted-foreground">{e.descricao}</p>
                                     )}
+                                    <div className="mt-1 flex flex-wrap items-center gap-1">
+                                      {documentos
+                                        .filter((doc) => doc.evento_id === e.id)
+                                        .map((doc) => (
+                                          <Badge
+                                            key={doc.id}
+                                            variant="outline"
+                                            className="cursor-pointer gap-1"
+                                            onClick={() => abrirDocumento(doc.storage_path)}
+                                          >
+                                            <FileText className="size-3" /> {doc.nome}
+                                            {can("veiculos", "excluir") && (
+                                              <Trash2
+                                                className="size-3"
+                                                onClick={(click) => {
+                                                  click.stopPropagation();
+                                                  excluirDocumento.mutate(doc);
+                                                }}
+                                              />
+                                            )}
+                                          </Badge>
+                                        ))}
+                                      {can("veiculos", "editar") && (
+                                        <>
+                                          <input
+                                            ref={(el) => {
+                                              fileInputs.current[e.id] = el;
+                                            }}
+                                            type="file"
+                                            accept=".pdf,image/jpeg,image/png,image/webp"
+                                            className="hidden"
+                                            onChange={(change) => {
+                                              const file = change.target.files?.[0];
+                                              if (file) void enviarDocumento(v.id, e.id, file);
+                                              change.target.value = "";
+                                            }}
+                                          />
+                                          <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            className="h-6 px-2 text-xs"
+                                            disabled={enviandoDoc === e.id}
+                                            onClick={() => fileInputs.current[e.id]?.click()}
+                                          >
+                                            {enviandoDoc === e.id ? (
+                                              <Loader2 className="size-3 animate-spin" />
+                                            ) : (
+                                              <Paperclip className="size-3" />
+                                            )}{" "}
+                                            Anexar orçamento
+                                          </Button>
+                                        </>
+                                      )}
+                                    </div>
                                   </div>
                                   {can("veiculos", "excluir") && (
                                     <Button

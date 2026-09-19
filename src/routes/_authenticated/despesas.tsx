@@ -1239,6 +1239,13 @@ function DespesasPage() {
                         reajuste_percentual: String(percentual).replace(".", ","),
                       })
                     }
+                    onMediaMensalBuscada={(percentual) =>
+                      setForm({
+                        ...form,
+                        reajuste_periodicidade: "mensal",
+                        reajuste_percentual: String(percentual).replace(".", ","),
+                      })
+                    }
                   />
                 </Field>
                 <Field label="1º reajuste em">

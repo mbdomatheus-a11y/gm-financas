@@ -31,9 +31,20 @@ export const completeDriveConnection = createServerFn({ method: "POST" })
 export const driveStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { getConnectionKeyForUser } = await import("@/server/appUserConnections.server");
-    const key = await getConnectionKeyForUser(context.userId, CONNECTOR_ID);
-    return { connected: !!key };
+    const googleAvailable = Boolean(
+      process.env["GOOGLE_CLIENT_ID"] &&
+      process.env["GOOGLE_CLIENT_SECRET"] &&
+      process.env["GOOGLE_OAUTH_REDIRECT_URI"] &&
+      process.env["APP_USER_CONNECTION_KEY_SECRET"],
+    );
+    if (!googleAvailable) return { connected: false, googleAvailable };
+    try {
+      const { getConnectionKeyForUser } = await import("@/server/appUserConnections.server");
+      const key = await getConnectionKeyForUser(context.userId, CONNECTOR_ID);
+      return { connected: !!key, googleAvailable };
+    } catch {
+      return { connected: false, googleAvailable: false };
+    }
   });
 
 export const disconnectDrive = createServerFn({ method: "POST" })
@@ -113,14 +124,25 @@ function identificarServico(url: string): string {
 
 export const getPastaDrive = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async () => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data } = await supabaseAdmin
+  .handler(async ({ context }) => {
+    const { data: perfil, error: perfilError } = await context.supabase
+      .from("profiles")
+      .select("grupo_id")
+      .eq("id", context.userId)
+      .single();
+    if (perfilError || !perfil?.grupo_id) throw new Error("Grupo do usuário não encontrado.");
+    const keys = [
+      `${perfil.grupo_id}:comprovantes_pasta_url`,
+      `${perfil.grupo_id}:drive_folder_id`,
+    ];
+    const { data, error } = await context.supabase
       .from("configuracoes_casal")
       .select("chave,valor")
-      .in("chave", ["comprovantes_pasta_url", "drive_folder_id"]);
-    const folderUrl = data?.find((item) => item.chave === "comprovantes_pasta_url")?.valor ?? null;
-    const folderId = data?.find((item) => item.chave === "drive_folder_id")?.valor ?? null;
+      .eq("grupo_id", perfil.grupo_id)
+      .in("chave", keys);
+    if (error) throw error;
+    const folderUrl = data?.find((item) => item.chave === keys[0])?.valor ?? null;
+    const folderId = data?.find((item) => item.chave === keys[1])?.valor ?? null;
     return {
       folderId,
       folderUrl,
@@ -131,14 +153,22 @@ export const getPastaDrive = createServerFn({ method: "POST" })
 export const setPastaDrive = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { valor: string }) => input)
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
     const valor = data.valor.trim();
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: perfil, error: perfilError } = await context.supabase
+      .from("profiles")
+      .select("grupo_id")
+      .eq("id", context.userId)
+      .single();
+    if (perfilError || !perfil?.grupo_id) throw new Error("Grupo do usuário não encontrado.");
+    const urlKey = `${perfil.grupo_id}:comprovantes_pasta_url`;
+    const folderKey = `${perfil.grupo_id}:drive_folder_id`;
     if (!valor) {
-      const { error } = await supabaseAdmin
+      const { error } = await context.supabase
         .from("configuracoes_casal")
         .delete()
-        .in("chave", ["comprovantes_pasta_url", "drive_folder_id"]);
+        .eq("grupo_id", perfil.grupo_id)
+        .in("chave", [urlKey, folderKey]);
       if (error) throw error;
       return { folderId: null, folderUrl: null, provider: null };
     }
@@ -154,28 +184,33 @@ export const setPastaDrive = createServerFn({ method: "POST" })
 
     const provider = identificarServico(pastaUrl.toString());
     const folderId = provider === "Google Drive" ? extrairFolderId(pastaUrl.toString()) : null;
-    const { error } = await supabaseAdmin.from("configuracoes_casal").upsert(
+    const { error } = await context.supabase.from("configuracoes_casal").upsert(
       {
-        chave: "comprovantes_pasta_url",
+        chave: urlKey,
         valor: pastaUrl.toString(),
+        grupo_id: perfil.grupo_id,
         updated_at: new Date().toISOString(),
       },
       { onConflict: "chave" },
     );
     if (error) throw error;
     if (folderId) {
-      const { error: folderError } = await supabaseAdmin
-        .from("configuracoes_casal")
-        .upsert(
-          { chave: "drive_folder_id", valor: folderId, updated_at: new Date().toISOString() },
-          { onConflict: "chave" },
-        );
+      const { error: folderError } = await context.supabase.from("configuracoes_casal").upsert(
+        {
+          chave: folderKey,
+          valor: folderId,
+          grupo_id: perfil.grupo_id,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "chave" },
+      );
       if (folderError) throw folderError;
     } else {
-      const { error: limparError } = await supabaseAdmin
+      const { error: limparError } = await context.supabase
         .from("configuracoes_casal")
         .delete()
-        .eq("chave", "drive_folder_id");
+        .eq("grupo_id", perfil.grupo_id)
+        .eq("chave", folderKey);
       if (limparError) throw limparError;
     }
     return { folderId, folderUrl: pastaUrl.toString(), provider };
@@ -193,9 +228,6 @@ export const uploadNotaArquivo = createServerFn({ method: "POST" })
     }) => input,
   )
   .handler(async ({ data, context }) => {
-    const { getConnectionKeyForUser } = await import("@/server/appUserConnections.server");
-    const refreshToken = await getConnectionKeyForUser(context.userId, CONNECTOR_ID);
-    if (!refreshToken) throw new Error("Conecte sua conta Google para enviar arquivos.");
     const { data: nota, error: notaError } = await context.supabase
       .from("notas_fiscais")
       .select("id")
@@ -209,18 +241,69 @@ export const uploadNotaArquivo = createServerFn({ method: "POST" })
     if (!fileBytes.length || fileBytes.length > 10 * 1024 * 1024) {
       throw new Error("Arquivo inválido ou maior que o limite de 10 MB.");
     }
-    if (!/^image\/(jpeg|png|webp)$|^application\/pdf$/.test(data.mimeType)) {
-      throw new Error("Envie uma imagem JPG, PNG, WebP ou um PDF.");
+    if (!/^image\/(jpeg|png|webp|heic|heif)$|^application\/pdf$/.test(data.mimeType)) {
+      throw new Error("Envie uma imagem ou um PDF.");
     }
     const nome = data.nome.replace(/[\\/\r\n]/g, "_").slice(0, 180);
+    const { randomUUID } = await import("node:crypto");
+    const salvarNoSite = async (aviso?: string) => {
+      const path = `${data.notaId}/${randomUUID()}-${nome}`;
+      const bucket = context.supabase.storage.from("comprovantes");
+      const { error: uploadError } = await bucket.upload(path, fileBytes, {
+        contentType: data.mimeType,
+        upsert: false,
+      });
+      if (uploadError)
+        throw new Error(`Não foi possível guardar o comprovante: ${uploadError.message}`);
+      const { error: registroError } = await context.supabase.from("nota_arquivos").insert({
+        nota_id: data.notaId,
+        drive_file_id: `supabase:${path}`,
+        link: null,
+        thumbnail_link: null,
+        mime_type: data.mimeType,
+        nome,
+        created_by: context.userId,
+      });
+      if (registroError) {
+        await bucket.remove([path]);
+        throw registroError;
+      }
+      return { ok: true as const, destino: "site" as const, fileId: path, aviso };
+    };
+    const googleConfigured = Boolean(
+      process.env["GOOGLE_CLIENT_ID"] &&
+      process.env["GOOGLE_CLIENT_SECRET"] &&
+      process.env["GOOGLE_OAUTH_REDIRECT_URI"] &&
+      process.env["APP_USER_CONNECTION_KEY_SECRET"],
+    );
+    if (!googleConfigured) return salvarNoSite();
+    const { getConnectionKeyForUser } = await import("@/server/appUserConnections.server");
+    let refreshToken: string | null;
+    try {
+      refreshToken = await getConnectionKeyForUser(context.userId, CONNECTOR_ID);
+    } catch {
+      return salvarNoSite("O Google Drive não pôde ser consultado; o arquivo ficou salvo no site.");
+    }
+    if (!refreshToken) return salvarNoSite();
     const { googleDriveAccessToken, googleDriveFetch } =
       await import("@/server/googleDriveOAuth.server");
-    const accessToken = await googleDriveAccessToken(refreshToken);
+    let accessToken: string;
+    try {
+      accessToken = await googleDriveAccessToken(refreshToken);
+    } catch {
+      return salvarNoSite("A conexão Google expirou; o arquivo ficou salvo no site.");
+    }
     // O escopo drive.file só garante acesso aos arquivos e pastas criados pelo app.
-    const rootId = await ensureFolder(accessToken, ROOT_FOLDER);
-    const destinoId = await ensureFolder(accessToken, SUB_FOLDER, rootId);
+    let destinoId: string;
+    try {
+      const rootId = await ensureFolder(accessToken, ROOT_FOLDER);
+      destinoId = await ensureFolder(accessToken, SUB_FOLDER, rootId);
+    } catch {
+      return salvarNoSite(
+        "O Google Drive não pôde preparar a pasta; o arquivo ficou salvo no site.",
+      );
+    }
 
-    const { randomUUID } = await import("node:crypto");
     const boundary = `controlall${randomUUID().replace(/-/g, "")}`;
     const metadata = JSON.stringify({ name: nome, parents: [destinoId] });
     const body = Buffer.concat([
@@ -246,13 +329,11 @@ export const uploadNotaArquivo = createServerFn({ method: "POST" })
         res.status === 403 &&
         /Google Drive API has not been used|accessNotConfigured|SERVICE_DISABLED/i.test(text);
       console.error(`Google Drive upload failed [${res.status}]`);
-      return {
-        ok: false as const,
-        code: apiDesativada ? "drive_api_disabled" : "drive_upload_failed",
-        message: apiDesativada
-          ? "A API do Google Drive está desativada no projeto Google desta conexão. Ative a Google Drive API no Google Cloud e tente novamente."
-          : `O Google Drive recusou o envio (${res.status}). Tente novamente.`,
-      };
+      return salvarNoSite(
+        apiDesativada
+          ? "A API do Google Drive está desativada; o arquivo ficou salvo no site."
+          : `O Google Drive recusou o envio (${res.status}); o arquivo ficou salvo no site.`,
+      );
     }
     const file = (await res.json()) as {
       id: string;
@@ -273,5 +354,5 @@ export const uploadNotaArquivo = createServerFn({ method: "POST" })
     });
     if (error) throw error;
 
-    return { ok: true as const, fileId: file.id };
+    return { ok: true as const, destino: "google_drive" as const, fileId: file.id };
   });

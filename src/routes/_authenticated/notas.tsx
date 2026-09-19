@@ -129,8 +129,41 @@ function useNotas() {
         .select("*, nota_itens(*), nota_arquivos(*)")
         .order("data_compra", { ascending: false });
       if (error) throw error;
-      return data ?? [];
+      const notas = data ?? [];
+      const paths = [
+        ...new Set(
+          notas.flatMap((nota) =>
+            (nota.nota_arquivos ?? [])
+              .filter((arquivo) => arquivo.drive_file_id.startsWith("supabase:"))
+              .map((arquivo) => arquivo.drive_file_id.slice("supabase:".length)),
+          ),
+        ),
+      ];
+      const links = new Map<string, string>();
+      if (paths.length) {
+        const { data: assinaturas, error: assinaturasError } = await supabase.storage
+          .from("comprovantes")
+          .createSignedUrls(paths, 3600);
+        if (assinaturasError) throw assinaturasError;
+        paths.forEach((path, index) => {
+          const url = assinaturas?.[index]?.signedUrl;
+          if (url) links.set(path, url);
+        });
+      }
+      return notas.map((nota) => ({
+        ...nota,
+        nota_arquivos: (nota.nota_arquivos ?? []).map((arquivo) => {
+          if (!arquivo.drive_file_id.startsWith("supabase:")) return arquivo;
+          const url = links.get(arquivo.drive_file_id.slice("supabase:".length)) ?? null;
+          return {
+            ...arquivo,
+            link: url,
+            thumbnail_link: arquivo.mime_type?.startsWith("image/") ? url : null,
+          };
+        }),
+      }));
     },
+    refetchInterval: 30 * 60 * 1000,
   });
 }
 
@@ -304,28 +337,19 @@ function NotasPage() {
       }
 
       if (fotosPendentes.length) {
-        if (!drive.data?.connected) {
-          toast.warning("Conecte o Google Drive para guardar as fotos.");
-        } else {
-          const competencia = dados.data_compra.slice(0, 7);
-          for (const file of fotosPendentes) {
-            const base64 = await fileParaBase64(file);
-            const resultado = await enviarArquivo({
-              data: {
-                notaId: notaId!,
-                nome: file.name || `nota-${Date.now()}.jpg`,
-                mimeType: file.type || "image/jpeg",
-                base64,
-                competencia,
-              },
-            });
-            if (!resultado.ok) {
-              toast.warning(`Nota salva sem o comprovante. ${resultado.message}`, {
-                duration: 10000,
-              });
-              break;
-            }
-          }
+        const competencia = dados.data_compra.slice(0, 7);
+        for (const file of fotosPendentes) {
+          const base64 = await fileParaBase64(file);
+          const resultado = await enviarArquivo({
+            data: {
+              notaId: notaId!,
+              nome: file.name || `nota-${Date.now()}.jpg`,
+              mimeType: file.type || "image/jpeg",
+              base64,
+              competencia,
+            },
+          });
+          if ("aviso" in resultado && resultado.aviso) toast.warning(resultado.aviso);
         }
       }
       return notaId!;
@@ -344,6 +368,18 @@ function NotasPage() {
   const excluir = useMutation({
     mutationFn: async (id: string) => {
       if (exclusaoBloqueada) throw new Error("Seu perfil não possui permissão para excluir dados.");
+      const { data: arquivos, error: arquivosError } = await supabase
+        .from("nota_arquivos")
+        .select("drive_file_id")
+        .eq("nota_id", id);
+      if (arquivosError) throw arquivosError;
+      const paths = (arquivos ?? [])
+        .filter((arquivo) => arquivo.drive_file_id.startsWith("supabase:"))
+        .map((arquivo) => arquivo.drive_file_id.slice("supabase:".length));
+      if (paths.length) {
+        const { error: removeError } = await supabase.storage.from("comprovantes").remove(paths);
+        if (removeError) throw removeError;
+      }
       const { error } = await supabase.from("notas_fiscais").delete().eq("id", id);
       if (error) throw error;
     },
@@ -358,6 +394,7 @@ function NotasPage() {
     mutationFn: async ({ notaId, files }: { notaId: string; files: File[] }) => {
       const nota = notas.find((n) => n.id === notaId);
       const competencia = (nota?.data_compra ?? toISODate(new Date())).slice(0, 7);
+      const destinos = new Set<string>();
       for (const file of files) {
         const base64 = await fileParaBase64(file);
         const resultado = await enviarArquivo({
@@ -369,11 +406,17 @@ function NotasPage() {
             competencia,
           },
         });
-        if (!resultado.ok) throw new Error(resultado.message);
+        destinos.add(resultado.destino);
+        if ("aviso" in resultado && resultado.aviso) toast.warning(resultado.aviso);
       }
+      return destinos;
     },
-    onSuccess: () => {
-      toast.success("Foto enviada para o seu Google Drive.");
+    onSuccess: (destinos) => {
+      toast.success(
+        destinos.has("google_drive")
+          ? "Comprovante enviado ao Google Drive."
+          : "Comprovante guardado no site.",
+      );
       void qc.invalidateQueries({ queryKey: ["notas-fiscais"] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -526,7 +569,9 @@ function NotasPage() {
                         ? pasta.data?.provider === "Google Drive"
                           ? "Conectado. O envio usa a pasta criada pelo aplicativo no seu Drive"
                           : "Conectado. Os arquivos serão salvos na pasta criada pelo aplicativo no seu Drive"
-                        : "Opcional: conecte para enviar os arquivos sem sair do aplicativo"}
+                        : drive.data?.googleAvailable
+                          ? "Opcional: conecte. Sem conexão, os arquivos ficam privados no site"
+                          : "Seus arquivos ficam privados no site. Google Drive aguarda configuração"}
                     </p>
                   </div>
                 </div>
@@ -543,11 +588,11 @@ function NotasPage() {
                   >
                     Desconectar
                   </Button>
-                ) : (
+                ) : drive.data?.googleAvailable ? (
                   <Button size="sm" onClick={() => conectar.mutate()} disabled={conectar.isPending}>
                     {conectar.isPending ? "Conectando…" : "Conectar Google Drive"}
                   </Button>
-                )}
+                ) : null}
               </div>
               <p className="mt-2 text-[11px] text-muted-foreground">
                 A conexão usa somente a pasta e os arquivos criados pelo aplicativo na sua conta
@@ -856,7 +901,7 @@ function NotasPage() {
                 <p className="text-xs text-muted-foreground">
                   {drive.data?.connected
                     ? `${fotosPendentes.length} arquivo(s) serão enviados ao Google Drive ao salvar.`
-                    : `${fotosPendentes.length} arquivo(s) aguardam envio. A nota será salva mesmo sem o anexo.`}
+                    : `${fotosPendentes.length} arquivo(s) serão guardados no site ao salvar.`}
                 </p>
               )}
 
@@ -950,10 +995,6 @@ function NotasPage() {
                       className="size-20 flex-col gap-1 text-[11px]"
                       disabled={anexar.isPending}
                       onClick={() => {
-                        if (!drive.data?.connected) {
-                          toast.warning("Para envio automático, conecte sua conta Google Drive.");
-                          return;
-                        }
                         notaAlvoUpload.current = notaDetalhe.id;
                         fileRef.current?.click();
                       }}

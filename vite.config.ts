@@ -1,13 +1,10 @@
-// @lovable.dev/vite-tanstack-config already includes the following — do NOT add them manually
-// or the app will break with duplicate plugins:
-//   - TanStack devtools (dev-only, first), tanstackStart, viteReact, tailwindcss, tsConfigPaths,
-//     nitro (build-only using cloudflare as a default target), VITE_* env injection, @ path alias,
-//     React/TanStack dedupe, error logger plugins, and sandbox detection (port/host/strictPort).
-// You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
 import { execSync } from "node:child_process";
-
-import { defineConfig } from "@lovable.dev/vite-tanstack-config";
-import { mcpPlugin } from "@lovable.dev/mcp-js/stacks/tanstack/vite";
+import tailwindcss from "@tailwindcss/vite";
+import { tanstackStart } from "@tanstack/react-start/plugin/vite";
+import viteReact from "@vitejs/plugin-react";
+import { nitro } from "nitro/vite";
+import { defineConfig } from "vite";
+import tsconfigPaths from "vite-tsconfig-paths";
 
 /**
  * Hash do commit atual (curto) + "-dev" se houver mudança não commitada no
@@ -33,22 +30,16 @@ function versaoDoCommit(): string {
   }
 }
 
-export default defineConfig({
-  vite: {
-    plugins: [mcpPlugin()],
-    define: {
-      __APP_VERSION__: JSON.stringify(versaoDoCommit()),
-      __APP_BUILD_TIME__: JSON.stringify(new Date().toISOString()),
-    },
+export default defineConfig(({ command }) => ({
+  plugins: [
+    tailwindcss(),
+    tsconfigPaths(),
+    tanstackStart({ server: { entry: "server" } }),
+    ...(command === "build" ? [nitro({ preset: "vercel" })] : []),
+    viteReact(),
+  ],
+  define: {
+    __APP_VERSION__: JSON.stringify(versaoDoCommit()),
+    __APP_BUILD_TIME__: JSON.stringify(new Date().toISOString()),
   },
-  tanstackStart: {
-    // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
-    // nitro/vite builds from this
-    server: { entry: "server" },
-  },
-  // Hard-pina o alvo de deploy pra Vercel (em vez do padrão Cloudflare do
-  // Lovable). Só tem efeito FORA de um build da Lovable — dentro do editor
-  // deles, `LOVABLE_NITRO_PRESET` continua mandando, então isso não quebra
-  // o preview/build interno da Lovable. Migração pra Vercel em 2026-09-18.
-  nitro: { preset: "vercel" },
-});
+}));

@@ -773,6 +773,13 @@ function ReceitasPage() {
                             reajuste_percentual: String(percentual).replace(".", ","),
                           })
                         }
+                        onMediaMensalBuscada={(percentual) =>
+                          setForm({
+                            ...form,
+                            reajuste_periodicidade: "mensal",
+                            reajuste_percentual: String(percentual).replace(".", ","),
+                          })
+                        }
                       />
                     </Field>
                   )}

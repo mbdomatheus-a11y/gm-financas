@@ -26,6 +26,8 @@ Atualizado em 2026-09-19. Este documento registra o funcionamento verificado no 
 - Pendente: tela pública de aviso e termos, aceite versionado no cadastro, canal autenticado de solicitação de exclusão, protocolo e fila administrativa com acesso restrito. Solicitar e-mail, telefone, CPF e motivo, mas evitar exigir motivo para exercer direito legal quando não for obrigatório. Confirmar a identidade antes de excluir.
 - Pendente: revisão jurídica do texto por profissional habilitado antes da publicação final.
 - A conexão opcional com Google Drive foi reimplementada para cada usuário autorizar a própria conta, com escopo `drive.file` e token de atualização criptografado. A ativação no site depende da configuração do cliente OAuth e do teste descritos em `docs/configurar-google-drive.md`; não considerar entregue em produção antes disso.
+- Alternativa sem conta Google: comprovantes de notas fiscais ficam no bucket privado `comprovantes`, com caminho ligado à nota e autorização por grupo; links assinados expiram. O código está pronto, mas a migração `20260919040000_comprovantes_privados.sql` não foi aplicada: a revisão de segurança bloqueou a mudança de permissões. Não publicar a interface antes de aplicar e testar a policy.
+- A pasta manual externa foi isolada por `grupo_id` e por chave de grupo. A policy de `configuracoes_casal` já existia no banco oficial. As duas linhas antigas sem grupo são preservadas, mas deixam de aparecer; é necessário cadastrar novamente o link para cada grupo.
 
 Referências oficiais: [LGPD](https://planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/l13709.htm), [modelo de aviso da ANPD](https://www.gov.br/anpd/pt-br/acesso-a-informacao/aviso-de-privacidade), [guia de segurança da ANPD](https://www.gov.br/anpd/pt-br/centrais-de-conteudo/materiais-educativos-e-publicacoes/anonimizado___guia_orientat-_seg_da_inf_p_atpp.pdf).
 
@@ -34,14 +36,14 @@ Referências oficiais: [LGPD](https://planalto.gov.br/ccivil_03/_ato2015-2018/20
 - Cadastro global de usuários: exibir apenas identidade, contato, status, grupo e datas pertinentes, com proteção das rotas no servidor.
 - Pendente: banner de avisos criado pelo administrador global, confirmação de leitura por usuário com data, versão e trilha de auditoria.
 - Pendente: painel de estatísticas com totais agregados, usuários ativos, última atividade e armazenamento por conta; não expor conteúdo financeiro individual. Definir o que é uma sessão e como medir tempo de uso antes de exibir médias.
-- Pendente: tempo máximo de inatividade configurável pelo administrador, inicialmente 5 minutos, aviso durante o minuto final, opções de continuar ou sair e bloqueio ao encerrar a sessão.
+- Preparado localmente: tempo máximo de inatividade configurável pelo administrador global, inicialmente 5 minutos, aviso durante o minuto final, opções de continuar ou sair e encerramento da sessão. Depende de `20260919041000_tempo_inatividade.sql`, publicação e teste real. O temporizador é proteção de interface e sessão; não substitui expiração de tokens no servidor.
 
 ## Finanças, veículos e visualização
 
-- Pendente: média móvel de 6, 12 ou 24 meses de índice para reajuste mensal de receitas e despesas, mantendo valor manual como alternativa. Definir fonte e tratamento de meses sem série antes de calcular.
-- Pendente: índices automáticos e entrada manual nos investimentos.
-- Pendente: orçamento anexado ao evento do veículo, não ao veículo inteiro.
-- Pendente: centro de alertas com sininho para garantias, IPVA, seguro, revisão, óleo e itens de compra aprovados.
+- Preparado localmente: média geométrica mensal dos últimos 6, 12 ou 24 meses de IPCA, INCC-DI, IGP-DI, IGP-M, CDI ou Selic a partir das séries SGS do Banco Central. O percentual resultante é aplicado mensalmente em receitas e despesas; entrada manual continua disponível. Dados insuficientes geram erro explícito. Falta validar em produção.
+- Índices automáticos e entrada manual nos investimentos já constam no código anterior; falta testar em produção.
+- Preparado localmente: orçamento anexado a um evento específico do veículo, com migração `20260919042000_orcamentos_por_evento.sql`. Os anexos antigos continuam no nível do veículo e não são perdidos. Falta aplicar migração e testar.
+- Preparado localmente: sininho de alertas agregando garantias próximas/vencidas, IPVA, seguro, revisão/óleo e compras aprovadas. Falta validar em produção e revisar ruído dos alertas.
 - Pendente: revisar todos os gráficos quanto a significado, escala, unidade, períodos vazios, acessibilidade e visualização em celular.
 - Implementado no código: o aviso de uso acadêmico saiu de cima dos campos e virou marca discreta fora da área útil; os traços intermediários já existentes ficaram mais visíveis sem criar graduações fictícias. Pendente validar visualmente em celular e desktop.
 
@@ -51,5 +53,9 @@ Referências oficiais: [LGPD](https://planalto.gov.br/ccivil_03/_ato2015-2018/20
 - Correção de banco aplicada em 2026-09-19 no Supabase oficial, conforme `supabase/migrations/20260919030000_isolamento_seguranca.sql`: o gatilho em `profiles` impede que usuários autenticados alterem diretamente identidade ou `grupo_id`, e os buckets privados `faturas` e `anexos` agora vinculam cada arquivo ao grupo do lote ou veículo.
 - Verificação após a migração: gatilho ativo, policies novas presentes, policies antigas ausentes e os 8 arquivos de fatura preservados. Ainda falta teste funcional com duas contas de grupos diferentes para confirmar acesso permitido no próprio grupo e negado no outro.
 - O repositório público contém uma chave Supabase publicável, prevista para uso no navegador. A chave não é segredo; sua segurança depende de RLS e policies corretas. A inspeção dos arquivos versionados e das mudanças do histórico não encontrou valor de chave de serviço ou de API privada. Isso não substitui um scanner de segredos completo e uma auditoria externa.
+- O README antigo continha CPFs e uma senha inicial previsível. Os dados foram retirados da versão atual, mas ainda existem no histórico público. Trocar as senhas de qualquer conta que tenha usado aquele valor, sem reescrever o histórico publicado às cegas.
+- A auditoria de dependências encontrou duas vulnerabilidades altas no pacote `xlsx@0.18.5`, usado para ler planilhas enviadas pelo usuário. Ele foi substituído por `read-excel-file@9.3.10` e um leitor CSV próprio. Restou um alerta moderado em versões de `esbuild` usadas por ferramentas de desenvolvimento; manter o servidor local fora de acesso público e planejar atualização dos pacotes que o trazem.
+- O bloqueio de exclusão da conta compartilhada está atualmente apenas na interface, por CPF fixo. Isso não é uma barreira de segurança contra chamadas diretas à API do Supabase. É urgente criar uma regra no banco que impeça essa conta de deletar dados, inclusive por chamadas diretas, e remover a identificação pessoal do código cliente.
+- Referências da troca do leitor de Excel: [alerta de prototype pollution no `xlsx`](https://github.com/advisories/GHSA-4r6h-8v6p-xvw6), [alerta de ReDoS no `xlsx`](https://github.com/advisories/GHSA-5pgg-2g8v-p4x9) e [documentação do novo leitor](https://github.com/catamphetamine/read-excel-file).
 - Pendente: reativar proteção contra automação no cadastro por convite, verificar confirmação de e-mail, limites de tentativa, logs de acesso e retenção de arquivos.
-- Risco adicional identificado: a configuração antiga da pasta manual de comprovantes usa chave global em `configuracoes_casal`, acessada por função com privilégios de serviço sem filtro de grupo. O novo envio automático ao Drive ignora essa pasta, mas a configuração manual ainda precisa ser migrada para isolamento por grupo.
+- Risco residual: os recursos preparados localmente só entram em funcionamento depois das migrações e de testes com contas de grupos diferentes. Não executar o `git push` de uma versão que exiba novos botões antes da ativação segura do banco.
