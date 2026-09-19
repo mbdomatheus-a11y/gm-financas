@@ -154,6 +154,7 @@ export const aceitarConvite = createServerFn({ method: "POST" })
         senha: z.string().min(8).max(72),
         turnstileToken: z.string().optional(),
         recuperarDados: z.boolean().optional(),
+        aceitouDocumentos: z.literal(true),
       })
       .parse(d),
   )
@@ -266,6 +267,11 @@ export const aceitarConvite = createServerFn({ method: "POST" })
       .from("convites")
       .update({ usado: true, usado_por: created.user.id })
       .eq("id", convite.id);
+
+    await db.from("aceites_documentos").insert([
+      { user_id: created.user.id, documento: "termos_uso", versao: "2026-09-19" },
+      { user_id: created.user.id, documento: "aviso_privacidade", versao: "2026-09-19" },
+    ]);
 
     if (contaArquivada && data.recuperarDados) {
       await db

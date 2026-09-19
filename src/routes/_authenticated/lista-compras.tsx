@@ -91,6 +91,8 @@ function ListaComprasPage() {
   const [quantidade, setQuantidade] = useState("1");
   const [alertaEm, setAlertaEm] = useState("");
   const [aprovacoesNecessarias, setAprovacoesNecessarias] = useState("0");
+  const [observacao, setObservacao] = useState("");
+  const [linkCompra, setLinkCompra] = useState("");
 
   // Aprovação só faz sentido se houver alguém além de quem cria o item pra
   // aprovar — com 1 pessoa com acesso, o máximo selecionável é 0 (ninguém
@@ -131,7 +133,7 @@ function ListaComprasPage() {
       if (texto.length < 2) throw new Error("Informe o nome do item");
       if (itens.length >= LIMITE) throw new Error(`Limite de ${LIMITE} itens atingido`);
       const { data: auth } = await supabase.auth.getUser();
-      const { error } = await appSupabase.from("lista_compras").insert({
+      const { error } = await (appSupabase.from("lista_compras") as any).insert({
         nome: texto,
         categoria,
         lista,
@@ -142,6 +144,8 @@ function ListaComprasPage() {
           Math.max(0, Number(aprovacoesNecessarias) || 0),
         ),
         created_by: auth.user?.id ?? null,
+        observacao: observacao.trim() || null,
+        links: linkCompra.trim() ? [{ url: linkCompra.trim(), tipo: "referencia" }] : [],
       });
       if (error) throw error;
     },
@@ -150,6 +154,8 @@ function ListaComprasPage() {
       setQuantidade("1");
       setAlertaEm("");
       setAprovacoesNecessarias("0");
+      setObservacao("");
+      setLinkCompra("");
       qc.invalidateQueries({ queryKey: ["lista-compras"] });
     },
     onError: (e: any) => toast.error(e.message),
@@ -203,12 +209,13 @@ function ListaComprasPage() {
     mutationFn: async (item: any) => {
       const { data: auth } = await supabase.auth.getUser();
       const proximo = toISODate(addMonths(new Date(), 1));
-      const { error } = await supabase.from("lista_compras").insert({
+      const { error } = await (supabase.from("lista_compras") as any).insert({
         nome: item.nome,
         categoria: item.categoria,
         lista: item.lista ?? "compras",
         quantidade: item.quantidade,
         observacao: item.observacao,
+        links: item.links ?? [],
         alerta_em: proximo,
         created_by: auth.user?.id ?? null,
       });
@@ -339,6 +346,10 @@ function ListaComprasPage() {
             >
               <BellRing className="size-3" /> Alerta em {formatDate(item.alerta_em)}
             </p>
+          )}
+          {item.observacao && <p className="mt-1 text-xs text-muted-foreground">{item.observacao}</p>}
+          {Array.isArray(item.links) && item.links.length > 0 && (
+            <div className="mt-1 flex flex-wrap gap-2">{item.links.map((link: any, index: number) => <a key={`${link.url}-${index}`} href={link.url} target="_blank" rel="noreferrer" className="text-xs text-primary underline">Ver link{item.links.length > 1 ? ` ${index + 1}` : ""}</a>)}</div>
           )}
           {necessarias > 0 && !item.comprado && (
             <div className="mt-1 flex items-center gap-1.5">
@@ -488,6 +499,11 @@ function ListaComprasPage() {
           <Plus className="size-4" /> Adicionar
         </Button>
       </form>
+
+      <div className="mt-2 grid gap-2 sm:grid-cols-2">
+        <Input value={linkCompra} onChange={(e) => setLinkCompra(e.target.value)} type="url" placeholder="Adicionar link de compra ou referência (Instagram, TikTok, Facebook...)" />
+        <Input value={observacao} onChange={(e) => setObservacao(e.target.value)} placeholder="Observação para quem vai aprovar" />
+      </div>
 
       {maxAprovacoes >= 1 && (
         <div className="mt-2 flex items-center gap-2">

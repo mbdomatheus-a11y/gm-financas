@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 import { cpfToEmail, isValidCpf, maskCpf, onlyDigits } from "@/lib/cpf";
 import { aceitarConvite } from "@/lib/convites.functions";
+import { consultarBloqueioLogin, registrarFalhaLogin, registrarSucessoLogin } from "@/lib/login-protecao.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -103,6 +104,9 @@ function EntrarForm({ next }: { next?: string }) {
   const [senha, setSenha] = useState("");
   const [lembrarIdentificador, setLembrarIdentificador] = useState(false);
   const [loading, setLoading] = useState(false);
+  const consultarBloqueio = useServerFn(consultarBloqueioLogin);
+  const registrarFalha = useServerFn(registrarFalhaLogin);
+  const registrarSucesso = useServerFn(registrarSucessoLogin);
 
   useEffect(() => {
     try {
@@ -135,13 +139,20 @@ function EntrarForm({ next }: { next?: string }) {
       toast.error("A senha deve ter ao menos 6 caracteres");
       return;
     }
+    const bloqueio = await consultarBloqueio({ data: { identificador: email } });
+    if (bloqueio.bloqueadoAte) {
+      toast.error(`Por segurança, novas tentativas estão bloqueadas até ${new Date(bloqueio.bloqueadoAte).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}.`);
+      return;
+    }
     setLoading(true);
     const { data, error } = await supabase.auth.signInWithPassword({ email, password: senha });
     setLoading(false);
     if (error || !data.user) {
-      toast.error("Credenciais incorretas");
+      const tentativa = await registrarFalha({ data: { identificador: email } });
+      toast.error(tentativa.bloqueadoAte ? "Três tentativas incorretas. O acesso foi bloqueado por 15 minutos." : "Credenciais incorretas");
       return;
     }
+    void registrarSucesso({ data: { identificador: email } });
     const { data: profile } = await supabase
       .from("profiles")
       .select("senha_temporaria, ativo")
@@ -268,6 +279,7 @@ function CriarContaForm({ token }: { token: string | undefined }) {
   const [tokenInput, setTokenInput] = useState(token ?? "");
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [aceitouDocumentos, setAceitouDocumentos] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -308,6 +320,10 @@ function CriarContaForm({ token }: { token: string | undefined }) {
       toast.error("Confirme a verificação de segurança");
       return;
     }
+    if (!aceitouDocumentos) {
+      toast.error("Você precisa aceitar os Termos de Uso e o Aviso de Privacidade para criar a conta.");
+      return;
+    }
 
     setLoading(true);
     try {
@@ -320,6 +336,7 @@ function CriarContaForm({ token }: { token: string | undefined }) {
           dataNascimento: form.dataNascimento,
           senha: form.senha,
           turnstileToken: turnstileToken ?? undefined,
+          aceitouDocumentos: true,
       };
       let res;
       try {
@@ -369,6 +386,13 @@ function CriarContaForm({ token }: { token: string | undefined }) {
           <strong>Usuários e Privilégios</strong>. Cada pessoa pode gerar até 3 códigos.
         </p>
       </div>
+
+      <label className="flex items-start gap-2 rounded-lg border p-3 text-xs text-muted-foreground">
+        <Checkbox checked={aceitouDocumentos} onCheckedChange={(checked) => setAceitouDocumentos(checked === true)} />
+        <span>
+          Li e aceito os <Link to="/termos-de-uso" className="underline">Termos de Uso</Link> e o <Link to="/privacidade" className="underline">Aviso de Privacidade</Link>. Entendo que sou responsável por proteger minha senha e não compartilhar meu acesso.
+        </span>
+      </label>
       <div className="space-y-1.5">
         <Label htmlFor="c-nome">Nome completo</Label>
         <Input

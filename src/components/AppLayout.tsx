@@ -23,6 +23,9 @@ import {
   ArrowLeftRight,
   Calculator,
   Car,
+  PawPrint,
+  MapPin,
+  FileHeart,
 } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -51,7 +54,10 @@ type NavTo =
   | "/usuarios"
   | "/backup"
   | "/personalizacao"
-  | "/conta";
+  | "/conta"
+  | "/pets"
+  | "/onde-esta"
+  | "/exames";
 
 type NavItem = {
   to: NavTo;
@@ -62,7 +68,7 @@ type NavItem = {
   adminOnly?: boolean;
 };
 
-type MundoId = "financas" | "lista" | "notas" | "calculadora";
+type MundoId = "financas" | "lista" | "notas" | "calculadora" | "vida";
 
 /**
  * Navegação em "mundos" (2026-09-18): em vez de uma lista única com tudo
@@ -143,6 +149,11 @@ const MUNDOS: Record<MundoId, { titulo: string; home: NavTo; items: NavItem[] }>
     home: "/ferramentas",
     items: [{ to: "/ferramentas", label: "Calculadora", short: "Calculadora", icon: Calculator }],
   },
+  vida: { titulo: "Vida", home: "/pets", items: [
+    { to: "/pets", label: "Pet", short: "Pet", icon: PawPrint },
+    { to: "/onde-esta", label: "Onde está?", short: "Onde", icon: MapPin },
+    { to: "/exames", label: "Exames", short: "Exames", icon: FileHeart },
+  ] },
 };
 
 /** Itens sempre visíveis, independente do mundo atual (ou de estar na Home). */

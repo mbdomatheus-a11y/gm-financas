@@ -13,7 +13,9 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as EntrarRouteImport } from './routes/entrar'
 import { Route as EsqueciSenhaRouteImport } from './routes/esqueci-senha'
+import { Route as PrivacidadeRouteImport } from './routes/privacidade'
 import { Route as RedefinirSenhaRouteImport } from './routes/redefinir-senha'
+import { Route as TermosDeUsoRouteImport } from './routes/termos-de-uso'
 import { Route as AuthenticatedBackupRouteImport } from './routes/_authenticated/backup'
 import { Route as AuthenticatedCartoesRouteImport } from './routes/_authenticated/cartoes'
 import { Route as AuthenticatedCategoriasRouteImport } from './routes/_authenticated/categorias'
@@ -22,6 +24,7 @@ import { Route as AuthenticatedContaRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedDeParaRouteImport } from './routes/_authenticated/de-para'
 import { Route as AuthenticatedDespesasRouteImport } from './routes/_authenticated/despesas'
+import { Route as AuthenticatedExamesRouteImport } from './routes/_authenticated/exames'
 import { Route as AuthenticatedFerramentasRouteImport } from './routes/_authenticated/ferramentas'
 import { Route as AuthenticatedImportarRouteImport } from './routes/_authenticated/importar'
 import { Route as AuthenticatedInicioRouteImport } from './routes/_authenticated/inicio'
@@ -29,7 +32,9 @@ import { Route as AuthenticatedInvestimentosRouteImport } from './routes/_authen
 import { Route as AuthenticatedListaComprasRouteImport } from './routes/_authenticated/lista-compras'
 import { Route as AuthenticatedNotasRouteImport } from './routes/_authenticated/notas'
 import { Route as AuthenticatedNovaSenhaRouteImport } from './routes/_authenticated/nova-senha'
+import { Route as AuthenticatedOndeEstaRouteImport } from './routes/_authenticated/onde-esta'
 import { Route as AuthenticatedPersonalizacaoRouteImport } from './routes/_authenticated/personalizacao'
+import { Route as AuthenticatedPetsRouteImport } from './routes/_authenticated/pets'
 import { Route as AuthenticatedReceitasRouteImport } from './routes/_authenticated/receitas'
 import { Route as AuthenticatedUsuariosRouteImport } from './routes/_authenticated/usuarios'
 import { Route as AuthenticatedVeiculosRouteImport } from './routes/_authenticated/veiculos'
@@ -54,9 +59,19 @@ const EsqueciSenhaRoute = EsqueciSenhaRouteImport.update({
   path: '/esqueci-senha',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PrivacidadeRoute = PrivacidadeRouteImport.update({
+  id: '/privacidade',
+  path: '/privacidade',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RedefinirSenhaRoute = RedefinirSenhaRouteImport.update({
   id: '/redefinir-senha',
   path: '/redefinir-senha',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TermosDeUsoRoute = TermosDeUsoRouteImport.update({
+  id: '/termos-de-uso',
+  path: '/termos-de-uso',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedBackupRoute = AuthenticatedBackupRouteImport.update({
@@ -100,6 +115,11 @@ const AuthenticatedDespesasRoute = AuthenticatedDespesasRouteImport.update({
   path: '/despesas',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedExamesRoute = AuthenticatedExamesRouteImport.update({
+  id: '/exames',
+  path: '/exames',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedFerramentasRoute =
   AuthenticatedFerramentasRouteImport.update({
     id: '/ferramentas',
@@ -138,12 +158,22 @@ const AuthenticatedNovaSenhaRoute = AuthenticatedNovaSenhaRouteImport.update({
   path: '/nova-senha',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedOndeEstaRoute = AuthenticatedOndeEstaRouteImport.update({
+  id: '/onde-esta',
+  path: '/onde-esta',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedPersonalizacaoRoute =
   AuthenticatedPersonalizacaoRouteImport.update({
     id: '/personalizacao',
     path: '/personalizacao',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedPetsRoute = AuthenticatedPetsRouteImport.update({
+  id: '/pets',
+  path: '/pets',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedReceitasRoute = AuthenticatedReceitasRouteImport.update({
   id: '/receitas',
   path: '/receitas',
@@ -169,7 +199,9 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/entrar': typeof EntrarRoute
   '/esqueci-senha': typeof EsqueciSenhaRoute
+  '/privacidade': typeof PrivacidadeRoute
   '/redefinir-senha': typeof RedefinirSenhaRoute
+  '/termos-de-uso': typeof TermosDeUsoRoute
   '/backup': typeof AuthenticatedBackupRoute
   '/cartoes': typeof AuthenticatedCartoesRoute
   '/categorias': typeof AuthenticatedCategoriasRoute
@@ -178,6 +210,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/de-para': typeof AuthenticatedDeParaRoute
   '/despesas': typeof AuthenticatedDespesasRoute
+  '/exames': typeof AuthenticatedExamesRoute
   '/ferramentas': typeof AuthenticatedFerramentasRoute
   '/importar': typeof AuthenticatedImportarRoute
   '/inicio': typeof AuthenticatedInicioRoute
@@ -185,7 +218,9 @@ export interface FileRoutesByFullPath {
   '/lista-compras': typeof AuthenticatedListaComprasRoute
   '/notas': typeof AuthenticatedNotasRoute
   '/nova-senha': typeof AuthenticatedNovaSenhaRoute
+  '/onde-esta': typeof AuthenticatedOndeEstaRoute
   '/personalizacao': typeof AuthenticatedPersonalizacaoRoute
+  '/pets': typeof AuthenticatedPetsRoute
   '/receitas': typeof AuthenticatedReceitasRoute
   '/usuarios': typeof AuthenticatedUsuariosRoute
   '/veiculos': typeof AuthenticatedVeiculosRoute
@@ -195,7 +230,9 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/entrar': typeof EntrarRoute
   '/esqueci-senha': typeof EsqueciSenhaRoute
+  '/privacidade': typeof PrivacidadeRoute
   '/redefinir-senha': typeof RedefinirSenhaRoute
+  '/termos-de-uso': typeof TermosDeUsoRoute
   '/backup': typeof AuthenticatedBackupRoute
   '/cartoes': typeof AuthenticatedCartoesRoute
   '/categorias': typeof AuthenticatedCategoriasRoute
@@ -204,6 +241,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/de-para': typeof AuthenticatedDeParaRoute
   '/despesas': typeof AuthenticatedDespesasRoute
+  '/exames': typeof AuthenticatedExamesRoute
   '/ferramentas': typeof AuthenticatedFerramentasRoute
   '/importar': typeof AuthenticatedImportarRoute
   '/inicio': typeof AuthenticatedInicioRoute
@@ -211,7 +249,9 @@ export interface FileRoutesByTo {
   '/lista-compras': typeof AuthenticatedListaComprasRoute
   '/notas': typeof AuthenticatedNotasRoute
   '/nova-senha': typeof AuthenticatedNovaSenhaRoute
+  '/onde-esta': typeof AuthenticatedOndeEstaRoute
   '/personalizacao': typeof AuthenticatedPersonalizacaoRoute
+  '/pets': typeof AuthenticatedPetsRoute
   '/receitas': typeof AuthenticatedReceitasRoute
   '/usuarios': typeof AuthenticatedUsuariosRoute
   '/veiculos': typeof AuthenticatedVeiculosRoute
@@ -223,7 +263,9 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/entrar': typeof EntrarRoute
   '/esqueci-senha': typeof EsqueciSenhaRoute
+  '/privacidade': typeof PrivacidadeRoute
   '/redefinir-senha': typeof RedefinirSenhaRoute
+  '/termos-de-uso': typeof TermosDeUsoRoute
   '/_authenticated/backup': typeof AuthenticatedBackupRoute
   '/_authenticated/cartoes': typeof AuthenticatedCartoesRoute
   '/_authenticated/categorias': typeof AuthenticatedCategoriasRoute
@@ -232,6 +274,7 @@ export interface FileRoutesById {
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/de-para': typeof AuthenticatedDeParaRoute
   '/_authenticated/despesas': typeof AuthenticatedDespesasRoute
+  '/_authenticated/exames': typeof AuthenticatedExamesRoute
   '/_authenticated/ferramentas': typeof AuthenticatedFerramentasRoute
   '/_authenticated/importar': typeof AuthenticatedImportarRoute
   '/_authenticated/inicio': typeof AuthenticatedInicioRoute
@@ -239,7 +282,9 @@ export interface FileRoutesById {
   '/_authenticated/lista-compras': typeof AuthenticatedListaComprasRoute
   '/_authenticated/notas': typeof AuthenticatedNotasRoute
   '/_authenticated/nova-senha': typeof AuthenticatedNovaSenhaRoute
+  '/_authenticated/onde-esta': typeof AuthenticatedOndeEstaRoute
   '/_authenticated/personalizacao': typeof AuthenticatedPersonalizacaoRoute
+  '/_authenticated/pets': typeof AuthenticatedPetsRoute
   '/_authenticated/receitas': typeof AuthenticatedReceitasRoute
   '/_authenticated/usuarios': typeof AuthenticatedUsuariosRoute
   '/_authenticated/veiculos': typeof AuthenticatedVeiculosRoute
@@ -251,7 +296,9 @@ export interface FileRouteTypes {
     | '/'
     | '/entrar'
     | '/esqueci-senha'
+    | '/privacidade'
     | '/redefinir-senha'
+    | '/termos-de-uso'
     | '/backup'
     | '/cartoes'
     | '/categorias'
@@ -260,6 +307,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/de-para'
     | '/despesas'
+    | '/exames'
     | '/ferramentas'
     | '/importar'
     | '/inicio'
@@ -267,7 +315,9 @@ export interface FileRouteTypes {
     | '/lista-compras'
     | '/notas'
     | '/nova-senha'
+    | '/onde-esta'
     | '/personalizacao'
+    | '/pets'
     | '/receitas'
     | '/usuarios'
     | '/veiculos'
@@ -277,7 +327,9 @@ export interface FileRouteTypes {
     | '/'
     | '/entrar'
     | '/esqueci-senha'
+    | '/privacidade'
     | '/redefinir-senha'
+    | '/termos-de-uso'
     | '/backup'
     | '/cartoes'
     | '/categorias'
@@ -286,6 +338,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/de-para'
     | '/despesas'
+    | '/exames'
     | '/ferramentas'
     | '/importar'
     | '/inicio'
@@ -293,7 +346,9 @@ export interface FileRouteTypes {
     | '/lista-compras'
     | '/notas'
     | '/nova-senha'
+    | '/onde-esta'
     | '/personalizacao'
+    | '/pets'
     | '/receitas'
     | '/usuarios'
     | '/veiculos'
@@ -304,7 +359,9 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/entrar'
     | '/esqueci-senha'
+    | '/privacidade'
     | '/redefinir-senha'
+    | '/termos-de-uso'
     | '/_authenticated/backup'
     | '/_authenticated/cartoes'
     | '/_authenticated/categorias'
@@ -313,6 +370,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard'
     | '/_authenticated/de-para'
     | '/_authenticated/despesas'
+    | '/_authenticated/exames'
     | '/_authenticated/ferramentas'
     | '/_authenticated/importar'
     | '/_authenticated/inicio'
@@ -320,7 +378,9 @@ export interface FileRouteTypes {
     | '/_authenticated/lista-compras'
     | '/_authenticated/notas'
     | '/_authenticated/nova-senha'
+    | '/_authenticated/onde-esta'
     | '/_authenticated/personalizacao'
+    | '/_authenticated/pets'
     | '/_authenticated/receitas'
     | '/_authenticated/usuarios'
     | '/_authenticated/veiculos'
@@ -332,7 +392,9 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   EntrarRoute: typeof EntrarRoute
   EsqueciSenhaRoute: typeof EsqueciSenhaRoute
+  PrivacidadeRoute: typeof PrivacidadeRoute
   RedefinirSenhaRoute: typeof RedefinirSenhaRoute
+  TermosDeUsoRoute: typeof TermosDeUsoRoute
   OauthGoogleDriveReturnRoute: typeof OauthGoogleDriveReturnRoute
 }
 
@@ -366,11 +428,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EsqueciSenhaRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/privacidade': {
+      id: '/privacidade'
+      path: '/privacidade'
+      fullPath: '/privacidade'
+      preLoaderRoute: typeof PrivacidadeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/redefinir-senha': {
       id: '/redefinir-senha'
       path: '/redefinir-senha'
       fullPath: '/redefinir-senha'
       preLoaderRoute: typeof RedefinirSenhaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/termos-de-uso': {
+      id: '/termos-de-uso'
+      path: '/termos-de-uso'
+      fullPath: '/termos-de-uso'
+      preLoaderRoute: typeof TermosDeUsoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/backup': {
@@ -429,6 +505,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDespesasRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/exames': {
+      id: '/_authenticated/exames'
+      path: '/exames'
+      fullPath: '/exames'
+      preLoaderRoute: typeof AuthenticatedExamesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/ferramentas': {
       id: '/_authenticated/ferramentas'
       path: '/ferramentas'
@@ -478,11 +561,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedNovaSenhaRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/onde-esta': {
+      id: '/_authenticated/onde-esta'
+      path: '/onde-esta'
+      fullPath: '/onde-esta'
+      preLoaderRoute: typeof AuthenticatedOndeEstaRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/personalizacao': {
       id: '/_authenticated/personalizacao'
       path: '/personalizacao'
       fullPath: '/personalizacao'
       preLoaderRoute: typeof AuthenticatedPersonalizacaoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/pets': {
+      id: '/_authenticated/pets'
+      path: '/pets'
+      fullPath: '/pets'
+      preLoaderRoute: typeof AuthenticatedPetsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/receitas': {
@@ -525,6 +622,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDeParaRoute: typeof AuthenticatedDeParaRoute
   AuthenticatedDespesasRoute: typeof AuthenticatedDespesasRoute
+  AuthenticatedExamesRoute: typeof AuthenticatedExamesRoute
   AuthenticatedFerramentasRoute: typeof AuthenticatedFerramentasRoute
   AuthenticatedImportarRoute: typeof AuthenticatedImportarRoute
   AuthenticatedInicioRoute: typeof AuthenticatedInicioRoute
@@ -532,7 +630,9 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedListaComprasRoute: typeof AuthenticatedListaComprasRoute
   AuthenticatedNotasRoute: typeof AuthenticatedNotasRoute
   AuthenticatedNovaSenhaRoute: typeof AuthenticatedNovaSenhaRoute
+  AuthenticatedOndeEstaRoute: typeof AuthenticatedOndeEstaRoute
   AuthenticatedPersonalizacaoRoute: typeof AuthenticatedPersonalizacaoRoute
+  AuthenticatedPetsRoute: typeof AuthenticatedPetsRoute
   AuthenticatedReceitasRoute: typeof AuthenticatedReceitasRoute
   AuthenticatedUsuariosRoute: typeof AuthenticatedUsuariosRoute
   AuthenticatedVeiculosRoute: typeof AuthenticatedVeiculosRoute
@@ -547,6 +647,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDeParaRoute: AuthenticatedDeParaRoute,
   AuthenticatedDespesasRoute: AuthenticatedDespesasRoute,
+  AuthenticatedExamesRoute: AuthenticatedExamesRoute,
   AuthenticatedFerramentasRoute: AuthenticatedFerramentasRoute,
   AuthenticatedImportarRoute: AuthenticatedImportarRoute,
   AuthenticatedInicioRoute: AuthenticatedInicioRoute,
@@ -554,7 +655,9 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedListaComprasRoute: AuthenticatedListaComprasRoute,
   AuthenticatedNotasRoute: AuthenticatedNotasRoute,
   AuthenticatedNovaSenhaRoute: AuthenticatedNovaSenhaRoute,
+  AuthenticatedOndeEstaRoute: AuthenticatedOndeEstaRoute,
   AuthenticatedPersonalizacaoRoute: AuthenticatedPersonalizacaoRoute,
+  AuthenticatedPetsRoute: AuthenticatedPetsRoute,
   AuthenticatedReceitasRoute: AuthenticatedReceitasRoute,
   AuthenticatedUsuariosRoute: AuthenticatedUsuariosRoute,
   AuthenticatedVeiculosRoute: AuthenticatedVeiculosRoute,
@@ -568,7 +671,9 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   EntrarRoute: EntrarRoute,
   EsqueciSenhaRoute: EsqueciSenhaRoute,
+  PrivacidadeRoute: PrivacidadeRoute,
   RedefinirSenhaRoute: RedefinirSenhaRoute,
+  TermosDeUsoRoute: TermosDeUsoRoute,
   OauthGoogleDriveReturnRoute: OauthGoogleDriveReturnRoute,
 }
 export const routeTree = rootRouteImport

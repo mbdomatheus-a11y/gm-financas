@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, Calculator, DatabaseBackup, Palette, ReceiptText, Settings, Share2, ShoppingCart, Users, Wallet } from "lucide-react";
+import { ArrowRight, Calculator, DatabaseBackup, Palette, ReceiptText, Settings, Share2, ShoppingCart, Users, Wallet, PawPrint, MapPin, FileHeart } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
@@ -22,6 +22,9 @@ const MODULOS = [
   { to: "/lista-compras" as const, titulo: "Lista", descricao: "Lista de compras compartilhada e aprovações.", icon: ShoppingCart },
   { to: "/notas" as const, titulo: "Notas", descricao: "Notas fiscais, comprovantes e garantias.", icon: ReceiptText },
   { to: "/ferramentas" as const, titulo: "Calculadora", descricao: "Cálculos de datas, horários e simulações.", icon: Calculator },
+  { to: "/pets" as const, titulo: "Pet", descricao: "Vacinas e cuidados dos animais.", icon: PawPrint },
+  { to: "/onde-esta" as const, titulo: "Onde está?", descricao: "Guarde e encontre seus itens.", icon: MapPin },
+  { to: "/exames" as const, titulo: "Exames", descricao: "Histórico privado de saúde.", icon: FileHeart },
 ];
 
 function InicioPage() {
