@@ -47,7 +47,7 @@ Referências oficiais: [LGPD](https://planalto.gov.br/ccivil_03/_ato2015-2018/20
 ## Auditoria de segurança em andamento
 
 - Corrigido no código: funções globais deixaram de aceitar qualquer `user_roles.admin`; agora exigem `site_admins` e perfil ativo. Consultas de perfis para módulos financeiros passaram a filtrar o grupo atual.
-- Correção de banco preparada, ainda não aplicada: impedir edição direta de identidade/grupo no próprio perfil e restringir objetos dos buckets privados `faturas` e `anexos` ao grupo dono.
-- Risco urgente verificado em produção antes dessa migração: as policies de `storage.objects` filtravam apenas por bucket, sem grupo. A policy de atualização do próprio perfil permitia trocar `grupo_id`. Essas duas falhas precisam ser encerradas e testadas com contas de grupos distintos.
+- Correção de banco aplicada em 2026-09-19 no Supabase oficial, conforme `supabase/migrations/20260919030000_isolamento_seguranca.sql`: o gatilho em `profiles` impede que usuários autenticados alterem diretamente identidade ou `grupo_id`, e os buckets privados `faturas` e `anexos` agora vinculam cada arquivo ao grupo do lote ou veículo.
+- Verificação após a migração: gatilho ativo, policies novas presentes, policies antigas ausentes e os 8 arquivos de fatura preservados. Ainda falta teste funcional com duas contas de grupos diferentes para confirmar acesso permitido no próprio grupo e negado no outro.
 - O repositório público contém uma chave Supabase publicável, prevista para uso no navegador. A chave não é segredo; sua segurança depende de RLS e policies corretas. A inspeção dos arquivos versionados e das mudanças do histórico não encontrou valor de chave de serviço ou de API privada. Isso não substitui um scanner de segredos completo e uma auditoria externa.
 - Pendente: reativar proteção contra automação no cadastro por convite, verificar confirmação de e-mail, limites de tentativa, logs de acesso e retenção de arquivos.
