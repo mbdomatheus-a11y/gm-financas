@@ -16,6 +16,7 @@ INSERT INTO public.configuracoes_site (chave, valor_inteiro)
 VALUES ('inatividade_minutos', 5)
 ON CONFLICT (chave) DO NOTHING;
 
+REVOKE ALL ON public.configuracoes_site FROM anon, authenticated;
 GRANT SELECT ON public.configuracoes_site TO authenticated;
 GRANT ALL ON public.configuracoes_site TO service_role;
 

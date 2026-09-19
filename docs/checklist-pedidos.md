@@ -17,6 +17,7 @@ Conferência em 2026-09-19. "No código" significa implementado no repositório,
 - [x] O build local foi desvinculado dos pacotes e rotas do Lovable; produção Vercel compilou localmente.
 - [x] A leitura de de-para usa uma biblioteca mantida para XLSX e leitor CSV próprio. A biblioteca `xlsx` vulnerável foi removida. Arquivos `.xls` antigos devem ser convertidos para `.xlsx` ou CSV.
 - [x] Cabeçalhos básicos de segurança do Vercel preparados no `vercel.json`; falta validar no endereço público depois da publicação.
+- [x] Migrações `20260919040000_comprovantes_privados.sql`, `20260919041000_tempo_inatividade.sql` e `20260919042000_orcamentos_por_evento.sql` aplicadas no Supabase oficial em 2026-09-19. Confirmados bucket privado, configuração inicial de 5 minutos, coluna e gatilho de evento. Nenhum documento existente foi removido.
 
 ## Implementado parcialmente ou sem validação final
 
@@ -26,8 +27,7 @@ Conferência em 2026-09-19. "No código" significa implementado no repositório,
 - [ ] Confirmar se a conta de teste Terezinha deve ser excluída agora. A busca anterior não a encontrou no banco oficial; depois foi informado que ela se cadastrou novamente. Nenhuma exclusão recente foi executada.
 - [ ] Corrigir o envio de convites por e-mail: o Resend retornou 403. Falta remetente/domínio verificado ou alternativa escolhida pelo proprietário.
 - [ ] Publicar e validar o isolamento da pasta manual de comprovantes. O código agora usa chave por grupo e a policy existente do banco já restringe `grupo_id`. Duas configurações antigas sem grupo permanecem preservadas, mas invisíveis; seus donos precisarão cadastrar novamente o link.
-- [ ] **Aguardando autorização específica para alteração de permissões no Supabase oficial:** criar bucket privado `comprovantes` com policy por grupo. O código local já tem fallback quando o Google Drive está indisponível, mas não pode ser publicado antes dessa migração. A tentativa de executar a migração foi barrada pela revisão de segurança; não houve mudança no banco.
-- [ ] Aplicar no banco as migrações `20260919041000_tempo_inatividade.sql` e `20260919042000_orcamentos_por_evento.sql` antes de publicar o código correspondente.
+- [ ] Validar no site publicado o envio e abertura de comprovantes no bucket privado `comprovantes`.
 - [ ] Validar em duas contas reais o envio, a abertura e a negação de acesso a comprovantes de outros grupos.
 
 ## Ainda não implementado
@@ -37,9 +37,9 @@ Conferência em 2026-09-19. "No código" significa implementado no repositório,
 - [ ] Formulário e fila administrativa de solicitações de exclusão, com aviso ao administrador, confirmação de identidade e histórico do atendimento.
 - [ ] Banner de avisos administrativos para todos os usuários, aceite obrigatório e registro de leitura.
 - [ ] Painel analítico com usuários totais/ativos, última atividade, tempo médio de uso e espaço ocupado por conta, sem conteúdo financeiro.
-- [ ] Controle de inatividade: código local preparado com padrão de 5 minutos, aviso no minuto final e edição pelo admin; falta aplicar migração, publicar e testar em navegador.
+- [ ] Controle de inatividade: código e migração prontos, padrão de 5 minutos e aviso no minuto final; falta publicar e testar em navegador.
 - [ ] Reajuste mensal: código local preparado com média de 6, 12 ou 24 meses do Banco Central e entrada manual; falta publicar e validar os índices reais.
-- [ ] Orçamento por evento: código local preparado, mantendo anexos antigos; falta aplicar migração, publicar e testar.
+- [ ] Orçamento por evento: código e migração prontos, mantendo anexos antigos; falta publicar e testar.
 - [ ] Central de alertas: sininho local agrega garantias, óleo, revisão, IPVA, seguro e compras aprovadas; falta publicar e testar.
 - [ ] Revisão completa dos gráficos e visões para escala, período, leitura em celular e acessibilidade.
 
