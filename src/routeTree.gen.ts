@@ -16,6 +16,7 @@ import { Route as EsqueciSenhaRouteImport } from './routes/esqueci-senha'
 import { Route as PrivacidadeRouteImport } from './routes/privacidade'
 import { Route as RedefinirSenhaRouteImport } from './routes/redefinir-senha'
 import { Route as TermosDeUsoRouteImport } from './routes/termos-de-uso'
+import { Route as AuthenticatedAdministracaoRouteImport } from './routes/_authenticated/administracao'
 import { Route as AuthenticatedBackupRouteImport } from './routes/_authenticated/backup'
 import { Route as AuthenticatedCartoesRouteImport } from './routes/_authenticated/cartoes'
 import { Route as AuthenticatedCategoriasRouteImport } from './routes/_authenticated/categorias'
@@ -74,6 +75,12 @@ const TermosDeUsoRoute = TermosDeUsoRouteImport.update({
   path: '/termos-de-uso',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedAdministracaoRoute =
+  AuthenticatedAdministracaoRouteImport.update({
+    id: '/administracao',
+    path: '/administracao',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedBackupRoute = AuthenticatedBackupRouteImport.update({
   id: '/backup',
   path: '/backup',
@@ -202,6 +209,7 @@ export interface FileRoutesByFullPath {
   '/privacidade': typeof PrivacidadeRoute
   '/redefinir-senha': typeof RedefinirSenhaRoute
   '/termos-de-uso': typeof TermosDeUsoRoute
+  '/administracao': typeof AuthenticatedAdministracaoRoute
   '/backup': typeof AuthenticatedBackupRoute
   '/cartoes': typeof AuthenticatedCartoesRoute
   '/categorias': typeof AuthenticatedCategoriasRoute
@@ -233,6 +241,7 @@ export interface FileRoutesByTo {
   '/privacidade': typeof PrivacidadeRoute
   '/redefinir-senha': typeof RedefinirSenhaRoute
   '/termos-de-uso': typeof TermosDeUsoRoute
+  '/administracao': typeof AuthenticatedAdministracaoRoute
   '/backup': typeof AuthenticatedBackupRoute
   '/cartoes': typeof AuthenticatedCartoesRoute
   '/categorias': typeof AuthenticatedCategoriasRoute
@@ -266,6 +275,7 @@ export interface FileRoutesById {
   '/privacidade': typeof PrivacidadeRoute
   '/redefinir-senha': typeof RedefinirSenhaRoute
   '/termos-de-uso': typeof TermosDeUsoRoute
+  '/_authenticated/administracao': typeof AuthenticatedAdministracaoRoute
   '/_authenticated/backup': typeof AuthenticatedBackupRoute
   '/_authenticated/cartoes': typeof AuthenticatedCartoesRoute
   '/_authenticated/categorias': typeof AuthenticatedCategoriasRoute
@@ -299,6 +309,7 @@ export interface FileRouteTypes {
     | '/privacidade'
     | '/redefinir-senha'
     | '/termos-de-uso'
+    | '/administracao'
     | '/backup'
     | '/cartoes'
     | '/categorias'
@@ -330,6 +341,7 @@ export interface FileRouteTypes {
     | '/privacidade'
     | '/redefinir-senha'
     | '/termos-de-uso'
+    | '/administracao'
     | '/backup'
     | '/cartoes'
     | '/categorias'
@@ -362,6 +374,7 @@ export interface FileRouteTypes {
     | '/privacidade'
     | '/redefinir-senha'
     | '/termos-de-uso'
+    | '/_authenticated/administracao'
     | '/_authenticated/backup'
     | '/_authenticated/cartoes'
     | '/_authenticated/categorias'
@@ -448,6 +461,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/termos-de-uso'
       preLoaderRoute: typeof TermosDeUsoRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/administracao': {
+      id: '/_authenticated/administracao'
+      path: '/administracao'
+      fullPath: '/administracao'
+      preLoaderRoute: typeof AuthenticatedAdministracaoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/backup': {
       id: '/_authenticated/backup'
@@ -614,6 +634,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAdministracaoRoute: typeof AuthenticatedAdministracaoRoute
   AuthenticatedBackupRoute: typeof AuthenticatedBackupRoute
   AuthenticatedCartoesRoute: typeof AuthenticatedCartoesRoute
   AuthenticatedCategoriasRoute: typeof AuthenticatedCategoriasRoute
@@ -639,6 +660,7 @@ interface AuthenticatedRouteRouteChildren {
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAdministracaoRoute: AuthenticatedAdministracaoRoute,
   AuthenticatedBackupRoute: AuthenticatedBackupRoute,
   AuthenticatedCartoesRoute: AuthenticatedCartoesRoute,
   AuthenticatedCategoriasRoute: AuthenticatedCategoriasRoute,

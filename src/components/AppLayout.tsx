@@ -26,6 +26,7 @@ import {
   PawPrint,
   MapPin,
   FileHeart,
+  ShieldCheck,
 } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -57,7 +58,8 @@ type NavTo =
   | "/conta"
   | "/pets"
   | "/onde-esta"
-  | "/exames";
+  | "/exames"
+  | "/administracao";
 
 type NavItem = {
   to: NavTo;
@@ -172,6 +174,7 @@ const GLOBAL: NavItem[] = [
     icon: Users,
     adminOnly: true,
   },
+  { to: "/administracao", label: "Administração do site", short: "Admin", icon: ShieldCheck, adminOnly: true },
   {
     to: "/backup",
     label: "Backup e Reset",
