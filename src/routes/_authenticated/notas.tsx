@@ -193,21 +193,21 @@ function NotasPage() {
       toast.success("Pasta compartilhada salva.");
       void qc.invalidateQueries({ queryKey: ["drive-pasta"] });
     },
-    onError: (e: any) => toast.error(e?.message ?? "Não consegui salvar a pasta."),
+    onError: (e: Error) => toast.error(e.message ?? "Não consegui salvar a pasta."),
   });
 
   const conectar = useMutation({
     mutationFn: async () => {
-      const popup = window.open("", "lovable-oauth", "width=600,height=720");
+      const popup = window.open("", "google-drive-oauth", "width=600,height=720");
       if (!popup) throw new Error("Permita pop-ups para conectar o Google Drive.");
-      let code: string | null = null;
+      let authorization: { code: string; state: string };
       try {
         const { authorizationUrl } = await iniciarConexao({});
-        const completion = new Promise<string | null>((resolve, reject) => {
-          let poll: number | undefined;
+        const completion = new Promise<{ code: string; state: string }>((resolve, reject) => {
           const cleanup = () => {
             window.removeEventListener("message", onMessage);
-            if (poll !== undefined) window.clearInterval(poll);
+            window.clearInterval(poll);
+            window.clearTimeout(timeout);
           };
           const onMessage = (event: MessageEvent) => {
             const tipo = (event.data as { type?: string })?.type;
@@ -221,7 +221,9 @@ function NotasPage() {
             cleanup();
             if (tipo === "appUserConnectorOAuthComplete") {
               const c = (event.data as { code?: string | null })?.code;
-              resolve(typeof c === "string" ? c : null);
+              const s = (event.data as { state?: string | null })?.state;
+              if (typeof c === "string" && typeof s === "string") resolve({ code: c, state: s });
+              else reject(new Error("O Google não retornou uma autorização válida."));
               return;
             }
             popup.close();
@@ -233,7 +235,7 @@ function NotasPage() {
             );
           };
           window.addEventListener("message", onMessage);
-          poll = window.setInterval(() => {
+          const poll = window.setInterval(() => {
             if (!popup.closed) return;
             cleanup();
             reject(
@@ -242,14 +244,19 @@ function NotasPage() {
               ),
             );
           }, 500);
+          const timeout = window.setTimeout(() => {
+            cleanup();
+            popup.close();
+            reject(new Error("A autorização demorou demais. Tente conectar novamente."));
+          }, 5 * 60_000);
         });
         popup.location.href = authorizationUrl;
-        code = await completion;
+        authorization = await completion;
       } catch (e) {
         popup.close();
         throw e;
       }
-      if (code) await concluirConexao({ data: { code } });
+      await concluirConexao({ data: authorization });
     },
     onSuccess: () => {
       toast.success("Google Drive conectado.");
@@ -517,8 +524,8 @@ function NotasPage() {
                     <p className="text-xs text-muted-foreground">
                       {drive.data?.connected
                         ? pasta.data?.provider === "Google Drive"
-                          ? "Conectado e pronto para enviar à pasta selecionada"
-                          : "Conectado — selecione uma pasta do Google Drive para envio automático"
+                          ? "Conectado. O envio usa a pasta criada pelo aplicativo no seu Drive"
+                          : "Conectado. Os arquivos serão salvos na pasta criada pelo aplicativo no seu Drive"
                         : "Opcional: conecte para enviar os arquivos sem sair do aplicativo"}
                     </p>
                   </div>
@@ -543,7 +550,9 @@ function NotasPage() {
                 )}
               </div>
               <p className="mt-2 text-[11px] text-muted-foreground">
-                Em outros serviços, use “Abrir pasta” para enviar ou consultar os comprovantes.
+                A conexão usa somente a pasta e os arquivos criados pelo aplicativo na sua conta
+                Google. Em outros serviços, use “Abrir pasta” para enviar ou consultar os
+                comprovantes.
               </p>
             </div>
           </CardContent>
@@ -845,7 +854,7 @@ function NotasPage() {
 
               {fotosPendentes.length > 0 && (
                 <p className="text-xs text-muted-foreground">
-                  {drive.data?.connected && pasta.data?.provider === "Google Drive"
+                  {drive.data?.connected
                     ? `${fotosPendentes.length} arquivo(s) serão enviados ao Google Drive ao salvar.`
                     : `${fotosPendentes.length} arquivo(s) aguardam envio. A nota será salva mesmo sem o anexo.`}
                 </p>
@@ -941,10 +950,8 @@ function NotasPage() {
                       className="size-20 flex-col gap-1 text-[11px]"
                       disabled={anexar.isPending}
                       onClick={() => {
-                        if (!drive.data?.connected || pasta.data?.provider !== "Google Drive") {
-                          toast.warning(
-                            "Para envio automático, conecte o Google Drive e selecione uma pasta dele.",
-                          );
+                        if (!drive.data?.connected) {
+                          toast.warning("Para envio automático, conecte sua conta Google Drive.");
                           return;
                         }
                         notaAlvoUpload.current = notaDetalhe.id;

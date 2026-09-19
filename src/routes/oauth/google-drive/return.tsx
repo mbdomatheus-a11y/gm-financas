@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/oauth/google-drive/return")({
@@ -15,44 +15,51 @@ export const Route = createFileRoute("/oauth/google-drive/return")({
 
 function OAuthReturn() {
   const [message, setMessage] = useState("Finalizando conexão…");
+  const processed = useRef(false);
 
   useEffect(() => {
+    if (processed.current) return;
+    processed.current = true;
     const params = new URLSearchParams(window.location.search);
     const notify = (
       type: "appUserConnectorOAuthComplete" | "appUserConnectorOAuthFailed",
       code?: string,
+      state?: string,
       erro?: string,
     ) => {
       window.opener?.postMessage(
-        { type, connectorId: "google_drive", code: code ?? null, error: erro ?? null },
+        {
+          type,
+          connectorId: "google_drive",
+          code: code ?? null,
+          state: state ?? null,
+          error: erro ?? null,
+        },
         window.location.origin,
       );
       if (type === "appUserConnectorOAuthComplete") window.close();
     };
 
-    if (params.get("success") !== "true") {
+    window.history.replaceState(null, "", window.location.pathname);
+    if (params.get("error")) {
       const erro =
         params.get("error_description") ??
         params.get("error") ??
         "A autorização não foi concluída no Google.";
       setMessage(erro);
-      notify("appUserConnectorOAuthFailed", undefined, erro);
+      notify("appUserConnectorOAuthFailed", undefined, undefined, erro);
       return;
     }
     const code = params.get("code");
-    if (!code) {
-      if (params.get("offline_access_allowed") === "false") {
-        notify("appUserConnectorOAuthComplete");
-        return;
-      }
-      const erro = "A autorização terminou sem código de troca.";
+    const state = params.get("state");
+    if (!code || !state) {
+      const erro = "A autorização terminou sem código de segurança. Tente novamente.";
       setMessage(erro);
-      notify("appUserConnectorOAuthFailed", undefined, erro);
+      notify("appUserConnectorOAuthFailed", undefined, undefined, erro);
       return;
     }
-    notify("appUserConnectorOAuthComplete", code);
+    notify("appUserConnectorOAuthComplete", code, state);
   }, []);
-
 
   return (
     <div className="flex min-h-screen items-center justify-center p-6 text-sm text-muted-foreground">

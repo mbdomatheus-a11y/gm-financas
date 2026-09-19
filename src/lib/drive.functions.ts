@@ -2,59 +2,29 @@ import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-const GATEWAY_BASE_URL = "https://connector-gateway.lovable.dev";
-const CONNECTOR_ID = "google_drive";
+const CONNECTOR_ID = "google_drive_direct";
 const ROOT_FOLDER = "Finanças do Casal";
 const SUB_FOLDER = "Notas fiscais";
 
 export const startDriveConnect = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const clientApiKey = process.env["GOOGLE_DRIVE_APP_USER_CONNECTOR_CLIENT_API_KEY"];
-    if (!clientApiKey) {
-      throw new Error("GOOGLE_DRIVE_APP_USER_CONNECTOR_CLIENT_API_KEY is not set");
-    }
     const request = getRequest();
-    if (!request) throw new Error("OAuth must start from an app request.");
-    const url = new URL(request.url);
-    const sandboxHost =
-      url.hostname === "localhost" ? request.headers.get("x-forwarded-host") : null;
-    const returnUrl = new URL(
-      "/oauth/google-drive/return",
-      sandboxHost ? `https://${sandboxHost}` : url.origin,
-    ).toString();
-
-    const { getConnectionKeyForUser } = await import("@/server/appUserConnections.server");
-    const { authorizeAppUserOAuth } = await import("@/integrations/lovable/appUserConnector");
-    const existing = await getConnectionKeyForUser(context.userId, CONNECTOR_ID);
-
-    const { authorizationUrl } = await authorizeAppUserOAuth({
-      gatewayBaseUrl: GATEWAY_BASE_URL,
-      connectorId: CONNECTOR_ID,
-      appUserId: context.userId,
-      clientAPIKey: clientApiKey,
-      returnUrl,
-      connectionAPIKey: existing ?? undefined,
-      credentialsConfiguration: {
-        scopes: ["https://www.googleapis.com/auth/drive.file"],
-      },
-    });
-    return { authorizationUrl };
+    if (!request) throw new Error("Não foi possível iniciar a conexão com o Google.");
+    const { googleDriveAuthorizationUrl } = await import("@/server/googleDriveOAuth.server");
+    return {
+      authorizationUrl: googleDriveAuthorizationUrl(context.userId, new URL(request.url).origin),
+    };
   });
 
 export const completeDriveConnection = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { code: string }) => input)
+  .inputValidator((input: { code: string; state: string }) => input)
   .handler(async ({ data, context }) => {
-    const { exchangeAppUserOAuthCode } = await import("@/integrations/lovable/appUserConnector");
+    const { exchangeGoogleDriveCode } = await import("@/server/googleDriveOAuth.server");
     const { saveConnectionKeyForUser } = await import("@/server/appUserConnections.server");
-    const { connectionAPIKey, connectorId } = await exchangeAppUserOAuthCode(
-      GATEWAY_BASE_URL,
-      data.code,
-    );
-    if (connectorId !== CONNECTOR_ID)
-      throw new Error("OAuth completion returned the wrong connector");
-    await saveConnectionKeyForUser(context.userId, connectorId, connectionAPIKey);
+    const refreshToken = await exchangeGoogleDriveCode(context.userId, data.code, data.state);
+    await saveConnectionKeyForUser(context.userId, CONNECTOR_ID, refreshToken);
     return { ok: true };
   });
 
@@ -71,15 +41,11 @@ export const disconnectDrive = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     const { getConnectionKeyForUser, deleteConnectionForUser } =
       await import("@/server/appUserConnections.server");
-    const { disconnectAppUser } = await import("@/integrations/lovable/appUserConnector");
+    const { revokeGoogleDrive } = await import("@/server/googleDriveOAuth.server");
     const key = await getConnectionKeyForUser(context.userId, CONNECTOR_ID);
     if (key) {
       try {
-        await disconnectAppUser({
-          gatewayBaseUrl: GATEWAY_BASE_URL,
-          connectionAPIKey: key,
-          connectorId: CONNECTOR_ID,
-        });
+        await revokeGoogleDrive(key);
       } catch {
         // segue removendo localmente
       }
@@ -88,22 +54,7 @@ export const disconnectDrive = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-async function driveFetch(connectionAPIKey: string, path: string, init?: RequestInit) {
-  const { callAsAppUser } = await import("@/integrations/lovable/appUserConnector");
-  return callAsAppUser({
-    gatewayBaseUrl: GATEWAY_BASE_URL,
-    connectionAPIKey,
-    connectorId: CONNECTOR_ID,
-    path,
-    init,
-  });
-}
-
-async function ensureFolder(
-  connectionAPIKey: string,
-  name: string,
-  parentId?: string,
-): Promise<string> {
+async function ensureFolder(accessToken: string, name: string, parentId?: string): Promise<string> {
   const safeName = name.replace(/'/g, "\\'");
   const q = [
     `name='${safeName}'`,
@@ -111,16 +62,16 @@ async function ensureFolder(
     "trashed=false",
     parentId ? `'${parentId}' in parents` : "'root' in parents",
   ].join(" and ");
-  const res = await driveFetch(
-    connectionAPIKey,
+  const { googleDriveFetch } = await import("@/server/googleDriveOAuth.server");
+  const res = await googleDriveFetch(
+    accessToken,
     `/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name)&pageSize=1`,
   );
-  if (res.ok) {
-    const body = (await res.json()) as { files?: Array<{ id: string }> };
-    const found = body.files?.[0]?.id;
-    if (found) return found;
-  }
-  const created = await driveFetch(connectionAPIKey, "/drive/v3/files?fields=id", {
+  if (!res.ok) throw new Error(`Falha ao consultar pastas do Google Drive (${res.status}).`);
+  const list = (await res.json()) as { files?: Array<{ id: string }> };
+  const found = list.files?.[0]?.id;
+  if (found) return found;
+  const created = await googleDriveFetch(accessToken, "/drive/v3/files?fields=id", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -243,34 +194,45 @@ export const uploadNotaArquivo = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { getConnectionKeyForUser } = await import("@/server/appUserConnections.server");
-    const key = await getConnectionKeyForUser(context.userId, CONNECTOR_ID);
-    if (!key) throw new Error("Google Drive não está conectado para este usuário");
-
-    // Pasta compartilhada única do casal, quando configurada; senão, cria a estrutura padrão.
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: cfg } = await supabaseAdmin
-      .from("configuracoes_casal")
-      .select("valor")
-      .eq("chave", "drive_folder_id")
+    const refreshToken = await getConnectionKeyForUser(context.userId, CONNECTOR_ID);
+    if (!refreshToken) throw new Error("Conecte sua conta Google para enviar arquivos.");
+    const { data: nota, error: notaError } = await context.supabase
+      .from("notas_fiscais")
+      .select("id")
+      .eq("id", data.notaId)
       .maybeSingle();
-    let destinoId = cfg?.valor ?? null;
-    if (!destinoId) {
-      const rootId = await ensureFolder(key, ROOT_FOLDER);
-      destinoId = await ensureFolder(key, SUB_FOLDER, rootId);
+    if (notaError || !nota) throw new Error("Esta nota não pertence ao seu grupo.");
+    if (!/^[A-Za-z0-9+/]*={0,2}$/.test(data.base64) || data.base64.length > 14_000_000) {
+      throw new Error("Arquivo inválido ou maior que o limite de 10 MB.");
     }
+    const fileBytes = Buffer.from(data.base64, "base64");
+    if (!fileBytes.length || fileBytes.length > 10 * 1024 * 1024) {
+      throw new Error("Arquivo inválido ou maior que o limite de 10 MB.");
+    }
+    if (!/^image\/(jpeg|png|webp)$|^application\/pdf$/.test(data.mimeType)) {
+      throw new Error("Envie uma imagem JPG, PNG, WebP ou um PDF.");
+    }
+    const nome = data.nome.replace(/[\\/\r\n]/g, "_").slice(0, 180);
+    const { googleDriveAccessToken, googleDriveFetch } =
+      await import("@/server/googleDriveOAuth.server");
+    const accessToken = await googleDriveAccessToken(refreshToken);
+    // O escopo drive.file só garante acesso aos arquivos e pastas criados pelo app.
+    const rootId = await ensureFolder(accessToken, ROOT_FOLDER);
+    const destinoId = await ensureFolder(accessToken, SUB_FOLDER, rootId);
 
-    const boundary = `lovable${Math.random().toString(36).slice(2)}`;
-    const metadata = JSON.stringify({ name: data.nome, parents: [destinoId] });
+    const { randomUUID } = await import("node:crypto");
+    const boundary = `controlall${randomUUID().replace(/-/g, "")}`;
+    const metadata = JSON.stringify({ name: nome, parents: [destinoId] });
     const body = Buffer.concat([
       Buffer.from(
-        `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${metadata}\r\n--${boundary}\r\nContent-Type: ${data.mimeType}\r\nContent-Transfer-Encoding: base64\r\n\r\n`,
+        `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${metadata}\r\n--${boundary}\r\nContent-Type: ${data.mimeType}\r\n\r\n`,
       ),
-      Buffer.from(data.base64),
+      fileBytes,
       Buffer.from(`\r\n--${boundary}--`),
     ]);
 
-    const res = await driveFetch(
-      key,
+    const res = await googleDriveFetch(
+      accessToken,
       "/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink,thumbnailLink,mimeType",
       {
         method: "POST",
@@ -283,7 +245,7 @@ export const uploadNotaArquivo = createServerFn({ method: "POST" })
       const apiDesativada =
         res.status === 403 &&
         /Google Drive API has not been used|accessNotConfigured|SERVICE_DISABLED/i.test(text);
-      console.error(`Google Drive upload failed [${res.status}]: ${text}`);
+      console.error(`Google Drive upload failed [${res.status}]`);
       return {
         ok: false as const,
         code: apiDesativada ? "drive_api_disabled" : "drive_upload_failed",
@@ -300,13 +262,13 @@ export const uploadNotaArquivo = createServerFn({ method: "POST" })
       mimeType?: string;
     };
 
-    const { error } = await supabaseAdmin.from("nota_arquivos").insert({
+    const { error } = await context.supabase.from("nota_arquivos").insert({
       nota_id: data.notaId,
       drive_file_id: file.id,
       link: file.webViewLink ?? `https://drive.google.com/file/d/${file.id}/view`,
       thumbnail_link: file.thumbnailLink ?? null,
       mime_type: file.mimeType ?? data.mimeType,
-      nome: file.name ?? data.nome,
+      nome: file.name ?? nome,
       created_by: context.userId,
     });
     if (error) throw error;
