@@ -46,6 +46,7 @@ export type Database = {
           agencia: string | null
           conta: string | null
           created_at: string
+          grupo_id: string | null
           id: string
           nome: string
           saldo_atual: number
@@ -56,6 +57,7 @@ export type Database = {
           agencia?: string | null
           conta?: string | null
           created_at?: string
+          grupo_id?: string | null
           id?: string
           nome: string
           saldo_atual?: number
@@ -66,19 +68,29 @@ export type Database = {
           agencia?: string | null
           conta?: string | null
           created_at?: string
+          grupo_id?: string | null
           id?: string
           nome?: string
           saldo_atual?: number
           tipo_conta?: string
           titular?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "bancos_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "grupos"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       cartao_vinculos: {
         Row: {
           banco: string
           created_at: string
           final: string
+          grupo_id: string | null
           id: string
           profile_id: string | null
           responsavel: string
@@ -88,6 +100,7 @@ export type Database = {
           banco: string
           created_at?: string
           final: string
+          grupo_id?: string | null
           id?: string
           profile_id?: string | null
           responsavel: string
@@ -97,12 +110,20 @@ export type Database = {
           banco?: string
           created_at?: string
           final?: string
+          grupo_id?: string | null
           id?: string
           profile_id?: string | null
           responsavel?: string
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "cartao_vinculos_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "grupos"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "cartao_vinculos_profile_id_fkey"
             columns: ["profile_id"]
@@ -122,6 +143,7 @@ export type Database = {
           dia_fechamento: number | null
           dia_vencimento: number | null
           final: string
+          grupo_id: string | null
           id: string
           limite: number | null
           tipo: string
@@ -138,6 +160,7 @@ export type Database = {
           dia_fechamento?: number | null
           dia_vencimento?: number | null
           final: string
+          grupo_id?: string | null
           id?: string
           limite?: number | null
           tipo?: string
@@ -154,6 +177,7 @@ export type Database = {
           dia_fechamento?: number | null
           dia_vencimento?: number | null
           final?: string
+          grupo_id?: string | null
           id?: string
           limite?: number | null
           tipo?: string
@@ -169,6 +193,13 @@ export type Database = {
             referencedRelation: "bancos"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "cartoes_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "grupos"
+            referencedColumns: ["id"]
+          },
         ]
       }
       categoria_regras: {
@@ -178,6 +209,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           estabelecimento_normalizado: string
+          grupo_id: string | null
           id: string
           origem_arquivo: string | null
           prioridade: number
@@ -192,6 +224,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           estabelecimento_normalizado: string
+          grupo_id?: string | null
           id?: string
           origem_arquivo?: string | null
           prioridade?: number
@@ -206,6 +239,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           estabelecimento_normalizado?: string
+          grupo_id?: string | null
           id?: string
           origem_arquivo?: string | null
           prioridade?: number
@@ -214,12 +248,21 @@ export type Database = {
           tipo_regra?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "categoria_regras_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "grupos"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       categorias: {
         Row: {
           cor: string | null
           created_at: string
+          grupo_id: string | null
           icone: string | null
           id: string
           nome: string
@@ -228,6 +271,7 @@ export type Database = {
         Insert: {
           cor?: string | null
           created_at?: string
+          grupo_id?: string | null
           icone?: string | null
           id?: string
           nome: string
@@ -236,35 +280,162 @@ export type Database = {
         Update: {
           cor?: string | null
           created_at?: string
+          grupo_id?: string | null
           icone?: string | null
           id?: string
           nome?: string
           tipo?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "categorias_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "grupos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      comprovantes: {
+        Row: {
+          arquivo_excluido_em: string | null
+          arquivo_excluido_por: string | null
+          arquivo_hash: string
+          arquivo_nome: string
+          confianca: string | null
+          created_at: string
+          created_by: string | null
+          data_transacao: string | null
+          descricao: string
+          descricao_normalizada: string | null
+          despesa_id: string | null
+          id: string
+          lote_id: string | null
+          metodo: string | null
+          moeda: string
+          ocr_texto: string | null
+          pagador: string | null
+          recebedor: string | null
+          receita_id: string | null
+          responsavel: string | null
+          status: string
+          storage_path: string | null
+          tipo: string
+          updated_at: string
+          valor: number
+        }
+        Insert: {
+          arquivo_excluido_em?: string | null
+          arquivo_excluido_por?: string | null
+          arquivo_hash: string
+          arquivo_nome: string
+          confianca?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_transacao?: string | null
+          descricao: string
+          descricao_normalizada?: string | null
+          despesa_id?: string | null
+          id?: string
+          lote_id?: string | null
+          metodo?: string | null
+          moeda?: string
+          ocr_texto?: string | null
+          pagador?: string | null
+          recebedor?: string | null
+          receita_id?: string | null
+          responsavel?: string | null
+          status?: string
+          storage_path?: string | null
+          tipo?: string
+          updated_at?: string
+          valor: number
+        }
+        Update: {
+          arquivo_excluido_em?: string | null
+          arquivo_excluido_por?: string | null
+          arquivo_hash?: string
+          arquivo_nome?: string
+          confianca?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_transacao?: string | null
+          descricao?: string
+          descricao_normalizada?: string | null
+          despesa_id?: string | null
+          id?: string
+          lote_id?: string | null
+          metodo?: string | null
+          moeda?: string
+          ocr_texto?: string | null
+          pagador?: string | null
+          recebedor?: string | null
+          receita_id?: string | null
+          responsavel?: string | null
+          status?: string
+          storage_path?: string | null
+          tipo?: string
+          updated_at?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comprovantes_despesa_fk"
+            columns: ["despesa_id"]
+            isOneToOne: false
+            referencedRelation: "despesas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comprovantes_lote_id_fkey"
+            columns: ["lote_id"]
+            isOneToOne: false
+            referencedRelation: "import_lotes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comprovantes_receita_id_fkey"
+            columns: ["receita_id"]
+            isOneToOne: false
+            referencedRelation: "receitas"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       configuracoes_casal: {
         Row: {
           chave: string
+          grupo_id: string | null
           updated_at: string
           valor: string | null
         }
         Insert: {
           chave: string
+          grupo_id?: string | null
           updated_at?: string
           valor?: string | null
         }
         Update: {
           chave?: string
+          grupo_id?: string | null
           updated_at?: string
           valor?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "configuracoes_casal_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "grupos"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       convites: {
         Row: {
           criado_em: string
-          criado_por: string
+          criado_por: string | null
+          email_convidado: string | null
           expira_em: string
           grupo_id: string
           id: string
@@ -274,7 +445,8 @@ export type Database = {
         }
         Insert: {
           criado_em?: string
-          criado_por: string
+          criado_por?: string | null
+          email_convidado?: string | null
           expira_em?: string
           grupo_id: string
           id?: string
@@ -284,7 +456,8 @@ export type Database = {
         }
         Update: {
           criado_em?: string
-          criado_por?: string
+          criado_por?: string | null
+          email_convidado?: string | null
           expira_em?: string
           grupo_id?: string
           id?: string
@@ -325,7 +498,9 @@ export type Database = {
           categoria: string
           categoria_confirmada: boolean
           categoria_sugerida: string | null
+          comprovante_id: string | null
           confianca_categoria: string | null
+          cotacao_original: number | null
           created_at: string
           created_by: string | null
           data_compra: string
@@ -337,9 +512,12 @@ export type Database = {
           estabelecimento: string | null
           estabelecimento_normalizado: string | null
           fatura_id: string | null
+          grupo_id: string | null
           grupo_parcelamento: string | null
           id: string
+          iof: boolean
           moeda: string
+          moeda_original: string | null
           observacoes: string | null
           origem: string
           reajuste_indice: string | null
@@ -355,7 +533,10 @@ export type Database = {
           subcategoria_sugerida: string | null
           tipo: string
           total_parcelas: number
+          updated_at: string
+          valor_original_centavos: number | null
           valor_total: number
+          valor_total_centavos: number | null
         }
         Insert: {
           banco_id?: string | null
@@ -365,7 +546,9 @@ export type Database = {
           categoria?: string
           categoria_confirmada?: boolean
           categoria_sugerida?: string | null
+          comprovante_id?: string | null
           confianca_categoria?: string | null
+          cotacao_original?: number | null
           created_at?: string
           created_by?: string | null
           data_compra: string
@@ -377,49 +560,12 @@ export type Database = {
           estabelecimento?: string | null
           estabelecimento_normalizado?: string | null
           fatura_id?: string | null
+          grupo_id?: string | null
           grupo_parcelamento?: string | null
           id?: string
+          iof?: boolean
           moeda?: string
-          observacoes?: string | null
-          origem?: string
-          reajuste_indice?: string | null
-          reajuste_inicio?: string | null
-          reajuste_percentual?: number | null
-          reajuste_periodicidade?: string | null
-          recorrencia_inicio?: string | null
-          recorrencia_meses?: number | null
-          recorrencia_sem_prazo?: boolean
-          regra_id?: string | null
-          responsavel?: string | null
-          subcategoria?: string | null
-          subcategoria_sugerida?: string | null
-          tipo: string
-          total_parcelas?: number
-          valor_total: number
-        }
-        Update: {
-          banco_id?: string | null
-          banco_nome?: string | null
-          cartao_final?: string | null
-          cartao_id?: string | null
-          categoria?: string
-          categoria_confirmada?: boolean
-          categoria_sugerida?: string | null
-          confianca_categoria?: string | null
-          created_at?: string
-          created_by?: string | null
-          data_compra?: string
-          data_primeira_parcela?: string
-          dedup_key?: string | null
-          descricao?: string
-          descricao_normalizada?: string | null
-          direcao?: string
-          estabelecimento?: string | null
-          estabelecimento_normalizado?: string | null
-          fatura_id?: string | null
-          grupo_parcelamento?: string | null
-          id?: string
-          moeda?: string
+          moeda_original?: string | null
           observacoes?: string | null
           origem?: string
           reajuste_indice?: string | null
@@ -435,7 +581,58 @@ export type Database = {
           subcategoria_sugerida?: string | null
           tipo?: string
           total_parcelas?: number
+          updated_at?: string
+          valor_original_centavos?: number | null
+          valor_total: number
+          valor_total_centavos?: number | null
+        }
+        Update: {
+          banco_id?: string | null
+          banco_nome?: string | null
+          cartao_final?: string | null
+          cartao_id?: string | null
+          categoria?: string
+          categoria_confirmada?: boolean
+          categoria_sugerida?: string | null
+          comprovante_id?: string | null
+          confianca_categoria?: string | null
+          cotacao_original?: number | null
+          created_at?: string
+          created_by?: string | null
+          data_compra?: string
+          data_primeira_parcela?: string
+          dedup_key?: string | null
+          descricao?: string
+          descricao_normalizada?: string | null
+          direcao?: string
+          estabelecimento?: string | null
+          estabelecimento_normalizado?: string | null
+          fatura_id?: string | null
+          grupo_id?: string | null
+          grupo_parcelamento?: string | null
+          id?: string
+          iof?: boolean
+          moeda?: string
+          moeda_original?: string | null
+          observacoes?: string | null
+          origem?: string
+          reajuste_indice?: string | null
+          reajuste_inicio?: string | null
+          reajuste_percentual?: number | null
+          reajuste_periodicidade?: string | null
+          recorrencia_inicio?: string | null
+          recorrencia_meses?: number | null
+          recorrencia_sem_prazo?: boolean
+          regra_id?: string | null
+          responsavel?: string | null
+          subcategoria?: string | null
+          subcategoria_sugerida?: string | null
+          tipo?: string
+          total_parcelas?: number
+          updated_at?: string
+          valor_original_centavos?: number | null
           valor_total?: number
+          valor_total_centavos?: number | null
         }
         Relationships: [
           {
@@ -453,10 +650,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "despesas_comprovante_id_fkey"
+            columns: ["comprovante_id"]
+            isOneToOne: false
+            referencedRelation: "comprovantes"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "despesas_fatura_id_fkey"
             columns: ["fatura_id"]
             isOneToOne: false
             referencedRelation: "import_faturas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "despesas_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "grupos"
             referencedColumns: ["id"]
           },
         ]
@@ -474,6 +685,7 @@ export type Database = {
           emissor: string | null
           formato_data: string | null
           formato_valor: string | null
+          grupo_id: string | null
           id: string
           ultimo_uso: string
           updated_at: string
@@ -490,6 +702,7 @@ export type Database = {
           emissor?: string | null
           formato_data?: string | null
           formato_valor?: string | null
+          grupo_id?: string | null
           id?: string
           ultimo_uso?: string
           updated_at?: string
@@ -506,11 +719,20 @@ export type Database = {
           emissor?: string | null
           formato_data?: string | null
           formato_valor?: string | null
+          grupo_id?: string | null
           id?: string
           ultimo_uso?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fatura_layouts_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "grupos"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       fatura_mes: {
         Row: {
@@ -521,6 +743,7 @@ export type Database = {
           created_by: string | null
           despesa_avulsa_id: string | null
           fechada_em: string | null
+          grupo_id: string | null
           id: string
           inclui_parcelas: boolean
           status: string
@@ -536,6 +759,7 @@ export type Database = {
           created_by?: string | null
           despesa_avulsa_id?: string | null
           fechada_em?: string | null
+          grupo_id?: string | null
           id?: string
           inclui_parcelas?: boolean
           status?: string
@@ -551,6 +775,7 @@ export type Database = {
           created_by?: string | null
           despesa_avulsa_id?: string | null
           fechada_em?: string | null
+          grupo_id?: string | null
           id?: string
           inclui_parcelas?: boolean
           status?: string
@@ -580,21 +805,31 @@ export type Database = {
             referencedRelation: "despesas"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fatura_mes_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "grupos"
+            referencedColumns: ["id"]
+          },
         ]
       }
       grupos: {
         Row: {
-          created_at: string
+          criado_em: string
+          criado_por: string | null
           id: string
           nome: string
         }
         Insert: {
-          created_at?: string
+          criado_em?: string
+          criado_por?: string | null
           id?: string
           nome?: string
         }
         Update: {
-          created_at?: string
+          criado_em?: string
+          criado_por?: string | null
           id?: string
           nome?: string
         }
@@ -609,13 +844,17 @@ export type Database = {
           banco: string
           competencia: string | null
           created_at: string
+          diferenca_validacao: number | null
           fechada_em: string | null
+          grupo_id: string | null
           id: string
           limite_disponivel: number | null
           limite_total: number | null
           limite_utilizado: number | null
           lote_id: string
+          origem_arquivo: string
           paginas: number | null
+          precisa_revisao: boolean
           status: string
           storage_path: string | null
           total_declarado: number | null
@@ -631,13 +870,17 @@ export type Database = {
           banco: string
           competencia?: string | null
           created_at?: string
+          diferenca_validacao?: number | null
           fechada_em?: string | null
+          grupo_id?: string | null
           id?: string
           limite_disponivel?: number | null
           limite_total?: number | null
           limite_utilizado?: number | null
           lote_id: string
+          origem_arquivo?: string
           paginas?: number | null
+          precisa_revisao?: boolean
           status?: string
           storage_path?: string | null
           total_declarado?: number | null
@@ -653,13 +896,17 @@ export type Database = {
           banco?: string
           competencia?: string | null
           created_at?: string
+          diferenca_validacao?: number | null
           fechada_em?: string | null
+          grupo_id?: string | null
           id?: string
           limite_disponivel?: number | null
           limite_total?: number | null
           limite_utilizado?: number | null
           lote_id?: string
+          origem_arquivo?: string
           paginas?: number | null
+          precisa_revisao?: boolean
           status?: string
           storage_path?: string | null
           total_declarado?: number | null
@@ -668,6 +915,13 @@ export type Database = {
           vencimento?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "import_faturas_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "grupos"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "import_faturas_lote_id_fkey"
             columns: ["lote_id"]
@@ -681,6 +935,7 @@ export type Database = {
         Row: {
           created_at: string
           created_by: string | null
+          grupo_id: string | null
           id: string
           observacao: string | null
           status: string
@@ -689,6 +944,7 @@ export type Database = {
         Insert: {
           created_at?: string
           created_by?: string | null
+          grupo_id?: string | null
           id?: string
           observacao?: string | null
           status?: string
@@ -697,39 +953,64 @@ export type Database = {
         Update: {
           created_at?: string
           created_by?: string | null
+          grupo_id?: string | null
           id?: string
           observacao?: string | null
           status?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "import_lotes_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "grupos"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       investimento_movimentos: {
         Row: {
           created_at: string
+          created_by: string | null
           data: string
+          grupo_id: string | null
           id: string
           investimento_id: string
+          observacoes: string | null
           tipo: string
           valor: number
         }
         Insert: {
           created_at?: string
-          data?: string
+          created_by?: string | null
+          data: string
+          grupo_id?: string | null
           id?: string
           investimento_id: string
+          observacoes?: string | null
           tipo: string
           valor: number
         }
         Update: {
           created_at?: string
+          created_by?: string | null
           data?: string
+          grupo_id?: string | null
           id?: string
           investimento_id?: string
+          observacoes?: string | null
           tipo?: string
           valor?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "investimento_movimentos_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "grupos"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "investimento_movimentos_investimento_id_fkey"
             columns: ["investimento_id"]
@@ -742,44 +1023,70 @@ export type Database = {
       investimentos: {
         Row: {
           created_at: string
+          created_by: string | null
+          data_aplicacao: string | null
           data_investimento: string
+          grupo_id: string | null
           id: string
           instituicao: string | null
           nome: string
           observacoes: string | null
+          percentual_rendimento: number | null
           rentabilidade: string | null
           responsavel: string | null
           tipo: string
+          tipo_rendimento: string | null
+          updated_at: string
           valor_atual: number
           valor_investido: number
         }
         Insert: {
           created_at?: string
-          data_investimento: string
+          created_by?: string | null
+          data_aplicacao?: string | null
+          data_investimento?: string
+          grupo_id?: string | null
           id?: string
           instituicao?: string | null
           nome: string
           observacoes?: string | null
+          percentual_rendimento?: number | null
           rentabilidade?: string | null
           responsavel?: string | null
-          tipo: string
+          tipo?: string
+          tipo_rendimento?: string | null
+          updated_at?: string
           valor_atual?: number
           valor_investido?: number
         }
         Update: {
           created_at?: string
+          created_by?: string | null
+          data_aplicacao?: string | null
           data_investimento?: string
+          grupo_id?: string | null
           id?: string
           instituicao?: string | null
           nome?: string
           observacoes?: string | null
+          percentual_rendimento?: number | null
           rentabilidade?: string | null
           responsavel?: string | null
           tipo?: string
+          tipo_rendimento?: string | null
+          updated_at?: string
           valor_atual?: number
           valor_investido?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "investimentos_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "grupos"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       lista_compras: {
         Row: {
@@ -792,6 +1099,7 @@ export type Database = {
           comprado_por: string | null
           created_at: string
           created_by: string | null
+          grupo_id: string | null
           id: string
           lista: string
           nome: string
@@ -809,6 +1117,7 @@ export type Database = {
           comprado_por?: string | null
           created_at?: string
           created_by?: string | null
+          grupo_id?: string | null
           id?: string
           lista?: string
           nome: string
@@ -826,6 +1135,7 @@ export type Database = {
           comprado_por?: string | null
           created_at?: string
           created_by?: string | null
+          grupo_id?: string | null
           id?: string
           lista?: string
           nome?: string
@@ -833,7 +1143,15 @@ export type Database = {
           quantidade?: number
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "lista_compras_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "grupos"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       nota_arquivos: {
         Row: {
@@ -985,6 +1303,7 @@ export type Database = {
           garantia_dias: number | null
           garantia_fim: string | null
           garantia_meses: number | null
+          grupo_id: string | null
           id: string
           observacoes: string | null
           status_captura: string
@@ -1005,6 +1324,7 @@ export type Database = {
           garantia_dias?: number | null
           garantia_fim?: string | null
           garantia_meses?: number | null
+          grupo_id?: string | null
           id?: string
           observacoes?: string | null
           status_captura?: string
@@ -1025,6 +1345,7 @@ export type Database = {
           garantia_dias?: number | null
           garantia_fim?: string | null
           garantia_meses?: number | null
+          grupo_id?: string | null
           id?: string
           observacoes?: string | null
           status_captura?: string
@@ -1033,15 +1354,86 @@ export type Database = {
           url_consulta?: string | null
           valor_total?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "notas_fiscais_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "grupos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      parcela_auditoria: {
+        Row: {
+          alterado_em: string
+          alterado_por: string | null
+          campo: string
+          despesa_id: string | null
+          fatura_id: string | null
+          id: string
+          motivo: string
+          parcela_id: string
+          valor_antigo: string | null
+          valor_novo: string | null
+        }
+        Insert: {
+          alterado_em?: string
+          alterado_por?: string | null
+          campo: string
+          despesa_id?: string | null
+          fatura_id?: string | null
+          id?: string
+          motivo: string
+          parcela_id: string
+          valor_antigo?: string | null
+          valor_novo?: string | null
+        }
+        Update: {
+          alterado_em?: string
+          alterado_por?: string | null
+          campo?: string
+          despesa_id?: string | null
+          fatura_id?: string | null
+          id?: string
+          motivo?: string
+          parcela_id?: string
+          valor_antigo?: string | null
+          valor_novo?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "parcela_auditoria_despesa_id_fkey"
+            columns: ["despesa_id"]
+            isOneToOne: false
+            referencedRelation: "despesas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "parcela_auditoria_fatura_id_fkey"
+            columns: ["fatura_id"]
+            isOneToOne: false
+            referencedRelation: "import_faturas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "parcela_auditoria_parcela_id_fkey"
+            columns: ["parcela_id"]
+            isOneToOne: false
+            referencedRelation: "parcelas"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       parcelas: {
         Row: {
           confianca_data: string | null
+          created_at: string
           data_pagamento: string | null
           dedup_key: string | null
           despesa_id: string
           fatura_id: string | null
+          grupo_id: string | null
           id: string
           moeda: string
           numero: number
@@ -1049,16 +1441,20 @@ export type Database = {
           paga: boolean
           situacao_temporal: string | null
           total: number
+          updated_at: string
           valor: number
+          valor_centavos: number | null
           valor_estimado: boolean
           vencimento: string
         }
         Insert: {
           confianca_data?: string | null
+          created_at?: string
           data_pagamento?: string | null
           dedup_key?: string | null
           despesa_id: string
           fatura_id?: string | null
+          grupo_id?: string | null
           id?: string
           moeda?: string
           numero: number
@@ -1066,16 +1462,20 @@ export type Database = {
           paga?: boolean
           situacao_temporal?: string | null
           total: number
+          updated_at?: string
           valor: number
+          valor_centavos?: number | null
           valor_estimado?: boolean
           vencimento: string
         }
         Update: {
           confianca_data?: string | null
+          created_at?: string
           data_pagamento?: string | null
           dedup_key?: string | null
           despesa_id?: string
           fatura_id?: string | null
+          grupo_id?: string | null
           id?: string
           moeda?: string
           numero?: number
@@ -1083,7 +1483,9 @@ export type Database = {
           paga?: boolean
           situacao_temporal?: string | null
           total?: number
+          updated_at?: string
           valor?: number
+          valor_centavos?: number | null
           valor_estimado?: boolean
           vencimento?: string
         }
@@ -1102,10 +1504,45 @@ export type Database = {
             referencedRelation: "import_faturas"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "parcelas_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "grupos"
+            referencedColumns: ["id"]
+          },
         ]
+      }
+      password_reset_tokens: {
+        Row: {
+          criado_em: string
+          expira_em: string
+          id: string
+          token_hash: string
+          usado: boolean
+          user_id: string
+        }
+        Insert: {
+          criado_em?: string
+          expira_em: string
+          id?: string
+          token_hash: string
+          usado?: boolean
+          user_id: string
+        }
+        Update: {
+          criado_em?: string
+          expira_em?: string
+          id?: string
+          token_hash?: string
+          usado?: boolean
+          user_id?: string
+        }
+        Relationships: []
       }
       permissoes: {
         Row: {
+          grupo_id: string | null
           id: string
           modulo: string
           pode_editar: boolean
@@ -1114,6 +1551,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          grupo_id?: string | null
           id?: string
           modulo: string
           pode_editar?: boolean
@@ -1122,6 +1560,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          grupo_id?: string | null
           id?: string
           modulo?: string
           pode_editar?: boolean
@@ -1129,7 +1568,15 @@ export type Database = {
           pode_ver?: boolean
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "permissoes_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "grupos"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       preferencias_usuario: {
         Row: {
@@ -1223,11 +1670,22 @@ export type Database = {
           data_recebimento: string
           descricao: string
           frequencia: string | null
+          grupo_id: string | null
           id: string
           moeda: string
           observacoes: string | null
+          reajuste_indice: string | null
+          reajuste_inicio: string | null
+          reajuste_modo: string | null
+          reajuste_percentual: number | null
+          reajuste_periodicidade: string | null
+          reajuste_valor_fixo: number | null
+          recorrencia_inicio: string | null
+          recorrencia_meses: number | null
+          recorrencia_sem_prazo: boolean
           recorrente: boolean
           responsavel: string | null
+          updated_at: string
           valor: number
         }
         Insert: {
@@ -1237,11 +1695,22 @@ export type Database = {
           data_recebimento: string
           descricao: string
           frequencia?: string | null
+          grupo_id?: string | null
           id?: string
           moeda?: string
           observacoes?: string | null
+          reajuste_indice?: string | null
+          reajuste_inicio?: string | null
+          reajuste_modo?: string | null
+          reajuste_percentual?: number | null
+          reajuste_periodicidade?: string | null
+          reajuste_valor_fixo?: number | null
+          recorrencia_inicio?: string | null
+          recorrencia_meses?: number | null
+          recorrencia_sem_prazo?: boolean
           recorrente?: boolean
           responsavel?: string | null
+          updated_at?: string
           valor: number
         }
         Update: {
@@ -1251,14 +1720,33 @@ export type Database = {
           data_recebimento?: string
           descricao?: string
           frequencia?: string | null
+          grupo_id?: string | null
           id?: string
           moeda?: string
           observacoes?: string | null
+          reajuste_indice?: string | null
+          reajuste_inicio?: string | null
+          reajuste_modo?: string | null
+          reajuste_percentual?: number | null
+          reajuste_periodicidade?: string | null
+          reajuste_valor_fixo?: number | null
+          recorrencia_inicio?: string | null
+          recorrencia_meses?: number | null
+          recorrencia_sem_prazo?: boolean
           recorrente?: boolean
           responsavel?: string | null
+          updated_at?: string
           valor?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "receitas_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "grupos"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
@@ -1282,6 +1770,7 @@ export type Database = {
         Row: {
           created_at: string
           criado_por: string | null
+          grupo_id: string | null
           id: string
           nome: string
           storage_path: string
@@ -1291,15 +1780,17 @@ export type Database = {
         Insert: {
           created_at?: string
           criado_por?: string | null
+          grupo_id?: string | null
           id?: string
           nome: string
           storage_path: string
-          tipo: string
+          tipo?: string
           veiculo_id: string
         }
         Update: {
           created_at?: string
           criado_por?: string | null
+          grupo_id?: string | null
           id?: string
           nome?: string
           storage_path?: string
@@ -1307,6 +1798,13 @@ export type Database = {
           veiculo_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "veiculo_documentos_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "grupos"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "veiculo_documentos_veiculo_id_fkey"
             columns: ["veiculo_id"]
@@ -1355,13 +1853,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "veiculo_eventos_grupo_id_fkey"
-            columns: ["grupo_id"]
-            isOneToOne: false
-            referencedRelation: "grupos"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "veiculo_eventos_veiculo_id_fkey"
             columns: ["veiculo_id"]
             isOneToOne: false
@@ -1373,6 +1864,7 @@ export type Database = {
       veiculos: {
         Row: {
           ano: number | null
+          ativo: boolean
           chassi: string | null
           created_at: string
           created_by: string | null
@@ -1395,6 +1887,7 @@ export type Database = {
         }
         Insert: {
           ano?: number | null
+          ativo?: boolean
           chassi?: string | null
           created_at?: string
           created_by?: string | null
@@ -1417,6 +1910,7 @@ export type Database = {
         }
         Update: {
           ano?: number | null
+          ativo?: boolean
           chassi?: string | null
           created_at?: string
           created_by?: string | null

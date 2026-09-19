@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import {
   ShoppingCart,
   Wallet,
@@ -8,8 +8,12 @@ import {
   AlertTriangle,
   Eye,
   EyeOff,
+  Share2,
   Calculator,
-  CalendarClock,
+  Users,
+  DatabaseBackup,
+  Palette,
+  Settings,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
@@ -18,14 +22,12 @@ import { FaturaMesDialog } from "@/components/FaturaMesDialog";
 import { VisaoGeralHome } from "@/components/VisaoGeralHome";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useCotacao } from "@/hooks/useCotacao";
 import { useDespesas, useReceitas, useVeiculos } from "@/hooks/useFinance";
+import { usePermissoes } from "@/hooks/useAuthData";
 import { usePrivacidadeValores } from "@/hooks/usePrivacidadeValores";
-import { currentMonthKey, formatBRL, formatDate, monthKey, toBRL, toISODate } from "@/lib/format";
-import { diferencaEntreDatas } from "@/lib/calculadora-datas";
+import { currentMonthKey, formatBRL, formatDate, monthKey, toBRL } from "@/lib/format";
 import { diasRestantes, statusGarantia } from "@/lib/nfe";
 import { lancamentosPorCompetencias } from "@/lib/recorrencia";
 import { alertasDosVeiculos } from "@/lib/veiculo-alertas";
@@ -85,17 +87,7 @@ function InicioPage() {
   const { data: garantias = [] } = useGarantias();
   const { data: veiculos = [] } = useVeiculos();
   const { ocultarValores, toggle: toggleOcultar } = usePrivacidadeValores();
-
-  const hoje = toISODate(new Date());
-  const [dataCalcInicio, setDataCalcInicio] = useState(hoje);
-  const [dataCalcFim, setDataCalcFim] = useState(hoje);
-  const diasEntreDatas = useMemo(
-    () =>
-      dataCalcInicio && dataCalcFim
-        ? diferencaEntreDatas(dataCalcInicio, dataCalcFim, "dias")
-        : null,
-    [dataCalcInicio, dataCalcFim],
-  );
+  const { can, isAdmin } = usePermissoes();
 
   const valorFmt = (val: number) => (ocultarValores ? "R$ ••••••" : formatBRL(val));
 
@@ -162,14 +154,21 @@ function InicioPage() {
         },
       ],
     },
-    {
-      to: "/ferramentas" as const,
-      titulo: "Control ALL",
-      descricao: "Calculadora de datas e de horários — ferramentas de uso geral.",
-      icon: Calculator,
-      stats: [],
-    },
   ];
+
+  /** Atalhos gerais/administrativos — os mesmos da seção "Geral" do menu lateral. */
+  const GERAIS = [
+    { to: "/compartilhar" as const, label: "Compartilhar", icon: Share2, modulo: "compartilhar" as const },
+    { to: "/ferramentas" as const, label: "Calculadora", icon: Calculator },
+    { to: "/usuarios" as const, label: "Usuários e Privilégios", icon: Users, adminOnly: true },
+    { to: "/backup" as const, label: "Backup e Reset", icon: DatabaseBackup, adminOnly: true },
+    { to: "/personalizacao" as const, label: "Personalização", icon: Palette, modulo: "personalizacao" as const },
+    { to: "/conta" as const, label: "Configurações da conta", icon: Settings },
+  ].filter((g) => {
+    if ("adminOnly" in g && g.adminOnly) return isAdmin;
+    if ("modulo" in g && g.modulo) return can(g.modulo, "ver");
+    return true;
+  });
 
   return (
     <AppLayout
@@ -218,7 +217,7 @@ function InicioPage() {
           </Button>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {AREAS.map((a) => {
             const Icon = a.icon;
             return (
@@ -276,57 +275,29 @@ function InicioPage() {
         </div>
       </div>
 
-      {/* 1.5. Calculadora rápida de datas (atalho do módulo Control ALL) */}
-      <Card className="mb-6">
-        <CardContent className="p-4">
-          <div className="mb-3 flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <CalendarClock className="size-4.5 text-primary" />
-              <p className="text-sm font-semibold">Diferença entre datas</p>
-            </div>
-            <Link
-              to="/ferramentas"
-              className="flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-            >
-              Mais calculadoras <ArrowRight className="size-3.5" />
-            </Link>
+      {/* 1b. Atalhos gerais/administrativos */}
+      {GERAIS.length > 0 && (
+        <div className="mb-6 space-y-2">
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Geral
+          </h2>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+            {GERAIS.map((g) => {
+              const Icon = g.icon;
+              return (
+                <Link key={g.to} to={g.to}>
+                  <Card className="h-full transition-colors hover:bg-muted/40">
+                    <CardContent className="flex flex-col items-center gap-1.5 p-3 text-center">
+                      <Icon className="size-4.5 text-muted-foreground" />
+                      <span className="text-xs font-medium leading-tight">{g.label}</span>
+                    </CardContent>
+                  </Card>
+                </Link>
+              );
+            })}
           </div>
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="home-data-inicio" className="text-xs">
-                Data inicial
-              </Label>
-              <Input
-                id="home-data-inicio"
-                type="date"
-                value={dataCalcInicio}
-                onChange={(e) => setDataCalcInicio(e.target.value)}
-                className="w-40"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="home-data-fim" className="text-xs">
-                Data final
-              </Label>
-              <Input
-                id="home-data-fim"
-                type="date"
-                value={dataCalcFim}
-                onChange={(e) => setDataCalcFim(e.target.value)}
-                className="w-40"
-              />
-            </div>
-            {diasEntreDatas != null && (
-              <div className="rounded-lg border bg-muted/30 px-4 py-2">
-                <p className="text-xl font-bold tabular-nums">
-                  {diasEntreDatas}{" "}
-                  <span className="text-sm font-medium text-muted-foreground">dias</span>
-                </p>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+        </div>
+      )}
 
       {/* 2. Alerta de garantias a vencer se houver */}
       {aVencer.length > 0 && (

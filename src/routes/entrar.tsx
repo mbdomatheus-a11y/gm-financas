@@ -14,14 +14,6 @@ import { Label } from "@/components/ui/label";
 import { TurnstileWidget } from "@/components/TurnstileWidget";
 import { TURNSTILE_ATIVO } from "@/lib/turnstile-config";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/entrar")({
   validateSearch: (s: Record<string, unknown>): { convite?: string; next?: string } => ({
@@ -191,28 +183,16 @@ function EntrarForm({ next }: { next?: string }) {
         Entrar
       </Button>
 
-      <Dialog>
-        <DialogTrigger asChild>
-          <button
-            type="button"
-            className="w-full text-center text-xs text-muted-foreground underline-offset-4 hover:underline"
-          >
-            Esqueci minha senha
-          </button>
-        </DialogTrigger>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Recuperação de senha</DialogTitle>
-            <DialogDescription>
-              Contas antigas (criadas por CPF): peça a um administrador para abrir{" "}
-              <strong>Usuários e Privilégios</strong> e redefinir sua senha — você receberá uma
-              senha provisória e será obrigado a criar uma nova no próximo login. Contas criadas por
-              convite (com e-mail): fale com quem te convidou ou com um administrador — a
-              recuperação automática por e-mail ainda não está disponível.
-            </DialogDescription>
-          </DialogHeader>
-        </DialogContent>
-      </Dialog>
+      <Link
+        to="/esqueci-senha"
+        className="block w-full text-center text-xs text-muted-foreground underline-offset-4 hover:underline"
+      >
+        Esqueci minha senha
+      </Link>
+      <p className="text-center text-[11px] text-muted-foreground">
+        Conta antiga criada por CPF? O link por e-mail não funciona pra ela — peça a um
+        administrador para redefinir em <strong>Usuários e Privilégios</strong>.
+      </p>
     </form>
   );
 }

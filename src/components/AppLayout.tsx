@@ -59,68 +59,82 @@ type NavItem = {
   icon: typeof LayoutDashboard;
   modulo?: Modulo;
   adminOnly?: boolean;
-  mobile?: boolean;
 };
 
-const NAV: NavItem[] = [
-  { to: "/inicio", label: "Início", short: "Início", icon: Home, mobile: true },
-  { to: "/dashboard", label: "Dashboard", short: "Finanças", icon: LayoutDashboard, mobile: true },
-  {
-    to: "/lista-compras",
-    label: "Lista de compras",
-    short: "Compras",
-    icon: ShoppingCart,
-    mobile: true,
-  },
-  { to: "/receitas", label: "Receitas", short: "Receitas", icon: TrendingUp, modulo: "receitas" },
-  {
-    to: "/despesas",
-    label: "Despesas",
-    short: "Despesas",
-    icon: TrendingDown,
-    modulo: "despesas",
-    mobile: true,
-  },
-  {
-    to: "/importar",
-    label: "Importar Faturas",
-    short: "Faturas",
-    icon: FileUp,
-    modulo: "despesas",
-  },
-  { to: "/categorias", label: "Categorias", short: "Categ.", icon: Tags },
-  {
-    to: "/de-para",
-    label: "De-para de categorias",
-    short: "De-para",
-    icon: ArrowLeftRight,
-    modulo: "despesas",
-  },
-  { to: "/notas", label: "Notas fiscais", short: "Notas", icon: ReceiptText },
-  { to: "/ferramentas", label: "Control ALL", short: "Ferram.", icon: Calculator },
+type MundoId = "financas" | "lista" | "notas";
 
-  {
-    to: "/cartoes",
-    label: "Cartões e Bancos",
-    short: "Cartões",
-    icon: CreditCard,
-    modulo: "cartoes",
+/**
+ * Navegação em "mundos" (2026-09-18): em vez de uma lista única com tudo
+ * misturado, a Home mostra só 3 caixas (Finanças, Lista, Notas fiscais) e,
+ * dentro de cada uma, o menu lateral passa a mostrar só os itens daquele
+ * mundo — pra não misturar despesas/investimentos com a lista de compras,
+ * por exemplo. "Início" fica sempre fixo no topo do menu como botão de
+ * voltar. Ferramentas administrativas/utilitárias (Compartilhar,
+ * Calculadora, Usuários, Backup, Personalização, Conta) ficam numa seção
+ * global, visível o tempo todo, independente do mundo atual.
+ */
+const MUNDOS: Record<MundoId, { titulo: string; home: NavTo; items: NavItem[] }> = {
+  financas: {
+    titulo: "Finanças",
+    home: "/dashboard",
+    items: [
+      { to: "/dashboard", label: "Dashboard", short: "Dashboard", icon: LayoutDashboard },
+      { to: "/receitas", label: "Receitas", short: "Receitas", icon: TrendingUp, modulo: "receitas" },
+      {
+        to: "/despesas",
+        label: "Despesas",
+        short: "Despesas",
+        icon: TrendingDown,
+        modulo: "despesas",
+      },
+      {
+        to: "/importar",
+        label: "Importar Faturas",
+        short: "Faturas",
+        icon: FileUp,
+        modulo: "despesas",
+      },
+      { to: "/categorias", label: "Categorias", short: "Categ.", icon: Tags },
+      {
+        to: "/de-para",
+        label: "De-para de categorias",
+        short: "De-para",
+        icon: ArrowLeftRight,
+        modulo: "despesas",
+      },
+      {
+        to: "/cartoes",
+        label: "Cartões e Bancos",
+        short: "Cartões",
+        icon: CreditCard,
+        modulo: "cartoes",
+      },
+      {
+        to: "/investimentos",
+        label: "Investimentos",
+        short: "Invest.",
+        icon: PiggyBank,
+        modulo: "investimentos",
+      },
+      { to: "/veiculos", label: "Meu Veículo", short: "Veículo", icon: Car, modulo: "veiculos" },
+    ],
   },
+  lista: {
+    titulo: "Lista de compras",
+    home: "/lista-compras",
+    items: [
+      { to: "/lista-compras", label: "Lista de compras", short: "Compras", icon: ShoppingCart },
+    ],
+  },
+  notas: {
+    titulo: "Notas fiscais",
+    home: "/notas",
+    items: [{ to: "/notas", label: "Notas fiscais", short: "Notas", icon: ReceiptText }],
+  },
+};
 
-  {
-    to: "/investimentos",
-    label: "Investimentos",
-    short: "Invest.",
-    icon: PiggyBank,
-    modulo: "investimentos",
-  },
-  {
-    to: "/veiculos",
-    label: "Meu Veículo",
-    short: "Veículo",
-    icon: Car,
-    modulo: "veiculos",
-  },
+/** Itens sempre visíveis, independente do mundo atual (ou de estar na Home). */
+const GLOBAL: NavItem[] = [
   {
     to: "/compartilhar",
     label: "Compartilhar",
@@ -128,6 +142,7 @@ const NAV: NavItem[] = [
     icon: Share2,
     modulo: "compartilhar",
   },
+  { to: "/ferramentas", label: "Calculadora", short: "Calc.", icon: Calculator },
   {
     to: "/usuarios",
     label: "Usuários e Privilégios",
@@ -152,6 +167,16 @@ const NAV: NavItem[] = [
   { to: "/conta", label: "Configurações da conta", short: "Conta", icon: Settings },
 ];
 
+const INICIO: NavItem = { to: "/inicio", label: "Início", short: "Início", icon: Home };
+
+/** Descobre em qual "mundo" a rota atual está, se estiver em algum. */
+function mundoAtual(pathname: string): MundoId | null {
+  for (const [id, mundo] of Object.entries(MUNDOS) as [MundoId, (typeof MUNDOS)[MundoId]][]) {
+    if (mundo.items.some((i) => i.to === pathname)) return id;
+  }
+  return null;
+}
+
 export function AppLayout({
   title,
   description,
@@ -172,12 +197,21 @@ export function AppLayout({
   const [open, setOpen] = useState(false);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
-  const items = NAV.filter((i) => {
+  const podeVer = (i: NavItem) => {
     if (i.adminOnly) return isAdmin;
     if (i.modulo) return can(i.modulo, "ver");
     return true;
-  });
-  const mobileItems = items.filter((i) => i.mobile).slice(0, 4);
+  };
+
+  const mundoId = mundoAtual(pathname);
+  const mundo = mundoId ? MUNDOS[mundoId] : null;
+  const itensDoMundo = (mundo?.items ?? []).filter(podeVer);
+  const itensGlobais = GLOBAL.filter(podeVer);
+
+  const mobileItems = [
+    INICIO,
+    ...(mundo ? itensDoMundo : itensGlobais).slice(0, 3),
+  ];
   const bottomNav = prefs.layout_menu === "bottom";
 
   async function signOut() {
@@ -187,28 +221,53 @@ export function AppLayout({
     navigate({ to: "/entrar", replace: true });
   }
 
+  const NavLink = ({
+    item,
+    onNavigate,
+  }: {
+    item: NavItem;
+    onNavigate?: (() => void) | undefined;
+  }) => {
+    const active = pathname === item.to;
+    const Icon = item.icon;
+    return (
+      <Link
+        to={item.to}
+        onClick={onNavigate}
+        className={cn(
+          "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
+          active
+            ? "bg-sidebar-accent text-sidebar-accent-foreground"
+            : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
+        )}
+      >
+        <Icon className={cn("size-4.5 shrink-0", active && "text-primary")} />
+        <span className="truncate">{item.label}</span>
+      </Link>
+    );
+  };
+
   const NavLinks = ({ onNavigate }: { onNavigate?: (() => void) | undefined }) => (
     <nav className="flex flex-1 flex-col gap-1">
-      {items.map((item) => {
-        const active = pathname === item.to;
-        const Icon = item.icon;
-        return (
-          <Link
-            key={item.to}
-            to={item.to}
-            onClick={onNavigate}
-            className={cn(
-              "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
-              active
-                ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
-            )}
-          >
-            <Icon className={cn("size-4.5 shrink-0", active && "text-primary")} />
-            <span className="truncate">{item.label}</span>
-          </Link>
-        );
-      })}
+      <NavLink item={INICIO} onNavigate={onNavigate} />
+
+      {mundo && itensDoMundo.length > 0 && (
+        <>
+          <p className="mt-3 px-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/70">
+            {mundo.titulo}
+          </p>
+          {itensDoMundo.map((item) => (
+            <NavLink key={item.to} item={item} onNavigate={onNavigate} />
+          ))}
+        </>
+      )}
+
+      <p className="mt-3 px-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/70">
+        Geral
+      </p>
+      {itensGlobais.map((item) => (
+        <NavLink key={item.to} item={item} onNavigate={onNavigate} />
+      ))}
     </nav>
   );
 

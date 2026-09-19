@@ -12,13 +12,13 @@ import { SimuladorInterativo } from "@/components/ferramentas/SimuladorInterativ
 export const Route = createFileRoute("/_authenticated/ferramentas")({
   head: () => ({
     meta: [
-      { title: "Control ALL — Ferramentas" },
+      { title: "Calculadora — Control ALL" },
       {
         name: "description",
         content:
-          "Calculadoras de data, horário e o Simulador Interativo — ferramentas de uso geral do módulo Control ALL.",
+          "Calculadoras de data, horário e o Simulador Interativo — ferramentas de uso geral do módulo Calculadora.",
       },
-      { property: "og:title", content: "Control ALL — Ferramentas" },
+      { property: "og:title", content: "Calculadora — Control ALL" },
       {
         property: "og:description",
         content: "Calculadoras de uso geral, sem relação com seus dados financeiros.",
@@ -31,7 +31,7 @@ export const Route = createFileRoute("/_authenticated/ferramentas")({
 function FerramentasPage() {
   return (
     <AppLayout
-      title="Control ALL"
+      title="Calculadora"
       description="Ferramentas de uso geral — sem relação com seus dados financeiros."
     >
       <div className="space-y-6">
