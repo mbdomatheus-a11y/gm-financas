@@ -485,8 +485,8 @@ function DespesasPage() {
     [lancamentosDoFiltro],
   );
 
-  const formaKey = (d: any) =>
-    d.cartao_id ? `cartao:${d.cartao_id}` : d.banco_id ? `banco:${d.banco_id}` : "sem";
+  const formaKey = (d: any) => (d.cartao_id ? `cartao:${d.cartao_id}` : "sem");
+  const primeiroNome = (nome?: string | null) => nome?.trim().split(/\s+/)[0] || "Titular não informado";
 
   const lista = despesas.filter((d: any) => {
     if (d.tipo !== tab) return false;
@@ -535,7 +535,7 @@ function DespesasPage() {
     return { total, pago, aberto, proximo };
   }, [lista, cotacao, filtroMes, lancamentosDoFiltro, lancamentoPorDespesa]);
 
-  /** Agrupa a lista por forma de pagamento (cartão/banco) ou devolve um grupo único. */
+  /** Agrupa por cartão. Tudo que não veio de cartão fica em Sem atribuição. */
   const gruposLista = useMemo(() => {
     if (modoLista === "lista")
       return [{ key: "all", label: "", cor: "", itens: lista as any[], total: resumo.total }];
@@ -546,10 +546,8 @@ function DespesasPage() {
     for (const d of lista as any[]) {
       const key = formaKey(d);
       const label = d.cartoes
-        ? `${d.cartoes.apelido || d.cartoes.titular || "Cartão"} •${d.cartoes.final ?? ""}`
-        : d.bancos?.nome
-          ? `${d.bancos.nome} (conta)`
-          : (d.banco_nome ?? "Sem forma de pagamento");
+        ? `${d.cartoes.apelido || d.cartoes.bandeira || "Cartão"} •${d.cartoes.final ?? ""} · ${primeiroNome(d.cartoes.titular)}`
+        : "Sem atribuição";
       const cor = d.cartoes?.cor ?? "var(--muted-foreground)";
       const g = mapa.get(key) ?? { key, label, cor, itens: [] as any[], total: 0 };
       g.itens.push(d);
@@ -563,7 +561,7 @@ function DespesasPage() {
     filtroCartao !== "todos" && {
       label:
         filtroCartao === "sem"
-          ? "Sem cartão"
+          ? "Sem atribuição"
           : (() => {
               const c: any = cartoes.find((c: any) => c.id === filtroCartao);
               return c ? `Cartão ${c.apelido ?? c.bandeira} •${c.final}` : "Cartão";
@@ -684,10 +682,10 @@ function DespesasPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="todos">Todos os cartões</SelectItem>
-              <SelectItem value="sem">Sem cartão</SelectItem>
+              <SelectItem value="sem">Sem atribuição</SelectItem>
               {cartoes.map((c: any) => (
                 <SelectItem key={c.id} value={c.id}>
-                  {c.apelido ?? c.bandeira} •{c.final}
+                  {c.apelido ?? c.bandeira} •{c.final} · {primeiroNome(c.titular)}
                 </SelectItem>
               ))}
             </SelectContent>

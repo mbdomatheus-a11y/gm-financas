@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, Pencil, Plus, Search, Trash2, TrendingUp, X } from "lucide-react";
+import { ChevronDown, CreditCard, List, Pencil, Plus, Search, Trash2, TrendingUp, X } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -24,6 +24,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
@@ -41,6 +42,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import {
   useCategorias,
+  useCartoes,
   useProfilesList,
   useReceitas,
   RESPONSAVEIS_EXTRA,
@@ -87,6 +89,7 @@ const schema = z.object({
   frequencia: z.string().nullable(),
   responsavel: z.string().min(1, "Informe o responsável"),
   observacoes: z.string().max(500).nullable(),
+  cartao_id: z.string().uuid().nullable(),
 });
 
 const emptyForm = {
@@ -99,6 +102,7 @@ const emptyForm = {
   frequencia: "mensal",
   responsavel: "",
   observacoes: "",
+  cartao_id: "",
   reajuste_tipo: "nenhum" as "nenhum" | ModoReajuste,
   reajuste_percentual: "",
   reajuste_valor_fixo: "",
@@ -114,6 +118,7 @@ function ReceitasPage() {
   const { can } = usePermissoes();
   const { data: receitas = [] } = useReceitas();
   const { data: categorias = [] } = useCategorias("receita");
+  const { data: cartoes = [] } = useCartoes();
   const { data: perfis = [] } = useProfilesList();
 
   const [open, setOpen] = useState(false);
@@ -123,6 +128,7 @@ function ReceitasPage() {
   const [filtroCat, setFiltroCat] = useState("todas");
   const [filtroResp, setFiltroResp] = useState("todos");
   const [busca, setBusca] = useState("");
+  const [modoLista, setModoLista] = useState<"lista" | "cartao">("lista");
 
   const meses = useMemo(
     () =>
@@ -178,26 +184,41 @@ function ReceitasPage() {
     0,
   );
 
+  const primeiroNome = (nome?: string | null) => nome?.trim().split(/\s+/)[0] || "Titular não informado";
+
   const grupos = useMemo(() => {
     const map = new Map<string, any[]>();
     for (const r of lista as any[]) {
-      const k = monthKey(r.data_recebimento);
+      const k = modoLista === "cartao" ? r.cartao_id ?? "sem" : monthKey(r.data_recebimento);
       if (!map.has(k)) map.set(k, []);
       map.get(k)!.push(r);
     }
-    return Array.from(map, ([mes, itens]) => ({
-      mes,
+    return Array.from(map, ([key, itens]) => ({
+      key,
+      label:
+        modoLista === "cartao"
+          ? (() => {
+              const cartao: any = cartoes.find((c: any) => c.id === key);
+              return cartao
+                ? `${cartao.apelido ?? cartao.bandeira ?? "Cartão"} •${cartao.final ?? ""} · ${primeiroNome(cartao.titular)}`
+                : "Sem atribuição";
+            })()
+          : monthLabelLong(key),
       itens: itens.sort(
         (a, b) => new Date(b.data_recebimento).getTime() - new Date(a.data_recebimento).getTime(),
       ),
       total: itens.reduce((s, r) => s + toBRL(Number(r.valor), r.moeda, cotacao), 0),
-    })).sort((a, b) => b.mes.localeCompare(a.mes));
-  }, [lista, cotacao]);
+    })).sort((a, b) =>
+      modoLista === "cartao" ? b.total - a.total : b.key.localeCompare(a.key),
+    );
+  }, [lista, cotacao, modoLista, cartoes]);
 
   const [fechados, setFechados] = useState<Record<string, boolean>>({});
   const mesAtual = currentMonthKey();
-  const estaAberto = (mes: string) =>
-    fechados[mes] === undefined ? mes === mesAtual || grupos.length === 1 : !fechados[mes];
+  const estaAberto = (key: string) =>
+    fechados[key] === undefined
+      ? (modoLista === "lista" ? key === mesAtual : true) || grupos.length === 1
+      : !fechados[key];
 
   function abrirNova() {
     setEditId(null);
@@ -218,6 +239,7 @@ function ReceitasPage() {
       frequencia: r.frequencia ?? "mensal",
       responsavel: r.responsavel ?? "",
       observacoes: r.observacoes ?? "",
+      cartao_id: r.cartao_id ?? "",
       reajuste_tipo:
         r.reajuste_modo === "fixo" ? "fixo" : r.reajuste_percentual ? "percentual" : "nenhum",
       reajuste_percentual: r.reajuste_percentual ? String(r.reajuste_percentual) : "",
@@ -286,6 +308,7 @@ function ReceitasPage() {
         valor: Number(String(form.valor).replace(",", ".")),
         frequencia: form.recorrente ? form.frequencia : null,
         observacoes: form.observacoes || null,
+        cartao_id: form.cartao_id || null,
       });
 
       if (editId) {
@@ -431,6 +454,15 @@ function ReceitasPage() {
         </Select>
       </div>
 
+      <div className="mb-3 flex justify-end">
+        <Tabs value={modoLista} onValueChange={(v) => setModoLista(v as "lista" | "cartao")}>
+          <TabsList className="h-9">
+            <TabsTrigger value="lista" className="gap-1 text-xs"><List className="size-3.5" /> Por mês</TabsTrigger>
+            <TabsTrigger value="cartao" className="gap-1 text-xs"><CreditCard className="size-3.5" /> Por cartão</TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
+
       {chips.length > 0 && (
         <div className="mb-3 flex flex-wrap items-center gap-1.5">
           {chips.map((c) => (
@@ -472,19 +504,19 @@ function ReceitasPage() {
           </Card>
         )}
         {grupos.map((g) => {
-          const aberto = estaAberto(g.mes);
+          const aberto = estaAberto(g.key);
           return (
-            <div key={g.mes} className="overflow-hidden rounded-xl border bg-card">
+            <div key={g.key} className="overflow-hidden rounded-xl border bg-card">
               <button
                 type="button"
-                onClick={() => setFechados((f) => ({ ...f, [g.mes]: aberto }))}
+                onClick={() => setFechados((f) => ({ ...f, [g.key]: aberto }))}
                 className="flex w-full items-center gap-3 bg-muted/40 px-4 py-2.5 text-left transition-colors hover:bg-muted/60"
               >
                 <ChevronDown
                   className={`size-4 shrink-0 text-muted-foreground transition-transform ${aberto ? "" : "-rotate-90"}`}
                 />
                 <span className="flex-1 truncate text-sm font-semibold">
-                  {monthLabelLong(g.mes)}
+                  {g.label}
                 </span>
                 <Badge variant="secondary" className="shrink-0 text-[10px]">
                   {g.itens.length} lançamento{g.itens.length > 1 ? "s" : ""}
@@ -657,6 +689,22 @@ function ReceitasPage() {
                   {responsaveis.map((r) => (
                     <SelectItem key={r} value={r}>
                       {r}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field label="Cartão de recebimento">
+              <Select
+                value={form.cartao_id || "sem"}
+                onValueChange={(v) => setForm({ ...form, cartao_id: v === "sem" ? "" : v })}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="sem">Sem atribuição</SelectItem>
+                  {cartoes.map((c: any) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.apelido ?? c.bandeira} •{c.final} · {primeiroNome(c.titular)}
                     </SelectItem>
                   ))}
                 </SelectContent>

@@ -97,6 +97,9 @@ const CORES = [
   "#0f172a",
 ];
 
+const primeiroNome = (titular?: string | null) =>
+  titular?.trim().split(/\s+/)[0] || "Titular não informado";
+
 function CartoesPage() {
   const qc = useQueryClient();
   const cotacao = useCotacao();
@@ -332,7 +335,7 @@ function CartoesPage() {
                     <div>
                       <p className="text-sm font-semibold">{c.apelido}</p>
                       <p className="text-xs text-muted-foreground">
-                        {c.bandeira} •••• {c.final}
+                        {c.bandeira} •••• {c.final} · {primeiroNome(c.titular)}
                         {c.bancos ? ` · ${c.bancos.nome}` : ""}
                       </p>
                     </div>
@@ -413,7 +416,7 @@ function CartoesPage() {
                   <p className="truncate text-sm font-semibold">{b.nome}</p>
                   <p className="truncate text-xs text-muted-foreground">
                     {b.agencia ? `Ag. ${b.agencia} · ` : ""}
-                    {b.conta ? `Conta ${b.conta}` : "Sem conta informada"}
+                    {b.conta ? `Conta ${b.conta}` : "Sem conta informada"} · {primeiroNome(b.titular)}
                   </p>
                 </div>
                 <Badge variant="secondary">{b.tipo_conta}</Badge>
@@ -568,7 +571,7 @@ function CartoesPage() {
                 <SelectContent>
                   {bancos.map((b: any) => (
                     <SelectItem key={b.id} value={b.id}>
-                      {b.nome}
+                      {b.nome} · {primeiroNome(b.titular)}
                     </SelectItem>
                   ))}
                 </SelectContent>

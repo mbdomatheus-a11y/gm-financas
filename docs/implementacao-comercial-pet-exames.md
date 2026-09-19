@@ -21,6 +21,14 @@ Atualizado em 19/09/2026.
 - A solicitação grava somente SHA-256 do CPF, nunca o CPF em texto claro.
 - Comunicados exigem aceite, ficam no histórico do usuário e geram evento administrativo na publicação e no aceite.
 - A administração exibe indicadores quantitativos, solicitações, faturas em modelagem e log administrativo. Ela não consulta lançamentos financeiros ou resultados clínicos.
+- O log administrativo identifica pelo nome ou e-mail quem publicou, aceitou ou leu um comunicado, além da data e hora do evento.
+
+## Identidade visual e lançamentos
+
+- O administrador pode enviar ou trocar a logo em Administração. A marca escolhida aparece na Home, no login e nas áreas autenticadas; JPG, PNG, WEBP e GIF são aceitos até 5 MB.
+- Termos e Privacidade abrem em janela na navegação normal, sem retirar a pessoa da tela atual. As rotas diretas continuam disponíveis para links externos.
+- Despesas e receitas têm visualização por cartão. Registros sem cartão ficam agrupados em **Sem atribuição**.
+- Cartões e bancos apresentam o primeiro nome do titular, inclusive nos campos de seleção, para diferenciar produtos iguais de pessoas diferentes.
 
 ## Pets
 
@@ -38,7 +46,7 @@ Atualizado em 19/09/2026.
 
 ## Banco de dados
 
-A migração `20260919110000_comercial_pet_exames_alertas.sql` adiciona colunas opcionais de Pet e Exames, a tabela de histórico de alertas e índices de consulta. Foi aplicada ao projeto Supabase oficial em 19/09/2026.
+As migrações `20260919110000_comercial_pet_exames_alertas.sql`, `20260919120000_identidade_visual_site.sql` e `20260919121000_receitas_por_cartao.sql` adicionam a estrutura de módulos, identidade visual e vínculo opcional de receitas com cartões. Foram aplicadas ao projeto Supabase oficial em 19/09/2026.
 
 ## Próximas configurações externas
 

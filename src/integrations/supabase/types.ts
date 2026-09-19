@@ -1664,6 +1664,7 @@ export type Database = {
       }
       receitas: {
         Row: {
+          cartao_id: string | null
           categoria: string
           created_at: string
           created_by: string | null
@@ -1689,6 +1690,7 @@ export type Database = {
           valor: number
         }
         Insert: {
+          cartao_id?: string | null
           categoria?: string
           created_at?: string
           created_by?: string | null
@@ -1714,6 +1716,7 @@ export type Database = {
           valor: number
         }
         Update: {
+          cartao_id?: string | null
           categoria?: string
           created_at?: string
           created_by?: string | null
@@ -1739,6 +1742,13 @@ export type Database = {
           valor?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "receitas_cartao_id_fkey"
+            columns: ["cartao_id"]
+            isOneToOne: false
+            referencedRelation: "cartoes"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "receitas_grupo_id_fkey"
             columns: ["grupo_id"]

@@ -16,6 +16,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { TurnstileWidget } from "@/components/TurnstileWidget";
 import { TURNSTILE_ATIVO } from "@/lib/turnstile-config";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { BrandMark } from "@/components/BrandMark";
+import { LegalDialogs } from "@/components/LegalDialogs";
 
 export const Route = createFileRoute("/entrar")({
   validateSearch: (s: Record<string, unknown>): { convite?: string; next?: string } => ({
@@ -63,9 +65,7 @@ function LoginPage() {
         </Link>
 
         <div className="mb-8 flex flex-col items-center text-center">
-          <div className="gradient-brand mb-4 flex size-14 items-center justify-center rounded-2xl shadow-soft">
-            <Wallet className="size-7 text-primary-foreground" />
-          </div>
+          <BrandMark className="mb-4 size-14 rounded-2xl shadow-soft" />
           <h1 className="text-2xl font-bold tracking-tight">Control ALL</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Entre ou crie sua conta para acessar o painel
@@ -390,7 +390,7 @@ function CriarContaForm({ token }: { token: string | undefined }) {
       <label className="flex items-start gap-2 rounded-lg border p-3 text-xs text-muted-foreground">
         <Checkbox checked={aceitouDocumentos} onCheckedChange={(checked) => setAceitouDocumentos(checked === true)} />
         <span>
-          Li e aceito os <Link to="/termos-de-uso" className="underline">Termos de Uso</Link> e o <Link to="/privacidade" className="underline">Aviso de Privacidade</Link>. Entendo que sou responsável por proteger minha senha e não compartilhar meu acesso.
+          Li e aceito os <span className="inline-flex gap-1"><LegalDialogs compact /></span>. Entendo que sou responsável por proteger minha senha e não compartilhar meu acesso.
         </span>
       </label>
       <div className="space-y-1.5">
