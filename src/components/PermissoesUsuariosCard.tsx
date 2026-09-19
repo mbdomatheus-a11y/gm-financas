@@ -32,7 +32,7 @@ const MODULOS: { key: Modulo; label: string }[] = [
  */
 export function PermissoesUsuariosCard({ compact = false }: { compact?: boolean }) {
   const qc = useQueryClient();
-  const { isAdmin } = usePermissoes();
+  const { isSiteAdmin } = usePermissoes();
   const { data: perfis = [] } = useProfilesList();
   const { data: roles = [] } = useRolesList();
   const setRole = useServerFn(adminSetRole);
@@ -40,7 +40,7 @@ export function PermissoesUsuariosCard({ compact = false }: { compact?: boolean 
 
   const { data: permissoes = [] } = useQuery({
     queryKey: ["permissoes-todas"],
-    enabled: isAdmin,
+    enabled: isSiteAdmin,
     queryFn: async () => {
       const { data, error } = await supabase.from("permissoes").select("*");
       if (error) throw error;
@@ -79,7 +79,7 @@ export function PermissoesUsuariosCard({ compact = false }: { compact?: boolean 
     onError: (e: any) => toast.error(e.message),
   });
 
-  if (!isAdmin) return null;
+  if (!isSiteAdmin) return null;
 
   return (
     <Card>

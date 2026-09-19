@@ -47,7 +47,7 @@ function ContaPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { data: perfil } = useProfile();
-  const { isAdmin } = usePermissoes();
+  const { isAdmin, isSiteAdmin } = usePermissoes();
   const [senha, setSenha] = useState("");
   const [confirma, setConfirma] = useState("");
   const excluirConta = useServerFn(excluirMinhaConta);
@@ -155,7 +155,7 @@ function ContaPage() {
         </Card>
 
         <ConvitesCard />
-        {isAdmin && <PermissoesUsuariosCard compact />}
+        {isSiteAdmin && <PermissoesUsuariosCard compact />}
 
         <Card className="border-destructive/30 lg:col-span-2">
           <CardHeader>

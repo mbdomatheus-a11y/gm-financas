@@ -11,6 +11,7 @@ import { aceitarConvite } from "@/lib/convites.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { TurnstileWidget } from "@/components/TurnstileWidget";
 import { TURNSTILE_ATIVO } from "@/lib/turnstile-config";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -93,11 +94,27 @@ function LoginPage() {
 }
 
 /** Login por e-mail (contas novas) OU CPF (contas antigas, compatibilidade). */
+const IDENTIFICADOR_SALVO = "control-all-identificador";
+const DOMINIOS_EMAIL = ["gmail.com", "hotmail.com", "outlook.com", "icloud.com", "yahoo.com.br", "uol.com.br"];
+
 function EntrarForm({ next }: { next?: string }) {
   const navigate = useNavigate();
   const [identificador, setIdentificador] = useState("");
   const [senha, setSenha] = useState("");
+  const [lembrarIdentificador, setLembrarIdentificador] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    try {
+      const salvo = localStorage.getItem(IDENTIFICADOR_SALVO);
+      if (salvo) {
+        setIdentificador(salvo);
+        setLembrarIdentificador(true);
+      }
+    } catch {
+      // Navegação privada pode bloquear armazenamento local.
+    }
+  }, []);
 
   const ehEmail = identificador.includes("@");
   const cpfDigitado = ehEmail ? "" : identificador;
@@ -135,6 +152,15 @@ function EntrarForm({ next }: { next?: string }) {
       toast.error("Usuário inativo. Fale com um administrador.");
       return;
     }
+    try {
+      if (lembrarIdentificador) {
+        localStorage.setItem(IDENTIFICADOR_SALVO, identificador.trim());
+      } else {
+        localStorage.removeItem(IDENTIFICADOR_SALVO);
+      }
+    } catch {
+      // O acesso continua funcionando mesmo sem armazenamento local.
+    }
     toast.success("Bem-vindo de volta!");
     if (profile?.senha_temporaria) {
       navigate({ to: "/nova-senha" });
@@ -160,8 +186,16 @@ function EntrarForm({ next }: { next?: string }) {
             /^[\d.-]*$/.test(identificador) ? maskCpf(identificador) : identificador
           }
           onChange={(e) => setIdentificador(e.target.value)}
+          list="dominios-email-comuns"
           className="h-11"
         />
+        <datalist id="dominios-email-comuns">
+          {identificador && !identificador.includes("@") && /[a-z]/i.test(identificador)
+            ? DOMINIOS_EMAIL.map((dominio) => (
+                <option key={dominio} value={`${identificador.trim()}@${dominio}`} />
+              ))
+            : null}
+        </datalist>
         {!ehEmail && onlyDigits(cpfDigitado).length === 11 && !isValidCpf(cpfDigitado) && (
           <p className="text-xs text-destructive">CPF inválido</p>
         )}
@@ -178,6 +212,19 @@ function EntrarForm({ next }: { next?: string }) {
           className="h-11"
         />
       </div>
+      <label className="flex items-center gap-2 text-xs text-muted-foreground">
+        <Checkbox
+          checked={lembrarIdentificador}
+          onCheckedChange={(checked) => {
+            const lembrar = checked === true;
+            setLembrarIdentificador(lembrar);
+            if (!lembrar) {
+              try { localStorage.removeItem(IDENTIFICADOR_SALVO); } catch { /* indisponível */ }
+            }
+          }}
+        />
+        Lembrar e-mail ou CPF neste dispositivo. A senha nunca é salva pelo site.
+      </label>
       <Button type="submit" className="h-11 w-full" disabled={loading}>
         {loading && <Loader2 className="mr-2 size-4 animate-spin" />}
         Entrar

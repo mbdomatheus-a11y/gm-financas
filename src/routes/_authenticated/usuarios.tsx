@@ -59,7 +59,7 @@ export const Route = createFileRoute("/_authenticated/usuarios")({
 
 function UsuariosPage() {
   const qc = useQueryClient();
-  const { isAdmin } = usePermissoes();
+  const { isSiteAdmin } = usePermissoes();
   const { data: perfis = [] } = useProfilesList();
   const { data: roles = [] } = useRolesList();
 
@@ -70,7 +70,7 @@ function UsuariosPage() {
 
   const { data: roster = [], isLoading: carregandoRoster } = useQuery({
     queryKey: ["admin-roster"],
-    enabled: isAdmin,
+    enabled: isSiteAdmin,
     queryFn: async () => listarRoster(),
   });
 
@@ -165,7 +165,7 @@ function UsuariosPage() {
     onError: (e: any) => toast.error(e.message ?? "Não foi possível excluir a conta"),
   });
 
-  if (!isAdmin) {
+  if (!isSiteAdmin) {
     return (
       <AppLayout title="Usuários e Privilégios">
         <Card>

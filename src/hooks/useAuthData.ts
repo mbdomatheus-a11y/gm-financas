@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { appSupabase } from "@/integrations/supabase/app-types";
 
 export function useSession() {
   const [session, setSession] = useState<Session | null>(null);
@@ -52,6 +53,23 @@ export function useIsAdmin() {
   });
 }
 
+export function useIsSiteAdmin() {
+  const { user } = useSession();
+  return useQuery({
+    queryKey: ["is-site-admin", user?.id],
+    enabled: !!user?.id,
+    queryFn: async () => {
+      const { data, error } = await appSupabase
+        .from("site_admins")
+        .select("user_id")
+        .eq("user_id", user!.id)
+        .maybeSingle();
+      if (error) throw error;
+      return !!data;
+    },
+  });
+}
+
 export type Modulo =
   | "receitas"
   | "despesas"
@@ -64,6 +82,7 @@ export type Modulo =
 export function usePermissoes() {
   const { user } = useSession();
   const { data: isAdmin } = useIsAdmin();
+  const { data: isSiteAdmin } = useIsSiteAdmin();
   const { data: profile } = useProfile();
   const exclusaoBloqueada = profile?.cpf === "41412522803";
   const query = useQuery({
@@ -86,5 +105,5 @@ export function usePermissoes() {
     return row.pode_excluir;
   };
 
-  return { ...query, can, isAdmin: !!isAdmin, exclusaoBloqueada };
+  return { ...query, can, isAdmin: !!isAdmin, isSiteAdmin: !!isSiteAdmin, exclusaoBloqueada };
 }

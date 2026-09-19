@@ -14,13 +14,18 @@ function gerarSenhaTemporaria(): string {
 }
 
 async function assertAdmin(context: { supabase: any; userId: string }) {
-  const { data } = await context.supabase
-    .from("user_roles")
-    .select("role")
+  const { data: siteAdmin, error: adminError } = await context.supabase
+    .from("site_admins")
+    .select("user_id")
     .eq("user_id", context.userId)
-    .eq("role", "admin")
     .maybeSingle();
-  if (!data) throw new Error("Acesso restrito a administradores");
+  if (adminError || !siteAdmin) throw new Error("Acesso restrito à administração do site");
+  const { data: perfil, error: perfilError } = await context.supabase
+    .from("profiles")
+    .select("ativo")
+    .eq("id", context.userId)
+    .maybeSingle();
+  if (perfilError || !perfil?.ativo) throw new Error("Conta administrativa inativa");
 }
 
 export const adminCreateUser = createServerFn({ method: "POST" })

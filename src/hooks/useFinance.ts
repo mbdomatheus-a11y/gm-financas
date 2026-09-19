@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { appSupabase } from "@/integrations/supabase/app-types";
+import { useProfile } from "@/hooks/useAuthData";
 
 export function useReceitas() {
   return useQuery({
@@ -113,10 +114,16 @@ export function useVeiculos() {
 }
 
 export function useProfilesList() {
+  const { data: meuPerfil } = useProfile();
   return useQuery({
-    queryKey: ["profiles-list"],
+    queryKey: ["profiles-list", meuPerfil?.grupo_id],
+    enabled: !!meuPerfil?.grupo_id,
     queryFn: async () => {
-      const { data, error } = await supabase.from("profiles").select("*").order("nome");
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("grupo_id", meuPerfil!.grupo_id!)
+        .order("nome");
       if (error) throw error;
       return data ?? [];
     },
@@ -124,10 +131,13 @@ export function useProfilesList() {
 }
 
 export function useRolesList() {
+  const { data: perfis = [] } = useProfilesList();
+  const ids = perfis.map((perfil) => perfil.id);
   return useQuery({
-    queryKey: ["roles-list"],
+    queryKey: ["roles-list", ids],
+    enabled: ids.length > 0,
     queryFn: async () => {
-      const { data, error } = await supabase.from("user_roles").select("*");
+      const { data, error } = await supabase.from("user_roles").select("*").in("user_id", ids);
       if (error) throw error;
       return data ?? [];
     },

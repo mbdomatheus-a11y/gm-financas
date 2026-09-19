@@ -195,14 +195,14 @@ export function AppLayout({
   useApplyPreferencias();
   const { prefs } = usePreferencias();
   const { data: profile } = useProfile();
-  const { can, isAdmin } = usePermissoes();
+  const { can, isSiteAdmin } = usePermissoes();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   const podeVer = (i: NavItem) => {
-    if (i.adminOnly) return isAdmin;
+    if (i.adminOnly) return isSiteAdmin;
     if (i.modulo) return can(i.modulo, "ver");
     return true;
   };

@@ -150,6 +150,7 @@ function ImportarPage() {
   );
   const inputRef = useRef<HTMLInputElement>(null);
   const imgInputRef = useRef<HTMLInputElement>(null);
+  const classificacoesEditadas = useRef(new Set<string>());
 
   const [lendo, setLendo] = useState(false);
   const [lendoImagens, setLendoImagens] = useState(false);
@@ -467,6 +468,9 @@ function ImportarPage() {
   }
 
   function atualizarLancamento(idx: number, id: string, patch: Partial<LancamentoExtraido>) {
+    if ("categoria" in patch || "subcategoria" in patch) {
+      classificacoesEditadas.current.add(`${faturas[idx]?.arquivo_hash}:${id}`);
+    }
     setFaturas((prev) =>
       prev.map((f, i) =>
         i === idx
@@ -476,8 +480,7 @@ function ImportarPage() {
     );
   }
 
-  const salvarRegra = useMutation({
-    mutationFn: async (l: LancamentoExtraido) => {
+  async function gravarRegra(l: LancamentoExtraido) {
       const chave = chaveEstabelecimento(l.descricao);
       const item = {
         texto_original: l.descricao,
@@ -510,7 +513,10 @@ function ImportarPage() {
       if (!existeCategoria) {
         await supabase.from("categorias").insert({ nome: l.categoria, tipo: "despesa" });
       }
-    },
+  }
+
+  const salvarRegra = useMutation({
+    mutationFn: gravarRegra,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["categoria-regras"] });
       qc.invalidateQueries({ queryKey: ["categorias", "despesa"] });
@@ -530,6 +536,12 @@ function ImportarPage() {
       if (perfilErr) throw perfilErr;
       if (!perfil.grupo_id) throw new Error("Não foi possível identificar o seu grupo.");
       const grupoId = perfil.grupo_id;
+      const regrasAprendidas = new Map<string, LancamentoExtraido>();
+      faturas.forEach((f) => f.lancamentos.forEach((l) => {
+        if (l.incluir && classificacoesEditadas.current.has(`${f.arquivo_hash}:${l.id}`)) {
+          regrasAprendidas.set(chaveEstabelecimento(l.descricao), l);
+        }
+      }));
 
       const { data: lote, error: loteErr } = await supabase
         .from("import_lotes")
@@ -743,18 +755,30 @@ function ImportarPage() {
         }
       }
 
-      return { inseridos, ignorados, fechadas };
+      let falhasDePara = 0;
+      for (const regra of regrasAprendidas.values()) {
+        try {
+          await gravarRegra(regra);
+        } catch {
+          falhasDePara++;
+        }
+      }
+      return { inseridos, ignorados, fechadas, falhasDePara, regrasSalvas: regrasAprendidas.size - falhasDePara };
     },
-    onSuccess: ({ inseridos, ignorados, fechadas }) => {
+    onSuccess: ({ inseridos, ignorados, fechadas, falhasDePara, regrasSalvas }) => {
       qc.invalidateQueries({ queryKey: ["despesas"] });
       qc.invalidateQueries({ queryKey: ["parcelas"] });
       qc.invalidateQueries({ queryKey: ["fatura-mes"] });
       qc.invalidateQueries({ queryKey: ["import-faturas"] });
+      qc.invalidateQueries({ queryKey: ["categoria-regras"] });
       setFaturas([]);
+      classificacoesEditadas.current.clear();
       toast.success(
         `${inseridos} lançamento(s) importado(s). ${ignorados} duplicado(s) ignorado(s).` +
           (fechadas ? ` ${fechadas} competência(s) fechada(s).` : ""),
       );
+      if (regrasSalvas) toast.info(`${regrasSalvas} classificação(ões) aprendida(s) para próximas importações.`);
+      if (falhasDePara) toast.warning(`${falhasDePara} regra(s) de de-para não puderam ser salvas.`);
     },
     onError: (e: any) => toast.error(e?.message ?? "Falha ao importar."),
   });

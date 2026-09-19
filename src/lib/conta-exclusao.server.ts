@@ -1,11 +1,14 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
-export const CPF_ADMIN_PRINCIPAL = "08857166635";
-
 export async function ehAdminPrincipal(userId: string): Promise<boolean> {
   const db = supabaseAdmin as any;
-  const { data } = await db.from("profiles").select("cpf").eq("id", userId).maybeSingle();
-  return data?.cpf === CPF_ADMIN_PRINCIPAL;
+  const { data, error } = await db
+    .from("site_admins")
+    .select("user_id")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return !!data;
 }
 
 export async function arquivarEExcluirConta(params: {

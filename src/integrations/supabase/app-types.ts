@@ -124,6 +124,12 @@ type AppTables = Omit<
   veiculo_eventos: VeiculoEventoTable;
   veiculo_documentos: VeiculoDocumentoTable;
   veiculos: VeiculoTable;
+  site_admins: TableDefinition<
+    { user_id: string },
+    { user_id: string },
+    { user_id?: string },
+    []
+  >;
 };
 
 type AppDatabase = Omit<Database, "public"> & {
