@@ -145,24 +145,68 @@ export const adminMetricas = createServerFn({ method: "GET" })
     await admin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const db = supabaseAdmin as any;
-    const [{ count: total }, { count: ativos }, { data: sessoes }] = await Promise.all([
+    const [
+      { count: total },
+      { count: ativos },
+      { data: perfis, error: perfisErro },
+      { data: sessoes, error: sessoesErro },
+      { data: usoArquivos, error: usoErro },
+    ] = await Promise.all([
       db.from("profiles").select("*", { count: "exact", head: true }),
       db.from("profiles").select("*", { count: "exact", head: true }).eq("ativo", true),
       db
+        .from("profiles")
+        .select("id,nome,email,ativo")
+        .order("created_at", { ascending: false })
+        .limit(1000),
+      db
         .from("eventos_sessao")
-        .select("iniciou_em,encerrou_em")
-        .not("encerrou_em", "is", null)
-        .limit(500),
+        .select("user_id,iniciou_em,ultima_atividade_em,encerrou_em")
+        .order("ultima_atividade_em", { ascending: false })
+        .limit(5000),
+      db.from("admin_uso_arquivos").select("user_id,arquivos,bytes"),
     ]);
+    if (perfisErro || sessoesErro || usoErro)
+      throw new Error("Não foi possível carregar os indicadores.");
+    const usoPorUsuario = new Map<string, { arquivos: number; bytes: number }>();
+    for (const uso of usoArquivos ?? []) {
+      if (uso.user_id)
+        usoPorUsuario.set(uso.user_id, {
+          arquivos: Number(uso.arquivos),
+          bytes: Number(uso.bytes),
+        });
+    }
+    const ultimaPorUsuario = new Map<string, string>();
+    for (const sessao of sessoes ?? []) {
+      if (!ultimaPorUsuario.has(sessao.user_id)) {
+        ultimaPorUsuario.set(sessao.user_id, sessao.ultima_atividade_em);
+      }
+    }
     const duracoes = (sessoes ?? [])
-      .map((s: any) => new Date(s.encerrou_em).getTime() - new Date(s.iniciou_em).getTime())
-      .filter((n: number) => n >= 0);
+      .map(
+        (s: any) =>
+          new Date(s.encerrou_em ?? s.ultima_atividade_em).getTime() -
+          new Date(s.iniciou_em).getTime(),
+      )
+      .filter((n: number) => n >= 0 && n <= 24 * 60 * 60 * 1000);
     return {
       total: total ?? 0,
       ativos: ativos ?? 0,
       tempoMedioMin: duracoes.length
         ? Math.round(duracoes.reduce((a: number, b: number) => a + b, 0) / duracoes.length / 60000)
         : 0,
+      usuarios: (perfis ?? []).map((perfil: any) => ({
+        id: perfil.id as string,
+        nome: perfil.nome as string,
+        email: perfil.email as string | null,
+        ativo: perfil.ativo as boolean,
+        ultimaAtividadeEm: ultimaPorUsuario.get(perfil.id) ?? null,
+        arquivos: usoPorUsuario.get(perfil.id)?.arquivos ?? 0,
+        bytesArmazenados: usoPorUsuario.get(perfil.id)?.bytes ?? 0,
+      })),
+      armazenamentoNaoAtribuidoBytes: Number(
+        (usoArquivos ?? []).find((uso: any) => !uso.user_id)?.bytes ?? 0,
+      ),
     };
   });
 export const adminListarLogs = createServerFn({ method: "GET" })

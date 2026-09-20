@@ -5,7 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
@@ -25,6 +25,11 @@ import {
 import { confirmarLogo, prepararUploadLogo } from "@/lib/identidade-site.functions";
 
 export const Route = createFileRoute("/_authenticated/administracao")({ component: Admin });
+function formatarTamanho(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 function Admin() {
   const { isSiteAdmin } = usePermissoes();
   const qc = useQueryClient();
@@ -157,6 +162,55 @@ function Admin() {
           </CardContent>
         </Card>
       </div>
+      <Card className="mb-4">
+        <CardHeader>
+          <CardTitle className="text-sm">Atividade e espaço por usuário</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="max-h-80 overflow-auto">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b">
+                  <th className="p-2">Usuário</th>
+                  <th className="p-2">Situação</th>
+                  <th className="p-2">Última atividade</th>
+                  <th className="p-2">Arquivos</th>
+                  <th className="p-2">Espaço</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(metricas?.usuarios ?? []).map(
+                  (usuario: {
+                    id: string;
+                    nome: string;
+                    ativo: boolean;
+                    ultimaAtividadeEm: string | null;
+                    arquivos: number;
+                    bytesArmazenados: number;
+                  }) => (
+                    <tr key={usuario.id} className="border-b last:border-0">
+                      <td className="p-2">{usuario.nome}</td>
+                      <td className="p-2">{usuario.ativo ? "Ativa" : "Inativa"}</td>
+                      <td className="p-2">
+                        {usuario.ultimaAtividadeEm
+                          ? new Date(usuario.ultimaAtividadeEm).toLocaleString("pt-BR")
+                          : "Sem acesso registrado"}
+                      </td>
+                      <td className="p-2">{usuario.arquivos}</td>
+                      <td className="p-2">{formatarTamanho(usuario.bytesArmazenados)}</td>
+                    </tr>
+                  ),
+                )}
+              </tbody>
+            </table>
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Atividade medida por abertura de sessão e interação no aplicativo. Espaço atribuído pelo
+            proprietário técnico do arquivo, sem acesso ao conteúdo. Arquivos sem proprietário
+            atribuído: {formatarTamanho(metricas?.armazenamentoNaoAtribuidoBytes ?? 0)}.
+          </p>
+        </CardContent>
+      </Card>
       <Card className="mb-4">
         <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
           <div>

@@ -8,7 +8,9 @@ function hash(identificador: string) {
 }
 
 export const consultarBloqueioLogin = createServerFn({ method: "POST" })
-  .inputValidator((value: unknown) => z.object({ identificador: z.string().min(3).max(180) }).parse(value))
+  .inputValidator((value: unknown) =>
+    z.object({ identificador: z.string().min(3).max(180) }).parse(value),
+  )
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: tentativa, error } = await (supabaseAdmin as any)
@@ -18,16 +20,24 @@ export const consultarBloqueioLogin = createServerFn({ method: "POST" })
       .maybeSingle();
     if (error) throw new Error("Não foi possível verificar a segurança do acesso.");
     const bloqueadoAte = tentativa?.bloqueado_ate ? new Date(tentativa.bloqueado_ate) : null;
-    return { bloqueadoAte: bloqueadoAte && bloqueadoAte > new Date() ? bloqueadoAte.toISOString() : null };
+    return {
+      bloqueadoAte: bloqueadoAte && bloqueadoAte > new Date() ? bloqueadoAte.toISOString() : null,
+    };
   });
 
 export const registrarFalhaLogin = createServerFn({ method: "POST" })
-  .inputValidator((value: unknown) => z.object({ identificador: z.string().min(3).max(180) }).parse(value))
+  .inputValidator((value: unknown) =>
+    z.object({ identificador: z.string().min(3).max(180) }).parse(value),
+  )
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: tentativa, error } = await (supabaseAdmin as any).rpc("registrar_tentativa_login", {
-      p_hash: hash(data.identificador), p_sucesso: false,
-    });
+    const { data: tentativa, error } = await (supabaseAdmin as any).rpc(
+      "registrar_tentativa_login",
+      {
+        p_hash: hash(data.identificador),
+        p_sucesso: false,
+      },
+    );
     if (error) throw new Error("Não foi possível registrar a tentativa de acesso.");
     const retorno = Array.isArray(tentativa) ? tentativa[0] : tentativa;
     return { bloqueadoAte: retorno?.bloqueado_ate ?? null, falhas: retorno?.falhas ?? 0 };
@@ -35,10 +45,60 @@ export const registrarFalhaLogin = createServerFn({ method: "POST" })
 
 export const registrarSucessoLogin = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((value: unknown) => z.object({ identificador: z.string().min(3).max(180) }).parse(value))
+  .inputValidator((value: unknown) =>
+    z.object({ identificador: z.string().min(3).max(180) }).parse(value),
+  )
   .handler(async ({ data, context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    await (supabaseAdmin as any).rpc("registrar_tentativa_login", { p_hash: hash(data.identificador), p_sucesso: true });
+    await (supabaseAdmin as any).rpc("registrar_tentativa_login", {
+      p_hash: hash(data.identificador),
+      p_sucesso: true,
+    });
     await (supabaseAdmin as any).from("eventos_sessao").insert({ user_id: context.userId });
+    return { ok: true as const };
+  });
+
+export const registrarAtividadeSessao = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const db = supabaseAdmin as any;
+    const { data: ultima, error } = await db
+      .from("eventos_sessao")
+      .select("id,ultima_atividade_em")
+      .eq("user_id", context.userId)
+      .is("encerrou_em", null)
+      .order("iniciou_em", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw new Error("Não foi possível registrar a atividade.");
+    const agora = new Date();
+    if (ultima && agora.getTime() - new Date(ultima.ultima_atividade_em).getTime() < 30_000)
+      return { ok: true as const };
+    const result = ultima
+      ? await db
+          .from("eventos_sessao")
+          .update({ ultima_atividade_em: agora.toISOString() })
+          .eq("id", ultima.id)
+      : await db
+          .from("eventos_sessao")
+          .insert({ user_id: context.userId, ultima_atividade_em: agora.toISOString() });
+    if (result.error) throw new Error("Não foi possível registrar a atividade.");
+    return { ok: true as const };
+  });
+
+export const encerrarSessao = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((value: unknown) =>
+    z.object({ motivo: z.enum(["usuario", "inatividade"]) }).parse(value),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await (supabaseAdmin as any)
+      .from("eventos_sessao")
+      .update({ encerrou_em: new Date().toISOString(), motivo_encerramento: data.motivo })
+      .eq("user_id", context.userId)
+      .is("encerrou_em", null);
+    if (error) throw new Error("Não foi possível encerrar o histórico da sessão.");
     return { ok: true as const };
   });

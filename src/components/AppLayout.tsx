@@ -1,4 +1,6 @@
 import { useState, type ReactNode } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { encerrarSessao } from "@/lib/login-protecao.functions";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -152,11 +154,15 @@ const MUNDOS: Record<MundoId, { titulo: string; home: NavTo; items: NavItem[] }>
     home: "/ferramentas",
     items: [{ to: "/ferramentas", label: "Calculadora", short: "Calculadora", icon: Calculator }],
   },
-  vida: { titulo: "Vida", home: "/pets", items: [
-    { to: "/pets", label: "Pet", short: "Pet", icon: PawPrint },
-    { to: "/onde-esta", label: "Onde está?", short: "Onde", icon: MapPin },
-    { to: "/exames", label: "Exames", short: "Exames", icon: FileHeart },
-  ] },
+  vida: {
+    titulo: "Vida",
+    home: "/pets",
+    items: [
+      { to: "/pets", label: "Pet", short: "Pet", icon: PawPrint },
+      { to: "/onde-esta", label: "Onde está?", short: "Onde", icon: MapPin },
+      { to: "/exames", label: "Exames", short: "Exames", icon: FileHeart },
+    ],
+  },
 };
 
 /** Itens sempre visíveis, independente do mundo atual (ou de estar na Home). */
@@ -175,7 +181,13 @@ const GLOBAL: NavItem[] = [
     icon: Users,
     adminOnly: true,
   },
-  { to: "/administracao", label: "Administração do site", short: "Admin", icon: ShieldCheck, adminOnly: true },
+  {
+    to: "/administracao",
+    label: "Administração do site",
+    short: "Admin",
+    icon: ShieldCheck,
+    adminOnly: true,
+  },
   {
     to: "/backup",
     label: "Backup e Reset",
@@ -220,6 +232,7 @@ export function AppLayout({
   const { can, isSiteAdmin } = usePermissoes();
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const registrarEncerramento = useServerFn(encerrarSessao);
   const [open, setOpen] = useState(false);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
@@ -238,6 +251,11 @@ export function AppLayout({
   const bottomNav = prefs.layout_menu === "bottom";
 
   async function signOut() {
+    try {
+      await registrarEncerramento({ data: { motivo: "usuario" } });
+    } catch {
+      // Falha de telemetria não impede sair.
+    }
     await qc.cancelQueries();
     qc.clear();
     await supabase.auth.signOut();

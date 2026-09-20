@@ -6,6 +6,7 @@
 - Decisão do proprietário: ao excluir um membro, preservar os lançamentos compartilhados para os demais. Se era o último membro do grupo, apagar os dados e arquivos do grupo após 90 dias sem recuperação.
 - Administração de layouts: botão de abertura com URL assinada por 60 segundos, registro de acesso e remoção física do arquivo quando a solicitação é concluída ou descartada. A rota diária de descarte após 30 dias exige `CRON_SECRET`; a variável secreta foi configurada na Vercel Production em 20/09/2026 e o redeploy ficou pronto. A primeira execução agendada ainda não foi observada.
 - A distinção entre administrador global (`site_admins`) e do grupo (`user_roles.admin`) foi revisada. A exclusão de administrador do grupo continua bloqueada até a migração segura acima; a do administrador global permanece proibida.
+- Analytics administrativos passaram a registrar atividade enquanto a sessão é usada e a encerrá-la por logout ou inatividade. A média considera até a última interação; sessões anteriores à instrumentação podem aparecer com duração zero. A administração mostra última atividade e bytes de objetos atribuídos por usuário. Objetos criados via service role ficam separados como não atribuídos. A visualização SQL `admin_uso_arquivos` foi aplicada no Supabase oficial em 20/09/2026, sem modificar metadados de Storage.
 
 Atualizado em 2026-09-19. Este documento registra o funcionamento verificado no código e as mudanças solicitadas. Itens marcados como pendentes não devem ser apresentados como entregues.
 
