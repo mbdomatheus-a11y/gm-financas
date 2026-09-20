@@ -4,7 +4,7 @@
 
 - Exclusão recuperável ainda **não** preserva todos os dados pessoais: o código atual arquiva o perfil, mas a exclusão do usuário de autenticação apaga linhas vinculadas a ele. Recuperar pelo CPF isolado também não comprova a identidade. Não apresentar este fluxo como cópia integral nem liberar a exclusão de administradores de grupo antes de uma migração com prova de posse do e-mail e testes de restauração.
 - Decisão do proprietário: ao excluir um membro, preservar os lançamentos compartilhados para os demais. Se era o último membro do grupo, apagar os dados e arquivos do grupo após 90 dias sem recuperação.
-- Administração de layouts: botão de abertura com URL assinada por 60 segundos, registro de acesso e remoção física do arquivo quando a solicitação é concluída ou descartada. Há uma rota diária de descarte após 30 dias, que exige `CRON_SECRET` na Vercel para funcionar. Sem essa variável, ela rejeita a chamada e **não** faz o descarte automático.
+- Administração de layouts: botão de abertura com URL assinada por 60 segundos, registro de acesso e remoção física do arquivo quando a solicitação é concluída ou descartada. A rota diária de descarte após 30 dias exige `CRON_SECRET`; a variável secreta foi configurada na Vercel Production em 20/09/2026 e o redeploy ficou pronto. A primeira execução agendada ainda não foi observada.
 - A distinção entre administrador global (`site_admins`) e do grupo (`user_roles.admin`) foi revisada. A exclusão de administrador do grupo continua bloqueada até a migração segura acima; a do administrador global permanece proibida.
 
 Atualizado em 2026-09-19. Este documento registra o funcionamento verificado no código e as mudanças solicitadas. Itens marcados como pendentes não devem ser apresentados como entregues.
