@@ -166,12 +166,14 @@ function ContaPage() {
           <CardContent className="space-y-3">
             <p className="text-sm text-muted-foreground">
               Você pode guardar uma cópia recuperável por 90 dias ou excluir a conta sem
-              possibilidade de recuperação. Contas administrativas não podem usar esta opção.
+              possibilidade de recuperação. A administração do site não pode usar esta opção.
             </p>
             <Button
               variant="destructive"
-              disabled={isAdmin}
-              title={isAdmin ? "Administradores não podem excluir a própria conta" : undefined}
+              disabled={isAdmin || isSiteAdmin}
+              title={
+                isSiteAdmin ? "A administração do site não pode excluir a própria conta" : undefined
+              }
               onClick={() => setDialogExclusao(true)}
             >
               Excluir minha conta
@@ -188,8 +190,18 @@ function ContaPage() {
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-2">
-              <Button variant={modoExclusao === "recuperavel" ? "default" : "outline"} onClick={() => setModoExclusao("recuperavel")}>Guardar por 90 dias</Button>
-              <Button variant={modoExclusao === "definitiva" ? "destructive" : "outline"} onClick={() => setModoExclusao("definitiva")}>Sem recuperação</Button>
+              <Button
+                variant={modoExclusao === "recuperavel" ? "default" : "outline"}
+                onClick={() => setModoExclusao("recuperavel")}
+              >
+                Guardar por 90 dias
+              </Button>
+              <Button
+                variant={modoExclusao === "definitiva" ? "destructive" : "outline"}
+                onClick={() => setModoExclusao("definitiva")}
+              >
+                Sem recuperação
+              </Button>
             </div>
             <Field label='Digite "DELETAR"'>
               <Input value={confirmacao1} onChange={(e) => setConfirmacao1(e.target.value)} />
@@ -199,8 +211,20 @@ function ContaPage() {
             </Field>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogExclusao(false)}>Cancelar</Button>
-            <Button variant="destructive" disabled={confirmacao1 !== "DELETAR" || confirmacao2 !== "Confirmo Delete" || excluir.isPending} onClick={() => excluir.mutate()}>Excluir conta</Button>
+            <Button variant="outline" onClick={() => setDialogExclusao(false)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={
+                confirmacao1 !== "DELETAR" ||
+                confirmacao2 !== "Confirmo Delete" ||
+                excluir.isPending
+              }
+              onClick={() => excluir.mutate()}
+            >
+              Excluir conta
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

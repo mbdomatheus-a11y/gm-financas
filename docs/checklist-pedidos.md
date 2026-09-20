@@ -6,7 +6,7 @@ Conferência em 2026-09-19. "No código" significa implementado no repositório,
 
 - [x] Início separado em Finanças, Lista, Notas e Calculadora, sem a calculadora de datas na Home; navegação de retorno para Início e atalhos gerais.
 - [x] Tela administrativa de usuários cadastrados, dados básicos e convites, com revogação de convite ainda não usado pelo administrador principal.
-- [x] Exclusão de conta comum com `DELETAR` e `Confirmo Delete`; administradores protegidos; recuperação opcional por até 90 dias e opção sem recuperação. A tabela `contas_excluidas` foi criada no Supabase oficial.
+- [ ] Exclusão de conta com recuperação integral por 90 dias. A confirmação dupla e a tabela `contas_excluidas` existem, mas hoje apenas o perfil é arquivado; dados pessoais podem ser apagados em cascata e a recuperação só por CPF é insegura. Não tratar como concluída.
 - [x] Índices de duplicidade de faturas, despesas e parcelas por grupo, permitindo a mesma fatura em grupos diferentes.
 - [x] Importação aprende de-para após classificação manual e permite cadastrar banco e cartão dentro da revisão.
 - [x] Login por e-mail ou CPF validado, sugestões de domínio e opção de lembrar somente o identificador, nunca a senha.

@@ -43,6 +43,7 @@ import { Route as CalculadorasIndexRouteImport } from './routes/calculadoras/ind
 import { Route as CalculadorasDiferencaEntreDatasRouteImport } from './routes/calculadoras/diferenca-entre-datas'
 import { Route as CalculadorasSomarDiasADataRouteImport } from './routes/calculadoras/somar-dias-a-data'
 import { Route as CalculadorasSomarHorariosRouteImport } from './routes/calculadoras/somar-horarios'
+import { Route as ApiCronDescarteLayoutsRouteImport } from './routes/api/cron/descarte-layouts'
 import { Route as OauthGoogleDriveReturnRouteImport } from './routes/oauth/google-drive/return'
 
 const IndexRoute = IndexRouteImport.update({
@@ -223,6 +224,11 @@ const CalculadorasSomarHorariosRoute =
     path: '/calculadoras/somar-horarios',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiCronDescarteLayoutsRoute = ApiCronDescarteLayoutsRouteImport.update({
+  id: '/api/cron/descarte-layouts',
+  path: '/api/cron/descarte-layouts',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OauthGoogleDriveReturnRoute = OauthGoogleDriveReturnRouteImport.update({
   id: '/oauth/google-drive/return',
   path: '/oauth/google-drive/return',
@@ -263,6 +269,7 @@ export interface FileRoutesByFullPath {
   '/calculadoras/somar-dias-a-data': typeof CalculadorasSomarDiasADataRoute
   '/calculadoras/somar-horarios': typeof CalculadorasSomarHorariosRoute
   '/calculadoras/': typeof CalculadorasIndexRoute
+  '/api/cron/descarte-layouts': typeof ApiCronDescarteLayoutsRoute
   '/oauth/google-drive/return': typeof OauthGoogleDriveReturnRoute
 }
 export interface FileRoutesByTo {
@@ -299,6 +306,7 @@ export interface FileRoutesByTo {
   '/calculadoras/somar-dias-a-data': typeof CalculadorasSomarDiasADataRoute
   '/calculadoras/somar-horarios': typeof CalculadorasSomarHorariosRoute
   '/calculadoras': typeof CalculadorasIndexRoute
+  '/api/cron/descarte-layouts': typeof ApiCronDescarteLayoutsRoute
   '/oauth/google-drive/return': typeof OauthGoogleDriveReturnRoute
 }
 export interface FileRoutesById {
@@ -337,6 +345,7 @@ export interface FileRoutesById {
   '/calculadoras/somar-dias-a-data': typeof CalculadorasSomarDiasADataRoute
   '/calculadoras/somar-horarios': typeof CalculadorasSomarHorariosRoute
   '/calculadoras/': typeof CalculadorasIndexRoute
+  '/api/cron/descarte-layouts': typeof ApiCronDescarteLayoutsRoute
   '/oauth/google-drive/return': typeof OauthGoogleDriveReturnRoute
 }
 export interface FileRouteTypes {
@@ -375,6 +384,7 @@ export interface FileRouteTypes {
     | '/calculadoras/somar-dias-a-data'
     | '/calculadoras/somar-horarios'
     | '/calculadoras/'
+    | '/api/cron/descarte-layouts'
     | '/oauth/google-drive/return'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -411,6 +421,7 @@ export interface FileRouteTypes {
     | '/calculadoras/somar-dias-a-data'
     | '/calculadoras/somar-horarios'
     | '/calculadoras'
+    | '/api/cron/descarte-layouts'
     | '/oauth/google-drive/return'
   id:
     | '__root__'
@@ -448,6 +459,7 @@ export interface FileRouteTypes {
     | '/calculadoras/somar-dias-a-data'
     | '/calculadoras/somar-horarios'
     | '/calculadoras/'
+    | '/api/cron/descarte-layouts'
     | '/oauth/google-drive/return'
   fileRoutesById: FileRoutesById
 }
@@ -463,6 +475,7 @@ export interface RootRouteChildren {
   CalculadorasSomarDiasADataRoute: typeof CalculadorasSomarDiasADataRoute
   CalculadorasSomarHorariosRoute: typeof CalculadorasSomarHorariosRoute
   CalculadorasIndexRoute: typeof CalculadorasIndexRoute
+  ApiCronDescarteLayoutsRoute: typeof ApiCronDescarteLayoutsRoute
   OauthGoogleDriveReturnRoute: typeof OauthGoogleDriveReturnRoute
 }
 
@@ -706,6 +719,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CalculadorasSomarHorariosRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/cron/descarte-layouts': {
+      id: '/api/cron/descarte-layouts'
+      path: '/api/cron/descarte-layouts'
+      fullPath: '/api/cron/descarte-layouts'
+      preLoaderRoute: typeof ApiCronDescarteLayoutsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/oauth/google-drive/return': {
       id: '/oauth/google-drive/return'
       path: '/oauth/google-drive/return'
@@ -783,6 +803,7 @@ const rootRouteChildren: RootRouteChildren = {
   CalculadorasSomarDiasADataRoute: CalculadorasSomarDiasADataRoute,
   CalculadorasSomarHorariosRoute: CalculadorasSomarHorariosRoute,
   CalculadorasIndexRoute: CalculadorasIndexRoute,
+  ApiCronDescarteLayoutsRoute: ApiCronDescarteLayoutsRoute,
   OauthGoogleDriveReturnRoute: OauthGoogleDriveReturnRoute,
 }
 export const routeTree = rootRouteImport

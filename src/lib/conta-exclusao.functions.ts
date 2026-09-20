@@ -18,13 +18,22 @@ export const excluirMinhaConta = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const db = supabaseAdmin as any;
     const { data: role } = await db
+      .from("site_admins")
+      .select("user_id")
+      .eq("user_id", context.userId)
+      .maybeSingle();
+    if (role) {
+      throw new Error("Contas administrativas não podem ser excluídas por segurança.");
+    }
+
+    const { data: papelGrupo } = await db
       .from("user_roles")
       .select("role")
       .eq("user_id", context.userId)
       .eq("role", "admin")
       .maybeSingle();
-    if (role) {
-      throw new Error("Contas administrativas não podem ser excluídas por segurança.");
+    if (papelGrupo) {
+      throw new Error("A exclusão desta conta exige a migração segura dos dados do grupo.");
     }
 
     if (data.modo === "recuperavel") {

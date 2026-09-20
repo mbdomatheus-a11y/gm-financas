@@ -18,11 +18,17 @@ export async function arquivarEExcluirConta(params: {
   const db = supabaseAdmin as any;
   const { data: perfil, error: perfilError } = await db
     .from("profiles")
-    .select("id, nome, cpf, email, telefone, data_nascimento, grupo_id, convidado_por, ativo, created_at")
+    .select(
+      "id, nome, cpf, email, telefone, data_nascimento, grupo_id, convidado_por, ativo, created_at",
+    )
     .eq("id", params.userId)
     .maybeSingle();
   if (perfilError) throw new Error(perfilError.message);
   if (!perfil) throw new Error("Usuário não encontrado.");
+
+  if (await ehAdminPrincipal(params.userId)) {
+    throw new Error("A conta da administração do site não pode ser excluída.");
+  }
 
   const { data: roleRow } = await db
     .from("user_roles")
@@ -30,7 +36,7 @@ export async function arquivarEExcluirConta(params: {
     .eq("user_id", params.userId)
     .maybeSingle();
   if (roleRow?.role === "admin") {
-    throw new Error("Contas administrativas não podem ser excluídas por segurança.");
+    throw new Error("A exclusão desta conta exige a migração segura dos dados do grupo.");
   }
 
   const { data: authData, error: authReadError } = await supabaseAdmin.auth.admin.getUserById(
