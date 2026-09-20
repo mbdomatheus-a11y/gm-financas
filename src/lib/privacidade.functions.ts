@@ -4,7 +4,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { isValidCpf, onlyDigits } from "@/lib/cpf";
 
-const emailAdmin = "mbdo.matheus@gmail.com";
+const emailAdmin = "privacidade@controlall.com.br";
 const pedidoSchema = z.object({ email: z.string().trim().email(), telefone: z.string().trim().min(8).max(24), cpf: z.string().transform(onlyDigits).refine(isValidCpf, "Informe um CPF válido."), motivo: z.string().trim().max(2000).optional() });
 const cpfHash = (cpf: string) => createHash("sha256").update(cpf).digest("hex");
 

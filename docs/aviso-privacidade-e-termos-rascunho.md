@@ -6,7 +6,7 @@ Versão de trabalho: 2026-09-19. **Não publicar como texto final nem exigir ace
 
 ### 1. Quem trata os dados
 
-A Control All LTDA é a responsável pelas decisões sobre o tratamento de dados pessoais no Control All. Contato provisório para substituir antes da publicação: **emailadmin@nomedosite.com.br**. Este endereço é ilustrativo, não foi verificado nem configurado para receber solicitações. Se aplicável, informar também identificação empresarial e endereço de contato adequados.
+A Control All LTDA é a responsável pelas decisões sobre o tratamento de dados pessoais no Control All. O canal oficial para solicitações de privacidade é **privacidade@controlall.com.br**. Se aplicável, informar também identificação empresarial e endereço de contato adequados.
 
 ### 2. Quais dados são tratados
 

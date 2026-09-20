@@ -20,7 +20,7 @@ Atualizado em 2026-09-19. Status: **feito**, **parcial** ou **pendente**. “Fei
 
 ## 5. Termos de Uso e LGPD
 
-**Parcial.** Páginas públicas, aceite versionado no cadastro e registro no banco foram implementados. O contato provisório publicado é `mbdo.matheus@gmail.com`. Revisão jurídica independente continua necessária antes de alegar conformidade definitiva.
+**Parcial.** Páginas públicas, aceite versionado no cadastro e registro no banco foram implementados. O canal publicado é `privacidade@controlall.com.br`. Revisão jurídica independente continua necessária antes de alegar conformidade definitiva.
 
 ## 6. Solicitações de privacidade e exclusão
 
@@ -88,6 +88,6 @@ Atualizado em 2026-09-19. Status: **feito**, **parcial** ou **pendente**. “Fei
 
 ## Contornos que exigem ação futura
 
-- `emailadmin@nomedosite.com.br` é fictício e deve ser trocado por caixa postal real antes de publicar Termos ou Aviso de Privacidade.
+- O canal de privacidade oficial é `privacidade@controlall.com.br`, encaminhado ao administrador pelo ImprovMX. A disponibilidade do encaminhamento deve ser acompanhada pelo administrador.
 - Google Drive direto depende de credenciais OAuth no Google Cloud. O fallback privado no Supabase funciona após as migrations já aplicadas.
 - Resend continua dependente de domínio ou remetente verificado para enviar e-mails externos.
