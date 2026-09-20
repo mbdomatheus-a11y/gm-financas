@@ -39,6 +39,10 @@ import { Route as AuthenticatedPetsRouteImport } from './routes/_authenticated/p
 import { Route as AuthenticatedReceitasRouteImport } from './routes/_authenticated/receitas'
 import { Route as AuthenticatedUsuariosRouteImport } from './routes/_authenticated/usuarios'
 import { Route as AuthenticatedVeiculosRouteImport } from './routes/_authenticated/veiculos'
+import { Route as CalculadorasIndexRouteImport } from './routes/calculadoras/index'
+import { Route as CalculadorasDiferencaEntreDatasRouteImport } from './routes/calculadoras/diferenca-entre-datas'
+import { Route as CalculadorasSomarDiasADataRouteImport } from './routes/calculadoras/somar-dias-a-data'
+import { Route as CalculadorasSomarHorariosRouteImport } from './routes/calculadoras/somar-horarios'
 import { Route as OauthGoogleDriveReturnRouteImport } from './routes/oauth/google-drive/return'
 
 const IndexRoute = IndexRouteImport.update({
@@ -196,6 +200,29 @@ const AuthenticatedVeiculosRoute = AuthenticatedVeiculosRouteImport.update({
   path: '/veiculos',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const CalculadorasIndexRoute = CalculadorasIndexRouteImport.update({
+  id: '/calculadoras/',
+  path: '/calculadoras/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CalculadorasDiferencaEntreDatasRoute =
+  CalculadorasDiferencaEntreDatasRouteImport.update({
+    id: '/calculadoras/diferenca-entre-datas',
+    path: '/calculadoras/diferenca-entre-datas',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const CalculadorasSomarDiasADataRoute =
+  CalculadorasSomarDiasADataRouteImport.update({
+    id: '/calculadoras/somar-dias-a-data',
+    path: '/calculadoras/somar-dias-a-data',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const CalculadorasSomarHorariosRoute =
+  CalculadorasSomarHorariosRouteImport.update({
+    id: '/calculadoras/somar-horarios',
+    path: '/calculadoras/somar-horarios',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const OauthGoogleDriveReturnRoute = OauthGoogleDriveReturnRouteImport.update({
   id: '/oauth/google-drive/return',
   path: '/oauth/google-drive/return',
@@ -232,6 +259,10 @@ export interface FileRoutesByFullPath {
   '/receitas': typeof AuthenticatedReceitasRoute
   '/usuarios': typeof AuthenticatedUsuariosRoute
   '/veiculos': typeof AuthenticatedVeiculosRoute
+  '/calculadoras/diferenca-entre-datas': typeof CalculadorasDiferencaEntreDatasRoute
+  '/calculadoras/somar-dias-a-data': typeof CalculadorasSomarDiasADataRoute
+  '/calculadoras/somar-horarios': typeof CalculadorasSomarHorariosRoute
+  '/calculadoras/': typeof CalculadorasIndexRoute
   '/oauth/google-drive/return': typeof OauthGoogleDriveReturnRoute
 }
 export interface FileRoutesByTo {
@@ -264,6 +295,10 @@ export interface FileRoutesByTo {
   '/receitas': typeof AuthenticatedReceitasRoute
   '/usuarios': typeof AuthenticatedUsuariosRoute
   '/veiculos': typeof AuthenticatedVeiculosRoute
+  '/calculadoras/diferenca-entre-datas': typeof CalculadorasDiferencaEntreDatasRoute
+  '/calculadoras/somar-dias-a-data': typeof CalculadorasSomarDiasADataRoute
+  '/calculadoras/somar-horarios': typeof CalculadorasSomarHorariosRoute
+  '/calculadoras': typeof CalculadorasIndexRoute
   '/oauth/google-drive/return': typeof OauthGoogleDriveReturnRoute
 }
 export interface FileRoutesById {
@@ -298,6 +333,10 @@ export interface FileRoutesById {
   '/_authenticated/receitas': typeof AuthenticatedReceitasRoute
   '/_authenticated/usuarios': typeof AuthenticatedUsuariosRoute
   '/_authenticated/veiculos': typeof AuthenticatedVeiculosRoute
+  '/calculadoras/diferenca-entre-datas': typeof CalculadorasDiferencaEntreDatasRoute
+  '/calculadoras/somar-dias-a-data': typeof CalculadorasSomarDiasADataRoute
+  '/calculadoras/somar-horarios': typeof CalculadorasSomarHorariosRoute
+  '/calculadoras/': typeof CalculadorasIndexRoute
   '/oauth/google-drive/return': typeof OauthGoogleDriveReturnRoute
 }
 export interface FileRouteTypes {
@@ -332,6 +371,10 @@ export interface FileRouteTypes {
     | '/receitas'
     | '/usuarios'
     | '/veiculos'
+    | '/calculadoras/diferenca-entre-datas'
+    | '/calculadoras/somar-dias-a-data'
+    | '/calculadoras/somar-horarios'
+    | '/calculadoras/'
     | '/oauth/google-drive/return'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -364,6 +407,10 @@ export interface FileRouteTypes {
     | '/receitas'
     | '/usuarios'
     | '/veiculos'
+    | '/calculadoras/diferenca-entre-datas'
+    | '/calculadoras/somar-dias-a-data'
+    | '/calculadoras/somar-horarios'
+    | '/calculadoras'
     | '/oauth/google-drive/return'
   id:
     | '__root__'
@@ -397,6 +444,10 @@ export interface FileRouteTypes {
     | '/_authenticated/receitas'
     | '/_authenticated/usuarios'
     | '/_authenticated/veiculos'
+    | '/calculadoras/diferenca-entre-datas'
+    | '/calculadoras/somar-dias-a-data'
+    | '/calculadoras/somar-horarios'
+    | '/calculadoras/'
     | '/oauth/google-drive/return'
   fileRoutesById: FileRoutesById
 }
@@ -408,6 +459,10 @@ export interface RootRouteChildren {
   PrivacidadeRoute: typeof PrivacidadeRoute
   RedefinirSenhaRoute: typeof RedefinirSenhaRoute
   TermosDeUsoRoute: typeof TermosDeUsoRoute
+  CalculadorasDiferencaEntreDatasRoute: typeof CalculadorasDiferencaEntreDatasRoute
+  CalculadorasSomarDiasADataRoute: typeof CalculadorasSomarDiasADataRoute
+  CalculadorasSomarHorariosRoute: typeof CalculadorasSomarHorariosRoute
+  CalculadorasIndexRoute: typeof CalculadorasIndexRoute
   OauthGoogleDriveReturnRoute: typeof OauthGoogleDriveReturnRoute
 }
 
@@ -623,6 +678,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedVeiculosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/calculadoras/': {
+      id: '/calculadoras/'
+      path: '/calculadoras'
+      fullPath: '/calculadoras/'
+      preLoaderRoute: typeof CalculadorasIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/calculadoras/diferenca-entre-datas': {
+      id: '/calculadoras/diferenca-entre-datas'
+      path: '/calculadoras/diferenca-entre-datas'
+      fullPath: '/calculadoras/diferenca-entre-datas'
+      preLoaderRoute: typeof CalculadorasDiferencaEntreDatasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/calculadoras/somar-dias-a-data': {
+      id: '/calculadoras/somar-dias-a-data'
+      path: '/calculadoras/somar-dias-a-data'
+      fullPath: '/calculadoras/somar-dias-a-data'
+      preLoaderRoute: typeof CalculadorasSomarDiasADataRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/calculadoras/somar-horarios': {
+      id: '/calculadoras/somar-horarios'
+      path: '/calculadoras/somar-horarios'
+      fullPath: '/calculadoras/somar-horarios'
+      preLoaderRoute: typeof CalculadorasSomarHorariosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/oauth/google-drive/return': {
       id: '/oauth/google-drive/return'
       path: '/oauth/google-drive/return'
@@ -696,6 +779,10 @@ const rootRouteChildren: RootRouteChildren = {
   PrivacidadeRoute: PrivacidadeRoute,
   RedefinirSenhaRoute: RedefinirSenhaRoute,
   TermosDeUsoRoute: TermosDeUsoRoute,
+  CalculadorasDiferencaEntreDatasRoute: CalculadorasDiferencaEntreDatasRoute,
+  CalculadorasSomarDiasADataRoute: CalculadorasSomarDiasADataRoute,
+  CalculadorasSomarHorariosRoute: CalculadorasSomarHorariosRoute,
+  CalculadorasIndexRoute: CalculadorasIndexRoute,
   OauthGoogleDriveReturnRoute: OauthGoogleDriveReturnRoute,
 }
 export const routeTree = rootRouteImport
