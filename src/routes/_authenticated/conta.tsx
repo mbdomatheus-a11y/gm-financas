@@ -165,12 +165,13 @@ function ContaPage() {
           </CardHeader>
           <CardContent className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              Você pode guardar uma cópia recuperável por 90 dias ou excluir a conta sem
-              possibilidade de recuperação. A administração do site não pode usar esta opção.
+              Ao excluir, seu acesso é encerrado e seus dados pessoais ficam disponíveis para
+              recuperação por até 90 dias. Lançamentos compartilhados permanecem para os demais
+              membros do grupo. A administração do site não pode excluir a própria conta.
             </p>
             <Button
               variant="destructive"
-              disabled={isAdmin || isSiteAdmin}
+              disabled={isSiteAdmin}
               title={
                 isSiteAdmin ? "A administração do site não pode excluir a própria conta" : undefined
               }
@@ -189,19 +190,17 @@ function ContaPage() {
             <DialogDescription>Esta ação encerra seu acesso imediatamente.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-2">
               <Button
                 variant={modoExclusao === "recuperavel" ? "default" : "outline"}
                 onClick={() => setModoExclusao("recuperavel")}
               >
                 Guardar por 90 dias
               </Button>
-              <Button
-                variant={modoExclusao === "definitiva" ? "destructive" : "outline"}
-                onClick={() => setModoExclusao("definitiva")}
-              >
-                Sem recuperação
-              </Button>
+              <p className="text-xs text-muted-foreground">
+                A exclusão irreversível ficará disponível após a validação da limpeza de todos os
+                arquivos e vínculos do grupo.
+              </p>
             </div>
             <Field label='Digite "DELETAR"'>
               <Input value={confirmacao1} onChange={(e) => setConfirmacao1(e.target.value)} />

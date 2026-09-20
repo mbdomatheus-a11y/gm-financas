@@ -8,7 +8,12 @@ import { supabase } from "@/integrations/supabase/client";
 
 import { cpfToEmail, isValidCpf, maskCpf, onlyDigits } from "@/lib/cpf";
 import { aceitarConvite } from "@/lib/convites.functions";
-import { consultarBloqueioLogin, registrarFalhaLogin, registrarSucessoLogin } from "@/lib/login-protecao.functions";
+import { solicitarCodigoRecuperacao } from "@/lib/conta-exclusao.functions";
+import {
+  consultarBloqueioLogin,
+  registrarFalhaLogin,
+  registrarSucessoLogin,
+} from "@/lib/login-protecao.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -96,7 +101,14 @@ function LoginPage() {
 
 /** Login por e-mail (contas novas) OU CPF (contas antigas, compatibilidade). */
 const IDENTIFICADOR_SALVO = "control-all-identificador";
-const DOMINIOS_EMAIL = ["gmail.com", "hotmail.com", "outlook.com", "icloud.com", "yahoo.com.br", "uol.com.br"];
+const DOMINIOS_EMAIL = [
+  "gmail.com",
+  "hotmail.com",
+  "outlook.com",
+  "icloud.com",
+  "yahoo.com.br",
+  "uol.com.br",
+];
 
 function EntrarForm({ next }: { next?: string }) {
   const navigate = useNavigate();
@@ -141,7 +153,9 @@ function EntrarForm({ next }: { next?: string }) {
     }
     const bloqueio = await consultarBloqueio({ data: { identificador: email } });
     if (bloqueio.bloqueadoAte) {
-      toast.error(`Por segurança, novas tentativas estão bloqueadas até ${new Date(bloqueio.bloqueadoAte).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}.`);
+      toast.error(
+        `Por segurança, novas tentativas estão bloqueadas até ${new Date(bloqueio.bloqueadoAte).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}.`,
+      );
       return;
     }
     setLoading(true);
@@ -149,7 +163,11 @@ function EntrarForm({ next }: { next?: string }) {
     setLoading(false);
     if (error || !data.user) {
       const tentativa = await registrarFalha({ data: { identificador: email } });
-      toast.error(tentativa.bloqueadoAte ? "Três tentativas incorretas. O acesso foi bloqueado por 15 minutos." : "Credenciais incorretas");
+      toast.error(
+        tentativa.bloqueadoAte
+          ? "Três tentativas incorretas. O acesso foi bloqueado por 15 minutos."
+          : "Credenciais incorretas",
+      );
       return;
     }
     void registrarSucesso({ data: { identificador: email } });
@@ -230,7 +248,11 @@ function EntrarForm({ next }: { next?: string }) {
             const lembrar = checked === true;
             setLembrarIdentificador(lembrar);
             if (!lembrar) {
-              try { localStorage.removeItem(IDENTIFICADOR_SALVO); } catch { /* indisponível */ }
+              try {
+                localStorage.removeItem(IDENTIFICADOR_SALVO);
+              } catch {
+                /* indisponível */
+              }
             }
           }}
         />
@@ -275,6 +297,7 @@ const emptyCadastro = {
 function CriarContaForm({ token }: { token: string | undefined }) {
   const navigate = useNavigate();
   const aceitar = useServerFn(aceitarConvite);
+  const solicitarCodigo = useServerFn(solicitarCodigoRecuperacao);
   const [form, setForm] = useState(emptyCadastro);
   const [tokenInput, setTokenInput] = useState(token ?? "");
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
@@ -321,22 +344,24 @@ function CriarContaForm({ token }: { token: string | undefined }) {
       return;
     }
     if (!aceitouDocumentos) {
-      toast.error("Você precisa aceitar os Termos de Uso e o Aviso de Privacidade para criar a conta.");
+      toast.error(
+        "Você precisa aceitar os Termos de Uso e o Aviso de Privacidade para criar a conta.",
+      );
       return;
     }
 
     setLoading(true);
     try {
       const dadosCadastro = {
-          token: tokenInput.trim(),
-          nome: form.nome.trim(),
-          cpf,
-          email: form.email.trim(),
-          telefone: form.telefone.trim(),
-          dataNascimento: form.dataNascimento,
-          senha: form.senha,
-          turnstileToken: turnstileToken ?? undefined,
-          aceitouDocumentos: true,
+        token: tokenInput.trim(),
+        nome: form.nome.trim(),
+        cpf,
+        email: form.email.trim(),
+        telefone: form.telefone.trim(),
+        dataNascimento: form.dataNascimento,
+        senha: form.senha,
+        turnstileToken: turnstileToken ?? undefined,
+        aceitouDocumentos: true,
       };
       let res;
       try {
@@ -344,9 +369,22 @@ function CriarContaForm({ token }: { token: string | undefined }) {
       } catch (err: unknown) {
         if (err instanceof Error && err.message.includes("RECUPERACAO_DISPONIVEL")) {
           const recuperar = window.confirm(
-            "Encontramos uma conta excluída há menos de 90 dias com lançamentos preservados. Deseja recuperar os dados anteriores? Clique em Cancelar para criar uma conta nova, sem recuperar.",
+            "Encontramos uma conta excluída há menos de 90 dias. Deseja recuperar os dados anteriores? Você precisará confirmar o e-mail usado antes da exclusão. Clique em Cancelar para criar uma conta nova.",
           );
-          res = await aceitar({ data: { ...dadosCadastro, recuperarDados: recuperar } });
+          if (recuperar) {
+            await solicitarCodigo({ data: { cpf, email: dadosCadastro.email } });
+            const codigoRecuperacao = window
+              .prompt(
+                "Enviamos um código ao e-mail anterior, se ele corresponder à conta. Cole o código recebido. Ele vale por 15 minutos.",
+              )
+              ?.trim();
+            if (!codigoRecuperacao) return;
+            res = await aceitar({
+              data: { ...dadosCadastro, recuperarDados: true, codigoRecuperacao },
+            });
+          } else {
+            res = await aceitar({ data: { ...dadosCadastro, recuperarDados: false } });
+          }
         } else {
           throw err;
         }
@@ -388,9 +426,16 @@ function CriarContaForm({ token }: { token: string | undefined }) {
       </div>
 
       <label className="flex items-start gap-2 rounded-lg border p-3 text-xs text-muted-foreground">
-        <Checkbox checked={aceitouDocumentos} onCheckedChange={(checked) => setAceitouDocumentos(checked === true)} />
+        <Checkbox
+          checked={aceitouDocumentos}
+          onCheckedChange={(checked) => setAceitouDocumentos(checked === true)}
+        />
         <span>
-          Li e aceito os <span className="inline-flex gap-1"><LegalDialogs compact /></span>. Entendo que sou responsável por proteger minha senha e não compartilhar meu acesso.
+          Li e aceito os{" "}
+          <span className="inline-flex gap-1">
+            <LegalDialogs compact />
+          </span>
+          . Entendo que sou responsável por proteger minha senha e não compartilhar meu acesso.
         </span>
       </label>
       <div className="space-y-1.5">

@@ -6,7 +6,7 @@ Conferência em 2026-09-19. "No código" significa implementado no repositório,
 
 - [x] Início separado em Finanças, Lista, Notas e Calculadora, sem a calculadora de datas na Home; navegação de retorno para Início e atalhos gerais.
 - [x] Tela administrativa de usuários cadastrados, dados básicos e convites, com revogação de convite ainda não usado pelo administrador principal.
-- [ ] Exclusão de conta com recuperação integral por 90 dias. A confirmação dupla e a tabela `contas_excluidas` existem, mas hoje apenas o perfil é arquivado; dados pessoais podem ser apagados em cascata e a recuperação só por CPF é insegura. Não tratar como concluída.
+- [ ] Exclusão de conta com recuperação integral por 90 dias. A nova versão retém o usuário de autenticação, exige código enviado ao e-mail anterior para recuperar e bloqueia o acesso durante a janela. Migrações aplicadas em 20/09/2026. Falta teste real de restauração e limpeza física automática após o prazo. A opção irreversível está bloqueada até a limpeza segura do grupo e do Storage.
 - [x] Índices de duplicidade de faturas, despesas e parcelas por grupo, permitindo a mesma fatura em grupos diferentes.
 - [x] Importação aprende de-para após classificação manual e permite cadastrar banco e cartão dentro da revisão.
 - [x] Login por e-mail ou CPF validado, sugestões de domínio e opção de lembrar somente o identificador, nunca a senha.
@@ -36,7 +36,7 @@ Conferência em 2026-09-19. "No código" significa implementado no repositório,
 - [ ] Aviso de privacidade e termos finais, aba pública, aceite versionado no cadastro e revisão jurídica. Falta o e-mail de privacidade da Control All LTDA.
 - [ ] Formulário e fila administrativa de solicitações de exclusão, com aviso ao administrador, confirmação de identidade e histórico do atendimento.
 - [ ] Banner de avisos administrativos para todos os usuários, aceite obrigatório e registro de leitura.
-- [ ] Painel analítico com usuários totais/ativos, última atividade, tempo médio de uso e espaço ocupado por conta, sem conteúdo financeiro.
+- [x] Painel analítico com usuários totais/ativos, última atividade, tempo médio de uso e espaço ocupado por conta, sem conteúdo financeiro. Código publicado e visualização de metadados de Storage aplicada em 20/09/2026. Sessões anteriores à instrumentação não têm duração histórica confiável.
 - [ ] Controle de inatividade: código e migração prontos, padrão de 5 minutos e aviso no minuto final; falta publicar e testar em navegador.
 - [ ] Reajuste mensal: código local preparado com média de 6, 12 ou 24 meses do Banco Central e entrada manual; falta publicar e validar os índices reais.
 - [ ] Orçamento por evento: código e migração prontos, mantendo anexos antigos; falta publicar e testar.

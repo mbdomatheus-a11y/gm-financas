@@ -154,16 +154,12 @@ export const aceitarConvite = createServerFn({ method: "POST" })
         senha: z.string().min(8).max(72),
         turnstileToken: z.string().optional(),
         recuperarDados: z.boolean().optional(),
+        codigoRecuperacao: z.string().min(20).max(100).optional(),
         aceitouDocumentos: z.literal(true),
       })
       .parse(d),
   )
   .handler(async ({ data }) => {
-    if (TURNSTILE_ATIVO) {
-      const turnstileOk = await verificarTurnstileToken(data.turnstileToken ?? "");
-      if (!turnstileOk)
-        throw new Error("Verificação de segurança falhou. Recarregue e tente de novo.");
-    }
     if (!isValidCpf(data.cpf)) throw new Error("CPF inválido");
 
     const nascimento = new Date(data.dataNascimento);
@@ -188,7 +184,7 @@ export const aceitarConvite = createServerFn({ method: "POST" })
 
     const { data: contaArquivada, error: archiveError } = await db
       .from("contas_excluidas")
-      .select("id, grupo_id, expira_em")
+      .select("id, grupo_id, expira_em, email, auth_user_id_original")
       .eq("cpf", onlyDigits(data.cpf))
       .is("restaurada_em", null)
       .is("excluida_definitivamente_em", null)
@@ -200,6 +196,73 @@ export const aceitarConvite = createServerFn({ method: "POST" })
     if (contaArquivada && data.recuperarDados === undefined) {
       throw new Error("RECUPERACAO_DISPONIVEL");
     }
+    if (TURNSTILE_ATIVO) {
+      const turnstileOk = await verificarTurnstileToken(data.turnstileToken ?? "");
+      if (!turnstileOk)
+        throw new Error("Verificação de segurança falhou. Recarregue e tente de novo.");
+    }
+    if (contaArquivada && data.recuperarDados) {
+      if (
+        contaArquivada.email?.toLowerCase() !== data.email.toLowerCase() ||
+        !data.codigoRecuperacao
+      )
+        throw new Error("A recuperação exige confirmação pelo e-mail anterior.");
+      const { validarCodigoRecuperacao } = await import("@/lib/conta-exclusao.server");
+      const codigoId = await validarCodigoRecuperacao(contaArquivada.id, data.codigoRecuperacao);
+      const { data: usuarioAntigo, error: buscaErro } = await supabaseAdmin.auth.admin.getUserById(
+        contaArquivada.auth_user_id_original,
+      );
+      if (buscaErro || !usuarioAntigo.user)
+        throw new Error(
+          "Esta exclusão antiga não permite recuperação integral. Crie uma conta nova sem recuperar.",
+        );
+      const { error: reativarErro } = await supabaseAdmin.auth.admin.updateUserById(
+        usuarioAntigo.user.id,
+        { email: data.email, password: data.senha, ban_duration: "none", email_confirm: true },
+      );
+      if (reativarErro) throw new Error("Não foi possível reativar a conta. Tente novamente.");
+      const { error: perfilErro } = await db
+        .from("profiles")
+        .update({
+          nome: data.nome,
+          cpf: onlyDigits(data.cpf),
+          email: data.email,
+          telefone: data.telefone,
+          data_nascimento: data.dataNascimento,
+          grupo_id: contaArquivada.grupo_id,
+          ativo: true,
+          senha_temporaria: false,
+        })
+        .eq("id", usuarioAntigo.user.id);
+      if (perfilErro) {
+        await supabaseAdmin.auth.admin.updateUserById(usuarioAntigo.user.id, {
+          email: `excluida-${usuarioAntigo.user.id}@conta.invalid`,
+          ban_duration: "876000h",
+        });
+        throw new Error("Não foi possível concluir a recuperação sem risco aos dados.");
+      }
+      const { error: restaurarErro } = await db
+        .from("contas_excluidas")
+        .update({ restaurada_em: new Date().toISOString() })
+        .eq("id", contaArquivada.id);
+      if (restaurarErro)
+        throw new Error(
+          "A conta foi reativada, mas o histórico de recuperação precisa de revisão administrativa.",
+        );
+      await db
+        .from("convites")
+        .update({ usado: true, usado_por: usuarioAntigo.user.id })
+        .eq("id", convite.id);
+      await db.from("aceites_documentos").upsert(
+        [
+          { user_id: usuarioAntigo.user.id, documento: "termos_uso", versao: "2026-09-19" },
+          { user_id: usuarioAntigo.user.id, documento: "aviso_privacidade", versao: "2026-09-19" },
+        ],
+        { onConflict: "user_id,documento,versao" },
+      );
+      await db.from("contas_recuperacao_codigos").delete().eq("id", codigoId);
+      return { ok: true, email: data.email };
+    }
 
     // Cada convidado entra num grupo NOVO e isolado — não no grupo de quem
     // convidou. O convite libera a conta (é o "selo" de confiança), mas os
@@ -207,7 +270,7 @@ export const aceitarConvite = createServerFn({ method: "POST" })
     // Bug corrigido em 2026-09-18: antes o código reaproveitava
     // `convite.grupo_id` (o grupo de quem gerou o convite), então todo
     // convidado passava a enxergar os dados financeiros de quem o convidou.
-    let grupoId = contaArquivada && data.recuperarDados ? contaArquivada.grupo_id : null;
+    let grupoId = null;
     if (!grupoId) {
       const { data: grupoNovo, error: grupoError } = await db
         .from("grupos")
@@ -272,13 +335,6 @@ export const aceitarConvite = createServerFn({ method: "POST" })
       { user_id: created.user.id, documento: "termos_uso", versao: "2026-09-19" },
       { user_id: created.user.id, documento: "aviso_privacidade", versao: "2026-09-19" },
     ]);
-
-    if (contaArquivada && data.recuperarDados) {
-      await db
-        .from("contas_excluidas")
-        .update({ restaurada_em: new Date().toISOString() })
-        .eq("id", contaArquivada.id);
-    }
 
     return { ok: true, email: data.email };
   });

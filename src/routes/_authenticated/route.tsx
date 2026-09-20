@@ -11,11 +11,15 @@ export const Route = createFileRoute("/_authenticated")({
 
     const { data: profile } = await supabase
       .from("profiles")
-      .select("senha_temporaria")
+      .select("senha_temporaria,ativo")
       .eq("id", data.user.id)
       .maybeSingle();
 
-    if (profile?.senha_temporaria && location.pathname !== "/nova-senha") {
+    if (!profile?.ativo) {
+      await supabase.auth.signOut();
+      throw redirect({ to: "/entrar" });
+    }
+    if (profile.senha_temporaria && location.pathname !== "/nova-senha") {
       throw redirect({ to: "/nova-senha" });
     }
     return { user: data.user };

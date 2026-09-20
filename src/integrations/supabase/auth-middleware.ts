@@ -97,6 +97,15 @@ export const requireSupabaseAuth = createMiddleware({ type: "function" }).server
       throw new Error("Unauthorized: No user ID found in token");
     }
 
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("ativo")
+      .eq("id", data.claims.sub)
+      .maybeSingle();
+    if (profileError || !profile?.ativo) {
+      throw new Error("Unauthorized: Inactive account");
+    }
+
     return next({
       context: {
         supabase,
