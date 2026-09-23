@@ -71,7 +71,7 @@ export function FaturaMesDialog({ trigger }: { trigger?: React.ReactNode }) {
     let total = 0;
     for (const d of despesas as any[]) {
       if (d.cartao_id !== cartaoId) continue;
-      if (d.origem === "fatura_rapida") continue;
+      if (d.origem === "fatura_rapida" || d.origem === "fatura_total_manual") continue;
       for (const p of d.parcelas ?? [])
         if (monthKey(p.vencimento) === competencia) total += Number(p.valor);
     }
@@ -93,6 +93,7 @@ export function FaturaMesDialog({ trigger }: { trigger?: React.ReactNode }) {
       const registro = fatura.data as any;
       const valorAvulso = Number(avulso.toFixed(2));
       let despesaId: string | null = registro?.despesa_avulsa_id ?? null;
+      const origemDespesa = modo === "somente_total" ? "fatura_total_manual" : "fatura_rapida";
 
       if (despesaId) {
         const { error } = await supabase
@@ -101,12 +102,13 @@ export function FaturaMesDialog({ trigger }: { trigger?: React.ReactNode }) {
             valor_total: valorAvulso,
             data_compra: vencimento,
             data_primeira_parcela: vencimento,
+            origem: origemDespesa,
           })
           .eq("id", despesaId);
         if (error) throw error;
         const { error: pErr } = await supabase
           .from("parcelas")
-          .update({ valor: valorAvulso, vencimento })
+          .update({ valor: valorAvulso, vencimento, origem: origemDespesa })
           .eq("despesa_id", despesaId);
         if (pErr) throw pErr;
       }
@@ -128,7 +130,7 @@ export function FaturaMesDialog({ trigger }: { trigger?: React.ReactNode }) {
             banco_nome: cartao?.bancos?.nome ?? null,
             cartao_final: cartao?.final ?? null,
             direcao: "debito",
-            origem: modo === "somente_total" ? "fatura_total_manual" : "fatura_rapida",
+            origem: origemDespesa,
             categoria_confirmada: false,
             created_by: user?.id ?? null,
           })
@@ -144,7 +146,7 @@ export function FaturaMesDialog({ trigger }: { trigger?: React.ReactNode }) {
           moeda: "BRL",
           vencimento,
           paga: false,
-          origem: "fatura_rapida",
+          origem: origemDespesa,
           valor_estimado: true,
         });
         if (pErr) throw pErr;
