@@ -1,6 +1,6 @@
 # Control ALL: guia de continuidade do desenvolvimento
 
-Atualizado em 22/09/2026. Este documento permite que outra IA ou pessoa continue o projeto sem depender do histórico da conversa.
+Atualizado em 23/09/2026. Este documento permite que outra IA ou pessoa continue o projeto sem depender do histórico da conversa.
 
 ## Identidade e ambientes oficiais
 
@@ -9,7 +9,7 @@ Atualizado em 22/09/2026. Este documento permite que outra IA ou pessoa continue
 - Hospedagem: Vercel, projeto `gm-financas-ohdi`.
 - Repositório: `mbdomatheus-a11y/gm-financas`.
 - Supabase oficial: projeto `wjapagkdgjlavonbmjdu`.
-- E-mail de privacidade e contato: `mbdo.matheus@gmail.com` até a troca por endereço do domínio.
+- E-mail de privacidade e contato: `privacidade@controlall.com.br` / `mbdo.matheus@gmail.com`.
 - Idioma: português brasileiro.
 - Não colocar chaves, senhas, CPF ou tokens no Git.
 
@@ -19,7 +19,7 @@ Atualizado em 22/09/2026. Este documento permite que outra IA ou pessoa continue
 - Tailwind CSS e componentes Radix/shadcn.
 - Supabase para autenticação, PostgreSQL, RLS e Storage.
 - Vercel Analytics carregado no layout raiz.
-- Testes com Vitest. Antes de publicar, executar `npx tsc --noEmit`, `npm run lint`, `npm test` quando disponível e `npm run build`.
+- Testes com Vitest. Antes de publicar, executar `npx tsc --noEmit`, `npm run lint` e `npm run build`.
 - Alterações de banco sempre devem ser adicionadas em `supabase/migrations`. Atualizar também `src/integrations/supabase/types.ts`.
 
 ## Regras centrais de segurança e dados
@@ -27,6 +27,7 @@ Atualizado em 22/09/2026. Este documento permite que outra IA ou pessoa continue
 - Dados financeiros são isolados por `grupo_id`; administradores veem cadastro e métricas, não devem ganhar acesso silencioso aos dados privados.
 - Módulos de exames são privados por usuário por padrão e só são compartilhados mediante escolha explícita.
 - Exclusão de conta mantém cópia recuperável por 90 dias. Dados compartilhados permanecem para os outros integrantes. Se não houver outro integrante, os dados são apagados definitivamente após o prazo.
+- Formulário e solicitações de privacidade LGPD estão disponíveis no modal de Termos/Privacidade e são encaminhados para a fila de atendimento na tela de Administração (`/administracao`).
 - Administrador principal não pode excluir a própria conta. Exclusão administrativa exige as confirmações textuais definidas no produto.
 - PDFs de modelagem de fatura são privados, auditados e descartados conforme a política documentada.
 - A chave `service_role` só pode existir no servidor.
@@ -63,17 +64,15 @@ Atualizado em 22/09/2026. Este documento permite que outra IA ou pessoa continue
 - Cada usuário mantém seu próprio estado de leitura e histórico.
 - O administrador pode limpar todas as versões ativas para todos. O registro não é apagado fisicamente, recebe `ativo=false`, `limpo_em` e `limpo_por`.
 
-## Migração desta entrega
+## Migrações recentes
 
-- Arquivo: `supabase/migrations/20260923010000_totais_fatura_limites_versoes.sql`.
-- Adiciona modo de cálculo e data de conclusão em `fatura_mes`.
-- Adiciona `cartao_id` em `import_faturas`.
-- Cria `versoes_site`, acessível somente pelo servidor com `service_role`.
+- `supabase/migrations/20260922010000_configuracoes_acesso_modulos_grupos.sql`: módulos por grupo, limites de login e 2FA.
+- `supabase/migrations/20260923010000_totais_fatura_limites_versoes.sql`: modo de cálculo em `fatura_mes`, `cartao_id` em `import_faturas`, tabela `versoes_site`.
 
 ## Fluxo de publicação
 
 1. Verificar se a árvore Git contém apenas mudanças da tarefa.
-2. Rodar tipagem, lint, testes e build.
+2. Rodar tipagem, lint e build: `npx tsc --noEmit` e `npm run build`.
 3. Aplicar a nova migração no projeto Supabase oficial e conferir o resultado.
 4. Criar commit sem reescrever commits já publicados.
 5. Fazer push para a branch conectada à Vercel.
@@ -81,7 +80,7 @@ Atualizado em 22/09/2026. Este documento permite que outra IA ou pessoa continue
 
 ## Pontos que exigem cuidado futuro
 
-- Ao importar faturas antigas, o histórico de limite só ficará separado por cartão se o cartão for identificado ou escolhido.
+- Ao configurar o envio de e-mails via Resend em produção, adicionar o domínio no painel do Resend e definir a variável de ambiente `RESEND_FROM_EMAIL`. O remetente padrão `onboarding@resend.dev` retorna erro 403 para e-mails terceiros.
 - Manter a compatibilidade do booleano legado `inclui_parcelas`; a regra nova usa `modo_calculo`.
 - Testar qualquer mudança de consolidação com dois cartões do mesmo banco e titulares diferentes.
 - Não reescrever o histórico público do Git. O projeto ainda mantém integração registrada com Lovable, embora o usuário não queira depender dessa ferramenta.

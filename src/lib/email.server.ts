@@ -7,9 +7,9 @@
 // - RESEND_API_KEY (obrigatória): chave da conta Resend.
 // - RESEND_FROM_EMAIL (opcional): remetente, ex. "Control ALL <avisos@seudominio.com>".
 //   Sem essa variável, cai no domínio de teste do Resend (onboarding@resend.dev) —
-//   funciona pra testar, mas troque assim que tiver um domínio próprio
-//   verificado no Resend (Settings → Domains), senão os e-mails têm mais
-//   chance de cair em spam.
+//   que só permite enviar e-mails para o próprio endereço cadastrado na conta do Resend.
+//   Configure RESEND_FROM_EMAIL com um domínio verificado em Resend -> Domains para enviar
+//   a qualquer destinatário.
 
 const RESEND_API_URL = "https://api.resend.com/emails";
 const REMETENTE_TESTE = "Control ALL <onboarding@resend.dev>";
@@ -27,19 +27,30 @@ export async function enviarEmail(params: {
 
   const from = process.env["RESEND_FROM_EMAIL"] || REMETENTE_TESTE;
 
-  const res = await fetch(RESEND_API_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ from, to: [params.to], subject: params.subject, html: params.html }),
-  });
+  try {
+    const res = await fetch(RESEND_API_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ from, to: [params.to], subject: params.subject, html: params.html }),
+    });
 
-  if (!res.ok) {
-    const texto = await res.text();
-    console.error(`[email] Resend recusou o envio (${res.status}): ${texto}`);
-    return { ok: false, erro: `Não foi possível enviar o e-mail (erro ${res.status}).` };
+    if (!res.ok) {
+      const texto = await res.text();
+      console.error(`[email] Resend recusou o envio (${res.status}): ${texto}`);
+      if (res.status === 403) {
+        return {
+          ok: false,
+          erro: "Envio recusado pelo provedor (403). Verifique se o domínio do remetente está verificado no Resend.",
+        };
+      }
+      return { ok: false, erro: `Não foi possível enviar o e-mail (erro ${res.status}).` };
+    }
+    return { ok: true };
+  } catch (err: any) {
+    console.error("[email] Erro de rede ou exceção ao chamar Resend:", err);
+    return { ok: false, erro: "Falha de conexão com a API de e-mail." };
   }
-  return { ok: true };
 }
