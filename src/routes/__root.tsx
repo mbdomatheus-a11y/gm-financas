@@ -13,6 +13,7 @@ import { inject, type BeforeSendEvent } from "@vercel/analytics";
 import appCss from "../styles.css?url";
 import { Toaster } from "@/components/ui/sonner";
 import { VersaoBuild } from "@/components/VersaoBuild";
+import { DynamicFavicon } from "@/components/BrandMark";
 
 function NotFoundComponent() {
   return (
@@ -133,6 +134,7 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <VersaoBuild />
+      <DynamicFavicon />
       <Outlet />
       <Toaster position="top-center" richColors />
     </QueryClientProvider>

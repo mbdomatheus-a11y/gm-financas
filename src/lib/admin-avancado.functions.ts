@@ -127,6 +127,7 @@ export const adminCriarComunicado = createServerFn({ method: "POST" })
         titulo: data.titulo,
         mensagem: data.mensagem,
         exige_aceite: data.exigeAceite,
+        expira_em: new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString(),
       })
       .select("id")
       .single();
@@ -136,6 +137,39 @@ export const adminCriarComunicado = createServerFn({ method: "POST" })
       acao: "comunicado_publicado",
       alvo_id: item.id,
       detalhes: { exige_aceite: data.exigeAceite },
+    });
+    return { ok: true as const };
+  });
+export const adminListarComunicados = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await admin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data, error } = await (supabaseAdmin as any)
+      .from("comunicados")
+      .select("id,titulo,mensagem,ativo,criado_em,expira_em")
+      .order("criado_em", { ascending: false })
+      .limit(50);
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  });
+export const adminEncerrarComunicado = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((v: unknown) => z.object({ id: z.string().uuid() }).parse(v))
+  .handler(async ({ data, context }) => {
+    await admin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const db = supabaseAdmin as any;
+    const { error } = await db
+      .from("comunicados")
+      .update({ ativo: false, expira_em: new Date().toISOString() })
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
+    await db.from("admin_audit_logs").insert({
+      ator_id: context.userId,
+      acao: "comunicado_encerrado",
+      alvo_id: data.id,
+      detalhes: {},
     });
     return { ok: true as const };
   });
@@ -156,7 +190,7 @@ export const adminMetricas = createServerFn({ method: "GET" })
       db.from("profiles").select("*", { count: "exact", head: true }).eq("ativo", true),
       db
         .from("profiles")
-        .select("id,nome,email,ativo")
+        .select("id,nome,email,ativo,grupo_id,grupos:grupo_id(nome)")
         .order("created_at", { ascending: false })
         .limit(1000),
       db
@@ -203,10 +237,27 @@ export const adminMetricas = createServerFn({ method: "GET" })
         ultimaAtividadeEm: ultimaPorUsuario.get(perfil.id) ?? null,
         arquivos: usoPorUsuario.get(perfil.id)?.arquivos ?? 0,
         bytesArmazenados: usoPorUsuario.get(perfil.id)?.bytes ?? 0,
+        grupoId: perfil.grupo_id ?? null,
+        grupoNome: perfil.grupos?.nome ?? "Sem grupo",
       })),
       armazenamentoNaoAtribuidoBytes: Number(
         (usoArquivos ?? []).find((uso: any) => !uso.user_id)?.bytes ?? 0,
       ),
+      grupos: [
+        ...new Map(
+          (perfis ?? [])
+            .filter((p: any) => p.grupo_id)
+            .map((p: any) => [
+              p.grupo_id,
+              { id: p.grupo_id, nome: p.grupos?.nome ?? "Grupo", membros: [] },
+            ]),
+        ).values(),
+      ].map((g: any) => ({
+        ...g,
+        membros: (perfis ?? [])
+          .filter((p: any) => p.grupo_id === g.id)
+          .map((p: any) => ({ id: p.id, nome: p.nome, email: p.email, ativo: p.ativo })),
+      })),
     };
   });
 export const adminListarLogs = createServerFn({ method: "GET" })

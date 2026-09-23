@@ -9,6 +9,8 @@ import { useSession } from "@/hooks/useAuthData";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { alterarMinhaSenha } from "@/lib/seguranca-conta.functions";
+import { useServerFn } from "@tanstack/react-start";
 
 export const Route = createFileRoute("/_authenticated/nova-senha")({
   head: () => ({
@@ -26,6 +28,7 @@ function NovaSenhaPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { user } = useSession();
+  const alterarSenha = useServerFn(alterarMinhaSenha);
   const [senha, setSenha] = useState("");
   const [confirma, setConfirma] = useState("");
   const [loading, setLoading] = useState(false);
@@ -46,13 +49,13 @@ function NovaSenhaPage() {
     }
 
     setLoading(true);
-    const { error } = await supabase.auth.updateUser({ password: senha });
-    if (error) {
+    try {
+      await alterarSenha({ data: { senha } });
+    } catch (error) {
       setLoading(false);
-      toast.error(error.message);
+      toast.error(error instanceof Error ? error.message : "Não foi possível alterar a senha");
       return;
     }
-    await supabase.from("profiles").update({ senha_temporaria: false }).eq("id", user!.id);
     await qc.invalidateQueries();
     setLoading(false);
     toast.success("Senha atualizada!");

@@ -1,7 +1,15 @@
-import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import {
+  createFileRoute,
+  Outlet,
+  redirect,
+  useNavigate,
+  useRouterState,
+} from "@tanstack/react-router";
+import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { InactivityGuard } from "@/components/InactivityGuard";
 import { ComunicadosModal } from "@/components/ComunicadosModal";
+import { useModulosGlobais, type ModuloGlobal } from "@/hooks/useAuthData";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -24,10 +32,39 @@ export const Route = createFileRoute("/_authenticated")({
     }
     return { user: data.user };
   },
-  component: () => (
+  component: Protegido,
+});
+
+const MODULO_POR_ROTA: Record<string, ModuloGlobal> = {
+  "/dashboard": "financas",
+  "/receitas": "financas",
+  "/despesas": "financas",
+  "/importar": "financas",
+  "/categorias": "financas",
+  "/de-para": "financas",
+  "/cartoes": "financas",
+  "/investimentos": "financas",
+  "/lista-compras": "lista",
+  "/notas": "notas",
+  "/ferramentas": "calculadora",
+  "/pets": "pet",
+  "/onde-esta": "onde_esta",
+  "/veiculos": "veiculo",
+  "/exames": "exames",
+};
+function Protegido() {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const navigate = useNavigate();
+  const { habilitado, isLoading } = useModulosGlobais();
+  useEffect(() => {
+    const modulo = MODULO_POR_ROTA[pathname];
+    if (!isLoading && modulo && !habilitado(modulo))
+      void navigate({ to: "/inicio", replace: true });
+  }, [pathname, isLoading, habilitado, navigate]);
+  return (
     <InactivityGuard>
       <ComunicadosModal />
       <Outlet />
     </InactivityGuard>
-  ),
-});
+  );
+}

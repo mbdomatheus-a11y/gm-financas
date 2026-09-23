@@ -110,5 +110,8 @@ export const redefinirSenhaComToken = createServerFn({ method: "POST" })
       .update({ senha_temporaria: false })
       .eq("id", registro.user_id);
 
+    const { notificarSenhaAlterada } = await import("@/lib/seguranca-conta.functions");
+    await notificarSenhaAlterada(registro.user_id);
+
     return { ok: true as const };
   });

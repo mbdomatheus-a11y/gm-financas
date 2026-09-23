@@ -1,5 +1,20 @@
 # Control All: especificações, privacidade e segurança
 
+## Revisão de 22/09/2026: acesso, módulos, grupos e alertas
+
+- A identidade visual cadastrada pelo administrador passa a alimentar também o ícone exibido na aba do navegador. O arquivo continua centralizado no bucket público de identidade visual, sem duplicação manual de logos.
+- O administrador global pode definir o acesso por CPF, por e-mail ou pelos dois. O rótulo, a orientação e a validação da tela de entrada acompanham a opção vigente. CPF continua sujeito à validação matemática.
+- O segundo fator por e-mail é opcional e global. Depois de validar a senha, o sistema envia um código numérico de uso único, válido por 10 minutos e limitado a cinco tentativas. O código é armazenado somente como hash. O login só abre a sessão depois da validação do segundo fator.
+- Três senhas incorretas bloqueiam novas tentativas para o mesmo identificador por 15 minutos. Essa proteção é executada no servidor, inclusive contra chamadas que contornem a tela.
+- A sessão autenticada não é renovada silenciosamente e é encerrada em no máximo 60 minutos. O bloqueio por inatividade configurável permanece independente e pode encerrar antes desse limite.
+- Toda alteração de senha dispara um aviso para o e-mail real da conta. O aviso inclui um link de emergência, válido por 24 horas, para bloquear uma conta não administrativa e orienta contato com `privacidade@controlall.com.br`. Contas administrativas exigem atendimento manual para evitar bloqueio malicioso do administrador global.
+- Alertas de veículos, garantias e compras deixam o contador assim que o usuário os abre. A leitura fica registrada por usuário e o histórico continua acessível. A chave dos alertas de veículo usa a data ou a quilometragem de referência, evitando que o mesmo evento volte apenas porque o texto da contagem diária mudou.
+- O administrador global pode liberar ou ocultar Finanças, Lista, Notas, Calculadora, Pet, Onde está?, Veículos e Exames para todos. Quando um módulo global está oculto, pode ser liberado para pessoas específicas. Administradores globais mantêm acesso integral. A proteção é aplicada na navegação e também ao abrir diretamente a rota do módulo.
+- Convites de grupo são enviados apenas para contas já cadastradas. A pessoa convidada precisa aceitar conscientemente o aviso de que o espaço de trabalho passará a ser único e compartilhado. A união é transacional: qualquer conflito desfaz toda a operação. O administrador global vê somente a composição dos grupos e os dados básicos dos membros, sem conteúdo financeiro.
+- Comunicados administrativos recebem validade padrão de 72 horas. O administrador pode encerrá-los antes e consultar a trilha de leitura.
+- O gráfico de fluxo mensal permite alternar entre visão completa, somente receitas e somente despesas, além de escolher barras ou linhas.
+- A migração `20260922010000_configuracoes_acesso_modulos_grupos.sql` foi aplicada no Supabase oficial em 22/09/2026. A verificação confirmou as tabelas de configuração, módulos, exceções, 2FA, leitura de alertas e convites, a função de aceite de grupo e os oito módulos iniciais.
+
 ## Revisão de 20/09/2026: exclusão e layouts
 
 - Exclusão recuperável foi refeita: o usuário de autenticação e seus dados vinculados permanecem por até 90 dias, mas o acesso é banido, as sessões são revogadas e o perfil fica inativo e desvinculado do grupo. A restauração exige CPF válido, e-mail anterior e código aleatório enviado a esse e-mail, além de novo convite. O código é armazenado apenas como hash, expira em 15 minutos e admite no máximo cinco tentativas. O administrador do grupo pode solicitar a exclusão; o administrador global não. As migrações `20260920020000` e `20260920021000` foram aplicadas no banco oficial em 20/09/2026. Ainda falta testar o ciclo completo com conta descartável antes de afirmar recuperação integral em produção.

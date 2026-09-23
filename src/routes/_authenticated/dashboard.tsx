@@ -44,12 +44,7 @@ import {
 import { useCotacao } from "@/hooks/useCotacao";
 import { useCategorias, useDespesas, useReceitas } from "@/hooks/useFinance";
 import { supabase } from "@/integrations/supabase/client";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -141,11 +136,12 @@ function DashboardPage() {
 
   const mesAtual = currentMonthKey();
   const [janela, setJanela] = useState("-6");
+  const [visaoFluxo, setVisaoFluxo] = useState<"ambos" | "receitas" | "despesas">("ambos");
+  const [tipoGrafico, setTipoGrafico] = useState<"barras" | "linhas">("barras");
   const [mesPie, setMesPie] = useState(mesAtual);
   const [agrupamento, setAgrupamento] = useState<Agrupamento>("categoria");
   const [drill, setDrill] = useState<{ mes: string; grupo?: string } | null>(null);
   const [editando, setEditando] = useState<any | null>(null);
-
 
   const meses = useMemo(() => monthWindow(janela), [janela]);
   const mesesSelecionaveis = useMemo(() => {
@@ -284,7 +280,10 @@ function DashboardPage() {
       .reduce((s: number, p: any) => s + toBRL(Number(p.valor), p.despesa.moeda, cotacao), 0);
 
     // Uso por cartão no mês corrente.
-    const cartaoMap = new Map<string, { id: string | null; nome: string; cor: string; valor: number }>();
+    const cartaoMap = new Map<
+      string,
+      { id: string | null; nome: string; cor: string; valor: number }
+    >();
     for (const p of parcelasMes) {
       const d = p.despesa;
       const id = d.cartao_id ?? null;
@@ -327,9 +326,7 @@ function DashboardPage() {
       if (mk === mesAtual) atualCat.set(cat, (atualCat.get(cat) ?? 0) + v);
       else if (tresMeses.includes(mk)) mediaCat.set(cat, (mediaCat.get(cat) ?? 0) + v / 3);
     }
-    const comparativo = Array.from(
-      new Set([...atualCat.keys(), ...mediaCat.keys()]),
-    )
+    const comparativo = Array.from(new Set([...atualCat.keys(), ...mediaCat.keys()]))
       .map((cat) => ({
         categoria: cat,
         "Mês atual": Number((atualCat.get(cat) ?? 0).toFixed(2)),
@@ -383,7 +380,6 @@ function DashboardPage() {
       parceladas,
       top5,
     };
-
   }, [receitas, despesas, parcelas, cotacao, mesAtual, mesPie, meses, grupoDe]);
 
   const detalhe = useMemo(() => {
@@ -427,7 +423,6 @@ function DashboardPage() {
   }, [parcelas, grupoDe, mesPie, cotacao]);
 
   const corGrupo = (g: string) => PALETA[dados.grupos.indexOf(g) % PALETA.length];
-
 
   return (
     <AppLayout
@@ -490,6 +485,28 @@ function DashboardPage() {
         <CardHeader className="flex flex-col gap-2 space-y-0 sm:flex-row sm:items-center sm:justify-between">
           <CardTitle className="text-base">Fluxo de caixa mês a mês</CardTitle>
           <div className="flex flex-wrap gap-2">
+            <Select value={visaoFluxo} onValueChange={(v) => setVisaoFluxo(v as typeof visaoFluxo)}>
+              <SelectTrigger className="h-8 w-[140px] text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ambos">Receitas e despesas</SelectItem>
+                <SelectItem value="receitas">Somente receitas</SelectItem>
+                <SelectItem value="despesas">Somente despesas</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select
+              value={tipoGrafico}
+              onValueChange={(v) => setTipoGrafico(v as typeof tipoGrafico)}
+            >
+              <SelectTrigger className="h-8 w-[110px] text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="barras">Barras</SelectItem>
+                <SelectItem value="linhas">Linhas</SelectItem>
+              </SelectContent>
+            </Select>
             <Select value={agrupamento} onValueChange={(v) => setAgrupamento(v as Agrupamento)}>
               <SelectTrigger className="h-8 w-[150px] text-xs">
                 <SelectValue />
@@ -518,46 +535,97 @@ function DashboardPage() {
         </CardHeader>
         <CardContent className="h-[340px]">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={dados.meses} margin={{ top: 18 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
-              <XAxis
-                dataKey="mes"
-                fontSize={11}
-                tickLine={false}
-                axisLine={false}
-                interval={0}
-                angle={dados.meses.length > 8 ? -35 : 0}
-                textAnchor={dados.meses.length > 8 ? "end" : "middle"}
-                height={dados.meses.length > 8 ? 46 : 24}
-              />
-              <YAxis fontSize={11} tickLine={false} axisLine={false} width={60} />
-              <Tooltip
-                formatter={(v: any, n: any) => [formatBRL(Number(v)), n]}
-                cursor={{ fill: "var(--muted)", opacity: 0.4 }}
-              />
-              <Legend wrapperStyle={{ fontSize: 12 }} />
-              <Bar dataKey="Receitas" fill="var(--success)" radius={[6, 6, 0, 0]}>
-                {dados.meses.length <= 12 && (
-                  <LabelList dataKey="Receitas" position="top" fontSize={9} formatter={compact} />
+            {tipoGrafico === "linhas" ? (
+              <LineChart data={dados.meses} margin={{ top: 18 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
+                <XAxis dataKey="mes" fontSize={11} tickLine={false} axisLine={false} />
+                <YAxis fontSize={11} tickLine={false} axisLine={false} width={60} />
+                <Tooltip formatter={(v: any, n: any) => [formatBRL(Number(v)), n]} />
+                <Legend wrapperStyle={{ fontSize: 12 }} />
+                {visaoFluxo !== "despesas" && (
+                  <Line
+                    type="monotone"
+                    dataKey="Receitas"
+                    stroke="var(--success)"
+                    strokeWidth={3}
+                    dot={{ r: 3 }}
+                  />
                 )}
-              </Bar>
-              {dados.grupos.map((g, i) => (
-                <Bar
-                  key={g}
-                  dataKey={g}
-                  stackId="despesas"
-                  fill={corGrupo(g)}
-                  className="cursor-pointer"
-                  radius={i === dados.grupos.length - 1 ? ([6, 6, 0, 0] as [number, number, number, number]) : 0}
-                  onClick={(e: any) => setDrill({ mes: e?.payload?.key, grupo: g })}
+                {visaoFluxo !== "receitas" && (
+                  <Line
+                    type="monotone"
+                    dataKey="Despesas"
+                    stroke="var(--destructive)"
+                    strokeWidth={3}
+                    dot={{ r: 3 }}
+                  />
+                )}
+              </LineChart>
+            ) : (
+              <BarChart data={dados.meses} margin={{ top: 18 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
+                <XAxis
+                  dataKey="mes"
+                  fontSize={11}
+                  tickLine={false}
+                  axisLine={false}
+                  interval={0}
+                  angle={dados.meses.length > 8 ? -35 : 0}
+                  textAnchor={dados.meses.length > 8 ? "end" : "middle"}
+                  height={dados.meses.length > 8 ? 46 : 24}
                 />
-              ))}
-              {dados.meses.length <= 12 && dados.grupos.length > 0 && (
-                <Bar dataKey="Despesas" fill="transparent" stackId="rotulo" legendType="none">
-                  <LabelList dataKey="Despesas" position="top" fontSize={9} formatter={compact} />
-                </Bar>
-              )}
-            </BarChart>
+                <YAxis fontSize={11} tickLine={false} axisLine={false} width={60} />
+                <Tooltip
+                  formatter={(v: any, n: any) => [formatBRL(Number(v)), n]}
+                  cursor={{ fill: "var(--muted)", opacity: 0.4 }}
+                />
+                <Legend wrapperStyle={{ fontSize: 12 }} />
+                {visaoFluxo !== "despesas" && (
+                  <Bar dataKey="Receitas" fill="var(--success)" radius={[6, 6, 0, 0]}>
+                    {dados.meses.length <= 12 && (
+                      <LabelList
+                        dataKey="Receitas"
+                        position="top"
+                        fontSize={9}
+                        formatter={compact}
+                      />
+                    )}
+                  </Bar>
+                )}
+                {visaoFluxo !== "receitas" &&
+                  (visaoFluxo === "despesas" ? (
+                    <Bar dataKey="Despesas" fill="var(--destructive)" radius={[6, 6, 0, 0]}>
+                      <LabelList
+                        dataKey="Despesas"
+                        position="top"
+                        fontSize={9}
+                        formatter={compact}
+                      />
+                    </Bar>
+                  ) : (
+                    dados.grupos.map((g, i) => (
+                      <Bar
+                        key={g}
+                        dataKey={g}
+                        stackId="despesas"
+                        fill={corGrupo(g)}
+                        className="cursor-pointer"
+                        radius={
+                          i === dados.grupos.length - 1
+                            ? ([6, 6, 0, 0] as [number, number, number, number])
+                            : 0
+                        }
+                        onClick={(e: any) => setDrill({ mes: e?.payload?.key, grupo: g })}
+                      />
+                    ))
+                  ))}
+                {visaoFluxo === "ambos" && dados.meses.length <= 12 && dados.grupos.length > 0 && (
+                  <Bar dataKey="Despesas" fill="transparent" stackId="rotulo" legendType="none">
+                    <LabelList dataKey="Despesas" position="top" fontSize={9} formatter={compact} />
+                  </Bar>
+                )}
+              </BarChart>
+            )}
           </ResponsiveContainer>
         </CardContent>
       </Card>
@@ -595,9 +663,7 @@ function DashboardPage() {
               >
                 <div className="flex items-center justify-between gap-3 text-sm">
                   <span className="truncate font-medium capitalize">{g.grupo}</span>
-                  <span className="shrink-0 font-semibold tabular-nums">
-                    {formatBRL(g.total)}
-                  </span>
+                  <span className="shrink-0 font-semibold tabular-nums">{formatBRL(g.total)}</span>
                 </div>
                 <Progress value={pct} className="mt-1.5 h-1.5" />
                 <p className="mt-1 text-[11px] text-muted-foreground">
@@ -608,7 +674,6 @@ function DashboardPage() {
           })}
         </CardContent>
       </Card>
-
 
       {drill && (
         <Card className="mt-4">
@@ -648,7 +713,6 @@ function DashboardPage() {
                 </div>
               </button>
             ))}
-
           </CardContent>
         </Card>
       )}
@@ -803,7 +867,9 @@ function DashboardPage() {
                     </span>
                   </div>
                   <Progress value={pct} className="h-1.5" />
-                  <p className="text-[11px] text-muted-foreground">{pct.toFixed(0)}% das despesas do mês</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {pct.toFixed(0)}% das despesas do mês
+                  </p>
                 </div>
               );
               return c.id ? (
@@ -826,7 +892,11 @@ function DashboardPage() {
               <EmptyChart />
             ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={dados.porResponsavel} layout="vertical" margin={{ left: 8, right: 40 }}>
+                <BarChart
+                  data={dados.porResponsavel}
+                  layout="vertical"
+                  margin={{ left: 8, right: 40 }}
+                >
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} opacity={0.3} />
                   <XAxis type="number" fontSize={11} tickLine={false} axisLine={false} />
                   <YAxis
@@ -837,7 +907,10 @@ function DashboardPage() {
                     tickLine={false}
                     axisLine={false}
                   />
-                  <Tooltip formatter={(v: any) => formatBRL(Number(v))} cursor={{ fill: "var(--muted)", opacity: 0.4 }} />
+                  <Tooltip
+                    formatter={(v: any) => formatBRL(Number(v))}
+                    cursor={{ fill: "var(--muted)", opacity: 0.4 }}
+                  />
                   <Bar dataKey="valor" radius={[0, 6, 6, 0]}>
                     {dados.porResponsavel.map((_, i) => (
                       <Cell key={i} fill={PALETA[i % PALETA.length]} />
@@ -863,14 +936,35 @@ function DashboardPage() {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={dados.comparativo} margin={{ top: 18 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
-                  <XAxis dataKey="categoria" fontSize={11} tickLine={false} axisLine={false} interval={0} angle={-20} textAnchor="end" height={50} />
+                  <XAxis
+                    dataKey="categoria"
+                    fontSize={11}
+                    tickLine={false}
+                    axisLine={false}
+                    interval={0}
+                    angle={-20}
+                    textAnchor="end"
+                    height={50}
+                  />
                   <YAxis fontSize={11} tickLine={false} axisLine={false} width={60} />
-                  <Tooltip formatter={(v: any, n: any) => [formatBRL(Number(v)), n]} cursor={{ fill: "var(--muted)", opacity: 0.4 }} />
+                  <Tooltip
+                    formatter={(v: any, n: any) => [formatBRL(Number(v)), n]}
+                    cursor={{ fill: "var(--muted)", opacity: 0.4 }}
+                  />
                   <Legend wrapperStyle={{ fontSize: 12 }} />
                   <Bar dataKey="Mês atual" fill="var(--primary)" radius={[6, 6, 0, 0]}>
-                    <LabelList dataKey="Mês atual" position="top" fontSize={9} formatter={compact} />
+                    <LabelList
+                      dataKey="Mês atual"
+                      position="top"
+                      fontSize={9}
+                      formatter={compact}
+                    />
                   </Bar>
-                  <Bar dataKey="Média 3 meses" fill="var(--muted-foreground)" radius={[6, 6, 0, 0]} />
+                  <Bar
+                    dataKey="Média 3 meses"
+                    fill="var(--muted-foreground)"
+                    radius={[6, 6, 0, 0]}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -894,7 +988,9 @@ function DashboardPage() {
                 <div className="min-w-0">
                   <p className="truncate font-medium">{p.descricao}</p>
                   <p className="truncate text-xs text-muted-foreground">
-                    {[p.identificacao, p.parcela, formatDate(p.vencimento)].filter(Boolean).join(" · ")}
+                    {[p.identificacao, p.parcela, formatDate(p.vencimento)]
+                      .filter(Boolean)
+                      .join(" · ")}
                   </p>
                 </div>
                 <span className="shrink-0 font-semibold tabular-nums">{formatBRL(p.valor)}</span>
@@ -906,7 +1002,6 @@ function DashboardPage() {
 
       <EditarDespesaDialog despesa={editando} onClose={() => setEditando(null)} />
     </AppLayout>
-
   );
 }
 
@@ -940,7 +1035,6 @@ function StatCard({
   display?: string;
   delta?: number | null;
   deltaGoodUp?: boolean;
-
 }) {
   const toneClass =
     tone === "success" ? "text-success" : tone === "warning" ? "text-warning" : "text-destructive";
@@ -956,10 +1050,16 @@ function StatCard({
           {delta != null && Number.isFinite(delta) && (
             <span
               className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
-                (delta >= 0) === !!deltaGoodUp ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"
+                delta >= 0 === !!deltaGoodUp
+                  ? "bg-success/10 text-success"
+                  : "bg-destructive/10 text-destructive"
               }`}
             >
-              {delta >= 0 ? <ArrowUpRight className="size-3" /> : <ArrowDownRight className="size-3" />}
+              {delta >= 0 ? (
+                <ArrowUpRight className="size-3" />
+              ) : (
+                <ArrowDownRight className="size-3" />
+              )}
               {Math.abs(delta).toFixed(0)}% vs. mês anterior
             </span>
           )}
@@ -976,13 +1076,7 @@ function StatCard({
 }
 
 /** Edição rápida de uma despesa direto do dashboard, sem sair da tela. */
-function EditarDespesaDialog({
-  despesa,
-  onClose,
-}: {
-  despesa: any | null;
-  onClose: () => void;
-}) {
+function EditarDespesaDialog({ despesa, onClose }: { despesa: any | null; onClose: () => void }) {
   const qc = useQueryClient();
   const { data: categorias = [] } = useCategorias("despesa");
   const [form, setForm] = useState({

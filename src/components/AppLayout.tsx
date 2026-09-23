@@ -32,7 +32,13 @@ import {
 } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
-import { useProfile, usePermissoes, type Modulo } from "@/hooks/useAuthData";
+import {
+  useModulosGlobais,
+  useProfile,
+  usePermissoes,
+  type Modulo,
+  type ModuloGlobal,
+} from "@/hooks/useAuthData";
 import { useApplyPreferencias, usePreferencias } from "@/hooks/usePreferencias";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -71,6 +77,7 @@ type NavItem = {
   icon: typeof LayoutDashboard;
   modulo?: Modulo;
   adminOnly?: boolean;
+  moduloGlobal?: ModuloGlobal;
 };
 
 type MundoId = "financas" | "lista" | "notas" | "calculadora" | "vida";
@@ -90,7 +97,13 @@ const MUNDOS: Record<MundoId, { titulo: string; home: NavTo; items: NavItem[] }>
     titulo: "Finanças",
     home: "/dashboard",
     items: [
-      { to: "/dashboard", label: "Dashboard", short: "Dashboard", icon: LayoutDashboard },
+      {
+        to: "/dashboard",
+        label: "Dashboard",
+        short: "Dashboard",
+        icon: LayoutDashboard,
+        moduloGlobal: "financas",
+      },
       {
         to: "/receitas",
         label: "Receitas",
@@ -134,33 +147,68 @@ const MUNDOS: Record<MundoId, { titulo: string; home: NavTo; items: NavItem[] }>
         icon: PiggyBank,
         modulo: "investimentos",
       },
-      { to: "/veiculos", label: "Meu Veículo", short: "Veículo", icon: Car, modulo: "veiculos" },
+      {
+        to: "/veiculos",
+        label: "Meu Veículo",
+        short: "Veículo",
+        icon: Car,
+        modulo: "veiculos",
+        moduloGlobal: "veiculo",
+      },
     ],
   },
   lista: {
     titulo: "Lista de compras",
     home: "/lista-compras",
     items: [
-      { to: "/lista-compras", label: "Lista de compras", short: "Compras", icon: ShoppingCart },
+      {
+        to: "/lista-compras",
+        label: "Lista de compras",
+        short: "Compras",
+        icon: ShoppingCart,
+        moduloGlobal: "lista",
+      },
     ],
   },
   notas: {
     titulo: "Notas fiscais",
     home: "/notas",
-    items: [{ to: "/notas", label: "Notas fiscais", short: "Notas", icon: ReceiptText }],
+    items: [
+      {
+        to: "/notas",
+        label: "Notas fiscais",
+        short: "Notas",
+        icon: ReceiptText,
+        moduloGlobal: "notas",
+      },
+    ],
   },
   calculadora: {
     titulo: "Calculadora",
     home: "/ferramentas",
-    items: [{ to: "/ferramentas", label: "Calculadora", short: "Calculadora", icon: Calculator }],
+    items: [
+      {
+        to: "/ferramentas",
+        label: "Calculadora",
+        short: "Calculadora",
+        icon: Calculator,
+        moduloGlobal: "calculadora",
+      },
+    ],
   },
   vida: {
     titulo: "Vida",
     home: "/pets",
     items: [
-      { to: "/pets", label: "Pet", short: "Pet", icon: PawPrint },
-      { to: "/onde-esta", label: "Onde está?", short: "Onde", icon: MapPin },
-      { to: "/exames", label: "Exames", short: "Exames", icon: FileHeart },
+      { to: "/pets", label: "Pet", short: "Pet", icon: PawPrint, moduloGlobal: "pet" },
+      {
+        to: "/onde-esta",
+        label: "Onde está?",
+        short: "Onde",
+        icon: MapPin,
+        moduloGlobal: "onde_esta",
+      },
+      { to: "/exames", label: "Exames", short: "Exames", icon: FileHeart, moduloGlobal: "exames" },
     ],
   },
 };
@@ -230,6 +278,7 @@ export function AppLayout({
   const { prefs } = usePreferencias();
   const { data: profile } = useProfile();
   const { can, isSiteAdmin } = usePermissoes();
+  const { habilitado } = useModulosGlobais();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const registrarEncerramento = useServerFn(encerrarSessao);
@@ -238,13 +287,24 @@ export function AppLayout({
 
   const podeVer = (i: NavItem) => {
     if (i.adminOnly) return isSiteAdmin;
+    if (i.moduloGlobal && !habilitado(i.moduloGlobal)) return false;
     if (i.modulo) return can(i.modulo, "ver");
     return true;
   };
 
   const mundoId = mundoAtual(pathname);
   const mundo = mundoId ? MUNDOS[mundoId] : null;
-  const itensDoMundo = (mundo?.items ?? []).filter(podeVer);
+  const mundoGlobal: Partial<Record<MundoId, ModuloGlobal>> = {
+    financas: "financas",
+    lista: "lista",
+    notas: "notas",
+    calculadora: "calculadora",
+  };
+  const itensDoMundo = (
+    mundo && (!mundoId || !mundoGlobal[mundoId] || habilitado(mundoGlobal[mundoId]!))
+      ? mundo.items
+      : []
+  ).filter(podeVer);
   const itensGlobais = GLOBAL.filter(podeVer);
 
   const mobileItems = [INICIO, ...(mundo ? itensDoMundo : itensGlobais).slice(0, 3)];
@@ -259,6 +319,8 @@ export function AppLayout({
     await qc.cancelQueries();
     qc.clear();
     await supabase.auth.signOut();
+    sessionStorage.removeItem("control-all-sessao-iniciada");
+    sessionStorage.removeItem("control-all-sessao-max-min");
     navigate({ to: "/entrar", replace: true });
   }
 

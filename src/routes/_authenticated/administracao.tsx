@@ -11,6 +11,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { usePermissoes } from "@/hooks/useAuthData";
 import {
+  adminEncerrarComunicado,
+  adminListarComunicados,
   adminAtualizarLayout,
   adminCriarComunicado,
   adminListarLayouts,
@@ -18,6 +20,20 @@ import {
   adminMetricas,
   adminObterLayoutUrl,
 } from "@/lib/admin-avancado.functions";
+import {
+  adminListarModulos,
+  adminSalvarConfiguracaoAcesso,
+  adminSalvarModulo,
+  obterConfiguracaoAcesso,
+} from "@/lib/configuracoes-site.functions";
+import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   adminListarSolicitacoesPrivacidade,
   adminTratarSolicitacaoPrivacidade,
@@ -43,6 +59,12 @@ function Admin() {
     criar = useServerFn(adminCriarComunicado),
     prepararLogo = useServerFn(prepararUploadLogo),
     confirmar = useServerFn(confirmarLogo);
+  const obterConfig = useServerFn(obterConfiguracaoAcesso),
+    salvarConfig = useServerFn(adminSalvarConfiguracaoAcesso),
+    listarModulos = useServerFn(adminListarModulos),
+    salvarModulo = useServerFn(adminSalvarModulo),
+    listarComunicados = useServerFn(adminListarComunicados),
+    encerrarComunicado = useServerFn(adminEncerrarComunicado);
   const logoInput = useRef<HTMLInputElement>(null);
   const { data: layouts = [] } = useQuery({
     queryKey: ["admin-layouts"],
@@ -66,6 +88,43 @@ function Admin() {
   });
   const [titulo, setTitulo] = useState("");
   const [msg, setMsg] = useState("");
+  const { data: config } = useQuery({
+    queryKey: ["configuracao-acesso-publica"],
+    enabled: isSiteAdmin,
+    queryFn: () => obterConfig(),
+  });
+  const { data: gestaoModulos } = useQuery({
+    queryKey: ["admin-modulos"],
+    enabled: isSiteAdmin,
+    queryFn: () => listarModulos(),
+  });
+  const { data: comunicados = [] } = useQuery({
+    queryKey: ["admin-comunicados"],
+    enabled: isSiteAdmin,
+    queryFn: () => listarComunicados(),
+  });
+  const salvarAcesso = useMutation({
+    mutationFn: (valor: { modoLogin: "cpf" | "email" | "ambos"; segundoFatorEmail: boolean }) =>
+      salvarConfig({ data: { ...valor, sessaoMaximaMinutos: 60 } }),
+    onSuccess: () => {
+      toast.success("Configuração de acesso salva.");
+      qc.invalidateQueries({ queryKey: ["configuracao-acesso-publica"] });
+    },
+    onError: (e) => toast.error(e.message),
+  });
+  const mudarModulo = useMutation({
+    mutationFn: (valor: { modulo: any; habilitado: boolean; userId: string | null }) =>
+      salvarModulo({ data: valor }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-modulos"] }),
+    onError: (e) => toast.error(e.message),
+  });
+  const limparAviso = useMutation({
+    mutationFn: (id: string) => encerrarComunicado({ data: { id } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin-comunicados"] });
+      qc.invalidateQueries({ queryKey: ["comunicados-pendentes"] });
+    },
+  });
   const atualizarLayout = useMutation({
     mutationFn: ({ id, status }: { id: string; status: "corrigida" | "descartada" }) =>
       atualizar({ data: { id, status } }),
@@ -212,6 +271,125 @@ function Admin() {
         </CardContent>
       </Card>
       <Card className="mb-4">
+        <CardHeader>
+          <CardTitle className="text-sm">Composição dos grupos</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-3 md:grid-cols-2">
+          {(metricas?.grupos ?? []).map((g: any) => (
+            <div key={g.id} className="rounded-lg border p-3">
+              <b className="text-sm">{g.nome}</b>
+              <p className="text-xs text-muted-foreground">{g.membros.length} integrante(s)</p>
+              <div className="mt-2 space-y-1">
+                {g.membros.map((m: any) => (
+                  <p key={m.id} className="text-xs">
+                    {m.nome}{" "}
+                    <span className="text-muted-foreground">
+                      {m.email ?? "sem e-mail"} · {m.ativo ? "ativo" : "inativo"}
+                    </span>
+                  </p>
+                ))}
+              </div>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+      {config && (
+        <Card className="mb-4">
+          <CardHeader>
+            <CardTitle className="text-sm">Acesso e autenticação</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-4 sm:grid-cols-3">
+            <div>
+              <p className="mb-2 text-xs text-muted-foreground">Identificador permitido no login</p>
+              <Select
+                value={config.modo_login}
+                onValueChange={(v) =>
+                  salvarAcesso.mutate({
+                    modoLogin: v as any,
+                    segundoFatorEmail: config.segundo_fator_email,
+                  })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="cpf">Somente CPF</SelectItem>
+                  <SelectItem value="email">Somente e-mail</SelectItem>
+                  <SelectItem value="ambos">CPF ou e-mail</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <label className="flex items-center justify-between gap-3 rounded-lg border p-3 text-sm">
+              2FA por e-mail
+              <Switch
+                checked={config.segundo_fator_email}
+                onCheckedChange={(v) =>
+                  salvarAcesso.mutate({ modoLogin: config.modo_login, segundoFatorEmail: v })
+                }
+              />
+            </label>
+            <div className="rounded-lg border p-3 text-sm">
+              <b>Sessão máxima</b>
+              <p className="text-xs text-muted-foreground">
+                1 hora, além do limite de inatividade.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+      {gestaoModulos && (
+        <Card className="mb-4">
+          <CardHeader>
+            <CardTitle className="text-sm">Módulos globais</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-xs text-muted-foreground">
+              O administrador do site sempre enxerga todos. Desative globalmente e libere apenas
+              para usuários de teste quando necessário.
+            </p>
+            {gestaoModulos.modulos.map((m: any) => (
+              <div key={m.modulo} className="rounded-lg border p-3">
+                <div className="flex items-center justify-between">
+                  <b className="text-sm">{m.nome}</b>
+                  <Switch
+                    checked={m.habilitado}
+                    onCheckedChange={(v) =>
+                      mudarModulo.mutate({ modulo: m.modulo, habilitado: v, userId: null })
+                    }
+                  />
+                </div>
+                {!m.habilitado && (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {gestaoModulos.usuarios.map((u: any) => {
+                      const ex = gestaoModulos.excecoes.find(
+                        (x: any) => x.user_id === u.id && x.modulo === m.modulo,
+                      );
+                      return (
+                        <Button
+                          key={u.id}
+                          size="sm"
+                          variant={ex?.habilitado ? "default" : "outline"}
+                          onClick={() =>
+                            mudarModulo.mutate({
+                              modulo: m.modulo,
+                              habilitado: !ex?.habilitado,
+                              userId: u.id,
+                            })
+                          }
+                        >
+                          {u.nome}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+      <Card className="mb-4">
         <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
           <div>
             <h2 className="font-semibold">Logo do Control ALL</h2>
@@ -248,6 +426,22 @@ function Admin() {
             <Button disabled={!titulo || !msg} onClick={() => comunicado.mutate()}>
               Publicar e exigir aceite
             </Button>
+            <p className="text-xs text-muted-foreground">
+              O aviso deixa de aparecer automaticamente após 72 horas.
+            </p>
+            {comunicados
+              .filter((c: any) => c.ativo)
+              .map((c: any) => (
+                <div
+                  key={c.id}
+                  className="flex items-center justify-between gap-2 rounded-lg border p-2 text-xs"
+                >
+                  <span>{c.titulo}</span>
+                  <Button size="sm" variant="ghost" onClick={() => limparAviso.mutate(c.id)}>
+                    Encerrar para todos
+                  </Button>
+                </div>
+              ))}
           </CardContent>
         </Card>
         <Card>

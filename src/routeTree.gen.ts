@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as BloquearContaRouteImport } from './routes/bloquear-conta'
 import { Route as EntrarRouteImport } from './routes/entrar'
 import { Route as EsqueciSenhaRouteImport } from './routes/esqueci-senha'
 import { Route as PrivacidadeRouteImport } from './routes/privacidade'
@@ -53,6 +54,11 @@ const IndexRoute = IndexRouteImport.update({
 } as any)
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BloquearContaRoute = BloquearContaRouteImport.update({
+  id: '/bloquear-conta',
+  path: '/bloquear-conta',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EntrarRoute = EntrarRouteImport.update({
@@ -237,6 +243,7 @@ const OauthGoogleDriveReturnRoute = OauthGoogleDriveReturnRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/bloquear-conta': typeof BloquearContaRoute
   '/entrar': typeof EntrarRoute
   '/esqueci-senha': typeof EsqueciSenhaRoute
   '/privacidade': typeof PrivacidadeRoute
@@ -274,6 +281,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/bloquear-conta': typeof BloquearContaRoute
   '/entrar': typeof EntrarRoute
   '/esqueci-senha': typeof EsqueciSenhaRoute
   '/privacidade': typeof PrivacidadeRoute
@@ -313,6 +321,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/bloquear-conta': typeof BloquearContaRoute
   '/entrar': typeof EntrarRoute
   '/esqueci-senha': typeof EsqueciSenhaRoute
   '/privacidade': typeof PrivacidadeRoute
@@ -352,6 +361,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/bloquear-conta'
     | '/entrar'
     | '/esqueci-senha'
     | '/privacidade'
@@ -389,6 +399,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/bloquear-conta'
     | '/entrar'
     | '/esqueci-senha'
     | '/privacidade'
@@ -427,6 +438,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_authenticated'
+    | '/bloquear-conta'
     | '/entrar'
     | '/esqueci-senha'
     | '/privacidade'
@@ -466,6 +478,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  BloquearContaRoute: typeof BloquearContaRoute
   EntrarRoute: typeof EntrarRoute
   EsqueciSenhaRoute: typeof EsqueciSenhaRoute
   PrivacidadeRoute: typeof PrivacidadeRoute
@@ -493,6 +506,13 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/bloquear-conta': {
+      id: '/bloquear-conta'
+      path: '/bloquear-conta'
+      fullPath: '/bloquear-conta'
+      preLoaderRoute: typeof BloquearContaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/entrar': {
@@ -794,6 +814,7 @@ const AuthenticatedRouteRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  BloquearContaRoute: BloquearContaRoute,
   EntrarRoute: EntrarRoute,
   EsqueciSenhaRoute: EsqueciSenhaRoute,
   PrivacidadeRoute: PrivacidadeRoute,

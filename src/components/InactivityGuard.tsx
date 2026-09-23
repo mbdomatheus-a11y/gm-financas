@@ -18,8 +18,15 @@ export function InactivityGuard({ children }: { children: ReactNode }) {
   });
   const limiteMs = Math.max(2, Math.min(120, data?.minutos ?? 5)) * 60 * 1000;
   const ultimoUso = useRef(Date.now());
+  const inicioSessao = useRef(Date.now());
   const encerrando = useRef(false);
   const [restanteMs, setRestanteMs] = useState(limiteMs);
+
+  useEffect(() => {
+    const salvo = Number(sessionStorage.getItem("control-all-sessao-iniciada"));
+    if (Number.isFinite(salvo) && salvo > 0) inicioSessao.current = salvo;
+    else sessionStorage.setItem("control-all-sessao-iniciada", String(inicioSessao.current));
+  }, []);
 
   async function sair(motivo: "usuario" | "inatividade" = "inatividade") {
     if (encerrando.current) return;
@@ -29,6 +36,8 @@ export function InactivityGuard({ children }: { children: ReactNode }) {
     } catch {
       // O encerramento de autenticação deve prosseguir mesmo se a métrica falhar.
     }
+    sessionStorage.removeItem("control-all-sessao-iniciada");
+    sessionStorage.removeItem("control-all-sessao-max-min");
     await supabase.auth.signOut();
     window.location.assign("/entrar");
   }
@@ -41,6 +50,14 @@ export function InactivityGuard({ children }: { children: ReactNode }) {
     const eventos = ["pointerdown", "keydown", "touchstart", "scroll"] as const;
     eventos.forEach((evento) => window.addEventListener(evento, aoInteragir, { passive: true }));
     const timer = window.setInterval(() => {
+      const maxMin = Math.max(
+        15,
+        Math.min(480, Number(sessionStorage.getItem("control-all-sessao-max-min")) || 60),
+      );
+      if (Date.now() - inicioSessao.current >= maxMin * 60_000) {
+        void sair("inatividade");
+        return;
+      }
       const restante = Math.max(0, limiteMs - (Date.now() - ultimoUso.current));
       setRestanteMs(restante);
       if (restante === 0) void sair();

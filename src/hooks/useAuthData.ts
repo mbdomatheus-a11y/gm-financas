@@ -3,6 +3,18 @@ import { useQuery } from "@tanstack/react-query";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { appSupabase } from "@/integrations/supabase/app-types";
+import { useServerFn } from "@tanstack/react-start";
+import { listarModulosDisponiveis } from "@/lib/configuracoes-site.functions";
+
+export type ModuloGlobal =
+  "financas" | "lista" | "notas" | "calculadora" | "pet" | "onde_esta" | "veiculo" | "exames";
+export function useModulosGlobais() {
+  const listar = useServerFn(listarModulosDisponiveis);
+  const query = useQuery({ queryKey: ["modulos-disponiveis"], queryFn: () => listar() });
+  const habilitado = (modulo: ModuloGlobal) =>
+    query.data?.find((x: any) => x.modulo === modulo)?.habilitado ?? true;
+  return { ...query, habilitado };
+}
 
 export function useSession() {
   const [session, setSession] = useState<Session | null>(null);

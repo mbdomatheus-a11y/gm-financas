@@ -1,9 +1,24 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, Calculator, DatabaseBackup, Palette, ReceiptText, Settings, Share2, ShoppingCart, Users, Wallet, PawPrint, MapPin, FileHeart } from "lucide-react";
+import {
+  ArrowRight,
+  Calculator,
+  DatabaseBackup,
+  Palette,
+  ReceiptText,
+  Settings,
+  Share2,
+  ShoppingCart,
+  Users,
+  Wallet,
+  PawPrint,
+  MapPin,
+  FileHeart,
+  Car,
+} from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
-import { usePermissoes } from "@/hooks/useAuthData";
+import { useModulosGlobais, usePermissoes } from "@/hooks/useAuthData";
 
 export const Route = createFileRoute("/_authenticated/inicio")({
   head: () => ({
@@ -18,22 +33,82 @@ export const Route = createFileRoute("/_authenticated/inicio")({
 });
 
 const MODULOS = [
-  { to: "/dashboard" as const, titulo: "Finanças", descricao: "Receitas, despesas, cartões, investimentos, faturas e veículos.", icon: Wallet },
-  { to: "/lista-compras" as const, titulo: "Lista", descricao: "Lista de compras compartilhada e aprovações.", icon: ShoppingCart },
-  { to: "/notas" as const, titulo: "Notas", descricao: "Notas fiscais, comprovantes e garantias.", icon: ReceiptText },
-  { to: "/ferramentas" as const, titulo: "Calculadora", descricao: "Cálculos de datas, horários e simulações.", icon: Calculator },
-  { to: "/pets" as const, titulo: "Pet", descricao: "Vacinas e cuidados dos animais.", icon: PawPrint },
-  { to: "/onde-esta" as const, titulo: "Onde está?", descricao: "Guarde e encontre seus itens.", icon: MapPin },
-  { to: "/exames" as const, titulo: "Exames", descricao: "Histórico privado de saúde.", icon: FileHeart },
+  {
+    key: "financas" as const,
+    to: "/dashboard" as const,
+    titulo: "Finanças",
+    descricao: "Receitas, despesas, cartões, investimentos e faturas.",
+    icon: Wallet,
+  },
+  {
+    key: "lista" as const,
+    to: "/lista-compras" as const,
+    titulo: "Lista",
+    descricao: "Lista de compras compartilhada e aprovações.",
+    icon: ShoppingCart,
+  },
+  {
+    key: "notas" as const,
+    to: "/notas" as const,
+    titulo: "Notas",
+    descricao: "Notas fiscais, comprovantes e garantias.",
+    icon: ReceiptText,
+  },
+  {
+    key: "calculadora" as const,
+    to: "/ferramentas" as const,
+    titulo: "Calculadora",
+    descricao: "Cálculos de datas, horários e simulações.",
+    icon: Calculator,
+  },
+  {
+    key: "pet" as const,
+    to: "/pets" as const,
+    titulo: "Pet",
+    descricao: "Vacinas e cuidados dos animais.",
+    icon: PawPrint,
+  },
+  {
+    key: "onde_esta" as const,
+    to: "/onde-esta" as const,
+    titulo: "Onde está?",
+    descricao: "Guarde e encontre seus itens.",
+    icon: MapPin,
+  },
+  {
+    key: "veiculo" as const,
+    to: "/veiculos" as const,
+    titulo: "Veículo",
+    descricao: "Manutenção, documentos, garantias e alertas do veículo.",
+    icon: Car,
+  },
+  {
+    key: "exames" as const,
+    to: "/exames" as const,
+    titulo: "Exames",
+    descricao: "Histórico privado de saúde.",
+    icon: FileHeart,
+  },
 ];
 
 function InicioPage() {
   const { can, isAdmin } = usePermissoes();
+  const { habilitado } = useModulosGlobais();
   const gerais = [
-    { to: "/compartilhar" as const, label: "Compartilhar", icon: Share2, modulo: "compartilhar" as const },
+    {
+      to: "/compartilhar" as const,
+      label: "Compartilhar",
+      icon: Share2,
+      modulo: "compartilhar" as const,
+    },
     { to: "/usuarios" as const, label: "Usuários e Privilégios", icon: Users, adminOnly: true },
     { to: "/backup" as const, label: "Backup e Reset", icon: DatabaseBackup, adminOnly: true },
-    { to: "/personalizacao" as const, label: "Personalização", icon: Palette, modulo: "personalizacao" as const },
+    {
+      to: "/personalizacao" as const,
+      label: "Personalização",
+      icon: Palette,
+      modulo: "personalizacao" as const,
+    },
     { to: "/conta" as const, label: "Configurações da conta", icon: Settings },
   ].filter((item) => {
     if ("adminOnly" in item && item.adminOnly) return isAdmin;
@@ -44,7 +119,7 @@ function InicioPage() {
   return (
     <AppLayout title="Início" description="Escolha o que deseja acessar">
       <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {MODULOS.map((modulo) => {
+        {MODULOS.filter((modulo) => habilitado(modulo.key)).map((modulo) => {
           const Icon = modulo.icon;
           return (
             <Link key={modulo.to} to={modulo.to}>
@@ -54,7 +129,9 @@ function InicioPage() {
                     <div className="gradient-brand flex size-12 items-center justify-center rounded-xl">
                       <Icon className="size-6 text-primary-foreground" />
                     </div>
-                    <span className="flex items-center gap-1 text-xs font-medium text-primary">Entrar <ArrowRight className="size-3.5" /></span>
+                    <span className="flex items-center gap-1 text-xs font-medium text-primary">
+                      Entrar <ArrowRight className="size-3.5" />
+                    </span>
                   </div>
                   <div>
                     <h2 className="text-lg font-semibold">{modulo.titulo}</h2>
@@ -69,7 +146,9 @@ function InicioPage() {
 
       {gerais.length > 0 && (
         <div className="space-y-2">
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Geral</h2>
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Geral
+          </h2>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
             {gerais.map((item) => {
               const Icon = item.icon;
