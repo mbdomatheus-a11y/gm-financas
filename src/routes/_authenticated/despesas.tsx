@@ -39,6 +39,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -401,16 +411,84 @@ function DespesasPage() {
     onSuccess: () => qc.invalidateQueries(),
   });
 
-  const excluir = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("despesas").delete().eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast.success("Despesa excluída");
-      qc.invalidateQueries();
-    },
-  });
+  const [despesaParaExcluir, setDespesaParaExcluir] = useState<any | null>(null);
+
+  async function executarExclusaoComUndo(d: any) {
+    const faturaVinculada = (faturasMes as any[]).find((f) => f.despesa_avulsa_id === d.id);
+    const backupDespesa = { ...d };
+    const backupParcelas = [...(d.parcelas ?? [])];
+    const backupFatura = faturaVinculada ? { ...faturaVinculada } : null;
+
+    const { error } = await supabase.from("despesas").delete().eq("id", d.id);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    if (faturaVinculada) {
+      await supabase
+        .from("fatura_mes")
+        .update({ despesa_avulsa_id: null, modo_calculo: "inclui_parcelas" })
+        .eq("id", faturaVinculada.id);
+    }
+    qc.invalidateQueries();
+
+    toast.success("Despesa excluída", {
+      action: {
+        label: "Desfazer",
+        onClick: async () => {
+          try {
+            const { error: insErr } = await supabase.from("despesas").insert({
+              id: backupDespesa.id,
+              descricao: backupDespesa.descricao,
+              valor_total: backupDespesa.valor_total,
+              moeda: backupDespesa.moeda,
+              categoria: backupDespesa.categoria,
+              tipo: backupDespesa.tipo,
+              data_compra: backupDespesa.data_compra,
+              total_parcelas: backupDespesa.total_parcelas,
+              data_primeira_parcela: backupDespesa.data_primeira_parcela,
+              cartao_id: backupDespesa.cartao_id,
+              banco_id: backupDespesa.banco_id,
+              banco_nome: backupDespesa.banco_nome,
+              cartao_final: backupDespesa.cartao_final,
+              direcao: backupDespesa.direcao,
+              origem: backupDespesa.origem,
+              created_by: backupDespesa.created_by,
+            });
+            if (insErr) throw insErr;
+            if (backupParcelas.length > 0) {
+              await supabase.from("parcelas").insert(
+                backupParcelas.map((p: any) => ({
+                  id: p.id,
+                  despesa_id: backupDespesa.id,
+                  numero: p.numero,
+                  total: p.total,
+                  valor: p.valor,
+                  moeda: p.moeda,
+                  vencimento: p.vencimento,
+                  paga: p.paga,
+                  origem: p.origem,
+                })),
+              );
+            }
+            if (backupFatura) {
+              await supabase
+                .from("fatura_mes")
+                .update({
+                  despesa_avulsa_id: backupFatura.despesa_avulsa_id,
+                  modo_calculo: backupFatura.modo_calculo,
+                })
+                .eq("id", backupFatura.id);
+            }
+            qc.invalidateQueries();
+            toast.success("Exclusão desfeita com sucesso.");
+          } catch (err: any) {
+            toast.error("Não foi possível desfazer a exclusão: " + (err.message ?? ""));
+          }
+        },
+      },
+    });
+  }
 
   const moverTipo = useMutation({
     mutationFn: async ({ id, tipo }: { id: string; tipo: "fixa" | "variavel" }) => {
@@ -528,7 +606,7 @@ function DespesasPage() {
     return ids;
   }, [faturasMes, despesas, filtroMes]);
 
-  const listaVisivel = lista.filter((d: any) => !idsIgnoradosPorTotal.has(d.id));
+  const listaVisivel = lista;
 
   const resumo = useMemo(() => {
     let total = 0;
@@ -537,6 +615,7 @@ function DespesasPage() {
     let proximo: { data: string; valor: number } | null = null;
     const hoje = toISODate(new Date());
     for (const d of listaVisivel as any[]) {
+      if (idsIgnoradosPorTotal.has(d.id)) continue;
       const brl = (v: number) => toBRL(v, d.moeda, cotacao);
       const parcelasVisiveis =
         filtroMes === "todos"
@@ -553,7 +632,7 @@ function DespesasPage() {
       }
     }
     return { total, pago, aberto, proximo };
-  }, [listaVisivel, cotacao, filtroMes, lancamentosDoFiltro, lancamentoPorDespesa]);
+  }, [listaVisivel, cotacao, filtroMes, lancamentosDoFiltro, lancamentoPorDespesa, idsIgnoradosPorTotal]);
 
   /** Agrupa por cartão. Tudo que não veio de cartão fica em Sem atribuição. */
   const gruposLista = useMemo(() => {
@@ -573,11 +652,13 @@ function DespesasPage() {
       const cor = d.cartoes?.cor ?? "var(--muted-foreground)";
       const g = mapa.get(key) ?? { key, label, cor, itens: [] as any[], total: 0 };
       g.itens.push(d);
-      g.total += toBRL(valorVisivel(d), d.moeda, cotacao);
+      if (!idsIgnoradosPorTotal.has(d.id)) {
+        g.total += toBRL(valorVisivel(d), d.moeda, cotacao);
+      }
       mapa.set(key, g);
     }
     return Array.from(mapa.values()).sort((a, b) => b.total - a.total);
-  }, [listaVisivel, modoLista, cotacao, resumo.total, filtroMes, lancamentoPorDespesa]);
+  }, [listaVisivel, modoLista, cotacao, resumo.total, filtroMes, lancamentoPorDespesa, idsIgnoradosPorTotal]);
 
   const chips = [
     filtroCartao !== "todos" && {
@@ -897,6 +978,11 @@ function DespesasPage() {
                     ].sort((a: any, b: any) => a.numero - b.numero);
                     const pagas = parcelas.filter((p: any) => p.paga).length;
                     const aberta = expandida === d.id;
+                    const ignoradaNoMes = idsIgnoradosPorTotal.has(d.id);
+                    const faturaAvulsa = (faturasMes as any[]).find(
+                      (f) => f.despesa_avulsa_id === d.id,
+                    );
+                    const ehTotalManual = !!faturaAvulsa;
                     return (
                       <div key={d.id}>
                         <div
@@ -904,7 +990,8 @@ function DespesasPage() {
                           className={cn(
                             "flex items-center gap-3 px-3 py-2.5 transition-colors hover:bg-muted/40",
                             can("despesas", "editar") && "cursor-pointer",
-                            d.origem === "fatura_total_concluida" && "opacity-70 line-through",
+                            (ignoradaNoMes || d.origem === "fatura_total_concluida") &&
+                              "opacity-60 line-through bg-muted/20",
                           )}
                         >
                           <div
@@ -912,12 +999,32 @@ function DespesasPage() {
                             style={{ backgroundColor: d.cartoes?.cor ?? "var(--muted-foreground)" }}
                           />
                           <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-semibold leading-tight">
-                              {identificacaoDespesa(d) && (
-                                <span className="text-primary">{identificacaoDespesa(d)} · </span>
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <p className="truncate text-sm font-semibold leading-tight">
+                                {identificacaoDespesa(d) && (
+                                  <span className="text-primary">{identificacaoDespesa(d)} · </span>
+                                )}
+                                {d.descricao}
+                              </p>
+                              {ignoradaNoMes && (
+                                <Badge
+                                  variant="outline"
+                                  className="border-amber-500/30 text-[10px] text-amber-600 dark:text-amber-400"
+                                >
+                                  Ignorado neste mês (total manual)
+                                </Badge>
                               )}
-                              {d.descricao}
-                            </p>
+                              {ehTotalManual && faturaAvulsa?.status === "aberta" && (
+                                <Badge className="bg-amber-600 text-[10px] hover:bg-amber-700">
+                                  Total manual ativo
+                                </Badge>
+                              )}
+                              {d.origem === "fatura_total_concluida" && (
+                                <Badge variant="outline" className="text-[10px]">
+                                  Total manual concluído
+                                </Badge>
+                              )}
+                            </div>
                             <p className="truncate text-[11px] text-muted-foreground">
                               {formatDate(d.data_compra)} · {d.categoria}
                               {d.tipo === "fixa"
@@ -1023,12 +1130,7 @@ function DespesasPage() {
                                 className="size-8 text-muted-foreground hover:text-destructive"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  if (
-                                    d.origem === "fatura_total_concluida" &&
-                                    !window.confirm("Excluir este total concluído do histórico?")
-                                  )
-                                    return;
-                                  excluir.mutate(d.id);
+                                  setDespesaParaExcluir(d);
                                 }}
                                 aria-label="Excluir despesa"
                               >
@@ -1359,6 +1461,42 @@ function DespesasPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog
+        open={!!despesaParaExcluir}
+        onOpenChange={(v) => !v && setDespesaParaExcluir(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {despesaParaExcluir &&
+              (faturasMes as any[]).some((f) => f.despesa_avulsa_id === despesaParaExcluir.id)
+                ? "Excluir lançamento de total da fatura?"
+                : "Excluir despesa?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {despesaParaExcluir &&
+              (faturasMes as any[]).some((f) => f.despesa_avulsa_id === despesaParaExcluir.id)
+                ? "Os lançamentos normais do cartão voltarão a ser considerados e somados no mês."
+                : `Tem certeza que deseja excluir "${despesaParaExcluir?.descricao}"?`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (despesaParaExcluir) {
+                  void executarExclusaoComUndo(despesaParaExcluir);
+                  setDespesaParaExcluir(null);
+                }
+              }}
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   );
 }
