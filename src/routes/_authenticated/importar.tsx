@@ -27,7 +27,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -143,9 +149,28 @@ function ImportarPage() {
   const [enviandoLayout, setEnviandoLayout] = useState(false);
 
   async function enviarParaModelagem(files: FileList | null) {
-    const file = files?.[0]; if (!file) return;
-    if (file.size > 10 * 1024 * 1024) { toast.error("O arquivo pode ter no máximo 10 MB."); return; }
-    setEnviandoLayout(true); try { const envio = await prepararLayout({data:{nome:file.name}}); const {error}=await supabase.storage.from('layouts_analise').uploadToSignedUrl(envio.path,envio.token,file); if(error)throw error; toast.success('Fatura enviada para análise. Usaremos apenas o layout e o arquivo será descartado em até 30 dias.'); } catch(e:any){toast.error(e.message??'Não foi possível enviar.');} finally {setEnviandoLayout(false); if(layoutRef.current)layoutRef.current.value='';}
+    const file = files?.[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("O arquivo pode ter no máximo 10 MB.");
+      return;
+    }
+    setEnviandoLayout(true);
+    try {
+      const envio = await prepararLayout({ data: { nome: file.name } });
+      const { error } = await supabase.storage
+        .from("layouts_analise")
+        .uploadToSignedUrl(envio.path, envio.token, file);
+      if (error) throw error;
+      toast.success(
+        "Fatura enviada para análise. Usaremos apenas o layout e o arquivo será descartado em até 30 dias.",
+      );
+    } catch (e: any) {
+      toast.error(e.message ?? "Não foi possível enviar.");
+    } finally {
+      setEnviandoLayout(false);
+      if (layoutRef.current) layoutRef.current.value = "";
+    }
   }
   const imgInputRef = useRef<HTMLInputElement>(null);
   const classificacoesEditadas = useRef(new Set<string>());
@@ -153,14 +178,21 @@ function ImportarPage() {
   const [lendo, setLendo] = useState(false);
   const [lendoImagens, setLendoImagens] = useState(false);
   const [faturas, setFaturas] = useState<FaturaItem[]>([]);
-  const [acoesFixas, setAcoesFixas] = useState<Record<string, { acao: AcaoFixa; fixaId: string }>>({});
+  const [acoesFixas, setAcoesFixas] = useState<Record<string, { acao: AcaoFixa; fixaId: string }>>(
+    {},
+  );
   const [colado, setColado] = useState("");
   const [cadastroDestino, setCadastroDestino] = useState<{
     arquivoHash: string;
     tipo: "banco" | "cartao";
   } | null>(null);
   const [nomeBancoNovo, setNomeBancoNovo] = useState("");
-  const [cartaoNovo, setCartaoNovo] = useState({ apelido: "", final: "", titular: "", bancoId: "" });
+  const [cartaoNovo, setCartaoNovo] = useState({
+    apelido: "",
+    final: "",
+    titular: "",
+    bancoId: "",
+  });
   const [pdfsComSenha, setPdfsComSenha] = useState<
     { file: File; senha: string; erro: string | null; tentando: boolean }[]
   >([]);
@@ -478,17 +510,23 @@ function ImportarPage() {
       if (cadastroDestino.tipo === "banco") {
         const nome = nomeBancoNovo.trim();
         if (nome.length < 2) throw new Error("Informe o nome do banco ou conta.");
-        const { data, error } = await supabase.from("bancos")
+        const { data, error } = await supabase
+          .from("bancos")
           .insert({ nome, tipo_conta: "outros", titular: profiles[0]?.nome ?? null })
-          .select("*").single();
+          .select("*")
+          .single();
         if (error) throw error;
-        qc.setQueryData(["bancos"], (anterior: typeof bancos | undefined) => [...(anterior ?? []), data]);
+        qc.setQueryData(["bancos"], (anterior: typeof bancos | undefined) => [
+          ...(anterior ?? []),
+          data,
+        ]);
         return `banco:${data.id}`;
       }
       const final = cartaoNovo.final.trim();
       if (!/^\d{4}$/.test(final)) throw new Error("Informe os quatro últimos dígitos do cartão.");
       if (!cartaoNovo.titular.trim()) throw new Error("Informe o titular do cartão.");
-      const { data, error } = await supabase.from("cartoes")
+      const { data, error } = await supabase
+        .from("cartoes")
         .insert({
           apelido: cartaoNovo.apelido.trim() || `Cartão •${final}`,
           final,
@@ -497,15 +535,21 @@ function ImportarPage() {
           bandeira: "Não informada",
           tipo: "credito",
         })
-        .select("*, bancos(nome)").single();
+        .select("*, bancos(nome)")
+        .single();
       if (error) throw error;
-      qc.setQueryData(["cartoes"], (anterior: typeof cartoes | undefined) => [...(anterior ?? []), data]);
+      qc.setQueryData(["cartoes"], (anterior: typeof cartoes | undefined) => [
+        ...(anterior ?? []),
+        data,
+      ]);
       return `cartao:${data.id}`;
     },
     onSuccess: (destino) => {
-      setFaturas((atuais) => atuais.map((f) =>
-        f.arquivo_hash === cadastroDestino?.arquivoHash ? { ...f, destino } : f,
-      ));
+      setFaturas((atuais) =>
+        atuais.map((f) =>
+          f.arquivo_hash === cadastroDestino?.arquivoHash ? { ...f, destino } : f,
+        ),
+      );
       setCadastroDestino(null);
       toast.success("Cadastro concluído. Continue a importação normalmente.");
     },
@@ -526,46 +570,44 @@ function ImportarPage() {
   }
 
   async function gravarRegra(l: LancamentoExtraido) {
-      const chave = chaveEstabelecimento(l.descricao);
-      const item = {
-        texto_original: l.descricao,
-        estabelecimento_normalizado: chave,
-        tipo_regra: "de_para",
-        categoria: l.categoria,
-        subcategoria: l.subcategoria ?? null,
-        prioridade: 300,
-        ativo: true,
-        created_by: user?.id ?? null,
-      };
-      const { data: existente } = await supabase
-        .from("categoria_regras")
-        .select("id")
-        .eq("estabelecimento_normalizado", chave)
-        .eq("tipo_regra", "de_para")
-        .maybeSingle();
-      if (existente) {
-        const { error } = await supabase
-          .from("categoria_regras")
-          .update(item)
-          .eq("id", existente.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from("categoria_regras").insert(item);
-        if (error) throw error;
-      }
-      const { data: categoriaExistente, error: buscaCategoriaErro } = await supabase
+    const chave = chaveEstabelecimento(l.descricao);
+    const item = {
+      texto_original: l.descricao,
+      estabelecimento_normalizado: chave,
+      tipo_regra: "de_para",
+      categoria: l.categoria,
+      subcategoria: l.subcategoria ?? null,
+      prioridade: 300,
+      ativo: true,
+      created_by: user?.id ?? null,
+    };
+    const { data: existente } = await supabase
+      .from("categoria_regras")
+      .select("id")
+      .eq("estabelecimento_normalizado", chave)
+      .eq("tipo_regra", "de_para")
+      .maybeSingle();
+    if (existente) {
+      const { error } = await supabase.from("categoria_regras").update(item).eq("id", existente.id);
+      if (error) throw error;
+    } else {
+      const { error } = await supabase.from("categoria_regras").insert(item);
+      if (error) throw error;
+    }
+    const { data: categoriaExistente, error: buscaCategoriaErro } = await supabase
+      .from("categorias")
+      .select("id")
+      .eq("tipo", "despesa")
+      .ilike("nome", l.categoria)
+      .limit(1)
+      .maybeSingle();
+    if (buscaCategoriaErro) throw buscaCategoriaErro;
+    if (!categoriaExistente) {
+      const { error } = await supabase
         .from("categorias")
-        .select("id")
-        .eq("tipo", "despesa")
-        .ilike("nome", l.categoria)
-        .limit(1)
-        .maybeSingle();
-      if (buscaCategoriaErro) throw buscaCategoriaErro;
-      if (!categoriaExistente) {
-        const { error } = await supabase.from("categorias")
-          .insert({ nome: l.categoria, tipo: "despesa" });
-        if (error) throw error;
-      }
+        .insert({ nome: l.categoria, tipo: "despesa" });
+      if (error) throw error;
+    }
   }
 
   const salvarRegra = useMutation({
@@ -578,11 +620,17 @@ function ImportarPage() {
         .eq("tipo_regra", "de_para")
         .maybeSingle();
       if (error) throw error;
-      if (existente && existente.categoria === l.categoria &&
-          (existente.subcategoria ?? null) === (l.subcategoria ?? null)) {
-        if (exclusaoBloqueada) throw new Error("Seu perfil não possui permissão para remover regras.");
-        const { error: removerErro } = await supabase.from("categoria_regras")
-          .delete().eq("id", existente.id);
+      if (
+        existente &&
+        existente.categoria === l.categoria &&
+        (existente.subcategoria ?? null) === (l.subcategoria ?? null)
+      ) {
+        if (exclusaoBloqueada)
+          throw new Error("Seu perfil não possui permissão para remover regras.");
+        const { error: removerErro } = await supabase
+          .from("categoria_regras")
+          .delete()
+          .eq("id", existente.id);
         if (removerErro) throw removerErro;
         return "removida" as const;
       }
@@ -608,12 +656,41 @@ function ImportarPage() {
       if (perfilErr) throw perfilErr;
       if (!perfil.grupo_id) throw new Error("Não foi possível identificar o seu grupo.");
       const grupoId = perfil.grupo_id;
+      const totaisPendentes: string[] = [];
+      for (const f of faturas) {
+        const [tipoDestino, idDestino] = String(f.destino ?? "").split(":");
+        const ids = new Set<string>();
+        if (tipoDestino === "cartao" && idDestino) ids.add(idDestino);
+        f.lancamentos.forEach((l) => {
+          const c = acharCartao(f.banco, l.cartao_final);
+          if (c?.id) ids.add(c.id);
+        });
+        const comp = f.competencia ?? f.vencimento?.slice(0, 7);
+        if (!comp || !ids.size) continue;
+        const { data } = await supabase
+          .from("fatura_mes")
+          .select("id,cartao_id,competencia")
+          .in("cartao_id", [...ids])
+          .eq("competencia", comp)
+          .eq("modo_calculo", "somente_total")
+          .eq("status", "aberta");
+        if (data?.length) totaisPendentes.push(`${f.arquivo_nome} (${comp})`);
+      }
+      if (
+        totaisPendentes.length &&
+        !window.confirm(
+          `Há um total manual para:\n\n${totaisPendentes.join("\n")}\n\nDeseja concluir esse lançamento e usar os itens desta importação? O total manual continuará no histórico, tachado.`,
+        )
+      )
+        throw new Error("Importação cancelada para preservar o total manual.");
       const regrasAprendidas = new Map<string, LancamentoExtraido>();
-      faturas.forEach((f) => f.lancamentos.forEach((l) => {
-        if (l.incluir && classificacoesEditadas.current.has(`${f.arquivo_hash}:${l.id}`)) {
-          regrasAprendidas.set(chaveEstabelecimento(l.descricao), l);
-        }
-      }));
+      faturas.forEach((f) =>
+        f.lancamentos.forEach((l) => {
+          if (l.incluir && classificacoesEditadas.current.has(`${f.arquivo_hash}:${l.id}`)) {
+            regrasAprendidas.set(chaveEstabelecimento(l.descricao), l);
+          }
+        }),
+      );
 
       const { data: lote, error: loteErr } = await supabase
         .from("import_lotes")
@@ -628,6 +705,12 @@ function ImportarPage() {
 
       for (const f of faturas) {
         const cartoesTocados = new Set<string>();
+        const [tipoDestinoFatura, idDestinoFatura] = String(f.destino ?? "").split(":");
+        const cartaoPrincipal =
+          tipoDestinoFatura === "cartao"
+            ? idDestinoFatura
+            : (f.lancamentos.map((l) => acharCartao(f.banco, l.cartao_final)?.id).find(Boolean) ??
+              null);
         let path: string | null = null;
         if (f.arquivo) {
           path = `${lote.id}/${f.arquivo_hash}.pdf`;
@@ -654,6 +737,7 @@ function ImportarPage() {
               limite_total: f.limite_total,
               limite_utilizado: f.limite_utilizado,
               limite_disponivel: f.limite_disponivel,
+              cartao_id: cartaoPrincipal || null,
               total_extraido: f.lancamentos
                 .filter((l) => l.incluir)
                 .reduce((s, l) => s + (l.direcao === "credito" ? -l.valor : l.valor), 0),
@@ -698,19 +782,32 @@ function ImportarPage() {
             continue;
           }
           if (acaoFixa && (acaoFixa.acao === "substituir" || acaoFixa.acao === "vincular")) {
-            const { data: fixa, error: fixaErro } = await supabase.from("despesas")
-              .select("id, descricao, valor_total, tipo, direcao, cartao_id, cartao_final, banco_id, recorrencia_inicio, recorrencia_meses, data_primeira_parcela, total_parcelas")
-              .eq("id", acaoFixa.fixaId).eq("grupo_id", grupoId).single();
-            if (fixaErro || !fixa) throw new Error("A despesa fixa escolhida não está disponível neste grupo.");
+            const { data: fixa, error: fixaErro } = await supabase
+              .from("despesas")
+              .select(
+                "id, descricao, valor_total, tipo, direcao, cartao_id, cartao_final, banco_id, recorrencia_inicio, recorrencia_meses, data_primeira_parcela, total_parcelas",
+              )
+              .eq("id", acaoFixa.fixaId)
+              .eq("grupo_id", grupoId)
+              .single();
+            if (fixaErro || !fixa)
+              throw new Error("A despesa fixa escolhida não está disponível neste grupo.");
             const correspondencia = encontrarCorrespondenciaFixa([fixa], {
-              descricao: l.descricao, valor: l.valor, direcao: l.direcao,
-              data_compra: l.data_compra, parcela_total: l.parcela_total,
-              cartao_final: l.cartao_final, cartao_id: cartaoId, banco_id: bancoId,
+              descricao: l.descricao,
+              valor: l.valor,
+              direcao: l.direcao,
+              data_compra: l.data_compra,
+              parcela_total: l.parcela_total,
+              cartao_final: l.cartao_final,
+              cartao_id: cartaoId,
+              banco_id: bancoId,
               competencia: f.competencia,
             });
-            if (!correspondencia) throw new Error("A correspondência com a despesa fixa mudou. Revise esta linha.");
+            if (!correspondencia)
+              throw new Error("A correspondência com a despesa fixa mudou. Revise esta linha.");
             const competencia = (f.competencia ?? l.data_compra).slice(0, 7);
-            const { data: parcelaExistente, error: parcelaErro } = await supabase.from("parcelas")
+            const { data: parcelaExistente, error: parcelaErro } = await supabase
+              .from("parcelas")
               .select("id, fatura_id")
               .eq("despesa_id", fixa.id)
               .gte("vencimento", `${competencia}-01`)
@@ -718,25 +815,35 @@ function ImportarPage() {
               .maybeSingle();
             if (parcelaErro) throw parcelaErro;
             if (parcelaExistente?.fatura_id && parcelaExistente.fatura_id !== fatura.id) {
-              throw new Error("Esta ocorrência já está vinculada a outra fatura. Revise antes de substituir.");
+              throw new Error(
+                "Esta ocorrência já está vinculada a outra fatura. Revise antes de substituir.",
+              );
             }
             const inicio = fixa.recorrencia_inicio ?? fixa.data_primeira_parcela;
             const numero = mesesEntreCompetencias(inicio, competencia) + 1;
             const valores = {
               fatura_id: fatura.id,
-              origem: acaoFixa.acao === "substituir" ? "importacao_substituicao" : "importacao_vinculo",
+              origem:
+                acaoFixa.acao === "substituir" ? "importacao_substituicao" : "importacao_vinculo",
               ...(acaoFixa.acao === "substituir" ? { valor: l.valor, valor_estimado: false } : {}),
             };
             if (parcelaExistente) {
-              const { error } = await supabase.from("parcelas").update(valores).eq("id", parcelaExistente.id);
+              const { error } = await supabase
+                .from("parcelas")
+                .update(valores)
+                .eq("id", parcelaExistente.id);
               if (error) throw error;
             } else {
               const { error } = await supabase.from("parcelas").insert({
-                despesa_id: fixa.id, grupo_id: grupoId, numero,
+                despesa_id: fixa.id,
+                grupo_id: grupoId,
+                numero,
                 total: fixa.recorrencia_meses ?? Math.max(numero, 1),
                 valor: acaoFixa.acao === "substituir" ? l.valor : Number(fixa.valor_total),
-                moeda: l.moeda, vencimento: vencimentoDaCompetencia(inicio, competencia),
-                paga: false, ...valores,
+                moeda: l.moeda,
+                vencimento: vencimentoDaCompetencia(inicio, competencia),
+                paga: false,
+                ...valores,
               });
               if (error) throw error;
             }
@@ -823,12 +930,17 @@ function ImportarPage() {
           for (const cartaoId of cartoesTocados) {
             const { data: rapida } = await supabase
               .from("fatura_mes")
-              .select("id, despesa_avulsa_id")
+              .select("id, despesa_avulsa_id, modo_calculo")
               .eq("cartao_id", cartaoId)
               .eq("competencia", comp)
               .maybeSingle();
             if (!rapida) continue;
-            if (rapida.despesa_avulsa_id) {
+            if (rapida.despesa_avulsa_id && rapida.modo_calculo === "somente_total") {
+              await supabase
+                .from("despesas")
+                .update({ origem: "fatura_total_concluida" })
+                .eq("id", rapida.despesa_avulsa_id);
+            } else if (rapida.despesa_avulsa_id) {
               await supabase.from("parcelas").delete().eq("despesa_id", rapida.despesa_avulsa_id);
               await supabase.from("despesas").delete().eq("id", rapida.despesa_avulsa_id);
             }
@@ -837,7 +949,9 @@ function ImportarPage() {
               .update({
                 status: "fechada",
                 fechada_em: new Date().toISOString(),
-                despesa_avulsa_id: null,
+                despesa_avulsa_id:
+                  rapida.modo_calculo === "somente_total" ? rapida.despesa_avulsa_id : null,
+                concluida_por_importacao_em: new Date().toISOString(),
                 total_real: f.total_declarado ?? null,
               })
               .eq("id", rapida.id);
@@ -887,7 +1001,13 @@ function ImportarPage() {
           falhasDePara++;
         }
       }
-      return { inseridos, ignorados, fechadas, falhasDePara, regrasSalvas: regrasAprendidas.size - falhasDePara };
+      return {
+        inseridos,
+        ignorados,
+        fechadas,
+        falhasDePara,
+        regrasSalvas: regrasAprendidas.size - falhasDePara,
+      };
     },
     onSuccess: ({ inseridos, ignorados, fechadas, falhasDePara, regrasSalvas }) => {
       qc.invalidateQueries({ queryKey: ["despesas"] });
@@ -902,8 +1022,10 @@ function ImportarPage() {
         `${inseridos} lançamento(s) importado(s). ${ignorados} duplicado(s) ignorado(s).` +
           (fechadas ? ` ${fechadas} competência(s) fechada(s).` : ""),
       );
-      if (regrasSalvas) toast.info(`${regrasSalvas} classificação(ões) aprendida(s) para próximas importações.`);
-      if (falhasDePara) toast.warning(`${falhasDePara} regra(s) de de-para não puderam ser salvas.`);
+      if (regrasSalvas)
+        toast.info(`${regrasSalvas} classificação(ões) aprendida(s) para próximas importações.`);
+      if (falhasDePara)
+        toast.warning(`${falhasDePara} regra(s) de de-para não puderam ser salvas.`);
     },
     onError: (e: any) => toast.error(e?.message ?? "Falha ao importar."),
   });
@@ -941,7 +1063,27 @@ function ImportarPage() {
             </TabsList>
 
             <TabsContent value="pdf">
-              <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-dashed bg-muted/30 p-3 text-xs text-muted-foreground"><span>Seu banco não foi reconhecido? Envie uma cópia para modelagem. Os dados não serão usados e o arquivo será descartado em até 30 dias.</span><Button size="sm" variant="outline" disabled={enviandoLayout} onClick={()=>layoutRef.current?.click()}>{enviandoLayout?'Enviando…':'Enviar para análise'}</Button><input ref={layoutRef} className="hidden" type="file" accept="application/pdf,image/jpeg,image/png" onChange={e=>void enviarParaModelagem(e.target.files)}/></div>
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-dashed bg-muted/30 p-3 text-xs text-muted-foreground">
+                <span>
+                  Seu banco não foi reconhecido? Envie uma cópia para modelagem. Os dados não serão
+                  usados e o arquivo será descartado em até 30 dias.
+                </span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={enviandoLayout}
+                  onClick={() => layoutRef.current?.click()}
+                >
+                  {enviandoLayout ? "Enviando…" : "Enviar para análise"}
+                </Button>
+                <input
+                  ref={layoutRef}
+                  className="hidden"
+                  type="file"
+                  accept="application/pdf,image/jpeg,image/png"
+                  onChange={(e) => void enviarParaModelagem(e.target.files)}
+                />
+              </div>
               <div
                 className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed p-8 text-center transition-colors hover:bg-muted/50"
                 onClick={() => inputRef.current?.click()}
@@ -1128,7 +1270,9 @@ function ImportarPage() {
                     <SelectItem value="nenhum">Não vincular</SelectItem>
                     {(cartoes as any[]).map((c) => (
                       <SelectItem key={c.id} value={`cartao:${c.id}`}>
-                        {c.apelido ?? c.titular} · {c.bancos?.nome ?? c.bandeira} •{c.final}
+                        {c.apelido ?? c.bandeira ?? "Cartão"} •{c.final} ·{" "}
+                        {c.titular?.trim().split(/\s+/)[0] || "Titular não informado"} ·{" "}
+                        {c.bancos?.nome ?? c.bandeira}
                       </SelectItem>
                     ))}
                     {(bancos as any[]).map((b) => (
@@ -1139,21 +1283,33 @@ function ImportarPage() {
                   </SelectContent>
                 </Select>
                 <div className="mt-1 flex flex-wrap gap-2">
-                  <Button type="button" size="sm" variant="ghost" className="h-7 px-1 text-xs" onClick={() => {
-                    setNomeBancoNovo(f.banco === "desconhecido" ? "" : BANCO_LABEL[f.banco]);
-                    setCadastroDestino({ arquivoHash: f.arquivo_hash, tipo: "banco" });
-                  }}>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 px-1 text-xs"
+                    onClick={() => {
+                      setNomeBancoNovo(f.banco === "desconhecido" ? "" : BANCO_LABEL[f.banco]);
+                      setCadastroDestino({ arquivoHash: f.arquivo_hash, tipo: "banco" });
+                    }}
+                  >
                     <Plus className="mr-1 size-3" /> Cadastrar banco
                   </Button>
-                  <Button type="button" size="sm" variant="ghost" className="h-7 px-1 text-xs" onClick={() => {
-                    setCartaoNovo({
-                      apelido: "",
-                      final: f.finais[0] ?? "",
-                      titular: profiles[0]?.nome ?? "",
-                      bancoId: "",
-                    });
-                    setCadastroDestino({ arquivoHash: f.arquivo_hash, tipo: "cartao" });
-                  }}>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 px-1 text-xs"
+                    onClick={() => {
+                      setCartaoNovo({
+                        apelido: "",
+                        final: f.finais[0] ?? "",
+                        titular: profiles[0]?.nome ?? "",
+                        bancoId: "",
+                      });
+                      setCadastroDestino({ arquivoHash: f.arquivo_hash, tipo: "cartao" });
+                    }}
+                  >
                     <Plus className="mr-1 size-3" /> Cadastrar cartão
                   </Button>
                 </div>
@@ -1492,33 +1648,53 @@ function ImportarPage() {
                                 data_compra: l.data_compra,
                                 parcela_total: l.parcela_total,
                                 cartao_final: l.cartao_final,
-                                cartao_id: cartaoLinha?.id ?? (tipoDestino === "cartao" ? idDestino ?? null : null),
-                                banco_id: tipoDestino === "banco" ? idDestino ?? null : null,
+                                cartao_id:
+                                  cartaoLinha?.id ??
+                                  (tipoDestino === "cartao" ? (idDestino ?? null) : null),
+                                banco_id: tipoDestino === "banco" ? (idDestino ?? null) : null,
                                 competencia: f.competencia,
                               });
                               return correspondencia ? (
                                 <div className="mt-1 space-y-1 text-[10px] font-medium text-amber-600">
-                                  <p>{correspondencia.titulo}: "{correspondencia.fixa.descricao}" (
-                                    {formatBRL(Number(correspondencia.fixa.valor_total))}).</p>
+                                  <p>
+                                    {correspondencia.titulo}: "{correspondencia.fixa.descricao}" (
+                                    {formatBRL(Number(correspondencia.fixa.valor_total))}).
+                                  </p>
                                   <p>Critérios: {correspondencia.motivos.join(", ")}.</p>
                                   <Select
-                                    value={acoesFixas[`${f.arquivo_hash}:${l.id}`]?.acao ?? "manter"}
+                                    value={
+                                      acoesFixas[`${f.arquivo_hash}:${l.id}`]?.acao ?? "manter"
+                                    }
                                     onValueChange={(valor) => {
                                       const acao = valor as AcaoFixa;
-                                      setAcoesFixas((atual) => ({ ...atual,
-                                        [`${f.arquivo_hash}:${l.id}`]: { acao, fixaId: correspondencia.fixa.id },
+                                      setAcoesFixas((atual) => ({
+                                        ...atual,
+                                        [`${f.arquivo_hash}:${l.id}`]: {
+                                          acao,
+                                          fixaId: correspondencia.fixa.id,
+                                        },
                                       }));
-                                      atualizarLancamento(idx, l.id, { incluir: acao !== "ignorar" });
+                                      atualizarLancamento(idx, l.id, {
+                                        incluir: acao !== "ignorar",
+                                      });
                                     }}
                                   >
                                     <SelectTrigger className="h-7 text-[10px] text-foreground">
                                       <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
-                                      <SelectItem value="manter">Manter os dois lançamentos</SelectItem>
-                                      <SelectItem value="substituir">Substituir só a ocorrência deste mês</SelectItem>
-                                      <SelectItem value="ignorar">Ignorar o lançamento importado</SelectItem>
-                                      <SelectItem value="vincular">Vincular à fixa sem trocar o valor</SelectItem>
+                                      <SelectItem value="manter">
+                                        Manter os dois lançamentos
+                                      </SelectItem>
+                                      <SelectItem value="substituir">
+                                        Substituir só a ocorrência deste mês
+                                      </SelectItem>
+                                      <SelectItem value="ignorar">
+                                        Ignorar o lançamento importado
+                                      </SelectItem>
+                                      <SelectItem value="vincular">
+                                        Vincular à fixa sem trocar o valor
+                                      </SelectItem>
                                     </SelectContent>
                                   </Select>
                                 </div>
@@ -1584,22 +1760,34 @@ function ImportarPage() {
                                 </SelectContent>
                               </Select>
                               {(() => {
-                                const adicionada = regras.some((r) =>
-                                  r.tipo_regra === "de_para" &&
-                                  r.estabelecimento_normalizado === chaveEstabelecimento(l.descricao) &&
-                                  r.categoria === l.categoria &&
-                                  (r.subcategoria ?? null) === (l.subcategoria ?? null));
+                                const adicionada = regras.some(
+                                  (r) =>
+                                    r.tipo_regra === "de_para" &&
+                                    r.estabelecimento_normalizado ===
+                                      chaveEstabelecimento(l.descricao) &&
+                                    r.categoria === l.categoria &&
+                                    (r.subcategoria ?? null) === (l.subcategoria ?? null),
+                                );
                                 return (
                                   <Button
                                     variant="ghost"
                                     size="sm"
                                     className="h-7 shrink-0 px-1 text-[10px]"
-                                    title={adicionada ? "Remover regra de de-para" : "Salvar como regra de de-para"}
-                                    disabled={salvarRegra.isPending || (adicionada && exclusaoBloqueada)}
+                                    title={
+                                      adicionada
+                                        ? "Remover regra de de-para"
+                                        : "Salvar como regra de de-para"
+                                    }
+                                    disabled={
+                                      salvarRegra.isPending || (adicionada && exclusaoBloqueada)
+                                    }
                                     onClick={() => salvarRegra.mutate(l)}
                                   >
-                                    {adicionada ? <BookmarkMinus className="mr-1 size-3.5" /> :
-                                      <BookmarkPlus className="mr-1 size-3.5" />}
+                                    {adicionada ? (
+                                      <BookmarkMinus className="mr-1 size-3.5" />
+                                    ) : (
+                                      <BookmarkPlus className="mr-1 size-3.5" />
+                                    )}
                                     {adicionada ? "Remover regra" : "Salvar como regra"}
                                   </Button>
                                 );
@@ -1666,7 +1854,10 @@ function ImportarPage() {
           </CardContent>
         </Card>
       ))}
-      <Dialog open={!!cadastroDestino} onOpenChange={(aberto) => !aberto && setCadastroDestino(null)}>
+      <Dialog
+        open={!!cadastroDestino}
+        onOpenChange={(aberto) => !aberto && setCadastroDestino(null)}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
@@ -1676,43 +1867,78 @@ function ImportarPage() {
           {cadastroDestino?.tipo === "banco" ? (
             <div className="space-y-2">
               <Label htmlFor="novo-banco-importacao">Nome do banco ou conta</Label>
-              <Input id="novo-banco-importacao" value={nomeBancoNovo}
-                onChange={(evento) => setNomeBancoNovo(evento.target.value)} />
+              <Input
+                id="novo-banco-importacao"
+                value={nomeBancoNovo}
+                onChange={(evento) => setNomeBancoNovo(evento.target.value)}
+              />
             </div>
           ) : (
             <div className="space-y-3">
               <div className="space-y-1">
                 <Label htmlFor="novo-cartao-apelido">Apelido do cartão (opcional)</Label>
-                <Input id="novo-cartao-apelido" value={cartaoNovo.apelido}
-                  onChange={(evento) => setCartaoNovo({ ...cartaoNovo, apelido: evento.target.value })} />
+                <Input
+                  id="novo-cartao-apelido"
+                  value={cartaoNovo.apelido}
+                  onChange={(evento) =>
+                    setCartaoNovo({ ...cartaoNovo, apelido: evento.target.value })
+                  }
+                />
               </div>
               <div className="space-y-1">
                 <Label htmlFor="novo-cartao-final">Quatro últimos dígitos</Label>
-                <Input id="novo-cartao-final" inputMode="numeric" maxLength={4} value={cartaoNovo.final}
-                  onChange={(evento) => setCartaoNovo({ ...cartaoNovo, final: evento.target.value.replace(/\D/g, "") })} />
+                <Input
+                  id="novo-cartao-final"
+                  inputMode="numeric"
+                  maxLength={4}
+                  value={cartaoNovo.final}
+                  onChange={(evento) =>
+                    setCartaoNovo({ ...cartaoNovo, final: evento.target.value.replace(/\D/g, "") })
+                  }
+                />
               </div>
               <div className="space-y-1">
                 <Label htmlFor="novo-cartao-titular">Titular</Label>
-                <Input id="novo-cartao-titular" value={cartaoNovo.titular}
-                  onChange={(evento) => setCartaoNovo({ ...cartaoNovo, titular: evento.target.value })} />
+                <Input
+                  id="novo-cartao-titular"
+                  value={cartaoNovo.titular}
+                  onChange={(evento) =>
+                    setCartaoNovo({ ...cartaoNovo, titular: evento.target.value })
+                  }
+                />
               </div>
               <div className="space-y-1">
                 <Label>Banco cadastrado (opcional)</Label>
-                <Select value={cartaoNovo.bancoId || "nenhum"}
-                  onValueChange={(valor) => setCartaoNovo({ ...cartaoNovo, bancoId: valor === "nenhum" ? "" : valor })}>
-                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <Select
+                  value={cartaoNovo.bancoId || "nenhum"}
+                  onValueChange={(valor) =>
+                    setCartaoNovo({ ...cartaoNovo, bancoId: valor === "nenhum" ? "" : valor })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="nenhum">Sem banco vinculado</SelectItem>
-                    {bancos.map((banco) => <SelectItem key={banco.id} value={banco.id}>{banco.nome}</SelectItem>)}
+                    {bancos.map((banco) => (
+                      <SelectItem key={banco.id} value={banco.id}>
+                        {banco.nome}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
             </div>
           )}
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setCadastroDestino(null)}>Cancelar</Button>
-            <Button type="button" disabled={cadastrarDestino.isPending}
-              onClick={() => cadastrarDestino.mutate()}>
+            <Button type="button" variant="outline" onClick={() => setCadastroDestino(null)}>
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              disabled={cadastrarDestino.isPending}
+              onClick={() => cadastrarDestino.mutate()}
+            >
               {cadastrarDestino.isPending ? "Salvando..." : "Salvar e continuar"}
             </Button>
           </DialogFooter>

@@ -52,6 +52,7 @@ import {
   useCartoes,
   useCategorias,
   useDespesas,
+  useFaturasMes,
   useProfilesList,
 } from "@/hooks/useFinance";
 import { usePermissoes, useSession } from "@/hooks/useAuthData";
@@ -146,6 +147,7 @@ function DespesasPage() {
   const { user } = useSession();
   const { can } = usePermissoes();
   const { data: despesas = [] } = useDespesas();
+  const { data: faturasMes = [] } = useFaturasMes();
   const { data: categorias = [] } = useCategorias("despesa");
   const { data: cartoes = [] } = useCartoes();
   const { data: bancos = [] } = useBancos();
@@ -154,7 +156,7 @@ function DespesasPage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
 
-  const [tab, setTab] = useState<"fixa" | "variavel">("fixa");
+  const [tab, setTab] = useState<"total" | "fixa" | "variavel">("total");
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<any>(novoForm("fixa"));
@@ -166,6 +168,7 @@ function DespesasPage() {
   const [filtroResponsavel, setFiltroResponsavel] = useState("todos");
   const [modoLista, setModoLista] = useState<"lista" | "cartao">("lista");
   const [expandida, setExpandida] = useState<string | null>(null);
+  const [grupoExpandido, setGrupoExpandido] = useState<string | null>(null);
 
   const filtroCartao = search.cartao ?? "todos";
   const setFiltroCartao = (v: string) =>
@@ -250,7 +253,7 @@ function DespesasPage() {
 
   function abrirNova() {
     setEditId(null);
-    setForm(novoForm(tab));
+    setForm(novoForm(tab === "total" ? "variavel" : tab));
     setDuplicata(null);
     setOpen(true);
   }
@@ -381,7 +384,7 @@ function DespesasPage() {
       setOpen(false);
       setEditId(null);
       setDuplicata(null);
-      setForm(novoForm(tab));
+      setForm(novoForm(tab === "total" ? "variavel" : tab));
       qc.invalidateQueries();
     },
     onError: (e: any) => toast.error(e?.errors?.[0]?.message ?? e.message ?? "Erro ao salvar"),
@@ -486,10 +489,11 @@ function DespesasPage() {
   );
 
   const formaKey = (d: any) => (d.cartao_id ? `cartao:${d.cartao_id}` : "sem");
-  const primeiroNome = (nome?: string | null) => nome?.trim().split(/\s+/)[0] || "Titular não informado";
+  const primeiroNome = (nome?: string | null) =>
+    nome?.trim().split(/\s+/)[0] || "Titular não informado";
 
   const lista = despesas.filter((d: any) => {
-    if (d.tipo !== tab) return false;
+    if (tab !== "total" && d.tipo !== tab) return false;
     if (filtroMes !== "todos" && !lancamentoPorDespesa.has(d.id)) return false;
     if (filtroCartao !== "todos") {
       if (filtroCartao === "sem" ? !!d.cartao_id : d.cartao_id !== filtroCartao) return false;
@@ -510,13 +514,29 @@ function DespesasPage() {
       ? Number(d.valor_total)
       : Number(lancamentoPorDespesa.get(d.id)?.valor ?? 0);
 
+  const idsIgnoradosPorTotal = useMemo(() => {
+    if (filtroMes === "todos") return new Set<string>();
+    const ids = new Set<string>();
+    for (const f of faturasMes as any[]) {
+      if (f.competencia !== filtroMes || f.modo_calculo !== "somente_total") continue;
+      for (const d of despesas as any[]) {
+        if (d.cartao_id !== f.cartao_id) continue;
+        const ehResumo = d.id === f.despesa_avulsa_id;
+        if (f.status === "aberta" ? !ehResumo : ehResumo) ids.add(d.id);
+      }
+    }
+    return ids;
+  }, [faturasMes, despesas, filtroMes]);
+
+  const listaVisivel = lista.filter((d: any) => !idsIgnoradosPorTotal.has(d.id));
+
   const resumo = useMemo(() => {
     let total = 0;
     let pago = 0;
     let aberto = 0;
     let proximo: { data: string; valor: number } | null = null;
     const hoje = toISODate(new Date());
-    for (const d of lista as any[]) {
+    for (const d of listaVisivel as any[]) {
       const brl = (v: number) => toBRL(v, d.moeda, cotacao);
       const parcelasVisiveis =
         filtroMes === "todos"
@@ -533,17 +553,19 @@ function DespesasPage() {
       }
     }
     return { total, pago, aberto, proximo };
-  }, [lista, cotacao, filtroMes, lancamentosDoFiltro, lancamentoPorDespesa]);
+  }, [listaVisivel, cotacao, filtroMes, lancamentosDoFiltro, lancamentoPorDespesa]);
 
   /** Agrupa por cartão. Tudo que não veio de cartão fica em Sem atribuição. */
   const gruposLista = useMemo(() => {
     if (modoLista === "lista")
-      return [{ key: "all", label: "", cor: "", itens: lista as any[], total: resumo.total }];
+      return [
+        { key: "all", label: "", cor: "", itens: listaVisivel as any[], total: resumo.total },
+      ];
     const mapa = new Map<
       string,
       { key: string; label: string; cor: string; itens: any[]; total: number }
     >();
-    for (const d of lista as any[]) {
+    for (const d of listaVisivel as any[]) {
       const key = formaKey(d);
       const label = d.cartoes
         ? `${d.cartoes.apelido || d.cartoes.bandeira || "Cartão"} •${d.cartoes.final ?? ""} · ${primeiroNome(d.cartoes.titular)}`
@@ -555,7 +577,7 @@ function DespesasPage() {
       mapa.set(key, g);
     }
     return Array.from(mapa.values()).sort((a, b) => b.total - a.total);
-  }, [lista, modoLista, cotacao, resumo.total, filtroMes, lancamentoPorDespesa]);
+  }, [listaVisivel, modoLista, cotacao, resumo.total, filtroMes, lancamentoPorDespesa]);
 
   const chips = [
     filtroCartao !== "todos" && {
@@ -564,7 +586,9 @@ function DespesasPage() {
           ? "Sem atribuição"
           : (() => {
               const c: any = cartoes.find((c: any) => c.id === filtroCartao);
-              return c ? `Cartão ${c.apelido ?? c.bandeira} •${c.final}` : "Cartão";
+              return c
+                ? `Cartão ${c.apelido ?? c.bandeira} •${c.final} · ${primeiroNome(c.titular)}`
+                : "Cartão";
             })(),
       clear: () => setFiltroCartao("todos"),
     },
@@ -644,8 +668,11 @@ function DespesasPage() {
 
       <div className="mb-3 space-y-2">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <Tabs value={tab} onValueChange={(v) => setTab(v as "fixa" | "variavel")}>
+          <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
             <TabsList className="h-9">
+              <TabsTrigger value="total" className="text-xs">
+                Total
+              </TabsTrigger>
               <TabsTrigger value="fixa" className="text-xs">
                 Fixas
               </TabsTrigger>
@@ -769,7 +796,8 @@ function DespesasPage() {
         lista.length > 0 && (
           <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border bg-muted/20 px-3 py-2">
             <span className="text-xs text-muted-foreground">
-              {tab === "fixa" ? "Fixas" : "Variáveis"} de {monthLabelLong(filtroMes)}:
+              {tab === "total" ? "Todas" : tab === "fixa" ? "Fixas" : "Variáveis"} de{" "}
+              {monthLabelLong(filtroMes)}:
             </span>
             <Button
               size="sm"
@@ -804,7 +832,16 @@ function DespesasPage() {
           {gruposLista.map((grupo) => (
             <div key={grupo.key} className="overflow-hidden rounded-xl border bg-card">
               {modoLista === "cartao" && (
-                <div className="flex items-center gap-3 border-b bg-muted/30 px-3 py-2">
+                <div
+                  role="button"
+                  tabIndex={0}
+                  className="flex w-full items-center gap-3 border-b bg-muted/30 px-3 py-2 text-left"
+                  onClick={() => setGrupoExpandido(grupoExpandido === grupo.key ? null : grupo.key)}
+                  onKeyDown={(e) =>
+                    e.key === "Enter" &&
+                    setGrupoExpandido(grupoExpandido === grupo.key ? null : grupo.key)
+                  }
+                >
                   <div
                     className="flex size-8 shrink-0 items-center justify-center rounded-lg"
                     style={{ backgroundColor: grupo.cor }}
@@ -833,191 +870,211 @@ function DespesasPage() {
                       disabled={
                         marcarLote.isPending || idsDoLote(grupo.itens, "abertas").length === 0
                       }
-                      onClick={() =>
-                        marcarLote.mutate({ ids: idsDoLote(grupo.itens, "abertas"), paga: true })
-                      }
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        marcarLote.mutate({ ids: idsDoLote(grupo.itens, "abertas"), paga: true });
+                      }}
                       aria-label="Marcar fatura importada como paga"
                     >
                       <CheckCircle2 className="size-3.5" /> Marcar fatura paga
                     </Button>
                   )}
+                  <ChevronDown
+                    className={cn(
+                      "size-4 transition-transform",
+                      grupoExpandido === grupo.key && "rotate-180",
+                    )}
+                  />
                 </div>
               )}
-              <div className="divide-y">
-                {grupo.itens.map((d: any) => {
-                  const parcelas = [
-                    ...(filtroMes === "todos"
-                      ? (d.parcelas ?? [])
-                      : lancamentosDoFiltro.filter((p) => p.despesa_id === d.id)),
-                  ].sort((a: any, b: any) => a.numero - b.numero);
-                  const pagas = parcelas.filter((p: any) => p.paga).length;
-                  const aberta = expandida === d.id;
-                  return (
-                    <div key={d.id}>
-                      <div
-                        onClick={() => abrirEdicao(d)}
-                        className={cn(
-                          "flex items-center gap-3 px-3 py-2.5 transition-colors hover:bg-muted/40",
-                          can("despesas", "editar") && "cursor-pointer",
-                        )}
-                      >
+              {(modoLista !== "cartao" || grupoExpandido === grupo.key) && (
+                <div className="divide-y">
+                  {grupo.itens.map((d: any) => {
+                    const parcelas = [
+                      ...(filtroMes === "todos"
+                        ? (d.parcelas ?? [])
+                        : lancamentosDoFiltro.filter((p) => p.despesa_id === d.id)),
+                    ].sort((a: any, b: any) => a.numero - b.numero);
+                    const pagas = parcelas.filter((p: any) => p.paga).length;
+                    const aberta = expandida === d.id;
+                    return (
+                      <div key={d.id}>
                         <div
-                          className="h-8 w-1 shrink-0 rounded-full"
-                          style={{ backgroundColor: d.cartoes?.cor ?? "var(--muted-foreground)" }}
-                        />
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-semibold leading-tight">
-                            {identificacaoDespesa(d) && (
-                              <span className="text-primary">{identificacaoDespesa(d)} · </span>
+                          onClick={() => abrirEdicao(d)}
+                          className={cn(
+                            "flex items-center gap-3 px-3 py-2.5 transition-colors hover:bg-muted/40",
+                            can("despesas", "editar") && "cursor-pointer",
+                            d.origem === "fatura_total_concluida" && "opacity-70 line-through",
+                          )}
+                        >
+                          <div
+                            className="h-8 w-1 shrink-0 rounded-full"
+                            style={{ backgroundColor: d.cartoes?.cor ?? "var(--muted-foreground)" }}
+                          />
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-semibold leading-tight">
+                              {identificacaoDespesa(d) && (
+                                <span className="text-primary">{identificacaoDespesa(d)} · </span>
+                              )}
+                              {d.descricao}
+                            </p>
+                            <p className="truncate text-[11px] text-muted-foreground">
+                              {formatDate(d.data_compra)} · {d.categoria}
+                              {d.tipo === "fixa"
+                                ? ` · ${filtroMes === "todos" ? "valor mensal" : monthLabelLong(filtroMes)}`
+                                : d.total_parcelas > 1
+                                  ? ` · ${d.total_parcelas}x de ${formatBRL(
+                                      toBRL(
+                                        Number(d.valor_total) / d.total_parcelas,
+                                        d.moeda,
+                                        cotacao,
+                                      ),
+                                    )}`
+                                  : " · à vista"}
+                            </p>
+                          </div>
+                          {d.tipo !== "fixa" && d.total_parcelas > 1 && (
+                            <div className="hidden w-24 shrink-0 sm:block">
+                              <Badge variant="secondary" className="text-[10px]">
+                                {d.tipo === "fixa" && filtroMes !== "todos"
+                                  ? parcelas[0]?.paga
+                                    ? "paga no mês"
+                                    : "em aberto no mês"
+                                  : `${pagas}/${d.total_parcelas} pagas`}
+                              </Badge>
+                              <Progress
+                                value={(pagas / d.total_parcelas) * 100}
+                                className="mt-1 h-1"
+                              />
+                            </div>
+                          )}
+
+                          <div className="shrink-0 text-right">
+                            <p className="text-sm font-bold tabular-nums">
+                              {formatBRL(toBRL(valorVisivel(d), d.moeda, cotacao))}
+                            </p>
+                            {d.moeda === "USD" && (
+                              <p className="text-[10px] text-muted-foreground">
+                                {formatUSD(Number(d.valor_total))}
+                              </p>
                             )}
-                            {d.descricao}
-                          </p>
-                          <p className="truncate text-[11px] text-muted-foreground">
-                            {formatDate(d.data_compra)} · {d.categoria}
-                            {d.tipo === "fixa"
-                              ? ` · ${filtroMes === "todos" ? "valor mensal" : monthLabelLong(filtroMes)}`
-                              : d.total_parcelas > 1
-                                ? ` · ${d.total_parcelas}x de ${formatBRL(
-                                    toBRL(
-                                      Number(d.valor_total) / d.total_parcelas,
-                                      d.moeda,
-                                      cotacao,
-                                    ),
-                                  )}`
-                                : " · à vista"}
-                          </p>
+                          </div>
+                          <div className="flex shrink-0 items-center">
+                            {can("despesas", "editar") && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="size-8 text-muted-foreground hover:text-primary"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  moverTipo.mutate({
+                                    id: d.id,
+                                    tipo: d.tipo === "fixa" ? "variavel" : "fixa",
+                                  });
+                                }}
+                                title={
+                                  d.tipo === "fixa" ? "Mover para variável" : "Mover para fixa"
+                                }
+                                aria-label={
+                                  d.tipo === "fixa" ? "Mover para variável" : "Mover para fixa"
+                                }
+                              >
+                                <ArrowLeftRight className="size-4" />
+                              </Button>
+                            )}
+                            {can("despesas", "editar") && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="size-8 text-muted-foreground hover:text-primary"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  abrirEdicao(d);
+                                }}
+                                aria-label="Editar despesa"
+                              >
+                                <Pencil className="size-4" />
+                              </Button>
+                            )}
+
+                            {parcelas.length > 0 && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="size-8 text-muted-foreground"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setExpandida(aberta ? null : d.id);
+                                }}
+                                aria-label="Ver parcelas"
+                              >
+                                <ChevronDown
+                                  className={cn(
+                                    "size-4 transition-transform",
+                                    aberta && "rotate-180",
+                                  )}
+                                />
+                              </Button>
+                            )}
+                            {can("despesas", "excluir") && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="size-8 text-muted-foreground hover:text-destructive"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (
+                                    d.origem === "fatura_total_concluida" &&
+                                    !window.confirm("Excluir este total concluído do histórico?")
+                                  )
+                                    return;
+                                  excluir.mutate(d.id);
+                                }}
+                                aria-label="Excluir despesa"
+                              >
+                                <Trash2 className="size-4" />
+                              </Button>
+                            )}
+                          </div>
                         </div>
-                        {d.tipo !== "fixa" && d.total_parcelas > 1 && (
-                          <div className="hidden w-24 shrink-0 sm:block">
-                            <Badge variant="secondary" className="text-[10px]">
-                              {d.tipo === "fixa" && filtroMes !== "todos"
-                                ? parcelas[0]?.paga
-                                  ? "paga no mês"
-                                  : "em aberto no mês"
-                                : `${pagas}/${d.total_parcelas} pagas`}
-                            </Badge>
-                            <Progress
-                              value={(pagas / d.total_parcelas) * 100}
-                              className="mt-1 h-1"
-                            />
+
+                        {aberta && (
+                          <div className="space-y-2 border-t bg-muted/20 px-3 py-2.5">
+                            {d.tipo !== "fixa" && d.total_parcelas > 1 && (
+                              <Progress
+                                value={(pagas / d.total_parcelas) * 100}
+                                className="h-1.5"
+                              />
+                            )}
+                            <div className="flex flex-wrap gap-1.5">
+                              {parcelas.map((p: any) => (
+                                <button
+                                  key={p.id}
+                                  onClick={() => togglePaga.mutate({ id: p.id, paga: !p.paga })}
+                                  disabled={!can("despesas", "editar")}
+                                  className={cn(
+                                    "inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-medium tabular-nums transition-colors",
+                                    p.paga
+                                      ? "border-success/30 bg-success/10 text-success"
+                                      : "border-border bg-background text-muted-foreground hover:border-primary/40",
+                                  )}
+                                  title={`Vence em ${formatDate(p.vencimento)}`}
+                                >
+                                  {p.paga && <CheckCircle2 className="size-3" />}
+                                  {d.tipo === "fixa"
+                                    ? monthLabelLong(monthKey(p.vencimento))
+                                    : `${p.numero}/${p.total}`}{" "}
+                                  · {formatBRL(Number(p.valor))}
+                                </button>
+                              ))}
+                            </div>
                           </div>
                         )}
-
-                        <div className="shrink-0 text-right">
-                          <p className="text-sm font-bold tabular-nums">
-                            {formatBRL(toBRL(valorVisivel(d), d.moeda, cotacao))}
-                          </p>
-                          {d.moeda === "USD" && (
-                            <p className="text-[10px] text-muted-foreground">
-                              {formatUSD(Number(d.valor_total))}
-                            </p>
-                          )}
-                        </div>
-                        <div className="flex shrink-0 items-center">
-                          {can("despesas", "editar") && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="size-8 text-muted-foreground hover:text-primary"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                moverTipo.mutate({
-                                  id: d.id,
-                                  tipo: d.tipo === "fixa" ? "variavel" : "fixa",
-                                });
-                              }}
-                              title={d.tipo === "fixa" ? "Mover para variável" : "Mover para fixa"}
-                              aria-label={
-                                d.tipo === "fixa" ? "Mover para variável" : "Mover para fixa"
-                              }
-                            >
-                              <ArrowLeftRight className="size-4" />
-                            </Button>
-                          )}
-                          {can("despesas", "editar") && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="size-8 text-muted-foreground hover:text-primary"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                abrirEdicao(d);
-                              }}
-                              aria-label="Editar despesa"
-                            >
-                              <Pencil className="size-4" />
-                            </Button>
-                          )}
-
-                          {parcelas.length > 0 && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="size-8 text-muted-foreground"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setExpandida(aberta ? null : d.id);
-                              }}
-                              aria-label="Ver parcelas"
-                            >
-                              <ChevronDown
-                                className={cn(
-                                  "size-4 transition-transform",
-                                  aberta && "rotate-180",
-                                )}
-                              />
-                            </Button>
-                          )}
-                          {can("despesas", "excluir") && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="size-8 text-muted-foreground hover:text-destructive"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                excluir.mutate(d.id);
-                              }}
-                              aria-label="Excluir despesa"
-                            >
-                              <Trash2 className="size-4" />
-                            </Button>
-                          )}
-                        </div>
                       </div>
-
-                      {aberta && (
-                        <div className="space-y-2 border-t bg-muted/20 px-3 py-2.5">
-                          {d.tipo !== "fixa" && d.total_parcelas > 1 && (
-                            <Progress value={(pagas / d.total_parcelas) * 100} className="h-1.5" />
-                          )}
-                          <div className="flex flex-wrap gap-1.5">
-                            {parcelas.map((p: any) => (
-                              <button
-                                key={p.id}
-                                onClick={() => togglePaga.mutate({ id: p.id, paga: !p.paga })}
-                                disabled={!can("despesas", "editar")}
-                                className={cn(
-                                  "inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-medium tabular-nums transition-colors",
-                                  p.paga
-                                    ? "border-success/30 bg-success/10 text-success"
-                                    : "border-border bg-background text-muted-foreground hover:border-primary/40",
-                                )}
-                                title={`Vence em ${formatDate(p.vencimento)}`}
-                              >
-                                {p.paga && <CheckCircle2 className="size-3" />}
-                                {d.tipo === "fixa"
-                                  ? monthLabelLong(monthKey(p.vencimento))
-                                  : `${p.numero}/${p.total}`}{" "}
-                                · {formatBRL(Number(p.valor))}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -1155,7 +1212,7 @@ function DespesasPage() {
                 <SelectContent>
                   {cartoes.map((c: any) => (
                     <SelectItem key={c.id} value={`cartao:${c.id}`}>
-                      {c.apelido ?? c.bandeira} •{c.final}
+                      {c.apelido ?? c.bandeira} •{c.final} · {primeiroNome(c.titular)}
                     </SelectItem>
                   ))}
                   {bancos.map((b: any) => (

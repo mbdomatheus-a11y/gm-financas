@@ -23,7 +23,8 @@ import {
 } from "@/components/ui/select";
 import { EditarDespesaRapido } from "@/components/EditarDespesaRapido";
 import { useCotacao } from "@/hooks/useCotacao";
-import { useDespesas, useReceitas } from "@/hooks/useFinance";
+import { useDespesas, useFaturasMes, useReceitas } from "@/hooks/useFinance";
+import { aplicarRegrasFaturaMes } from "@/lib/fatura-mes";
 import {
   currentMonthKey,
   formatBRL,
@@ -47,8 +48,9 @@ const AGRUPAMENTOS: { value: Agrupamento; label: string }[] = [
 
 function nomeCartao(d: any): string {
   if (d.cartoes) {
-    const nome = d.cartoes.apelido || d.cartoes.titular || "Cartão";
-    return d.cartoes.final ? `${nome} •${d.cartoes.final}` : nome;
+    const nome = d.cartoes.apelido || "Cartão";
+    const titular = d.cartoes.titular?.trim().split(/\s+/)[0];
+    return `${d.cartoes.final ? `${nome} •${d.cartoes.final}` : nome}${titular ? ` · ${titular}` : ""}`;
   }
   if (d.bancos?.nome) return d.bancos.nome;
   if (d.banco_nome) return d.banco_nome;
@@ -89,6 +91,7 @@ function Delta({ valor }: { valor: number | null }) {
 export function VisaoGeralHome({ ocultarValores = false }: { ocultarValores?: boolean } = {}) {
   const cotacao = useCotacao();
   const { data: despesas = [] } = useDespesas();
+  const { data: faturasMes = [] } = useFaturasMes();
   const { data: receitas = [] } = useReceitas();
 
   const valorFmt = (v: number) => (ocultarValores ? "R$ ••••••" : formatBRL(v));
@@ -121,8 +124,12 @@ export function VisaoGeralHome({ ocultarValores = false }: { ocultarValores?: bo
   }, []);
 
   const parcelas = useMemo(
-    () => lancamentosPorCompetencias(despesas as any[], meses),
-    [despesas, meses],
+    () =>
+      aplicarRegrasFaturaMes(
+        lancamentosPorCompetencias(despesas as any[], meses),
+        faturasMes as any[],
+      ),
+    [despesas, meses, faturasMes],
   );
 
   const serie = useMemo(() => {
@@ -334,7 +341,10 @@ export function VisaoGeralHome({ ocultarValores = false }: { ocultarValores?: bo
                     </div>
                     <div className="mt-1 flex items-center gap-2">
                       <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
-                        <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
+                        <div
+                          className="h-full rounded-full bg-primary"
+                          style={{ width: `${pct}%` }}
+                        />
                       </div>
                       <span className="w-10 shrink-0 text-right text-[11px] text-muted-foreground tabular-nums">
                         {pct.toFixed(0)}%

@@ -4,6 +4,16 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Building2, CreditCard, Gauge, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
+import {
+  CartesianGrid,
+  Legend,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 import { AppLayout } from "@/components/AppLayout";
 import { Field } from "@/routes/_authenticated/receitas";
@@ -31,7 +41,6 @@ import { useBancos, useCartoes, useDespesas, useFaturasImportadas } from "@/hook
 import { usePermissoes, useProfile } from "@/hooks/useAuthData";
 import { useCotacao } from "@/hooks/useCotacao";
 import { formatBRL, toBRL } from "@/lib/format";
-
 
 export const Route = createFileRoute("/_authenticated/cartoes")({
   head: () => ({
@@ -111,6 +120,7 @@ function CartoesPage() {
   const { data: faturas = [] } = useFaturasImportadas();
 
   const [tab, setTab] = useState("cartoes");
+  const [periodoLimite, setPeriodoLimite] = useState("12");
   const [openCartao, setOpenCartao] = useState(false);
   const [openBanco, setOpenBanco] = useState(false);
   const [editCartaoId, setEditCartaoId] = useState<string | null>(null);
@@ -237,6 +247,7 @@ function CartoesPage() {
   });
 
   type GrupoLimite = {
+    key: string;
     banco: string;
     label: string;
     competencia: string | null;
@@ -252,12 +263,17 @@ function CartoesPage() {
     for (const f of faturas as any[]) {
       if (f.limite_total == null && f.limite_utilizado == null && f.limite_disponivel == null)
         continue;
-      const lista = porBanco.get(f.banco) ?? [];
+      const chave = f.cartao_id ? `cartao:${f.cartao_id}` : `banco:${f.banco}`;
+      const lista = porBanco.get(chave) ?? [];
       lista.push(f);
-      porBanco.set(f.banco, lista);
+      porBanco.set(chave, lista);
     }
     const hoje = new Date().toISOString().slice(0, 10);
-    return Array.from(porBanco, ([banco, lista]) => {
+    return Array.from(porBanco, ([key, lista]) => {
+      const cartao: any = key.startsWith("cartao:")
+        ? cartoes.find((c: any) => c.id === key.slice(7))
+        : null;
+      const banco = lista[0]?.banco ?? "desconhecido";
       const ordenadas = [...lista].sort((a, b) =>
         String(b.competencia ?? "").localeCompare(String(a.competencia ?? "")),
       );
@@ -276,18 +292,34 @@ function CartoesPage() {
         .filter((p: any) => !p.paga && p.vencimento >= hoje)
         .reduce((s: number, p: any) => s + toBRL(Number(p.valor), p.despesa.moeda, cotacao), 0);
       return {
+        key,
         banco,
-        label: BANCO_LABEL[banco] ?? banco,
+        label: cartao
+          ? `${cartao.apelido || cartao.bandeira || "Cartão"} •${cartao.final ?? ""} · ${primeiroNome(cartao.titular)}`
+          : `${BANCO_LABEL[banco] ?? banco} · cartão não identificado`,
         competencia: atual.competencia ?? null,
         limite_total: total,
         utilizado,
         disponivel,
         comprometidoApp,
-        historico: ordenadas.slice(0, 6),
+        historico:
+          periodoLimite === "todos" ? ordenadas : ordenadas.slice(0, Number(periodoLimite)),
       };
     }).sort((a, b) => (b.limite_total ?? 0) - (a.limite_total ?? 0));
-  }, [faturas, despesas, cotacao]);
+  }, [faturas, despesas, cotacao, cartoes, periodoLimite]);
 
+  const totaisLimite = useMemo(
+    () =>
+      limitesPorBanco.reduce(
+        (a, g) => ({
+          total: a.total + (g.limite_total ?? 0),
+          utilizado: a.utilizado + g.utilizado,
+          disponivel: a.disponivel + (g.disponivel ?? 0),
+        }),
+        { total: 0, utilizado: 0, disponivel: 0 },
+      ),
+    [limitesPorBanco],
+  );
 
   return (
     <AppLayout
@@ -313,7 +345,6 @@ function CartoesPage() {
             Limites
           </TabsTrigger>
         </TabsList>
-
 
         <TabsContent value="cartoes" className="mt-4 grid gap-3 sm:grid-cols-2">
           {cartoes.length === 0 && (
@@ -416,7 +447,8 @@ function CartoesPage() {
                   <p className="truncate text-sm font-semibold">{b.nome}</p>
                   <p className="truncate text-xs text-muted-foreground">
                     {b.agencia ? `Ag. ${b.agencia} · ` : ""}
-                    {b.conta ? `Conta ${b.conta}` : "Sem conta informada"} · {primeiroNome(b.titular)}
+                    {b.conta ? `Conta ${b.conta}` : "Sem conta informada"} ·{" "}
+                    {primeiroNome(b.titular)}
                   </p>
                 </div>
                 <Badge variant="secondary">{b.tipo_conta}</Badge>
@@ -448,6 +480,41 @@ function CartoesPage() {
         </TabsContent>
 
         <TabsContent value="limites" className="mt-4 space-y-3">
+          {limitesPorBanco.length > 0 && (
+            <>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="grid flex-1 grid-cols-3 gap-2">
+                  <div className="rounded-lg border bg-card p-3">
+                    <p className="text-xs text-muted-foreground">Limite total</p>
+                    <p className="font-bold">{formatBRL(totaisLimite.total)}</p>
+                  </div>
+                  <div className="rounded-lg border bg-card p-3">
+                    <p className="text-xs text-muted-foreground">Usado</p>
+                    <p className="font-bold text-destructive">
+                      {formatBRL(totaisLimite.utilizado)}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border bg-card p-3">
+                    <p className="text-xs text-muted-foreground">Disponível</p>
+                    <p className="font-bold text-success">{formatBRL(totaisLimite.disponivel)}</p>
+                  </div>
+                </div>
+                <Select value={periodoLimite} onValueChange={setPeriodoLimite}>
+                  <SelectTrigger className="w-36">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {["6", "12", "24"].map((n) => (
+                      <SelectItem key={n} value={n}>
+                        Últimos {n} meses
+                      </SelectItem>
+                    ))}
+                    <SelectItem value="todos">Todo o histórico</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </>
+          )}
           {limitesPorBanco.length === 0 ? (
             <Card>
               <CardContent className="flex flex-col items-center gap-2 py-12 text-center">
@@ -462,7 +529,7 @@ function CartoesPage() {
             limitesPorBanco.map((g) => {
               const uso = g.limite_total ? Math.min(100, (g.utilizado / g.limite_total) * 100) : 0;
               return (
-                <Card key={g.banco}>
+                <Card key={g.key}>
                   <CardContent className="space-y-3 p-4">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div>
@@ -503,15 +570,36 @@ function CartoesPage() {
                       />
                     </div>
                     {g.historico.length > 1 && (
-                      <div className="flex flex-wrap gap-2 pt-1">
-                        {g.historico.map((h) => (
-                          <span
-                            key={h.competencia}
-                            className="rounded-md border px-2 py-1 text-[11px] text-muted-foreground"
+                      <div className="h-64 pt-2">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart
+                            data={[...g.historico].reverse().map((h) => ({
+                              competencia: h.competencia,
+                              usado: Number(h.limite_utilizado ?? 0),
+                              disponivel: Number(h.limite_disponivel ?? 0),
+                            }))}
                           >
-                            {h.competencia}: {formatBRL(Number(h.limite_utilizado ?? 0))} usados
-                          </span>
-                        ))}
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="competencia" />
+                            <YAxis />
+                            <Tooltip formatter={(v: number) => formatBRL(v)} />
+                            <Legend />
+                            <Line
+                              type="monotone"
+                              dataKey="usado"
+                              name="Usado"
+                              stroke="#ef4444"
+                              strokeWidth={2}
+                            />
+                            <Line
+                              type="monotone"
+                              dataKey="disponivel"
+                              name="Disponível"
+                              stroke="#16a34a"
+                              strokeWidth={2}
+                            />
+                          </LineChart>
+                        </ResponsiveContainer>
                       </div>
                     )}
                   </CardContent>
@@ -522,8 +610,6 @@ function CartoesPage() {
         </TabsContent>
       </Tabs>
 
-
-
       <Dialog open={openCartao} onOpenChange={setOpenCartao}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
@@ -531,7 +617,10 @@ function CartoesPage() {
           </DialogHeader>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Apelido" className="sm:col-span-2">
-              <Input value={fc.apelido} onChange={(e) => setFc({ ...fc, apelido: e.target.value })} />
+              <Input
+                value={fc.apelido}
+                onChange={(e) => setFc({ ...fc, apelido: e.target.value })}
+              />
             </Field>
             <Field label="Bandeira">
               <Select value={fc.bandeira} onValueChange={(v) => setFc({ ...fc, bandeira: v })}>
@@ -596,7 +685,11 @@ function CartoesPage() {
               />
             </Field>
             <Field label="Titular">
-              <Input value={fc.titular} onChange={(e) => setFc({ ...fc, titular: e.target.value })} placeholder={perfilNome} />
+              <Input
+                value={fc.titular}
+                onChange={(e) => setFc({ ...fc, titular: e.target.value })}
+                placeholder={perfilNome}
+              />
             </Field>
             <Field label="Cor" className="sm:col-span-2">
               <div className="flex flex-wrap gap-2">
@@ -633,14 +726,21 @@ function CartoesPage() {
             </Field>
             <div className="grid grid-cols-2 gap-4">
               <Field label="Agência">
-                <Input value={fb.agencia} onChange={(e) => setFb({ ...fb, agencia: e.target.value })} />
+                <Input
+                  value={fb.agencia}
+                  onChange={(e) => setFb({ ...fb, agencia: e.target.value })}
+                />
               </Field>
               <Field label="Conta">
                 <Input value={fb.conta} onChange={(e) => setFb({ ...fb, conta: e.target.value })} />
               </Field>
             </div>
             <Field label="Titular">
-              <Input value={fb.titular} onChange={(e) => setFb({ ...fb, titular: e.target.value })} placeholder={perfilNome} />
+              <Input
+                value={fb.titular}
+                onChange={(e) => setFb({ ...fb, titular: e.target.value })}
+                placeholder={perfilNome}
+              />
             </Field>
             <Field label="Tipo de conta">
               <Select value={fb.tipo} onValueChange={(v) => setFb({ ...fb, tipo: v })}>

@@ -8,17 +8,27 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useServerFn } from "@tanstack/react-start";
 import {
+  limparVersoesSite,
   meuHistoricoAlertas,
   minhasChavesAlertasLidos,
   marcarAlertaLido,
+  versoesAtivasSite,
 } from "@/lib/comunicados.functions";
+import { useIsAdmin } from "@/hooks/useAuthData";
 
-type Aviso = { chave: string; texto: string; destino: "/notas" | "/veiculos" | "/lista-compras" };
+type Aviso = { chave: string; texto: string; destino?: "/notas" | "/veiculos" | "/lista-compras" };
 
 export function AlertsBell() {
   const historicoFn = useServerFn(meuHistoricoAlertas);
   const chavesFn = useServerFn(minhasChavesAlertasLidos);
   const marcarFn = useServerFn(marcarAlertaLido);
+  const versoesFn = useServerFn(versoesAtivasSite);
+  const limparFn = useServerFn(limparVersoesSite);
+  const { data: isAdmin } = useIsAdmin();
+  const { data: versoes = [], refetch: refetchVersoes } = useQuery({
+    queryKey: ["versoes-site"],
+    queryFn: () => versoesFn(),
+  });
   const { data: chavesLidas = [], refetch: refetchLidas } = useQuery({
     queryKey: ["alertas-lidos"],
     queryFn: () => chavesFn(),
@@ -94,7 +104,14 @@ export function AlertsBell() {
     },
     refetchInterval: 60_000,
   });
-  const naoLidos = avisos.filter((aviso) => !chavesLidas.includes(aviso.chave));
+  const avisosComVersao: Aviso[] = [
+    ...avisos,
+    ...versoes.map((v: any) => ({
+      chave: `versao:${v.versao}`,
+      texto: `Nova versão publicada: build ${v.versao} · ${new Date(v.build_em ?? v.criado_em).toLocaleString("pt-BR")}`,
+    })),
+  ];
+  const naoLidos = avisosComVersao.filter((aviso) => !chavesLidas.includes(aviso.chave));
 
   return (
     <Popover>
@@ -118,24 +135,52 @@ export function AlertsBell() {
         {naoLidos.length === 0 ? (
           <p className="px-2 py-3 text-sm text-muted-foreground">Nenhum alerta no momento.</p>
         ) : (
-          naoLidos.map((aviso, indice) => (
-            <Link
-              key={`${aviso.destino}-${indice}`}
-              to={aviso.destino}
-              className="block rounded-md px-2 py-2 text-sm hover:bg-accent"
-              onClick={() => {
-                void marcarFn({
-                  data: {
-                    chave: aviso.chave,
-                    titulo: "Alerta do Control ALL",
-                    mensagem: aviso.texto,
-                  },
-                }).then(() => refetchLidas());
-              }}
-            >
-              {aviso.texto}
-            </Link>
-          ))
+          naoLidos.map((aviso, indice) =>
+            aviso.destino ? (
+              <Link
+                key={`${aviso.destino}-${indice}`}
+                to={aviso.destino}
+                className="block rounded-md px-2 py-2 text-sm hover:bg-accent"
+                onClick={() => {
+                  void marcarFn({
+                    data: {
+                      chave: aviso.chave,
+                      titulo: "Alerta do Control ALL",
+                      mensagem: aviso.texto,
+                    },
+                  }).then(() => refetchLidas());
+                }}
+              >
+                {aviso.texto}
+              </Link>
+            ) : (
+              <button
+                key={aviso.chave}
+                className="block w-full rounded-md px-2 py-2 text-left text-sm hover:bg-accent"
+                onClick={() =>
+                  void marcarFn({
+                    data: {
+                      chave: aviso.chave,
+                      titulo: "Atualização do Control ALL",
+                      mensagem: aviso.texto,
+                    },
+                  }).then(() => refetchLidas())
+                }
+              >
+                {aviso.texto}
+              </button>
+            ),
+          )
+        )}
+        {isAdmin && versoes.length > 0 && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-2 w-full"
+            onClick={() => void limparFn().then(() => refetchVersoes())}
+          >
+            Limpar versões para todos
+          </Button>
         )}
         {historico.length > 0 && (
           <>

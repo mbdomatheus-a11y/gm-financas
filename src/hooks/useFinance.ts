@@ -158,4 +158,15 @@ export function useFaturasImportadas() {
   });
 }
 
+export function useFaturasMes() {
+  return useQuery({
+    queryKey: ["faturas-mes"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("fatura_mes").select("*");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+}
+
 export const RESPONSAVEIS_EXTRA = "Casal / Compartilhado";

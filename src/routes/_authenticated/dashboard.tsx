@@ -42,7 +42,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useCotacao } from "@/hooks/useCotacao";
-import { useCategorias, useDespesas, useReceitas } from "@/hooks/useFinance";
+import { useCategorias, useDespesas, useFaturasMes, useReceitas } from "@/hooks/useFinance";
+import { aplicarRegrasFaturaMes } from "@/lib/fatura-mes";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -133,6 +134,7 @@ function DashboardPage() {
   const cotacao = useCotacao();
   const { data: receitas = [] } = useReceitas();
   const { data: despesas = [] } = useDespesas();
+  const { data: faturasMes = [] } = useFaturasMes();
 
   const mesAtual = currentMonthKey();
   const [janela, setJanela] = useState("-6");
@@ -153,8 +155,12 @@ function DashboardPage() {
   }, []);
 
   const parcelas = useMemo(
-    () => lancamentosPorCompetencias(despesas as any[], mesesSelecionaveis),
-    [despesas, mesesSelecionaveis],
+    () =>
+      aplicarRegrasFaturaMes(
+        lancamentosPorCompetencias(despesas as any[], mesesSelecionaveis),
+        faturasMes as any[],
+      ),
+    [despesas, mesesSelecionaveis, faturasMes],
   );
 
   const grupoDe = useMemo(
@@ -288,7 +294,7 @@ function DashboardPage() {
       const d = p.despesa;
       const id = d.cartao_id ?? null;
       const nome = d.cartoes
-        ? `${d.cartoes.apelido || d.cartoes.titular || "Cartão"} •${d.cartoes.final ?? ""}`
+        ? `${d.cartoes.apelido || "Cartão"} •${d.cartoes.final ?? ""} · ${d.cartoes.titular?.trim().split(/\s+/)[0] || "Titular não informado"}`
         : (d.bancos?.nome ?? d.banco_nome ?? "Sem cartão");
       const key = id ?? nome;
       const item = cartaoMap.get(key) ?? {

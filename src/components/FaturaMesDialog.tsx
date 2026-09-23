@@ -39,7 +39,9 @@ export function FaturaMesDialog({ trigger }: { trigger?: React.ReactNode }) {
   const [cartaoId, setCartaoId] = useState<string>("");
   const [competencia, setCompetencia] = useState(currentMonthKey());
   const [valor, setValor] = useState("");
-  const [inclui, setInclui] = useState("sim");
+  const [modo, setModo] = useState<"inclui_parcelas" | "somar_parcelas" | "somente_total">(
+    "inclui_parcelas",
+  );
 
   const qc = useQueryClient();
   const { user } = useSession();
@@ -77,8 +79,8 @@ export function FaturaMesDialog({ trigger }: { trigger?: React.ReactNode }) {
   }, [despesas, cartaoId, competencia]);
 
   const totalInformado = Number(String(valor).replace(",", ".")) || 0;
-  const avulso = inclui === "sim" ? totalInformado - previstas : totalInformado;
-  const totalMes = inclui === "sim" ? totalInformado : totalInformado + previstas;
+  const avulso = modo === "inclui_parcelas" ? totalInformado - previstas : totalInformado;
+  const totalMes = modo === "somar_parcelas" ? totalInformado + previstas : totalInformado;
   const negativo = avulso < -0.005;
 
   const salvar = useMutation({
@@ -113,7 +115,7 @@ export function FaturaMesDialog({ trigger }: { trigger?: React.ReactNode }) {
         const { data: nova, error } = await supabase
           .from("despesas")
           .insert({
-            descricao: `Gastos do cartão — ${monthLabelLong(competencia)}`,
+            descricao: `Total informado do cartão - ${monthLabelLong(competencia)}`,
             valor_total: valorAvulso,
             moeda: "BRL",
             categoria: "outros",
@@ -126,7 +128,7 @@ export function FaturaMesDialog({ trigger }: { trigger?: React.ReactNode }) {
             banco_nome: cartao?.bancos?.nome ?? null,
             cartao_final: cartao?.final ?? null,
             direcao: "debito",
-            origem: "fatura_rapida",
+            origem: modo === "somente_total" ? "fatura_total_manual" : "fatura_rapida",
             categoria_confirmada: false,
             created_by: user?.id ?? null,
           })
@@ -152,7 +154,8 @@ export function FaturaMesDialog({ trigger }: { trigger?: React.ReactNode }) {
         cartao_id: cartaoId,
         competencia,
         total_informado: totalInformado,
-        inclui_parcelas: inclui === "sim",
+        inclui_parcelas: modo === "inclui_parcelas",
+        modo_calculo: modo,
         status: "aberta",
         despesa_avulsa_id: despesaId,
         created_by: user?.id ?? null,
@@ -210,7 +213,9 @@ export function FaturaMesDialog({ trigger }: { trigger?: React.ReactNode }) {
               <SelectContent>
                 {(cartoes as any[]).map((c) => (
                   <SelectItem key={c.id} value={c.id}>
-                    {(c.apelido || c.titular || "Cartão") + (c.final ? ` •${c.final}` : "")}
+                    {(c.apelido || c.bandeira || "Cartão") +
+                      (c.final ? ` •${c.final}` : "") +
+                      ` · ${c.titular?.trim().split(/\s+/)[0] || "Titular não informado"}`}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -246,13 +251,18 @@ export function FaturaMesDialog({ trigger }: { trigger?: React.ReactNode }) {
 
           <div className="grid gap-1.5">
             <Label>Esse total…</Label>
-            <Select value={inclui} onValueChange={setInclui}>
+            <Select value={modo} onValueChange={(v) => setModo(v as typeof modo)}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="sim">Já inclui as parcelas em andamento</SelectItem>
-                <SelectItem value="nao">Não inclui as parcelas (somar por cima)</SelectItem>
+                <SelectItem value="inclui_parcelas">Já inclui as parcelas em andamento</SelectItem>
+                <SelectItem value="somar_parcelas">
+                  Não inclui as parcelas (somar por cima)
+                </SelectItem>
+                <SelectItem value="somente_total">
+                  Usar somente este total e ignorar os lançamentos do cartão neste mês
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -263,7 +273,11 @@ export function FaturaMesDialog({ trigger }: { trigger?: React.ReactNode }) {
               <span className="tabular-nums">{formatBRL(previstas)}</span>
             </p>
             <p className="flex justify-between">
-              <span className="text-muted-foreground">Gastos do cartão (avulso)</span>
+              <span className="text-muted-foreground">
+                {modo === "somente_total"
+                  ? "Total manual que substituirá os itens"
+                  : "Gastos do cartão (avulso)"}
+              </span>
               <span className={`tabular-nums ${negativo ? "text-destructive" : ""}`}>
                 {formatBRL(avulso)}
               </span>

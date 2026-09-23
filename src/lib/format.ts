@@ -100,8 +100,11 @@ export function identificacaoDespesa(d: {
   if (d.responsavel) partes.push(d.responsavel);
   const cartao = d.cartoes;
   if (cartao) {
-    const nome = cartao.apelido || cartao.titular || "Cartão";
-    partes.push(cartao.final ? `${nome} •${cartao.final}` : nome);
+    const nome = cartao.apelido || "Cartão";
+    const titular = cartao.titular?.trim().split(/\s+/)[0];
+    partes.push(
+      `${cartao.final ? `${nome} •${cartao.final}` : nome}${titular ? ` · ${titular}` : ""}`,
+    );
   } else if (d.bancos?.nome) {
     partes.push(d.bancos.nome);
   } else if (d.banco_nome) {
@@ -109,4 +112,3 @@ export function identificacaoDespesa(d: {
   }
   return partes.join(" · ");
 }
-

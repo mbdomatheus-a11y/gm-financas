@@ -15,19 +15,18 @@ declare const __APP_BUILD_TIME__: string;
  * disponível (não deveria acontecer no seu ambiente normal).
  */
 export function VersaoBuild() {
-  const dataFormatada = new Date(__APP_BUILD_TIME__).toLocaleString("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: "America/Sao_Paulo",
-  });
-
-  return (
-    <div className="pointer-events-none fixed inset-x-0 top-0 z-[9999] flex justify-center">
-      <span className="pointer-events-auto select-text rounded-b-md bg-foreground/80 px-2 py-0.5 font-mono text-[10px] leading-none text-background shadow-sm">
-        build {__APP_VERSION__} · {dataFormatada}
-      </span>
-    </div>
-  );
+  const sincronizar = useServerFn(sincronizarVersaoSite);
+  useEffect(() => {
+    void supabase.auth.getSession().then(({ data }) => {
+      if (data.session)
+        void sincronizar({
+          data: { versao: __APP_VERSION__, buildEm: new Date(__APP_BUILD_TIME__).toISOString() },
+        });
+    });
+  }, [sincronizar]);
+  return null;
 }
+import { useEffect } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { supabase } from "@/integrations/supabase/client";
+import { sincronizarVersaoSite } from "@/lib/comunicados.functions";

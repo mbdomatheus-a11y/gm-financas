@@ -114,3 +114,51 @@ export const marcarAlertaLido = createServerFn({ method: "POST" })
     });
     return { ok: true as const };
   });
+
+export const sincronizarVersaoSite = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((v: unknown) =>
+    z.object({ versao: z.string().min(3).max(80), buildEm: z.string().datetime() }).parse(v),
+  )
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await (supabaseAdmin as any)
+      .from("versoes_site")
+      .upsert({ versao: data.versao, build_em: data.buildEm });
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
+  });
+
+export const versoesAtivasSite = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async () => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data, error } = await (supabaseAdmin as any)
+      .from("versoes_site")
+      .select("versao,build_em,criado_em")
+      .eq("ativo", true)
+      .order("criado_em", { ascending: false })
+      .limit(30);
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  });
+
+export const limparVersoesSite = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const db = supabaseAdmin as any;
+    const { data: role } = await db
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", context.userId)
+      .eq("role", "admin")
+      .maybeSingle();
+    if (!role) throw new Error("Apenas o administrador pode limpar o histórico de versões.");
+    const { error } = await db
+      .from("versoes_site")
+      .update({ ativo: false, limpo_em: new Date().toISOString(), limpo_por: context.userId })
+      .eq("ativo", true);
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
+  });
