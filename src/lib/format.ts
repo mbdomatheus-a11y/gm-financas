@@ -47,6 +47,11 @@ export function lastMonths(count: number): string[] {
 }
 
 export function parseDate(value: string): Date {
+  if (!value) return new Date();
+  if (/^\d{2}\/\d{2}\/\d{4}/.test(value)) {
+    const [d, m, y] = value.split("/");
+    return new Date(`${y}-${m}-${d}T12:00:00`);
+  }
   return new Date(`${value.slice(0, 10)}T12:00:00`);
 }
 

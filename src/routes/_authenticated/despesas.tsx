@@ -21,6 +21,7 @@ import { IndiceReajusteField } from "@/components/IndiceReajusteField";
 import { toast } from "sonner";
 import { z } from "zod";
 
+import { correspondeBuscaComValor } from "@/lib/busca";
 import { AppLayout } from "@/components/AppLayout";
 import { Field } from "@/routes/_authenticated/receitas";
 import { Button } from "@/components/ui/button";
@@ -525,6 +526,23 @@ function DespesasPage() {
     onError: (e: any) => toast.error(e.message ?? "Não foi possível atualizar os lançamentos"),
   });
 
+  const marcarParcelaPaga = useMutation({
+    mutationFn: async ({ id, paga }: { id: string; paga: boolean }) => {
+      const { error } = await supabase
+        .from("parcelas")
+        .update({ paga, data_pagamento: paga ? toISODate(new Date()) : null })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: (_, vars) => {
+      toast.success(
+        vars.paga ? "Lançamento marcado como pago" : "Lançamento marcado como em aberto",
+      );
+      qc.invalidateQueries();
+    },
+    onError: (e: any) => toast.error(e.message ?? "Não foi possível atualizar o lançamento"),
+  });
+
   /** Ids reais de parcela (ignora ocorrências projetadas sem linha no banco ainda) das despesas
    * informadas, na competência filtrada, filtrando por status atual de pagamento. */
   function idsDoLote(despesasDoGrupo: any[], statusAlvo: "abertas" | "pagas"): string[] {
@@ -581,7 +599,11 @@ function DespesasPage() {
     if (filtroResponsavel !== "todos" && d.responsavel !== filtroResponsavel) return false;
     if (
       busca &&
-      !`${d.descricao} ${d.categoria} ${d.responsavel}`.toLowerCase().includes(busca.toLowerCase())
+      !correspondeBuscaComValor(
+        `${d.descricao} ${d.categoria} ${d.responsavel}`,
+        valorVisivel(d),
+        busca,
+      )
     )
       return false;
     return true;
@@ -976,7 +998,8 @@ function DespesasPage() {
                         ? (d.parcelas ?? [])
                         : lancamentosDoFiltro.filter((p) => p.despesa_id === d.id)),
                     ].sort((a: any, b: any) => a.numero - b.numero);
-                    const pagas = parcelas.filter((p: any) => p.paga).length;
+                    const totalPagas = (d.parcelas ?? []).filter((p: any) => p.paga).length;
+                    const pDoMes = filtroMes === "todos" ? null : lancamentoPorDespesa.get(d.id);
                     const aberta = expandida === d.id;
                     const ignoradaNoMes = idsIgnoradosPorTotal.has(d.id);
                     const faturaAvulsa = (faturasMes as any[]).find(
@@ -1040,17 +1063,36 @@ function DespesasPage() {
                                   : " · à vista"}
                             </p>
                           </div>
+                          {pDoMes && !pDoMes.projetada && can("despesas", "editar") && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                marcarParcelaPaga.mutate({ id: pDoMes.id, paga: !pDoMes.paga });
+                              }}
+                              className="shrink-0"
+                              title="Clique para alternar pago/em aberto"
+                            >
+                              <Badge
+                                variant={pDoMes.paga ? "default" : "outline"}
+                                className={cn(
+                                  "cursor-pointer text-[10px] transition-opacity hover:opacity-80",
+                                  pDoMes.paga
+                                    ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                                    : "border-amber-500/40 text-amber-600 dark:text-amber-400",
+                                )}
+                              >
+                                {pDoMes.paga ? "✓ Paga" : "Em aberto"}
+                              </Badge>
+                            </button>
+                          )}
                           {d.tipo !== "fixa" && d.total_parcelas > 1 && (
                             <div className="hidden w-24 shrink-0 sm:block">
                               <Badge variant="secondary" className="text-[10px]">
-                                {d.tipo === "fixa" && filtroMes !== "todos"
-                                  ? parcelas[0]?.paga
-                                    ? "paga no mês"
-                                    : "em aberto no mês"
-                                  : `${pagas}/${d.total_parcelas} pagas`}
+                                {`${totalPagas}/${d.total_parcelas} pagas`}
                               </Badge>
                               <Progress
-                                value={(pagas / d.total_parcelas) * 100}
+                                value={(totalPagas / d.total_parcelas) * 100}
                                 className="mt-1 h-1"
                               />
                             </div>
@@ -1144,7 +1186,7 @@ function DespesasPage() {
                           <div className="space-y-2 border-t bg-muted/20 px-3 py-2.5">
                             {d.tipo !== "fixa" && d.total_parcelas > 1 && (
                               <Progress
-                                value={(pagas / d.total_parcelas) * 100}
+                                value={(totalPagas / d.total_parcelas) * 100}
                                 className="h-1.5"
                               />
                             )}

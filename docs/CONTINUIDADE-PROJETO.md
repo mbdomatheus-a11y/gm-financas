@@ -64,10 +64,16 @@ Atualizado em 23/09/2026. Este documento permite que outra IA ou pessoa continue
 - Cada usuário mantém seu próprio estado de leitura e histórico.
 - O administrador pode limpar todas as versões ativas para todos. O registro não é apagado fisicamente, recebe `ativo=false`, `limpo_em` e `limpo_por`.
 
-## Migrações recentes
+## Migrações e melhorias recentes
 
 - `supabase/migrations/20260922010000_configuracoes_acesso_modulos_grupos.sql`: módulos por grupo, limites de login e 2FA.
 - `supabase/migrations/20260923010000_totais_fatura_limites_versoes.sql`: modo de cálculo em `fatura_mes`, `cartao_id` em `import_faturas`, tabela `versoes_site`.
+- `supabase/migrations/20260923020000_fix_despesas_origem_check.sql`: constraint `despesas_origem_check` atualizada com origens manuais e de faturas concluídas.
+- **Busca por Valor em Despesas e Receitas**: implementação de `correspondeBuscaComValor` em `src/lib/busca.ts` aceitando padrão brasileiro (`3.259,25`, `259,25`, `120,00`, `120`, `R$ 120,00`).
+- **Importação de Faturas Parceladas e Status de Pagamento**:
+  - `parseDate` generalizado para aceitar `DD/MM/YYYY` e `YYYY-MM-DD`, prevenindo datas `NaN` em parcelas futuras (ex: Outubro/2026).
+  - Ajustada a flag `paga: numero <= parcela_numero` na importação de faturas.
+  - Exibição de parcelas pagas corrigida (`X/Y pagas`) e adição de alternância rápida de pagamento ("✓ Paga" / "Em aberto") com clique na tela de Despesas.
 
 ## Fluxo de publicação
 

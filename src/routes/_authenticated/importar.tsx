@@ -903,7 +903,7 @@ function ImportarPage() {
               valor: l.valor,
               moeda: l.moeda,
               vencimento: vencimentoParcela(venc, l.parcela_numero, numero),
-              paga: numero < l.parcela_numero,
+              paga: numero <= l.parcela_numero,
               situacao_temporal:
                 numero < l.parcela_numero
                   ? "passada"

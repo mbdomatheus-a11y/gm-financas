@@ -381,7 +381,11 @@ export function vencimentoParcela(
   parcelaAtual: number,
   alvo: number,
 ): string {
-  return toISODate(addMonths(parseDate(vencimentoFatura), alvo - parcelaAtual));
+  const parsed = parseDate(vencimentoFatura);
+  if (isNaN(parsed.getTime())) {
+    return toISODate(new Date());
+  }
+  return toISODate(addMonths(parsed, alvo - parcelaAtual));
 }
 
 export function dedupKey(l: {

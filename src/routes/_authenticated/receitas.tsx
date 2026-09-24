@@ -17,6 +17,7 @@ import {
   type Periodicidade,
   type RecorrenciaFixa,
 } from "@/lib/recorrencia";
+import { correspondeBuscaComValor } from "@/lib/busca";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -151,7 +152,11 @@ function ReceitasPage() {
     if (filtroResp !== "todos" && r.responsavel !== filtroResp) return false;
     if (
       busca &&
-      !`${r.descricao} ${r.categoria} ${r.responsavel}`.toLowerCase().includes(busca.toLowerCase())
+      !correspondeBuscaComValor(
+        `${r.descricao} ${r.categoria} ${r.responsavel}`,
+        Number(r.valor),
+        busca,
+      )
     )
       return false;
     return true;
