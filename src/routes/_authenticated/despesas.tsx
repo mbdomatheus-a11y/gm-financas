@@ -136,6 +136,7 @@ function novoForm(tipo: "fixa" | "variavel") {
     data_compra: toISODate(new Date()),
     pagamento: "",
     total_parcelas: "1",
+    parcela_atual: "1",
     data_primeira_parcela: toISODate(new Date()),
     responsavel: "",
     observacoes: "",
@@ -365,7 +366,13 @@ function DespesasPage() {
         if (error) throw error;
       }
 
-      const base = parseDate(parsed.data_primeira_parcela);
+      const parcelasPagasInformadas = Math.max(1, Number(form.parcela_atual) || 1);
+      const dataInformada = parseDate(parsed.data_primeira_parcela);
+      const base =
+        !ehFixa && parsed.total_parcelas > 1 && parcelasPagasInformadas > 1
+          ? addMonths(dataInformada, 1 - parcelasPagasInformadas)
+          : dataInformada;
+
       const parcelas = ehFixa
         ? projecao.map((c, i) => ({
             despesa_id: despesaId!,
@@ -377,16 +384,21 @@ function DespesasPage() {
             paga: pagasPorCompetencia.has(c.competencia),
             data_pagamento: pagasPorCompetencia.get(c.competencia) ?? null,
           }))
-        : dividirParcelas(parsed.valor_total, parsed.total_parcelas).map((valor, i) => ({
-            despesa_id: despesaId!,
-            numero: i + 1,
-            total: parsed.total_parcelas,
-            valor,
-            moeda: parsed.moeda,
-            vencimento: toISODate(addMonths(base, i)),
-            paga: pagasPorNumero.has(i + 1),
-            data_pagamento: null,
-          }));
+        : dividirParcelas(parsed.valor_total, parsed.total_parcelas).map((valor, i) => {
+            const numero = i + 1;
+            const jaPaga =
+              pagasPorNumero.has(numero) || (!editId && numero <= parcelasPagasInformadas);
+            return {
+              despesa_id: despesaId!,
+              numero,
+              total: parsed.total_parcelas,
+              valor,
+              moeda: parsed.moeda,
+              vencimento: toISODate(addMonths(base, i)),
+              paga: jaPaga,
+              data_pagamento: jaPaga ? toISODate(addMonths(base, i)) : null,
+            };
+          });
       const { error: e2 } = await supabase.from("parcelas").insert(parcelas);
       if (e2) throw e2;
     },
@@ -588,6 +600,11 @@ function DespesasPage() {
   const primeiroNome = (nome?: string | null) =>
     nome?.trim().split(/\s+/)[0] || "Titular não informado";
 
+  function valorVisivel(d: any): number {
+    if (filtroMes === "todos") return Number(d.valor_total ?? 0);
+    return Number(lancamentoPorDespesa.get(d.id)?.valor ?? 0);
+  }
+
   const lista = despesas.filter((d: any) => {
     if (tab !== "total" && d.tipo !== tab) return false;
     if (filtroMes !== "todos" && !lancamentoPorDespesa.has(d.id)) return false;
@@ -600,7 +617,7 @@ function DespesasPage() {
     if (
       busca &&
       !correspondeBuscaComValor(
-        `${d.descricao} ${d.categoria} ${d.responsavel}`,
+        `${d.descricao ?? ""} ${d.categoria ?? ""} ${d.responsavel ?? ""}`,
         valorVisivel(d),
         busca,
       )
@@ -608,11 +625,6 @@ function DespesasPage() {
       return false;
     return true;
   });
-
-  const valorVisivel = (d: any) =>
-    filtroMes === "todos"
-      ? Number(d.valor_total)
-      : Number(lancamentoPorDespesa.get(d.id)?.valor ?? 0);
 
   const idsIgnoradosPorTotal = useMemo(() => {
     if (filtroMes === "todos") return new Set<string>();
@@ -1063,29 +1075,6 @@ function DespesasPage() {
                                   : " · à vista"}
                             </p>
                           </div>
-                          {pDoMes && !pDoMes.projetada && can("despesas", "editar") && (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                marcarParcelaPaga.mutate({ id: pDoMes.id, paga: !pDoMes.paga });
-                              }}
-                              className="shrink-0"
-                              title="Clique para alternar pago/em aberto"
-                            >
-                              <Badge
-                                variant={pDoMes.paga ? "default" : "outline"}
-                                className={cn(
-                                  "cursor-pointer text-[10px] transition-opacity hover:opacity-80",
-                                  pDoMes.paga
-                                    ? "bg-emerald-600 hover:bg-emerald-700 text-white"
-                                    : "border-amber-500/40 text-amber-600 dark:text-amber-400",
-                                )}
-                              >
-                                {pDoMes.paga ? "✓ Paga" : "Em aberto"}
-                              </Badge>
-                            </button>
-                          )}
                           {d.tipo !== "fixa" && d.total_parcelas > 1 && (
                             <div className="hidden w-24 shrink-0 sm:block">
                               <Badge variant="secondary" className="text-[10px]">
@@ -1374,6 +1363,17 @@ function DespesasPage() {
                   min={1}
                   value={form.total_parcelas}
                   onChange={(e) => setForm({ ...form, total_parcelas: e.target.value })}
+                />
+              </Field>
+            )}
+            {!ehFixa && nParcelas > 1 && (
+              <Field label="Parcela atual / Já pagas">
+                <Input
+                  type="number"
+                  min={1}
+                  max={nParcelas}
+                  value={form.parcela_atual ?? "1"}
+                  onChange={(e) => setForm({ ...form, parcela_atual: e.target.value })}
                 />
               </Field>
             )}
