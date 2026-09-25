@@ -54,6 +54,8 @@ function nomeCartao(d: any): string {
   }
   if (d.bancos?.nome) return d.bancos.nome;
   if (d.banco_nome) return d.banco_nome;
+  // Despesas fixas (recorrentes) sem cartão têm rótulo específico
+  if (d.tipo === "fixa" || d.tipo === "recorrente") return "Recorrente fora do cartão";
   return "Sem cartão / dinheiro";
 }
 

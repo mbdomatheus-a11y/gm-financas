@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { LogOut, ShieldCheck, Trash2 } from "lucide-react";
+import { LogOut, Pencil, ShieldCheck, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
@@ -19,7 +19,7 @@ import { useProfile, usePermissoes } from "@/hooks/useAuthData";
 import { maskCpf } from "@/lib/cpf";
 import { useServerFn } from "@tanstack/react-start";
 import { excluirMinhaConta } from "@/lib/conta-exclusao.functions";
-import { alterarMinhaSenha } from "@/lib/seguranca-conta.functions";
+import { alterarMinhaSenha, atualizarMeusDados } from "@/lib/seguranca-conta.functions";
 import { aceitarConviteGrupo, convidarParaMeuGrupo } from "@/lib/grupos.functions";
 import {
   Dialog,
@@ -64,6 +64,41 @@ function ContaPage() {
   const [modoExclusao, setModoExclusao] = useState<"recuperavel" | "definitiva">("recuperavel");
   const [confirmacao1, setConfirmacao1] = useState("");
   const [confirmacao2, setConfirmacao2] = useState("");
+
+  const atualizarDados = useServerFn(atualizarMeusDados);
+  const [editandoDados, setEditandoDados] = useState(false);
+  const [formNome, setFormNome] = useState("");
+  const [formEmail, setFormEmail] = useState("");
+  const [formTelefone, setFormTelefone] = useState("");
+  const [formDataNascimento, setFormDataNascimento] = useState("");
+
+  useEffect(() => {
+    if (perfil) {
+      setFormNome(perfil.nome ?? "");
+      setFormEmail(perfil.email ?? "");
+      setFormTelefone(perfil.telefone ?? "");
+      setFormDataNascimento(perfil.data_nascimento ?? "");
+    }
+  }, [perfil]);
+
+  const salvarDados = useMutation({
+    mutationFn: async () => {
+      await atualizarDados({
+        data: {
+          nome: formNome,
+          email: formEmail,
+          telefone: formTelefone || null,
+          dataNascimento: formDataNascimento || null,
+        },
+      });
+    },
+    onSuccess: () => {
+      toast.success("Dados cadastrais atualizados com sucesso.");
+      setEditandoDados(false);
+      qc.invalidateQueries({ queryKey: ["profile"] });
+    },
+    onError: (e: any) => toast.error(e.message ?? "Não foi possível atualizar os dados."),
+  });
 
   const alterar = useMutation({
     mutationFn: async () => {
@@ -167,27 +202,81 @@ function ContaPage() {
           </CardContent>
         </Card>
         <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">Seus dados</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm">Seus dados cadastrais</CardTitle>
+            {!editandoDados ? (
+              <Button size="sm" variant="ghost" className="h-8 gap-1 text-xs" onClick={() => setEditandoDados(true)}>
+                <Pencil className="size-3.5" /> Editar dados
+              </Button>
+            ) : (
+              <Button size="sm" variant="ghost" className="h-8 text-xs text-muted-foreground" onClick={() => setEditandoDados(false)}>
+                Cancelar
+              </Button>
+            )}
           </CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Nome</span>
-              <span className="font-medium">{perfil?.nome ?? "—"}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">CPF</span>
-              <span className="font-medium">{perfil?.cpf ? maskCpf(perfil.cpf) : "—"}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Perfil</span>
-              <Badge variant={isAdmin ? "default" : "secondary"}>
-                {isAdmin ? "Administrador" : "Usuário comum"}
-              </Badge>
-            </div>
-            <Button variant="outline" className="mt-3 w-full" onClick={sair}>
-              <LogOut className="size-4" /> Sair da conta
-            </Button>
+          <CardContent className="space-y-3 text-sm">
+            {!editandoDados ? (
+              <>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Nome</span>
+                  <span className="font-medium">{perfil?.nome ?? "—"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">E-mail</span>
+                  <span className="font-medium">{perfil?.email ?? "—"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Telefone</span>
+                  <span className="font-medium">{perfil?.telefone ?? "—"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Nascimento</span>
+                  <span className="font-medium">
+                    {perfil?.data_nascimento
+                      ? new Date(perfil.data_nascimento + "T00:00:00").toLocaleDateString("pt-BR")
+                      : "—"}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">CPF</span>
+                  <span className="font-medium">{perfil?.cpf ? maskCpf(perfil.cpf) : "—"}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Perfil</span>
+                  <Badge variant={isAdmin ? "default" : "secondary"}>
+                    {isAdmin ? "Administrador" : "Usuário comum"}
+                  </Badge>
+                </div>
+                <Button variant="outline" className="mt-3 w-full" onClick={sair}>
+                  <LogOut className="size-4" /> Sair da conta
+                </Button>
+              </>
+            ) : (
+              <div className="space-y-3">
+                <Field label="Nome completo">
+                  <Input value={formNome} onChange={(e) => setFormNome(e.target.value)} />
+                </Field>
+                <Field label="E-mail de acesso">
+                  <Input type="email" value={formEmail} onChange={(e) => setFormEmail(e.target.value)} />
+                </Field>
+                <Field label="Telefone / WhatsApp">
+                  <Input value={formTelefone} onChange={(e) => setFormTelefone(e.target.value)} placeholder="(11) 99999-9999" />
+                </Field>
+                <Field label="Data de nascimento">
+                  <Input type="date" value={formDataNascimento} onChange={(e) => setFormDataNascimento(e.target.value)} />
+                </Field>
+                <div className="rounded-lg bg-muted/40 p-2 text-xs text-muted-foreground">
+                  O CPF não pode ser alterado por motivos de segurança e conformidade legal.
+                </div>
+                <Button
+                  className="w-full"
+                  onClick={() => salvarDados.mutate()}
+                  disabled={salvarDados.isPending || !formNome.trim() || !formEmail.trim()}
+                >
+                  {salvarDados.isPending ? "Salvando..." : "Salvar alterações"}
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
 

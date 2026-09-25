@@ -150,6 +150,61 @@ export const alterarMinhaSenha = createServerFn({ method: "POST" })
     return { ok: true as const };
   });
 
+export const atualizarMeusDados = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((v: unknown) =>
+    z
+      .object({
+        nome: z.string().trim().min(2).max(120),
+        email: z.string().trim().email("E-mail inválido"),
+        telefone: z.string().trim().max(20).optional().nullable(),
+        dataNascimento: z.string().max(10).optional().nullable(),
+      })
+      .parse(v),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const db = supabaseAdmin as any;
+
+    const { data: anterior } = await db
+      .from("profiles")
+      .select("nome, email, telefone, data_nascimento")
+      .eq("id", context.userId)
+      .single();
+
+    // Atualiza auth se o email mudou
+    if (data.email.toLowerCase() !== anterior?.email?.toLowerCase()) {
+      const { error: authErr } = await supabaseAdmin.auth.admin.updateUserById(context.userId, {
+        email: data.email,
+        email_confirm: true,
+      });
+      if (authErr) throw new Error(authErr.message || "Erro ao atualizar e-mail.");
+    }
+
+    const { error: perfErr } = await db
+      .from("profiles")
+      .update({
+        nome: data.nome,
+        email: data.email,
+        telefone: data.telefone || null,
+        data_nascimento: data.dataNascimento || null,
+      })
+      .eq("id", context.userId);
+    if (perfErr) throw new Error(perfErr.message);
+
+    await db.from("admin_audit_logs").insert({
+      ator_id: context.userId,
+      acao: "perfil_usuario_atualizado",
+      alvo_id: context.userId,
+      detalhes: {
+        anterior,
+        novo: data,
+      },
+    });
+
+    return { ok: true as const };
+  });
+
 export async function notificarSenhaAlterada(userId: string) {
   await enviarAlertaSenha(userId);
 }

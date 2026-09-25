@@ -2023,7 +2023,7 @@ function ImportarPage() {
             ) : null}
 
             <p className="text-xs text-muted-foreground">
-              Todos os lançamentos foram revisados e gravados com sucesso no seu histórico de despesas.
+              A verificação de duplicidade é realizada comparando os dados com o seu histórico de lançamentos já cadastrados. O sistema não armazena o arquivo PDF enviado.
             </p>
           </div>
           <DialogFooter>

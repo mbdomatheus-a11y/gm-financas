@@ -55,7 +55,7 @@ export const adminAtualizarLayout = createServerFn({ method: "POST" })
     z
       .object({
         id: z.string().uuid(),
-        status: z.enum(["pendente", "em_modelagem", "corrigida", "descartada"]),
+        status: z.enum(["recebida", "em_modelagem", "corrigida", "descartada"]),
         resposta: z.string().trim().max(1000).optional(),
       })
       .parse(v),
@@ -105,7 +105,7 @@ export const adminAtualizarLayout = createServerFn({ method: "POST" })
       ator_id: context.userId,
       acao: "layout_atualizado",
       alvo_id: item.user_id,
-      detalhes: { status: data.status, arquivo_descartado: data.status !== "em_modelagem" && data.status !== "pendente" },
+      detalhes: { status: data.status, arquivo_descartado: data.status !== "em_modelagem" && data.status !== "recebida" },
     });
     return { ok: true as const };
   });

@@ -169,6 +169,25 @@ function CompartilharPage() {
     }, "image/png");
   }
 
+  async function copiarParaClipboard() {
+    const canvas = desenhar();
+    if (!canvas) return;
+    canvas.toBlob(async (blob) => {
+      if (!blob) return;
+      try {
+        if (navigator.clipboard && window.ClipboardItem) {
+          const item = new ClipboardItem({ "image/png": blob });
+          await navigator.clipboard.write([item]);
+          toast.success("Imagem copiada para a área de transferência! Cole no WhatsApp.");
+        } else {
+          toast.error("Seu navegador não suporta copiar imagens diretamente.");
+        }
+      } catch (err: any) {
+        toast.error("Não foi possível copiar a imagem.");
+      }
+    }, "image/png");
+  }
+
   return (
     <AppLayout title="Compartilhar" description="Gere uma imagem do resumo do mês">
       <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
@@ -188,6 +207,9 @@ function CompartilharPage() {
             </Select>
             <Button className="w-full" onClick={compartilhar}>
               <Share2 className="size-4" /> Compartilhar
+            </Button>
+            <Button variant="secondary" className="w-full" onClick={copiarParaClipboard}>
+              <ImageIcon className="size-4" /> Copiar imagem
             </Button>
             <Button variant="outline" className="w-full" onClick={baixar}>
               <Download className="size-4" /> Baixar imagem

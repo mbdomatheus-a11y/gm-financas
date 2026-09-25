@@ -614,7 +614,13 @@ function DespesasPage() {
     if (tab !== "total" && d.tipo !== tab) return false;
     if (filtroMes !== "todos" && !lancamentoPorDespesa.has(d.id)) return false;
     if (filtroCartao !== "todos") {
-      if (filtroCartao === "sem" ? !!d.cartao_id : d.cartao_id !== filtroCartao) return false;
+      if (filtroCartao === "recorrente_fora") {
+        if (d.cartao_id || (d.tipo !== "fixa" && d.tipo !== "recorrente")) return false;
+      } else if (filtroCartao === "sem") {
+        if (d.cartao_id || d.tipo === "fixa" || d.tipo === "recorrente") return false;
+      } else if (d.cartao_id !== filtroCartao) {
+        return false;
+      }
     }
     if (filtroBanco !== "todos" && d.banco_id !== filtroBanco) return false;
     if (filtroCategoria !== "todos" && d.categoria !== filtroCategoria) return false;
@@ -673,7 +679,7 @@ function DespesasPage() {
     return { total, pago, aberto, proximo };
   }, [listaVisivel, cotacao, filtroMes, lancamentosDoFiltro, lancamentoPorDespesa, idsIgnoradosPorTotal]);
 
-  /** Agrupa por cartão. Tudo que não veio de cartão fica em Sem atribuição. */
+  /** Agrupa por cartão. Despesas fixas sem cartão ficam em 'Recorrente fora do cartão'. Demais sem cartão ficam em 'Sem atribuição'. */
   const gruposLista = useMemo(() => {
     if (modoLista === "lista")
       return [
@@ -684,10 +690,11 @@ function DespesasPage() {
       { key: string; label: string; cor: string; itens: any[]; total: number }
     >();
     for (const d of listaVisivel as any[]) {
-      const key = formaKey(d);
+      const ehRecorrenteFora = !d.cartao_id && (d.tipo === "fixa" || d.tipo === "recorrente");
+      const key = d.cartao_id ? `cartao:${d.cartao_id}` : (ehRecorrenteFora ? "recorrente_fora" : "sem");
       const label = d.cartoes
         ? `${d.cartoes.apelido || d.cartoes.bandeira || "Cartão"} •${d.cartoes.final ?? ""} · ${primeiroNome(d.cartoes.titular)}`
-        : "Sem atribuição";
+        : (ehRecorrenteFora ? "Recorrente fora do cartão" : "Sem atribuição");
       const cor = d.cartoes?.cor ?? "var(--muted-foreground)";
       const g = mapa.get(key) ?? { key, label, cor, itens: [] as any[], total: 0 };
       g.itens.push(d);
@@ -702,7 +709,9 @@ function DespesasPage() {
   const chips = [
     filtroCartao !== "todos" && {
       label:
-        filtroCartao === "sem"
+        filtroCartao === "recorrente_fora"
+          ? "Recorrente fora do cartão"
+          : filtroCartao === "sem"
           ? "Sem atribuição"
           : (() => {
               const c: any = cartoes.find((c: any) => c.id === filtroCartao);
@@ -829,6 +838,7 @@ function DespesasPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="todos">Todos os cartões</SelectItem>
+              <SelectItem value="recorrente_fora">Recorrente fora do cartão</SelectItem>
               <SelectItem value="sem">Sem atribuição</SelectItem>
               {cartoes.map((c: any) => (
                 <SelectItem key={c.id} value={c.id}>

@@ -39,7 +39,7 @@ export const prepararEnvioLayout = createServerFn({ method: "POST" })
         banco_informado: data.banco || null,
         cartao_final: data.cartao || null,
         descricao: data.descricao || null,
-        status: "pendente",
+        status: "recebida",
       })
       .select("id")
       .single();
