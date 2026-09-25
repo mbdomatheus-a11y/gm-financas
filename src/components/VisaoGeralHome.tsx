@@ -191,8 +191,54 @@ export function VisaoGeralHome({ ocultarValores = false }: { ocultarValores?: bo
     return { lista, total, deltaTotal: variacao(total, totalAnterior) };
   }, [parcelas, grupoDe, mes, cotacao]);
 
+  const economiaTotal = useMemo(() => {
+    return (despesas as any[])
+      .filter((d) => d.observacoes?.includes("[ECONOMIA_CONQUISTADA]"))
+      .reduce((s, d) => s + toBRL(Number(d.valor_total ?? 0), d.moeda ?? "BRL", cotacao), 0);
+  }, [despesas, cotacao]);
+
   return (
     <>
+      <div className="mb-4 grid gap-3 sm:grid-cols-2">
+        <Card className="bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent border-emerald-500/20">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wide">
+                Economia Conquistada
+              </p>
+              <h3 className="text-xl font-bold tabular-nums text-emerald-700 dark:text-emerald-300">
+                {valorFmt(economiaTotal)}
+              </h3>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Economizado em tarifas, anuidades e cobranças renegociadas
+              </p>
+            </div>
+            <div className="h-10 w-10 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 font-bold text-lg">
+              💰
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-blue-500/10 via-blue-500/5 to-transparent border-blue-500/20">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wide">
+                Comunidade Control ALL
+              </p>
+              <h3 className="text-xl font-bold text-blue-700 dark:text-blue-300">
+                Organização Financeira Ativa
+              </h3>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Gestão colaborativa de receitas e despesas familiares
+              </p>
+            </div>
+            <div className="h-10 w-10 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold text-lg">
+              👥
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       <Card className="mb-4">
         <CardHeader className="flex flex-col gap-2 space-y-0 pb-2 sm:flex-row sm:items-center sm:justify-between">
           <CardTitle className="text-base">Linha do tempo — 12 meses</CardTitle>

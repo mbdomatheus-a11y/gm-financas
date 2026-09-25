@@ -283,7 +283,14 @@ export function AppLayout({
   const qc = useQueryClient();
   const registrarEncerramento = useServerFn(encerrarSessao);
   const [open, setOpen] = useState(false);
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const location = useRouterState({ select: (s) => s.location });
+  const pathname = location.pathname;
+
+  // Preserva o caminho atual e parâmetros para recuperar se a sessão for reconectada
+  if (typeof window !== "undefined" && pathname && pathname !== "/entrar" && pathname !== "/") {
+    const currentFullUrl = `${location.pathname}${location.searchStr ?? ""}`;
+    sessionStorage.setItem("control-all-return-url", currentFullUrl);
+  }
 
   const podeVer = (i: NavItem) => {
     if (i.adminOnly) return isSiteAdmin;

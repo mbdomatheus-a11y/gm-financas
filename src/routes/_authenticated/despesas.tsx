@@ -21,6 +21,7 @@ import { IndiceReajusteField } from "@/components/IndiceReajusteField";
 import { toast } from "sonner";
 import { z } from "zod";
 
+import { Checkbox } from "@/components/ui/checkbox";
 import { correspondeBuscaComValor } from "@/lib/busca";
 import { AppLayout } from "@/components/AppLayout";
 import { Field } from "@/routes/_authenticated/receitas";
@@ -307,6 +308,10 @@ function DespesasPage() {
 
   const salvar = useMutation({
     mutationFn: async () => {
+      const obsFinal = form.economia_conquistada
+        ? `[ECONOMIA_CONQUISTADA] ${form.observacoes || ""}`.trim()
+        : form.observacoes || null;
+
       const parsed = schema.parse({
         descricao: form.descricao,
         valor_total: valorNum,
@@ -317,7 +322,7 @@ function DespesasPage() {
         total_parcelas: nParcelas,
         data_primeira_parcela: form.data_primeira_parcela,
         responsavel: form.responsavel,
-        observacoes: form.observacoes || null,
+        observacoes: obsFinal,
       });
       const [tipoPg, idPg] = String(form.pagamento).split(":");
       const vinculos = {
@@ -1480,6 +1485,18 @@ function DespesasPage() {
                 onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
               />
             </Field>
+            <div className="sm:col-span-2 rounded-lg border border-emerald-500/20 bg-emerald-50/50 p-3 dark:bg-emerald-950/20">
+              <label className="flex items-center gap-2 text-sm font-medium text-emerald-800 dark:text-emerald-300 cursor-pointer">
+                <Checkbox
+                  checked={!!form.economia_conquistada}
+                  onCheckedChange={(v) => setForm({ ...form, economia_conquistada: !!v })}
+                />
+                Despesa Ajustada / Economia Conquistada
+              </label>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Marque se você negociou ou cancelou esta cobrança (ex.: anuidade isentada ou serviço cancelado). A despesa fica riscada no histórico.
+              </p>
+            </div>
           </div>
 
           {valorDigitado > 0 && (ehFixa || nParcelas > 1) && (

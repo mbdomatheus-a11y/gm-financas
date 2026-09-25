@@ -54,7 +54,9 @@ function LoginPage() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) window.location.assign(search.next ?? "/inicio");
+      const returnUrl = sessionStorage.getItem("control-all-return-url");
+      const target = search.next || (returnUrl && returnUrl.startsWith("/") ? returnUrl : "/inicio");
+      if (data.session) window.location.assign(target);
     });
   }, [search.next]);
 

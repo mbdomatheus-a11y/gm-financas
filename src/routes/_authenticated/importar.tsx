@@ -1,7 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { prepararEnvioLayout } from "@/lib/layout-fatura.functions";
+import {
+  prepararEnvioLayout,
+  excluirSolicitacaoLayout,
+  listarMinhasSolicitacoesLayout,
+} from "@/lib/layout-fatura.functions";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
@@ -174,6 +178,32 @@ function ImportarPage() {
   }
   const imgInputRef = useRef<HTMLInputElement>(null);
   const classificacoesEditadas = useRef(new Set<string>());
+
+  const [verSolicitacoes, setVerSolicitacoes] = useState(false);
+  const [highlightValor, setHighlightValor] = useState<number | null>(null);
+  const [resultadoModal, setResultadoModal] = useState<{
+    inseridos: number;
+    ignorados: number;
+    regrasSalvas: number;
+    fechadas: number;
+  } | null>(null);
+
+  const minhasSolicitacoesFn = useServerFn(listarMinhasSolicitacoesLayout);
+  const excluirSolicitacaoFn = useServerFn(excluirSolicitacaoLayout);
+
+  const { data: minhasSolicitacoes = [] } = useQuery({
+    queryKey: ["minhas-solicitacoes-layout"],
+    queryFn: () => minhasSolicitacoesFn(),
+  });
+
+  const excluirSolicitacao = useMutation({
+    mutationFn: (id: string) => excluirSolicitacaoFn({ data: { id } }),
+    onSuccess: () => {
+      toast.success("Solicitação de layout excluída.");
+      qc.invalidateQueries({ queryKey: ["minhas-solicitacoes-layout"] });
+    },
+    onError: (e: any) => toast.error(e.message ?? "Não foi possível excluir a solicitação."),
+  });
 
   const [lendo, setLendo] = useState(false);
   const [lendoImagens, setLendoImagens] = useState(false);
@@ -1018,14 +1048,12 @@ function ImportarPage() {
       setFaturas([]);
       setAcoesFixas({});
       classificacoesEditadas.current.clear();
-      toast.success(
-        `${inseridos} lançamento(s) importado(s). ${ignorados} duplicado(s) ignorado(s).` +
-          (fechadas ? ` ${fechadas} competência(s) fechada(s).` : ""),
-      );
-      if (regrasSalvas)
-        toast.info(`${regrasSalvas} classificação(ões) aprendida(s) para próximas importações.`);
-      if (falhasDePara)
-        toast.warning(`${falhasDePara} regra(s) de de-para não puderam ser salvas.`);
+      setResultadoModal({
+        inseridos,
+        ignorados,
+        regrasSalvas,
+        fechadas,
+      });
     },
     onError: (e: any) => toast.error(e?.message ?? "Falha ao importar."),
   });
@@ -1068,14 +1096,23 @@ function ImportarPage() {
                   Seu banco não foi reconhecido? Envie uma cópia para modelagem. Os dados não serão
                   usados e o arquivo será descartado em até 30 dias.
                 </span>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={enviandoLayout}
-                  onClick={() => layoutRef.current?.click()}
-                >
-                  {enviandoLayout ? "Enviando…" : "Enviar para análise"}
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={enviandoLayout}
+                    onClick={() => layoutRef.current?.click()}
+                  >
+                    {enviandoLayout ? "Enviando…" : "Enviar para análise"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setVerSolicitacoes(true)}
+                  >
+                    Minhas faturas enviadas ({minhasSolicitacoes.length})
+                  </Button>
+                </div>
                 <input
                   ref={layoutRef}
                   className="hidden"
@@ -1559,16 +1596,26 @@ function ImportarPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {f.lancamentos.map((l) => (
-                        <tr key={l.id} className="border-t align-top">
-                          <td className="p-1">
-                            <Checkbox
-                              checked={l.incluir}
-                              onCheckedChange={(v) =>
-                                atualizarLancamento(idx, l.id, { incluir: !!v })
-                              }
-                            />
-                          </td>
+                      {f.lancamentos.map((l) => {
+                        const ehMesmoValor = highlightValor != null && Math.abs(l.valor - highlightValor) < 0.001;
+                        return (
+                          <tr
+                            key={l.id}
+                            onClick={() => setHighlightValor(highlightValor === l.valor ? null : l.valor)}
+                            className={`border-t align-top transition-colors ${
+                              !l.incluir ? "opacity-40 line-through bg-muted/20" : ""
+                            } ${
+                              ehMesmoValor ? "bg-amber-100/90 dark:bg-amber-950/60 ring-2 ring-amber-500/80 font-semibold" : ""
+                            }`}
+                          >
+                              <td className="p-1">
+                                <Checkbox
+                                  checked={l.incluir}
+                                  onCheckedChange={(v) =>
+                                    atualizarLancamento(idx, l.id, { incluir: !!v })
+                                  }
+                                />
+                              </td>
                           <td className="p-1">
                             <Input
                               type="date"
@@ -1845,7 +1892,8 @@ function ImportarPage() {
                             </p>
                           </td>
                         </tr>
-                      ))}
+                      );
+                    })}
                     </tbody>
                   </table>
                 </div>
@@ -1940,6 +1988,110 @@ function ImportarPage() {
               onClick={() => cadastrarDestino.mutate()}
             >
               {cadastrarDestino.isPending ? "Salvando..." : "Salvar e continuar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Resumo e Divergências da Importação */}
+      <Dialog open={!!resultadoModal} onOpenChange={(aberto) => !aberto && setResultadoModal(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+              <CheckCircle2 className="size-5" /> Importação Concluída com Sucesso!
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2 text-sm">
+            <div className="rounded-lg border bg-muted/40 p-3 space-y-1">
+              <p className="font-semibold text-foreground">
+                {resultadoModal?.inseridos} lançamento(s) importado(s). {resultadoModal?.ignorados} duplicado(s) ignorado(s).
+              </p>
+              {resultadoModal?.fechadas ? (
+                <p className="text-xs text-muted-foreground">
+                  {resultadoModal.fechadas} competência(s) de fatura fechada(s).
+                </p>
+              ) : null}
+            </div>
+
+            {resultadoModal?.regrasSalvas ? (
+              <div className="rounded-lg border border-blue-500/30 bg-blue-50/50 p-3 text-xs dark:bg-blue-950/30 text-blue-800 dark:text-blue-300">
+                <b>💡 Aprendizado Registrado:</b>
+                <p className="mt-0.5">
+                  {resultadoModal.regrasSalvas} classificação(ões) aprendida(s) para próximas importações.
+                </p>
+              </div>
+            ) : null}
+
+            <p className="text-xs text-muted-foreground">
+              Todos os lançamentos foram revisados e gravados com sucesso no seu histórico de despesas.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setResultadoModal(null)}>Entendido e Fechar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Minhas Solicitações de Layout Enviadas */}
+      <Dialog open={verSolicitacoes} onOpenChange={setVerSolicitacoes}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Faturas Enviadas para Modelagem</DialogTitle>
+          </DialogHeader>
+          <div className="max-h-96 space-y-3 overflow-auto py-2">
+            {minhasSolicitacoes.length === 0 ? (
+              <p className="py-4 text-center text-sm text-muted-foreground">
+                Você ainda não enviou faturas para análise de layout.
+              </p>
+            ) : (
+              minhasSolicitacoes.map((s: any) => (
+                <div key={s.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3 text-xs">
+                  <div>
+                    <b className="text-sm">{s.arquivo_nome}</b>
+                    <p className="text-muted-foreground">
+                      Banco: {s.banco_informado || "Não inf."} · Final: {s.cartao_final || "N/A"} · {new Date(s.criado_em).toLocaleDateString("pt-BR")}
+                    </p>
+                    <span
+                      className={`mt-1 inline-block rounded px-2 py-0.5 text-[10px] font-semibold ${
+                        s.status === "corrigida"
+                          ? "bg-emerald-500/10 text-emerald-600"
+                          : s.status === "em_modelagem"
+                          ? "bg-blue-500/10 text-blue-600"
+                          : s.status === "descartada"
+                          ? "bg-rose-500/10 text-rose-600"
+                          : "bg-amber-500/10 text-amber-600"
+                      }`}
+                    >
+                      {s.status === "corrigida"
+                        ? "Concluído"
+                        : s.status === "em_modelagem"
+                        ? "Em análise"
+                        : s.status === "descartada"
+                        ? "Descartado"
+                        : "Pendente"}
+                    </span>
+                    {s.resposta_admin && (
+                      <p className="mt-1 text-[11px] text-muted-foreground italic">
+                        Mensagem: {s.resposta_admin}
+                      </p>
+                    )}
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-rose-600 hover:text-rose-700"
+                    disabled={excluirSolicitacao.isPending}
+                    onClick={() => excluirSolicitacao.mutate(s.id)}
+                  >
+                    <Trash2 className="mr-1 size-3.5" /> Excluir
+                  </Button>
+                </div>
+              ))
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setVerSolicitacoes(false)}>
+              Fechar
             </Button>
           </DialogFooter>
         </DialogContent>

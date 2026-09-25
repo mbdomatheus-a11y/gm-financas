@@ -55,9 +55,7 @@ function createSupabaseClient() {
     },
     auth: {
       persistSession: true,
-      // A sessão do Control ALL tem duração máxima de uma hora e não é renovada
-      // silenciosamente. O guard visual também encerra a sessão no mesmo limite.
-      autoRefreshToken: false,
+      autoRefreshToken: true,
     },
   });
 }

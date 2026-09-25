@@ -566,6 +566,15 @@ function DashboardPage() {
                     dot={{ r: 3 }}
                   />
                 )}
+                <Line
+                  type="monotone"
+                  dataKey="Saldo"
+                  name="Saldo Líquido (Receita - Despesa)"
+                  stroke="#3b82f6"
+                  strokeWidth={3}
+                  strokeDasharray="4 4"
+                  dot={{ r: 3 }}
+                />
               </LineChart>
             ) : (
               <BarChart data={dados.meses} margin={{ top: 18 }}>

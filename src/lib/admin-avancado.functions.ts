@@ -55,7 +55,7 @@ export const adminAtualizarLayout = createServerFn({ method: "POST" })
     z
       .object({
         id: z.string().uuid(),
-        status: z.enum(["em_modelagem", "corrigida", "descartada"]),
+        status: z.enum(["pendente", "em_modelagem", "corrigida", "descartada"]),
         resposta: z.string().trim().max(1000).optional(),
       })
       .parse(v),
@@ -66,22 +66,27 @@ export const adminAtualizarLayout = createServerFn({ method: "POST" })
     const db = supabaseAdmin as any;
     const { data: item, error: buscarErro } = await db
       .from("layout_solicitacoes")
-      .select("user_id,arquivo_path")
+      .select("user_id,arquivo_path,arquivo_nome")
       .eq("id", data.id)
       .single();
     if (buscarErro || !item) throw new Error("Solicitação não encontrada.");
     if (data.status === "corrigida" || data.status === "descartada") {
-      const { error: removerErro } = await db.storage
-        .from("layouts_analise")
-        .remove([item.arquivo_path]);
-      if (removerErro)
-        throw new Error("Não foi possível descartar o arquivo. O status não foi alterado.");
+      if (item.arquivo_path) {
+        const { error: removerErro } = await db.storage
+          .from("layouts_analise")
+          .remove([item.arquivo_path]);
+        if (removerErro)
+          console.warn("Não foi possível apagar o arquivo do storage, prosseguindo com a atualização.");
+      }
     }
+    const msgConcluido =
+      "Arquivo modelado e apagado, em breve uma nova versão estará disponível com sua fatura modelada para importação. Fatura modelada, realize novo teste de importação!";
     const { error } = await db
       .from("layout_solicitacoes")
       .update({
         status: data.status,
-        resposta_admin: data.resposta ?? null,
+        resposta_admin:
+          data.resposta || (data.status === "corrigida" ? msgConcluido : null),
         tratado_por: context.userId,
         atualizado_em: new Date().toISOString(),
       })
@@ -91,17 +96,16 @@ export const adminAtualizarLayout = createServerFn({ method: "POST" })
       await db.from("notificacoes_usuario").insert({
         user_id: item.user_id,
         tipo: "layout_corrigido",
-        titulo: "Layout de fatura tratado",
+        titulo: "Fatura modelada!",
         mensagem:
-          data.resposta ||
-          "O layout enviado foi tratado e poderá ser usado em uma nova importação.",
+          data.resposta || msgConcluido,
         referencia_tipo: "layout",
       });
     await db.from("admin_audit_logs").insert({
       ator_id: context.userId,
       acao: "layout_atualizado",
       alvo_id: item.user_id,
-      detalhes: { status: data.status, arquivo_descartado: data.status !== "em_modelagem" },
+      detalhes: { status: data.status, arquivo_descartado: data.status !== "em_modelagem" && data.status !== "pendente" },
     });
     return { ok: true as const };
   });

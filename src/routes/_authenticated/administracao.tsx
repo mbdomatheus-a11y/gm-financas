@@ -470,41 +470,87 @@ function Admin() {
       </div>
       <Card className="mt-4">
         <CardContent className="space-y-3 p-4">
-          <h2 className="font-semibold">Faturas enviadas para modelagem</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold">Faturas enviadas para modelagem</h2>
+            {layouts.filter((l: any) => l.status === "pendente" || l.status === "em_modelagem").length > 0 && (
+              <span className="rounded-full bg-amber-500/10 px-2.5 py-0.5 text-xs font-medium text-amber-600 dark:text-amber-400">
+                {layouts.filter((l: any) => l.status === "pendente" || l.status === "em_modelagem").length} pendente(s)
+              </span>
+            )}
+          </div>
           {layouts.length === 0 ? (
             <p className="text-sm text-muted-foreground">Nenhum arquivo aguardando análise.</p>
           ) : (
             layouts.map((l: any) => (
               <div
-                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3"
+                className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3"
                 key={l.id}
               >
                 <div>
-                  <b>{l.arquivo_nome}</b>
-                  <p className="text-xs text-muted-foreground">
-                    {l.banco_informado || "Banco não informado"} · {l.status}
-                  </p>
-                </div>
-                {l.status !== "corrigida" && l.status !== "descartada" && (
-                  <div className="flex flex-wrap gap-2">
-                    <Button size="sm" variant="outline" onClick={() => void abrirLayout(l.id)}>
-                      Abrir arquivo
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={() => atualizarLayout.mutate({ id: l.id, status: "corrigida" })}
+                  <div className="flex items-center gap-2">
+                    <b>{l.arquivo_nome}</b>
+                    <span
+                      className={`rounded px-2 py-0.5 text-xs font-semibold ${
+                        l.status === "corrigida"
+                          ? "bg-emerald-500/10 text-emerald-600"
+                          : l.status === "em_modelagem"
+                          ? "bg-blue-500/10 text-blue-600"
+                          : l.status === "descartada"
+                          ? "bg-rose-500/10 text-rose-600"
+                          : "bg-amber-500/10 text-amber-600"
+                      }`}
                     >
-                      Marcar corrigida e avisar
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => atualizarLayout.mutate({ id: l.id, status: "descartada" })}
-                    >
-                      Descartar
-                    </Button>
+                      {l.status === "corrigida"
+                        ? "Concluído"
+                        : l.status === "em_modelagem"
+                        ? "Em análise"
+                        : l.status === "descartada"
+                        ? "Descartado"
+                        : "Pendente"}
+                    </span>
                   </div>
-                )}
+                  <p className="text-xs text-muted-foreground">
+                    Enviado por: {l.profiles?.nome || l.profiles?.email || "Usuário"} · {l.banco_informado || "Banco não inf."} {l.cartao_final ? `(Final ${l.cartao_final})` : ""} · {new Date(l.criado_em).toLocaleDateString("pt-BR")}
+                  </p>
+                  {l.resposta_admin && (
+                    <p className="mt-1 text-xs text-muted-foreground italic">
+                      Resposta/Status: {l.resposta_admin}
+                    </p>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {l.status !== "corrigida" && l.status !== "descartada" && (
+                    <>
+                      <Button size="sm" variant="outline" onClick={() => void abrirLayout(l.id)}>
+                        Baixar / Abrir
+                      </Button>
+                      {l.status !== "em_modelagem" && (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => atualizarLayout.mutate({ id: l.id, status: "em_modelagem" as any })}
+                        >
+                          Em análise
+                        </Button>
+                      )}
+                      <Button
+                        size="sm"
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                        onClick={() => atualizarLayout.mutate({ id: l.id, status: "corrigida" as any })}
+                      >
+                        Concluído & Apagar PDF
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-rose-600 hover:text-rose-700"
+                        onClick={() => atualizarLayout.mutate({ id: l.id, status: "descartada" as any })}
+                      >
+                        Descartar
+                      </Button>
+                    </>
+                  )}
+                </div>
               </div>
             ))
           )}
