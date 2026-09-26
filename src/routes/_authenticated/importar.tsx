@@ -166,6 +166,7 @@ function ImportarPage() {
         .from("layouts_analise")
         .uploadToSignedUrl(envio.path, envio.token, file);
       if (error) throw error;
+      qc.invalidateQueries({ queryKey: ["minhas-solicitacoes-layout"] });
       toast.success(
         "Fatura enviada para análise. Usaremos apenas o layout e o arquivo será descartado em até 30 dias.",
       );

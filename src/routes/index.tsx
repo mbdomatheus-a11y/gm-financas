@@ -39,64 +39,116 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 function ConsultaProtocolo() {
+  const [modo, setModo] = useState<"protocolo" | "cpf">("protocolo");
   const [protocolo, setProtocolo] = useState("");
+  const [cpf, setCpf] = useState("");
   const [resultado, setResultado] = useState<any>(null);
   const [carregando, setCarregando] = useState(false);
   const [buscado, setBuscado] = useState(false);
   const consultarFn = useServerFn(consultarProtocolo);
+
+  function formatarCpfInput(v: string) {
+    return v.replace(/\D/g, "").slice(0, 11);
+  }
+
   async function buscar() {
-    const val = protocolo.trim();
+    const isProtocolo = modo === "protocolo";
+    const val = isProtocolo ? protocolo.trim() : cpf.replace(/\D/g, "");
     if (!val) return;
     setCarregando(true);
     setBuscado(false);
     setResultado(null);
     try {
-      const res = await consultarFn({ data: { protocolo: val } });
+      const res = await consultarFn({
+        data: isProtocolo ? { protocolo: val } : { cpf: val },
+      });
       setResultado(res);
     } catch (e: any) {
-      toast.error(e.message || "Protocolo inválido.");
+      toast.error(e.message || "Não encontrado ou formato inválido.");
     } finally {
       setCarregando(false);
       setBuscado(true);
     }
   }
+
+  const resultados = Array.isArray(resultado) ? resultado : resultado ? [resultado] : [];
+
   return (
     <section className="border-t bg-muted/30">
       <div className="mx-auto max-w-6xl px-4 py-14">
         <p className="text-sm font-semibold text-primary">SUPORTE E PRIVACIDADE</p>
         <h2 className="mt-2 text-2xl font-bold">Consultar status de solicitação</h2>
-        <p className="mt-2 text-sm text-muted-foreground">Informe o protocolo recebido ao enviar uma solicitação de privacidade ou chamado de suporte.</p>
-        <div className="mt-5 flex max-w-md flex-col gap-3 sm:flex-row">
-          <Input
-            placeholder="Cole o protocolo aqui (UUID)"
-            value={protocolo}
-            onChange={(e) => setProtocolo(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && buscar()}
-          />
-          <Button onClick={buscar} disabled={carregando || !protocolo.trim()}>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Informe o protocolo recebido ao enviar uma solicitação ou consulte pelo seu CPF.
+        </p>
+
+        {/* Abas de modo */}
+        <div className="mt-5 flex gap-2">
+          <Button
+            size="sm"
+            variant={modo === "protocolo" ? "default" : "outline"}
+            onClick={() => { setModo("protocolo"); setBuscado(false); setResultado(null); }}
+          >
+            Por Protocolo
+          </Button>
+          <Button
+            size="sm"
+            variant={modo === "cpf" ? "default" : "outline"}
+            onClick={() => { setModo("cpf"); setBuscado(false); setResultado(null); }}
+          >
+            Por CPF
+          </Button>
+        </div>
+
+        <div className="mt-4 flex max-w-md flex-col gap-3 sm:flex-row">
+          {modo === "protocolo" ? (
+            <Input
+              placeholder="Cole o protocolo aqui (UUID)"
+              value={protocolo}
+              onChange={(e) => setProtocolo(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && buscar()}
+            />
+          ) : (
+            <Input
+              placeholder="Somente os 11 dígitos do CPF"
+              value={cpf}
+              onChange={(e) => setCpf(formatarCpfInput(e.target.value))}
+              onKeyDown={(e) => e.key === "Enter" && buscar()}
+              maxLength={11}
+            />
+          )}
+          <Button
+            onClick={buscar}
+            disabled={carregando || (modo === "protocolo" ? !protocolo.trim() : cpf.replace(/\D/g, "").length < 11)}
+          >
             <Search className="size-4 mr-1.5" />{carregando ? "Consultando…" : "Consultar"}
           </Button>
         </div>
+
         {buscado && (
-          resultado ? (
-            <Card className="mt-5 max-w-md">
-              <CardContent className="p-4 space-y-2">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs text-muted-foreground font-mono">{resultado.protocolo}</p>
-                  <span className="rounded bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
-                    {resultado.tipo === "privacidade" ? "Privacidade" : "Suporte"}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="rounded bg-muted px-2 py-0.5 text-sm font-semibold">{STATUS_LABEL[resultado.status] ?? resultado.status}</span>
-                  <span className="text-xs text-muted-foreground">{resultado.dias_aberto} dia(s) em aberto</span>
-                </div>
-                {resultado.resposta && <p className="text-sm text-muted-foreground italic">"{resultado.resposta}"</p>}
-                <p className="text-xs text-muted-foreground">Última atualização: {new Date(resultado.atualizado_em).toLocaleString("pt-BR")}</p>
-              </CardContent>
-            </Card>
+          resultados.length > 0 ? (
+            <div className="mt-5 max-w-md space-y-3">
+              {resultados.map((res: any, i: number) => (
+                <Card key={i} className="overflow-hidden">
+                  <CardContent className="p-4 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs text-muted-foreground font-mono truncate">{res.protocolo}</p>
+                      <span className="rounded bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary shrink-0 ml-2">
+                        {res.tipo === "privacidade" ? "Privacidade" : "Suporte"}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="rounded bg-muted px-2 py-0.5 text-sm font-semibold">{STATUS_LABEL[res.status] ?? res.status}</span>
+                      <span className="text-xs text-muted-foreground">{res.dias_aberto} dia(s) em aberto</span>
+                    </div>
+                    {res.resposta && <p className="text-sm text-muted-foreground italic">"{res.resposta}"</p>}
+                    <p className="text-xs text-muted-foreground">Última atualização: {new Date(res.atualizado_em).toLocaleString("pt-BR")}</p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           ) : (
-            <p className="mt-4 text-sm text-muted-foreground">Nenhuma solicitação encontrada com esse protocolo.</p>
+            <p className="mt-4 text-sm text-muted-foreground">Nenhuma solicitação encontrada com esse {modo === "protocolo" ? "protocolo" : "CPF"}.</p>
           )
         )}
       </div>

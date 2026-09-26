@@ -71,6 +71,19 @@ export const iniciarLoginSeguro = createServerFn({ method: "POST" })
         p_sucesso: false,
       });
       const retorno = Array.isArray(tentativa) ? tentativa[0] : tentativa;
+      // Registrar tentativa de login com falha no audit log
+      try {
+        await db.from("admin_audit_logs").insert({
+          ator_id: null,
+          acao: "login_falhou",
+          alvo_id: null,
+          detalhes: {
+            identificador_hash: identificadorHash.slice(0, 16) + "…",
+            tentativas: retorno?.tentativas ?? null,
+            bloqueado: !!retorno?.bloqueado_ate,
+          },
+        });
+      } catch { /* não crítico */ }
       if (retorno?.bloqueado_ate) throw new Error("LOGIN_BLOQUEADO");
       throw new Error("Credenciais incorretas.");
     }
@@ -129,15 +142,51 @@ async function enviarAlertaSenha(userId: string) {
   await enviarEmail({
     to: auth.user.email,
     subject: "Sua senha do Control ALL foi alterada",
-    html: `<p>A senha da sua conta no <strong>Control ALL</strong> foi alterada.</p><p>Se foi você, nenhuma ação é necessária.</p><p>Se não reconhece esta alteração, <a href="${urlBase()}/bloquear-conta?token=${token}">solicite o bloqueio imediato da conta</a> e escreva para <a href="mailto:privacidade@controlall.com.br">privacidade@controlall.com.br</a>.</p><p style="color:#666;font-size:12px">O link de bloqueio vale por 24 horas.</p>`,
+    html: `<p>A senha da sua conta no <strong>Control ALL</strong> foi alterada.</p>
+<p>Se foi você, nenhuma ação é necessária.</p>
+<p>Se você <strong>não reconhece</strong> esta alteração:</p>
+<ul>
+  <li><a href="${urlBase()}/bloquear-conta?token=${token}">Solicitar bloqueio imediato da conta</a> (link válido por 24h)</li>
+  <li><a href="${urlBase()}/suporte">Acessar a Central de Suporte</a> para atendimento</li>
+  <li>Ou responda diretamente para <a href="mailto:privacidade@controlall.com.br">privacidade@controlall.com.br</a></li>
+</ul>`,
   });
 }
 
 export const alterarMinhaSenha = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((v: unknown) => z.object({ senha: z.string().min(8).max(72) }).parse(v))
+  .inputValidator((v: unknown) =>
+    z
+      .object({
+        senhaAtual: z.string().min(1, "Informe sua senha atual"),
+        senha: z.string().min(8, "A nova senha deve ter no mínimo 8 caracteres").max(72),
+      })
+      .parse(v),
+  )
   .handler(async ({ data, context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: authUser, error: getUserError } = await supabaseAdmin.auth.admin.getUserById(context.userId);
+    if (getUserError || !authUser?.user?.email) {
+      throw new Error("Usuário não encontrado.");
+    }
+
+    // Validar a senha atual autenticando com ela
+    const { createClient } = await import("@supabase/supabase-js");
+    const url = process.env["SUPABASE_URL"] || process.env["VITE_SUPABASE_URL"];
+    const chave =
+      process.env["SUPABASE_PUBLISHABLE_KEY"] || process.env["VITE_SUPABASE_PUBLISHABLE_KEY"];
+    if (!url || !chave) throw new Error("Configuração de autenticação indisponível.");
+    const cliente = createClient(url, chave, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const { error: erroSenhaAtual } = await cliente.auth.signInWithPassword({
+      email: authUser.user.email,
+      password: data.senhaAtual,
+    });
+    if (erroSenhaAtual) {
+      throw new Error("A senha atual informada está incorreta.");
+    }
+
     const { error } = await supabaseAdmin.auth.admin.updateUserById(context.userId, {
       password: data.senha,
     });

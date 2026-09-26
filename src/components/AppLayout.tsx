@@ -29,6 +29,7 @@ import {
   MapPin,
   FileHeart,
   ShieldCheck,
+  Headphones,
 } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -68,7 +69,8 @@ type NavTo =
   | "/pets"
   | "/onde-esta"
   | "/exames"
-  | "/administracao";
+  | "/administracao"
+  | "/suporte";
 
 type NavItem = {
   to: NavTo;
@@ -251,6 +253,7 @@ const GLOBAL: NavItem[] = [
     modulo: "personalizacao",
   },
   { to: "/conta", label: "Configurações da conta", short: "Conta", icon: Settings },
+  { to: "/suporte", label: "Suporte", short: "Suporte", icon: Headphones },
 ];
 
 const INICIO: NavItem = { to: "/inicio", label: "Início", short: "Início", icon: Home };

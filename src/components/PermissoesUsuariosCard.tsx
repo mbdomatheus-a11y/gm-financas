@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfilesList, useRolesList } from "@/hooks/useFinance";
 import { usePermissoes, type Modulo } from "@/hooks/useAuthData";
-import { adminSetRole } from "@/lib/admin.functions";
+import { adminSetRole, grupoAdminSetRole } from "@/lib/admin.functions";
 import { useServerFn } from "@tanstack/react-start";
 import { maskCpf } from "@/lib/cpf";
 
@@ -32,10 +32,11 @@ const MODULOS: { key: Modulo; label: string }[] = [
  */
 export function PermissoesUsuariosCard({ compact = false }: { compact?: boolean }) {
   const qc = useQueryClient();
-  const { isSiteAdmin } = usePermissoes();
+  const { isSiteAdmin, isAdmin } = usePermissoes();
   const { data: perfis = [] } = useProfilesList();
   const { data: roles = [] } = useRolesList();
   const setRole = useServerFn(adminSetRole);
+  const grupoSetRole = useServerFn(grupoAdminSetRole);
   const [detalhe, setDetalhe] = useState<string | null>(null);
 
   const { data: permissoes = [] } = useQuery({
@@ -53,8 +54,10 @@ export function PermissoesUsuariosCard({ compact = false }: { compact?: boolean 
     permissoes.find((p: any) => p.user_id === id && p.modulo === modulo);
 
   const alterarRole = useMutation({
-    mutationFn: async ({ id, role }: { id: string; role: "admin" | "comum" }) =>
-      setRole({ data: { userId: id, role } }),
+    mutationFn: async ({ id, role }: { id: string; role: "admin" | "comum" }) => {
+      if (isSiteAdmin) return setRole({ data: { userId: id, role } });
+      return grupoSetRole({ data: { userId: id, role } });
+    },
     onSuccess: () => {
       toast.success("Privilégio atualizado");
       qc.invalidateQueries();
@@ -79,7 +82,7 @@ export function PermissoesUsuariosCard({ compact = false }: { compact?: boolean 
     onError: (e: any) => toast.error(e.message),
   });
 
-  if (!isSiteAdmin) return null;
+  if (!isAdmin) return null;
 
   return (
     <Card>

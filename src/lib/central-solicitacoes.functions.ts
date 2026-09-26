@@ -92,46 +92,62 @@ export const adminTratarSolicitacaoPrivacidade = createServerFn({ method: "POST"
 // Consulta pública de protocolo (sem auth) — para Home
 export const consultarProtocolo = createServerFn({ method: "POST" })
   .inputValidator((v: unknown) =>
-    z.object({ protocolo: z.string().uuid("Protocolo inválido") }).parse(v)
+    z.object({
+      protocolo: z.string().uuid("Protocolo inválido").optional(),
+      cpf: z.string().regex(/^\d{11}$/, "CPF deve ter 11 dígitos").optional(),
+    }).refine((d) => d.protocolo || d.cpf, { message: "Informe um protocolo ou CPF." }).parse(v)
   )
   .handler(async ({ data }) => {
+    const { createHash } = await import("node:crypto");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    // Privacidade
-    const { data: priv } = await (supabaseAdmin as any)
-      .from("solicitacoes_privacidade")
-      .select("protocolo,status,tipo,criado_em,atualizado_em,resposta_admin")
-      .eq("protocolo", data.protocolo)
-      .maybeSingle();
-    if (priv) {
-      const dias = Math.floor((Date.now() - new Date(priv.criado_em).getTime()) / 86400000);
-      return {
-        tipo: "privacidade" as const,
-        protocolo: priv.protocolo,
-        status: priv.status,
-        tipo_solicitacao: priv.tipo,
-        dias_aberto: dias,
-        atualizado_em: priv.atualizado_em,
-        resposta: priv.resposta_admin,
-      };
+    const db = supabaseAdmin as any;
+
+    if (data.protocolo) {
+      // Busca por protocolo UUID
+      const { data: priv } = await db
+        .from("solicitacoes_privacidade")
+        .select("protocolo,status,tipo,criado_em,atualizado_em,resposta_admin")
+        .eq("protocolo", data.protocolo)
+        .maybeSingle();
+      if (priv) {
+        const dias = Math.floor((Date.now() - new Date(priv.criado_em).getTime()) / 86400000);
+        return { tipo: "privacidade" as const, protocolo: priv.protocolo, status: priv.status, tipo_solicitacao: priv.tipo, dias_aberto: dias, atualizado_em: priv.atualizado_em, resposta: priv.resposta_admin };
+      }
+      const { data: chamado } = await db
+        .from("chamados_suporte")
+        .select("protocolo,status,assunto,criado_em,atualizado_em,resposta_admin")
+        .eq("protocolo", data.protocolo)
+        .maybeSingle();
+      if (chamado) {
+        const dias = Math.floor((Date.now() - new Date(chamado.criado_em).getTime()) / 86400000);
+        return { tipo: "suporte" as const, protocolo: chamado.protocolo, status: chamado.status, tipo_solicitacao: chamado.assunto, dias_aberto: dias, atualizado_em: chamado.atualizado_em, resposta: chamado.resposta_admin };
+      }
+      return null;
     }
-    // Chamados
-    const { data: chamado } = await (supabaseAdmin as any)
-      .from("chamados_suporte")
-      .select("protocolo,status,assunto,criado_em,atualizado_em,resposta_admin")
-      .eq("protocolo", data.protocolo)
-      .maybeSingle();
-    if (chamado) {
-      const dias = Math.floor((Date.now() - new Date(chamado.criado_em).getTime()) / 86400000);
-      return {
-        tipo: "suporte" as const,
-        protocolo: chamado.protocolo,
-        status: chamado.status,
-        tipo_solicitacao: chamado.assunto,
-        dias_aberto: dias,
-        atualizado_em: chamado.atualizado_em,
-        resposta: chamado.resposta_admin,
-      };
+
+    if (data.cpf) {
+      // Busca por CPF hash em solicitações de privacidade
+      const cpfHash = createHash("sha256").update(data.cpf).digest("hex");
+      const { data: privs } = await db
+        .from("solicitacoes_privacidade")
+        .select("protocolo,status,tipo,criado_em,atualizado_em,resposta_admin")
+        .eq("cpf_hash", cpfHash)
+        .order("criado_em", { ascending: false })
+        .limit(10);
+      if (privs && privs.length > 0) {
+        return (privs as any[]).map((priv: any) => ({
+          tipo: "privacidade" as const,
+          protocolo: priv.protocolo,
+          status: priv.status,
+          tipo_solicitacao: priv.tipo,
+          dias_aberto: Math.floor((Date.now() - new Date(priv.criado_em).getTime()) / 86400000),
+          atualizado_em: priv.atualizado_em,
+          resposta: priv.resposta_admin,
+        }));
+      }
+      return null;
     }
+
     return null;
   });
 

@@ -212,3 +212,63 @@ export const adminSetRole = createServerFn({ method: "POST" })
     await supabaseAdmin.from("user_roles").insert({ user_id: data.userId, role: data.role });
     return { ok: true };
   });
+
+/**
+ * Permite que o administrador de um grupo familiar altere o papel (admin/comum)
+ * de outros membros do MESMO grupo. O admin master do site (site_admins) não pode
+ * ser alterado por esta rota — apenas pelo próprio admin master.
+ */
+export const grupoAdminSetRole = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({ userId: z.string().uuid(), role: z.enum(["admin", "comum"]) }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const db = supabaseAdmin as any;
+
+    // Buscar o grupo do solicitante e verificar se é admin do grupo
+    const { data: solicitante } = await db
+      .from("profiles")
+      .select("grupo_id, ativo")
+      .eq("id", context.userId)
+      .maybeSingle();
+    if (!solicitante?.ativo) throw new Error("Sua conta está inativa.");
+    const { data: solRole } = await db
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", context.userId)
+      .maybeSingle();
+    if (solRole?.role !== "admin") throw new Error("Apenas administradores do grupo podem alterar papéis.");
+
+    // Verificar que o alvo pertence ao mesmo grupo
+    const { data: alvo } = await db
+      .from("profiles")
+      .select("grupo_id")
+      .eq("id", data.userId)
+      .maybeSingle();
+    if (!alvo || alvo.grupo_id !== solicitante.grupo_id) throw new Error("Usuário não encontrado no seu grupo.");
+
+    // Impedir alterar um admin master do site
+    const { data: ehSiteAdmin } = await db
+      .from("site_admins")
+      .select("user_id")
+      .eq("user_id", data.userId)
+      .maybeSingle();
+    if (ehSiteAdmin) throw new Error("Não é possível alterar o papel do administrador master do site.");
+
+    // Impedir alterar a si mesmo
+    if (data.userId === context.userId) throw new Error("Você não pode alterar seu próprio papel.");
+
+    await supabaseAdmin.from("user_roles").delete().eq("user_id", data.userId);
+    await supabaseAdmin.from("user_roles").insert({ user_id: data.userId, role: data.role });
+
+    await db.from("admin_audit_logs").insert({
+      ator_id: context.userId,
+      acao: "grupo_admin_alterou_papel",
+      alvo_id: data.userId,
+      detalhes: { novo_papel: data.role },
+    });
+
+    return { ok: true };
+  });

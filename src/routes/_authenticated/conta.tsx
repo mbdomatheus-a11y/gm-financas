@@ -53,6 +53,7 @@ function ContaPage() {
   const qc = useQueryClient();
   const { data: perfil } = useProfile();
   const { isAdmin, isSiteAdmin } = usePermissoes();
+  const [senhaAtual, setSenhaAtual] = useState("");
   const [senha, setSenha] = useState("");
   const [confirma, setConfirma] = useState("");
   const excluirConta = useServerFn(excluirMinhaConta);
@@ -102,12 +103,14 @@ function ContaPage() {
 
   const alterar = useMutation({
     mutationFn: async () => {
-      if (senha.length < 6) throw new Error("A senha deve ter ao menos 6 caracteres");
+      if (!senhaAtual) throw new Error("Informe sua senha atual");
+      if (senha.length < 8) throw new Error("A nova senha deve ter ao menos 8 caracteres");
       if (senha !== confirma) throw new Error("As senhas não conferem");
-      await alterarSenha({ data: { senha } });
+      await alterarSenha({ data: { senhaAtual, senha } });
     },
     onSuccess: () => {
-      toast.success("Senha atualizada");
+      toast.success("Senha atualizada com sucesso");
+      setSenhaAtual("");
       setSenha("");
       setConfirma("");
     },
@@ -287,12 +290,26 @@ function ContaPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            <Field label="Senha atual">
+              <Input
+                type="password"
+                placeholder="Digite sua senha atual"
+                value={senhaAtual}
+                onChange={(e) => setSenhaAtual(e.target.value)}
+              />
+            </Field>
             <Field label="Nova senha">
-              <Input type="password" value={senha} onChange={(e) => setSenha(e.target.value)} />
+              <Input
+                type="password"
+                placeholder="Mínimo 8 caracteres"
+                value={senha}
+                onChange={(e) => setSenha(e.target.value)}
+              />
             </Field>
             <Field label="Confirmar nova senha">
               <Input
                 type="password"
+                placeholder="Repita a nova senha"
                 value={confirma}
                 onChange={(e) => setConfirma(e.target.value)}
               />

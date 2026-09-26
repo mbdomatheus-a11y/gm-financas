@@ -38,6 +38,7 @@ import { Route as AuthenticatedOndeEstaRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedPersonalizacaoRouteImport } from './routes/_authenticated/personalizacao'
 import { Route as AuthenticatedPetsRouteImport } from './routes/_authenticated/pets'
 import { Route as AuthenticatedReceitasRouteImport } from './routes/_authenticated/receitas'
+import { Route as AuthenticatedSuporteRouteImport } from './routes/_authenticated/suporte'
 import { Route as AuthenticatedUsuariosRouteImport } from './routes/_authenticated/usuarios'
 import { Route as AuthenticatedVeiculosRouteImport } from './routes/_authenticated/veiculos'
 import { Route as CalculadorasIndexRouteImport } from './routes/calculadoras/index'
@@ -197,6 +198,11 @@ const AuthenticatedReceitasRoute = AuthenticatedReceitasRouteImport.update({
   path: '/receitas',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedSuporteRoute = AuthenticatedSuporteRouteImport.update({
+  id: '/suporte',
+  path: '/suporte',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedUsuariosRoute = AuthenticatedUsuariosRouteImport.update({
   id: '/usuarios',
   path: '/usuarios',
@@ -270,6 +276,7 @@ export interface FileRoutesByFullPath {
   '/personalizacao': typeof AuthenticatedPersonalizacaoRoute
   '/pets': typeof AuthenticatedPetsRoute
   '/receitas': typeof AuthenticatedReceitasRoute
+  '/suporte': typeof AuthenticatedSuporteRoute
   '/usuarios': typeof AuthenticatedUsuariosRoute
   '/veiculos': typeof AuthenticatedVeiculosRoute
   '/calculadoras/diferenca-entre-datas': typeof CalculadorasDiferencaEntreDatasRoute
@@ -308,6 +315,7 @@ export interface FileRoutesByTo {
   '/personalizacao': typeof AuthenticatedPersonalizacaoRoute
   '/pets': typeof AuthenticatedPetsRoute
   '/receitas': typeof AuthenticatedReceitasRoute
+  '/suporte': typeof AuthenticatedSuporteRoute
   '/usuarios': typeof AuthenticatedUsuariosRoute
   '/veiculos': typeof AuthenticatedVeiculosRoute
   '/calculadoras/diferenca-entre-datas': typeof CalculadorasDiferencaEntreDatasRoute
@@ -348,6 +356,7 @@ export interface FileRoutesById {
   '/_authenticated/personalizacao': typeof AuthenticatedPersonalizacaoRoute
   '/_authenticated/pets': typeof AuthenticatedPetsRoute
   '/_authenticated/receitas': typeof AuthenticatedReceitasRoute
+  '/_authenticated/suporte': typeof AuthenticatedSuporteRoute
   '/_authenticated/usuarios': typeof AuthenticatedUsuariosRoute
   '/_authenticated/veiculos': typeof AuthenticatedVeiculosRoute
   '/calculadoras/diferenca-entre-datas': typeof CalculadorasDiferencaEntreDatasRoute
@@ -388,6 +397,7 @@ export interface FileRouteTypes {
     | '/personalizacao'
     | '/pets'
     | '/receitas'
+    | '/suporte'
     | '/usuarios'
     | '/veiculos'
     | '/calculadoras/diferenca-entre-datas'
@@ -426,6 +436,7 @@ export interface FileRouteTypes {
     | '/personalizacao'
     | '/pets'
     | '/receitas'
+    | '/suporte'
     | '/usuarios'
     | '/veiculos'
     | '/calculadoras/diferenca-entre-datas'
@@ -465,6 +476,7 @@ export interface FileRouteTypes {
     | '/_authenticated/personalizacao'
     | '/_authenticated/pets'
     | '/_authenticated/receitas'
+    | '/_authenticated/suporte'
     | '/_authenticated/usuarios'
     | '/_authenticated/veiculos'
     | '/calculadoras/diferenca-entre-datas'
@@ -697,6 +709,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedReceitasRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/suporte': {
+      id: '/_authenticated/suporte'
+      path: '/suporte'
+      fullPath: '/suporte'
+      preLoaderRoute: typeof AuthenticatedSuporteRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/usuarios': {
       id: '/_authenticated/usuarios'
       path: '/usuarios'
@@ -778,6 +797,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedPersonalizacaoRoute: typeof AuthenticatedPersonalizacaoRoute
   AuthenticatedPetsRoute: typeof AuthenticatedPetsRoute
   AuthenticatedReceitasRoute: typeof AuthenticatedReceitasRoute
+  AuthenticatedSuporteRoute: typeof AuthenticatedSuporteRoute
   AuthenticatedUsuariosRoute: typeof AuthenticatedUsuariosRoute
   AuthenticatedVeiculosRoute: typeof AuthenticatedVeiculosRoute
 }
@@ -804,6 +824,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedPersonalizacaoRoute: AuthenticatedPersonalizacaoRoute,
   AuthenticatedPetsRoute: AuthenticatedPetsRoute,
   AuthenticatedReceitasRoute: AuthenticatedReceitasRoute,
+  AuthenticatedSuporteRoute: AuthenticatedSuporteRoute,
   AuthenticatedUsuariosRoute: AuthenticatedUsuariosRoute,
   AuthenticatedVeiculosRoute: AuthenticatedVeiculosRoute,
 }
@@ -830,13 +851,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

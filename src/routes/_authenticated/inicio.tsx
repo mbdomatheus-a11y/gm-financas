@@ -14,6 +14,8 @@ import {
   MapPin,
   FileHeart,
   Car,
+  Headphones,
+  ShieldCheck,
 } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
@@ -95,20 +97,17 @@ function InicioPage() {
   const { can, isAdmin } = usePermissoes();
   const { habilitado } = useModulosGlobais();
   const gerais = [
-    {
-      to: "/compartilhar" as const,
-      label: "Compartilhar",
-      icon: Share2,
-      modulo: "compartilhar" as const,
-    },
+    { to: "/compartilhar" as const, label: "Compartilhar", icon: Share2, modulo: "compartilhar" as const },
     { to: "/usuarios" as const, label: "Usuários e Privilégios", icon: Users, adminOnly: true },
     { to: "/backup" as const, label: "Backup e Reset", icon: DatabaseBackup, adminOnly: true },
+    { to: "/administracao" as const, label: "Administração", icon: ShieldCheck, adminOnly: true },
     {
       to: "/personalizacao" as const,
       label: "Personalização",
       icon: Palette,
       modulo: "personalizacao" as const,
     },
+    { to: "/suporte" as const, label: "Suporte", icon: Headphones },
     { to: "/conta" as const, label: "Configurações da conta", icon: Settings },
   ].filter((item) => {
     if ("adminOnly" in item && item.adminOnly) return isAdmin;

@@ -134,6 +134,9 @@ function Admin() {
   const [respostaChamado, setRespostaChamado] = useState("");
   const [statusChamado, setStatusChamado] = useState("em_atendimento");
   const [filtroLog, setFiltroLog] = useState("");
+  const [consultaDesbloqueada, setConsultaDesbloqueada] = useState(false);
+  const [senhaConsulta, setSenhaConsulta] = useState("");
+  const [erroSenhaConsulta, setErroSenhaConsulta] = useState("");
 
   // Queries
   const { data: layouts = [] } = useQuery({
@@ -339,6 +342,30 @@ function Admin() {
             </CardContent>
           </Card>
 
+          {/* Saldo mensal por grupo */}
+          {(metricas?.grupos ?? []).some((g: any) => g.receitas != null || g.despesas != null) && (
+            <Card>
+              <CardHeader><CardTitle className="text-sm">Saldo mensal por grupo</CardTitle></CardHeader>
+              <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {(metricas?.grupos ?? []).map((g: any) => {
+                  const rec = g.receitas ?? 0;
+                  const des = g.despesas ?? 0;
+                  const saldo = rec - des;
+                  return (
+                    <div key={g.id} className="rounded-lg border p-3 space-y-1">
+                      <p className="font-semibold text-sm">{g.nome}</p>
+                      <div className="grid grid-cols-3 gap-1 text-xs">
+                        <div><span className="text-muted-foreground">Receita</span><br /><b className="text-emerald-700">R$ {rec.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</b></div>
+                        <div><span className="text-muted-foreground">Despesa</span><br /><b className="text-rose-700">R$ {des.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</b></div>
+                        <div><span className="text-muted-foreground">Saldo</span><br /><b className={saldo >= 0 ? "text-emerald-700" : "text-rose-700"}>R$ {saldo.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</b></div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+          )}
+
           {/* Composição dos grupos */}
           <Card>
             <CardHeader><CardTitle className="text-sm">Composição dos grupos</CardTitle></CardHeader>
@@ -360,9 +387,60 @@ function Admin() {
 
         {/* ─── ABA 2: CONSULTA ─── */}
         <TabsContent value="consulta" className="space-y-4">
-          <Card>
-            <CardHeader><CardTitle className="text-sm">Atividade e espaço por usuário</CardTitle></CardHeader>
-            <CardContent>
+          {!consultaDesbloqueada ? (
+            <Card>
+              <CardContent className="p-6 space-y-4 max-w-sm mx-auto">
+                <div className="text-center space-y-1">
+                  <div className="flex justify-center mb-3">
+                    <div className="flex size-12 items-center justify-center rounded-full bg-amber-500/10">
+                      <svg className="size-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                    </div>
+                  </div>
+                  <p className="font-semibold">Área protegida</p>
+                  <p className="text-xs text-muted-foreground">Confirme sua senha para acessar os dados de atividade dos usuários.</p>
+                </div>
+                <Input
+                  type="password"
+                  placeholder="Sua senha de acesso"
+                  value={senhaConsulta}
+                  onChange={(e) => { setSenhaConsulta(e.target.value); setErroSenhaConsulta(""); }}
+                  onKeyDown={async (e) => {
+                    if (e.key !== "Enter") return;
+                    const { error } = await supabase.auth.signInWithPassword({
+                      email: (await supabase.auth.getUser()).data.user?.email ?? "",
+                      password: senhaConsulta,
+                    });
+                    if (error) { setErroSenhaConsulta("Senha incorreta."); } else { setConsultaDesbloqueada(true); setSenhaConsulta(""); }
+                  }}
+                />
+                {erroSenhaConsulta && <p className="text-xs text-rose-600">{erroSenhaConsulta}</p>}
+                <Button
+                  className="w-full"
+                  disabled={!senhaConsulta}
+                  onClick={async () => {
+                    const { data: userResult } = await supabase.auth.getUser();
+                    const { error } = await supabase.auth.signInWithPassword({
+                      email: userResult.user?.email ?? "",
+                      password: senhaConsulta,
+                    });
+                    if (error) { setErroSenhaConsulta("Senha incorreta."); } else { setConsultaDesbloqueada(true); setSenhaConsulta(""); }
+                  }}
+                >
+                  Confirmar e acessar
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm">Atividade e espaço por usuário</CardTitle>
+                  <Button size="sm" variant="ghost" className="text-xs text-muted-foreground" onClick={() => setConsultaDesbloqueada(false)}>
+                    🔒 Bloquear novamente
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
               <div className="max-h-96 overflow-auto">
                 <table className="w-full text-left text-sm">
                   <thead>
@@ -392,8 +470,9 @@ function Admin() {
               <p className="mt-2 text-xs text-muted-foreground">
                 Sem CPF exibido por segurança. Armazenamento não atribuído: {formatarTamanho(metricas?.armazenamentoNaoAtribuidoBytes ?? 0)}.
               </p>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         {/* ─── ABA 3: ACESSO E AUTENTICAÇÃO ─── */}
@@ -705,17 +784,35 @@ function Admin() {
                 />
               </div>
             </CardHeader>
-            <CardContent className="max-h-[500px] overflow-auto space-y-0.5">
+            <CardContent className="max-h-[600px] overflow-auto space-y-1">
               {logsVisiveis.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Nenhum evento registrado.</p>
               ) : (
                 logsVisiveis.map((l: any) => (
-                  <div className="border-b py-2 text-xs" key={l.id}>
-                    <b>{l.acao.replaceAll("_", " ")}</b>
-                    <span className="ml-2 text-muted-foreground">
-                      {l.profiles?.nome ?? l.profiles?.email ?? "Usuário removido"} · {new Date(l.criado_em).toLocaleString("pt-BR")}
-                    </span>
-                  </div>
+                  <details key={l.id} className="group rounded-lg border px-3 py-2 text-xs">
+                    <summary className="flex cursor-pointer list-none items-start justify-between gap-2">
+                      <div className="flex-1">
+                        <span className="font-semibold capitalize">{l.acao.replaceAll("_", " ")}</span>
+                        <span className="ml-2 text-muted-foreground">
+                          {l.profiles?.nome ?? l.profiles?.email ?? "Sistema"} · {new Date(l.criado_em).toLocaleString("pt-BR")}
+                        </span>
+                        {l.detalhes?.ip && (
+                          <span className="ml-2 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px]">
+                            {l.detalhes.ip}{l.detalhes.cidade ? ` · ${l.detalhes.cidade}` : ""}
+                          </span>
+                        )}
+                        {l.acao?.includes("falha") || l.acao?.includes("bloqueado") || l.acao?.includes("login_falhou") ? (
+                          <span className="ml-2 rounded bg-rose-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-rose-600">⚠ Falha</span>
+                        ) : null}
+                      </div>
+                      <span className="shrink-0 text-[10px] text-muted-foreground group-open:hidden">▼ detalhes</span>
+                    </summary>
+                    {l.detalhes && Object.keys(l.detalhes).length > 0 && (
+                      <div className="mt-2 rounded bg-muted/60 p-2 font-mono text-[10px] whitespace-pre-wrap">
+                        {JSON.stringify(l.detalhes, null, 2)}
+                      </div>
+                    )}
+                  </details>
                 ))
               )}
             </CardContent>
