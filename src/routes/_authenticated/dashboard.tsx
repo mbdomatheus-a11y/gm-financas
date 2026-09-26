@@ -591,22 +591,6 @@ function DashboardPage() {
             </Select>
             {janela === "custom" && (
               <div className="flex items-center gap-1.5">
-<<<<<<< HEAD
-                <Input
-                  type="month"
-                  value={mesInicioCustom}
-                  onChange={(e) => setMesInicioCustom(e.target.value)}
-                  className="h-8 w-[130px] text-xs"
-                  aria-label="Mês inicial"
-                />
-                <span className="text-xs text-muted-foreground">até</span>
-                <Input
-                  type="month"
-                  value={mesFimCustom}
-                  onChange={(e) => setMesFimCustom(e.target.value)}
-                  className="h-8 w-[130px] text-xs"
-                  aria-label="Mês final"
-=======
                 <MonthPicker
                   value={mesInicioCustom}
                   onChange={setMesInicioCustom}
@@ -617,7 +601,6 @@ function DashboardPage() {
                   value={mesFimCustom}
                   onChange={setMesFimCustom}
                   ariaLabel="Mês final"
->>>>>>> atualizacoes-claude
                 />
               </div>
             )}
