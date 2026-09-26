@@ -342,29 +342,11 @@ function Admin() {
             </CardContent>
           </Card>
 
-          {/* Saldo mensal por grupo */}
-          {(metricas?.grupos ?? []).some((g: any) => g.receitas != null || g.despesas != null) && (
-            <Card>
-              <CardHeader><CardTitle className="text-sm">Saldo mensal por grupo</CardTitle></CardHeader>
-              <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {(metricas?.grupos ?? []).map((g: any) => {
-                  const rec = g.receitas ?? 0;
-                  const des = g.despesas ?? 0;
-                  const saldo = rec - des;
-                  return (
-                    <div key={g.id} className="rounded-lg border p-3 space-y-1">
-                      <p className="font-semibold text-sm">{g.nome}</p>
-                      <div className="grid grid-cols-3 gap-1 text-xs">
-                        <div><span className="text-muted-foreground">Receita</span><br /><b className="text-emerald-700">R$ {rec.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</b></div>
-                        <div><span className="text-muted-foreground">Despesa</span><br /><b className="text-rose-700">R$ {des.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</b></div>
-                        <div><span className="text-muted-foreground">Saldo</span><br /><b className={saldo >= 0 ? "text-emerald-700" : "text-rose-700"}>R$ {saldo.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</b></div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </CardContent>
-            </Card>
-          )}
+          {/* 2026-09-26: removido o card "Saldo mensal por grupo" — decisão do
+              proprietário: o administrador do site não deve ver dados
+              financeiros (receita/despesa/saldo) de nenhum grupo além do seu
+              próprio, nem agregados. A composição de grupos (nomes e membros)
+              continua disponível sem nenhum valor financeiro. */}
 
           {/* Composição dos grupos */}
           <Card>
