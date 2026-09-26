@@ -14,32 +14,44 @@ import {
   enviarConvitePorEmail,
   listarMeusConvites,
 } from "@/lib/convites.functions";
+import { obterConfiguracaoAcesso } from "@/lib/configuracoes-site.functions";
+import { usePermissoes } from "@/hooks/useAuthData";
 import { formatDate } from "@/lib/format";
 
-const COTA_CONVITES = 3;
+const COTA_CONVITES_PADRAO = 3;
 
-async function copiar(texto: string) {
+async function copiar(texto: string, mensagem = "Copiado") {
   try {
     await navigator.clipboard.writeText(texto);
-    toast.success("Código copiado");
+    toast.success(mensagem);
   } catch {
     toast.error("Não foi possível copiar — copie manualmente");
   }
 }
 
+/** Monta o link de convite clicável a partir do domínio que a pessoa está
+ * usando agora (evita apontar pro domínio de preview errado). Ao abrir, a
+ * tela de login já pré-preenche o código e pula direto pra "Criar conta". */
+function linkConvite(token: string) {
+  if (typeof window === "undefined") return token;
+  return `${window.location.origin}/entrar?convite=${encodeURIComponent(token)}`;
+}
+
 /**
- * Card de convites em cascata: mostra a cota (até 3 por pessoa), gera novos
- * códigos e lista os já criados. Cada código é digitado manualmente pela
- * pessoa convidada direto na tela de cadastro do site (não depende mais de
- * um link com domínio específico, que podia apontar pro domínio de preview
- * errado). Usado em `/conta` (qualquer usuário) e em `/usuarios` (admin).
+ * Card de convites em cascata: mostra a cota configurável, gera novos
+ * códigos e lista os já criados. Cada código pode ser copiado como link
+ * clicável (abre direto na criação de conta) ou como texto puro, e digitado
+ * manualmente se preferir. Usado em `/conta` (qualquer usuário) e em
+ * `/usuarios` (admin).
  */
 export function ConvitesCard() {
   const qc = useQueryClient();
+  const { isSiteAdmin } = usePermissoes();
   const listar = useServerFn(listarMeusConvites);
   const criar = useServerFn(criarConvite);
   const enviarEmail = useServerFn(enviarConvitePorEmail);
   const cancelar = useServerFn(cancelarConvite);
+  const obterConfig = useServerFn(obterConfiguracaoAcesso);
   const [copiadoId, setCopiadoId] = useState<string | null>(null);
   const [emailAbertoId, setEmailAbertoId] = useState<string | null>(null);
   const [emailInput, setEmailInput] = useState("");
@@ -48,6 +60,13 @@ export function ConvitesCard() {
     queryKey: ["meus-convites"],
     queryFn: async () => listar(),
   });
+
+  const { data: config } = useQuery({
+    queryKey: ["configuracao-acesso-publica"],
+    queryFn: () => obterConfig(),
+    staleTime: 60_000,
+  });
+  const cotaConvites = config?.cota_convites ?? COTA_CONVITES_PADRAO;
 
   const gerar = useMutation({
     mutationFn: async () => criar(),
@@ -80,7 +99,7 @@ export function ConvitesCard() {
 
   const agora = Date.now();
   const usados = convites.filter((c) => c.usado || new Date(c.expira_em).getTime() >= agora).length;
-  const restantes = Math.max(0, COTA_CONVITES - usados);
+  const restantes = isSiteAdmin ? Infinity : Math.max(0, cotaConvites - usados);
 
   return (
     <Card>
@@ -91,17 +110,21 @@ export function ConvitesCard() {
       </CardHeader>
       <CardContent className="space-y-3">
         <p className="text-xs text-muted-foreground">
-          Cada pessoa pode convidar até {COTA_CONVITES}. Quem você convidar também poderá convidar
-          mais {COTA_CONVITES}, e assim por diante. Gere um código abaixo e envie pra pessoa
-          (WhatsApp, mensagem, ou pelo botão de e-mail) — ela acessa o site e digita o código na
-          tela de cadastro pra criar a própria conta, num grupo separado, com os próprios dados.
+          {isSiteAdmin
+            ? "Como admin do site, você pode gerar convites sem limite."
+            : `Você pode convidar até ${cotaConvites} pessoas. Quem você convidar também poderá convidar mais gente, e assim por diante.`}{" "}
+          Gere um código abaixo e envie pra pessoa (WhatsApp, mensagem, ou pelo botão de e-mail) —
+          ela acessa o site e digita o código na tela de cadastro pra criar a própria conta, num
+          grupo separado, com os próprios dados.
         </p>
-        <div className="flex items-center justify-between rounded-lg border bg-muted/30 px-3 py-2 text-sm">
-          <span className="text-muted-foreground">Convites usados</span>
-          <span className="font-semibold tabular-nums">
-            {usados} / {COTA_CONVITES}
-          </span>
-        </div>
+        {!isSiteAdmin && (
+          <div className="flex items-center justify-between rounded-lg border bg-muted/30 px-3 py-2 text-sm">
+            <span className="text-muted-foreground">Convites usados</span>
+            <span className="font-semibold tabular-nums">
+              {usados} / {cotaConvites}
+            </span>
+          </div>
+        )}
         <Button
           size="sm"
           className="w-full"
@@ -146,9 +169,10 @@ export function ConvitesCard() {
                           className="size-7 shrink-0"
                           onClick={() => {
                             setCopiadoId(c.id);
-                            copiar(c.token);
+                            copiar(linkConvite(c.token), "Link de convite copiado");
                           }}
-                          aria-label="Copiar código do convite"
+                          aria-label="Copiar link de convite (abre direto na criação de conta)"
+                          title="Copiar link de convite"
                         >
                           <Copy
                             className={c.id === copiadoId ? "size-3.5 text-success" : "size-3.5"}

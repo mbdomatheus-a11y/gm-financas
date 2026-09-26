@@ -127,6 +127,7 @@ function Admin() {
   const [titulo, setTitulo] = useState("");
   const [msg, setMsg] = useState("");
   const [sessaoMin, setSessaoMin] = useState<number>(60);
+  const [cotaConvitesInput, setCotaConvitesInput] = useState<number>(3);
   const [dialogPriv, setDialogPriv] = useState<{ id: string; status: string; email: string } | null>(null);
   const [respostaPriv, setRespostaPriv] = useState("");
   const [statusPriv, setStatusPriv] = useState("em_atendimento");
@@ -154,7 +155,7 @@ function Admin() {
     enabled: isSiteAdmin,
     queryFn: () => logsFn(),
   });
-  const { data: config } = useQuery<{ modo_login: "cpf" | "email" | "ambos"; segundo_fator_email: boolean; sessao_maxima_minutos: number } | undefined>({
+  const { data: config } = useQuery<{ modo_login: "cpf" | "email" | "ambos"; segundo_fator_email: boolean; sessao_maxima_minutos: number; cota_convites: number } | undefined>({
     queryKey: ["configuracao-acesso-publica"],
     enabled: isSiteAdmin,
     queryFn: () => obterConfig() as any,
@@ -165,6 +166,12 @@ function Admin() {
       setSessaoMin(config.sessao_maxima_minutos);
     }
   }, [config?.sessao_maxima_minutos]);
+
+  useEffect(() => {
+    if (config?.cota_convites) {
+      setCotaConvitesInput(config.cota_convites);
+    }
+  }, [config?.cota_convites]);
 
   const { data: gestaoModulos } = useQuery({
     queryKey: ["admin-modulos"],
@@ -194,7 +201,7 @@ function Admin() {
 
   // Mutations
   const salvarAcesso = useMutation({
-    mutationFn: (valor: { modoLogin: "cpf" | "email" | "ambos"; segundoFatorEmail: boolean; sessaoMaximaMinutos: number }) =>
+    mutationFn: (valor: { modoLogin: "cpf" | "email" | "ambos"; segundoFatorEmail: boolean; sessaoMaximaMinutos: number; cotaConvites: number }) =>
       salvarConfig({ data: valor }),
     onSuccess: () => { toast.success("Configuração de acesso salva."); qc.invalidateQueries({ queryKey: ["configuracao-acesso-publica"] }); },
     onError: (e: any) => toast.error(e.message),
@@ -205,6 +212,32 @@ function Admin() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-modulos"] }),
     onError: (e: any) => toast.error(e.message),
   });
+
+  // Ação em massa: libera/bloqueia várias pessoas de uma vez pro mesmo
+  // módulo, disparando cada chamada em paralelo e invalidando a lista só
+  // uma vez no final (em vez de uma invalidação por pessoa).
+  const mudarModuloEmMassa = useMutation({
+    mutationFn: async (valor: { modulo: any; habilitado: boolean; userIds: string[] }) =>
+      Promise.all(
+        valor.userIds.map((userId) => salvarModulo({ data: { modulo: valor.modulo, habilitado: valor.habilitado, userId } })),
+      ),
+    onSuccess: (_data, valor) => {
+      toast.success(`${valor.userIds.length} usuário(s) ${valor.habilitado ? "liberado(s)" : "bloqueado(s)"}.`);
+      qc.invalidateQueries({ queryKey: ["admin-modulos"] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const [buscaModulo, setBuscaModulo] = useState("");
+  const [selecionadosPorModulo, setSelecionadosPorModulo] = useState<Record<string, Set<string>>>({});
+  function alternarSelecaoUsuario(modulo: string, userId: string) {
+    setSelecionadosPorModulo((atual) => {
+      const conjunto = new Set(atual[modulo] ?? []);
+      if (conjunto.has(userId)) conjunto.delete(userId);
+      else conjunto.add(userId);
+      return { ...atual, [modulo]: conjunto };
+    });
+  }
 
   const limparAviso = useMutation({
     mutationFn: (id: string) => encerrarComunicadoFn({ data: { id } }),
@@ -319,7 +352,10 @@ function Admin() {
                 <span><b>{(convites as any[]).filter((c: any) => c.status === "cancelado").length}</b> cancelados</span>
                 <span><b>{(convites as any[]).filter((c: any) => c.status === "expirado").length}</b> expirados</span>
               </div>
-              <p className="text-xs text-muted-foreground">Limite de 3 convites por usuário comum. Admins têm limite ilimitado.</p>
+              <p className="text-xs text-muted-foreground">
+                Limite de {config?.cota_convites ?? 3} convites por usuário comum (ajustável na aba
+                "Acesso e Auth"). Você, como admin do site, tem limite ilimitado.
+              </p>
               <div className="mt-3 max-h-60 overflow-auto">
                 <table className="w-full text-left text-xs">
                   <thead><tr className="border-b"><th className="p-1.5">Criador</th><th className="p-1.5">Status</th><th className="p-1.5">Criado em</th><th className="p-1.5">Expira em</th></tr></thead>
@@ -342,29 +378,11 @@ function Admin() {
             </CardContent>
           </Card>
 
-          {/* Saldo mensal por grupo */}
-          {(metricas?.grupos ?? []).some((g: any) => g.receitas != null || g.despesas != null) && (
-            <Card>
-              <CardHeader><CardTitle className="text-sm">Saldo mensal por grupo</CardTitle></CardHeader>
-              <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {(metricas?.grupos ?? []).map((g: any) => {
-                  const rec = g.receitas ?? 0;
-                  const des = g.despesas ?? 0;
-                  const saldo = rec - des;
-                  return (
-                    <div key={g.id} className="rounded-lg border p-3 space-y-1">
-                      <p className="font-semibold text-sm">{g.nome}</p>
-                      <div className="grid grid-cols-3 gap-1 text-xs">
-                        <div><span className="text-muted-foreground">Receita</span><br /><b className="text-emerald-700">R$ {rec.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</b></div>
-                        <div><span className="text-muted-foreground">Despesa</span><br /><b className="text-rose-700">R$ {des.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</b></div>
-                        <div><span className="text-muted-foreground">Saldo</span><br /><b className={saldo >= 0 ? "text-emerald-700" : "text-rose-700"}>R$ {saldo.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</b></div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </CardContent>
-            </Card>
-          )}
+          {/* 2026-09-26: removido o card "Saldo mensal por grupo" — decisão do
+              proprietário: o administrador do site não deve ver dados
+              financeiros (receita/despesa/saldo) de nenhum grupo além do seu
+              próprio, nem agregados. A composição de grupos (nomes e membros)
+              continua disponível sem nenhum valor financeiro. */}
 
           {/* Composição dos grupos */}
           <Card>
@@ -485,7 +503,7 @@ function Admin() {
                   <p className="mb-2 text-xs text-muted-foreground">Identificador no login</p>
                   <Select
                     value={config.modo_login}
-                    onValueChange={(v) => salvarAcesso.mutate({ modoLogin: v as any, segundoFatorEmail: config.segundo_fator_email, sessaoMaximaMinutos: sessaoMin })}
+                    onValueChange={(v) => salvarAcesso.mutate({ modoLogin: v as any, segundoFatorEmail: config.segundo_fator_email, sessaoMaximaMinutos: sessaoMin, cotaConvites: cotaConvitesInput })}
                   >
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -499,7 +517,7 @@ function Admin() {
                   2FA por e-mail
                   <Switch
                     checked={config.segundo_fator_email}
-                    onCheckedChange={(v) => salvarAcesso.mutate({ modoLogin: config.modo_login, segundoFatorEmail: v, sessaoMaximaMinutos: sessaoMin })}
+                    onCheckedChange={(v) => salvarAcesso.mutate({ modoLogin: config.modo_login, segundoFatorEmail: v, sessaoMaximaMinutos: sessaoMin, cotaConvites: cotaConvitesInput })}
                   />
                 </label>
                 <div className="space-y-2">
@@ -513,10 +531,30 @@ function Admin() {
                   />
                   <Button
                     size="sm"
-                    onClick={() => salvarAcesso.mutate({ modoLogin: config.modo_login, segundoFatorEmail: config.segundo_fator_email, sessaoMaximaMinutos: sessaoMin })}
+                    onClick={() => salvarAcesso.mutate({ modoLogin: config.modo_login, segundoFatorEmail: config.segundo_fator_email, sessaoMaximaMinutos: sessaoMin, cotaConvites: cotaConvitesInput })}
                   >
                     Salvar sessão
                   </Button>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground">Cota de convites por usuário</p>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={1000}
+                    value={cotaConvitesInput}
+                    onChange={(e) => setCotaConvitesInput(Number(e.target.value))}
+                  />
+                  <Button
+                    size="sm"
+                    onClick={() => salvarAcesso.mutate({ modoLogin: config.modo_login, segundoFatorEmail: config.segundo_fator_email, sessaoMaximaMinutos: sessaoMin, cotaConvites: cotaConvitesInput })}
+                  >
+                    Salvar cota de convites
+                  </Button>
+                  <p className="text-[11px] text-muted-foreground">
+                    Vale para todo mundo. Você (admin do site) sempre pode convidar sem limite,
+                    independente deste valor.
+                  </p>
                 </div>
               </CardContent>
             </Card>
@@ -539,34 +577,105 @@ function Admin() {
                 <p className="text-xs text-muted-foreground">
                   Matheus (admin master) sempre enxerga todos os módulos. Desative globalmente e libere para usuários de teste individualmente.
                 </p>
-                {gestaoModulos.modulos.map((m: any) => (
-                  <div key={m.modulo} className="rounded-lg border p-3">
-                    <div className="flex items-center justify-between">
-                      <b className="text-sm">{m.nome}</b>
-                      <Switch
-                        checked={m.habilitado}
-                        onCheckedChange={(v) => mudarModulo.mutate({ modulo: m.modulo, habilitado: v, userId: null })}
-                      />
-                    </div>
-                    {!m.habilitado && (
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {gestaoModulos.usuarios.map((u: any) => {
-                          const ex = gestaoModulos.excecoes.find((x: any) => x.user_id === u.id && x.modulo === m.modulo);
-                          return (
-                            <Button
-                              key={u.id}
-                              size="sm"
-                              variant={ex?.habilitado ? "default" : "outline"}
-                              onClick={() => mudarModulo.mutate({ modulo: m.modulo, habilitado: !ex?.habilitado, userId: u.id })}
-                            >
-                              {u.nome}
-                            </Button>
-                          );
-                        })}
+                <Input
+                  placeholder="Buscar usuário por nome ou e-mail…"
+                  value={buscaModulo}
+                  onChange={(e) => setBuscaModulo(e.target.value)}
+                  className="max-w-sm"
+                />
+                {gestaoModulos.modulos.map((m: any) => {
+                  const excecoesDoModulo = gestaoModulos.excecoes.filter((x: any) => x.modulo === m.modulo);
+                  const liberados = excecoesDoModulo.filter((x: any) => x.habilitado).length;
+                  const usuariosFiltrados = gestaoModulos.usuarios.filter((u: any) => {
+                    const termo = buscaModulo.trim().toLowerCase();
+                    if (!termo) return true;
+                    return u.nome?.toLowerCase().includes(termo) || u.email?.toLowerCase().includes(termo);
+                  });
+                  const selecionados = selecionadosPorModulo[m.modulo] ?? new Set<string>();
+                  return (
+                    <div key={m.modulo} className="rounded-lg border p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <b className="text-sm">{m.nome}</b>
+                          {!m.habilitado && (
+                            <Badge variant="secondary" className="text-[10px]">
+                              {liberados} usuário(s) com exceção liberada
+                            </Badge>
+                          )}
+                        </div>
+                        <Switch
+                          checked={m.habilitado}
+                          onCheckedChange={(v) => mudarModulo.mutate({ modulo: m.modulo, habilitado: v, userId: null })}
+                        />
                       </div>
-                    )}
-                  </div>
-                ))}
+                      {!m.habilitado && (
+                        <div className="mt-2 space-y-2">
+                          {selecionados.size > 0 && (
+                            <div className="flex flex-wrap items-center gap-2 rounded-md bg-muted/50 p-2">
+                              <span className="text-xs text-muted-foreground">
+                                {selecionados.size} selecionado(s)
+                              </span>
+                              <Button
+                                size="sm"
+                                variant="default"
+                                disabled={mudarModuloEmMassa.isPending}
+                                onClick={() =>
+                                  mudarModuloEmMassa.mutate({ modulo: m.modulo, habilitado: true, userIds: [...selecionados] })
+                                }
+                              >
+                                Liberar selecionados
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={mudarModuloEmMassa.isPending}
+                                onClick={() =>
+                                  mudarModuloEmMassa.mutate({ modulo: m.modulo, habilitado: false, userIds: [...selecionados] })
+                                }
+                              >
+                                Bloquear selecionados
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => setSelecionadosPorModulo((atual) => ({ ...atual, [m.modulo]: new Set() }))}
+                              >
+                                Limpar seleção
+                              </Button>
+                            </div>
+                          )}
+                          <div className="flex flex-wrap gap-2">
+                            {usuariosFiltrados.length === 0 && (
+                              <p className="text-xs text-muted-foreground">Nenhum usuário encontrado para "{buscaModulo}".</p>
+                            )}
+                            {usuariosFiltrados.map((u: any) => {
+                              const ex = excecoesDoModulo.find((x: any) => x.user_id === u.id);
+                              const selecionado = selecionados.has(u.id);
+                              return (
+                                <div key={u.id} className="flex items-center gap-1">
+                                  <input
+                                    type="checkbox"
+                                    className="size-3.5"
+                                    checked={selecionado}
+                                    onChange={() => alternarSelecaoUsuario(m.modulo, u.id)}
+                                    aria-label={`Selecionar ${u.nome}`}
+                                  />
+                                  <Button
+                                    size="sm"
+                                    variant={ex?.habilitado ? "default" : "outline"}
+                                    onClick={() => mudarModulo.mutate({ modulo: m.modulo, habilitado: !ex?.habilitado, userId: u.id })}
+                                  >
+                                    {u.nome}
+                                  </Button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </CardContent>
             </Card>
           )}

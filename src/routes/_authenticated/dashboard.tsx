@@ -98,6 +98,7 @@ const JANELAS = [
   { value: "6", label: "Próximos 6 meses" },
   { value: "12", label: "Próximos 12 meses" },
   { value: "24", label: "Próximos 24 meses" },
+  { value: "custom", label: "Período personalizado" },
 ];
 
 /** Gera as chaves de mês da janela escolhida (negativo = passado incluindo o mês atual). */
@@ -111,6 +112,29 @@ function monthWindow(janela: string): string[] {
   } else {
     for (let i = 0; i < n; i++)
       out.push(monthKey(new Date(now.getFullYear(), now.getMonth() + i, 1)));
+  }
+  return out;
+}
+
+/** Gera as chaves de mês entre `inicio` e `fim` (ambos "YYYY-MM", inclusive). */
+function monthRange(inicio: string, fim: string): string[] {
+  const [yi, mi] = inicio.split("-").map(Number);
+  const [yf, mf] = fim.split("-").map(Number);
+  if (!yi || !mi || !yf || !mf) return [];
+  const out: string[] = [];
+  let y = yi;
+  let m = mi;
+  // Limite de segurança pra nunca gerar uma janela absurdamente grande
+  // (ex.: datas trocadas por engano) — 30 anos de meses é mais que suficiente.
+  let guarda = 0;
+  while ((y < yf || (y === yf && m <= mf)) && guarda < 360) {
+    out.push(`${y}-${String(m).padStart(2, "0")}`);
+    m++;
+    if (m > 12) {
+      m = 1;
+      y++;
+    }
+    guarda++;
   }
   return out;
 }
@@ -138,6 +162,8 @@ function DashboardPage() {
 
   const mesAtual = currentMonthKey();
   const [janela, setJanela] = useState("-6");
+  const [mesInicioCustom, setMesInicioCustom] = useState(mesAtual);
+  const [mesFimCustom, setMesFimCustom] = useState(mesAtual);
   const [visaoFluxo, setVisaoFluxo] = useState<"ambos" | "receitas" | "despesas">("ambos");
   const [tipoGrafico, setTipoGrafico] = useState<"barras" | "linhas">("barras");
   const [mesPie, setMesPie] = useState(mesAtual);
@@ -145,14 +171,27 @@ function DashboardPage() {
   const [drill, setDrill] = useState<{ mes: string; grupo?: string } | null>(null);
   const [editando, setEditando] = useState<any | null>(null);
 
-  const meses = useMemo(() => monthWindow(janela), [janela]);
+  const meses = useMemo(() => {
+    if (janela === "custom") {
+      const inicio = mesInicioCustom <= mesFimCustom ? mesInicioCustom : mesFimCustom;
+      const fim = mesInicioCustom <= mesFimCustom ? mesFimCustom : mesInicioCustom;
+      return monthRange(inicio, fim);
+    }
+    return monthWindow(janela);
+  }, [janela, mesInicioCustom, mesFimCustom]);
+
+  // Janela usada para calcular parcelas/lançamentos por competência — cobre
+  // sempre pelo menos -12..+24 meses (padrão), mas se o período personalizado
+  // escolhido for maior que isso, amplia para cobrir o intervalo escolhido.
   const mesesSelecionaveis = useMemo(() => {
     const now = new Date();
-    const out: string[] = [];
+    const base: string[] = [];
     for (let i = -12; i <= 24; i++)
-      out.push(monthKey(new Date(now.getFullYear(), now.getMonth() + i, 1)));
-    return out;
-  }, []);
+      base.push(monthKey(new Date(now.getFullYear(), now.getMonth() + i, 1)));
+    if (meses.length === 0) return base;
+    const uniao = new Set([...base, ...meses]);
+    return Array.from(uniao).sort();
+  }, [meses]);
 
   const parcelas = useMemo(
     () =>
@@ -445,6 +484,7 @@ function DashboardPage() {
           tone="success"
           delta={dados.deltaReceitas}
           deltaGoodUp
+          to="/receitas"
         />
         <StatCard
           label="Despesas do mês"
@@ -455,13 +495,19 @@ function DashboardPage() {
           tone="destructive"
           delta={dados.deltaDespesas}
           hint={`Fixas ${formatBRL(dados.fixas)} · Variáveis ${formatBRL(dados.variaveis)}`}
+          to="/despesas"
         />
 
+        {/* "Saldo do mês" e "Taxa de poupança" não têm uma única tela
+            equivalente no site (são métricas derivadas de receitas −
+            despesas) — o destino mais honesto é o próprio gráfico de fluxo
+            de caixa mês a mês, mais abaixo nesta mesma página. */}
         <StatCard
           label="Saldo do mês"
           value={dados.saldo}
           icon={Wallet}
           tone={dados.saldo >= 0 ? "success" : "destructive"}
+          href="#fluxo-caixa"
         />
         <StatCard
           label="Taxa de poupança"
@@ -470,6 +516,7 @@ function DashboardPage() {
           tone={dados.taxaPoupanca >= 0 ? "success" : "destructive"}
           display={`${dados.taxaPoupanca.toFixed(0)}%`}
           hint={`Média de despesas na janela: ${formatBRL(dados.mediaDespesas)}`}
+          href="#fluxo-caixa"
         />
         <StatCard
           label="Parcelas mensalizadas"
@@ -477,6 +524,8 @@ function DashboardPage() {
           icon={CalendarClock}
           tone="warning"
           hint="Parcelas com vencimento neste mês"
+          to="/despesas"
+          search={{ modo: "cartao" }}
         />
         <StatCard
           label="Dívida total em aberto"
@@ -484,10 +533,12 @@ function DashboardPage() {
           icon={Landmark}
           tone="destructive"
           hint="Tudo que ainda falta quitar"
+          to="/despesas"
+          search={{ mes: "todos" }}
         />
       </div>
 
-      <Card className="mt-4">
+      <Card id="fluxo-caixa" className="mt-4">
         <CardHeader className="flex flex-col gap-2 space-y-0 sm:flex-row sm:items-center sm:justify-between">
           <CardTitle className="text-base">Fluxo de caixa mês a mês</CardTitle>
           <div className="flex flex-wrap gap-2">
@@ -537,6 +588,25 @@ function DashboardPage() {
                 ))}
               </SelectContent>
             </Select>
+            {janela === "custom" && (
+              <div className="flex items-center gap-1.5">
+                <Input
+                  type="month"
+                  value={mesInicioCustom}
+                  onChange={(e) => setMesInicioCustom(e.target.value)}
+                  className="h-8 w-[130px] text-xs"
+                  aria-label="Mês inicial"
+                />
+                <span className="text-xs text-muted-foreground">até</span>
+                <Input
+                  type="month"
+                  value={mesFimCustom}
+                  onChange={(e) => setMesFimCustom(e.target.value)}
+                  className="h-8 w-[130px] text-xs"
+                  aria-label="Mês final"
+                />
+              </div>
+            )}
           </div>
         </CardHeader>
         <CardContent className="h-[340px]">
@@ -1039,6 +1109,9 @@ function StatCard({
   display,
   delta,
   deltaGoodUp,
+  to,
+  search,
+  href,
 }: {
   label: string;
   value: number;
@@ -1050,42 +1123,64 @@ function StatCard({
   display?: string;
   delta?: number | null;
   deltaGoodUp?: boolean;
+  /** Rota pra onde o card navega ao ser clicado. Sem isso (e sem `href`), o card fica só informativo. */
+  to?: string;
+  /** Search params da rota de destino (ex.: { modo: "cartao" }). */
+  search?: Record<string, string>;
+  /** Âncora na própria página (ex.: "#fluxo-caixa"), pra quando o destino natural é um gráfico já visível no dashboard, não outra rota. */
+  href?: string;
 }) {
   const toneClass =
     tone === "success" ? "text-success" : tone === "warning" ? "text-warning" : "text-destructive";
-  return (
-    <Card className="overflow-hidden">
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between gap-2">
-          <p className="text-xs font-medium text-muted-foreground">{label}</p>
-          <Icon className={`size-4 ${toneClass}`} />
-        </div>
-        <div className="mt-2 flex flex-wrap items-baseline gap-2">
-          <p className="text-xl font-bold tracking-tight">{display ?? formatBRL(value)}</p>
-          {delta != null && Number.isFinite(delta) && (
-            <span
-              className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
-                delta >= 0 === !!deltaGoodUp
-                  ? "bg-success/10 text-success"
-                  : "bg-destructive/10 text-destructive"
-              }`}
-            >
-              {delta >= 0 ? (
-                <ArrowUpRight className="size-3" />
-              ) : (
-                <ArrowDownRight className="size-3" />
-              )}
-              {Math.abs(delta).toFixed(0)}% vs. mês anterior
-            </span>
-          )}
-        </div>
-        {!!usd && !!cotacao && (
-          <p className="mt-0.5 text-[11px] text-muted-foreground">
-            inclui {formatUSD(usd)} na cotação do dia
-          </p>
+
+  const body = (
+    <>
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-xs font-medium text-muted-foreground">{label}</p>
+        <Icon className={`size-4 ${toneClass}`} />
+      </div>
+      <div className="mt-2 flex flex-wrap items-baseline gap-2">
+        <p className="text-xl font-bold tracking-tight">{display ?? formatBRL(value)}</p>
+        {delta != null && Number.isFinite(delta) && (
+          <span
+            className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
+              delta >= 0 === !!deltaGoodUp
+                ? "bg-success/10 text-success"
+                : "bg-destructive/10 text-destructive"
+            }`}
+          >
+            {delta >= 0 ? (
+              <ArrowUpRight className="size-3" />
+            ) : (
+              <ArrowDownRight className="size-3" />
+            )}
+            {Math.abs(delta).toFixed(0)}% vs. mês anterior
+          </span>
         )}
-        {hint && <p className="mt-1 text-[11px] text-muted-foreground">{hint}</p>}
-      </CardContent>
+      </div>
+      {!!usd && !!cotacao && (
+        <p className="mt-0.5 text-[11px] text-muted-foreground">
+          inclui {formatUSD(usd)} na cotação do dia
+        </p>
+      )}
+      {hint && <p className="mt-1 text-[11px] text-muted-foreground">{hint}</p>}
+    </>
+  );
+
+  const clicavel = !!to || !!href;
+  return (
+    <Card className={clicavel ? "overflow-hidden transition-colors hover:bg-muted/40" : "overflow-hidden"}>
+      {to ? (
+        <Link to={to} {...(search ? { search } : {})} className="block focus-visible:outline-none">
+          <CardContent className="p-4">{body}</CardContent>
+        </Link>
+      ) : href ? (
+        <a href={href} className="block focus-visible:outline-none">
+          <CardContent className="p-4">{body}</CardContent>
+        </a>
+      ) : (
+        <CardContent className="p-4">{body}</CardContent>
+      )}
     </Card>
   );
 }

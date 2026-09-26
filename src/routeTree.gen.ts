@@ -45,6 +45,8 @@ import { Route as CalculadorasIndexRouteImport } from './routes/calculadoras/ind
 import { Route as CalculadorasDiferencaEntreDatasRouteImport } from './routes/calculadoras/diferenca-entre-datas'
 import { Route as CalculadorasSomarDiasADataRouteImport } from './routes/calculadoras/somar-dias-a-data'
 import { Route as CalculadorasSomarHorariosRouteImport } from './routes/calculadoras/somar-horarios'
+import { Route as LinksTemporariosIndexRouteImport } from './routes/links-temporarios/index'
+import { Route as LinksTemporariosIdRouteImport } from './routes/links-temporarios/$id'
 import { Route as ApiCronDescarteLayoutsRouteImport } from './routes/api/cron/descarte-layouts'
 import { Route as OauthGoogleDriveReturnRouteImport } from './routes/oauth/google-drive/return'
 
@@ -236,6 +238,16 @@ const CalculadorasSomarHorariosRoute =
     path: '/calculadoras/somar-horarios',
     getParentRoute: () => rootRouteImport,
   } as any)
+const LinksTemporariosIndexRoute = LinksTemporariosIndexRouteImport.update({
+  id: '/links-temporarios/',
+  path: '/links-temporarios/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LinksTemporariosIdRoute = LinksTemporariosIdRouteImport.update({
+  id: '/links-temporarios/$id',
+  path: '/links-temporarios/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiCronDescarteLayoutsRoute = ApiCronDescarteLayoutsRouteImport.update({
   id: '/api/cron/descarte-layouts',
   path: '/api/cron/descarte-layouts',
@@ -282,7 +294,9 @@ export interface FileRoutesByFullPath {
   '/calculadoras/diferenca-entre-datas': typeof CalculadorasDiferencaEntreDatasRoute
   '/calculadoras/somar-dias-a-data': typeof CalculadorasSomarDiasADataRoute
   '/calculadoras/somar-horarios': typeof CalculadorasSomarHorariosRoute
+  '/links-temporarios/$id': typeof LinksTemporariosIdRoute
   '/calculadoras/': typeof CalculadorasIndexRoute
+  '/links-temporarios/': typeof LinksTemporariosIndexRoute
   '/api/cron/descarte-layouts': typeof ApiCronDescarteLayoutsRoute
   '/oauth/google-drive/return': typeof OauthGoogleDriveReturnRoute
 }
@@ -321,7 +335,9 @@ export interface FileRoutesByTo {
   '/calculadoras/diferenca-entre-datas': typeof CalculadorasDiferencaEntreDatasRoute
   '/calculadoras/somar-dias-a-data': typeof CalculadorasSomarDiasADataRoute
   '/calculadoras/somar-horarios': typeof CalculadorasSomarHorariosRoute
+  '/links-temporarios/$id': typeof LinksTemporariosIdRoute
   '/calculadoras': typeof CalculadorasIndexRoute
+  '/links-temporarios': typeof LinksTemporariosIndexRoute
   '/api/cron/descarte-layouts': typeof ApiCronDescarteLayoutsRoute
   '/oauth/google-drive/return': typeof OauthGoogleDriveReturnRoute
 }
@@ -362,7 +378,9 @@ export interface FileRoutesById {
   '/calculadoras/diferenca-entre-datas': typeof CalculadorasDiferencaEntreDatasRoute
   '/calculadoras/somar-dias-a-data': typeof CalculadorasSomarDiasADataRoute
   '/calculadoras/somar-horarios': typeof CalculadorasSomarHorariosRoute
+  '/links-temporarios/$id': typeof LinksTemporariosIdRoute
   '/calculadoras/': typeof CalculadorasIndexRoute
+  '/links-temporarios/': typeof LinksTemporariosIndexRoute
   '/api/cron/descarte-layouts': typeof ApiCronDescarteLayoutsRoute
   '/oauth/google-drive/return': typeof OauthGoogleDriveReturnRoute
 }
@@ -403,7 +421,9 @@ export interface FileRouteTypes {
     | '/calculadoras/diferenca-entre-datas'
     | '/calculadoras/somar-dias-a-data'
     | '/calculadoras/somar-horarios'
+    | '/links-temporarios/$id'
     | '/calculadoras/'
+    | '/links-temporarios/'
     | '/api/cron/descarte-layouts'
     | '/oauth/google-drive/return'
   fileRoutesByTo: FileRoutesByTo
@@ -442,7 +462,9 @@ export interface FileRouteTypes {
     | '/calculadoras/diferenca-entre-datas'
     | '/calculadoras/somar-dias-a-data'
     | '/calculadoras/somar-horarios'
+    | '/links-temporarios/$id'
     | '/calculadoras'
+    | '/links-temporarios'
     | '/api/cron/descarte-layouts'
     | '/oauth/google-drive/return'
   id:
@@ -482,7 +504,9 @@ export interface FileRouteTypes {
     | '/calculadoras/diferenca-entre-datas'
     | '/calculadoras/somar-dias-a-data'
     | '/calculadoras/somar-horarios'
+    | '/links-temporarios/$id'
     | '/calculadoras/'
+    | '/links-temporarios/'
     | '/api/cron/descarte-layouts'
     | '/oauth/google-drive/return'
   fileRoutesById: FileRoutesById
@@ -499,7 +523,9 @@ export interface RootRouteChildren {
   CalculadorasDiferencaEntreDatasRoute: typeof CalculadorasDiferencaEntreDatasRoute
   CalculadorasSomarDiasADataRoute: typeof CalculadorasSomarDiasADataRoute
   CalculadorasSomarHorariosRoute: typeof CalculadorasSomarHorariosRoute
+  LinksTemporariosIdRoute: typeof LinksTemporariosIdRoute
   CalculadorasIndexRoute: typeof CalculadorasIndexRoute
+  LinksTemporariosIndexRoute: typeof LinksTemporariosIndexRoute
   ApiCronDescarteLayoutsRoute: typeof ApiCronDescarteLayoutsRoute
   OauthGoogleDriveReturnRoute: typeof OauthGoogleDriveReturnRoute
 }
@@ -758,6 +784,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CalculadorasSomarHorariosRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/links-temporarios/': {
+      id: '/links-temporarios/'
+      path: '/links-temporarios'
+      fullPath: '/links-temporarios/'
+      preLoaderRoute: typeof LinksTemporariosIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/links-temporarios/$id': {
+      id: '/links-temporarios/$id'
+      path: '/links-temporarios/$id'
+      fullPath: '/links-temporarios/$id'
+      preLoaderRoute: typeof LinksTemporariosIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/cron/descarte-layouts': {
       id: '/api/cron/descarte-layouts'
       path: '/api/cron/descarte-layouts'
@@ -844,10 +884,22 @@ const rootRouteChildren: RootRouteChildren = {
   CalculadorasDiferencaEntreDatasRoute: CalculadorasDiferencaEntreDatasRoute,
   CalculadorasSomarDiasADataRoute: CalculadorasSomarDiasADataRoute,
   CalculadorasSomarHorariosRoute: CalculadorasSomarHorariosRoute,
+  LinksTemporariosIdRoute: LinksTemporariosIdRoute,
   CalculadorasIndexRoute: CalculadorasIndexRoute,
+  LinksTemporariosIndexRoute: LinksTemporariosIndexRoute,
   ApiCronDescarteLayoutsRoute: ApiCronDescarteLayoutsRoute,
   OauthGoogleDriveReturnRoute: OauthGoogleDriveReturnRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

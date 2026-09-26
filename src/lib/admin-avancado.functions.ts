@@ -241,22 +241,11 @@ export const adminMetricas = createServerFn({ method: "GET" })
           new Date(s.iniciou_em).getTime(),
       )
       .filter((n: number) => n >= 0 && n <= 24 * 60 * 60 * 1000);
-    // Saldo mensal por grupo (mês atual)
-    const agora = new Date();
-    const inicioMes = new Date(agora.getFullYear(), agora.getMonth(), 1).toISOString().slice(0, 10);
-    const fimMes = new Date(agora.getFullYear(), agora.getMonth() + 1, 0).toISOString().slice(0, 10);
-    const [{ data: receitasMes }, { data: despesasMes }] = await Promise.all([
-      db.from("receitas").select("valor,grupo_id").gte("data", inicioMes).lte("data", fimMes),
-      db.from("despesas").select("valor,grupo_id").gte("data", inicioMes).lte("data", fimMes).is("excluida_em", null),
-    ]);
-    const recPorGrupo = new Map<string, number>();
-    const desPorGrupo = new Map<string, number>();
-    for (const r of receitasMes ?? []) {
-      if (r.grupo_id) recPorGrupo.set(r.grupo_id, (recPorGrupo.get(r.grupo_id) ?? 0) + Number(r.valor));
-    }
-    for (const d of despesasMes ?? []) {
-      if (d.grupo_id) desPorGrupo.set(d.grupo_id, (desPorGrupo.get(d.grupo_id) ?? 0) + Number(d.valor));
-    }
+    // 2026-09-26: removido o saldo mensal (receitas/despesas) por grupo —
+    // decisão do proprietário: o administrador do site não deve ter acesso
+    // a dados financeiros de nenhum grupo além do seu próprio, nem em
+    // formato agregado. A composição de grupos abaixo mantém só dados de
+    // cadastro (nome, membros), sem nenhum valor financeiro.
 
     return {
       total: total ?? 0,
@@ -292,8 +281,6 @@ export const adminMetricas = createServerFn({ method: "GET" })
         membros: (perfis ?? [])
           .filter((p: any) => p.grupo_id === g.id)
           .map((p: any) => ({ id: p.id, nome: p.nome, email: p.email, ativo: p.ativo })),
-        receitas: recPorGrupo.get(g.id) ?? 0,
-        despesas: desPorGrupo.get(g.id) ?? 0,
       })),
     };
   });

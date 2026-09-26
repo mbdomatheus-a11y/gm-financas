@@ -9,6 +9,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { AppLayout } from "@/components/AppLayout";
 import { ConvitesCard } from "@/components/ConvitesCard";
 import { PermissoesUsuariosCard } from "@/components/PermissoesUsuariosCard";
+import { ConciliacaoFaturasCard } from "@/components/ConciliacaoFaturasCard";
 import { Field } from "@/routes/_authenticated/receitas";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -204,6 +205,7 @@ function ContaPage() {
             </Button>
           </CardContent>
         </Card>
+        <ConciliacaoFaturasCard />
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm">Seus dados cadastrais</CardTitle>
