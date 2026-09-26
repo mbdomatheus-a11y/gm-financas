@@ -195,7 +195,7 @@ export function VisaoGeralHome({ ocultarValores = false }: { ocultarValores?: bo
 
   const economiaTotal = useMemo(() => {
     return (despesas as any[])
-      .filter((d) => d.observacoes?.includes("[ECONOMIA_CONQUISTADA]"))
+      .filter((d) => d.economia_conquistada)
       .reduce((s, d) => s + toBRL(Number(d.valor_total ?? 0), d.moeda ?? "BRL", cotacao), 0);
   }, [despesas, cotacao]);
 

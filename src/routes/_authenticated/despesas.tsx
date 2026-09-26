@@ -130,6 +130,7 @@ const schema = z.object({
   data_primeira_parcela: z.string().min(10, "Informe a data da 1ª parcela"),
   responsavel: z.string().min(1, "Informe o responsável"),
   observacoes: z.string().max(500).nullable(),
+  economia_conquistada: z.boolean(),
 });
 
 function novoForm(tipo: "fixa" | "variavel") {
@@ -146,6 +147,7 @@ function novoForm(tipo: "fixa" | "variavel") {
     data_primeira_parcela: toISODate(new Date()),
     responsavel: "",
     observacoes: "",
+    economia_conquistada: false,
     recorrencia_duracao: "sem_prazo",
     recorrencia_meses: "12",
     reajuste_tipo: "nenhum",
@@ -304,6 +306,7 @@ function DespesasPage() {
       data_primeira_parcela: d.recorrencia_inicio ?? d.data_primeira_parcela,
       responsavel: d.responsavel ?? "",
       observacoes: d.observacoes ?? "",
+      economia_conquistada: !!d.economia_conquistada,
       recorrencia_duracao: d.recorrencia_meses ? "prazo" : "sem_prazo",
       recorrencia_meses: String(d.recorrencia_meses ?? 12),
       reajuste_tipo: d.reajuste_percentual ? "composto" : "nenhum",
@@ -318,10 +321,6 @@ function DespesasPage() {
 
   const salvar = useMutation({
     mutationFn: async () => {
-      const obsFinal = form.economia_conquistada
-        ? `[ECONOMIA_CONQUISTADA] ${form.observacoes || ""}`.trim()
-        : form.observacoes || null;
-
       const parsed = schema.parse({
         descricao: form.descricao,
         valor_total: valorNum,
@@ -332,7 +331,8 @@ function DespesasPage() {
         total_parcelas: nParcelas,
         data_primeira_parcela: form.data_primeira_parcela,
         responsavel: form.responsavel,
-        observacoes: obsFinal,
+        observacoes: form.observacoes || null,
+        economia_conquistada: !!form.economia_conquistada,
       });
       const [tipoPg, idPg] = String(form.pagamento).split(":");
       const vinculos = {
@@ -1050,7 +1050,9 @@ function DespesasPage() {
                           className={cn(
                             "flex items-center gap-3 px-3 py-2.5 transition-colors hover:bg-muted/40",
                             can("despesas", "editar") && "cursor-pointer",
-                            (ignoradaNoMes || d.origem === "fatura_total_concluida") &&
+                            (ignoradaNoMes ||
+                              d.origem === "fatura_total_concluida" ||
+                              d.economia_conquistada) &&
                               "opacity-60 line-through bg-muted/20",
                           )}
                         >
@@ -1082,6 +1084,14 @@ function DespesasPage() {
                               {d.origem === "fatura_total_concluida" && (
                                 <Badge variant="outline" className="text-[10px]">
                                   Total manual concluído
+                                </Badge>
+                              )}
+                              {d.economia_conquistada && (
+                                <Badge
+                                  variant="outline"
+                                  className="border-emerald-500/30 text-[10px] text-emerald-600 dark:text-emerald-400"
+                                >
+                                  Economia conquistada
                                 </Badge>
                               )}
                             </div>

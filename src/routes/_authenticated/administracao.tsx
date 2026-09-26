@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { usePermissoes } from "@/hooks/useAuthData";
+import { formatBRL } from "@/lib/format";
 import {
   adminEncerrarComunicado,
   adminListarComunicados,
@@ -35,7 +36,17 @@ import {
   adminAtualizarChamado,
   adminListarConvites,
 } from "@/lib/central-solicitacoes.functions";
-import { confirmarLogo, prepararUploadLogo } from "@/lib/identidade-site.functions";
+import {
+  confirmarLogo,
+  confirmarVideo,
+  prepararUploadLogo,
+  prepararUploadVideo,
+} from "@/lib/identidade-site.functions";
+import {
+  adminSalvarEstatisticaPublica,
+  obterEconomiaTotalAutomatica,
+  obterEstatisticaPublica,
+} from "@/lib/estatisticas-site.functions";
 import { Switch } from "@/components/ui/switch";
 import {
   Select,
@@ -101,6 +112,7 @@ function Admin() {
   const { isSiteAdmin } = usePermissoes();
   const qc = useQueryClient();
   const logoInput = useRef<HTMLInputElement>(null);
+  const videoInput = useRef<HTMLInputElement>(null);
 
   // Server functions
   const layoutsFn = useServerFn(adminListarLayouts);
@@ -111,6 +123,8 @@ function Admin() {
   const criarComunicadoFn = useServerFn(adminCriarComunicado);
   const prepararLogo = useServerFn(prepararUploadLogo);
   const confirmar = useServerFn(confirmarLogo);
+  const prepararVideo = useServerFn(prepararUploadVideo);
+  const confirmarVideoFn = useServerFn(confirmarVideo);
   const obterConfig = useServerFn(obterConfiguracaoAcesso);
   const salvarConfig = useServerFn(adminSalvarConfiguracaoAcesso);
   const listarModulos = useServerFn(adminListarModulos);
@@ -122,6 +136,9 @@ function Admin() {
   const chamadosFn = useServerFn(adminListarChamados);
   const atualizarChamadoFn = useServerFn(adminAtualizarChamado);
   const convitesFn = useServerFn(adminListarConvites);
+  const economiaAutomaticaFn = useServerFn(obterEconomiaTotalAutomatica);
+  const obterEstatisticaPublicaFn = useServerFn(obterEstatisticaPublica);
+  const salvarEstatisticaFn = useServerFn(adminSalvarEstatisticaPublica);
 
   // State
   const [titulo, setTitulo] = useState("");
@@ -138,6 +155,7 @@ function Admin() {
   const [consultaDesbloqueada, setConsultaDesbloqueada] = useState(false);
   const [senhaConsulta, setSenhaConsulta] = useState("");
   const [erroSenhaConsulta, setErroSenhaConsulta] = useState("");
+  const [economiaExibidaInput, setEconomiaExibidaInput] = useState("");
 
   // Queries
   const { data: layouts = [] } = useQuery({
@@ -198,12 +216,50 @@ function Admin() {
     enabled: isSiteAdmin,
     queryFn: () => convitesFn(),
   });
+  const { data: economiaAutomatica } = useQuery({
+    queryKey: ["admin-economia-total-automatica"],
+    enabled: isSiteAdmin,
+    queryFn: () => economiaAutomaticaFn(),
+  });
+  const { data: estatisticaPublica } = useQuery({
+    queryKey: ["estatistica-publica-economia"],
+    enabled: isSiteAdmin,
+    queryFn: () => obterEstatisticaPublicaFn(),
+  });
+  const { data: identidadeVisual } = useQuery({
+    queryKey: ["identidade-visual-site"],
+    enabled: isSiteAdmin,
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("identidade_visual_site")
+        .select("logo_path, video_demonstracao_path")
+        .eq("id", true)
+        .maybeSingle();
+      return data as { logo_path: string | null; video_demonstracao_path: string | null } | null;
+    },
+  });
+
+  useEffect(() => {
+    if (estatisticaPublica && estatisticaPublica.economiaTotalExibida !== null) {
+      setEconomiaExibidaInput(String(estatisticaPublica.economiaTotalExibida));
+    }
+  }, [estatisticaPublica]);
 
   // Mutations
   const salvarAcesso = useMutation({
     mutationFn: (valor: { modoLogin: "cpf" | "email" | "ambos"; segundoFatorEmail: boolean; sessaoMaximaMinutos: number; cotaConvites: number }) =>
       salvarConfig({ data: valor }),
     onSuccess: () => { toast.success("Configuração de acesso salva."); qc.invalidateQueries({ queryKey: ["configuracao-acesso-publica"] }); },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const salvarEstatistica = useMutation({
+    mutationFn: (valor: number | null) => salvarEstatisticaFn({ data: { valor } }),
+    onSuccess: () => {
+      toast.success("Estatística pública atualizada.");
+      qc.invalidateQueries({ queryKey: ["estatistica-publica-economia"] });
+      qc.invalidateQueries({ queryKey: ["estatistica-publica-economia-home"] });
+    },
     onError: (e: any) => toast.error(e.message),
   });
 
@@ -294,6 +350,30 @@ function Admin() {
       toast.success("Logo atualizada em todo o site.");
     } catch (e: any) { toast.error(e.message || "Não foi possível atualizar a logo."); }
     finally { if (logoInput.current) logoInput.current.value = ""; }
+  }
+
+  async function subirVideo(files: FileList | null) {
+    const arquivo = files?.[0];
+    if (!arquivo) return;
+    if (!/^video\/(mp4|webm|quicktime)$/.test(arquivo.type) || arquivo.size > 100 * 1024 * 1024) { toast.error("Envie MP4, WEBM ou MOV de até 100 MB."); return; }
+    try {
+      const envio = await prepararVideo({ data: { nome: arquivo.name } });
+      const { error } = await supabase.storage.from("site_videos").uploadToSignedUrl(envio.path, envio.token, arquivo);
+      if (error) throw error;
+      await confirmarVideoFn({ data: { path: envio.path } });
+      qc.invalidateQueries({ queryKey: ["identidade-visual-site"] });
+      qc.invalidateQueries({ queryKey: ["admin-logs"] });
+      toast.success("Vídeo de demonstração atualizado.");
+    } catch (e: any) { toast.error(e.message || "Não foi possível atualizar o vídeo."); }
+    finally { if (videoInput.current) videoInput.current.value = ""; }
+  }
+
+  async function removerVideo() {
+    try {
+      await confirmarVideoFn({ data: { path: null } });
+      qc.invalidateQueries({ queryKey: ["identidade-visual-site"] });
+      toast.success("Vídeo removido da home.");
+    } catch (e: any) { toast.error(e.message || "Não foi possível remover o vídeo."); }
   }
 
   if (!isSiteAdmin)
@@ -697,6 +777,108 @@ function Admin() {
                 onChange={(e) => subirLogo(e.target.files)}
               />
               <Button variant="outline" onClick={() => logoInput.current?.click()}>Enviar ou trocar logo</Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
+              <div>
+                <h2 className="font-semibold">Vídeo de demonstração da home</h2>
+                <p className="text-xs text-muted-foreground">
+                  Exibido na seção "Demonstração" da home pública. MP4, WEBM ou MOV, até 100 MB.
+                  {identidadeVisual?.video_demonstracao_path ? " Há um vídeo publicado agora." : " Nenhum vídeo publicado ainda."}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <input
+                  ref={videoInput}
+                  className="hidden"
+                  type="file"
+                  accept="video/mp4,video/webm,video/quicktime"
+                  onChange={(e) => subirVideo(e.target.files)}
+                />
+                <Button variant="outline" onClick={() => videoInput.current?.click()}>
+                  {identidadeVisual?.video_demonstracao_path ? "Trocar vídeo" : "Enviar vídeo"}
+                </Button>
+                {identidadeVisual?.video_demonstracao_path && (
+                  <Button variant="ghost" className="text-muted-foreground" onClick={removerVideo}>Remover</Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">Economia total conquistada (exibida na home)</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-xs text-muted-foreground">
+                Valor automático: soma de todas as despesas fixas (recorrentes) marcadas como
+                "Economia Conquistada" por qualquer usuário do site — só uma referência.{" "}
+                {economiaAutomatica ? (
+                  <>
+                    Hoje soma{" "}
+                    <span className="font-semibold text-foreground">
+                      {formatBRL(economiaAutomatica.total)}
+                    </span>{" "}
+                    ({economiaAutomatica.quantidade}{" "}
+                    {economiaAutomatica.quantidade === 1 ? "despesa" : "despesas"}).
+                  </>
+                ) : (
+                  "Calculando…"
+                )}
+              </p>
+              <div className="flex flex-wrap items-end gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground" htmlFor="economia-exibida">
+                    Valor a exibir publicamente (R$)
+                  </label>
+                  <Input
+                    id="economia-exibida"
+                    className="w-48"
+                    inputMode="decimal"
+                    placeholder="Ex.: 15000"
+                    value={economiaExibidaInput}
+                    onChange={(e) => setEconomiaExibidaInput(e.target.value.replace(/[^0-9.,]/g, ""))}
+                  />
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={() =>
+                    economiaAutomatica && setEconomiaExibidaInput(String(economiaAutomatica.total))
+                  }
+                  disabled={!economiaAutomatica}
+                >
+                  Usar valor automático
+                </Button>
+                <Button
+                  onClick={() => {
+                    const normalizado = economiaExibidaInput.replace(",", ".");
+                    const numero = normalizado.trim() === "" ? null : Number(normalizado);
+                    if (numero !== null && (Number.isNaN(numero) || numero < 0)) {
+                      toast.error("Informe um valor válido.");
+                      return;
+                    }
+                    salvarEstatistica.mutate(numero);
+                  }}
+                  disabled={salvarEstatistica.isPending}
+                >
+                  Salvar e exibir no site
+                </Button>
+                {estatisticaPublica?.economiaTotalExibida !== null && estatisticaPublica?.economiaTotalExibida !== undefined && (
+                  <Button
+                    variant="ghost"
+                    className="text-muted-foreground"
+                    onClick={() => { setEconomiaExibidaInput(""); salvarEstatistica.mutate(null); }}
+                    disabled={salvarEstatistica.isPending}
+                  >
+                    Ocultar da home
+                  </Button>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Enquanto nenhum valor for salvo aqui, esta estatística não aparece na home pública.
+              </p>
             </CardContent>
           </Card>
         </TabsContent>
