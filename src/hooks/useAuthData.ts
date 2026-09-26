@@ -96,7 +96,12 @@ export function usePermissoes() {
   const { data: isAdmin } = useIsAdmin();
   const { data: isSiteAdmin } = useIsSiteAdmin();
   const { data: profile } = useProfile();
-  const exclusaoBloqueada = profile?.cpf === "41412522803";
+  // 2026-09-26: corrigido — comparava com um CPF fixo que nunca dava match
+  // (o CPF real da conta protegida está vazio na tabela), então esse bloqueio
+  // nunca esteve ativo de fato. Agora lê `profiles.bloqueio_exclusao_total`,
+  // que também é reforçado no banco (policies RESTRICTIVE de DELETE), não só
+  // na tela.
+  const exclusaoBloqueada = !!(profile as any)?.bloqueio_exclusao_total;
   const query = useQuery({
     queryKey: ["permissoes", user?.id],
     enabled: !!user?.id,
