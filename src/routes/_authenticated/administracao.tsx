@@ -227,7 +227,7 @@ function Admin() {
     queryFn: () => obterEstatisticaPublicaFn(),
   });
   const { data: identidadeVisual } = useQuery({
-    queryKey: ["identidade-visual-site"],
+    queryKey: ["identidade-visual-site-admin"],
     enabled: isSiteAdmin,
     queryFn: async () => {
       const { data } = await (supabase as any)
@@ -345,7 +345,7 @@ function Admin() {
       const { error } = await supabase.storage.from("site_assets").uploadToSignedUrl(envio.path, envio.token, arquivo);
       if (error) throw error;
       await confirmar({ data: { path: envio.path } });
-      qc.invalidateQueries({ queryKey: ["identidade-visual-site"] });
+      qc.invalidateQueries({ queryKey: ["identidade-visual-site-admin"] });
       qc.invalidateQueries({ queryKey: ["admin-logs"] });
       toast.success("Logo atualizada em todo o site.");
     } catch (e: any) { toast.error(e.message || "Não foi possível atualizar a logo."); }
@@ -361,7 +361,7 @@ function Admin() {
       const { error } = await supabase.storage.from("site_videos").uploadToSignedUrl(envio.path, envio.token, arquivo);
       if (error) throw error;
       await confirmarVideoFn({ data: { path: envio.path } });
-      qc.invalidateQueries({ queryKey: ["identidade-visual-site"] });
+      qc.invalidateQueries({ queryKey: ["identidade-visual-site-admin"] });
       qc.invalidateQueries({ queryKey: ["admin-logs"] });
       toast.success("Vídeo de demonstração atualizado.");
     } catch (e: any) { toast.error(e.message || "Não foi possível atualizar o vídeo."); }
@@ -371,7 +371,7 @@ function Admin() {
   async function removerVideo() {
     try {
       await confirmarVideoFn({ data: { path: null } });
-      qc.invalidateQueries({ queryKey: ["identidade-visual-site"] });
+      qc.invalidateQueries({ queryKey: ["identidade-visual-site-admin"] });
       toast.success("Vídeo removido da home.");
     } catch (e: any) { toast.error(e.message || "Não foi possível remover o vídeo."); }
   }

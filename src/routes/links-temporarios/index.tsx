@@ -1,10 +1,10 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { ArrowRight, Copy, Lock, ShieldCheck, Timer } from "lucide-react";
 import { toast } from "sonner";
 
-import { BrandMark } from "@/components/BrandMark";
+import { SiteHeader } from "@/components/SiteHeader";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -99,17 +99,7 @@ function LinksTemporariosPage() {
 
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <header className="border-b">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4">
-          <Link to="/" className="flex items-center gap-2 font-bold">
-            <BrandMark className="size-8" />
-            Control ALL
-          </Link>
-          <Link to="/entrar" className="text-sm font-medium text-primary">
-            Entrar
-          </Link>
-        </div>
-      </header>
+      <SiteHeader />
 
       <div className="mx-auto max-w-3xl px-4 py-12">
         <p className="flex items-center gap-2 text-sm font-semibold text-primary">
