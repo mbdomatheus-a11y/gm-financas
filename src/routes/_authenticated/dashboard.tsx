@@ -1171,7 +1171,7 @@ function StatCard({
   return (
     <Card className={clicavel ? "overflow-hidden transition-colors hover:bg-muted/40" : "overflow-hidden"}>
       {to ? (
-        <Link to={to} search={search} className="block focus-visible:outline-none">
+        <Link to={to} {...(search ? { search } : {})} className="block focus-visible:outline-none">
           <CardContent className="p-4">{body}</CardContent>
         </Link>
       ) : href ? (

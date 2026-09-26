@@ -162,7 +162,7 @@ function LandingPage() {
   return <main className="min-h-screen bg-background text-foreground">
     <header className="sticky top-0 z-20 border-b bg-background/90 backdrop-blur-md"><div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
       <Link to="/" className="flex items-center gap-2 font-bold"><BrandMark className="size-8" />Control ALL</Link>
-      <nav className="hidden items-center gap-5 text-sm text-muted-foreground md:flex"><a href="#recursos">Recursos</a><a href="#modulos">Módulos</a><Link to="/calculadoras">Calculadoras</Link><a href="#demonstracao">Demonstração</a><a href="#precos">Preços</a><LegalDialogs /></nav>
+      <nav className="hidden items-center gap-5 text-sm text-muted-foreground md:flex"><a href="#recursos">Recursos</a><a href="#modulos">Módulos</a><Link to="/calculadoras">Calculadoras</Link><Link to="/links-temporarios">Link temporário</Link><a href="#demonstracao">Demonstração</a><a href="#precos">Preços</a><LegalDialogs /></nav>
       <Button asChild size="sm"><Link to="/entrar">Entrar <ArrowRight className="size-4" /></Link></Button>
     </div></header>
     <section className="overflow-hidden border-b bg-gradient-to-b from-primary/10 via-background to-background"><div className="mx-auto grid max-w-6xl gap-10 px-4 py-16 md:grid-cols-[1.1fr_.9fr] md:py-24">
