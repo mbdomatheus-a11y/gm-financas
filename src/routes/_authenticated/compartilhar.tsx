@@ -3,7 +3,10 @@ import { useMemo, useRef, useState } from "react";
 import {
   Car,
   Download,
+  FileHeart,
   Image as ImageIcon,
+  MapPin,
+  PawPrint,
   Receipt,
   Share2,
   ShoppingCart,
@@ -99,6 +102,21 @@ function CompartilharPage() {
               <Car className="size-3.5" /> Veículos
             </TabsTrigger>
           )}
+          {habilitado("pet") && (
+            <TabsTrigger value="pet" className="gap-1.5 text-xs">
+              <PawPrint className="size-3.5" /> Pet
+            </TabsTrigger>
+          )}
+          {habilitado("onde_esta") && (
+            <TabsTrigger value="onde-esta" className="gap-1.5 text-xs">
+              <MapPin className="size-3.5" /> Onde está?
+            </TabsTrigger>
+          )}
+          {habilitado("exames") && (
+            <TabsTrigger value="exames" className="gap-1.5 text-xs">
+              <FileHeart className="size-3.5" /> Exames
+            </TabsTrigger>
+          )}
           <TabsTrigger value="inteligente" className="gap-1.5 text-xs">
             <Sparkles className="size-3.5" /> Resumo inteligente
           </TabsTrigger>
@@ -120,6 +138,21 @@ function CompartilharPage() {
         {habilitado("veiculo") && (
           <TabsContent value="veiculos">
             <VeiculosShareCard />
+          </TabsContent>
+        )}
+        {habilitado("pet") && (
+          <TabsContent value="pet">
+            <PetShareCard />
+          </TabsContent>
+        )}
+        {habilitado("onde_esta") && (
+          <TabsContent value="onde-esta">
+            <OndeEstaShareCard />
+          </TabsContent>
+        )}
+        {habilitado("exames") && (
+          <TabsContent value="exames">
+            <ExamesShareCard />
           </TabsContent>
         )}
         <TabsContent value="inteligente">
@@ -531,6 +564,207 @@ function VeiculosShareCard() {
         <CardContent className="space-y-2 p-6">
           <div className="flex items-center gap-2 text-sm font-semibold">
             <Car className="size-4" /> Prévia
+          </div>
+          <pre className="whitespace-pre-wrap rounded-lg bg-muted/50 p-3 text-sm">{texto}</pre>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+/** ─── Pet: resumo em texto dos pets cadastrados e das próximas doses de vacina. ─── */
+function PetShareCard() {
+  const { data: pets = [], isLoading: carregandoPets } = useQuery({
+    queryKey: ["pets-compartilhar"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("pet_animais")
+        .select("id,nome,especie,raca")
+        .order("nome");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+  const { data: vacinas = [] } = useQuery({
+    queryKey: ["pet-vacinas-compartilhar"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("pet_vacinas")
+        .select("pet_id,nome,proxima_dose_em")
+        .order("proxima_dose_em");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const texto = useMemo(() => {
+    if ((pets as any[]).length === 0) return "Pet\n\nNenhum pet cadastrado.";
+    const linhasPets = (pets as any[]).map(
+      (p: any) => `• ${p.nome}${p.especie ? ` (${p.especie}${p.raca ? ` · ${p.raca}` : ""})` : ""}`,
+    );
+    const hoje = new Date().toISOString().slice(0, 10);
+    const proximasDoses = (vacinas as any[])
+      .filter((v: any) => v.proxima_dose_em && v.proxima_dose_em >= hoje)
+      .slice(0, 5)
+      .map((v: any) => {
+        const nomePet = (pets as any[]).find((p: any) => p.id === v.pet_id)?.nome ?? "Pet";
+        return `• ${nomePet} — ${v.nome}: ${formatDate(v.proxima_dose_em)}`;
+      });
+    return [
+      `Pet (${(pets as any[]).length})`,
+      "",
+      linhasPets.join("\n"),
+      ...(proximasDoses.length ? ["", "Próximas doses de vacina:", proximasDoses.join("\n")] : []),
+    ].join("\n");
+  }, [pets, vacinas]);
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
+      <Card>
+        <CardContent className="space-y-4 p-4">
+          <Button
+            className="w-full"
+            disabled={carregandoPets}
+            onClick={() => compartilharTexto(texto, "Pet")}
+          >
+            <Share2 className="size-4" /> Compartilhar
+          </Button>
+          <Button variant="outline" className="w-full" onClick={() => copiarTexto(texto)}>
+            <ImageIcon className="size-4" /> Copiar texto
+          </Button>
+          <p className="text-xs text-muted-foreground">
+            Inclui os pets cadastrados e as próximas doses de vacina previstas.
+          </p>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardContent className="space-y-2 p-6">
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <PawPrint className="size-4" /> Prévia
+          </div>
+          <pre className="whitespace-pre-wrap rounded-lg bg-muted/50 p-3 text-sm">{texto}</pre>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+/** ─── Onde está?: resumo em texto dos locais cadastrados e quantos itens cada um guarda. ─── */
+function OndeEstaShareCard() {
+  const { data: locais = [], isLoading } = useQuery({
+    queryKey: ["locais-compartilhar"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("locais_armazenamento")
+        .select("id,nome")
+        .order("nome");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+  const { data: itens = [] } = useQuery({
+    queryKey: ["itens-armazenados-compartilhar"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("itens_armazenados")
+        .select("local_id");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const texto = useMemo(() => {
+    if ((locais as any[]).length === 0) return "Onde está?\n\nNenhum local cadastrado.";
+    const linhas = (locais as any[]).map((l: any) => {
+      const qtd = (itens as any[]).filter((i: any) => i.local_id === l.id).length;
+      return `• ${l.nome} — ${qtd} item(ns)`;
+    });
+    return `Onde está? (${(locais as any[]).length} local(is))\n\n${linhas.join("\n")}`;
+  }, [locais, itens]);
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
+      <Card>
+        <CardContent className="space-y-4 p-4">
+          <Button
+            className="w-full"
+            disabled={isLoading}
+            onClick={() => compartilharTexto(texto, "Onde está?")}
+          >
+            <Share2 className="size-4" /> Compartilhar
+          </Button>
+          <Button variant="outline" className="w-full" onClick={() => copiarTexto(texto)}>
+            <ImageIcon className="size-4" /> Copiar texto
+          </Button>
+          <p className="text-xs text-muted-foreground">
+            Inclui os locais de guarda cadastrados e quantos itens cada um tem.
+          </p>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardContent className="space-y-2 p-6">
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <MapPin className="size-4" /> Prévia
+          </div>
+          <pre className="whitespace-pre-wrap rounded-lg bg-muted/50 p-3 text-sm">{texto}</pre>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+/** ─── Exames: resumo em texto com título, data e laboratório dos exames
+ * aprovados — sem os valores/indicadores dos resultados, que continuam só
+ * dentro do site (o próprio usuário decide se quer digitar esses números
+ * na mensagem antes de enviar). ─── */
+function ExamesShareCard() {
+  const { data: exames = [], isLoading } = useQuery({
+    queryKey: ["exames-compartilhar"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("exames_registros")
+        .select("titulo,laboratorio,data_exame")
+        .eq("status_importacao", "aprovado")
+        .order("data_exame", { ascending: false })
+        .limit(10);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const texto = useMemo(() => {
+    if ((exames as any[]).length === 0) return "Exames\n\nNenhum exame registrado.";
+    const linhas = (exames as any[]).map(
+      (e: any) =>
+        `• ${e.titulo}${e.data_exame ? ` — ${formatDate(e.data_exame)}` : ""}${e.laboratorio ? ` (${e.laboratorio})` : ""}`,
+    );
+    return `Exames — últimos registrados\n\n${linhas.join("\n")}`;
+  }, [exames]);
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
+      <Card>
+        <CardContent className="space-y-4 p-4">
+          <Button
+            className="w-full"
+            disabled={isLoading}
+            onClick={() => compartilharTexto(texto, "Exames")}
+          >
+            <Share2 className="size-4" /> Compartilhar
+          </Button>
+          <Button variant="outline" className="w-full" onClick={() => copiarTexto(texto)}>
+            <ImageIcon className="size-4" /> Copiar texto
+          </Button>
+          <p className="text-xs text-muted-foreground">
+            Inclui só título, data e laboratório dos exames — os resultados/indicadores não entram
+            neste resumo.
+          </p>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardContent className="space-y-2 p-6">
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <FileHeart className="size-4" /> Prévia
           </div>
           <pre className="whitespace-pre-wrap rounded-lg bg-muted/50 p-3 text-sm">{texto}</pre>
         </CardContent>
