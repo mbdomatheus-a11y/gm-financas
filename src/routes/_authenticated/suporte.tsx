@@ -46,7 +46,7 @@ function SuportePage() {
 
   const [assunto, setAssunto] = useState("");
   const [descricao, setDescricao] = useState("");
-  const [prioridade, setPrioridade] = useState<"baixa" | "normal" | "alta" | "urgente">("normal");
+  const [prioridade, setPrioridade] = useState<"elogio" | "reclamacao" | "sugestao">("sugestao");
   const [protocolo, setProtocolo] = useState<string | null>(null);
 
   const { data: meusChamados = [], isLoading } = useQuery({
@@ -70,7 +70,7 @@ function SuportePage() {
       setProtocolo(res.protocolo);
       setAssunto("");
       setDescricao("");
-      setPrioridade("normal");
+      setPrioridade("sugestao");
       qc.invalidateQueries({ queryKey: ["meus-chamados"] });
       toast.success("Chamado enviado com sucesso!");
     },
@@ -134,10 +134,9 @@ function SuportePage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="baixa">Baixa — dúvida ou melhoria</SelectItem>
-                      <SelectItem value="normal">Normal — problema sem urgência</SelectItem>
-                      <SelectItem value="alta">Alta — funcionalidade importante parada</SelectItem>
-                      <SelectItem value="urgente">Urgente — dados em risco ou bloqueio total</SelectItem>
+                      <SelectItem value="elogio">Elogio</SelectItem>
+                      <SelectItem value="reclamacao">Reclamação</SelectItem>
+                      <SelectItem value="sugestao">Sugestão</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

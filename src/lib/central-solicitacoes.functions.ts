@@ -159,7 +159,7 @@ export const enviarChamadoSuporte = createServerFn({ method: "POST" })
     z.object({
       assunto: z.string().trim().min(5).max(120),
       descricao: z.string().trim().min(10).max(3000),
-      prioridade: z.enum(["baixa","normal","alta","urgente"]).optional(),
+      prioridade: z.enum(["elogio","reclamacao","sugestao"]).optional(),
     }).parse(v)
   )
   .handler(async ({ data, context }) => {
@@ -179,7 +179,7 @@ export const enviarChamadoSuporte = createServerFn({ method: "POST" })
         nome: perfil?.nome ?? null,
         assunto: data.assunto,
         descricao: data.descricao,
-        prioridade: data.prioridade ?? "normal",
+        prioridade: data.prioridade ?? "sugestao",
       })
       .select("protocolo")
       .single();
