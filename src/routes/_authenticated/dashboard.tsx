@@ -484,6 +484,7 @@ function DashboardPage() {
           tone="success"
           delta={dados.deltaReceitas}
           deltaGoodUp
+          to="/receitas"
         />
         <StatCard
           label="Despesas do mês"
@@ -494,13 +495,19 @@ function DashboardPage() {
           tone="destructive"
           delta={dados.deltaDespesas}
           hint={`Fixas ${formatBRL(dados.fixas)} · Variáveis ${formatBRL(dados.variaveis)}`}
+          to="/despesas"
         />
 
+        {/* "Saldo do mês" e "Taxa de poupança" não têm uma única tela
+            equivalente no site (são métricas derivadas de receitas −
+            despesas) — o destino mais honesto é o próprio gráfico de fluxo
+            de caixa mês a mês, mais abaixo nesta mesma página. */}
         <StatCard
           label="Saldo do mês"
           value={dados.saldo}
           icon={Wallet}
           tone={dados.saldo >= 0 ? "success" : "destructive"}
+          href="#fluxo-caixa"
         />
         <StatCard
           label="Taxa de poupança"
@@ -509,6 +516,7 @@ function DashboardPage() {
           tone={dados.taxaPoupanca >= 0 ? "success" : "destructive"}
           display={`${dados.taxaPoupanca.toFixed(0)}%`}
           hint={`Média de despesas na janela: ${formatBRL(dados.mediaDespesas)}`}
+          href="#fluxo-caixa"
         />
         <StatCard
           label="Parcelas mensalizadas"
@@ -516,6 +524,8 @@ function DashboardPage() {
           icon={CalendarClock}
           tone="warning"
           hint="Parcelas com vencimento neste mês"
+          to="/despesas"
+          search={{ modo: "cartao" }}
         />
         <StatCard
           label="Dívida total em aberto"
@@ -523,10 +533,12 @@ function DashboardPage() {
           icon={Landmark}
           tone="destructive"
           hint="Tudo que ainda falta quitar"
+          to="/despesas"
+          search={{ mes: "todos" }}
         />
       </div>
 
-      <Card className="mt-4">
+      <Card id="fluxo-caixa" className="mt-4">
         <CardHeader className="flex flex-col gap-2 space-y-0 sm:flex-row sm:items-center sm:justify-between">
           <CardTitle className="text-base">Fluxo de caixa mês a mês</CardTitle>
           <div className="flex flex-wrap gap-2">
@@ -1097,6 +1109,9 @@ function StatCard({
   display,
   delta,
   deltaGoodUp,
+  to,
+  search,
+  href,
 }: {
   label: string;
   value: number;
@@ -1108,42 +1123,64 @@ function StatCard({
   display?: string;
   delta?: number | null;
   deltaGoodUp?: boolean;
+  /** Rota pra onde o card navega ao ser clicado. Sem isso (e sem `href`), o card fica só informativo. */
+  to?: string;
+  /** Search params da rota de destino (ex.: { modo: "cartao" }). */
+  search?: Record<string, string>;
+  /** Âncora na própria página (ex.: "#fluxo-caixa"), pra quando o destino natural é um gráfico já visível no dashboard, não outra rota. */
+  href?: string;
 }) {
   const toneClass =
     tone === "success" ? "text-success" : tone === "warning" ? "text-warning" : "text-destructive";
-  return (
-    <Card className="overflow-hidden">
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between gap-2">
-          <p className="text-xs font-medium text-muted-foreground">{label}</p>
-          <Icon className={`size-4 ${toneClass}`} />
-        </div>
-        <div className="mt-2 flex flex-wrap items-baseline gap-2">
-          <p className="text-xl font-bold tracking-tight">{display ?? formatBRL(value)}</p>
-          {delta != null && Number.isFinite(delta) && (
-            <span
-              className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
-                delta >= 0 === !!deltaGoodUp
-                  ? "bg-success/10 text-success"
-                  : "bg-destructive/10 text-destructive"
-              }`}
-            >
-              {delta >= 0 ? (
-                <ArrowUpRight className="size-3" />
-              ) : (
-                <ArrowDownRight className="size-3" />
-              )}
-              {Math.abs(delta).toFixed(0)}% vs. mês anterior
-            </span>
-          )}
-        </div>
-        {!!usd && !!cotacao && (
-          <p className="mt-0.5 text-[11px] text-muted-foreground">
-            inclui {formatUSD(usd)} na cotação do dia
-          </p>
+
+  const body = (
+    <>
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-xs font-medium text-muted-foreground">{label}</p>
+        <Icon className={`size-4 ${toneClass}`} />
+      </div>
+      <div className="mt-2 flex flex-wrap items-baseline gap-2">
+        <p className="text-xl font-bold tracking-tight">{display ?? formatBRL(value)}</p>
+        {delta != null && Number.isFinite(delta) && (
+          <span
+            className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
+              delta >= 0 === !!deltaGoodUp
+                ? "bg-success/10 text-success"
+                : "bg-destructive/10 text-destructive"
+            }`}
+          >
+            {delta >= 0 ? (
+              <ArrowUpRight className="size-3" />
+            ) : (
+              <ArrowDownRight className="size-3" />
+            )}
+            {Math.abs(delta).toFixed(0)}% vs. mês anterior
+          </span>
         )}
-        {hint && <p className="mt-1 text-[11px] text-muted-foreground">{hint}</p>}
-      </CardContent>
+      </div>
+      {!!usd && !!cotacao && (
+        <p className="mt-0.5 text-[11px] text-muted-foreground">
+          inclui {formatUSD(usd)} na cotação do dia
+        </p>
+      )}
+      {hint && <p className="mt-1 text-[11px] text-muted-foreground">{hint}</p>}
+    </>
+  );
+
+  const clicavel = !!to || !!href;
+  return (
+    <Card className={clicavel ? "overflow-hidden transition-colors hover:bg-muted/40" : "overflow-hidden"}>
+      {to ? (
+        <Link to={to} search={search} className="block focus-visible:outline-none">
+          <CardContent className="p-4">{body}</CardContent>
+        </Link>
+      ) : href ? (
+        <a href={href} className="block focus-visible:outline-none">
+          <CardContent className="p-4">{body}</CardContent>
+        </a>
+      ) : (
+        <CardContent className="p-4">{body}</CardContent>
+      )}
     </Card>
   );
 }

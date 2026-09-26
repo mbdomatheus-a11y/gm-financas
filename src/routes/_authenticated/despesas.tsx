@@ -94,8 +94,13 @@ import {
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/despesas")({
-  validateSearch: (s: Record<string, unknown>): { cartao?: string } =>
-    typeof s["cartao"] === "string" && s["cartao"] ? { cartao: s["cartao"] } : {},
+  validateSearch: (
+    s: Record<string, unknown>,
+  ): { cartao?: string; modo?: "lista" | "cartao"; mes?: string } => ({
+    ...(typeof s["cartao"] === "string" && s["cartao"] ? { cartao: s["cartao"] } : {}),
+    ...(s["modo"] === "cartao" || s["modo"] === "lista" ? { modo: s["modo"] } : {}),
+    ...(typeof s["mes"] === "string" && s["mes"] ? { mes: s["mes"] } : {}),
+  }),
   head: () => ({
     meta: [
       { title: "Despesas — Control ALL" },
@@ -175,11 +180,16 @@ function DespesasPage() {
   const [form, setForm] = useState<any>(novoForm("fixa"));
   const [duplicata, setDuplicata] = useState<any | null>(null);
   const [busca, setBusca] = useState("");
-  const [filtroMes, setFiltroMes] = useState(monthKey(new Date()));
+  // `mes=todos` na URL (ex.: vindo do card "Dívida total em aberto" do
+  // dashboard) abre a página já mostrando a dívida completa, não só a do
+  // mês atual.
+  const [filtroMes, setFiltroMes] = useState(search.mes ?? monthKey(new Date()));
   const [filtroBanco, setFiltroBanco] = useState("todos");
   const [filtroCategoria, setFiltroCategoria] = useState("todos");
   const [filtroResponsavel, setFiltroResponsavel] = useState("todos");
-  const [modoLista, setModoLista] = useState<"lista" | "cartao">("lista");
+  // `modo=cartao` na URL (ex.: vindo do card "Parcelas mensalizadas" do
+  // dashboard) abre a página já na visão "Por cartão".
+  const [modoLista, setModoLista] = useState<"lista" | "cartao">(search.modo ?? "lista");
   const [expandida, setExpandida] = useState<string | null>(null);
   const [grupoExpandido, setGrupoExpandido] = useState<string | null>(null);
 
