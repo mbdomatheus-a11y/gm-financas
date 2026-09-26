@@ -90,6 +90,11 @@ export const adminTratarSolicitacaoPrivacidade = createServerFn({ method: "POST"
   });
 
 // Consulta pública de protocolo (sem auth) — para Home
+// Item 15 do backlog (revisão de segurança, 2026-09-26): esta rota é
+// pública e a busca por CPF não exige prova de posse do documento — sem
+// limite de tentativas, seria possível varrer CPFs (bruteforce) pra
+// descobrir quem tem solicitações abertas e ler a resposta do admin.
+// Agora limitada por IP (`aplicarLimitePorIp`) antes de qualquer consulta.
 export const consultarProtocolo = createServerFn({ method: "POST" })
   .inputValidator((v: unknown) =>
     z.object({
@@ -100,7 +105,9 @@ export const consultarProtocolo = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { createHash } = await import("node:crypto");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { aplicarLimitePorIp } = await import("@/lib/rate-limit.server");
     const db = supabaseAdmin as any;
+    await aplicarLimitePorIp(db, "consultar-protocolo", 20, 60);
 
     if (data.protocolo) {
       // Busca por protocolo UUID

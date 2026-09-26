@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import crypto from "node:crypto";
 import { CPF_EMAIL_DOMAIN } from "@/lib/cpf";
+import { aplicarLimite, aplicarLimitePorIp } from "@/lib/rate-limit.server";
 
 /** Quanto tempo o link de redefinição vale, depois disso precisa pedir outro. */
 const EXPIRACAO_MINUTOS = 30;
@@ -28,16 +29,30 @@ function urlBase(): string {
  * uma conta existe (evita enumeração). Contas antigas criadas por CPF usam
  * um e-mail sintético (`@financascasal.app`, ver src/lib/cpf.ts) que ninguém
  * lê de verdade — pra essas, não tem o que enviar, mesma resposta genérica.
+ *
+ * Item 15 do backlog (revisão de segurança, 2026-09-26): limitado por IP
+ * (evita flood geral) e por e-mail (evita "email bombing" — mandar
+ * centenas de e-mails de redefinição pro mesmo destinatário-vítima).
  */
 export const solicitarRecuperacaoSenha = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({ email: z.string().trim().email() }).parse(d))
   .handler(async ({ data }) => {
     const email = data.email.trim().toLowerCase();
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const db = supabaseAdmin as any;
+    await aplicarLimitePorIp(db, "solicitar-recuperacao-senha", 20, 60);
+    await aplicarLimite(db, {
+      rota: "solicitar-recuperacao-senha-email",
+      chave: email,
+      maxPorJanela: 5,
+      janelaMinutos: 60,
+    });
+
     if (email.endsWith(`@${CPF_EMAIL_DOMAIN}`)) {
       return { ok: true as const };
     }
 
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: lista, error } = await supabaseAdmin.auth.admin.listUsers();
     if (error) throw new Error(error.message);
     const usuario = lista.users.find((u) => u.email?.toLowerCase() === email);

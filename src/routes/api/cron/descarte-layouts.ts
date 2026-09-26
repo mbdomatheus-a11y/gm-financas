@@ -53,6 +53,23 @@ async function conciliarFaturasAutomaticas(db: any): Promise<number> {
   return conciliadas;
 }
 
+/**
+ * Item 15 do backlog (revisão de segurança, 2026-09-26): a tabela genérica
+ * de limite de tentativas (`rate_limit_eventos`) só precisa guardar a
+ * última hora de eventos pra funcionar — sem limpeza ela cresceria pra
+ * sempre. Aproveita este mesmo cron diário em vez de criar outro na Vercel.
+ */
+async function limparRateLimitAntigo(db: any): Promise<number> {
+  const limite = new Date(Date.now() - 24 * 60 * 60_000).toISOString();
+  const { data, error } = await db
+    .from("rate_limit_eventos")
+    .delete()
+    .lt("criado_em", limite)
+    .select("id");
+  if (error) return 0;
+  return data?.length ?? 0;
+}
+
 export const Route = createFileRoute("/api/cron/descarte-layouts")({
   server: {
     handlers: {
@@ -97,8 +114,9 @@ export const Route = createFileRoute("/api/cron/descarte-layouts")({
         // Só afeta parcelas com vencimento a partir de quando o modo foi
         // ativado (não retroage sobre dívida que já existia antes disso).
         const conciliadas = await conciliarFaturasAutomaticas(db);
+        const rateLimitLimpo = await limparRateLimitAntigo(db);
 
-        return Response.json({ descartados, conciliadas });
+        return Response.json({ descartados, conciliadas, rateLimitLimpo });
       },
     },
   },

@@ -1,9 +1,8 @@
-import { createHash } from "node:crypto";
 import { createServerFn } from "@tanstack/react-start";
-import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
 import { verificarTurnstileToken } from "@/lib/turnstile.functions";
 import { TURNSTILE_ATIVO } from "@/lib/turnstile-config";
+import { aplicarLimitePorIp, hashValor, ipDaRequisicao } from "@/lib/rate-limit.server";
 
 /**
  * Item 6 do backlog do proprietário: ferramenta pública (sem login), no
@@ -24,17 +23,6 @@ import { TURNSTILE_ATIVO } from "@/lib/turnstile-config";
  */
 
 const CONTEUDO_MAX = 20_000; // acomoda texto cifrado em base64 (expansão ~1.4x de até 10.000 caracteres) + tag do AES-GCM
-const CRIACOES_POR_HORA_POR_IP = 20;
-
-function hashIp(ip: string): string {
-  return createHash("sha256").update(ip).digest("hex");
-}
-
-function ipDaRequisicao(): string {
-  const request = getRequest();
-  const forwarded = request?.headers.get("x-forwarded-for");
-  return forwarded?.split(",")[0]?.trim() || "desconhecido";
-}
 
 export const criarLinkTemporario = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
@@ -60,18 +48,8 @@ export const criarLinkTemporario = createServerFn({ method: "POST" })
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const db = supabaseAdmin as any;
-    const ipHash = hashIp(ipDaRequisicao());
-
-    const umaHoraAtras = new Date(Date.now() - 60 * 60_000).toISOString();
-    const { count: criacoesRecentes } = await db
-      .from("links_temporarios_auditoria")
-      .select("id", { count: "exact", head: true })
-      .eq("evento", "criado")
-      .eq("ip_hash", ipHash)
-      .gte("criado_em", umaHoraAtras);
-    if ((criacoesRecentes ?? 0) >= CRIACOES_POR_HORA_POR_IP) {
-      throw new Error("Muitos links criados recentemente. Tente novamente mais tarde.");
-    }
+    const ipHash = hashValor(ipDaRequisicao());
+    await aplicarLimitePorIp(db, "criar-link-temporario", 20, 60);
 
     const { data: link, error } = await db
       .from("links_temporarios")
@@ -99,7 +77,11 @@ export const abrirLinkTemporario = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const db = supabaseAdmin as any;
-    const ipHash = hashIp(ipDaRequisicao());
+    const ipHash = hashValor(ipDaRequisicao());
+    // Item 15 do backlog (revisão de segurança): abrir também é limitado por
+    // IP — o id é um UUID (baixo risco de adivinhação), mas sem limite
+    // qualquer IP podia inundar este endpoint com leituras/gravações grátis.
+    await aplicarLimitePorIp(db, "abrir-link-temporario", 60, 60);
 
     const { data: link, error } = await db
       .from("links_temporarios")
