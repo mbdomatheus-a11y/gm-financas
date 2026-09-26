@@ -213,6 +213,32 @@ function Admin() {
     onError: (e: any) => toast.error(e.message),
   });
 
+  // Ação em massa: libera/bloqueia várias pessoas de uma vez pro mesmo
+  // módulo, disparando cada chamada em paralelo e invalidando a lista só
+  // uma vez no final (em vez de uma invalidação por pessoa).
+  const mudarModuloEmMassa = useMutation({
+    mutationFn: async (valor: { modulo: any; habilitado: boolean; userIds: string[] }) =>
+      Promise.all(
+        valor.userIds.map((userId) => salvarModulo({ data: { modulo: valor.modulo, habilitado: valor.habilitado, userId } })),
+      ),
+    onSuccess: (_data, valor) => {
+      toast.success(`${valor.userIds.length} usuário(s) ${valor.habilitado ? "liberado(s)" : "bloqueado(s)"}.`);
+      qc.invalidateQueries({ queryKey: ["admin-modulos"] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const [buscaModulo, setBuscaModulo] = useState("");
+  const [selecionadosPorModulo, setSelecionadosPorModulo] = useState<Record<string, Set<string>>>({});
+  function alternarSelecaoUsuario(modulo: string, userId: string) {
+    setSelecionadosPorModulo((atual) => {
+      const conjunto = new Set(atual[modulo] ?? []);
+      if (conjunto.has(userId)) conjunto.delete(userId);
+      else conjunto.add(userId);
+      return { ...atual, [modulo]: conjunto };
+    });
+  }
+
   const limparAviso = useMutation({
     mutationFn: (id: string) => encerrarComunicadoFn({ data: { id } }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin-comunicados"] }); qc.invalidateQueries({ queryKey: ["comunicados-pendentes"] }); },
@@ -551,34 +577,105 @@ function Admin() {
                 <p className="text-xs text-muted-foreground">
                   Matheus (admin master) sempre enxerga todos os módulos. Desative globalmente e libere para usuários de teste individualmente.
                 </p>
-                {gestaoModulos.modulos.map((m: any) => (
-                  <div key={m.modulo} className="rounded-lg border p-3">
-                    <div className="flex items-center justify-between">
-                      <b className="text-sm">{m.nome}</b>
-                      <Switch
-                        checked={m.habilitado}
-                        onCheckedChange={(v) => mudarModulo.mutate({ modulo: m.modulo, habilitado: v, userId: null })}
-                      />
-                    </div>
-                    {!m.habilitado && (
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {gestaoModulos.usuarios.map((u: any) => {
-                          const ex = gestaoModulos.excecoes.find((x: any) => x.user_id === u.id && x.modulo === m.modulo);
-                          return (
-                            <Button
-                              key={u.id}
-                              size="sm"
-                              variant={ex?.habilitado ? "default" : "outline"}
-                              onClick={() => mudarModulo.mutate({ modulo: m.modulo, habilitado: !ex?.habilitado, userId: u.id })}
-                            >
-                              {u.nome}
-                            </Button>
-                          );
-                        })}
+                <Input
+                  placeholder="Buscar usuário por nome ou e-mail…"
+                  value={buscaModulo}
+                  onChange={(e) => setBuscaModulo(e.target.value)}
+                  className="max-w-sm"
+                />
+                {gestaoModulos.modulos.map((m: any) => {
+                  const excecoesDoModulo = gestaoModulos.excecoes.filter((x: any) => x.modulo === m.modulo);
+                  const liberados = excecoesDoModulo.filter((x: any) => x.habilitado).length;
+                  const usuariosFiltrados = gestaoModulos.usuarios.filter((u: any) => {
+                    const termo = buscaModulo.trim().toLowerCase();
+                    if (!termo) return true;
+                    return u.nome?.toLowerCase().includes(termo) || u.email?.toLowerCase().includes(termo);
+                  });
+                  const selecionados = selecionadosPorModulo[m.modulo] ?? new Set<string>();
+                  return (
+                    <div key={m.modulo} className="rounded-lg border p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <b className="text-sm">{m.nome}</b>
+                          {!m.habilitado && (
+                            <Badge variant="secondary" className="text-[10px]">
+                              {liberados} usuário(s) com exceção liberada
+                            </Badge>
+                          )}
+                        </div>
+                        <Switch
+                          checked={m.habilitado}
+                          onCheckedChange={(v) => mudarModulo.mutate({ modulo: m.modulo, habilitado: v, userId: null })}
+                        />
                       </div>
-                    )}
-                  </div>
-                ))}
+                      {!m.habilitado && (
+                        <div className="mt-2 space-y-2">
+                          {selecionados.size > 0 && (
+                            <div className="flex flex-wrap items-center gap-2 rounded-md bg-muted/50 p-2">
+                              <span className="text-xs text-muted-foreground">
+                                {selecionados.size} selecionado(s)
+                              </span>
+                              <Button
+                                size="sm"
+                                variant="default"
+                                disabled={mudarModuloEmMassa.isPending}
+                                onClick={() =>
+                                  mudarModuloEmMassa.mutate({ modulo: m.modulo, habilitado: true, userIds: [...selecionados] })
+                                }
+                              >
+                                Liberar selecionados
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={mudarModuloEmMassa.isPending}
+                                onClick={() =>
+                                  mudarModuloEmMassa.mutate({ modulo: m.modulo, habilitado: false, userIds: [...selecionados] })
+                                }
+                              >
+                                Bloquear selecionados
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => setSelecionadosPorModulo((atual) => ({ ...atual, [m.modulo]: new Set() }))}
+                              >
+                                Limpar seleção
+                              </Button>
+                            </div>
+                          )}
+                          <div className="flex flex-wrap gap-2">
+                            {usuariosFiltrados.length === 0 && (
+                              <p className="text-xs text-muted-foreground">Nenhum usuário encontrado para "{buscaModulo}".</p>
+                            )}
+                            {usuariosFiltrados.map((u: any) => {
+                              const ex = excecoesDoModulo.find((x: any) => x.user_id === u.id);
+                              const selecionado = selecionados.has(u.id);
+                              return (
+                                <div key={u.id} className="flex items-center gap-1">
+                                  <input
+                                    type="checkbox"
+                                    className="size-3.5"
+                                    checked={selecionado}
+                                    onChange={() => alternarSelecaoUsuario(m.modulo, u.id)}
+                                    aria-label={`Selecionar ${u.nome}`}
+                                  />
+                                  <Button
+                                    size="sm"
+                                    variant={ex?.habilitado ? "default" : "outline"}
+                                    onClick={() => mudarModulo.mutate({ modulo: m.modulo, habilitado: !ex?.habilitado, userId: u.id })}
+                                  >
+                                    {u.nome}
+                                  </Button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </CardContent>
             </Card>
           )}
