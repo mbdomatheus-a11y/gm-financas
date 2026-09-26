@@ -16,9 +16,11 @@ function hashToken(token: string): string {
 }
 
 /** URL base do site pra montar o link do e-mail. Configure SITE_URL na Vercel
- * quando trocar de domínio — sem isso cai no domínio padrão da Vercel. */
+ * quando trocar de domínio — sem isso cai no domínio oficial atual (mesmo
+ * fallback usado em convites.functions.ts/seguranca-conta.functions.ts;
+ * antes este arquivo sozinho apontava pro domínio antigo da Vercel). */
 function urlBase(): string {
-  return process.env["SITE_URL"] || "https://gm-financas-ohdi.vercel.app";
+  return process.env["SITE_URL"] || "https://www.controlall.com.br";
 }
 
 /**

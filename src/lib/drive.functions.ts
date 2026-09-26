@@ -291,13 +291,53 @@ export const uploadNotaArquivo = createServerFn({ method: "POST" })
     try {
       accessToken = await googleDriveAccessToken(refreshToken);
     } catch {
-      return salvarNoSite("A conexão Google expirou; o arquivo ficou salvo no site.");
+      // O refresh token não funciona mais (revogado pelo usuário, senha do
+      // Google trocada, ou — em app não verificado — expirou por inatividade).
+      // Sem isso, TODO envio ia cair aqui pra sempre, em silêncio, com
+      // driveStatus continuando a dizer "Conectado" indefinidamente. Remove a
+      // conexão morta pra driveStatus passar a refletir a realidade e a
+      // pessoa ser convidada a reconectar.
+      try {
+        const { deleteConnectionForUser } = await import("@/server/appUserConnections.server");
+        await deleteConnectionForUser(context.userId, CONNECTOR_ID);
+      } catch {
+        /* mesmo se a limpeza falhar, segue com o fallback abaixo */
+      }
+      return salvarNoSite(
+        "A conexão com o Google Drive expirou — reconecte em Notas Fiscais. Este arquivo ficou salvo no site.",
+      );
     }
-    // O escopo drive.file só garante acesso aos arquivos e pastas criados pelo app.
+    // O escopo drive.file só garante acesso aos arquivos e pastas criados
+    // pelo app OU escolhidos pela pessoa via um seletor do Google — não a
+    // uma pasta qualquer colada por link. Por isso, se o grupo configurou
+    // uma pasta em "Pasta dos comprovantes" (Configurações), tenta usar
+    // essa pasta como destino; se o Drive recusar (pasta não criada pelo
+    // app, sem esse acesso), cai pro fallback abaixo com aviso claro, em vez
+    // de silenciosamente ignorar a escolha da pessoa e usar outra pasta.
     let destinoId: string;
     try {
-      const rootId = await ensureFolder(accessToken, ROOT_FOLDER);
-      destinoId = await ensureFolder(accessToken, SUB_FOLDER, rootId);
+      const { data: perfilGrupo } = await context.supabase
+        .from("profiles")
+        .select("grupo_id")
+        .eq("id", context.userId)
+        .maybeSingle();
+      const grupoId = perfilGrupo?.grupo_id as string | undefined;
+      const pastaEscolhidaId = grupoId
+        ? ((
+            await context.supabase
+              .from("configuracoes_casal")
+              .select("valor")
+              .eq("grupo_id", grupoId)
+              .eq("chave", `${grupoId}:drive_folder_id`)
+              .maybeSingle()
+          ).data?.valor as string | undefined)
+        : undefined;
+      if (pastaEscolhidaId) {
+        destinoId = pastaEscolhidaId;
+      } else {
+        const rootId = await ensureFolder(accessToken, ROOT_FOLDER);
+        destinoId = await ensureFolder(accessToken, SUB_FOLDER, rootId);
+      }
     } catch {
       return salvarNoSite(
         "O Google Drive não pôde preparar a pasta; o arquivo ficou salvo no site.",
