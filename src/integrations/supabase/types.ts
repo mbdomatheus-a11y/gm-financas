@@ -8,6 +8,75 @@ export type Database = {
   };
   public: {
     Tables: {
+      aceites_documentos: {
+        Row: {
+          aceito_em: string;
+          documento: string;
+          id: string;
+          user_id: string;
+          versao: string;
+        };
+        Insert: {
+          aceito_em?: string;
+          documento: string;
+          id?: string;
+          user_id: string;
+          versao: string;
+        };
+        Update: {
+          aceito_em?: string;
+          documento?: string;
+          id?: string;
+          user_id?: string;
+          versao?: string;
+        };
+        Relationships: [];
+      };
+      admin_audit_logs: {
+        Row: {
+          acao: string;
+          alvo_id: string | null;
+          ator_id: string | null;
+          criado_em: string;
+          detalhes: Json;
+          id: string;
+        };
+        Insert: {
+          acao: string;
+          alvo_id?: string | null;
+          ator_id?: string | null;
+          criado_em?: string;
+          detalhes?: Json;
+          id?: string;
+        };
+        Update: {
+          acao?: string;
+          alvo_id?: string | null;
+          ator_id?: string | null;
+          criado_em?: string;
+          detalhes?: Json;
+          id?: string;
+        };
+        Relationships: [];
+      };
+      alertas_lidos: {
+        Row: {
+          chave: string;
+          lido_em: string;
+          user_id: string;
+        };
+        Insert: {
+          chave: string;
+          lido_em?: string;
+          user_id: string;
+        };
+        Update: {
+          chave?: string;
+          lido_em?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
       app_user_connections: {
         Row: {
           connection_key_ciphertext: string;
@@ -78,6 +147,33 @@ export type Database = {
             referencedColumns: ["id"];
           },
         ];
+      };
+      bloqueio_conta_tokens: {
+        Row: {
+          criado_em: string;
+          expira_em: string;
+          id: string;
+          token_hash: string;
+          usado_em: string | null;
+          user_id: string;
+        };
+        Insert: {
+          criado_em?: string;
+          expira_em?: string;
+          id?: string;
+          token_hash: string;
+          usado_em?: string | null;
+          user_id: string;
+        };
+        Update: {
+          criado_em?: string;
+          expira_em?: string;
+          id?: string;
+          token_hash?: string;
+          usado_em?: string | null;
+          user_id?: string;
+        };
+        Relationships: [];
       };
       cartao_vinculos: {
         Row: {
@@ -290,6 +386,65 @@ export type Database = {
           },
         ];
       };
+      chamados_suporte: {
+        Row: {
+          assunto: string;
+          atualizado_em: string;
+          criado_em: string;
+          descricao: string;
+          email: string;
+          grupo_id: string | null;
+          id: string;
+          nome: string | null;
+          prioridade: string;
+          protocolo: string;
+          resposta_admin: string | null;
+          status: string;
+          tratado_por: string | null;
+          user_id: string | null;
+        };
+        Insert: {
+          assunto: string;
+          atualizado_em?: string;
+          criado_em?: string;
+          descricao: string;
+          email: string;
+          grupo_id?: string | null;
+          id?: string;
+          nome?: string | null;
+          prioridade?: string;
+          protocolo?: string;
+          resposta_admin?: string | null;
+          status?: string;
+          tratado_por?: string | null;
+          user_id?: string | null;
+        };
+        Update: {
+          assunto?: string;
+          atualizado_em?: string;
+          criado_em?: string;
+          descricao?: string;
+          email?: string;
+          grupo_id?: string | null;
+          id?: string;
+          nome?: string | null;
+          prioridade?: string;
+          protocolo?: string;
+          resposta_admin?: string | null;
+          status?: string;
+          tratado_por?: string | null;
+          user_id?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "chamados_suporte_grupo_id_fkey";
+            columns: ["grupo_id"];
+            isOneToOne: false;
+            referencedRelation: "grupos";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       comprovantes: {
         Row: {
           arquivo_excluido_em: string | null;
@@ -396,6 +551,98 @@ export type Database = {
           },
         ];
       };
+      comunicado_aceites: {
+        Row: {
+          aceito_em: string;
+          comunicado_id: string;
+          user_id: string;
+        };
+        Insert: {
+          aceito_em?: string;
+          comunicado_id: string;
+          user_id: string;
+        };
+        Update: {
+          aceito_em?: string;
+          comunicado_id?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "comunicado_aceites_comunicado_id_fkey";
+            columns: ["comunicado_id"];
+            isOneToOne: false;
+            referencedRelation: "comunicados";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      comunicados: {
+        Row: {
+          ativo: boolean;
+          criado_em: string;
+          criado_por: string | null;
+          exige_aceite: boolean;
+          expira_em: string | null;
+          id: string;
+          mensagem: string;
+          publicado_em: string;
+          titulo: string;
+        };
+        Insert: {
+          ativo?: boolean;
+          criado_em?: string;
+          criado_por?: string | null;
+          exige_aceite?: boolean;
+          expira_em?: string | null;
+          id?: string;
+          mensagem: string;
+          publicado_em?: string;
+          titulo: string;
+        };
+        Update: {
+          ativo?: boolean;
+          criado_em?: string;
+          criado_por?: string | null;
+          exige_aceite?: boolean;
+          expira_em?: string | null;
+          id?: string;
+          mensagem?: string;
+          publicado_em?: string;
+          titulo?: string;
+        };
+        Relationships: [];
+      };
+      configuracoes_acesso_site: {
+        Row: {
+          atualizado_em: string;
+          atualizado_por: string | null;
+          cota_convites: number;
+          id: boolean;
+          modo_login: string;
+          segundo_fator_email: boolean;
+          sessao_maxima_minutos: number;
+        };
+        Insert: {
+          atualizado_em?: string;
+          atualizado_por?: string | null;
+          cota_convites?: number;
+          id?: boolean;
+          modo_login?: string;
+          segundo_fator_email?: boolean;
+          sessao_maxima_minutos?: number;
+        };
+        Update: {
+          atualizado_em?: string;
+          atualizado_por?: string | null;
+          cota_convites?: number;
+          id?: boolean;
+          modo_login?: string;
+          segundo_fator_email?: boolean;
+          sessao_maxima_minutos?: number;
+        };
+        Relationships: [];
+      };
       configuracoes_casal: {
         Row: {
           chave: string;
@@ -425,8 +672,116 @@ export type Database = {
           },
         ];
       };
+      configuracoes_site: {
+        Row: {
+          atualizado_em: string;
+          chave: string;
+          valor_inteiro: number;
+        };
+        Insert: {
+          atualizado_em?: string;
+          chave: string;
+          valor_inteiro: number;
+        };
+        Update: {
+          atualizado_em?: string;
+          chave?: string;
+          valor_inteiro?: number;
+        };
+        Relationships: [];
+      };
+      contas_excluidas: {
+        Row: {
+          auth_user_id_original: string;
+          cpf: string;
+          data_nascimento: string | null;
+          email: string | null;
+          excluida_definitivamente_em: string | null;
+          excluida_em: string;
+          excluida_por: string | null;
+          expira_em: string;
+          grupo_id: string | null;
+          id: string;
+          nome: string;
+          perfil_snapshot: Json;
+          restaurada_em: string | null;
+          role: Database["public"]["Enums"]["app_role"];
+          telefone: string | null;
+        };
+        Insert: {
+          auth_user_id_original: string;
+          cpf: string;
+          data_nascimento?: string | null;
+          email?: string | null;
+          excluida_definitivamente_em?: string | null;
+          excluida_em?: string;
+          excluida_por?: string | null;
+          expira_em?: string;
+          grupo_id?: string | null;
+          id?: string;
+          nome: string;
+          perfil_snapshot?: Json;
+          restaurada_em?: string | null;
+          role?: Database["public"]["Enums"]["app_role"];
+          telefone?: string | null;
+        };
+        Update: {
+          auth_user_id_original?: string;
+          cpf?: string;
+          data_nascimento?: string | null;
+          email?: string | null;
+          excluida_definitivamente_em?: string | null;
+          excluida_em?: string;
+          excluida_por?: string | null;
+          expira_em?: string;
+          grupo_id?: string | null;
+          id?: string;
+          nome?: string;
+          perfil_snapshot?: Json;
+          restaurada_em?: string | null;
+          role?: Database["public"]["Enums"]["app_role"];
+          telefone?: string | null;
+        };
+        Relationships: [];
+      };
+      contas_recuperacao_codigos: {
+        Row: {
+          conta_excluida_id: string;
+          criado_em: string;
+          expira_em: string;
+          id: string;
+          tentativas: number;
+          token_hash: string;
+        };
+        Insert: {
+          conta_excluida_id: string;
+          criado_em?: string;
+          expira_em?: string;
+          id?: string;
+          tentativas?: number;
+          token_hash: string;
+        };
+        Update: {
+          conta_excluida_id?: string;
+          criado_em?: string;
+          expira_em?: string;
+          id?: string;
+          tentativas?: number;
+          token_hash?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "contas_recuperacao_codigos_conta_excluida_id_fkey";
+            columns: ["conta_excluida_id"];
+            isOneToOne: false;
+            referencedRelation: "contas_excluidas";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       convites: {
         Row: {
+          cancelado: boolean;
           criado_em: string;
           criado_por: string | null;
           email_convidado: string | null;
@@ -438,6 +793,7 @@ export type Database = {
           usado_por: string | null;
         };
         Insert: {
+          cancelado?: boolean;
           criado_em?: string;
           criado_por?: string | null;
           email_convidado?: string | null;
@@ -449,6 +805,7 @@ export type Database = {
           usado_por?: string | null;
         };
         Update: {
+          cancelado?: boolean;
           criado_em?: string;
           criado_por?: string | null;
           email_convidado?: string | null;
@@ -479,6 +836,53 @@ export type Database = {
             columns: ["usado_por"];
             isOneToOne: false;
             referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      convites_grupo: {
+        Row: {
+          criado_em: string;
+          criado_por: string;
+          email_destino: string;
+          expira_em: string;
+          grupo_id: string;
+          id: string;
+          respondido_em: string | null;
+          respondido_por: string | null;
+          status: string;
+          token_hash: string;
+        };
+        Insert: {
+          criado_em?: string;
+          criado_por: string;
+          email_destino: string;
+          expira_em?: string;
+          grupo_id: string;
+          id?: string;
+          respondido_em?: string | null;
+          respondido_por?: string | null;
+          status?: string;
+          token_hash: string;
+        };
+        Update: {
+          criado_em?: string;
+          criado_por?: string;
+          email_destino?: string;
+          expira_em?: string;
+          grupo_id?: string;
+          id?: string;
+          respondido_em?: string | null;
+          respondido_por?: string | null;
+          status?: string;
+          token_hash?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "convites_grupo_grupo_id_fkey";
+            columns: ["grupo_id"];
+            isOneToOne: false;
+            referencedRelation: "grupos";
             referencedColumns: ["id"];
           },
         ];
@@ -666,6 +1070,142 @@ export type Database = {
           },
         ];
       };
+      eventos_sessao: {
+        Row: {
+          encerrou_em: string | null;
+          id: string;
+          iniciou_em: string;
+          motivo_encerramento: string | null;
+          ultima_atividade_em: string;
+          user_id: string;
+        };
+        Insert: {
+          encerrou_em?: string | null;
+          id?: string;
+          iniciou_em?: string;
+          motivo_encerramento?: string | null;
+          ultima_atividade_em?: string;
+          user_id: string;
+        };
+        Update: {
+          encerrou_em?: string | null;
+          id?: string;
+          iniciou_em?: string;
+          motivo_encerramento?: string | null;
+          ultima_atividade_em?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
+      exame_medicoes: {
+        Row: {
+          aprovado_em: string | null;
+          created_at: string;
+          data_medicao: string;
+          exame_id: string;
+          id: string;
+          indicador: string;
+          referencia: string | null;
+          unidade: string | null;
+          valor: number | null;
+          valor_texto: string | null;
+        };
+        Insert: {
+          aprovado_em?: string | null;
+          created_at?: string;
+          data_medicao: string;
+          exame_id: string;
+          id?: string;
+          indicador: string;
+          referencia?: string | null;
+          unidade?: string | null;
+          valor?: number | null;
+          valor_texto?: string | null;
+        };
+        Update: {
+          aprovado_em?: string | null;
+          created_at?: string;
+          data_medicao?: string;
+          exame_id?: string;
+          id?: string;
+          indicador?: string;
+          referencia?: string | null;
+          unidade?: string | null;
+          valor?: number | null;
+          valor_texto?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "exame_medicoes_exame_id_fkey";
+            columns: ["exame_id"];
+            isOneToOne: false;
+            referencedRelation: "exames_registros";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      exames_registros: {
+        Row: {
+          arquivo_path: string | null;
+          compartilhado_grupo: boolean;
+          created_at: string;
+          data_exame: string | null;
+          grupo_id: string | null;
+          id: string;
+          laboratorio: string | null;
+          observacao: string | null;
+          origem: string;
+          revisado_em: string | null;
+          status_importacao: string;
+          tipo: string | null;
+          titulo: string;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          arquivo_path?: string | null;
+          compartilhado_grupo?: boolean;
+          created_at?: string;
+          data_exame?: string | null;
+          grupo_id?: string | null;
+          id?: string;
+          laboratorio?: string | null;
+          observacao?: string | null;
+          origem?: string;
+          revisado_em?: string | null;
+          status_importacao?: string;
+          tipo?: string | null;
+          titulo: string;
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          arquivo_path?: string | null;
+          compartilhado_grupo?: boolean;
+          created_at?: string;
+          data_exame?: string | null;
+          grupo_id?: string | null;
+          id?: string;
+          laboratorio?: string | null;
+          observacao?: string | null;
+          origem?: string;
+          revisado_em?: string | null;
+          status_importacao?: string;
+          tipo?: string | null;
+          titulo?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "exames_registros_grupo_id_fkey";
+            columns: ["grupo_id"];
+            isOneToOne: false;
+            referencedRelation: "grupos";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       fatura_layouts: {
         Row: {
           acertos: number;
@@ -733,6 +1273,7 @@ export type Database = {
           banco_id: string | null;
           cartao_id: string | null;
           competencia: string;
+          concluida_por_importacao_em: string | null;
           created_at: string;
           created_by: string | null;
           despesa_avulsa_id: string | null;
@@ -741,7 +1282,6 @@ export type Database = {
           id: string;
           inclui_parcelas: boolean;
           modo_calculo: string;
-          concluida_por_importacao_em: string | null;
           status: string;
           total_informado: number;
           total_real: number | null;
@@ -751,6 +1291,7 @@ export type Database = {
           banco_id?: string | null;
           cartao_id?: string | null;
           competencia: string;
+          concluida_por_importacao_em?: string | null;
           created_at?: string;
           created_by?: string | null;
           despesa_avulsa_id?: string | null;
@@ -759,7 +1300,6 @@ export type Database = {
           id?: string;
           inclui_parcelas?: boolean;
           modo_calculo?: string;
-          concluida_por_importacao_em?: string | null;
           status?: string;
           total_informado?: number;
           total_real?: number | null;
@@ -769,6 +1309,7 @@ export type Database = {
           banco_id?: string | null;
           cartao_id?: string | null;
           competencia?: string;
+          concluida_por_importacao_em?: string | null;
           created_at?: string;
           created_by?: string | null;
           despesa_avulsa_id?: string | null;
@@ -777,7 +1318,6 @@ export type Database = {
           id?: string;
           inclui_parcelas?: boolean;
           modo_calculo?: string;
-          concluida_por_importacao_em?: string | null;
           status?: string;
           total_informado?: number;
           total_real?: number | null;
@@ -835,14 +1375,71 @@ export type Database = {
         };
         Relationships: [];
       };
+      historico_alertas_usuario: {
+        Row: {
+          exibido_em: string;
+          id: string;
+          lido_em: string | null;
+          mensagem: string;
+          referencia_id: string | null;
+          referencia_tipo: string | null;
+          tipo: string;
+          titulo: string;
+          user_id: string;
+        };
+        Insert: {
+          exibido_em?: string;
+          id?: string;
+          lido_em?: string | null;
+          mensagem: string;
+          referencia_id?: string | null;
+          referencia_tipo?: string | null;
+          tipo: string;
+          titulo: string;
+          user_id: string;
+        };
+        Update: {
+          exibido_em?: string;
+          id?: string;
+          lido_em?: string | null;
+          mensagem?: string;
+          referencia_id?: string | null;
+          referencia_tipo?: string | null;
+          tipo?: string;
+          titulo?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
+      identidade_visual_site: {
+        Row: {
+          atualizado_em: string;
+          atualizado_por: string | null;
+          id: boolean;
+          logo_path: string | null;
+        };
+        Insert: {
+          atualizado_em?: string;
+          atualizado_por?: string | null;
+          id?: boolean;
+          logo_path?: string | null;
+        };
+        Update: {
+          atualizado_em?: string;
+          atualizado_por?: string | null;
+          id?: boolean;
+          logo_path?: string | null;
+        };
+        Relationships: [];
+      };
       import_faturas: {
         Row: {
-          cartao_id: string | null;
           arquivo_excluido_em: string | null;
           arquivo_excluido_por: string | null;
           arquivo_hash: string;
           arquivo_nome: string;
           banco: string;
+          cartao_id: string | null;
           competencia: string | null;
           created_at: string;
           diferenca_validacao: number | null;
@@ -864,12 +1461,12 @@ export type Database = {
           vencimento: string | null;
         };
         Insert: {
-          cartao_id?: string | null;
           arquivo_excluido_em?: string | null;
           arquivo_excluido_por?: string | null;
           arquivo_hash: string;
           arquivo_nome: string;
           banco: string;
+          cartao_id?: string | null;
           competencia?: string | null;
           created_at?: string;
           diferenca_validacao?: number | null;
@@ -891,12 +1488,12 @@ export type Database = {
           vencimento?: string | null;
         };
         Update: {
-          cartao_id?: string | null;
           arquivo_excluido_em?: string | null;
           arquivo_excluido_por?: string | null;
           arquivo_hash?: string;
           arquivo_nome?: string;
           banco?: string;
+          cartao_id?: string | null;
           competencia?: string | null;
           created_at?: string;
           diferenca_validacao?: number | null;
@@ -1098,6 +1695,125 @@ export type Database = {
           },
         ];
       };
+      itens_armazenados: {
+        Row: {
+          created_at: string;
+          foto_path: string | null;
+          grupo_id: string;
+          id: string;
+          local_id: string;
+          nome: string;
+          observacao: string | null;
+          quantidade: number;
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          foto_path?: string | null;
+          grupo_id: string;
+          id?: string;
+          local_id: string;
+          nome: string;
+          observacao?: string | null;
+          quantidade?: number;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          foto_path?: string | null;
+          grupo_id?: string;
+          id?: string;
+          local_id?: string;
+          nome?: string;
+          observacao?: string | null;
+          quantidade?: number;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "itens_armazenados_grupo_id_fkey";
+            columns: ["grupo_id"];
+            isOneToOne: false;
+            referencedRelation: "grupos";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "itens_armazenados_local_id_fkey";
+            columns: ["local_id"];
+            isOneToOne: false;
+            referencedRelation: "locais_armazenamento";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      layout_solicitacoes: {
+        Row: {
+          arquivo_nome: string;
+          arquivo_path: string;
+          atualizado_em: string;
+          banco_informado: string | null;
+          cartao_final: string | null;
+          consentimento_em: string;
+          criado_em: string;
+          descricao: string | null;
+          email_usuario: string | null;
+          grupo_id: string | null;
+          id: string;
+          layout_id: string | null;
+          prazo_exclusao: string;
+          resposta_admin: string | null;
+          status: string;
+          tratado_por: string | null;
+          user_id: string;
+        };
+        Insert: {
+          arquivo_nome: string;
+          arquivo_path: string;
+          atualizado_em?: string;
+          banco_informado?: string | null;
+          cartao_final?: string | null;
+          consentimento_em?: string;
+          criado_em?: string;
+          descricao?: string | null;
+          email_usuario?: string | null;
+          grupo_id?: string | null;
+          id?: string;
+          layout_id?: string | null;
+          prazo_exclusao?: string;
+          resposta_admin?: string | null;
+          status?: string;
+          tratado_por?: string | null;
+          user_id: string;
+        };
+        Update: {
+          arquivo_nome?: string;
+          arquivo_path?: string;
+          atualizado_em?: string;
+          banco_informado?: string | null;
+          cartao_final?: string | null;
+          consentimento_em?: string;
+          criado_em?: string;
+          descricao?: string | null;
+          email_usuario?: string | null;
+          grupo_id?: string | null;
+          id?: string;
+          layout_id?: string | null;
+          prazo_exclusao?: string;
+          resposta_admin?: string | null;
+          status?: string;
+          tratado_por?: string | null;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "layout_solicitacoes_grupo_id_fkey";
+            columns: ["grupo_id"];
+            isOneToOne: false;
+            referencedRelation: "grupos";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       lista_compras: {
         Row: {
           alerta_em: string | null;
@@ -1111,6 +1827,7 @@ export type Database = {
           created_by: string | null;
           grupo_id: string | null;
           id: string;
+          links: Json;
           lista: string;
           nome: string;
           observacao: string | null;
@@ -1129,6 +1846,7 @@ export type Database = {
           created_by?: string | null;
           grupo_id?: string | null;
           id?: string;
+          links?: Json;
           lista?: string;
           nome: string;
           observacao?: string | null;
@@ -1147,6 +1865,7 @@ export type Database = {
           created_by?: string | null;
           grupo_id?: string | null;
           id?: string;
+          links?: Json;
           lista?: string;
           nome?: string;
           observacao?: string | null;
@@ -1160,6 +1879,158 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "grupos";
             referencedColumns: ["id"];
+          },
+        ];
+      };
+      locais_armazenamento: {
+        Row: {
+          created_at: string;
+          descricao: string | null;
+          grupo_id: string;
+          id: string;
+          local_pai_id: string | null;
+          nome: string;
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          descricao?: string | null;
+          grupo_id: string;
+          id?: string;
+          local_pai_id?: string | null;
+          nome: string;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          descricao?: string | null;
+          grupo_id?: string;
+          id?: string;
+          local_pai_id?: string | null;
+          nome?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "locais_armazenamento_grupo_id_fkey";
+            columns: ["grupo_id"];
+            isOneToOne: false;
+            referencedRelation: "grupos";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "locais_armazenamento_local_pai_id_fkey";
+            columns: ["local_pai_id"];
+            isOneToOne: false;
+            referencedRelation: "locais_armazenamento";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      login_2fa_desafios: {
+        Row: {
+          codigo_hash: string;
+          criado_em: string;
+          expira_em: string;
+          id: string;
+          tentativas: number;
+          usado_em: string | null;
+          user_id: string;
+        };
+        Insert: {
+          codigo_hash: string;
+          criado_em?: string;
+          expira_em?: string;
+          id?: string;
+          tentativas?: number;
+          usado_em?: string | null;
+          user_id: string;
+        };
+        Update: {
+          codigo_hash?: string;
+          criado_em?: string;
+          expira_em?: string;
+          id?: string;
+          tentativas?: number;
+          usado_em?: string | null;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
+      login_tentativas: {
+        Row: {
+          atualizado_em: string;
+          bloqueado_ate: string | null;
+          falhas: number;
+          identificador_hash: string;
+        };
+        Insert: {
+          atualizado_em?: string;
+          bloqueado_ate?: string | null;
+          falhas?: number;
+          identificador_hash: string;
+        };
+        Update: {
+          atualizado_em?: string;
+          bloqueado_ate?: string | null;
+          falhas?: number;
+          identificador_hash?: string;
+        };
+        Relationships: [];
+      };
+      modulos_globais: {
+        Row: {
+          atualizado_em: string;
+          atualizado_por: string | null;
+          habilitado: boolean;
+          modulo: string;
+          nome: string;
+        };
+        Insert: {
+          atualizado_em?: string;
+          atualizado_por?: string | null;
+          habilitado?: boolean;
+          modulo: string;
+          nome: string;
+        };
+        Update: {
+          atualizado_em?: string;
+          atualizado_por?: string | null;
+          habilitado?: boolean;
+          modulo?: string;
+          nome?: string;
+        };
+        Relationships: [];
+      };
+      modulos_usuario: {
+        Row: {
+          atualizado_em: string;
+          atualizado_por: string | null;
+          habilitado: boolean;
+          modulo: string;
+          user_id: string;
+        };
+        Insert: {
+          atualizado_em?: string;
+          atualizado_por?: string | null;
+          habilitado: boolean;
+          modulo: string;
+          user_id: string;
+        };
+        Update: {
+          atualizado_em?: string;
+          atualizado_por?: string | null;
+          habilitado?: boolean;
+          modulo?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "modulos_usuario_modulo_fkey";
+            columns: ["modulo"];
+            isOneToOne: false;
+            referencedRelation: "modulos_globais";
+            referencedColumns: ["modulo"];
           },
         ];
       };
@@ -1373,6 +2244,42 @@ export type Database = {
             referencedColumns: ["id"];
           },
         ];
+      };
+      notificacoes_usuario: {
+        Row: {
+          criado_em: string;
+          id: string;
+          lida_em: string | null;
+          mensagem: string;
+          referencia_id: string | null;
+          referencia_tipo: string | null;
+          tipo: string;
+          titulo: string;
+          user_id: string;
+        };
+        Insert: {
+          criado_em?: string;
+          id?: string;
+          lida_em?: string | null;
+          mensagem: string;
+          referencia_id?: string | null;
+          referencia_tipo?: string | null;
+          tipo: string;
+          titulo: string;
+          user_id: string;
+        };
+        Update: {
+          criado_em?: string;
+          id?: string;
+          lida_em?: string | null;
+          mensagem?: string;
+          referencia_id?: string | null;
+          referencia_tipo?: string | null;
+          tipo?: string;
+          titulo?: string;
+          user_id?: string;
+        };
+        Relationships: [];
       };
       parcela_auditoria: {
         Row: {
@@ -1588,6 +2495,140 @@ export type Database = {
           },
         ];
       };
+      pet_animais: {
+        Row: {
+          created_at: string;
+          especie: string;
+          foto_path: string | null;
+          grupo_id: string;
+          id: string;
+          nascimento: string | null;
+          nome: string;
+          observacao: string | null;
+          pelagem: string | null;
+          raca: string | null;
+          restricoes: string | null;
+          sexo: string | null;
+          tutor_nome: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          especie?: string;
+          foto_path?: string | null;
+          grupo_id: string;
+          id?: string;
+          nascimento?: string | null;
+          nome: string;
+          observacao?: string | null;
+          pelagem?: string | null;
+          raca?: string | null;
+          restricoes?: string | null;
+          sexo?: string | null;
+          tutor_nome?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          especie?: string;
+          foto_path?: string | null;
+          grupo_id?: string;
+          id?: string;
+          nascimento?: string | null;
+          nome?: string;
+          observacao?: string | null;
+          pelagem?: string | null;
+          raca?: string | null;
+          restricoes?: string | null;
+          sexo?: string | null;
+          tutor_nome?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "pet_animais_grupo_id_fkey";
+            columns: ["grupo_id"];
+            isOneToOne: false;
+            referencedRelation: "grupos";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      pet_vacinas: {
+        Row: {
+          aplicada_em: string | null;
+          comprovante_path: string | null;
+          created_at: string;
+          crmv: string | null;
+          fabricada_em: string | null;
+          fabricante: string | null;
+          grupo_id: string;
+          id: string;
+          lote: string | null;
+          nome: string;
+          observacao: string | null;
+          origem: string;
+          pet_id: string;
+          proxima_dose_em: string | null;
+          revisada_em: string | null;
+          validade_em: string | null;
+          veterinario: string | null;
+        };
+        Insert: {
+          aplicada_em?: string | null;
+          comprovante_path?: string | null;
+          created_at?: string;
+          crmv?: string | null;
+          fabricada_em?: string | null;
+          fabricante?: string | null;
+          grupo_id: string;
+          id?: string;
+          lote?: string | null;
+          nome: string;
+          observacao?: string | null;
+          origem?: string;
+          pet_id: string;
+          proxima_dose_em?: string | null;
+          revisada_em?: string | null;
+          validade_em?: string | null;
+          veterinario?: string | null;
+        };
+        Update: {
+          aplicada_em?: string | null;
+          comprovante_path?: string | null;
+          created_at?: string;
+          crmv?: string | null;
+          fabricada_em?: string | null;
+          fabricante?: string | null;
+          grupo_id?: string;
+          id?: string;
+          lote?: string | null;
+          nome?: string;
+          observacao?: string | null;
+          origem?: string;
+          pet_id?: string;
+          proxima_dose_em?: string | null;
+          revisada_em?: string | null;
+          validade_em?: string | null;
+          veterinario?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "pet_vacinas_grupo_id_fkey";
+            columns: ["grupo_id"];
+            isOneToOne: false;
+            referencedRelation: "grupos";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "pet_vacinas_pet_id_fkey";
+            columns: ["pet_id"];
+            isOneToOne: false;
+            referencedRelation: "pet_animais";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       preferencias_usuario: {
         Row: {
           fonte: string;
@@ -1618,6 +2659,7 @@ export type Database = {
       profiles: {
         Row: {
           ativo: boolean;
+          bloqueio_exclusao_total: boolean;
           convidado_por: string | null;
           cpf: string;
           created_at: string;
@@ -1631,6 +2673,7 @@ export type Database = {
         };
         Insert: {
           ativo?: boolean;
+          bloqueio_exclusao_total?: boolean;
           convidado_por?: string | null;
           cpf: string;
           created_at?: string;
@@ -1644,6 +2687,7 @@ export type Database = {
         };
         Update: {
           ativo?: boolean;
+          bloqueio_exclusao_total?: boolean;
           convidado_por?: string | null;
           cpf?: string;
           created_at?: string;
@@ -1767,6 +2811,72 @@ export type Database = {
             referencedColumns: ["id"];
           },
         ];
+      };
+      site_admins: {
+        Row: {
+          criado_em: string;
+          user_id: string;
+        };
+        Insert: {
+          criado_em?: string;
+          user_id: string;
+        };
+        Update: {
+          criado_em?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
+      solicitacoes_privacidade: {
+        Row: {
+          atualizado_em: string;
+          cpf_hash: string;
+          criado_em: string;
+          email: string;
+          id: string;
+          motivo: string | null;
+          protocolo: string;
+          resposta_admin: string | null;
+          status: string;
+          telefone: string;
+          tipo: string;
+          tratado_por: string | null;
+          tratativa_historico: Json;
+          user_id: string | null;
+        };
+        Insert: {
+          atualizado_em?: string;
+          cpf_hash: string;
+          criado_em?: string;
+          email: string;
+          id?: string;
+          motivo?: string | null;
+          protocolo?: string;
+          resposta_admin?: string | null;
+          status?: string;
+          telefone: string;
+          tipo?: string;
+          tratado_por?: string | null;
+          tratativa_historico?: Json;
+          user_id?: string | null;
+        };
+        Update: {
+          atualizado_em?: string;
+          cpf_hash?: string;
+          criado_em?: string;
+          email?: string;
+          id?: string;
+          motivo?: string | null;
+          protocolo?: string;
+          resposta_admin?: string | null;
+          status?: string;
+          telefone?: string;
+          tipo?: string;
+          tratado_por?: string | null;
+          tratativa_historico?: Json;
+          user_id?: string | null;
+        };
+        Relationships: [];
       };
       user_roles: {
         Row: {
@@ -1971,12 +3081,53 @@ export type Database = {
           },
         ];
       };
+      versoes_site: {
+        Row: {
+          ativo: boolean;
+          build_em: string | null;
+          criado_em: string;
+          limpo_em: string | null;
+          limpo_por: string | null;
+          versao: string;
+        };
+        Insert: {
+          ativo?: boolean;
+          build_em?: string | null;
+          criado_em?: string;
+          limpo_em?: string | null;
+          limpo_por?: string | null;
+          versao: string;
+        };
+        Update: {
+          ativo?: boolean;
+          build_em?: string | null;
+          criado_em?: string;
+          limpo_em?: string | null;
+          limpo_por?: string | null;
+          versao?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: {
-      [_ in never]: never;
+      admin_uso_arquivos: {
+        Row: {
+          arquivos: number | null;
+          bytes: number | null;
+          user_id: string | null;
+        };
+        Relationships: [];
+      };
     };
     Functions: {
-      [_ in never]: never;
+      aceitar_convite_grupo: { Args: { p_token: string }; Returns: string };
+      registrar_tentativa_login: {
+        Args: { p_hash: string; p_sucesso: boolean };
+        Returns: {
+          bloqueado_ate: string;
+          falhas: number;
+        }[];
+      };
     };
     Enums: {
       app_role: "admin" | "comum";

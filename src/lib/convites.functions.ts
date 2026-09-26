@@ -5,31 +5,53 @@ import { isValidCpf, onlyDigits } from "@/lib/cpf";
 import { verificarTurnstileToken } from "@/lib/turnstile.functions";
 import { TURNSTILE_ATIVO } from "@/lib/turnstile-config";
 
-/** Máximo de convites (aceitos + pendentes não expirados) por pessoa. */
-const COTA_CONVITES = 3;
+/** URL base do site pra montar o link de convite clicável. */
+const urlBase = () => process.env["SITE_URL"] || "https://www.controlall.com.br";
+
+/** Cota padrão de convites (aceitos + pendentes não expirados) por pessoa,
+ * usada apenas se a configuração do site ainda não tiver sido carregada. O
+ * valor real e ajustável pelo admin vem de `configuracoes_acesso_site`. */
+const COTA_CONVITES_PADRAO = 3;
 
 /**
- * Cria um convite pro grupo do usuário logado, respeitando a cota de
- * COTA_CONVITES por pessoa. Convites usados e pendentes não expirados contam.
- * A consulta usa a sessão validada e as políticas da própria tabela.
+ * Cria um convite pro grupo do usuário logado, respeitando a cota
+ * configurável (`configuracoes_acesso_site.cota_convites`) por pessoa.
+ * O admin do site (tabela `site_admins`) pode convidar de forma ILIMITADA,
+ * independente da cota configurada. Convites usados e pendentes não
+ * expirados contam para a cota.
  */
 export const criarConvite = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const meuId = context.userId;
 
-    const { data: convites, error: convitesError } = await context.supabase
-      .from("convites")
-      .select("usado, expira_em")
-      .eq("criado_por", meuId);
-    if (convitesError) throw new Error(convitesError.message);
+    const { data: souAdmin } = await context.supabase
+      .from("site_admins")
+      .select("user_id")
+      .eq("user_id", meuId)
+      .maybeSingle();
 
-    const agora = Date.now();
-    const usados = (convites ?? []).filter(
-      (convite) => convite.usado || new Date(convite.expira_em).getTime() >= agora,
-    ).length;
-    if (usados >= COTA_CONVITES) {
-      throw new Error(`Você já atingiu o limite de ${COTA_CONVITES} convites.`);
+    if (!souAdmin) {
+      const { data: cfg } = await context.supabase
+        .from("configuracoes_acesso_site")
+        .select("cota_convites")
+        .eq("id", true)
+        .maybeSingle();
+      const cotaConvites = cfg?.cota_convites ?? COTA_CONVITES_PADRAO;
+
+      const { data: convites, error: convitesError } = await context.supabase
+        .from("convites")
+        .select("usado, expira_em")
+        .eq("criado_por", meuId);
+      if (convitesError) throw new Error(convitesError.message);
+
+      const agora = Date.now();
+      const usados = (convites ?? []).filter(
+        (convite) => convite.usado || new Date(convite.expira_em).getTime() >= agora,
+      ).length;
+      if (usados >= cotaConvites) {
+        throw new Error(`Você já atingiu o limite de ${cotaConvites} convites.`);
+      }
     }
 
     const { data: perfil, error: perfilError } = await context.supabase
@@ -74,15 +96,17 @@ export const enviarConvitePorEmail = createServerFn({ method: "POST" })
       throw new Error("Este convite expirou. Gere um novo.");
     }
 
+    const link = `${urlBase()}/entrar?convite=${encodeURIComponent(convite.token)}`;
     const { enviarEmail } = await import("@/lib/email.server");
     const resultado = await enviarEmail({
       to: data.email,
       subject: "Você foi convidado para o Control ALL",
       html: `
         <p>Você recebeu um convite para criar sua conta no <strong>Control ALL</strong>.</p>
-        <p>Código de convite:</p>
+        <p>Clique no link abaixo para já abrir a criação de conta com o convite preenchido:</p>
+        <p><a href="${link}" style="font-size:16px">${link}</a></p>
+        <p>Ou, se preferir, acesse o site, na aba "Criar conta", e cole este código no campo de convite:</p>
         <p style="font-family:monospace;font-size:18px;letter-spacing:1px">${convite.token}</p>
-        <p>Acesse o site, na aba "Criar conta", e cole esse código no campo de convite.</p>
         <p style="color:#888;font-size:12px">Se você não esperava este e-mail, pode ignorá-lo.</p>
       `,
     });

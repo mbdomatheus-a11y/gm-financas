@@ -127,6 +127,7 @@ function Admin() {
   const [titulo, setTitulo] = useState("");
   const [msg, setMsg] = useState("");
   const [sessaoMin, setSessaoMin] = useState<number>(60);
+  const [cotaConvitesInput, setCotaConvitesInput] = useState<number>(3);
   const [dialogPriv, setDialogPriv] = useState<{ id: string; status: string; email: string } | null>(null);
   const [respostaPriv, setRespostaPriv] = useState("");
   const [statusPriv, setStatusPriv] = useState("em_atendimento");
@@ -154,7 +155,7 @@ function Admin() {
     enabled: isSiteAdmin,
     queryFn: () => logsFn(),
   });
-  const { data: config } = useQuery<{ modo_login: "cpf" | "email" | "ambos"; segundo_fator_email: boolean; sessao_maxima_minutos: number } | undefined>({
+  const { data: config } = useQuery<{ modo_login: "cpf" | "email" | "ambos"; segundo_fator_email: boolean; sessao_maxima_minutos: number; cota_convites: number } | undefined>({
     queryKey: ["configuracao-acesso-publica"],
     enabled: isSiteAdmin,
     queryFn: () => obterConfig() as any,
@@ -165,6 +166,12 @@ function Admin() {
       setSessaoMin(config.sessao_maxima_minutos);
     }
   }, [config?.sessao_maxima_minutos]);
+
+  useEffect(() => {
+    if (config?.cota_convites) {
+      setCotaConvitesInput(config.cota_convites);
+    }
+  }, [config?.cota_convites]);
 
   const { data: gestaoModulos } = useQuery({
     queryKey: ["admin-modulos"],
@@ -194,7 +201,7 @@ function Admin() {
 
   // Mutations
   const salvarAcesso = useMutation({
-    mutationFn: (valor: { modoLogin: "cpf" | "email" | "ambos"; segundoFatorEmail: boolean; sessaoMaximaMinutos: number }) =>
+    mutationFn: (valor: { modoLogin: "cpf" | "email" | "ambos"; segundoFatorEmail: boolean; sessaoMaximaMinutos: number; cotaConvites: number }) =>
       salvarConfig({ data: valor }),
     onSuccess: () => { toast.success("Configuração de acesso salva."); qc.invalidateQueries({ queryKey: ["configuracao-acesso-publica"] }); },
     onError: (e: any) => toast.error(e.message),
@@ -319,7 +326,10 @@ function Admin() {
                 <span><b>{(convites as any[]).filter((c: any) => c.status === "cancelado").length}</b> cancelados</span>
                 <span><b>{(convites as any[]).filter((c: any) => c.status === "expirado").length}</b> expirados</span>
               </div>
-              <p className="text-xs text-muted-foreground">Limite de 3 convites por usuário comum. Admins têm limite ilimitado.</p>
+              <p className="text-xs text-muted-foreground">
+                Limite de {config?.cota_convites ?? 3} convites por usuário comum (ajustável na aba
+                "Acesso e Auth"). Você, como admin do site, tem limite ilimitado.
+              </p>
               <div className="mt-3 max-h-60 overflow-auto">
                 <table className="w-full text-left text-xs">
                   <thead><tr className="border-b"><th className="p-1.5">Criador</th><th className="p-1.5">Status</th><th className="p-1.5">Criado em</th><th className="p-1.5">Expira em</th></tr></thead>
@@ -467,7 +477,7 @@ function Admin() {
                   <p className="mb-2 text-xs text-muted-foreground">Identificador no login</p>
                   <Select
                     value={config.modo_login}
-                    onValueChange={(v) => salvarAcesso.mutate({ modoLogin: v as any, segundoFatorEmail: config.segundo_fator_email, sessaoMaximaMinutos: sessaoMin })}
+                    onValueChange={(v) => salvarAcesso.mutate({ modoLogin: v as any, segundoFatorEmail: config.segundo_fator_email, sessaoMaximaMinutos: sessaoMin, cotaConvites: cotaConvitesInput })}
                   >
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -481,7 +491,7 @@ function Admin() {
                   2FA por e-mail
                   <Switch
                     checked={config.segundo_fator_email}
-                    onCheckedChange={(v) => salvarAcesso.mutate({ modoLogin: config.modo_login, segundoFatorEmail: v, sessaoMaximaMinutos: sessaoMin })}
+                    onCheckedChange={(v) => salvarAcesso.mutate({ modoLogin: config.modo_login, segundoFatorEmail: v, sessaoMaximaMinutos: sessaoMin, cotaConvites: cotaConvitesInput })}
                   />
                 </label>
                 <div className="space-y-2">
@@ -495,10 +505,30 @@ function Admin() {
                   />
                   <Button
                     size="sm"
-                    onClick={() => salvarAcesso.mutate({ modoLogin: config.modo_login, segundoFatorEmail: config.segundo_fator_email, sessaoMaximaMinutos: sessaoMin })}
+                    onClick={() => salvarAcesso.mutate({ modoLogin: config.modo_login, segundoFatorEmail: config.segundo_fator_email, sessaoMaximaMinutos: sessaoMin, cotaConvites: cotaConvitesInput })}
                   >
                     Salvar sessão
                   </Button>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground">Cota de convites por usuário</p>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={1000}
+                    value={cotaConvitesInput}
+                    onChange={(e) => setCotaConvitesInput(Number(e.target.value))}
+                  />
+                  <Button
+                    size="sm"
+                    onClick={() => salvarAcesso.mutate({ modoLogin: config.modo_login, segundoFatorEmail: config.segundo_fator_email, sessaoMaximaMinutos: sessaoMin, cotaConvites: cotaConvitesInput })}
+                  >
+                    Salvar cota de convites
+                  </Button>
+                  <p className="text-[11px] text-muted-foreground">
+                    Vale para todo mundo. Você (admin do site) sempre pode convidar sem limite,
+                    independente deste valor.
+                  </p>
                 </div>
               </CardContent>
             </Card>
