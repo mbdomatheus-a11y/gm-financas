@@ -98,6 +98,7 @@ const JANELAS = [
   { value: "6", label: "Próximos 6 meses" },
   { value: "12", label: "Próximos 12 meses" },
   { value: "24", label: "Próximos 24 meses" },
+  { value: "custom", label: "Período personalizado" },
 ];
 
 /** Gera as chaves de mês da janela escolhida (negativo = passado incluindo o mês atual). */
@@ -111,6 +112,29 @@ function monthWindow(janela: string): string[] {
   } else {
     for (let i = 0; i < n; i++)
       out.push(monthKey(new Date(now.getFullYear(), now.getMonth() + i, 1)));
+  }
+  return out;
+}
+
+/** Gera as chaves de mês entre `inicio` e `fim` (ambos "YYYY-MM", inclusive). */
+function monthRange(inicio: string, fim: string): string[] {
+  const [yi, mi] = inicio.split("-").map(Number);
+  const [yf, mf] = fim.split("-").map(Number);
+  if (!yi || !mi || !yf || !mf) return [];
+  const out: string[] = [];
+  let y = yi;
+  let m = mi;
+  // Limite de segurança pra nunca gerar uma janela absurdamente grande
+  // (ex.: datas trocadas por engano) — 30 anos de meses é mais que suficiente.
+  let guarda = 0;
+  while ((y < yf || (y === yf && m <= mf)) && guarda < 360) {
+    out.push(`${y}-${String(m).padStart(2, "0")}`);
+    m++;
+    if (m > 12) {
+      m = 1;
+      y++;
+    }
+    guarda++;
   }
   return out;
 }
@@ -138,6 +162,8 @@ function DashboardPage() {
 
   const mesAtual = currentMonthKey();
   const [janela, setJanela] = useState("-6");
+  const [mesInicioCustom, setMesInicioCustom] = useState(mesAtual);
+  const [mesFimCustom, setMesFimCustom] = useState(mesAtual);
   const [visaoFluxo, setVisaoFluxo] = useState<"ambos" | "receitas" | "despesas">("ambos");
   const [tipoGrafico, setTipoGrafico] = useState<"barras" | "linhas">("barras");
   const [mesPie, setMesPie] = useState(mesAtual);
@@ -145,14 +171,27 @@ function DashboardPage() {
   const [drill, setDrill] = useState<{ mes: string; grupo?: string } | null>(null);
   const [editando, setEditando] = useState<any | null>(null);
 
-  const meses = useMemo(() => monthWindow(janela), [janela]);
+  const meses = useMemo(() => {
+    if (janela === "custom") {
+      const inicio = mesInicioCustom <= mesFimCustom ? mesInicioCustom : mesFimCustom;
+      const fim = mesInicioCustom <= mesFimCustom ? mesFimCustom : mesInicioCustom;
+      return monthRange(inicio, fim);
+    }
+    return monthWindow(janela);
+  }, [janela, mesInicioCustom, mesFimCustom]);
+
+  // Janela usada para calcular parcelas/lançamentos por competência — cobre
+  // sempre pelo menos -12..+24 meses (padrão), mas se o período personalizado
+  // escolhido for maior que isso, amplia para cobrir o intervalo escolhido.
   const mesesSelecionaveis = useMemo(() => {
     const now = new Date();
-    const out: string[] = [];
+    const base: string[] = [];
     for (let i = -12; i <= 24; i++)
-      out.push(monthKey(new Date(now.getFullYear(), now.getMonth() + i, 1)));
-    return out;
-  }, []);
+      base.push(monthKey(new Date(now.getFullYear(), now.getMonth() + i, 1)));
+    if (meses.length === 0) return base;
+    const uniao = new Set([...base, ...meses]);
+    return Array.from(uniao).sort();
+  }, [meses]);
 
   const parcelas = useMemo(
     () =>
@@ -537,6 +576,25 @@ function DashboardPage() {
                 ))}
               </SelectContent>
             </Select>
+            {janela === "custom" && (
+              <div className="flex items-center gap-1.5">
+                <Input
+                  type="month"
+                  value={mesInicioCustom}
+                  onChange={(e) => setMesInicioCustom(e.target.value)}
+                  className="h-8 w-[130px] text-xs"
+                  aria-label="Mês inicial"
+                />
+                <span className="text-xs text-muted-foreground">até</span>
+                <Input
+                  type="month"
+                  value={mesFimCustom}
+                  onChange={(e) => setMesFimCustom(e.target.value)}
+                  className="h-8 w-[130px] text-xs"
+                  aria-label="Mês final"
+                />
+              </div>
+            )}
           </div>
         </CardHeader>
         <CardContent className="h-[340px]">
