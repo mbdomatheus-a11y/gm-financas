@@ -907,6 +907,7 @@ export type Database = {
           descricao: string;
           descricao_normalizada: string | null;
           direcao: string;
+          economia_conquistada: boolean;
           estabelecimento: string | null;
           estabelecimento_normalizado: string | null;
           fatura_id: string | null;
@@ -955,6 +956,7 @@ export type Database = {
           descricao: string;
           descricao_normalizada?: string | null;
           direcao?: string;
+          economia_conquistada?: boolean;
           estabelecimento?: string | null;
           estabelecimento_normalizado?: string | null;
           fatura_id?: string | null;
@@ -1003,6 +1005,7 @@ export type Database = {
           descricao?: string;
           descricao_normalizada?: string | null;
           direcao?: string;
+          economia_conquistada?: boolean;
           estabelecimento?: string | null;
           estabelecimento_normalizado?: string | null;
           fatura_id?: string | null;
@@ -1069,6 +1072,27 @@ export type Database = {
             referencedColumns: ["id"];
           },
         ];
+      };
+      estatisticas_site_publicas: {
+        Row: {
+          economia_total_atualizado_em: string | null;
+          economia_total_atualizado_por: string | null;
+          economia_total_exibida: number | null;
+          id: boolean;
+        };
+        Insert: {
+          economia_total_atualizado_em?: string | null;
+          economia_total_atualizado_por?: string | null;
+          economia_total_exibida?: number | null;
+          id?: boolean;
+        };
+        Update: {
+          economia_total_atualizado_em?: string | null;
+          economia_total_atualizado_por?: string | null;
+          economia_total_exibida?: number | null;
+          id?: boolean;
+        };
+        Relationships: [];
       };
       eventos_sessao: {
         Row: {
@@ -1417,18 +1441,21 @@ export type Database = {
           atualizado_por: string | null;
           id: boolean;
           logo_path: string | null;
+          video_demonstracao_path: string | null;
         };
         Insert: {
           atualizado_em?: string;
           atualizado_por?: string | null;
           id?: boolean;
           logo_path?: string | null;
+          video_demonstracao_path?: string | null;
         };
         Update: {
           atualizado_em?: string;
           atualizado_por?: string | null;
           id?: boolean;
           logo_path?: string | null;
+          video_demonstracao_path?: string | null;
         };
         Relationships: [];
       };
@@ -1698,6 +1725,8 @@ export type Database = {
       itens_armazenados: {
         Row: {
           created_at: string;
+          data_compra: string | null;
+          data_validade: string | null;
           foto_path: string | null;
           grupo_id: string;
           id: string;
@@ -1709,6 +1738,8 @@ export type Database = {
         };
         Insert: {
           created_at?: string;
+          data_compra?: string | null;
+          data_validade?: string | null;
           foto_path?: string | null;
           grupo_id: string;
           id?: string;
@@ -1720,6 +1751,8 @@ export type Database = {
         };
         Update: {
           created_at?: string;
+          data_compra?: string | null;
+          data_validade?: string | null;
           foto_path?: string | null;
           grupo_id?: string;
           id?: string;
@@ -1814,6 +1847,69 @@ export type Database = {
           },
         ];
       };
+      links_temporarios: {
+        Row: {
+          aberturas_max: number;
+          aberturas_usadas: number;
+          conteudo: string;
+          criado_em: string;
+          criador_ip_hash: string | null;
+          criptografado: boolean;
+          expira_em: string;
+          id: string;
+          iv: string | null;
+          salt: string | null;
+        };
+        Insert: {
+          aberturas_max?: number;
+          aberturas_usadas?: number;
+          conteudo: string;
+          criado_em?: string;
+          criador_ip_hash?: string | null;
+          criptografado?: boolean;
+          expira_em?: string;
+          id?: string;
+          iv?: string | null;
+          salt?: string | null;
+        };
+        Update: {
+          aberturas_max?: number;
+          aberturas_usadas?: number;
+          conteudo?: string;
+          criado_em?: string;
+          criador_ip_hash?: string | null;
+          criptografado?: boolean;
+          expira_em?: string;
+          id?: string;
+          iv?: string | null;
+          salt?: string | null;
+        };
+        Relationships: [];
+      };
+      links_temporarios_auditoria: {
+        Row: {
+          criado_em: string;
+          evento: string;
+          id: string;
+          ip_hash: string | null;
+          link_id: string;
+        };
+        Insert: {
+          criado_em?: string;
+          evento: string;
+          id?: string;
+          ip_hash?: string | null;
+          link_id: string;
+        };
+        Update: {
+          criado_em?: string;
+          evento?: string;
+          id?: string;
+          ip_hash?: string | null;
+          link_id?: string;
+        };
+        Relationships: [];
+      };
       lista_compras: {
         Row: {
           alerta_em: string | null;
@@ -1886,6 +1982,7 @@ export type Database = {
         Row: {
           created_at: string;
           descricao: string | null;
+          detalhe: string | null;
           grupo_id: string;
           id: string;
           local_pai_id: string | null;
@@ -1895,6 +1992,7 @@ export type Database = {
         Insert: {
           created_at?: string;
           descricao?: string | null;
+          detalhe?: string | null;
           grupo_id: string;
           id?: string;
           local_pai_id?: string | null;
@@ -1904,6 +2002,7 @@ export type Database = {
         Update: {
           created_at?: string;
           descricao?: string | null;
+          detalhe?: string | null;
           grupo_id?: string;
           id?: string;
           local_pai_id?: string | null;
@@ -2715,6 +2814,27 @@ export type Database = {
             referencedColumns: ["id"];
           },
         ];
+      };
+      rate_limit_eventos: {
+        Row: {
+          chave_hash: string;
+          criado_em: string;
+          id: string;
+          rota: string;
+        };
+        Insert: {
+          chave_hash: string;
+          criado_em?: string;
+          id?: string;
+          rota: string;
+        };
+        Update: {
+          chave_hash?: string;
+          criado_em?: string;
+          id?: string;
+          rota?: string;
+        };
+        Relationships: [];
       };
       receitas: {
         Row: {

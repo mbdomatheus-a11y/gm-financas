@@ -30,6 +30,7 @@ import {
 } from "recharts";
 
 import { AppLayout } from "@/components/AppLayout";
+import { MonthPicker } from "@/components/MonthPicker";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
@@ -590,6 +591,7 @@ function DashboardPage() {
             </Select>
             {janela === "custom" && (
               <div className="flex items-center gap-1.5">
+<<<<<<< HEAD
                 <Input
                   type="month"
                   value={mesInicioCustom}
@@ -604,6 +606,18 @@ function DashboardPage() {
                   onChange={(e) => setMesFimCustom(e.target.value)}
                   className="h-8 w-[130px] text-xs"
                   aria-label="Mês final"
+=======
+                <MonthPicker
+                  value={mesInicioCustom}
+                  onChange={setMesInicioCustom}
+                  ariaLabel="Mês inicial"
+                />
+                <span className="text-xs text-muted-foreground">até</span>
+                <MonthPicker
+                  value={mesFimCustom}
+                  onChange={setMesFimCustom}
+                  ariaLabel="Mês final"
+>>>>>>> atualizacoes-claude
                 />
               </div>
             )}

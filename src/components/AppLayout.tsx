@@ -310,6 +310,13 @@ export function AppLayout({
     notas: "notas",
     calculadora: "calculadora",
   };
+  const mundoVisivel = (id: MundoId) => {
+    const m = MUNDOS[id];
+    const global = mundoGlobal[id];
+    if (global && !habilitado(global)) return false;
+    return m.items.filter(podeVer).length > 0;
+  };
+  const mundosVisiveis = (Object.keys(MUNDOS) as MundoId[]).filter(mundoVisivel);
   const itensDoMundo = (
     mundo && (!mundoId || !mundoGlobal[mundoId] || habilitado(mundoGlobal[mundoId]!))
       ? mundo.items
@@ -413,32 +420,69 @@ export function AppLayout({
       )}
 
       <div className={cn(!bottomNav && "lg:pl-64")}>
-        <header className="sticky top-0 z-20 flex items-center gap-3 border-b bg-background/80 px-4 py-3 backdrop-blur-md">
-          <Sheet open={open} onOpenChange={setOpen}>
-            <SheetTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className={cn(!bottomNav && "lg:hidden")}
-                aria-label="Abrir menu"
-              >
-                <Menu className="size-5" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-72 bg-sidebar p-0">
-              <SheetTitle className="sr-only">Menu</SheetTitle>
-              <SidebarInner onNavigate={() => setOpen(false)} />
-            </SheetContent>
-          </Sheet>
+        <header className="sticky top-0 z-20 border-b bg-background/80 backdrop-blur-md">
+          <div className="flex items-center gap-3 px-4 py-3">
+            <Sheet open={open} onOpenChange={setOpen}>
+              <SheetTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn(!bottomNav && "lg:hidden")}
+                  aria-label="Abrir menu"
+                >
+                  <Menu className="size-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-72 bg-sidebar p-0">
+                <SheetTitle className="sr-only">Menu</SheetTitle>
+                <SidebarInner onNavigate={() => setOpen(false)} />
+              </SheetContent>
+            </Sheet>
 
-          <div className="min-w-0 flex-1">
-            <h1 className="truncate text-base font-semibold leading-tight sm:text-lg">{title}</h1>
-            {description && <p className="truncate text-xs text-muted-foreground">{description}</p>}
+            <div className="min-w-0 flex-1">
+              <h1 className="truncate text-base font-semibold leading-tight sm:text-lg">{title}</h1>
+              {description && (
+                <p className="truncate text-xs text-muted-foreground">{description}</p>
+              )}
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <AlertsBell />
+              {actions}
+            </div>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <AlertsBell />
-            {actions}
-          </div>
+
+          {/* Alternador de módulos (2026-09-26): antes, ao entrar num módulo
+              (ex.: Finanças), os outros módulos (Lista, Onde está?, Exames…)
+              desapareciam do menu lateral e só voltavam pela Início. Esta
+              barra fica sempre visível no topo, mostra em qual módulo você
+              está (destacado) e deixa pular pra qualquer outro em 1 clique. */}
+          {mundosVisiveis.length > 0 && (
+            <nav
+              aria-label="Módulos"
+              className="flex gap-1.5 overflow-x-auto px-3 pb-2.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            >
+              {mundosVisiveis.map((id) => {
+                const m = MUNDOS[id];
+                const Icon = m.items[0]!.icon;
+                const ativo = mundoId === id;
+                return (
+                  <Link
+                    key={id}
+                    to={m.home}
+                    className={cn(
+                      "flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                      ativo
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-transparent bg-muted/60 text-muted-foreground hover:bg-muted",
+                    )}
+                  >
+                    <Icon className="size-3.5" />
+                    {m.titulo}
+                  </Link>
+                );
+              })}
+            </nav>
+          )}
         </header>
 
         <main className="mx-auto w-full max-w-7xl px-4 pb-28 pt-5 lg:pb-10">{children}</main>

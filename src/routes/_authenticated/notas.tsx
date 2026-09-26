@@ -412,10 +412,19 @@ function NotasPage() {
       return destinos;
     },
     onSuccess: (destinos) => {
+      // Se misturou destinos (alguns arquivos foram pro Drive, outros
+      // caíram no site), diz isso claramente — dizer só "enviado ao Google
+      // Drive" quando pelo menos um foi escondia que outro(s) não foram
+      // (o aviso individual de cada arquivo já aparece, mas o resumo final
+      // não podia contradizer isso).
+      const foiDrive = destinos.has("google_drive");
+      const foiSite = destinos.has("site");
       toast.success(
-        destinos.has("google_drive")
-          ? "Comprovante enviado ao Google Drive."
-          : "Comprovante guardado no site.",
+        foiDrive && foiSite
+          ? "Parte dos comprovantes foi ao Google Drive; o restante ficou salvo no site."
+          : foiDrive
+            ? "Comprovante enviado ao Google Drive."
+            : "Comprovante guardado no site.",
       );
       void qc.invalidateQueries({ queryKey: ["notas-fiscais"] });
     },
@@ -566,9 +575,9 @@ function NotasPage() {
                     <p className="text-sm font-semibold">Envio automático pelo Google Drive</p>
                     <p className="text-xs text-muted-foreground">
                       {drive.data?.connected
-                        ? pasta.data?.provider === "Google Drive"
-                          ? "Conectado. O envio usa a pasta criada pelo aplicativo no seu Drive"
-                          : "Conectado. Os arquivos serão salvos na pasta criada pelo aplicativo no seu Drive"
+                        ? pasta.data?.provider === "Google Drive" && pasta.data?.folderId
+                          ? "Conectado. Tentamos usar a pasta que você configurou abaixo — se o Drive não deixar (só funciona com pastas criadas ou abertas pelo próprio app), cai automaticamente para a pasta padrão do app"
+                          : "Conectado. O envio usa a pasta que o próprio app cria no seu Drive (\"Finanças do Casal/Notas fiscais\")"
                         : drive.data?.googleAvailable
                           ? "Opcional: conecte. Sem conexão, os arquivos ficam privados no site"
                           : "Seus arquivos ficam privados no site. Google Drive aguarda configuração"}

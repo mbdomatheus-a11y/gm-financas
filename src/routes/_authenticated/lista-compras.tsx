@@ -92,7 +92,11 @@ function ListaComprasPage() {
   const [alertaEm, setAlertaEm] = useState("");
   const [aprovacoesNecessarias, setAprovacoesNecessarias] = useState("0");
   const [observacao, setObservacao] = useState("");
-  const [linkCompra, setLinkCompra] = useState("");
+  // Item 5 (mensagem E) do backlog de 2026-09-26: até 4 links de
+  // compra/referência por item (Instagram, TikTok, loja, etc.), não só 1.
+  // `qtdLinks` controla quantos campos de link aparecem no formulário.
+  const [qtdLinks, setQtdLinks] = useState(1);
+  const [linksCompra, setLinksCompra] = useState<string[]>([""]);
 
   // Aprovação só faz sentido se houver alguém além de quem cria o item pra
   // aprovar — com 1 pessoa com acesso, o máximo selecionável é 0 (ninguém
@@ -145,7 +149,9 @@ function ListaComprasPage() {
         ),
         created_by: auth.user?.id ?? null,
         observacao: observacao.trim() || null,
-        links: linkCompra.trim() ? [{ url: linkCompra.trim(), tipo: "referencia" }] : [],
+        links: linksCompra
+          .filter((l) => l.trim())
+          .map((url) => ({ url: url.trim(), tipo: "referencia" })),
       });
       if (error) throw error;
     },
@@ -155,7 +161,8 @@ function ListaComprasPage() {
       setAlertaEm("");
       setAprovacoesNecessarias("0");
       setObservacao("");
-      setLinkCompra("");
+      setQtdLinks(1);
+      setLinksCompra([""]);
       qc.invalidateQueries({ queryKey: ["lista-compras"] });
     },
     onError: (e: any) => toast.error(e.message),
@@ -500,9 +507,51 @@ function ListaComprasPage() {
         </Button>
       </form>
 
-      <div className="mt-2 grid gap-2 sm:grid-cols-2">
-        <Input value={linkCompra} onChange={(e) => setLinkCompra(e.target.value)} type="url" placeholder="Adicionar link de compra ou referência (Instagram, TikTok, Facebook...)" />
-        <Input value={observacao} onChange={(e) => setObservacao(e.target.value)} placeholder="Observação para quem vai aprovar" />
+      <div className="mt-2 space-y-2">
+        <div className="flex items-center gap-2">
+          <Label className="shrink-0 text-xs text-muted-foreground">Links de compra/referência</Label>
+          <Select
+            value={String(qtdLinks)}
+            onValueChange={(v) => {
+              const n = Number(v);
+              setQtdLinks(n);
+              setLinksCompra((atual) => {
+                const novo = atual.slice(0, n);
+                while (novo.length < n) novo.push("");
+                return novo;
+              });
+            }}
+          >
+            <SelectTrigger className="h-8 w-40" aria-label="Quantidade de links">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {[1, 2, 3, 4].map((n) => (
+                <SelectItem key={n} value={String(n)}>
+                  {n} {n === 1 ? "link" : "links"}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {linksCompra.map((link, i) => (
+            <Input
+              key={i}
+              value={link}
+              onChange={(e) =>
+                setLinksCompra((atual) => atual.map((l, idx) => (idx === i ? e.target.value : l)))
+              }
+              type="url"
+              placeholder={
+                qtdLinks === 1
+                  ? "Adicionar link de compra ou referência (Instagram, TikTok, Facebook...)"
+                  : `Link ${i + 1} (Instagram, TikTok, loja...)`
+              }
+            />
+          ))}
+          <Input value={observacao} onChange={(e) => setObservacao(e.target.value)} placeholder="Observação para quem vai aprovar" />
+        </div>
       </div>
 
       {maxAprovacoes >= 1 && (
