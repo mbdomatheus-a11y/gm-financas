@@ -233,27 +233,57 @@ function parseDataBR(raw: string, anoBase: number): string | null {
 // notação D/C de alguns emissores — ver lancamento-direcao.ts.
 const RE_LINHA =
   /^(\d{2}\/\d{2}(?:\/\d{2,4})?|\d{1,2}\s+[a-zç]{3})\s+(.+?)\s+(-?\s?(?:R\$|US\$)?\s?-?\d{1,3}(?:\.\d{3})*,\d{2}\s?[+-]?)$/i;
-const RE_FINAL = /final\s*(?:com\s*)?(\d{4})|\(?[*•]{2,4}\s?(\d{4})\)?|x{4}\s?(\d{4})/gi;
+const RE_FINAL =
+  /final\s*(?:com\s*)?(\d{4})|\(?[*•]{2,4}\s?(\d{4})\)?|[X*•]{3,4}[.\s]*(\d{4})|\d{4}[.\s]+[*X•]{4}[.\s]+[*X•]{4}[.\s]+(\d{4})/gi;
 
 export function extrairFinais(texto: string): string[] {
   const out = new Set<string>();
   for (const m of texto.matchAll(RE_FINAL)) {
-    const final = m[1] ?? m[2] ?? m[3];
-    if (final) out.add(final);
+    const final = m[1] ?? m[2] ?? m[3] ?? m[4];
+    if (final && /^\d{4}$/.test(final)) out.add(final);
   }
   return Array.from(out);
 }
 
+const MESES_MAP: Record<string, string> = {
+  jan: "01",
+  fev: "02",
+  mar: "03",
+  abr: "04",
+  mai: "05",
+  jun: "06",
+  jul: "07",
+  ago: "08",
+  set: "09",
+  out: "10",
+  nov: "11",
+  dez: "12",
+};
+
 export function extrairVencimento(texto: string): string | null {
-  const m = texto.match(/vencimento[^\d]{0,20}(\d{2}\/\d{2}\/\d{4})/i);
-  if (!m) return null;
-  const [d, mo, y] = m[1]!.split("/");
-  return `${y}-${mo}-${d}`;
+  const m1 = texto.match(/vencimento[^\d]{0,30}(\d{2})\/(\d{2})\/(\d{2,4})/i);
+  if (m1) {
+    const [, d, mo, yRaw] = m1;
+    const y = yRaw!.length === 2 ? `20${yRaw}` : yRaw;
+    return `${y}-${mo}-${d}`;
+  }
+  const m2 = texto.match(/(?:vencimento|fatura)[^\d]{0,30}(\d{2})\s+([a-z]{3})\s+(\d{4})/i);
+  if (m2) {
+    const [, d, mesNome, y] = m2;
+    const mo = MESES_MAP[mesNome!.toLowerCase()];
+    if (mo) return `${y}-${mo}-${d}`;
+  }
+  const m3 = texto.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+  if (m3 && /vencimento|venc/i.test(texto.slice(Math.max(0, (m3.index ?? 0) - 40), (m3.index ?? 0) + 30))) {
+    const [, d, mo, y] = m3;
+    return `${y}-${mo}-${d}`;
+  }
+  return null;
 }
 
 export function extrairTotal(texto: string): number | null {
   const m = texto.match(
-    /(total\s+(?:da\s+)?fatura|valor\s+total|total\s+a\s+pagar)[^\d-]{0,30}(-?\s?R?\$?\s?[\d.]+,\d{2})/i,
+    /(total\s+(?:da\s+)?fatura|total\s+a\s+pagar|valor\s+total|saldo\s+desta\s+fatura|no\s+valor\s+de)[^\d-]{0,40}(-?\s?R?\$?\s?[\d.]+,\d{2})/i,
   );
   return m ? parseValor(m[2]!) : null;
 }

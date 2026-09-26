@@ -123,18 +123,18 @@ export function extrairLimites(texto: string): LimitesFatura {
   const total = primeiroValor(
     texto,
     new RegExp(
-      String.raw`limite\s+(?:total(?!\s*(?:utilizado|dispon))(?:\s+de\s+cr[eé]dito|\s+do\s+cart[aã]o[^:\n]{0,30})?|de\s+cr[eé]dito|rotativo)[^\d]{0,80}` +
+      String.raw`(?:seu\s+limite(?:\s+[eé])?|limite\s+(?:total(?!\s*(?:utilizado|dispon))(?:\s+de\s+cr[eé]dito|\s+do\s+cart[aã]o[^:\n]{0,30})?|de\s+cr[eé]dito|rotativo))[^\d]{0,80}` +
         VALOR,
       "gi",
     ),
   );
   const disponivel = primeiroValor(
     texto,
-    new RegExp(String.raw`limite\s+(?:total\s+)?dispon[ií]vel[^\d]{0,80}` + VALOR, "gi"),
+    new RegExp(String.raw`(?:limite\s+(?:total\s+)?)?dispon[ií]vel[^\d]{0,80}` + VALOR, "gi"),
   );
   const utilizado = primeiroValor(
     texto,
-    new RegExp(String.raw`limite\s+(?:total\s+)?utilizado[^\d]{0,80}` + VALOR, "gi"),
+    new RegExp(String.raw`(?:limite\s+(?:total\s+)?)?utilizado[^\d]{0,80}` + VALOR, "gi"),
   );
 
   const tabela = limitesTabela(texto);
