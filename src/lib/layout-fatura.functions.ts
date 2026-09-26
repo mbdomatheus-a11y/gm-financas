@@ -19,21 +19,28 @@ export const prepararEnvioLayout = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const db = supabaseAdmin as any;
 
-    const { data: perfil } = await db
+    const { data: perfil, error: perfilError } = await db
       .from("profiles")
       .select("grupo_id, nome, email")
       .eq("id", context.userId)
       .single();
+    if (perfilError) {
+      console.error("[prepararEnvioLayout] Falha ao buscar perfil:", perfilError);
+    }
 
     const path = `${context.userId}/${crypto.randomUUID()}-${data.nome.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
-    const { data: url, error } = await db.storage.from("layouts_analise").createSignedUploadUrl(path);
-    if (error) throw new Error(error.message);
 
+    // Registro criado ANTES da URL de upload: se o insert falhar, o usuário
+    // recebe erro claro e nenhum arquivo "fantasma" fica no storage sem
+    // registro correspondente (bug corrigido em 2026-09-26: um arquivo
+    // enviado sem erro visível ficava só no storage, sem aparecer na
+    // Central de Solicitações, porque uma versão antiga do insert não
+    // enviava a coluna obrigatória `status`).
     const { data: item, error: insertError } = await db
       .from("layout_solicitacoes")
       .insert({
         user_id: context.userId,
-        grupo_id: perfil?.grupo_id,
+        grupo_id: perfil?.grupo_id ?? null,
         arquivo_nome: data.nome,
         arquivo_path: path,
         banco_informado: data.banco || null,
@@ -44,7 +51,21 @@ export const prepararEnvioLayout = createServerFn({ method: "POST" })
       .select("id")
       .single();
 
-    if (insertError) throw new Error(insertError.message);
+    if (insertError || !item) {
+      console.error("[prepararEnvioLayout] Falha ao registrar solicitação:", insertError);
+      throw new Error(
+        insertError?.message ??
+          "Não foi possível registrar sua fatura para análise. Tente novamente ou contate o suporte.",
+      );
+    }
+
+    const { data: url, error } = await db.storage.from("layouts_analise").createSignedUploadUrl(path);
+    if (error) {
+      // Reverte o registro já criado, já que não haverá upload correspondente.
+      await db.from("layout_solicitacoes").delete().eq("id", item.id);
+      console.error("[prepararEnvioLayout] Falha ao gerar URL de upload:", error);
+      throw new Error(error.message);
+    }
 
     // Notificar administradores via e-mail e notificação do sistema
     try {

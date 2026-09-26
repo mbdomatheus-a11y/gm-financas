@@ -150,6 +150,7 @@ function ImportarPage() {
   const inputRef = useRef<HTMLInputElement>(null);
   const layoutRef = useRef<HTMLInputElement>(null);
   const prepararLayout = useServerFn(prepararEnvioLayout);
+  const excluirSolicitacaoFn = useServerFn(excluirSolicitacaoLayout);
   const [enviandoLayout, setEnviandoLayout] = useState(false);
 
   async function enviarParaModelagem(files: FileList | null) {
@@ -165,13 +166,19 @@ function ImportarPage() {
       const { error } = await supabase.storage
         .from("layouts_analise")
         .uploadToSignedUrl(envio.path, envio.token, file);
-      if (error) throw error;
+      if (error) {
+        // O registro já existe no banco (ver layout-fatura.functions.ts),
+        // mas o arquivo não chegou ao storage. Remove o registro órfão
+        // para não aparecer na Central de Solicitações sem arquivo.
+        await excluirSolicitacaoFn({ data: { id: envio.id } }).catch(() => {});
+        throw error;
+      }
       qc.invalidateQueries({ queryKey: ["minhas-solicitacoes-layout"] });
       toast.success(
         "Fatura enviada para análise. Usaremos apenas o layout e o arquivo será descartado em até 30 dias.",
       );
     } catch (e: any) {
-      toast.error(e.message ?? "Não foi possível enviar.");
+      toast.error(e.message ?? "Não foi possível enviar. Tente novamente ou contate o suporte.");
     } finally {
       setEnviandoLayout(false);
       if (layoutRef.current) layoutRef.current.value = "";
@@ -190,7 +197,6 @@ function ImportarPage() {
   } | null>(null);
 
   const minhasSolicitacoesFn = useServerFn(listarMinhasSolicitacoesLayout);
-  const excluirSolicitacaoFn = useServerFn(excluirSolicitacaoLayout);
 
   const { data: minhasSolicitacoes = [] } = useQuery({
     queryKey: ["minhas-solicitacoes-layout"],
