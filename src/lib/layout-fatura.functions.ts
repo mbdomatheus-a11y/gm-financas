@@ -69,13 +69,19 @@ export const prepararEnvioLayout = createServerFn({ method: "POST" })
 
     // Notificar administradores via e-mail e notificação do sistema
     try {
-      const { data: admins } = await db
-        .from("site_admins")
-        .select("user_id, profiles:user_id(email, nome)");
+      const { data: admins } = await db.from("site_admins").select("user_id");
 
-      const adminEmails = (admins ?? [])
-        .map((a: any) => a.profiles?.email)
-        .filter(Boolean);
+      // Nota: site_admins.user_id não tem FK para public.profiles (nem para
+      // auth.users), então o embed `profiles:user_id(...)` do PostgREST
+      // sempre falhava aqui — isso significa que nenhum e-mail de
+      // notificação de fatura enviada jamais chegou a ser disparado antes
+      // desta correção (2026-09-26); o erro era engolido pelo catch abaixo.
+      const adminIds = [...new Set((admins ?? []).map((a: any) => a.user_id).filter(Boolean))];
+      const { data: adminPerfis } = adminIds.length
+        ? await db.from("profiles").select("id,nome,email").in("id", adminIds)
+        : { data: [] };
+
+      const adminEmails = (adminPerfis ?? []).map((p: any) => p.email).filter(Boolean);
 
       const nomeUsuario = perfil?.nome || perfil?.email || "Usuário";
       const assunto = `[Control ALL] Nova Fatura Enviada para Modelagem: ${data.nome}`;

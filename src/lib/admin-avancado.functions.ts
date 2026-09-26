@@ -14,14 +14,28 @@ export const adminListarLayouts = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     await admin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data, error } = await (supabaseAdmin as any)
+    const db = supabaseAdmin as any;
+    // Nota: layout_solicitacoes.user_id referencia auth.users, não
+    // public.profiles diretamente — por isso o embed `profiles:user_id(...)`
+    // do PostgREST nunca funcionou (não há FK direta para resolver a
+    // relação) e essa consulta sempre falhava, deixando a Central de
+    // Solicitações sempre vazia mesmo com faturas pendentes. Corrigido
+    // em 2026-09-26 buscando os perfis manualmente, como já é feito em
+    // adminListarLogs.
+    const { data, error } = await db
       .from("layout_solicitacoes")
-      .select(
-        "id,user_id,banco_informado,cartao_final,arquivo_nome,status,resposta_admin,criado_em,profiles:user_id(nome,email)",
-      )
+      .select("id,user_id,banco_informado,cartao_final,arquivo_nome,status,resposta_admin,criado_em")
       .order("criado_em", { ascending: false });
     if (error) throw new Error(error.message);
-    return data ?? [];
+    const ids = [...new Set((data ?? []).map((item: any) => item.user_id).filter(Boolean))];
+    const { data: perfis } = ids.length
+      ? await db.from("profiles").select("id,nome,email").in("id", ids)
+      : { data: [] };
+    const porId = new Map((perfis ?? []).map((perfil: any) => [perfil.id, perfil]));
+    return (data ?? []).map((item: any) => ({
+      ...item,
+      profiles: porId.get(item.user_id) ?? null,
+    }));
   });
 export const adminObterLayoutUrl = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
