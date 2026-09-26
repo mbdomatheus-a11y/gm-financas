@@ -82,17 +82,28 @@ type NavItem = {
   moduloGlobal?: ModuloGlobal;
 };
 
-type MundoId = "financas" | "lista" | "notas" | "calculadora" | "vida";
+type MundoId =
+  | "financas"
+  | "lista"
+  | "notas"
+  | "calculadora"
+  | "pet"
+  | "onde_esta"
+  | "veiculo"
+  | "exames";
 
 /**
- * Navegação em "mundos" (2026-09-18): em vez de uma lista única com tudo
- * misturado, a Home mostra só 4 caixas (Finanças, Lista, Notas fiscais e Calculadora) e,
- * dentro de cada uma, o menu lateral passa a mostrar só os itens daquele
- * mundo — pra não misturar despesas/investimentos com a lista de compras,
- * por exemplo. "Início" fica sempre fixo no topo do menu como botão de
- * voltar. Ferramentas administrativas/utilitárias (Compartilhar,
- * Usuários, Backup, Personalização, Conta) ficam numa seção
- * global, visível o tempo todo, independente do mundo atual.
+ * Navegação em "mundos" (2026-09-18, revisado em 2026-09-26): cada módulo
+ * da Início (Finanças, Lista, Notas, Calculadora, Pet, Onde está?, Veículo,
+ * Exames) vira seu próprio "mundo", com o mesmo nome exibido nos dois
+ * lugares — antes "Vida" e "Veículo" ficavam agrupados/escondidos dentro de
+ * outros mundos e não apareciam como opção própria na barra do topo. Dentro
+ * de cada mundo, o menu lateral mostra só os itens daquele mundo — pra não
+ * misturar despesas/investimentos com a lista de compras, por exemplo.
+ * "Início" fica sempre fixo no topo do menu como botão de voltar.
+ * Ferramentas administrativas/utilitárias (Compartilhar, Usuários, Backup,
+ * Personalização, Conta) ficam numa seção global, visível o tempo todo,
+ * independente do mundo atual.
  */
 const MUNDOS: Record<MundoId, { titulo: string; home: NavTo; items: NavItem[] }> = {
   financas: {
@@ -149,18 +160,10 @@ const MUNDOS: Record<MundoId, { titulo: string; home: NavTo; items: NavItem[] }>
         icon: PiggyBank,
         modulo: "investimentos",
       },
-      {
-        to: "/veiculos",
-        label: "Meu Veículo",
-        short: "Veículo",
-        icon: Car,
-        modulo: "veiculos",
-        moduloGlobal: "veiculo",
-      },
     ],
   },
   lista: {
-    titulo: "Lista de compras",
+    titulo: "Lista",
     home: "/lista-compras",
     items: [
       {
@@ -173,7 +176,7 @@ const MUNDOS: Record<MundoId, { titulo: string; home: NavTo; items: NavItem[] }>
     ],
   },
   notas: {
-    titulo: "Notas fiscais",
+    titulo: "Notas",
     home: "/notas",
     items: [
       {
@@ -198,11 +201,15 @@ const MUNDOS: Record<MundoId, { titulo: string; home: NavTo; items: NavItem[] }>
       },
     ],
   },
-  vida: {
-    titulo: "Vida",
+  pet: {
+    titulo: "Pet",
     home: "/pets",
+    items: [{ to: "/pets", label: "Pet", short: "Pet", icon: PawPrint, moduloGlobal: "pet" }],
+  },
+  onde_esta: {
+    titulo: "Onde está?",
+    home: "/onde-esta",
     items: [
-      { to: "/pets", label: "Pet", short: "Pet", icon: PawPrint, moduloGlobal: "pet" },
       {
         to: "/onde-esta",
         label: "Onde está?",
@@ -210,6 +217,26 @@ const MUNDOS: Record<MundoId, { titulo: string; home: NavTo; items: NavItem[] }>
         icon: MapPin,
         moduloGlobal: "onde_esta",
       },
+    ],
+  },
+  veiculo: {
+    titulo: "Veículo",
+    home: "/veiculos",
+    items: [
+      {
+        to: "/veiculos",
+        label: "Meu Veículo",
+        short: "Veículo",
+        icon: Car,
+        modulo: "veiculos",
+        moduloGlobal: "veiculo",
+      },
+    ],
+  },
+  exames: {
+    titulo: "Exames",
+    home: "/exames",
+    items: [
       { to: "/exames", label: "Exames", short: "Exames", icon: FileHeart, moduloGlobal: "exames" },
     ],
   },
@@ -309,6 +336,10 @@ export function AppLayout({
     lista: "lista",
     notas: "notas",
     calculadora: "calculadora",
+    pet: "pet",
+    onde_esta: "onde_esta",
+    veiculo: "veiculo",
+    exames: "exames",
   };
   const mundoVisivel = (id: MundoId) => {
     const m = MUNDOS[id];

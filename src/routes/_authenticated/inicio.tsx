@@ -94,13 +94,13 @@ const MODULOS = [
 ];
 
 function InicioPage() {
-  const { can, isAdmin } = usePermissoes();
+  const { can, isAdmin, isSiteAdmin } = usePermissoes();
   const { habilitado } = useModulosGlobais();
   const gerais = [
     { to: "/compartilhar" as const, label: "Compartilhar", icon: Share2, modulo: "compartilhar" as const },
     { to: "/usuarios" as const, label: "Usuários e Privilégios", icon: Users, adminOnly: true },
     { to: "/backup" as const, label: "Backup e Reset", icon: DatabaseBackup, adminOnly: true },
-    { to: "/administracao" as const, label: "Administração", icon: ShieldCheck, adminOnly: true },
+    { to: "/administracao" as const, label: "Administração", icon: ShieldCheck, siteAdminOnly: true },
     {
       to: "/personalizacao" as const,
       label: "Personalização",
@@ -110,6 +110,7 @@ function InicioPage() {
     { to: "/suporte" as const, label: "Suporte", icon: Headphones },
     { to: "/conta" as const, label: "Configurações da conta", icon: Settings },
   ].filter((item) => {
+    if ("siteAdminOnly" in item && item.siteAdminOnly) return isSiteAdmin;
     if ("adminOnly" in item && item.adminOnly) return isAdmin;
     if ("modulo" in item && item.modulo) return can(item.modulo, "ver");
     return true;
