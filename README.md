@@ -14,5 +14,7 @@ As chaves privadas nunca devem entrar no repositório. O acesso aos dados financ
 - A importação de faturas e o isolamento por grupo devem ser testados com duas contas distintas antes de cada publicação.
 - O Google Drive é opcional e exige configuração própria no Google Cloud. Enquanto não estiver configurado, comprovantes podem ficar em um bucket privado do Supabase após a migração correspondente.
 - A lista de funcionalidades confirmadas e pendentes está em `docs/checklist-pedidos.md`.
+- Documentação completa de implementações e arquitetura: [`docs/WALKTHROUGH.md`](docs/WALKTHROUGH.md).
+- Pendências técnicas e guia para continuidade do trabalho: [`docs/PENDENCIAS.md`](docs/PENDENCIAS.md).
 
 O material antigo deste README continha CPFs e uma senha inicial de exemplo. Ele foi retirado da versão atual, mas permanece no histórico público do Git. Qualquer senha que tenha sido usada deve ser trocada no Supabase Auth. Não reescreva o histórico publicado sem planejar o impacto para os clones e integrações.

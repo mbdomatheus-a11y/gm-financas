@@ -1,5 +1,9 @@
 # Continuidades do Projeto & Documentação de Funcionalidades
 
+> 📌 **DOCUMENTAÇÃO OFICIAL ATUALIZADA (2026-09-26)**:
+> - **Histórico e Módulos Implementados**: [`docs/WALKTHROUGH.md`](WALKTHROUGH.md)
+> - **Pendências Técnicas e Guia de Continuidade**: [`docs/PENDENCIAS.md`](PENDENCIAS.md)
+
 ## Status das Implementações
 
 ### 1. Importação Inteligente de Faturas PDF
