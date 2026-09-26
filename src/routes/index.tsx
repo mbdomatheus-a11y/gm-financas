@@ -1,18 +1,15 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { ArrowRight, BarChart3, BellRing, Check, FileHeart, FileUp, ListChecks, MapPin, PawPrint, PlayCircle, ReceiptText, Search, ShieldCheck, Sparkles, Wallet } from "lucide-react";
+import { useEffect } from "react";
+import { ArrowRight, BarChart3, BellRing, Check, FileHeart, FileUp, ListChecks, MapPin, PawPrint, PlayCircle, ReceiptText, ShieldCheck, Sparkles, Wallet } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
-import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { BrandAnimado } from "@/components/ferramentas/BrandAnimado";
 import { BrandMark } from "@/components/BrandMark";
 import { LegalDialogs } from "@/components/LegalDialogs";
 import { SiteHeader } from "@/components/SiteHeader";
-import { consultarProtocolo } from "@/lib/central-solicitacoes.functions";
 import { obterEstatisticaPublica } from "@/lib/estatisticas-site.functions";
 import { formatBRL } from "@/lib/format";
 import { useQuery } from "@tanstack/react-query";
@@ -90,132 +87,6 @@ const modulos = [
   },
 ];
 
-const STATUS_LABEL: Record<string, string> = {
-  recebida: "Recebida", recebido: "Recebido",
-  em_analise: "Em Análise", em_atendimento: "Em Atendimento",
-  aguardando_ti: "Aguardando TI", planejado: "Planejado", programado: "Programado",
-  concluida: "Concluída", concluido: "Concluído", indeferida: "Indeferida",
-  aguardando_usuario: "Aguardando usuário", resolvido: "Resolvido", cancelado: "Cancelado",
-};
-
-function ConsultaProtocolo() {
-  const [modo, setModo] = useState<"protocolo" | "cpf">("protocolo");
-  const [protocolo, setProtocolo] = useState("");
-  const [cpf, setCpf] = useState("");
-  const [resultado, setResultado] = useState<any>(null);
-  const [carregando, setCarregando] = useState(false);
-  const [buscado, setBuscado] = useState(false);
-  const consultarFn = useServerFn(consultarProtocolo);
-
-  function formatarCpfInput(v: string) {
-    return v.replace(/\D/g, "").slice(0, 11);
-  }
-
-  async function buscar() {
-    const isProtocolo = modo === "protocolo";
-    const val = isProtocolo ? protocolo.trim() : cpf.replace(/\D/g, "");
-    if (!val) return;
-    setCarregando(true);
-    setBuscado(false);
-    setResultado(null);
-    try {
-      const res = await consultarFn({
-        data: isProtocolo ? { protocolo: val } : { cpf: val },
-      });
-      setResultado(res);
-    } catch (e: any) {
-      toast.error(e.message || "Não encontrado ou formato inválido.");
-    } finally {
-      setCarregando(false);
-      setBuscado(true);
-    }
-  }
-
-  const resultados = Array.isArray(resultado) ? resultado : resultado ? [resultado] : [];
-
-  return (
-    <section className="border-t bg-muted/30">
-      <div className="mx-auto max-w-6xl px-4 py-14">
-        <p className="text-sm font-semibold text-primary">SUPORTE E PRIVACIDADE</p>
-        <h2 className="mt-2 text-2xl font-bold">Consultar status de solicitação</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Informe o protocolo recebido ao enviar uma solicitação ou consulte pelo seu CPF.
-        </p>
-
-        {/* Abas de modo */}
-        <div className="mt-5 flex gap-2">
-          <Button
-            size="sm"
-            variant={modo === "protocolo" ? "default" : "outline"}
-            onClick={() => { setModo("protocolo"); setBuscado(false); setResultado(null); }}
-          >
-            Por Protocolo
-          </Button>
-          <Button
-            size="sm"
-            variant={modo === "cpf" ? "default" : "outline"}
-            onClick={() => { setModo("cpf"); setBuscado(false); setResultado(null); }}
-          >
-            Por CPF
-          </Button>
-        </div>
-
-        <div className="mt-4 flex max-w-md flex-col gap-3 sm:flex-row">
-          {modo === "protocolo" ? (
-            <Input
-              placeholder="Cole o protocolo aqui (UUID)"
-              value={protocolo}
-              onChange={(e) => setProtocolo(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && buscar()}
-            />
-          ) : (
-            <Input
-              placeholder="Somente os 11 dígitos do CPF"
-              value={cpf}
-              onChange={(e) => setCpf(formatarCpfInput(e.target.value))}
-              onKeyDown={(e) => e.key === "Enter" && buscar()}
-              maxLength={11}
-            />
-          )}
-          <Button
-            onClick={buscar}
-            disabled={carregando || (modo === "protocolo" ? !protocolo.trim() : cpf.replace(/\D/g, "").length < 11)}
-          >
-            <Search className="size-4 mr-1.5" />{carregando ? "Consultando…" : "Consultar"}
-          </Button>
-        </div>
-
-        {buscado && (
-          resultados.length > 0 ? (
-            <div className="mt-5 max-w-md space-y-3">
-              {resultados.map((res: any, i: number) => (
-                <Card key={i} className="overflow-hidden">
-                  <CardContent className="p-4 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <p className="text-xs text-muted-foreground font-mono truncate">{res.protocolo}</p>
-                      <span className="rounded bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary shrink-0 ml-2">
-                        {res.tipo === "privacidade" ? "Privacidade" : "Suporte"}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="rounded bg-muted px-2 py-0.5 text-sm font-semibold">{STATUS_LABEL[res.status] ?? res.status}</span>
-                      <span className="text-xs text-muted-foreground">{res.dias_aberto} dia(s) em aberto</span>
-                    </div>
-                    {res.resposta && <p className="text-sm text-muted-foreground italic">"{res.resposta}"</p>}
-                    <p className="text-xs text-muted-foreground">Última atualização: {new Date(res.atualizado_em).toLocaleString("pt-BR")}</p>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <p className="mt-4 text-sm text-muted-foreground">Nenhuma solicitação encontrada com esse {modo === "protocolo" ? "protocolo" : "CPF"}.</p>
-          )
-        )}
-      </div>
-    </section>
-  );
-}
-
 function useVideoDemonstracaoUrl() {
   const { data: path } = useQuery({
     queryKey: ["identidade-visual-site-video"],
@@ -267,7 +138,6 @@ function LandingPage() {
     <section id="modulos" className="border-y bg-muted/30"><div className="mx-auto max-w-6xl px-4 py-16"><p className="text-sm font-semibold text-primary">MÓDULOS</p><h2 className="mt-2 text-3xl font-bold">Cada parte da rotina, no seu lugar.</h2><p className="mt-2 text-sm text-muted-foreground">Clique em um módulo para ver mais detalhes, sem sair desta página.</p><div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{modulos.map(({icon:Icon,titulo,texto,detalhes})=><Card key={titulo} className="overflow-hidden"><Accordion type="single" collapsible><AccordionItem value={titulo} className="border-b-0"><CardContent className="p-5 pb-0"><Icon className="size-6 text-primary"/><h3 className="mt-3 font-semibold">{titulo}</h3><p className="mt-1 text-sm leading-6 text-muted-foreground">{texto}</p></CardContent><AccordionTrigger className="px-5 py-2 text-xs text-primary hover:no-underline">Ver detalhes</AccordionTrigger><AccordionContent className="px-5"><ul className="space-y-1.5 text-sm text-muted-foreground">{detalhes.map((d)=><li key={d} className="flex gap-2"><Check className="mt-0.5 size-3.5 shrink-0 text-primary"/>{d}</li>)}</ul></AccordionContent></AccordionItem></Accordion></Card>)}</div></div></section>
     <section id="demonstracao" className="mx-auto max-w-6xl px-4 py-16"><div className="grid items-center gap-8 md:grid-cols-2"><div><p className="text-sm font-semibold text-primary">DEMONSTRAÇÃO</p><h2 className="mt-2 text-3xl font-bold">Veja antes de decidir.</h2><p className="mt-4 text-muted-foreground">Esta área é visual e segura, com lançamentos fictícios — sem expor dados reais de nenhuma pessoa.</p>{!videoUrl && <Button className="mt-6" variant="outline" disabled><PlayCircle className="size-4" /> Vídeo de apresentação em breve</Button>}</div>{videoUrl ? (<Card className="overflow-hidden p-0"><video src={videoUrl} controls preload="metadata" className="aspect-video w-full bg-black" /></Card>) : (<Card className="border-dashed"><CardContent className="flex min-h-56 flex-col items-center justify-center p-8 text-center"><PlayCircle className="size-11 text-primary"/><b className="mt-3">Demonstração visual do Control ALL</b><p className="mt-1 text-sm text-muted-foreground">Vídeos e telas fictícias serão exibidos aqui.</p></CardContent></Card>)}</div></section>
     <section id="precos" className="border-t bg-primary/5"><div className="mx-auto max-w-6xl px-4 py-16 text-center"><p className="text-sm font-semibold text-primary">PREÇOS</p><h2 className="mt-2 text-3xl font-bold">Simples para começar.</h2><Card className="mx-auto mt-7 max-w-sm border-primary"><CardContent className="p-7"><p className="font-semibold">Control ALL</p><p className="mt-3 text-4xl font-bold">R$ 4,99<span className="text-base font-normal text-muted-foreground">/mês</span></p><p className="mt-3 text-sm text-muted-foreground">Preço de lançamento previsto.</p><ul className="mt-5 space-y-2 text-left text-sm">{["Módulos pessoais e financeiros","Alertas e histórico","Compartilhamento controlado","Privacidade por padrão"].map(i=><li className="flex gap-2" key={i}><Check className="size-4 text-primary"/>{i}</li>)}</ul><Button asChild className="mt-6 w-full"><Link to="/entrar" search={{ criar: true }}>Criar conta</Link></Button></CardContent></Card></div></section>
-    <ConsultaProtocolo />
     <footer className="flex items-center justify-center gap-2 border-t px-4 py-7 text-center text-xs text-muted-foreground">© {new Date().getFullYear()} Control ALL LTDA · <LegalDialogs compact /></footer>
   </main>;
 }

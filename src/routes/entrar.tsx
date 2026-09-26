@@ -1,7 +1,7 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Loader2, ArrowLeft, UserPlus, LogIn as LogInIcon } from "lucide-react";
+import { Loader2, UserPlus, LogIn as LogInIcon } from "lucide-react";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -17,6 +17,7 @@ import { TurnstileWidget } from "@/components/TurnstileWidget";
 import { TURNSTILE_ATIVO } from "@/lib/turnstile-config";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BrandMark } from "@/components/BrandMark";
+import { SiteHeader } from "@/components/SiteHeader";
 import { LegalDialogs } from "@/components/LegalDialogs";
 import { EntrarForm } from "@/components/EntrarForm";
 
@@ -59,15 +60,10 @@ function LoginPage() {
   }, [search.next]);
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-10">
+    <main className="min-h-screen bg-background">
+      <SiteHeader />
+      <div className="flex flex-col items-center justify-center px-4 py-10">
       <div className="w-full max-w-sm">
-        <Link
-          to="/"
-          className="mb-6 flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="size-3.5" /> Voltar pra página inicial
-        </Link>
-
         <div className="mb-8 flex flex-col items-center text-center">
           <BrandMark className="mb-4 size-14 rounded-2xl shadow-soft" />
           <h1 className="text-2xl font-bold tracking-tight">Control ALL</h1>
@@ -93,6 +89,7 @@ function LoginPage() {
             <CriarContaForm token={search.convite} />
           </TabsContent>
         </Tabs>
+      </div>
       </div>
     </main>
   );
