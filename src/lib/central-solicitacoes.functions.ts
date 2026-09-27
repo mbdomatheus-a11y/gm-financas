@@ -129,6 +129,17 @@ export const consultarProtocolo = createServerFn({ method: "POST" })
         const dias = Math.floor((Date.now() - new Date(chamado.criado_em).getTime()) / 86400000);
         return { tipo: "suporte" as const, protocolo: chamado.protocolo, status: chamado.status, tipo_solicitacao: chamado.assunto, dias_aberto: dias, atualizado_em: chamado.atualizado_em, resposta: chamado.resposta_admin };
       }
+      // Item 13: layout_solicitacoes também gera protocolo — inclui aqui
+      // pra consulta pública funcionar pros três tipos de solicitação.
+      const { data: layout } = await db
+        .from("layout_solicitacoes")
+        .select("protocolo,status,arquivo_nome,criado_em,atualizado_em,resposta_admin")
+        .eq("protocolo", data.protocolo)
+        .maybeSingle();
+      if (layout) {
+        const dias = Math.floor((Date.now() - new Date(layout.criado_em).getTime()) / 86400000);
+        return { tipo: "layout" as const, protocolo: layout.protocolo, status: layout.status, tipo_solicitacao: layout.arquivo_nome, dias_aberto: dias, atualizado_em: layout.atualizado_em, resposta: layout.resposta_admin };
+      }
       return null;
     }
 
@@ -235,14 +246,50 @@ export const enviarChamadoSuporte = createServerFn({ method: "POST" })
       .select("protocolo")
       .single();
     if (error) throw new Error(error.message);
-    // Notificar admin
+    // Item 8: e-mail pro admin com o conteúdo integral (não só o protocolo)
+    // e um botão que leva direto pra aba de tratamento no site; e-mail de
+    // cópia + link de acompanhamento pro usuário que abriu o chamado.
     try {
-      const { enviarEmail } = await import("@/lib/email.server");
+      const { enviarEmail, obterUrlBaseSite } = await import("@/lib/email.server");
+      const base = obterUrlBaseSite();
+      const PRIORIDADE_LABEL: Record<string, string> = { elogio: "Elogio", reclamacao: "Reclamação", sugestao: "Sugestão" };
       await enviarEmail({
         to: "privacidade@controlall.com.br",
         subject: `Control ALL: novo chamado de suporte — ${data.assunto}`,
-        html: `<p>Novo chamado de suporte. Protocolo: <strong>${chamado.protocolo}</strong>.</p><p>Assunto: ${data.assunto}</p><p>Usuário: ${perfil?.nome ?? "N/D"} (${perfil?.email ?? "N/D"})</p>`,
+        html: `
+          <div style="font-family: sans-serif; padding: 20px;">
+            <h2>Novo chamado de suporte</h2>
+            <p><b>Protocolo:</b> ${chamado.protocolo}</p>
+            <p><b>Usuário:</b> ${perfil?.nome ?? "N/D"} (${perfil?.email ?? "N/D"})</p>
+            <p><b>Tipo:</b> ${PRIORIDADE_LABEL[data.prioridade ?? "sugestao"]}</p>
+            <p><b>Assunto:</b> ${data.assunto}</p>
+            <p><b>Descrição:</b><br>${data.descricao.replace(/\n/g, "<br>")}</p>
+            ${data.anexo ? `<p><b>Anexo:</b> ${data.anexo.nome}</p>` : ""}
+            <p style="margin-top: 20px;">
+              <a href="${base}/administracao?aba=central" style="background:#0f172a;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none;">Tratar chamado</a>
+            </p>
+          </div>
+        `,
       });
+      if (perfil?.email) {
+        await enviarEmail({
+          to: perfil.email,
+          subject: `Control ALL: recebemos seu chamado de suporte`,
+          html: `
+            <div style="font-family: sans-serif; padding: 20px;">
+              <p>Olá${perfil?.nome ? `, ${perfil.nome}` : ""},</p>
+              <p>Recebemos seu chamado. Cópia da sua solicitação:</p>
+              <p><b>Assunto:</b> ${data.assunto}</p>
+              <p><b>Descrição:</b><br>${data.descricao.replace(/\n/g, "<br>")}</p>
+              <p><b>Protocolo:</b> ${chamado.protocolo}</p>
+              <p style="margin-top: 16px;">
+                Acompanhe pelo link: <a href="${base}/consultar-protocolo?p=${chamado.protocolo}">${base}/consultar-protocolo?p=${chamado.protocolo}</a>
+              </p>
+              <p>Equipe Control ALL</p>
+            </div>
+          `,
+        });
+      }
     } catch { /* não crítico */ }
     return { protocolo: chamado.protocolo as string };
   });
@@ -277,7 +324,7 @@ export const adminAtualizarChamado = createServerFn({ method: "POST" })
     const db = supabaseAdmin as any;
     const { data: chamado } = await db
       .from("chamados_suporte")
-      .select("email,assunto,status")
+      .select("email,assunto,status,protocolo")
       .eq("id", data.id)
       .single();
     // Item 9 (parte 2): um chamado cancelado (pelo usuário ou pelo próprio
@@ -312,11 +359,12 @@ export const adminAtualizarChamado = createServerFn({ method: "POST" })
     }
     if (data.resposta && chamado?.email) {
       try {
-        const { enviarEmail } = await import("@/lib/email.server");
+        const { enviarEmail, obterUrlBaseSite } = await import("@/lib/email.server");
+        const base = obterUrlBaseSite();
         await enviarEmail({
           to: chamado.email,
           subject: `Control ALL: seu chamado de suporte foi atualizado`,
-          html: `<p>Olá,</p><p>Seu chamado "<strong>${chamado.assunto}</strong>" foi atualizado.<br>Resposta: ${data.resposta}</p><p>Equipe Control ALL</p>`,
+          html: `<p>Olá,</p><p>Seu chamado "<strong>${chamado.assunto}</strong>" foi atualizado.<br>Resposta: ${data.resposta}</p><p>Acompanhe pelo link: <a href="${base}/consultar-protocolo?p=${chamado.protocolo}">${base}/consultar-protocolo?p=${chamado.protocolo}</a></p><p>Equipe Control ALL</p>`,
         });
       } catch { /* não crítico */ }
     }

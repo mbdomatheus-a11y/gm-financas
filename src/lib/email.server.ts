@@ -14,6 +14,14 @@
 const RESEND_API_URL = "https://api.resend.com/emails";
 const REMETENTE_TESTE = "Control ALL <onboarding@resend.dev>";
 
+// Item 8 do backlog 2026-09-27: base para montar links de "tratar" (pro
+// admin) e de acompanhamento por protocolo (pro usuário) nos e-mails
+// transacionais. `SITE_URL` permite apontar pra um preview/staging; sem ela,
+// usa o domínio de produção.
+export function obterUrlBaseSite(): string {
+  return (process.env["SITE_URL"] || "https://www.controlall.com.br").replace(/\/+$/, "");
+}
+
 export async function enviarEmail(params: {
   to: string;
   subject: string;

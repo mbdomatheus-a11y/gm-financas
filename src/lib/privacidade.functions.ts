@@ -32,11 +32,53 @@ export const enviarSolicitacaoPrivacidade = createServerFn({ method: "POST" })
     }
     // O protocolo já foi persistido. Falha no e-mail provisório não pode fazer
     // o usuário acreditar que sua solicitação foi perdida.
+    // Item 8: e-mail pro admin com o conteúdo integral da solicitação (não
+    // só o protocolo) e um botão que leva direto pra aba de tratamento no
+    // site; e-mail de cópia + link de acompanhamento pro solicitante.
     try {
-      const { enviarEmail } = await import("@/lib/email.server");
-      await enviarEmail({ to: emailAdmin, subject: "Control ALL: nova solicitação de privacidade", html: `<p>Há uma nova solicitação de exclusão. Protocolo: <strong>${pedido.protocolo}</strong>.</p>` });
+      const { enviarEmail, obterUrlBaseSite } = await import("@/lib/email.server");
+      const base = obterUrlBaseSite();
+      await enviarEmail({
+        to: emailAdmin,
+        subject: "Control ALL: nova solicitação de privacidade",
+        html: `
+          <div style="font-family: sans-serif; padding: 20px;">
+            <h2>Nova solicitação de privacidade (exclusão)</h2>
+            <p><b>Protocolo:</b> ${pedido.protocolo}</p>
+            <p><b>E-mail:</b> ${data.email}</p>
+            <p><b>Telefone:</b> ${data.telefone}</p>
+            <p><b>Motivo/detalhe:</b> ${data.motivo || "Não informado"}</p>
+            <p style="margin-top: 20px;">
+              <a href="${base}/administracao?aba=privacidade" style="background:#0f172a;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none;">Tratar solicitação</a>
+            </p>
+          </div>
+        `,
+      });
     } catch (emailError) {
       console.error("Solicitação registrada, mas e-mail administrativo falhou", emailError);
+    }
+    try {
+      const { enviarEmail, obterUrlBaseSite } = await import("@/lib/email.server");
+      const base = obterUrlBaseSite();
+      await enviarEmail({
+        to: data.email,
+        subject: "Control ALL: recebemos sua solicitação de privacidade",
+        html: `
+          <div style="font-family: sans-serif; padding: 20px;">
+            <p>Olá,</p>
+            <p>Recebemos sua solicitação de exclusão de dados. Cópia da sua solicitação:</p>
+            <p><b>Telefone informado:</b> ${data.telefone}</p>
+            <p><b>Motivo/detalhe:</b> ${data.motivo || "Não informado"}</p>
+            <p><b>Protocolo:</b> ${pedido.protocolo}</p>
+            <p style="margin-top: 16px;">
+              Acompanhe pelo link: <a href="${base}/consultar-protocolo?p=${pedido.protocolo}">${base}/consultar-protocolo?p=${pedido.protocolo}</a>
+            </p>
+            <p>Equipe Control ALL</p>
+          </div>
+        `,
+      });
+    } catch (emailError) {
+      console.error("Solicitação registrada, mas e-mail de confirmação ao usuário falhou", emailError);
     }
     return { protocolo: pedido.protocolo as string };
   });

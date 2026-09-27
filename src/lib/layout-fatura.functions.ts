@@ -83,6 +83,8 @@ export const prepararEnvioLayout = createServerFn({ method: "POST" })
 
       const adminEmails = (adminPerfis ?? []).map((p: any) => p.email).filter(Boolean);
 
+      const { obterUrlBaseSite } = await import("@/lib/email.server");
+      const base = obterUrlBaseSite();
       const nomeUsuario = perfil?.nome || perfil?.email || "Usuário";
       const assunto = `[Control ALL] Nova Fatura Enviada para Modelagem: ${data.nome}`;
       const corpoHtml = `
@@ -94,8 +96,9 @@ export const prepararEnvioLayout = createServerFn({ method: "POST" })
           <p><b>Final do Cartão:</b> ${data.cartao || "Não informado"}</p>
           <p><b>Observação:</b> ${data.descricao || "Nenhuma"}</p>
           <p><b>Protocolo:</b> ${item.protocolo}</p>
-          <hr />
-          <p>Acesse o painel de <b>Administração</b> para baixar a fatura e atualizar o status.</p>
+          <p style="margin-top: 20px;">
+            <a href="${base}/administracao?aba=central" style="background:#0f172a;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none;">Tratar solicitação</a>
+          </p>
         </div>
       `;
 

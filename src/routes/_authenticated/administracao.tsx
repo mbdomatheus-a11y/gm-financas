@@ -74,7 +74,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-export const Route = createFileRoute("/_authenticated/administracao")({ component: Admin });
+// Item 8: `?aba=` permite que o botão "Tratar solicitação" dos e-mails de
+// notificação abra a Administração já na aba certa (privacidade/central).
+export const Route = createFileRoute("/_authenticated/administracao")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    aba: typeof search.aba === "string" ? search.aba : undefined,
+  }),
+  component: Admin,
+});
 
 function formatarTamanho(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -123,6 +130,8 @@ function Admin() {
   const qc = useQueryClient();
   const logoInput = useRef<HTMLInputElement>(null);
   const videoInput = useRef<HTMLInputElement>(null);
+  const { aba: abaInicial } = Route.useSearch();
+  const [abaAtiva, setAbaAtiva] = useState(abaInicial || "dados-gerais");
 
   // Server functions
   const layoutsFn = useServerFn(adminListarLayouts);
@@ -542,7 +551,7 @@ function Admin() {
 
   return (
     <AppLayout title="Administração do site" description="Painel de controle administrativo">
-      <Tabs defaultValue="dados-gerais" className="space-y-4">
+      <Tabs value={abaAtiva} onValueChange={setAbaAtiva} className="space-y-4">
         <TabsList className="flex flex-wrap h-auto gap-1">
           <TabsTrigger value="dados-gerais">Dados Gerais</TabsTrigger>
           <TabsTrigger value="consulta">Consulta</TabsTrigger>
