@@ -2,7 +2,7 @@ import { useState, type ReactNode } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { encerrarSessao } from "@/lib/login-protecao.functions";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   LayoutDashboard,
   TrendingUp,
@@ -46,6 +46,45 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { AlertsBell } from "@/components/AlertsBell";
 import { BrandMark } from "@/components/BrandMark";
+import { obterUsoOracleDoMeuGrupo } from "@/lib/oracle-admin.functions";
+import { usePrivacidadeValores } from "@/hooks/usePrivacidadeValores";
+import { Eye, EyeOff } from "lucide-react";
+
+/** Item 16 (backlog 2026-09-27): mostra a cota de armazenamento Oracle do
+ * PRÓPRIO grupo do usuário (nunca de outro grupo), embaixo do nome do site
+ * e do usuário, com escala de cor conforme o uso (verde/amarelo/vermelho).
+ * Fica em branco (não renderiza nada) se o Oracle não estiver habilitado
+ * para o grupo — evita confundir quem nunca usou essa área. */
+function OracleQuotaBadge() {
+  const obterFn = useServerFn(obterUsoOracleDoMeuGrupo);
+  const { data } = useQuery({
+    queryKey: ["oracle-quota-meu-grupo"],
+    queryFn: () => obterFn(),
+    staleTime: 60_000,
+  });
+
+  if (!data || !data.habilitado || data.cotaBytes <= 0) return null;
+
+  const pct = Math.min(100, (data.usadoBytes / data.cotaBytes) * 100);
+  const cor = pct >= 90 ? "bg-destructive" : pct >= 70 ? "bg-warning" : "bg-success";
+  const corTexto = pct >= 90 ? "text-destructive" : pct >= 70 ? "text-warning" : "text-success";
+
+  const formatarMb = (bytes: number) => `${(bytes / (1024 * 1024)).toFixed(0)} MB`;
+
+  return (
+    <div className="mt-1.5 px-2" title={`${formatarMb(data.usadoBytes)} de ${formatarMb(data.cotaBytes)} usados`}>
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[10px] text-muted-foreground">Armazenamento</span>
+        <span className={`text-[10px] font-semibold tabular-nums ${corTexto}`}>
+          {formatarMb(data.usadoBytes)} / {formatarMb(data.cotaBytes)}
+        </span>
+      </div>
+      <div className="mt-0.5 h-1 overflow-hidden rounded-full bg-muted">
+        <div className={`h-full rounded-full ${cor}`} style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  );
+}
 
 type NavTo =
   | "/inicio"
@@ -308,6 +347,7 @@ export function AppLayout({
   const { prefs } = usePreferencias();
   const { data: profile } = useProfile();
   const { can, isSiteAdmin } = usePermissoes();
+  const { ocultarValores, toggle: alternarOcultarValores } = usePrivacidadeValores();
   const { habilitado } = useModulosGlobais();
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -431,6 +471,7 @@ export function AppLayout({
           <p className="truncate text-xs text-muted-foreground">{profile?.nome ?? ""}</p>
         </div>
       </Link>
+      <OracleQuotaBadge />
       <NavLinks onNavigate={onNavigate} />
       <Button
         variant="ghost"
@@ -477,6 +518,19 @@ export function AppLayout({
               )}
             </div>
             <div className="flex shrink-0 items-center gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={alternarOcultarValores}
+                aria-label={ocultarValores ? "Mostrar valores em R$" : "Ocultar valores em R$"}
+                title={
+                  ocultarValores
+                    ? "Mostrar valores em R$ (global)"
+                    : "Ocultar valores em R$ (global) — cada caixa também tem seu próprio olho"
+                }
+              >
+                {ocultarValores ? <EyeOff className="size-4.5" /> : <Eye className="size-4.5" />}
+              </Button>
               <AlertsBell />
               {actions}
             </div>

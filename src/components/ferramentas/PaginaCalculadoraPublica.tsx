@@ -8,6 +8,7 @@ export const calculadorasPublicas = [
   { href: "/calculadoras/diferenca-entre-datas", nome: "Diferença entre datas" },
   { href: "/calculadoras/somar-dias-a-data", nome: "Somar ou subtrair dias de uma data" },
   { href: "/calculadoras/somar-horarios", nome: "Somar e subtrair horários" },
+  { href: "/calculadoras/simulador-de-dose-diluicao", nome: "Simulador de dose e diluição (uso acadêmico)" },
 ] as const;
 
 export function PaginaCalculadoraPublica({ titulo, descricao, children, explicacao, exemplo }: {

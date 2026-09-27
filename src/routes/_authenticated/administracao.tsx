@@ -24,6 +24,7 @@ import {
   adminObterLayoutUrl,
 } from "@/lib/admin-avancado.functions";
 import {
+  adminAlternarGoogleDriveNotas,
   adminListarModulos,
   adminSalvarConfiguracaoAcesso,
   adminSalvarModulo,
@@ -132,6 +133,7 @@ function Admin() {
   const confirmarVideoFn = useServerFn(confirmarVideo);
   const obterConfig = useServerFn(obterConfiguracaoAcesso);
   const salvarConfig = useServerFn(adminSalvarConfiguracaoAcesso);
+  const alternarGoogleDriveNotasFn = useServerFn(adminAlternarGoogleDriveNotas);
   const listarModulos = useServerFn(adminListarModulos);
   const salvarModulo = useServerFn(adminSalvarModulo);
   const listarComunicadosFn = useServerFn(adminListarComunicados);
@@ -182,7 +184,7 @@ function Admin() {
     enabled: isSiteAdmin,
     queryFn: () => logsFn(),
   });
-  const { data: config } = useQuery<{ modo_login: "cpf" | "email" | "ambos"; segundo_fator_email: boolean; sessao_maxima_minutos: number; cota_convites: number } | undefined>({
+  const { data: config } = useQuery<{ modo_login: "cpf" | "email" | "ambos"; segundo_fator_email: boolean; sessao_maxima_minutos: number; cota_convites: number; google_drive_habilitado: boolean } | undefined>({
     queryKey: ["configuracao-acesso-publica"],
     enabled: isSiteAdmin,
     queryFn: () => obterConfig() as any,
@@ -264,6 +266,15 @@ function Admin() {
     mutationFn: (valor: { modoLogin: "cpf" | "email" | "ambos"; segundoFatorEmail: boolean; sessaoMaximaMinutos: number; cotaConvites: number }) =>
       salvarConfig({ data: valor }),
     onSuccess: () => { toast.success("Configuração de acesso salva."); qc.invalidateQueries({ queryKey: ["configuracao-acesso-publica"] }); },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const alternarGoogleDriveNotas = useMutation({
+    mutationFn: (habilitado: boolean) => alternarGoogleDriveNotasFn({ data: { habilitado } }),
+    onSuccess: () => {
+      toast.success("Preferência do Google Drive (Notas) atualizada.");
+      qc.invalidateQueries({ queryKey: ["configuracao-acesso-publica"] });
+    },
     onError: (e: any) => toast.error(e.message),
   });
 
@@ -415,6 +426,56 @@ function Admin() {
       </AppLayout>
     );
 
+  // A senha extra (re-autenticação) agora protege a ENTRADA da tela inteira,
+  // não só a aba "Consulta" — pede a senha uma vez e libera todas as abas.
+  if (!consultaDesbloqueada)
+    return (
+      <AppLayout title="Administração do site" description="Painel de controle administrativo">
+        <Card>
+          <CardContent className="p-6 space-y-4 max-w-sm mx-auto">
+            <div className="text-center space-y-1">
+              <div className="flex justify-center mb-3">
+                <div className="flex size-12 items-center justify-center rounded-full bg-amber-500/10">
+                  <svg className="size-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                </div>
+              </div>
+              <p className="font-semibold">Área protegida</p>
+              <p className="text-xs text-muted-foreground">Confirme sua senha para acessar o painel de administração.</p>
+            </div>
+            <Input
+              type="password"
+              placeholder="Sua senha de acesso"
+              value={senhaConsulta}
+              onChange={(e) => { setSenhaConsulta(e.target.value); setErroSenhaConsulta(""); }}
+              onKeyDown={async (e) => {
+                if (e.key !== "Enter") return;
+                const { error } = await supabase.auth.signInWithPassword({
+                  email: (await supabase.auth.getUser()).data.user?.email ?? "",
+                  password: senhaConsulta,
+                });
+                if (error) { setErroSenhaConsulta("Senha incorreta."); } else { setConsultaDesbloqueada(true); setSenhaConsulta(""); }
+              }}
+            />
+            {erroSenhaConsulta && <p className="text-xs text-rose-600">{erroSenhaConsulta}</p>}
+            <Button
+              className="w-full"
+              disabled={!senhaConsulta}
+              onClick={async () => {
+                const { data: userResult } = await supabase.auth.getUser();
+                const { error } = await supabase.auth.signInWithPassword({
+                  email: userResult.user?.email ?? "",
+                  password: senhaConsulta,
+                });
+                if (error) { setErroSenhaConsulta("Senha incorreta."); } else { setConsultaDesbloqueada(true); setSenhaConsulta(""); }
+              }}
+            >
+              Confirmar e acessar
+            </Button>
+          </CardContent>
+        </Card>
+      </AppLayout>
+    );
+
   // Contadores de badge
   const layoutsPendentes = layouts.filter((l: any) => l.status === "recebida" || l.status === "em_modelagem").length;
   const privPendentes = pedidos.filter((p: any) => p.status === "recebida" || p.status === "em_atendimento" || p.status === "em_analise").length;
@@ -517,93 +578,51 @@ function Admin() {
         </TabsContent>
 
         {/* ─── ABA 2: CONSULTA ─── */}
+        {/* 2026-09-27: a senha extra agora é pedida uma única vez na ENTRADA
+            de toda a rota /administracao (ver o gate antes do `return`
+            principal) — essa aba não pede senha de novo, já chega liberada. */}
         <TabsContent value="consulta" className="space-y-4">
-          {!consultaDesbloqueada ? (
-            <Card>
-              <CardContent className="p-6 space-y-4 max-w-sm mx-auto">
-                <div className="text-center space-y-1">
-                  <div className="flex justify-center mb-3">
-                    <div className="flex size-12 items-center justify-center rounded-full bg-amber-500/10">
-                      <svg className="size-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
-                    </div>
-                  </div>
-                  <p className="font-semibold">Área protegida</p>
-                  <p className="text-xs text-muted-foreground">Confirme sua senha para acessar os dados de atividade dos usuários.</p>
-                </div>
-                <Input
-                  type="password"
-                  placeholder="Sua senha de acesso"
-                  value={senhaConsulta}
-                  onChange={(e) => { setSenhaConsulta(e.target.value); setErroSenhaConsulta(""); }}
-                  onKeyDown={async (e) => {
-                    if (e.key !== "Enter") return;
-                    const { error } = await supabase.auth.signInWithPassword({
-                      email: (await supabase.auth.getUser()).data.user?.email ?? "",
-                      password: senhaConsulta,
-                    });
-                    if (error) { setErroSenhaConsulta("Senha incorreta."); } else { setConsultaDesbloqueada(true); setSenhaConsulta(""); }
-                  }}
-                />
-                {erroSenhaConsulta && <p className="text-xs text-rose-600">{erroSenhaConsulta}</p>}
-                <Button
-                  className="w-full"
-                  disabled={!senhaConsulta}
-                  onClick={async () => {
-                    const { data: userResult } = await supabase.auth.getUser();
-                    const { error } = await supabase.auth.signInWithPassword({
-                      email: userResult.user?.email ?? "",
-                      password: senhaConsulta,
-                    });
-                    if (error) { setErroSenhaConsulta("Senha incorreta."); } else { setConsultaDesbloqueada(true); setSenhaConsulta(""); }
-                  }}
-                >
-                  Confirmar e acessar
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm">Atividade e espaço por usuário</CardTitle>
+                <Button size="sm" variant="ghost" className="text-xs text-muted-foreground" onClick={() => setConsultaDesbloqueada(false)}>
+                  🔒 Bloquear administração
                 </Button>
-              </CardContent>
-            </Card>
-          ) : (
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm">Atividade e espaço por usuário</CardTitle>
-                  <Button size="sm" variant="ghost" className="text-xs text-muted-foreground" onClick={() => setConsultaDesbloqueada(false)}>
-                    🔒 Bloquear novamente
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-              <div className="max-h-96 overflow-auto">
-                <table className="w-full text-left text-sm">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="p-2">Usuário</th>
-                      <th className="p-2">Situação</th>
-                      <th className="p-2">Última atividade</th>
-                      <th className="p-2">Arquivos</th>
-                      <th className="p-2">Espaço</th>
-                      <th className="p-2">Grupo</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(metricas?.usuarios ?? []).map((u: any) => (
-                      <tr key={u.id} className="border-b last:border-0">
-                        <td className="p-2">{u.nome}</td>
-                        <td className="p-2">{u.ativo ? <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-700">Ativa</Badge> : <Badge variant="secondary" className="bg-rose-500/10 text-rose-700">Inativa</Badge>}</td>
-                        <td className="p-2 text-xs text-muted-foreground">{u.ultimaAtividadeEm ? new Date(u.ultimaAtividadeEm).toLocaleString("pt-BR") : "Sem acesso"}</td>
-                        <td className="p-2">{u.arquivos}</td>
-                        <td className="p-2">{formatarTamanho(u.bytesArmazenados)}</td>
-                        <td className="p-2 text-xs text-muted-foreground">{u.grupoNome}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
               </div>
-              <p className="mt-2 text-xs text-muted-foreground">
-                Sem CPF exibido por segurança. Armazenamento não atribuído: {formatarTamanho(metricas?.armazenamentoNaoAtribuidoBytes ?? 0)}.
-              </p>
-              </CardContent>
-            </Card>
-          )}
+            </CardHeader>
+            <CardContent>
+            <div className="max-h-96 overflow-auto">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th className="p-2">Usuário</th>
+                    <th className="p-2">Situação</th>
+                    <th className="p-2">Última atividade</th>
+                    <th className="p-2">Arquivos</th>
+                    <th className="p-2">Espaço</th>
+                    <th className="p-2">Grupo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(metricas?.usuarios ?? []).map((u: any) => (
+                    <tr key={u.id} className="border-b last:border-0">
+                      <td className="p-2">{u.nome}</td>
+                      <td className="p-2">{u.ativo ? <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-700">Ativa</Badge> : <Badge variant="secondary" className="bg-rose-500/10 text-rose-700">Inativa</Badge>}</td>
+                      <td className="p-2 text-xs text-muted-foreground">{u.ultimaAtividadeEm ? new Date(u.ultimaAtividadeEm).toLocaleString("pt-BR") : "Sem acesso"}</td>
+                      <td className="p-2">{u.arquivos}</td>
+                      <td className="p-2">{formatarTamanho(u.bytesArmazenados)}</td>
+                      <td className="p-2 text-xs text-muted-foreground">{u.grupoNome}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Sem CPF exibido por segurança. Armazenamento não atribuído: {formatarTamanho(metricas?.armazenamentoNaoAtribuidoBytes ?? 0)}.
+            </p>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* ─── ABA 3: ACESSO E AUTENTICAÇÃO ─── */}
@@ -669,6 +688,25 @@ function Admin() {
                     independente deste valor.
                   </p>
                 </div>
+              </CardContent>
+            </Card>
+          )}
+          {config && (
+            <Card>
+              <CardHeader><CardTitle className="text-sm">Notas fiscais — Google Drive</CardTitle></CardHeader>
+              <CardContent className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm">Mostrar seção de pasta/Google Drive pros usuários comuns</p>
+                  <p className="text-xs text-muted-foreground">
+                    Desligado por padrão (item 15 do backlog). Enquanto desligado, só você (admin do
+                    site) vê essa seção em Notas fiscais — o fluxo de conexão continua funcionando
+                    normalmente pra quem já tinha conectado antes.
+                  </p>
+                </div>
+                <Switch
+                  checked={config.google_drive_habilitado}
+                  onCheckedChange={(v) => alternarGoogleDriveNotas.mutate(v)}
+                />
               </CardContent>
             </Card>
           )}

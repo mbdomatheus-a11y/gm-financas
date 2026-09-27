@@ -34,6 +34,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ChevronDown } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -170,6 +172,25 @@ function DashboardPage() {
   const [agrupamento, setAgrupamento] = useState<Agrupamento>("categoria");
   const [drill, setDrill] = useState<{ mes: string; grupo?: string } | null>(null);
   const [editando, setEditando] = useState<any | null>(null);
+
+  // Item 10 (backlog 2026-09-27): agrupamentos nascem recolhidos por padrão;
+  // a escolha do usuário (expandido/recolhido) é lembrada entre sessões.
+  const AGRUPAMENTOS_ABERTO_KEY = "financas_agrupamentos_dashboard_aberto";
+  const [agrupamentosAberto, setAgrupamentosAberto] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      return localStorage.getItem(AGRUPAMENTOS_ABERTO_KEY) === "true";
+    } catch {
+      return false;
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem(AGRUPAMENTOS_ABERTO_KEY, String(agrupamentosAberto));
+    } catch {
+      // Ignora falhas de localStorage
+    }
+  }, [agrupamentosAberto]);
 
   const meses = useMemo(() => {
     if (janela === "custom") {
@@ -703,48 +724,59 @@ function DashboardPage() {
       </Card>
 
       <Card className="mt-4">
-        <CardHeader className="flex flex-col gap-2 space-y-0 sm:flex-row sm:items-center sm:justify-between">
-          <CardTitle className="text-base">
-            Agrupamentos de {monthLabelLong(mesPie)} — maior para menor
-          </CardTitle>
-          <Select value={mesPie} onValueChange={setMesPie}>
-            <SelectTrigger className="h-8 w-[140px] text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {mesesSelecionaveis.map((m) => (
-                <SelectItem key={m} value={m}>
-                  {monthLabel(m)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          {agrupamentosMes.lista.length === 0 && (
-            <p className="text-sm text-muted-foreground">Sem despesas neste mês.</p>
-          )}
-          {agrupamentosMes.lista.map((g) => {
-            const pct = agrupamentosMes.total ? (g.total / agrupamentosMes.total) * 100 : 0;
-            return (
-              <button
-                key={g.grupo}
-                type="button"
-                onClick={() => setDrill({ mes: mesPie, grupo: g.grupo })}
-                className="w-full rounded-lg border px-3 py-2 text-left transition-colors hover:bg-muted/60"
-              >
-                <div className="flex items-center justify-between gap-3 text-sm">
-                  <span className="truncate font-medium capitalize">{g.grupo}</span>
-                  <span className="shrink-0 font-semibold tabular-nums">{formatBRL(g.total)}</span>
-                </div>
-                <Progress value={pct} className="mt-1.5 h-1.5" />
-                <p className="mt-1 text-[11px] text-muted-foreground">
-                  {g.itens} lançamento(s) · {pct.toFixed(1)}% do mês
-                </p>
+        <Collapsible open={agrupamentosAberto} onOpenChange={setAgrupamentosAberto}>
+          <CardHeader className="flex flex-col gap-2 space-y-0 sm:flex-row sm:items-center sm:justify-between">
+            <CollapsibleTrigger asChild>
+              <button type="button" className="flex items-center gap-1.5 text-left">
+                <ChevronDown
+                  className={`size-4 shrink-0 text-muted-foreground transition-transform ${agrupamentosAberto ? "rotate-0" : "-rotate-90"}`}
+                />
+                <CardTitle className="text-base">
+                  Agrupamentos de {monthLabelLong(mesPie)} — maior para menor
+                </CardTitle>
               </button>
-            );
-          })}
-        </CardContent>
+            </CollapsibleTrigger>
+            <Select value={mesPie} onValueChange={setMesPie}>
+              <SelectTrigger className="h-8 w-[140px] text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {mesesSelecionaveis.map((m) => (
+                  <SelectItem key={m} value={m}>
+                    {monthLabel(m)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </CardHeader>
+          <CollapsibleContent>
+            <CardContent className="space-y-2">
+              {agrupamentosMes.lista.length === 0 && (
+                <p className="text-sm text-muted-foreground">Sem despesas neste mês.</p>
+              )}
+              {agrupamentosMes.lista.map((g) => {
+                const pct = agrupamentosMes.total ? (g.total / agrupamentosMes.total) * 100 : 0;
+                return (
+                  <button
+                    key={g.grupo}
+                    type="button"
+                    onClick={() => setDrill({ mes: mesPie, grupo: g.grupo })}
+                    className="w-full rounded-lg border px-3 py-2 text-left transition-colors hover:bg-muted/60"
+                  >
+                    <div className="flex items-center justify-between gap-3 text-sm">
+                      <span className="truncate font-medium capitalize">{g.grupo}</span>
+                      <span className="shrink-0 font-semibold tabular-nums">{formatBRL(g.total)}</span>
+                    </div>
+                    <Progress value={pct} className="mt-1.5 h-1.5" />
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      {g.itens} lançamento(s) · {pct.toFixed(1)}% do mês
+                    </p>
+                  </button>
+                );
+              })}
+            </CardContent>
+          </CollapsibleContent>
+        </Collapsible>
       </Card>
 
       {drill && (

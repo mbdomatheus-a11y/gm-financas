@@ -135,6 +135,50 @@ export const adminAlternarArmazenamentoOracle = createServerFn({ method: "POST" 
     return { ok: true as const };
   });
 
+/**
+ * Item 16 (backlog 2026-09-27): versão para o usuário comum ver a cota do
+ * PRÓPRIO grupo (nunca de outro grupo) — sem exigir admin do site. Usada
+ * embaixo do nome do site/usuário, com escala de cor conforme o uso.
+ */
+export const obterUsoOracleDoMeuGrupo = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<{ habilitado: boolean; cotaBytes: number; usadoBytes: number } | null> => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const db = supabaseAdmin as any;
+
+    const { data: perfil, error: perfilError } = await db
+      .from("profiles")
+      .select("grupo_id")
+      .eq("id", context.userId)
+      .maybeSingle();
+    if (perfilError) throw new Error(perfilError.message);
+    const grupoId = perfil?.grupo_id as string | null;
+    if (!grupoId) return null;
+
+    const { data: grupo, error: grupoError } = await db
+      .from("grupos")
+      .select("oracle_storage_habilitado, oracle_storage_cota_bytes")
+      .eq("id", grupoId)
+      .maybeSingle();
+    if (grupoError) throw new Error(grupoError.message);
+    if (!grupo || !grupo.oracle_storage_habilitado) {
+      return { habilitado: false, cotaBytes: 0, usadoBytes: 0 };
+    }
+
+    const { data: arquivos, error: arquivosError } = await db
+      .from("oracle_storage_arquivos")
+      .select("bytes")
+      .eq("grupo_id", grupoId);
+    if (arquivosError) throw new Error(arquivosError.message);
+    const usadoBytes = (arquivos ?? []).reduce((s: number, a: any) => s + Number(a.bytes ?? 0), 0);
+
+    return {
+      habilitado: true,
+      cotaBytes: Number(grupo.oracle_storage_cota_bytes ?? QUINHENTOS_MB),
+      usadoBytes,
+    };
+  });
+
 /** Ajusta manualmente a cota (em MB, convertido para bytes) de um grupo. */
 export const adminAjustarCotaOracle = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

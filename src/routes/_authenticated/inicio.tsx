@@ -20,6 +20,7 @@ import {
 
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
+import { VisaoGeralHome } from "@/components/VisaoGeralHome";
 import { useModulosGlobais, usePermissoes } from "@/hooks/useAuthData";
 
 export const Route = createFileRoute("/_authenticated/inicio")({
@@ -96,6 +97,7 @@ const MODULOS = [
 function InicioPage() {
   const { can, isAdmin, isSiteAdmin } = usePermissoes();
   const { habilitado } = useModulosGlobais();
+  const podeVerResumoFinancas = habilitado("financas") && can("despesas", "ver");
   const gerais = [
     { to: "/compartilhar" as const, label: "Compartilhar", icon: Share2, modulo: "compartilhar" as const },
     { to: "/usuarios" as const, label: "Usuários e Privilégios", icon: Users, adminOnly: true },
@@ -143,6 +145,15 @@ function InicioPage() {
           );
         })}
       </div>
+
+      {podeVerResumoFinancas && (
+        <div className="mb-8">
+          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Resumo do mês
+          </h2>
+          <VisaoGeralHome />
+        </div>
+      )}
 
       {gerais.length > 0 && (
         <div className="space-y-2">

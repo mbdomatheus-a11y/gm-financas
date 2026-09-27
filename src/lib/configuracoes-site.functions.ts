@@ -26,7 +26,7 @@ export const obterConfiguracaoAcesso = createServerFn({ method: "GET" }).handler
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await (supabaseAdmin as any)
     .from("configuracoes_acesso_site")
-    .select("modo_login,segundo_fator_email,sessao_maxima_minutos,cota_convites")
+    .select("modo_login,segundo_fator_email,sessao_maxima_minutos,cota_convites,google_drive_habilitado")
     .eq("id", true)
     .single();
   if (error) throw new Error("Não foi possível carregar a configuração de acesso.");
@@ -35,8 +35,33 @@ export const obterConfiguracaoAcesso = createServerFn({ method: "GET" }).handler
     segundo_fator_email: boolean;
     sessao_maxima_minutos: number;
     cota_convites: number;
+    google_drive_habilitado: boolean;
   };
 });
+
+export const adminAlternarGoogleDriveNotas = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((v: unknown) => z.object({ habilitado: z.boolean() }).parse(v))
+  .handler(async ({ data, context }) => {
+    await exigirAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const db = supabaseAdmin as any;
+    const { error } = await db
+      .from("configuracoes_acesso_site")
+      .update({
+        google_drive_habilitado: data.habilitado,
+        atualizado_em: new Date().toISOString(),
+        atualizado_por: context.userId,
+      })
+      .eq("id", true);
+    if (error) throw new Error(error.message);
+    await db.from("admin_audit_logs").insert({
+      ator_id: context.userId,
+      acao: "google_drive_notas_alternado",
+      detalhes: { habilitado: data.habilitado },
+    });
+    return { ok: true as const };
+  });
 
 export const adminSalvarConfiguracaoAcesso = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

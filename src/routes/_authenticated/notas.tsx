@@ -58,6 +58,7 @@ import {
 } from "@/lib/drive.functions";
 import { consultarNota } from "@/lib/nfe.functions";
 import { usePermissoes } from "@/hooks/useAuthData";
+import { obterConfiguracaoAcesso } from "@/lib/configuracoes-site.functions";
 
 export const Route = createFileRoute("/_authenticated/notas")({
   head: () => ({
@@ -225,7 +226,7 @@ function SeloGarantia({ fim }: { fim: string | null }) {
 }
 
 function NotasPage() {
-  const { exclusaoBloqueada } = usePermissoes();
+  const { exclusaoBloqueada, isSiteAdmin } = usePermissoes();
   const qc = useQueryClient();
   const { data: notas = [], isLoading } = useNotas();
   const [filtro, setFiltro] = useState<Filtro>("todas");
@@ -250,6 +251,17 @@ function NotasPage() {
   const consultar = useServerFn(consultarNota);
 
   const drive = useQuery({ queryKey: ["drive-status"], queryFn: () => status({}) });
+
+  // Item 15 (backlog 2026-09-27): a seção de pasta/Google Drive fica oculta
+  // pro usuário comum por padrão — só o admin do site vê sempre, e pode
+  // reabilitar pra todo mundo mais tarde via essa mesma configuração global.
+  const obterConfigAcesso = useServerFn(obterConfiguracaoAcesso);
+  const configAcesso = useQuery({
+    queryKey: ["configuracao-acesso-publica"],
+    queryFn: () => obterConfigAcesso(),
+    staleTime: 60_000,
+  });
+  const mostrarSecaoDrive = isSiteAdmin || !!configAcesso.data?.google_drive_habilitado;
 
   const lerPasta = useServerFn(getPastaDrive);
   const gravarPasta = useServerFn(setPastaDrive);
@@ -563,7 +575,14 @@ function NotasPage() {
       />
 
       <div className="space-y-4">
+        {mostrarSecaoDrive && (
         <Card>
+          {isSiteAdmin && !configAcesso.data?.google_drive_habilitado && (
+            <div className="border-b bg-amber-500/10 px-4 py-2 text-[11px] text-amber-700">
+              Visível só pra você (admin). Oculto pros usuários comuns — reative em Administração
+              → Módulos.
+            </div>
+          )}
           <CardContent className="space-y-4 py-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3">
@@ -649,6 +668,7 @@ function NotasPage() {
             </div>
           </CardContent>
         </Card>
+        )}
 
         {aVencer.length > 0 && (
           <Card className="border-warning/40 bg-warning/5">
