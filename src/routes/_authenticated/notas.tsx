@@ -51,6 +51,7 @@ import {
   disconnectDrive,
   driveStatus,
   getPastaDrive,
+  resolverUrlsOracle,
   setPastaDrive,
   startDriveConnect,
   uploadNotaArquivo,
@@ -130,6 +131,10 @@ function useNotas() {
         .order("data_compra", { ascending: false });
       if (error) throw error;
       const notas = data ?? [];
+
+      // Arquivos "supabase:<path>": bucket privado no Supabase Storage,
+      // resolvido direto no client (mesma sessão do usuário já tem acesso
+      // via RLS do storage).
       const paths = [
         ...new Set(
           notas.flatMap((nota) =>
@@ -150,16 +155,49 @@ function useNotas() {
           if (url) links.set(path, url);
         });
       }
+
+      // Arquivos "oracle:<object_key>" (2026-09-27): bucket privado no
+      // Oracle Object Storage — as credenciais não existem no client, então
+      // a URL assinada precisa vir do server (resolverUrlsOracle).
+      const objectKeysOracle = [
+        ...new Set(
+          notas.flatMap((nota) =>
+            (nota.nota_arquivos ?? [])
+              .filter((arquivo) => arquivo.drive_file_id.startsWith("oracle:"))
+              .map((arquivo) => arquivo.drive_file_id.slice("oracle:".length)),
+          ),
+        ),
+      ];
+      const linksOracle = new Map<string, string>();
+      if (objectKeysOracle.length) {
+        try {
+          const { urls } = await resolverUrlsOracle({ data: { objectKeys: objectKeysOracle } });
+          Object.entries(urls).forEach(([objectKey, url]) => linksOracle.set(objectKey, url));
+        } catch (err) {
+          console.error("Não foi possível carregar os arquivos do Oracle:", err);
+        }
+      }
+
       return notas.map((nota) => ({
         ...nota,
         nota_arquivos: (nota.nota_arquivos ?? []).map((arquivo) => {
-          if (!arquivo.drive_file_id.startsWith("supabase:")) return arquivo;
-          const url = links.get(arquivo.drive_file_id.slice("supabase:".length)) ?? null;
-          return {
-            ...arquivo,
-            link: url,
-            thumbnail_link: arquivo.mime_type?.startsWith("image/") ? url : null,
-          };
+          if (arquivo.drive_file_id.startsWith("supabase:")) {
+            const url = links.get(arquivo.drive_file_id.slice("supabase:".length)) ?? null;
+            return {
+              ...arquivo,
+              link: url,
+              thumbnail_link: arquivo.mime_type?.startsWith("image/") ? url : null,
+            };
+          }
+          if (arquivo.drive_file_id.startsWith("oracle:")) {
+            const url = linksOracle.get(arquivo.drive_file_id.slice("oracle:".length)) ?? null;
+            return {
+              ...arquivo,
+              link: url,
+              thumbnail_link: arquivo.mime_type?.startsWith("image/") ? url : null,
+            };
+          }
+          return arquivo;
         }),
       }));
     },
