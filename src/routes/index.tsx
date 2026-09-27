@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
-import { ArrowRight, BarChart3, BellRing, Check, FileHeart, FileUp, ListChecks, MapPin, PawPrint, PlayCircle, ReceiptText, ShieldCheck, Sparkles, Wallet } from "lucide-react";
+import { ArrowRight, BarChart3, BellRing, Check, FileHeart, FileUp, ListChecks, MapPin, PawPrint, PlayCircle, Percent, ReceiptText, ShieldCheck, Sparkles, Wallet } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -129,6 +129,7 @@ function BlocoParceria() {
   const previewUrl = parceria.previewImagemPath
     ? supabase.storage.from("site_assets").getPublicUrl(parceria.previewImagemPath).data.publicUrl
     : null;
+  const linhas = parceria.slogan ? parceria.slogan.split("\n").filter(Boolean) : [];
   return (
     <a
       href={parceria.url}
@@ -139,25 +140,28 @@ function BlocoParceria() {
           // Falha ao contar o clique não deve impedir a navegação.
         });
       }}
-      className="mt-auto flex items-center gap-3 rounded-xl border border-dashed p-2.5 text-left transition-colors hover:bg-muted/40"
+      className="group mt-auto flex items-center gap-4 rounded-xl border-2 border-amber-400/70 bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 p-4 text-left shadow-sm transition-transform hover:scale-[1.02] dark:border-amber-500/40 dark:from-amber-950/30 dark:via-orange-950/20 dark:to-amber-950/30"
     >
       {previewUrl && (
         <img
           src={previewUrl}
           alt=""
-          className="h-12 w-20 shrink-0 rounded-md border object-cover"
+          className="h-20 w-32 shrink-0 rounded-lg border object-cover shadow-sm"
         />
       )}
-      <div className="min-w-0">
-        <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Patrocinado</p>
-        {parceria.slogan && (
-          <p className="mt-0.5 text-xs leading-snug text-muted-foreground">
-            {parceria.slogan.split("\n").map((linha, i) => (
-              <span key={i} className="block truncate">{linha}</span>
-            ))}
+      <div className="min-w-0 flex-1">
+        <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Patrocinado</p>
+        {linhas[0] && (
+          <p className="mt-1 flex items-center gap-1.5 text-base font-bold leading-snug text-amber-700 dark:text-amber-400">
+            <Percent className="size-4 shrink-0 animate-bounce" />
+            <span className="truncate">{linhas[0]}</span>
           </p>
         )}
+        {linhas[1] && (
+          <p className="mt-0.5 truncate text-sm font-medium text-muted-foreground">{linhas[1]}</p>
+        )}
       </div>
+      <ArrowRight className="size-5 shrink-0 text-amber-600 transition-transform group-hover:translate-x-1 dark:text-amber-400" />
     </a>
   );
 }
