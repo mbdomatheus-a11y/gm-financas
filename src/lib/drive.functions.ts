@@ -446,3 +446,62 @@ export const uploadNotaArquivo = createServerFn({ method: "POST" })
 
     return { ok: true as const, destino: "google_drive" as const, fileId: file.id };
   });
+
+/**
+ * Resolve links assinados (1h) para arquivos de nota fiscal salvos no
+ * Oracle Object Storage (2026-09-27). Os arquivos do Oracle são gravados em
+ * `nota_arquivos.drive_file_id` como `"oracle:<object_key>"`, com
+ * `link`/`thumbnail_link` sempre null no banco (bucket privado, precisa de
+ * URL assinada gerada a cada uso). O componente de Notas Fiscais chama esta
+ * função com a lista de object_keys visíveis na tela — mesmo padrão já
+ * usado no client para os arquivos "supabase:" (createSignedUrls), mas aqui
+ * via server porque as credenciais do Oracle não podem ir pro client.
+ *
+ * Retorna um mapa { [objectKey]: url }; um object_key que falhar (por
+ * exemplo, se o Oracle não estiver mais configurado) fica de fora do mapa
+ * em vez de derrubar a tela inteira.
+ */
+export const resolverUrlsOracle = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { objectKeys: string[] }) => {
+    if (!Array.isArray(input?.objectKeys) || input.objectKeys.length === 0) {
+      throw new Error("Informe ao menos um object_key.");
+    }
+    if (input.objectKeys.length > 100) throw new Error("Muitos arquivos de uma vez.");
+    if (!input.objectKeys.every((k) => typeof k === "string" && k.length > 0)) {
+      throw new Error("object_key inválido.");
+    }
+    return { objectKeys: input.objectKeys };
+  })
+  .handler(async ({ data, context }) => {
+    // Confere que cada object_key pedido pertence ao grupo do usuário —
+    // evita que alguém peça a URL assinada de um arquivo de outro grupo
+    // sabendo (ou adivinhando) o object_key.
+    const { data: perfil } = await context.supabase
+      .from("profiles")
+      .select("grupo_id")
+      .eq("id", context.userId)
+      .maybeSingle();
+    const grupoId = perfil?.grupo_id as string | undefined;
+    if (!grupoId) return { urls: {} as Record<string, string> };
+
+    const prefixoPermitido = `${grupoId}/`;
+    const objectKeysDoGrupo = data.objectKeys.filter((k) => k.startsWith(prefixoPermitido));
+    if (objectKeysDoGrupo.length === 0) return { urls: {} as Record<string, string> };
+
+    const { oracleStorageConfigurado, urlAssinadaOracle } =
+      await import("@/server/oracle-storage.server");
+    if (!oracleStorageConfigurado()) return { urls: {} as Record<string, string> };
+
+    const urls: Record<string, string> = {};
+    await Promise.all(
+      objectKeysDoGrupo.map(async (objectKey) => {
+        try {
+          urls[objectKey] = await urlAssinadaOracle(objectKey);
+        } catch (err) {
+          console.error(`Não foi possível gerar URL assinada para ${objectKey}:`, err);
+        }
+      }),
+    );
+    return { urls };
+  });
