@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { LogOut, Pencil, ShieldCheck, Trash2 } from "lucide-react";
+import { CalendarClock, LogOut, Pencil, ShieldCheck, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
@@ -22,6 +22,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { excluirMinhaConta } from "@/lib/conta-exclusao.functions";
 import { alterarMinhaSenha, atualizarMeusDados } from "@/lib/seguranca-conta.functions";
 import { aceitarConviteGrupo, convidarParaMeuGrupo } from "@/lib/grupos.functions";
+import { usePreferencias } from "@/hooks/usePreferencias";
+import { proximaVirada } from "@/lib/periodo-vigente";
 import {
   Dialog,
   DialogContent,
@@ -73,6 +75,38 @@ function ContaPage() {
   const [formEmail, setFormEmail] = useState("");
   const [formTelefone, setFormTelefone] = useState("");
   const [formDataNascimento, setFormDataNascimento] = useState("");
+
+  // Item 5 (backlog 2026-09-27): "mês do sistema" — dia de virada customizado
+  // usado por `useCompetenciaVigente()` no Dashboard e na Início. Sem
+  // configuração salva (dia_virada null), o comportamento é o mês calendário
+  // normal, igual a antes desta funcionalidade existir.
+  const { prefs: preferencias, save: salvarPreferencias } = usePreferencias();
+  const [usarDiaVirada, setUsarDiaVirada] = useState(false);
+  const [diaViradaInput, setDiaViradaInput] = useState("");
+
+  useEffect(() => {
+    setUsarDiaVirada(preferencias.dia_virada != null);
+    setDiaViradaInput(preferencias.dia_virada != null ? String(preferencias.dia_virada) : "");
+  }, [preferencias.dia_virada]);
+
+  const salvarMesSistema = () => {
+    if (!usarDiaVirada) {
+      salvarPreferencias.mutate(
+        { dia_virada: null },
+        { onSuccess: () => toast.success("Mês do sistema voltou ao calendário normal.") },
+      );
+      return;
+    }
+    const dia = Number(diaViradaInput);
+    if (!Number.isInteger(dia) || dia < 1 || dia > 28) {
+      toast.error("Informe um dia de virada entre 1 e 28.");
+      return;
+    }
+    salvarPreferencias.mutate(
+      { dia_virada: dia },
+      { onSuccess: () => toast.success("Mês do sistema atualizado.") },
+    );
+  };
 
   useEffect(() => {
     if (perfil) {
@@ -282,6 +316,66 @@ function ContaPage() {
                 </Button>
               </div>
             )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-sm">
+              <CalendarClock className="size-4" /> Mês do sistema
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4 text-sm">
+            <p className="text-muted-foreground">
+              Por padrão, o Dashboard e a Início consideram o mês calendário
+              (1º ao último dia). Se o seu ciclo financeiro não coincide com
+              o calendário — por exemplo, seu cartão fecha todo dia 10 —
+              configure um dia de virada: a partir dele, essas telas já
+              passam a tratar o mês seguinte como "mês atual".
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant={!usarDiaVirada ? "default" : "outline"}
+                size="sm"
+                onClick={() => setUsarDiaVirada(false)}
+              >
+                Mês calendário normal
+              </Button>
+              <Button
+                type="button"
+                variant={usarDiaVirada ? "default" : "outline"}
+                size="sm"
+                onClick={() => setUsarDiaVirada(true)}
+              >
+                Dia de virada customizado
+              </Button>
+            </div>
+            {usarDiaVirada && (
+              <Field label="Dia de virada (1 a 28)">
+                <Input
+                  type="number"
+                  min={1}
+                  max={28}
+                  value={diaViradaInput}
+                  onChange={(e) => setDiaViradaInput(e.target.value)}
+                  className="max-w-[120px]"
+                />
+              </Field>
+            )}
+            {preferencias.dia_virada != null && (
+              <p className="text-xs text-muted-foreground">
+                Próxima virada:{" "}
+                {proximaVirada(new Date(), preferencias.dia_virada).toLocaleDateString("pt-BR")}
+              </p>
+            )}
+            <p className="text-xs text-muted-foreground">
+              Vale por enquanto apenas para o Dashboard e a Início — as
+              demais telas continuam considerando o mês calendário.
+            </p>
+            <Button onClick={salvarMesSistema} disabled={salvarPreferencias.isPending} size="sm">
+              {salvarPreferencias.isPending ? "Salvando..." : "Salvar"}
+            </Button>
           </CardContent>
         </Card>
 

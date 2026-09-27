@@ -52,7 +52,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 import {
-  currentMonthKey,
   formatBRL,
   formatDate,
   formatUSD,
@@ -62,6 +61,7 @@ import {
   monthLabelLong,
   toBRL,
 } from "@/lib/format";
+import { useCompetenciaVigente } from "@/lib/periodo-vigente";
 import { lancamentosPorCompetencias } from "@/lib/recorrencia";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
@@ -162,7 +162,12 @@ function DashboardPage() {
   const { data: despesas = [] } = useDespesas();
   const { data: faturasMes = [] } = useFaturasMes();
 
-  const mesAtual = currentMonthKey();
+  // Item 5 (backlog 2026-09-27): "mês do sistema" — se o usuário configurou
+  // um dia de virada em Minha Conta, `mesAtual` passa a refletir esse ciclo
+  // em vez do mês calendário, em todas as caixas que dependem dele aqui
+  // (Receitas/Despesas/Saldo/Parcelas do mês). Sem configuração, comporta-se
+  // exatamente como antes (mês calendário normal).
+  const mesAtual = useCompetenciaVigente();
   const [janela, setJanela] = useState("-6");
   const [mesInicioCustom, setMesInicioCustom] = useState(mesAtual);
   const [mesFimCustom, setMesFimCustom] = useState(mesAtual);

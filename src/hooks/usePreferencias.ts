@@ -9,6 +9,8 @@ export type Preferencias = {
   paleta: string;
   fonte: string;
   layout_menu: string;
+  /** Item 5 do backlog 2026-09-27: dia de virada do "mês do sistema" (1-28), ou null para mês calendário normal. */
+  dia_virada: number | null;
 };
 
 export const DEFAULT_PREFS: Omit<Preferencias, "user_id"> = {
@@ -16,6 +18,7 @@ export const DEFAULT_PREFS: Omit<Preferencias, "user_id"> = {
   paleta: "azul",
   fonte: "Plus Jakarta Sans",
   layout_menu: "lateral",
+  dia_virada: null,
 };
 
 export function usePreferencias() {

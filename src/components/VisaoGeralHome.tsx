@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowDownRight, ArrowUpRight, ChevronDown, ChevronRight, Eye, EyeOff, Minus } from "lucide-react";
 import {
   Bar,
@@ -28,7 +28,6 @@ import { useDespesas, useFaturasMes, useReceitas } from "@/hooks/useFinance";
 import { usePrivacidadeValores } from "@/hooks/usePrivacidadeValores";
 import { aplicarRegrasFaturaMes } from "@/lib/fatura-mes";
 import {
-  currentMonthKey,
   formatBRL,
   formatDate,
   identificacaoDespesa,
@@ -37,6 +36,7 @@ import {
   monthLabelLong,
   toBRL,
 } from "@/lib/format";
+import { useCompetenciaVigente } from "@/lib/periodo-vigente";
 import { lancamentosPorCompetencias } from "@/lib/recorrencia";
 
 type Agrupamento = "cartao" | "categoria" | "responsavel" | "tipo";
@@ -130,7 +130,16 @@ export function VisaoGeralHome({ ocultarValores }: { ocultarValores?: boolean } 
   const valorFmtItem = (v: number, oculto: boolean) => (oculto ? "R$ ••••••" : formatBRL(v));
 
   const [agrupamento, setAgrupamento] = useState<Agrupamento>("cartao");
-  const [mes, setMes] = useState(currentMonthKey());
+  // Item 5 (backlog 2026-09-27): "mês do sistema" — `mes` inicia (e se
+  // realinha, caso a preferência de dia de virada ainda esteja carregando no
+  // primeiro render) com a competência vigente considerando o dia de virada
+  // configurado pelo usuário em Minha Conta. Sem configuração, comporta-se
+  // exatamente como antes (mês calendário normal).
+  const competenciaVigente = useCompetenciaVigente();
+  const [mes, setMes] = useState(competenciaVigente);
+  useEffect(() => {
+    setMes(competenciaVigente);
+  }, [competenciaVigente]);
   const [aberto, setAberto] = useState<string | null>(null);
   const [editando, setEditando] = useState<any | null>(null);
 
