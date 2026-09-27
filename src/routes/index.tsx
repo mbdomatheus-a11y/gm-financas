@@ -21,6 +21,7 @@ export const Route = createFileRoute("/")({
     { name: "description", content: "Organize finanças, documentos, rotina da família, pets e exames em um só lugar." },
     { property: "og:title", content: "Control ALL | Tudo da sua vida, organizado" },
     { property: "og:description", content: "Controle finanças, lista, documentos, pets, exames e lembretes." },
+    { property: "og:url", content: "https://www.controlall.com.br/" },
   ], links: [{ rel: "canonical", href: "https://www.controlall.com.br/" }] }), component: LandingPage,
 });
 
