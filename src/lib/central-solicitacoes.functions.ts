@@ -160,6 +160,46 @@ export const consultarProtocolo = createServerFn({ method: "POST" })
 
 // ─── Chamados de Suporte ───────────────────────────────────────────────────
 
+// Item 12: anexo opcional (imagem ou PDF) na abertura do chamado, ao
+// complementar, ou na resposta do admin. Validação de tipo/tamanho aqui é a
+// primeira camada; o bucket "anexos" no Supabase Storage tem os mesmos
+// limites configurados (20MB, mesma lista de mime types) como segunda
+// camada independente. Varredura antivírus é trabalho futuro — combinado
+// com o usuário que, por ora, apenas tipo/tamanho são validados.
+const TIPOS_ANEXO_PERMITIDOS = new Set(["application/pdf", "image/png", "image/jpeg", "image/webp"]);
+const TAMANHO_MAXIMO_ANEXO = 20 * 1024 * 1024; // 20MB
+
+const anexoSchema = z.object({
+  path: z.string().min(1),
+  nome: z.string().min(1).max(180),
+  tipo: z.string().min(1).max(100),
+});
+
+export const criarUploadAnexoChamado = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((v: unknown) =>
+    z.object({
+      nomeArquivo: z.string().min(1).max(180),
+      tipoMime: z.string().min(1).max(100),
+      tamanhoBytes: z.number().int().positive(),
+    }).parse(v)
+  )
+  .handler(async ({ data, context }) => {
+    if (!TIPOS_ANEXO_PERMITIDOS.has(data.tipoMime)) {
+      throw new Error("Tipo de arquivo não permitido. Envie apenas imagem (JPG, PNG, WEBP) ou PDF.");
+    }
+    if (data.tamanhoBytes > TAMANHO_MAXIMO_ANEXO) {
+      throw new Error("Arquivo muito grande. O limite é 20MB.");
+    }
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const db = supabaseAdmin as any;
+    const nomeSeguro = data.nomeArquivo.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const path = `chamados/${context.userId}/${crypto.randomUUID()}-${nomeSeguro}`;
+    const { data: url, error } = await db.storage.from("anexos").createSignedUploadUrl(path);
+    if (error) throw new Error(error.message);
+    return { path, token: url.token as string, nome: data.nomeArquivo, tipo: data.tipoMime };
+  });
+
 export const enviarChamadoSuporte = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((v: unknown) =>
@@ -167,6 +207,7 @@ export const enviarChamadoSuporte = createServerFn({ method: "POST" })
       assunto: z.string().trim().min(5).max(120),
       descricao: z.string().trim().min(10).max(3000),
       prioridade: z.enum(["elogio","reclamacao","sugestao"]).optional(),
+      anexo: anexoSchema.optional(),
     }).parse(v)
   )
   .handler(async ({ data, context }) => {
@@ -187,6 +228,9 @@ export const enviarChamadoSuporte = createServerFn({ method: "POST" })
         assunto: data.assunto,
         descricao: data.descricao,
         prioridade: data.prioridade ?? "sugestao",
+        anexo_path: data.anexo?.path ?? null,
+        anexo_nome: data.anexo?.nome ?? null,
+        anexo_tipo: data.anexo?.tipo ?? null,
       })
       .select("protocolo")
       .single();
@@ -210,7 +254,7 @@ export const adminListarChamados = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data, error } = await (supabaseAdmin as any)
       .from("chamados_suporte")
-      .select("id,protocolo,email,nome,assunto,descricao,status,prioridade,resposta_admin,criado_em,atualizado_em")
+      .select("id,protocolo,email,nome,assunto,descricao,status,prioridade,resposta_admin,anexo_path,anexo_nome,anexo_tipo,criado_em,atualizado_em")
       .order("criado_em", { ascending: false })
       .limit(100);
     if (error) throw new Error(error.message);
@@ -224,6 +268,7 @@ export const adminAtualizarChamado = createServerFn({ method: "POST" })
       id: z.string().uuid(),
       status: z.enum(["recebido","em_atendimento","aguardando_usuario","resolvido","cancelado"]),
       resposta: z.string().trim().max(2000).optional(),
+      anexo: anexoSchema.optional(),
     }).parse(v)
   )
   .handler(async ({ data, context }) => {
@@ -251,6 +296,20 @@ export const adminAtualizarChamado = createServerFn({ method: "POST" })
       })
       .eq("id", data.id);
     if (error) throw new Error(error.message);
+    // Item 12: toda resposta do admin (com ou sem anexo) entra na mesma
+    // thread de mensagens usada pelos complementos do usuário, formando um
+    // histórico único visível para os dois lados.
+    if (data.resposta || data.anexo) {
+      await db.from("chamados_suporte_mensagens").insert({
+        chamado_id: data.id,
+        autor_tipo: "admin",
+        autor_id: context.userId,
+        mensagem: data.resposta ?? null,
+        anexo_path: data.anexo?.path ?? null,
+        anexo_nome: data.anexo?.nome ?? null,
+        anexo_tipo: data.anexo?.tipo ?? null,
+      });
+    }
     if (data.resposta && chamado?.email) {
       try {
         const { enviarEmail } = await import("@/lib/email.server");
@@ -294,6 +353,141 @@ export const cancelarChamadoSuporte = createServerFn({ method: "POST" })
       .eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true as const };
+  });
+
+// Item 12: usuário complementa um chamado já aberto (texto e/ou anexo) sem
+// que isso crie um novo chamado — vira uma mensagem na mesma thread que as
+// respostas do admin. Se o chamado já estava "resolvido" ou "aguardando
+// sua resposta", volta para "recebido" para sinalizar ao admin que precisa
+// olhar de novo.
+export const complementarChamadoSuporte = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((v: unknown) =>
+    z.object({
+      chamadoId: z.string().uuid(),
+      mensagem: z.string().trim().min(1).max(2000).optional(),
+      anexo: anexoSchema.optional(),
+    })
+      .refine((d) => d.mensagem || d.anexo, { message: "Escreva uma mensagem ou anexe um arquivo." })
+      .parse(v)
+  )
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const db = supabaseAdmin as any;
+
+    const { data: chamado, error: buscarError } = await db
+      .from("chamados_suporte")
+      .select("user_id,status")
+      .eq("id", data.chamadoId)
+      .single();
+    if (buscarError || !chamado) throw new Error("Chamado não encontrado.");
+    if (chamado.user_id !== context.userId) {
+      throw new Error("Você só pode complementar chamados que você mesmo abriu.");
+    }
+    if (chamado.status === "cancelado") {
+      throw new Error("Este chamado foi cancelado e não aceita mais complementos.");
+    }
+
+    const { error } = await db.from("chamados_suporte_mensagens").insert({
+      chamado_id: data.chamadoId,
+      autor_tipo: "usuario",
+      autor_id: context.userId,
+      mensagem: data.mensagem ?? null,
+      anexo_path: data.anexo?.path ?? null,
+      anexo_nome: data.anexo?.nome ?? null,
+      anexo_tipo: data.anexo?.tipo ?? null,
+    });
+    if (error) throw new Error(error.message);
+
+    if (chamado.status === "resolvido" || chamado.status === "aguardando_usuario") {
+      await db
+        .from("chamados_suporte")
+        .update({ status: "recebido", atualizado_em: new Date().toISOString() })
+        .eq("id", data.chamadoId);
+    }
+
+    return { ok: true as const };
+  });
+
+// Lista a thread de complementos/respostas de um chamado (dono do chamado
+// ou admin do site podem ver).
+export const listarMensagensChamado = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((v: unknown) => z.object({ chamadoId: z.string().uuid() }).parse(v))
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const db = supabaseAdmin as any;
+    const { data: chamado } = await db
+      .from("chamados_suporte")
+      .select("user_id")
+      .eq("id", data.chamadoId)
+      .single();
+    if (!chamado) throw new Error("Chamado não encontrado.");
+    let podeVer = chamado.user_id === context.userId;
+    if (!podeVer) {
+      const { data: admin } = await db
+        .from("site_admins")
+        .select("user_id")
+        .eq("user_id", context.userId)
+        .maybeSingle();
+      podeVer = !!admin;
+    }
+    if (!podeVer) throw new Error("Acesso não autorizado a este chamado.");
+
+    const { data: mensagens, error } = await db
+      .from("chamados_suporte_mensagens")
+      .select("id,autor_tipo,mensagem,anexo_path,anexo_nome,anexo_tipo,criado_em")
+      .eq("chamado_id", data.chamadoId)
+      .order("criado_em", { ascending: true });
+    if (error) throw new Error(error.message);
+    return mensagens ?? [];
+  });
+
+// Gera uma URL assinada (5 min) para abrir um anexo — confere que quem pede
+// pode ver o chamado E que o path pertence de fato a ele (anexo inicial ou
+// de uma mensagem da thread), evitando que alguém tente adivinhar paths de
+// anexos de outros chamados.
+export const obterUrlAnexoChamado = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((v: unknown) =>
+    z.object({ chamadoId: z.string().uuid(), path: z.string().min(1) }).parse(v)
+  )
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const db = supabaseAdmin as any;
+    const { data: chamado } = await db
+      .from("chamados_suporte")
+      .select("user_id,anexo_path")
+      .eq("id", data.chamadoId)
+      .single();
+    if (!chamado) throw new Error("Chamado não encontrado.");
+
+    let podeVer = chamado.user_id === context.userId;
+    if (!podeVer) {
+      const { data: admin } = await db
+        .from("site_admins")
+        .select("user_id")
+        .eq("user_id", context.userId)
+        .maybeSingle();
+      podeVer = !!admin;
+    }
+    if (!podeVer) throw new Error("Acesso não autorizado a este anexo.");
+
+    let pathValido = chamado.anexo_path === data.path;
+    if (!pathValido) {
+      const { data: msg } = await db
+        .from("chamados_suporte_mensagens")
+        .select("id")
+        .eq("chamado_id", data.chamadoId)
+        .eq("anexo_path", data.path)
+        .maybeSingle();
+      pathValido = !!msg;
+    }
+    if (!pathValido) throw new Error("Anexo não pertence a este chamado.");
+
+    const { data: signed, error } = await db.storage.from("anexos").createSignedUrl(data.path, 300);
+    if (error) throw new Error(error.message);
+    return { url: signed.signedUrl as string };
   });
 
 // ─── Convites (visão admin) ────────────────────────────────────────────────

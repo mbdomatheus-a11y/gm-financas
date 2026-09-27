@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
+import { Paperclip, X } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,6 +37,9 @@ import {
   adminListarChamados,
   adminAtualizarChamado,
   adminListarConvites,
+  criarUploadAnexoChamado,
+  listarMensagensChamado,
+  obterUrlAnexoChamado,
 } from "@/lib/central-solicitacoes.functions";
 import {
   confirmarLogo,
@@ -142,6 +146,9 @@ function Admin() {
   const tratarPrivFn = useServerFn(adminTratarSolicitacaoPrivacidade);
   const chamadosFn = useServerFn(adminListarChamados);
   const atualizarChamadoFn = useServerFn(adminAtualizarChamado);
+  const criarUploadAnexoFn = useServerFn(criarUploadAnexoChamado);
+  const mensagensChamadoFn = useServerFn(listarMensagensChamado);
+  const urlAnexoChamadoFn = useServerFn(obterUrlAnexoChamado);
   const convitesFn = useServerFn(adminListarConvites);
   const economiaAutomaticaFn = useServerFn(obterEconomiaTotalAutomatica);
   const obterEstatisticaPublicaFn = useServerFn(obterEstatisticaPublica);
@@ -161,6 +168,8 @@ function Admin() {
   const [dialogChamado, setDialogChamado] = useState<{ id: string; status: string } | null>(null);
   const [respostaChamado, setRespostaChamado] = useState("");
   const [statusChamado, setStatusChamado] = useState("em_atendimento");
+  const [arquivoChamado, setArquivoChamado] = useState<File | null>(null);
+  const arquivoChamadoRef = useRef<HTMLInputElement>(null);
   const [filtroLog, setFiltroLog] = useState("");
   const [consultaDesbloqueada, setConsultaDesbloqueada] = useState(false);
   const [senhaConsulta, setSenhaConsulta] = useState("");
@@ -221,6 +230,11 @@ function Admin() {
     queryKey: ["admin-chamados"],
     enabled: isSiteAdmin,
     queryFn: () => chamadosFn(),
+  });
+  const { data: mensagensChamadoAdmin = [] } = useQuery({
+    queryKey: ["mensagens-chamado-admin", dialogChamado?.id],
+    enabled: !!dialogChamado?.id,
+    queryFn: () => mensagensChamadoFn({ data: { chamadoId: dialogChamado!.id } }),
   });
   const { data: convites = [] } = useQuery({
     queryKey: ["admin-convites"],
@@ -363,9 +377,40 @@ function Admin() {
   });
 
   const atualizarChamado = useMutation({
-    mutationFn: (p: { id: string; status: any; resposta?: string | undefined }) =>
-      atualizarChamadoFn({ data: p.resposta ? { id: p.id, status: p.status, resposta: p.resposta } : { id: p.id, status: p.status } }),
-    onSuccess: () => { toast.success("Chamado atualizado."); qc.invalidateQueries({ queryKey: ["admin-chamados"] }); setDialogChamado(null); setRespostaChamado(""); },
+    mutationFn: async (p: { id: string; status: any; resposta?: string | undefined }) => {
+      let anexo: { path: string; nome: string; tipo: string } | undefined;
+      if (arquivoChamado) {
+        const upload = await criarUploadAnexoFn({
+          data: {
+            nomeArquivo: arquivoChamado.name,
+            tipoMime: arquivoChamado.type,
+            tamanhoBytes: arquivoChamado.size,
+          },
+        });
+        const { error } = await supabase.storage
+          .from("anexos")
+          .uploadToSignedUrl(upload.path, upload.token, arquivoChamado);
+        if (error) throw error;
+        anexo = { path: upload.path, nome: upload.nome, tipo: upload.tipo };
+      }
+      return atualizarChamadoFn({
+        data: {
+          id: p.id,
+          status: p.status,
+          ...(p.resposta ? { resposta: p.resposta } : {}),
+          ...(anexo ? { anexo } : {}),
+        },
+      });
+    },
+    onSuccess: (_res, p) => {
+      toast.success("Chamado atualizado.");
+      qc.invalidateQueries({ queryKey: ["admin-chamados"] });
+      qc.invalidateQueries({ queryKey: ["mensagens-chamado-admin", p.id] });
+      setDialogChamado(null);
+      setRespostaChamado("");
+      setArquivoChamado(null);
+      if (arquivoChamadoRef.current) arquivoChamadoRef.current.value = "";
+    },
     onError: (e: any) => toast.error(e.message),
   });
 
@@ -480,6 +525,15 @@ function Admin() {
   const layoutsPendentes = layouts.filter((l: any) => l.status === "recebida" || l.status === "em_modelagem").length;
   const privPendentes = pedidos.filter((p: any) => p.status === "recebida" || p.status === "em_atendimento" || p.status === "em_analise").length;
   const chamadosPendentes = chamados.filter((c: any) => c.status === "recebido" || c.status === "em_atendimento").length;
+
+  async function abrirAnexoChamado(chamadoId: string, path: string) {
+    try {
+      const { url } = await urlAnexoChamadoFn({ data: { chamadoId, path } });
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (e: any) {
+      toast.error(e.message || "Não foi possível abrir o anexo.");
+    }
+  }
   const totalPendentes = layoutsPendentes + privPendentes + chamadosPendentes;
 
   const logsVisiveis = filtroLog
@@ -1197,6 +1251,15 @@ function Admin() {
                         <b className="text-sm">{c.assunto}</b>
                         <p className="text-xs text-muted-foreground">{c.nome || c.email} · Protocolo: {c.protocolo?.substring(0, 8)}… · {new Date(c.criado_em).toLocaleDateString("pt-BR")}</p>
                         <p className="text-xs text-muted-foreground line-clamp-2">{c.descricao}</p>
+                        {c.anexo_path && (
+                          <button
+                            type="button"
+                            className="mt-0.5 flex items-center gap-1 text-xs text-primary underline-offset-2 hover:underline"
+                            onClick={() => abrirAnexoChamado(c.id, c.anexo_path)}
+                          >
+                            <Paperclip className="size-3" /> {c.anexo_nome || "Anexo enviado"}
+                          </button>
+                        )}
                       </div>
                       <span className={`shrink-0 rounded px-2 py-0.5 text-xs font-semibold ${STATUS_CHAMADO[c.status]?.color ?? ""}`}>
                         {STATUS_CHAMADO[c.status]?.label ?? c.status}
@@ -1315,12 +1378,46 @@ function Admin() {
       </Dialog>
 
       {/* ─── Dialog: Atualizar chamado ─── */}
-      <Dialog open={!!dialogChamado} onOpenChange={(o) => { if (!o) { setDialogChamado(null); setRespostaChamado(""); } }}>
+      <Dialog
+        open={!!dialogChamado}
+        onOpenChange={(o) => {
+          if (!o) {
+            setDialogChamado(null);
+            setRespostaChamado("");
+            setArquivoChamado(null);
+            if (arquivoChamadoRef.current) arquivoChamadoRef.current.value = "";
+          }
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Atualizar Chamado de Suporte</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
+            {(mensagensChamadoAdmin as any[]).length > 0 && (
+              <div className="max-h-48 space-y-2 overflow-y-auto rounded-lg border bg-muted/30 p-2">
+                {(mensagensChamadoAdmin as any[]).map((m) => (
+                  <div key={m.id} className="rounded-lg border bg-background p-2 text-xs">
+                    <p className="font-semibold">
+                      {m.autor_tipo === "admin" ? "Você (admin)" : "Usuário"} ·{" "}
+                      <span className="font-normal text-muted-foreground">
+                        {new Date(m.criado_em).toLocaleString("pt-BR")}
+                      </span>
+                    </p>
+                    {m.mensagem && <p className="mt-0.5">{m.mensagem}</p>}
+                    {m.anexo_path && dialogChamado && (
+                      <button
+                        type="button"
+                        className="mt-1 flex items-center gap-1 text-primary underline-offset-2 hover:underline"
+                        onClick={() => abrirAnexoChamado(dialogChamado.id, m.anexo_path)}
+                      >
+                        <Paperclip className="size-3" /> {m.anexo_nome || "Anexo"}
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
             <Select value={statusChamado} onValueChange={setStatusChamado}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -1335,9 +1432,67 @@ function Admin() {
               onChange={(e) => setRespostaChamado(e.target.value)}
               rows={4}
             />
+            <input
+              ref={arquivoChamadoRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp,application/pdf"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0] ?? null;
+                if (!file) return;
+                const tiposPermitidos = ["application/pdf", "image/png", "image/jpeg", "image/webp"];
+                if (!tiposPermitidos.includes(file.type)) {
+                  toast.error("Tipo de arquivo não permitido. Envie apenas imagem (JPG, PNG, WEBP) ou PDF.");
+                  e.target.value = "";
+                  return;
+                }
+                if (file.size > 20 * 1024 * 1024) {
+                  toast.error("Arquivo muito grande. O limite é 20MB.");
+                  e.target.value = "";
+                  return;
+                }
+                setArquivoChamado(file);
+              }}
+            />
+            {arquivoChamado ? (
+              <div className="flex items-center gap-2 rounded-lg border p-2 text-xs">
+                <Paperclip className="size-3.5 shrink-0 text-muted-foreground" />
+                <span className="min-w-0 flex-1 truncate">{arquivoChamado.name}</span>
+                <button
+                  type="button"
+                  className="text-muted-foreground hover:text-rose-600"
+                  onClick={() => {
+                    setArquivoChamado(null);
+                    if (arquivoChamadoRef.current) arquivoChamadoRef.current.value = "";
+                  }}
+                >
+                  <X className="size-3.5" />
+                </button>
+              </div>
+            ) : (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="text-xs"
+                onClick={() => arquivoChamadoRef.current?.click()}
+              >
+                <Paperclip className="mr-1 size-3.5" /> Anexar imagem ou PDF (opcional)
+              </Button>
+            )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setDialogChamado(null); setRespostaChamado(""); }}>Cancelar</Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDialogChamado(null);
+                setRespostaChamado("");
+                setArquivoChamado(null);
+                if (arquivoChamadoRef.current) arquivoChamadoRef.current.value = "";
+              }}
+            >
+              Cancelar
+            </Button>
             <Button
               disabled={atualizarChamado.isPending}
               onClick={() => {
@@ -1345,7 +1500,7 @@ function Admin() {
                 atualizarChamado.mutate({ id: dialogChamado.id, status: statusChamado as any, resposta: respostaChamado || undefined });
               }}
             >
-              Salvar
+              {atualizarChamado.isPending ? "Salvando…" : "Salvar"}
             </Button>
           </DialogFooter>
         </DialogContent>
