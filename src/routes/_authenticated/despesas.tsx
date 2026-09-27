@@ -820,34 +820,39 @@ function DespesasPage() {
 
       <div className="mb-3 space-y-2">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          {/* Ajuste mobile (otimização para celulares, 2026-09-27): abas,
+              busca e selects de filtro ganham altura/toque maiores (~40-44px)
+              — os h-9/py-1 anteriores ficavam abaixo do mínimo recomendado
+              de toque confortável no dedo. Só nesta tela e em Receitas por
+              ora (telas apontadas como as mais usadas no celular). */}
           <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
-            <TabsList className="h-9">
-              <TabsTrigger value="total" className="text-xs">
+            <TabsList className="h-10">
+              <TabsTrigger value="total" className="px-3.5 py-2 text-xs">
                 Total
               </TabsTrigger>
-              <TabsTrigger value="fixa" className="text-xs">
+              <TabsTrigger value="fixa" className="px-3.5 py-2 text-xs">
                 Fixas
               </TabsTrigger>
-              <TabsTrigger value="variavel" className="text-xs">
+              <TabsTrigger value="variavel" className="px-3.5 py-2 text-xs">
                 Variáveis
               </TabsTrigger>
             </TabsList>
           </Tabs>
           <div className="relative flex-1">
-            <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
               placeholder="Buscar descrição, categoria ou responsável"
-              className="h-9 pl-8"
+              className="h-11 pl-9"
             />
           </div>
           <Tabs value={modoLista} onValueChange={(v) => setModoLista(v as "lista" | "cartao")}>
-            <TabsList className="h-9">
-              <TabsTrigger value="lista" className="gap-1 text-xs">
+            <TabsList className="h-10">
+              <TabsTrigger value="lista" className="gap-1 px-3.5 py-2 text-xs">
                 <ListIcon className="size-3.5" /> Lista
               </TabsTrigger>
-              <TabsTrigger value="cartao" className="gap-1 text-xs">
+              <TabsTrigger value="cartao" className="gap-1 px-3.5 py-2 text-xs">
                 <CreditCard className="size-3.5" /> Por cartão
               </TabsTrigger>
             </TabsList>
@@ -856,7 +861,7 @@ function DespesasPage() {
 
         <div className="grid grid-cols-2 gap-2 lg:grid-cols-5">
           <Select value={filtroCartao} onValueChange={setFiltroCartao}>
-            <SelectTrigger className="h-9 text-xs">
+            <SelectTrigger className="h-11 text-xs">
               <SelectValue placeholder="Cartão" />
             </SelectTrigger>
             <SelectContent>
@@ -871,7 +876,7 @@ function DespesasPage() {
             </SelectContent>
           </Select>
           <Select value={filtroBanco} onValueChange={setFiltroBanco}>
-            <SelectTrigger className="h-9 text-xs">
+            <SelectTrigger className="h-11 text-xs">
               <SelectValue placeholder="Banco" />
             </SelectTrigger>
             <SelectContent>
@@ -884,7 +889,7 @@ function DespesasPage() {
             </SelectContent>
           </Select>
           <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
-            <SelectTrigger className="h-9 text-xs">
+            <SelectTrigger className="h-11 text-xs">
               <SelectValue placeholder="Categoria" />
             </SelectTrigger>
             <SelectContent>
@@ -897,7 +902,7 @@ function DespesasPage() {
             </SelectContent>
           </Select>
           <Select value={filtroResponsavel} onValueChange={setFiltroResponsavel}>
-            <SelectTrigger className="h-9 text-xs">
+            <SelectTrigger className="h-11 text-xs">
               <SelectValue placeholder="Responsável" />
             </SelectTrigger>
             <SelectContent>
@@ -910,7 +915,7 @@ function DespesasPage() {
             </SelectContent>
           </Select>
           <Select value={filtroMes} onValueChange={setFiltroMes}>
-            <SelectTrigger className="h-9 text-xs">
+            <SelectTrigger className="h-11 text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -930,13 +935,13 @@ function DespesasPage() {
               <button
                 key={c.label}
                 onClick={c.clear}
-                className="inline-flex items-center gap-1 rounded-full border bg-muted/50 px-2.5 py-1 text-[11px] font-medium hover:bg-muted"
+                className="inline-flex items-center gap-1.5 rounded-full border bg-muted/50 px-3 py-1.5 text-[11px] font-medium hover:bg-muted"
               >
                 {c.label}
                 <X className="size-3" />
               </button>
             ))}
-            <Button variant="ghost" size="sm" className="h-6 text-[11px]" onClick={limparFiltros}>
+            <Button variant="ghost" size="sm" className="h-8 text-[11px]" onClick={limparFiltros}>
               Limpar filtros
             </Button>
           </div>
@@ -955,7 +960,7 @@ function DespesasPage() {
             <Button
               size="sm"
               variant="outline"
-              className="h-7 text-xs"
+              className="h-9 text-xs"
               disabled={marcarLote.isPending || idsDoLote(lista, "abertas").length === 0}
               onClick={() => marcarLote.mutate({ ids: idsDoLote(lista, "abertas"), paga: true })}
             >
@@ -964,7 +969,7 @@ function DespesasPage() {
             <Button
               size="sm"
               variant="outline"
-              className="h-7 text-xs"
+              className="h-9 text-xs"
               disabled={marcarLote.isPending || idsDoLote(lista, "pagas").length === 0}
               onClick={() => marcarLote.mutate({ ids: idsDoLote(lista, "pagas"), paga: false })}
             >
@@ -1019,7 +1024,7 @@ function DespesasPage() {
                     <Button
                       size="sm"
                       variant="outline"
-                      className="h-7 shrink-0 text-xs"
+                      className="h-9 shrink-0 text-xs"
                       disabled={
                         marcarLote.isPending || idsDoLote(grupo.itens, "abertas").length === 0
                       }
@@ -1234,7 +1239,7 @@ function DespesasPage() {
                                   onClick={() => togglePaga.mutate({ id: p.id, paga: !p.paga })}
                                   disabled={!can("despesas", "editar")}
                                   className={cn(
-                                    "inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-medium tabular-nums transition-colors",
+                                    "inline-flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-[11px] font-medium tabular-nums transition-colors",
                                     p.paga
                                       ? "border-success/30 bg-success/10 text-success"
                                       : "border-border bg-background text-muted-foreground hover:border-primary/40",

@@ -412,19 +412,22 @@ function ReceitasPage() {
         )
       }
     >
+      {/* Ajuste mobile (otimização para celulares, 2026-09-27): mesma
+          lógica aplicada em Despesas — busca, selects e abas ganham altura
+          de toque maior (~40-44px), chips ficam um pouco maiores. */}
       <div className="relative mb-2">
-        <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           value={busca}
           onChange={(e) => setBusca(e.target.value)}
           placeholder="Buscar descrição, categoria ou responsável"
-          className="h-9 pl-8"
+          className="h-11 pl-9"
         />
       </div>
 
       <div className="mb-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
         <Select value={filtroMes} onValueChange={setFiltroMes}>
-          <SelectTrigger>
+          <SelectTrigger className="h-11 text-xs">
             <SelectValue placeholder="Mês" />
           </SelectTrigger>
           <SelectContent>
@@ -438,7 +441,7 @@ function ReceitasPage() {
           </SelectContent>
         </Select>
         <Select value={filtroCat} onValueChange={setFiltroCat}>
-          <SelectTrigger>
+          <SelectTrigger className="h-11 text-xs">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -451,7 +454,7 @@ function ReceitasPage() {
           </SelectContent>
         </Select>
         <Select value={filtroResp} onValueChange={setFiltroResp}>
-          <SelectTrigger>
+          <SelectTrigger className="h-11 text-xs">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -467,9 +470,9 @@ function ReceitasPage() {
 
       <div className="mb-3 flex justify-end">
         <Tabs value={modoLista} onValueChange={(v) => setModoLista(v as "lista" | "cartao")}>
-          <TabsList className="h-9">
-            <TabsTrigger value="lista" className="gap-1 text-xs"><List className="size-3.5" /> Por mês</TabsTrigger>
-            <TabsTrigger value="cartao" className="gap-1 text-xs"><CreditCard className="size-3.5" /> Por cartão</TabsTrigger>
+          <TabsList className="h-10">
+            <TabsTrigger value="lista" className="gap-1 px-3.5 py-2 text-xs"><List className="size-3.5" /> Por mês</TabsTrigger>
+            <TabsTrigger value="cartao" className="gap-1 px-3.5 py-2 text-xs"><CreditCard className="size-3.5" /> Por cartão</TabsTrigger>
           </TabsList>
         </Tabs>
       </div>
@@ -480,13 +483,13 @@ function ReceitasPage() {
             <button
               key={c.label}
               onClick={c.clear}
-              className="inline-flex items-center gap-1 rounded-full border bg-muted/50 px-2.5 py-1 text-[11px] font-medium hover:bg-muted"
+              className="inline-flex items-center gap-1.5 rounded-full border bg-muted/50 px-3 py-1.5 text-[11px] font-medium hover:bg-muted"
             >
               {c.label}
               <X className="size-3" />
             </button>
           ))}
-          <Button variant="ghost" size="sm" className="h-6 text-[11px]" onClick={limparFiltros}>
+          <Button variant="ghost" size="sm" className="h-8 text-[11px]" onClick={limparFiltros}>
             Limpar filtros
           </Button>
         </div>
