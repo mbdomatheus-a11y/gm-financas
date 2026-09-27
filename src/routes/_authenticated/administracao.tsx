@@ -47,6 +47,11 @@ import {
   obterEconomiaTotalAutomatica,
   obterEstatisticaPublica,
 } from "@/lib/estatisticas-site.functions";
+import {
+  adminAjustarCotaOracle,
+  adminAlternarArmazenamentoOracle,
+  adminListarArmazenamentoOracle,
+} from "@/lib/oracle-admin.functions";
 import { Switch } from "@/components/ui/switch";
 import {
   Select,
@@ -139,6 +144,9 @@ function Admin() {
   const economiaAutomaticaFn = useServerFn(obterEconomiaTotalAutomatica);
   const obterEstatisticaPublicaFn = useServerFn(obterEstatisticaPublica);
   const salvarEstatisticaFn = useServerFn(adminSalvarEstatisticaPublica);
+  const listarArmazenamentoOracleFn = useServerFn(adminListarArmazenamentoOracle);
+  const alternarArmazenamentoOracleFn = useServerFn(adminAlternarArmazenamentoOracle);
+  const ajustarCotaOracleFn = useServerFn(adminAjustarCotaOracle);
 
   // State
   const [titulo, setTitulo] = useState("");
@@ -156,6 +164,7 @@ function Admin() {
   const [senhaConsulta, setSenhaConsulta] = useState("");
   const [erroSenhaConsulta, setErroSenhaConsulta] = useState("");
   const [economiaExibidaInput, setEconomiaExibidaInput] = useState("");
+  const [cotaOracleInput, setCotaOracleInput] = useState<Record<string, string>>({});
 
   // Queries
   const { data: layouts = [] } = useQuery({
@@ -238,6 +247,11 @@ function Admin() {
       return data as { logo_path: string | null; video_demonstracao_path: string | null } | null;
     },
   });
+  const { data: armazenamentoOracle = [] } = useQuery({
+    queryKey: ["admin-armazenamento-oracle"],
+    enabled: isSiteAdmin,
+    queryFn: () => listarArmazenamentoOracleFn(),
+  });
 
   useEffect(() => {
     if (estatisticaPublica && estatisticaPublica.economiaTotalExibida !== null) {
@@ -266,6 +280,24 @@ function Admin() {
   const mudarModulo = useMutation({
     mutationFn: (valor: { modulo: any; habilitado: boolean; userId: string | null }) => salvarModulo({ data: valor }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-modulos"] }),
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const alternarOracle = useMutation({
+    mutationFn: (valor: { grupoId: string; habilitado: boolean }) => alternarArmazenamentoOracleFn({ data: valor }),
+    onSuccess: () => {
+      toast.success("Armazenamento Oracle atualizado.");
+      qc.invalidateQueries({ queryKey: ["admin-armazenamento-oracle"] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const ajustarCotaOracle = useMutation({
+    mutationFn: (valor: { grupoId: string; cotaMb: number }) => ajustarCotaOracleFn({ data: valor }),
+    onSuccess: () => {
+      toast.success("Cota do grupo atualizada.");
+      qc.invalidateQueries({ queryKey: ["admin-armazenamento-oracle"] });
+    },
     onError: (e: any) => toast.error(e.message),
   });
 
@@ -401,6 +433,7 @@ function Admin() {
           <TabsTrigger value="consulta">Consulta</TabsTrigger>
           <TabsTrigger value="acesso">Acesso e Auth</TabsTrigger>
           <TabsTrigger value="modulos">Módulos</TabsTrigger>
+          <TabsTrigger value="armazenamento">Armazenamento Oracle</TabsTrigger>
           <TabsTrigger value="personalizacao">Personalização</TabsTrigger>
           <TabsTrigger value="avisos">Avisos</TabsTrigger>
           <TabsTrigger value="privacidade">Privacidade LGPD</TabsTrigger>
@@ -759,6 +792,91 @@ function Admin() {
               </CardContent>
             </Card>
           )}
+        </TabsContent>
+
+        {/* ─── ABA: ARMAZENAMENTO ORACLE ─── */}
+        <TabsContent value="armazenamento" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">Armazenamento Oracle por grupo familiar</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-xs text-muted-foreground">
+                Grupos com o Oracle habilitado usam o Object Storage do Oracle Cloud como destino
+                preferencial dos comprovantes de notas fiscais (antes do Google Drive e do
+                armazenamento do site). Ao habilitar pela primeira vez, a cota sugerida é 500 MB
+                por membro do grupo — depois disso fica fixa até você ajustar manualmente aqui.
+              </p>
+              {armazenamentoOracle.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Nenhum grupo encontrado.</p>
+              ) : (
+                armazenamentoOracle.map((g) => {
+                  const percentual = g.cotaBytes > 0 ? Math.min(100, (g.usadoBytes / g.cotaBytes) * 100) : 0;
+                  const cotaMbAtual = Math.round(g.cotaBytes / (1024 * 1024));
+                  const inputAtual = cotaOracleInput[g.grupoId] ?? String(cotaMbAtual);
+                  return (
+                    <div key={g.grupoId} className="rounded-lg border p-3 space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <div>
+                          <b className="text-sm">{g.nome}</b>
+                          <span className="ml-2 text-xs text-muted-foreground">
+                            {g.membros} membro(s)
+                          </span>
+                        </div>
+                        <Switch
+                          checked={g.habilitado}
+                          onCheckedChange={(v) => alternarOracle.mutate({ grupoId: g.grupoId, habilitado: v })}
+                        />
+                      </div>
+                      {g.habilitado && (
+                        <>
+                          <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                            <div
+                              className={`h-full rounded-full ${percentual >= 90 ? "bg-rose-500" : percentual >= 70 ? "bg-amber-500" : "bg-emerald-500"}`}
+                              style={{ width: `${percentual}%` }}
+                            />
+                          </div>
+                          <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                            <span>
+                              {formatarTamanho(g.usadoBytes)} usados de {formatarTamanho(g.cotaBytes)}{" "}
+                              ({percentual.toFixed(1)}%)
+                            </span>
+                            <div className="flex items-center gap-1.5">
+                              <Input
+                                type="number"
+                                min={1}
+                                className="h-7 w-24 text-xs"
+                                value={inputAtual}
+                                onChange={(e) =>
+                                  setCotaOracleInput((atual) => ({ ...atual, [g.grupoId]: e.target.value }))
+                                }
+                              />
+                              <span>MB</span>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={ajustarCotaOracle.isPending}
+                                onClick={() => {
+                                  const cotaMb = Number(inputAtual);
+                                  if (!cotaMb || cotaMb <= 0) {
+                                    toast.error("Informe uma cota válida em MB.");
+                                    return;
+                                  }
+                                  ajustarCotaOracle.mutate({ grupoId: g.grupoId, cotaMb });
+                                }}
+                              >
+                                Salvar cota
+                              </Button>
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* ─── ABA 5: PERSONALIZAÇÃO ─── */}
