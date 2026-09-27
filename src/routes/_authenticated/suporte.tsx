@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Headphones, Send, Clock, CheckCircle2, AlertCircle, XCircle } from "lucide-react";
+import { Headphones, Send, Clock, CheckCircle2, AlertCircle, XCircle, Ban } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppLayout } from "@/components/AppLayout";
@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
-import { enviarChamadoSuporte } from "@/lib/central-solicitacoes.functions";
+import { enviarChamadoSuporte, cancelarChamadoSuporte } from "@/lib/central-solicitacoes.functions";
 
 export const Route = createFileRoute("/_authenticated/suporte")({
   head: () => ({
@@ -43,6 +43,7 @@ const STATUS_INFO: Record<string, { label: string; color: string; icon: typeof C
 function SuportePage() {
   const qc = useQueryClient();
   const enviarFn = useServerFn(enviarChamadoSuporte);
+  const cancelarFn = useServerFn(cancelarChamadoSuporte);
 
   const [assunto, setAssunto] = useState("");
   const [descricao, setDescricao] = useState("");
@@ -75,6 +76,15 @@ function SuportePage() {
       toast.success("Chamado enviado com sucesso!");
     },
     onError: (e: any) => toast.error(e.message || "Não foi possível enviar o chamado."),
+  });
+
+  const cancelar = useMutation({
+    mutationFn: (id: string) => cancelarFn({ data: { id } }),
+    onSuccess: () => {
+      toast.success("Chamado cancelado.");
+      qc.invalidateQueries({ queryKey: ["meus-chamados"] });
+    },
+    onError: (e: any) => toast.error(e.message || "Não foi possível cancelar o chamado."),
   });
 
   const podeEnviar = assunto.trim().length >= 5 && descricao.trim().length >= 10 && !enviar.isPending;
@@ -194,6 +204,25 @@ function SuportePage() {
                       {c.atualizado_em && c.atualizado_em !== c.criado_em &&
                         ` · Atualizado em ${new Date(c.atualizado_em).toLocaleDateString("pt-BR")}`}
                     </p>
+                    {c.status !== "cancelado" && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 text-xs text-rose-600 hover:text-rose-700"
+                        disabled={cancelar.isPending}
+                        onClick={() => {
+                          if (
+                            window.confirm(
+                              "Cancelar este chamado? Ele deixa de receber respostas, mas continua no seu histórico.",
+                            )
+                          ) {
+                            cancelar.mutate(c.id);
+                          }
+                        }}
+                      >
+                        <Ban className="mr-1 size-3.5" /> Cancelar chamado
+                      </Button>
+                    )}
                   </CardContent>
                 </Card>
               );

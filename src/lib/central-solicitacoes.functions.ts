@@ -232,9 +232,15 @@ export const adminAtualizarChamado = createServerFn({ method: "POST" })
     const db = supabaseAdmin as any;
     const { data: chamado } = await db
       .from("chamados_suporte")
-      .select("email,assunto")
+      .select("email,assunto,status")
       .eq("id", data.id)
       .single();
+    // Item 9 (parte 2): um chamado cancelado (pelo usuário ou pelo próprio
+    // admin) nunca é excluído de fato — continua visível na lista do admin —
+    // mas não aceita mais nenhuma resposta/atualização a partir daí.
+    if (chamado?.status === "cancelado") {
+      throw new Error("Este chamado foi cancelado e não aceita mais respostas.");
+    }
     const { error } = await db
       .from("chamados_suporte")
       .update({
@@ -255,6 +261,38 @@ export const adminAtualizarChamado = createServerFn({ method: "POST" })
         });
       } catch { /* não crítico */ }
     }
+    return { ok: true as const };
+  });
+
+// Item 9 (parte 2): o usuário pode cancelar um chamado que ele mesmo abriu.
+// Nunca exclui a linha de fato — apenas marca status "cancelado", que
+// continua visível na lista do admin (histórico/auditoria) mas passa a
+// bloquear qualquer resposta futura (ver `adminAtualizarChamado` acima).
+export const cancelarChamadoSuporte = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((v: unknown) => z.object({ id: z.string().uuid() }).parse(v))
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const db = supabaseAdmin as any;
+
+    const { data: chamado, error: buscarError } = await db
+      .from("chamados_suporte")
+      .select("user_id,status")
+      .eq("id", data.id)
+      .single();
+    if (buscarError || !chamado) throw new Error("Chamado não encontrado.");
+    if (chamado.user_id !== context.userId) {
+      throw new Error("Você só pode cancelar chamados que você mesmo abriu.");
+    }
+    if (chamado.status === "cancelado") {
+      return { ok: true as const };
+    }
+
+    const { error } = await db
+      .from("chamados_suporte")
+      .update({ status: "cancelado", atualizado_em: new Date().toISOString() })
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
     return { ok: true as const };
   });
 

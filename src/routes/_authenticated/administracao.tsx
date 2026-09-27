@@ -1203,13 +1203,22 @@ function Admin() {
                       </span>
                     </div>
                     {c.resposta_admin && <p className="text-xs italic text-muted-foreground">Resposta: {c.resposta_admin}</p>}
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => { setDialogChamado({ id: c.id, status: c.status }); setStatusChamado(c.status); setRespostaChamado(""); }}
-                    >
-                      Responder / Atualizar
-                    </Button>
+                    {c.status === "cancelado" ? (
+                      // Item 9 (parte 2): chamado cancelado (pelo usuário ou pelo
+                      // admin) nunca é excluído — fica visível aqui pra
+                      // histórico/auditoria — mas não aceita mais respostas.
+                      <p className="text-xs text-muted-foreground">
+                        Chamado cancelado — não aceita mais respostas.
+                      </p>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => { setDialogChamado({ id: c.id, status: c.status }); setStatusChamado(c.status); setRespostaChamado(""); }}
+                      >
+                        Responder / Atualizar
+                      </Button>
+                    )}
                   </div>
                 ))
               )}
