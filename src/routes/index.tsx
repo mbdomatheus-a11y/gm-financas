@@ -11,6 +11,7 @@ import { BrandMark } from "@/components/BrandMark";
 import { LegalDialogs } from "@/components/LegalDialogs";
 import { SiteHeader } from "@/components/SiteHeader";
 import { obterEstatisticaPublica } from "@/lib/estatisticas-site.functions";
+import { obterParceriaHome, registrarCliqueParceria } from "@/lib/parceria.functions";
 import { formatBRL } from "@/lib/format";
 import { useQuery } from "@tanstack/react-query";
 
@@ -105,6 +106,62 @@ function useVideoDemonstracaoUrl() {
     : null;
 }
 
+/**
+ * Bloco de parceria/patrocínio discreto na home (2026-09-27, a pedido do
+ * usuário): link pro site de um parceiro (ex.: piczofertas.com.br), com
+ * prévia enviada pelo admin, slogan e contador de cliques. Só renderiza
+ * quando há uma parceria ativa configurada em /administracao — sem
+ * configuração, o espaço fica vazio como antes.
+ */
+function useParceriaHome() {
+  const obterFn = useServerFn(obterParceriaHome);
+  return useQuery({
+    queryKey: ["parceria-home-publica"],
+    staleTime: 60_000,
+    queryFn: () => obterFn(),
+  });
+}
+
+function BlocoParceria() {
+  const { data: parceria } = useParceriaHome();
+  const registrarCliqueFn = useServerFn(registrarCliqueParceria);
+  if (!parceria) return null;
+  const previewUrl = parceria.previewImagemPath
+    ? supabase.storage.from("site_assets").getPublicUrl(parceria.previewImagemPath).data.publicUrl
+    : null;
+  return (
+    <a
+      href={parceria.url}
+      target="_blank"
+      rel="noopener noreferrer sponsored"
+      onClick={() => {
+        registrarCliqueFn().catch(() => {
+          // Falha ao contar o clique não deve impedir a navegação.
+        });
+      }}
+      className="mt-auto flex items-center gap-3 rounded-xl border border-dashed p-2.5 text-left transition-colors hover:bg-muted/40"
+    >
+      {previewUrl && (
+        <img
+          src={previewUrl}
+          alt=""
+          className="h-12 w-20 shrink-0 rounded-md border object-cover"
+        />
+      )}
+      <div className="min-w-0">
+        <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Patrocinado</p>
+        {parceria.slogan && (
+          <p className="mt-0.5 text-xs leading-snug text-muted-foreground">
+            {parceria.slogan.split("\n").map((linha, i) => (
+              <span key={i} className="block truncate">{linha}</span>
+            ))}
+          </p>
+        )}
+      </div>
+    </a>
+  );
+}
+
 function EconomiaTotalBanner() {
   const obterFn = useServerFn(obterEstatisticaPublica);
   const { data } = useQuery({
@@ -132,7 +189,7 @@ function LandingPage() {
     <EconomiaTotalBanner />
     <section className="overflow-hidden border-b bg-gradient-to-b from-primary/10 via-background to-background"><div className="mx-auto grid max-w-6xl gap-10 px-4 py-16 md:grid-cols-[1.1fr_.9fr] md:py-24">
       <div className="flex flex-col justify-center"><BrandAnimado className="mb-5" /><p className="mb-3 inline-flex w-fit items-center gap-2 rounded-full border bg-background px-3 py-1 text-xs font-medium"><Sparkles className="size-3.5 text-primary" /> Uma casa mais leve começa com clareza</p><h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl">A vida da sua família organizada em um só lugar.</h1><p className="mt-5 max-w-xl text-base leading-7 text-muted-foreground">Do dinheiro aos documentos, do pet aos exames: o Control ALL transforma tarefas espalhadas em uma rotina simples, privada e compartilhável quando você quiser. Notas fiscais ficam salvas direto no seu Google Drive, contas vencidas se conciliam automaticamente e você ainda pode enviar links temporários criptografados sem precisar de conta.</p><div className="mt-7 flex flex-wrap gap-3"><Button asChild size="lg"><Link to="/entrar">Começar agora <ArrowRight className="size-4" /></Link></Button><Button asChild size="lg" variant="outline"><a href="#demonstracao"><PlayCircle className="size-4" /> Ver demonstração</a></Button></div><div className="mt-4 flex flex-wrap gap-x-5 gap-y-2"><Link to="/calculadoras" className="inline-flex w-fit items-center gap-2 rounded-full bg-primary/10 px-3 py-1.5 text-sm font-medium text-primary transition hover:bg-primary/20">Usar calculadoras gratuitas <ArrowRight className="size-4" /></Link><Link to="/links-temporarios" className="inline-flex w-fit items-center gap-2 rounded-full bg-primary/10 px-3 py-1.5 text-sm font-medium text-primary transition hover:bg-primary/20">Enviar link temporário <ArrowRight className="size-4" /></Link></div><p className="mt-3 text-xs text-muted-foreground">R$ 4,99 por mês. Cobrança será habilitada no lançamento comercial.</p></div>
-      <Card className="border-primary/20 bg-card/80 shadow-xl"><CardContent className="space-y-4 p-5"><div className="flex items-center justify-between"><div><p className="text-sm text-muted-foreground">Visão de exemplo</p><b>Seu mês em ordem</b></div><BrandMark className="size-11 opacity-90" /></div><div className="grid grid-cols-2 gap-3"><div className="rounded-xl bg-emerald-500/10 p-3"><p className="text-xs text-muted-foreground">Entradas</p><b className="text-emerald-700">R$ 8.240,00</b></div><div className="rounded-xl bg-primary/10 p-3"><p className="text-xs text-muted-foreground">Planejado</p><b>R$ 5.190,00</b></div></div><div className="space-y-2 rounded-xl border p-3 text-sm"><p className="font-medium">Próximos cuidados</p><p className="flex items-center gap-2 text-muted-foreground"><BellRing className="size-4 text-primary" /> Garantia do liquidificador em 12 dias</p><p className="flex items-center gap-2 text-muted-foreground"><PawPrint className="size-4 text-primary" /> Reforço da vacina do pet em breve</p><p className="flex items-center gap-2 text-muted-foreground"><FileHeart className="size-4 text-primary" /> 3 resultados aguardando revisão</p></div><p className="text-center text-xs text-muted-foreground">Dados fictícios para demonstração.</p></CardContent></Card>
+      <Card className="border-primary/20 bg-card/80 shadow-xl"><CardContent className="flex h-full flex-col space-y-4 p-5"><div className="flex items-center justify-between"><div><p className="text-sm text-muted-foreground">Visão de exemplo</p><b>Seu mês em ordem</b></div><BrandMark className="size-11 opacity-90" /></div><div className="grid grid-cols-2 gap-3"><div className="rounded-xl bg-emerald-500/10 p-3"><p className="text-xs text-muted-foreground">Entradas</p><b className="text-emerald-700">R$ 8.240,00</b></div><div className="rounded-xl bg-primary/10 p-3"><p className="text-xs text-muted-foreground">Planejado</p><b>R$ 5.190,00</b></div></div><div className="space-y-2 rounded-xl border p-3 text-sm"><p className="font-medium">Próximos cuidados</p><p className="flex items-center gap-2 text-muted-foreground"><BellRing className="size-4 text-primary" /> Garantia do liquidificador em 12 dias</p><p className="flex items-center gap-2 text-muted-foreground"><PawPrint className="size-4 text-primary" /> Reforço da vacina do pet em breve</p><p className="flex items-center gap-2 text-muted-foreground"><FileHeart className="size-4 text-primary" /> 3 resultados aguardando revisão</p></div><p className="text-center text-xs text-muted-foreground">Dados fictícios para demonstração.</p><BlocoParceria /></CardContent></Card>
     </div></section>
     <section id="recursos" className="mx-auto max-w-6xl px-4 py-16"><div className="mb-8 max-w-2xl"><p className="text-sm font-semibold text-primary">RECURSOS</p><h2 className="mt-2 text-3xl font-bold">Organização que acompanha a vida real.</h2></div><div className="grid gap-4 sm:grid-cols-3"><Card><CardContent className="p-5"><ShieldCheck className="size-6 text-primary"/><h3 className="mt-3 font-semibold">Privacidade por padrão</h3><p className="mt-1 text-sm text-muted-foreground">Dados pessoais e exames privados. Compartilhamento só com a sua escolha.</p></CardContent></Card><Card><CardContent className="p-5"><FileUp className="size-6 text-primary"/><h3 className="mt-3 font-semibold">Importe e confira</h3><p className="mt-1 text-sm text-muted-foreground">Faturas e exames entram como prévia para você corrigir e aprovar.</p></CardContent></Card><Card><CardContent className="p-5"><BellRing className="size-6 text-primary"/><h3 className="mt-3 font-semibold">Não deixe passar</h3><p className="mt-1 text-sm text-muted-foreground">Alertas de contas, garantias, manutenção, vacinas e lembretes.</p></CardContent></Card></div></section>
     <section id="modulos" className="border-y bg-muted/30"><div className="mx-auto max-w-6xl px-4 py-16"><p className="text-sm font-semibold text-primary">MÓDULOS</p><h2 className="mt-2 text-3xl font-bold">Cada parte da rotina, no seu lugar.</h2><p className="mt-2 text-sm text-muted-foreground">Clique em um módulo para ver mais detalhes, sem sair desta página.</p><div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{modulos.map(({icon:Icon,titulo,texto,detalhes})=><Card key={titulo} className="overflow-hidden"><Accordion type="single" collapsible><AccordionItem value={titulo} className="border-b-0"><CardContent className="p-5 pb-0"><Icon className="size-6 text-primary"/><h3 className="mt-3 font-semibold">{titulo}</h3><p className="mt-1 text-sm leading-6 text-muted-foreground">{texto}</p></CardContent><AccordionTrigger className="px-5 py-2 text-xs text-primary hover:no-underline">Ver detalhes</AccordionTrigger><AccordionContent className="px-5"><ul className="space-y-1.5 text-sm text-muted-foreground">{detalhes.map((d)=><li key={d} className="flex gap-2"><Check className="mt-0.5 size-3.5 shrink-0 text-primary"/>{d}</li>)}</ul></AccordionContent></AccordionItem></Accordion></Card>)}</div></div></section>

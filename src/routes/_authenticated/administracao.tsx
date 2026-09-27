@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Paperclip, X } from "lucide-react";
+import { Handshake, MousePointerClick, Paperclip, X } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -57,6 +57,12 @@ import {
   adminAlternarArmazenamentoOracle,
   adminListarArmazenamentoOracle,
 } from "@/lib/oracle-admin.functions";
+import {
+  adminObterParceria,
+  adminSalvarParceria,
+  confirmarParceriaImagem,
+  prepararUploadParceriaImagem,
+} from "@/lib/parceria.functions";
 import { Switch } from "@/components/ui/switch";
 import {
   Select,
@@ -130,6 +136,7 @@ function Admin() {
   const qc = useQueryClient();
   const logoInput = useRef<HTMLInputElement>(null);
   const videoInput = useRef<HTMLInputElement>(null);
+  const parceriaImagemInput = useRef<HTMLInputElement>(null);
   const { aba: abaInicial } = Route.useSearch();
   const [abaAtiva, setAbaAtiva] = useState(abaInicial || "dados-gerais");
 
@@ -165,6 +172,10 @@ function Admin() {
   const listarArmazenamentoOracleFn = useServerFn(adminListarArmazenamentoOracle);
   const alternarArmazenamentoOracleFn = useServerFn(adminAlternarArmazenamentoOracle);
   const ajustarCotaOracleFn = useServerFn(adminAjustarCotaOracle);
+  const obterParceriaFn = useServerFn(adminObterParceria);
+  const salvarParceriaFn = useServerFn(adminSalvarParceria);
+  const prepararParceriaImagemFn = useServerFn(prepararUploadParceriaImagem);
+  const confirmarParceriaImagemFn = useServerFn(confirmarParceriaImagem);
 
   // State
   const [titulo, setTitulo] = useState("");
@@ -185,6 +196,12 @@ function Admin() {
   const [erroSenhaConsulta, setErroSenhaConsulta] = useState("");
   const [economiaExibidaInput, setEconomiaExibidaInput] = useState("");
   const [cotaOracleInput, setCotaOracleInput] = useState<Record<string, string>>({});
+  // Bloco de parceria/patrocínio da home (2026-09-27): URL e slogan ficam em
+  // state local sincronizado com a query ao carregar/salvar — mesmo padrão
+  // usado pra "economia exibida" logo acima.
+  const [parceriaUrlInput, setParceriaUrlInput] = useState("");
+  const [parceriaSloganInput, setParceriaSloganInput] = useState("");
+  const [parceriaAtivoInput, setParceriaAtivoInput] = useState(false);
 
   // Queries
   const { data: layouts = [] } = useQuery({
@@ -277,12 +294,25 @@ function Admin() {
     enabled: isSiteAdmin,
     queryFn: () => listarArmazenamentoOracleFn(),
   });
+  const { data: parceria } = useQuery({
+    queryKey: ["admin-parceria-home"],
+    enabled: isSiteAdmin,
+    queryFn: () => obterParceriaFn(),
+  });
 
   useEffect(() => {
     if (estatisticaPublica && estatisticaPublica.economiaTotalExibida !== null) {
       setEconomiaExibidaInput(String(estatisticaPublica.economiaTotalExibida));
     }
   }, [estatisticaPublica]);
+
+  useEffect(() => {
+    if (parceria) {
+      setParceriaUrlInput(parceria.url ?? "");
+      setParceriaSloganInput(parceria.slogan ?? "");
+      setParceriaAtivoInput(parceria.ativo);
+    }
+  }, [parceria]);
 
   // Mutations
   const salvarAcesso = useMutation({
@@ -471,6 +501,39 @@ function Admin() {
       qc.invalidateQueries({ queryKey: ["identidade-visual-site-admin"] });
       toast.success("Vídeo removido da home.");
     } catch (e: any) { toast.error(e.message || "Não foi possível remover o vídeo."); }
+  }
+
+  const salvarParceria = useMutation({
+    mutationFn: () =>
+      salvarParceriaFn({
+        data: { url: parceriaUrlInput.trim(), slogan: parceriaSloganInput.trim() || null, ativo: parceriaAtivoInput },
+      }),
+    onSuccess: () => {
+      toast.success("Parceria da home salva.");
+      qc.invalidateQueries({ queryKey: ["admin-parceria-home"] });
+    },
+    onError: (e: any) => toast.error(e.message || "Não foi possível salvar a parceria."),
+  });
+
+  async function subirParceriaImagem(files: FileList | null) {
+    const arquivo = files?.[0];
+    if (!arquivo) return;
+    if (!/^image\/(jpeg|png|webp)$/.test(arquivo.type) || arquivo.size > 5 * 1024 * 1024) {
+      toast.error("Envie JPG, PNG ou WEBP de até 5 MB.");
+      return;
+    }
+    try {
+      const envio = await prepararParceriaImagemFn({ data: { nome: arquivo.name } });
+      const { error } = await supabase.storage.from("site_assets").uploadToSignedUrl(envio.path, envio.token, arquivo);
+      if (error) throw error;
+      await confirmarParceriaImagemFn({ data: { path: envio.path } });
+      qc.invalidateQueries({ queryKey: ["admin-parceria-home"] });
+      toast.success("Prévia da parceria atualizada.");
+    } catch (e: any) {
+      toast.error(e.message || "Não foi possível enviar a imagem.");
+    } finally {
+      if (parceriaImagemInput.current) parceriaImagemInput.current.value = "";
+    }
   }
 
   if (!isSiteAdmin)
@@ -1022,6 +1085,82 @@ function Admin() {
                 {identidadeVisual?.video_demonstracao_path && (
                   <Button variant="ghost" className="text-muted-foreground" onClick={removerVideo}>Remover</Button>
                 )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Parceria/patrocínio discreto na home (2026-09-27, a pedido do
+              usuário): um link "patrocinado" pro site de um parceiro, com
+              prévia (print enviado aqui, sem geração automática de
+              screenshot), slogan editável e contador de cliques. Singleton
+              — 1 parceiro por vez. */}
+          <Card>
+            <CardContent className="space-y-4 p-4">
+              <div className="flex items-center gap-2">
+                <Handshake className="size-4 text-primary" />
+                <h2 className="font-semibold">Parceria / patrocínio na home</h2>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Link discreto ("Patrocinado") exibido na home pública, com a prévia enviada abaixo.
+                Abre sempre em nova aba e cada clique é contado.
+              </p>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Link do parceiro</label>
+                  <Input
+                    value={parceriaUrlInput}
+                    onChange={(e) => setParceriaUrlInput(e.target.value)}
+                    placeholder="https://www.exemplo.com.br"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Slogan (opcional)</label>
+                  <Textarea
+                    value={parceriaSloganInput}
+                    onChange={(e) => setParceriaSloganInput(e.target.value)}
+                    placeholder={"Seu próximo desconto pode estar a um clique\nNão pague mais caro, antes de comprar, dá uma Picz"}
+                    className="min-h-[72px] text-sm"
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <Switch checked={parceriaAtivoInput} onCheckedChange={setParceriaAtivoInput} />
+                  <span className="text-sm">{parceriaAtivoInput ? "Visível na home" : "Oculto na home"}</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <MousePointerClick className="size-3.5" />
+                  {parceria?.cliques ?? 0} clique(s) registrado(s)
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3 border-t pt-3">
+                {parceria?.preview_imagem_path ? (
+                  <img
+                    src={supabase.storage.from("site_assets").getPublicUrl(parceria.preview_imagem_path).data.publicUrl}
+                    alt="Prévia atual do site parceiro"
+                    className="h-16 w-28 rounded-md border object-cover"
+                  />
+                ) : (
+                  <div className="flex h-16 w-28 items-center justify-center rounded-md border border-dashed text-[10px] text-muted-foreground">
+                    Sem prévia
+                  </div>
+                )}
+                <input
+                  ref={parceriaImagemInput}
+                  className="hidden"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={(e) => subirParceriaImagem(e.target.files)}
+                />
+                <Button variant="outline" size="sm" onClick={() => parceriaImagemInput.current?.click()}>
+                  {parceria?.preview_imagem_path ? "Trocar print" : "Enviar print"}
+                </Button>
+                <Button size="sm" onClick={() => salvarParceria.mutate()} disabled={salvarParceria.isPending}>
+                  {salvarParceria.isPending ? "Salvando..." : "Salvar"}
+                </Button>
               </div>
             </CardContent>
           </Card>
