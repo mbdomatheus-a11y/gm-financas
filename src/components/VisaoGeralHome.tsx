@@ -37,6 +37,7 @@ import {
   toBRL,
 } from "@/lib/format";
 import { useCompetenciaVigente } from "@/lib/periodo-vigente";
+import { usePersistedState } from "@/hooks/usePersistedState";
 import { lancamentosPorCompetencias } from "@/lib/recorrencia";
 
 type Agrupamento = "cartao" | "categoria" | "responsavel" | "tipo";
@@ -129,7 +130,12 @@ export function VisaoGeralHome({ ocultarValores }: { ocultarValores?: boolean } 
   const valorFmt = (v: number) => (globalHook.ocultarValores ? "R$ ••••••" : formatBRL(v));
   const valorFmtItem = (v: number, oculto: boolean) => (oculto ? "R$ ••••••" : formatBRL(v));
 
-  const [agrupamento, setAgrupamento] = useState<Agrupamento>("cartao");
+  // Item 3 (backlog 2026-09-27): agrupamento lembrado por sessão
+  // (localStorage) e restaurado quando o usuário volta pra tela.
+  const [agrupamento, setAgrupamento] = usePersistedState<Agrupamento>(
+    "inicio.agrupamento",
+    "cartao",
+  );
   // Item 5 (backlog 2026-09-27): "mês do sistema" — `mes` inicia (e se
   // realinha, caso a preferência de dia de virada ainda esteja carregando no
   // primeiro render) com a competência vigente considerando o dia de virada

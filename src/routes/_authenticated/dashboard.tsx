@@ -44,6 +44,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useCotacao } from "@/hooks/useCotacao";
+import { usePersistedState } from "@/hooks/usePersistedState";
 import { useCategorias, useDespesas, useFaturasMes, useReceitas } from "@/hooks/useFinance";
 import { aplicarRegrasFaturaMes } from "@/lib/fatura-mes";
 import { supabase } from "@/integrations/supabase/client";
@@ -171,10 +172,22 @@ function DashboardPage() {
   const [janela, setJanela] = useState("-6");
   const [mesInicioCustom, setMesInicioCustom] = useState(mesAtual);
   const [mesFimCustom, setMesFimCustom] = useState(mesAtual);
-  const [visaoFluxo, setVisaoFluxo] = useState<"ambos" | "receitas" | "despesas">("ambos");
-  const [tipoGrafico, setTipoGrafico] = useState<"barras" | "linhas">("barras");
+  // Item 3 (backlog 2026-09-27): preferências de exibição do gráfico
+  // (fluxo/tipo) e do agrupamento lembradas por sessão (localStorage) e
+  // restauradas quando o usuário volta pro Dashboard.
+  const [visaoFluxo, setVisaoFluxo] = usePersistedState<"ambos" | "receitas" | "despesas">(
+    "dashboard.visaoFluxo",
+    "ambos",
+  );
+  const [tipoGrafico, setTipoGrafico] = usePersistedState<"barras" | "linhas">(
+    "dashboard.tipoGrafico",
+    "barras",
+  );
   const [mesPie, setMesPie] = useState(mesAtual);
-  const [agrupamento, setAgrupamento] = useState<Agrupamento>("categoria");
+  const [agrupamento, setAgrupamento] = usePersistedState<Agrupamento>(
+    "dashboard.agrupamento",
+    "categoria",
+  );
   const [drill, setDrill] = useState<{ mes: string; grupo?: string } | null>(null);
   const [editando, setEditando] = useState<any | null>(null);
 

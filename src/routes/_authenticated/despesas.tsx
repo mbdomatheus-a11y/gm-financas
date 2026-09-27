@@ -24,6 +24,7 @@ import { z } from "zod";
 import { Checkbox } from "@/components/ui/checkbox";
 import { correspondeBuscaComValor } from "@/lib/busca";
 import { AppLayout } from "@/components/AppLayout";
+import { usePersistedState } from "@/hooks/usePersistedState";
 import { Field } from "@/routes/_authenticated/receitas";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -176,7 +177,13 @@ function DespesasPage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
 
-  const [tab, setTab] = useState<"total" | "fixa" | "variavel">("total");
+  // Item 3 (backlog 2026-09-27): aba e filtros de categoria/banco/responsável
+  // são lembrados por sessão (localStorage) e restaurados quando o usuário
+  // volta pra tela. `filtroMes` e `modoLista` ficam de fora de propósito —
+  // eles já têm sua própria lógica de default (mês atual / `?mes=`/`?modo=`
+  // vindos de outras telas, ex. o card "Dívida total" do dashboard), e
+  // persistir por localStorage entraria em conflito com esse comportamento.
+  const [tab, setTab] = usePersistedState<"total" | "fixa" | "variavel">("despesas.tab", "total");
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<any>(novoForm("fixa"));
@@ -186,9 +193,15 @@ function DespesasPage() {
   // dashboard) abre a página já mostrando a dívida completa, não só a do
   // mês atual.
   const [filtroMes, setFiltroMes] = useState(search.mes ?? monthKey(new Date()));
-  const [filtroBanco, setFiltroBanco] = useState("todos");
-  const [filtroCategoria, setFiltroCategoria] = useState("todos");
-  const [filtroResponsavel, setFiltroResponsavel] = useState("todos");
+  const [filtroBanco, setFiltroBanco] = usePersistedState("despesas.filtroBanco", "todos");
+  const [filtroCategoria, setFiltroCategoria] = usePersistedState(
+    "despesas.filtroCategoria",
+    "todos",
+  );
+  const [filtroResponsavel, setFiltroResponsavel] = usePersistedState(
+    "despesas.filtroResponsavel",
+    "todos",
+  );
   // `modo=cartao` na URL (ex.: vindo do card "Parcelas mensalizadas" do
   // dashboard) abre a página já na visão "Por cartão".
   const [modoLista, setModoLista] = useState<"lista" | "cartao">(search.modo ?? "lista");

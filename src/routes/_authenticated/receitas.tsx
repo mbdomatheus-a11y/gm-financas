@@ -18,6 +18,7 @@ import {
   type RecorrenciaFixa,
 } from "@/lib/recorrencia";
 import { correspondeBuscaComValor } from "@/lib/busca";
+import { usePersistedState } from "@/hooks/usePersistedState";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -125,11 +126,16 @@ function ReceitasPage() {
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<any>(emptyForm);
-  const [filtroMes, setFiltroMes] = useState("atual_proximo");
-  const [filtroCat, setFiltroCat] = useState("todas");
-  const [filtroResp, setFiltroResp] = useState("todos");
+  // Item 3 (backlog 2026-09-27): filtros e modo de exibição lembrados por
+  // sessão (localStorage) e restaurados quando o usuário volta pra tela.
+  const [filtroMes, setFiltroMes] = usePersistedState("receitas.filtroMes", "atual_proximo");
+  const [filtroCat, setFiltroCat] = usePersistedState("receitas.filtroCat", "todas");
+  const [filtroResp, setFiltroResp] = usePersistedState("receitas.filtroResp", "todos");
   const [busca, setBusca] = useState("");
-  const [modoLista, setModoLista] = useState<"lista" | "cartao">("lista");
+  const [modoLista, setModoLista] = usePersistedState<"lista" | "cartao">(
+    "receitas.modoLista",
+    "lista",
+  );
 
   const meses = useMemo(
     () =>
