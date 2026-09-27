@@ -100,12 +100,19 @@ export function ConvitesCard() {
   const agora = Date.now();
   const usados = convites.filter((c) => c.usado || new Date(c.expira_em).getTime() >= agora).length;
   const restantes = isSiteAdmin ? Infinity : Math.max(0, cotaConvites - usados);
+  const totalConvidados = convites.length;
+  const totalAceitos = convites.filter((c) => c.usado).length;
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-sm">
           <UserPlus className="size-4" /> Convidar pessoas
+          {totalConvidados > 0 && (
+            <span className="text-xs font-normal text-muted-foreground">
+              ({totalConvidados} {totalConvidados === 1 ? "convidado" : "convidados"} e {totalAceitos} {totalAceitos === 1 ? "aceito" : "aceitos"})
+            </span>
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -141,12 +148,15 @@ export function ConvitesCard() {
           <p className="text-xs text-muted-foreground">Nenhum convite gerado ainda.</p>
         ) : (
           <div className="space-y-2">
-            {convites.map((c) => {
+            {convites.map((c, index) => {
               const expirado = !c.usado && new Date(c.expira_em).getTime() < agora;
               const podeAgir = !c.usado && !expirado;
               return (
                 <div key={c.id} className="rounded-lg border px-3 py-2 text-xs">
                   <div className="flex items-center gap-2">
+                    <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-semibold text-muted-foreground">
+                      {index + 1}
+                    </span>
                     <KeyRound className="size-3.5 shrink-0 text-muted-foreground" />
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-mono">{c.token}</p>

@@ -77,6 +77,134 @@ async function copiarTexto(texto: string) {
   }
 }
 
+/** Desenha um texto (título + linhas) num canvas com o mesmo visual usado em
+ * Finanças, pra gerar uma imagem pronta a partir de um resumo em texto. */
+function desenharTextoEmCanvas(
+  canvas: HTMLCanvasElement | null,
+  titulo: string,
+  linhas: string[],
+): HTMLCanvasElement | null {
+  if (!canvas) return null;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return null;
+  const W = (canvas.width = 1080);
+  const linhaAltura = 54;
+  const H = (canvas.height = Math.max(600, 260 + linhas.length * linhaAltura + 120));
+
+  const grad = ctx.createLinearGradient(0, 0, W, H);
+  grad.addColorStop(0, "#0f172a");
+  grad.addColorStop(1, "#1e3a8a");
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "800 56px system-ui, sans-serif";
+  ctx.fillText(titulo, 80, 140);
+
+  ctx.fillStyle = "rgba(255,255,255,0.08)";
+  ctx.beginPath();
+  ctx.roundRect(80, 200, W - 160, H - 200 - 100, 24);
+  ctx.fill();
+
+  ctx.font = "500 30px system-ui, sans-serif";
+  let y = 260;
+  for (const linha of linhas) {
+    ctx.fillStyle = "rgba(255,255,255,0.92)";
+    ctx.fillText(linha, 120, y);
+    y += linhaAltura;
+  }
+
+  ctx.fillStyle = "rgba(255,255,255,0.5)";
+  ctx.font = "400 24px system-ui, sans-serif";
+  ctx.fillText("Gerado pelo Control ALL", 80, H - 50);
+
+  return canvas;
+}
+
+/** Mesmas três ações de compartilhamento por imagem do card de Finanças
+ * (Compartilhar, Copiar imagem, Baixar imagem), reaproveitadas nas demais
+ * abas a partir do texto-resumo que cada uma já monta. */
+function ImageShareActions({
+  titulo,
+  texto,
+  arquivo,
+}: {
+  titulo: string;
+  texto: string;
+  arquivo: string;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const linhas = texto.split("\n").filter((l) => l.trim().length > 0);
+
+  function desenhar() {
+    return desenharTextoEmCanvas(canvasRef.current, titulo, linhas);
+  }
+
+  async function baixar() {
+    const canvas = desenhar();
+    if (!canvas) return;
+    const url = canvas.toDataURL("image/png");
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${arquivo}.png`;
+    a.click();
+    toast.success("Imagem baixada");
+  }
+
+  async function compartilhar() {
+    const canvas = desenhar();
+    if (!canvas) return;
+    canvas.toBlob(async (blob) => {
+      if (!blob) return;
+      const file = new File([blob], `${arquivo}.png`, { type: "image/png" });
+      const nav = navigator as Navigator & { canShare?: (d: any) => boolean };
+      if (nav.canShare?.({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file], title: titulo });
+          return;
+        } catch {
+          /* cancelado pelo usuário */
+        }
+      }
+      window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, "_blank", "noopener");
+    }, "image/png");
+  }
+
+  async function copiarParaClipboard() {
+    const canvas = desenhar();
+    if (!canvas) return;
+    canvas.toBlob(async (blob) => {
+      if (!blob) return;
+      try {
+        if (navigator.clipboard && window.ClipboardItem) {
+          const item = new ClipboardItem({ "image/png": blob });
+          await navigator.clipboard.write([item]);
+          toast.success("Imagem copiada para a área de transferência! Cole no WhatsApp.");
+        } else {
+          toast.error("Seu navegador não suporta copiar imagens diretamente.");
+        }
+      } catch {
+        toast.error("Não foi possível copiar a imagem.");
+      }
+    }, "image/png");
+  }
+
+  return (
+    <>
+      <Button className="w-full" onClick={compartilhar}>
+        <Share2 className="size-4" /> Compartilhar
+      </Button>
+      <Button variant="secondary" className="w-full" onClick={copiarParaClipboard}>
+        <ImageIcon className="size-4" /> Copiar imagem
+      </Button>
+      <Button variant="outline" className="w-full" onClick={baixar}>
+        <Download className="size-4" /> Baixar imagem
+      </Button>
+      <canvas ref={canvasRef} className="hidden" aria-hidden="true" />
+    </>
+  );
+}
+
 function CompartilharPage() {
   const { habilitado } = useModulosGlobais();
 
@@ -410,15 +538,17 @@ function ListaComprasShareCard() {
       <Card>
         <CardContent className="space-y-4 p-4">
           <Button
+            variant="outline"
             className="w-full"
             disabled={isLoading}
             onClick={() => compartilharTexto(texto, "Lista de compras")}
           >
-            <Share2 className="size-4" /> Compartilhar
+            <Share2 className="size-4" /> Compartilhar texto
           </Button>
           <Button variant="outline" className="w-full" onClick={() => copiarTexto(texto)}>
             <ImageIcon className="size-4" /> Copiar texto
           </Button>
+          <ImageShareActions titulo="Lista de compras" texto={texto} arquivo="lista-compras" />
           <p className="text-xs text-muted-foreground">
             Envia os itens ainda pendentes de compra, com quantidade.
           </p>
@@ -493,15 +623,17 @@ function NotasFiscaisShareCard() {
             </SelectContent>
           </Select>
           <Button
+            variant="outline"
             className="w-full"
             disabled={isLoading}
             onClick={() => compartilharTexto(texto, "Notas fiscais")}
           >
-            <Share2 className="size-4" /> Compartilhar
+            <Share2 className="size-4" /> Compartilhar texto
           </Button>
           <Button variant="outline" className="w-full" onClick={() => copiarTexto(texto)}>
             <ImageIcon className="size-4" /> Copiar texto
           </Button>
+          <ImageShareActions titulo="Notas fiscais" texto={texto} arquivo={`notas-fiscais-${mes}`} />
           <p className="text-xs text-muted-foreground">
             Não inclui as fotos das notas — só o resumo em texto (quantidade, total e maiores
             compras do mês).
@@ -546,15 +678,17 @@ function VeiculosShareCard() {
       <Card>
         <CardContent className="space-y-4 p-4">
           <Button
+            variant="outline"
             className="w-full"
             disabled={isLoading}
             onClick={() => compartilharTexto(texto, "Veículos")}
           >
-            <Share2 className="size-4" /> Compartilhar
+            <Share2 className="size-4" /> Compartilhar texto
           </Button>
           <Button variant="outline" className="w-full" onClick={() => copiarTexto(texto)}>
             <ImageIcon className="size-4" /> Copiar texto
           </Button>
+          <ImageShareActions titulo="Veículos" texto={texto} arquivo="veiculos" />
           <p className="text-xs text-muted-foreground">
             Inclui os veículos cadastrados e os alertas ativos (troca de óleo, IPVA, seguro).
           </p>
@@ -623,15 +757,17 @@ function PetShareCard() {
       <Card>
         <CardContent className="space-y-4 p-4">
           <Button
+            variant="outline"
             className="w-full"
             disabled={carregandoPets}
             onClick={() => compartilharTexto(texto, "Pet")}
           >
-            <Share2 className="size-4" /> Compartilhar
+            <Share2 className="size-4" /> Compartilhar texto
           </Button>
           <Button variant="outline" className="w-full" onClick={() => copiarTexto(texto)}>
             <ImageIcon className="size-4" /> Copiar texto
           </Button>
+          <ImageShareActions titulo="Pet" texto={texto} arquivo="pet" />
           <p className="text-xs text-muted-foreground">
             Inclui os pets cadastrados e as próximas doses de vacina previstas.
           </p>
@@ -687,15 +823,17 @@ function OndeEstaShareCard() {
       <Card>
         <CardContent className="space-y-4 p-4">
           <Button
+            variant="outline"
             className="w-full"
             disabled={isLoading}
             onClick={() => compartilharTexto(texto, "Onde está?")}
           >
-            <Share2 className="size-4" /> Compartilhar
+            <Share2 className="size-4" /> Compartilhar texto
           </Button>
           <Button variant="outline" className="w-full" onClick={() => copiarTexto(texto)}>
             <ImageIcon className="size-4" /> Copiar texto
           </Button>
+          <ImageShareActions titulo="Onde está?" texto={texto} arquivo="onde-esta" />
           <p className="text-xs text-muted-foreground">
             Inclui os locais de guarda cadastrados e quantos itens cada um tem.
           </p>
@@ -746,15 +884,17 @@ function ExamesShareCard() {
       <Card>
         <CardContent className="space-y-4 p-4">
           <Button
+            variant="outline"
             className="w-full"
             disabled={isLoading}
             onClick={() => compartilharTexto(texto, "Exames")}
           >
-            <Share2 className="size-4" /> Compartilhar
+            <Share2 className="size-4" /> Compartilhar texto
           </Button>
           <Button variant="outline" className="w-full" onClick={() => copiarTexto(texto)}>
             <ImageIcon className="size-4" /> Copiar texto
           </Button>
+          <ImageShareActions titulo="Exames" texto={texto} arquivo="exames" />
           <p className="text-xs text-muted-foreground">
             Inclui só título, data e laboratório dos exames — os resultados/indicadores não entram
             neste resumo.
@@ -842,12 +982,17 @@ function ResumoInteligenteShareCard() {
     <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
       <Card>
         <CardContent className="space-y-4 p-4">
-          <Button className="w-full" onClick={() => compartilharTexto(texto, "Resumo inteligente")}>
-            <Share2 className="size-4" /> Compartilhar
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={() => compartilharTexto(texto, "Resumo inteligente")}
+          >
+            <Share2 className="size-4" /> Compartilhar texto
           </Button>
           <Button variant="outline" className="w-full" onClick={() => copiarTexto(texto)}>
             <ImageIcon className="size-4" /> Copiar texto
           </Button>
+          <ImageShareActions titulo="Resumo inteligente" texto={texto} arquivo="resumo-inteligente" />
           <p className="text-xs text-muted-foreground">
             Junta o essencial de finanças, lista de compras e veículos num único resumo — bom pra
             mandar rapidinho sem abrir o site.

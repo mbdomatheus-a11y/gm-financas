@@ -90,7 +90,7 @@ function SuportePage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <Headphones className="size-4 text-primary" />
-              Novo chamado
+              Solicitações ao Suporte
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -100,7 +100,7 @@ function SuportePage() {
                 <p className="mt-1 font-mono text-xs">{protocolo}</p>
                 <p className="mt-1 text-xs">Guarde este protocolo para acompanhar seu chamado.</p>
                 <Button size="sm" variant="ghost" className="mt-2 text-xs" onClick={() => setProtocolo(null)}>
-                  Novo chamado
+                  Enviar nova solicitação
                 </Button>
               </div>
             )}

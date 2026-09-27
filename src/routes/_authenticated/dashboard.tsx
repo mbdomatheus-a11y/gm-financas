@@ -8,7 +8,6 @@ import {
   ArrowUpRight,
   CalendarClock,
   Landmark,
-  PiggyBank,
   Wallet,
   X,
 } from "lucide-react";
@@ -511,20 +510,11 @@ function DashboardPage() {
           href="#fluxo-caixa"
         />
         <StatCard
-          label="Taxa de poupança"
-          value={dados.saldo}
-          icon={PiggyBank}
-          tone={dados.taxaPoupanca >= 0 ? "success" : "destructive"}
-          display={`${dados.taxaPoupanca.toFixed(0)}%`}
-          hint={`Média de despesas na janela: ${formatBRL(dados.mediaDespesas)}`}
-          href="#fluxo-caixa"
-        />
-        <StatCard
-          label="Parcelas mensalizadas"
-          value={dados.mensalizado}
+          label="Parcelas do mês (fixas + variáveis)"
+          value={dados.fixas + dados.variaveis}
           icon={CalendarClock}
           tone="warning"
-          hint="Parcelas com vencimento neste mês"
+          hint={`Fixas ${formatBRL(dados.fixas)} · Variáveis ${formatBRL(dados.variaveis)}`}
           to="/despesas"
           search={{ modo: "cartao" }}
         />
