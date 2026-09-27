@@ -140,28 +140,30 @@ function BlocoParceria() {
           // Falha ao contar o clique não deve impedir a navegação.
         });
       }}
-      className="group mt-auto flex items-center gap-4 rounded-xl border-2 border-amber-400/70 bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 p-4 text-left shadow-sm transition-transform hover:scale-[1.02] dark:border-amber-500/40 dark:from-amber-950/30 dark:via-orange-950/20 dark:to-amber-950/30"
+      className="group mt-auto flex flex-col gap-2 rounded-xl border-2 border-amber-400/70 bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 p-4 text-left shadow-sm transition-transform hover:scale-[1.02] dark:border-amber-500/40 dark:from-amber-950/30 dark:via-orange-950/20 dark:to-amber-950/30"
     >
+      <p className="text-[9px] font-medium uppercase tracking-wide text-muted-foreground">Patrocinado</p>
       {previewUrl && (
         <img
           src={previewUrl}
           alt=""
-          className="h-20 w-32 shrink-0 rounded-lg border object-cover shadow-sm"
+          className="h-40 w-full shrink-0 rounded-lg border object-cover shadow-sm"
         />
       )}
-      <div className="min-w-0 flex-1">
-        <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Patrocinado</p>
-        {linhas[0] && (
-          <p className="mt-1 flex items-center gap-1.5 text-base font-bold leading-snug text-amber-700 dark:text-amber-400">
-            <Percent className="size-4 shrink-0 animate-bounce" />
-            <span className="truncate">{linhas[0]}</span>
-          </p>
-        )}
-        {linhas[1] && (
-          <p className="mt-0.5 truncate text-sm font-medium text-muted-foreground">{linhas[1]}</p>
-        )}
+      <div className="flex min-w-0 flex-1 items-center gap-3">
+        <div className="min-w-0 flex-1">
+          {linhas[0] && (
+            <p className="flex items-center gap-1.5 text-base font-bold leading-snug text-amber-700 dark:text-amber-400">
+              <Percent className="size-4 shrink-0 animate-bounce" />
+              <span className="truncate">{linhas[0]}</span>
+            </p>
+          )}
+          {linhas[1] && (
+            <p className="mt-0.5 truncate text-sm font-medium text-muted-foreground">{linhas[1]}</p>
+          )}
+        </div>
+        <ArrowRight className="size-5 shrink-0 text-amber-600 transition-transform group-hover:translate-x-1 dark:text-amber-400" />
       </div>
-      <ArrowRight className="size-5 shrink-0 text-amber-600 transition-transform group-hover:translate-x-1 dark:text-amber-400" />
     </a>
   );
 }
