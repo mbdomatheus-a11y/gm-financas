@@ -246,6 +246,56 @@ export const uploadNotaArquivo = createServerFn({ method: "POST" })
     }
     const nome = data.nome.replace(/[\\/\r\n]/g, "_").slice(0, 180);
     const { randomUUID } = await import("node:crypto");
+
+    // Oracle Object Storage (2026-09-26): primeira tentativa, só para
+    // grupos que o admin habilitou explicitamente na tela de
+    // Administração — mantém a cota do Supabase Storage livre para os
+    // demais grupos. Se o grupo não tem Oracle habilitado, não tem cota
+    // livre, ou o Oracle não está configurado nesta implantação, segue
+    // silenciosamente para o Google Drive/site como já acontecia antes.
+    try {
+      const { oracleStorageConfigurado, uploadParaOracle } =
+        await import("@/server/oracle-storage.server");
+      if (oracleStorageConfigurado()) {
+        const { data: perfilGrupoOracle } = await context.supabase
+          .from("profiles")
+          .select("grupo_id")
+          .eq("id", context.userId)
+          .maybeSingle();
+        const grupoIdOracle = perfilGrupoOracle?.grupo_id as string | undefined;
+        if (grupoIdOracle) {
+          const { objectKey } = await uploadParaOracle({
+            supabase: context.supabase,
+            grupoId: grupoIdOracle,
+            notaId: data.notaId,
+            nome,
+            mimeType: data.mimeType,
+            bytes: fileBytes,
+            userId: context.userId,
+          });
+          const { error: registroError } = await context.supabase.from("nota_arquivos").insert({
+            nota_id: data.notaId,
+            drive_file_id: `oracle:${objectKey}`,
+            link: null,
+            thumbnail_link: null,
+            mime_type: data.mimeType,
+            nome,
+            created_by: context.userId,
+          });
+          if (registroError) throw registroError;
+          return { ok: true as const, destino: "oracle" as const, fileId: objectKey };
+        }
+      }
+    } catch (oracleError) {
+      // Grupo sem Oracle habilitado, sem cota livre, ou falha de rede —
+      // em qualquer caso, segue para o próximo destino da cadeia em vez
+      // de interromper o envio da nota fiscal.
+      console.error(
+        "Upload para Oracle não realizado, seguindo para o próximo destino:",
+        oracleError instanceof Error ? oracleError.message : oracleError,
+      );
+    }
+
     const salvarNoSite = async (aviso?: string) => {
       const path = `${data.notaId}/${randomUUID()}-${nome}`;
       const bucket = context.supabase.storage.from("comprovantes");
