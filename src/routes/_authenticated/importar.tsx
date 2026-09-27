@@ -1,11 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import {
-  prepararEnvioLayout,
-  excluirSolicitacaoLayout,
-  listarMinhasSolicitacoesLayout,
-} from "@/lib/layout-fatura.functions";
+import { prepararEnvioLayout } from "@/lib/layout-fatura.functions";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
@@ -56,6 +52,7 @@ import {
   useProfilesList,
 } from "@/hooks/useFinance";
 import { formatBRL } from "@/lib/format";
+import { verificarPossivelDuplicata } from "@/lib/duplicidade";
 import { encontrarCorrespondenciaFixa, type FixaCandidata } from "@/lib/correspondencia-fixa";
 import { mesesEntreCompetencias, somarMeses, vencimentoDaCompetencia } from "@/lib/recorrencia";
 import {
@@ -150,8 +147,20 @@ function ImportarPage() {
   const inputRef = useRef<HTMLInputElement>(null);
   const layoutRef = useRef<HTMLInputElement>(null);
   const prepararLayout = useServerFn(prepararEnvioLayout);
-  const excluirSolicitacaoFn = useServerFn(excluirSolicitacaoLayout);
   const [enviandoLayout, setEnviandoLayout] = useState(false);
+  const [modalAnaliseOpen, setModalAnaliseOpen] = useState(false);
+
+  const { data: solicitacoesAnalise = [] } = useQuery({
+    queryKey: ["layout_solicitacoes"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("layout_solicitacoes")
+        .select("*")
+        .order("criado_em", { ascending: false });
+      if (error) return [];
+      return data ?? [];
+    },
+  });
 
   async function enviarParaModelagem(files: FileList | null) {
     const file = files?.[0];
@@ -166,19 +175,13 @@ function ImportarPage() {
       const { error } = await supabase.storage
         .from("layouts_analise")
         .uploadToSignedUrl(envio.path, envio.token, file);
-      if (error) {
-        // O registro já existe no banco (ver layout-fatura.functions.ts),
-        // mas o arquivo não chegou ao storage. Remove o registro órfão
-        // para não aparecer na Central de Solicitações sem arquivo.
-        await excluirSolicitacaoFn({ data: { id: envio.id } }).catch(() => {});
-        throw error;
-      }
-      qc.invalidateQueries({ queryKey: ["minhas-solicitacoes-layout"] });
+      if (error) throw error;
+      qc.invalidateQueries({ queryKey: ["layout_solicitacoes"] });
       toast.success(
-        "Fatura enviada para análise. Usaremos apenas o layout e o arquivo será descartado em até 30 dias.",
+        `Fatura enviada para análise. Protocolo: ${envio.protocolo}. Usaremos apenas o layout e o arquivo será descartado em até 30 dias.`,
       );
     } catch (e: any) {
-      toast.error(e.message ?? "Não foi possível enviar. Tente novamente ou contate o suporte.");
+      toast.error(e.message ?? "Não foi possível enviar.");
     } finally {
       setEnviandoLayout(false);
       if (layoutRef.current) layoutRef.current.value = "";
@@ -186,31 +189,6 @@ function ImportarPage() {
   }
   const imgInputRef = useRef<HTMLInputElement>(null);
   const classificacoesEditadas = useRef(new Set<string>());
-
-  const [verSolicitacoes, setVerSolicitacoes] = useState(false);
-  const [highlightValor, setHighlightValor] = useState<number | null>(null);
-  const [resultadoModal, setResultadoModal] = useState<{
-    inseridos: number;
-    ignorados: number;
-    regrasSalvas: number;
-    fechadas: number;
-  } | null>(null);
-
-  const minhasSolicitacoesFn = useServerFn(listarMinhasSolicitacoesLayout);
-
-  const { data: minhasSolicitacoes = [] } = useQuery({
-    queryKey: ["minhas-solicitacoes-layout"],
-    queryFn: () => minhasSolicitacoesFn(),
-  });
-
-  const excluirSolicitacao = useMutation({
-    mutationFn: (id: string) => excluirSolicitacaoFn({ data: { id } }),
-    onSuccess: () => {
-      toast.success("Solicitação de layout excluída.");
-      qc.invalidateQueries({ queryKey: ["minhas-solicitacoes-layout"] });
-    },
-    onError: (e: any) => toast.error(e.message ?? "Não foi possível excluir a solicitação."),
-  });
 
   const [lendo, setLendo] = useState(false);
   const [lendoImagens, setLendoImagens] = useState(false);
@@ -1055,12 +1033,14 @@ function ImportarPage() {
       setFaturas([]);
       setAcoesFixas({});
       classificacoesEditadas.current.clear();
-      setResultadoModal({
-        inseridos,
-        ignorados,
-        regrasSalvas,
-        fechadas,
-      });
+      toast.success(
+        `${inseridos} lançamento(s) importado(s). ${ignorados} duplicado(s) ignorado(s).` +
+          (fechadas ? ` ${fechadas} competência(s) fechada(s).` : ""),
+      );
+      if (regrasSalvas)
+        toast.info(`${regrasSalvas} classificação(ões) aprendida(s) para próximas importações.`);
+      if (falhasDePara)
+        toast.warning(`${falhasDePara} regra(s) de de-para não puderam ser salvas.`);
     },
     onError: (e: any) => toast.error(e?.message ?? "Falha ao importar."),
   });
@@ -1103,7 +1083,7 @@ function ImportarPage() {
                   Seu banco não foi reconhecido? Envie uma cópia para modelagem. Os dados não serão
                   usados e o arquivo será descartado em até 30 dias.
                 </span>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <Button
                     size="sm"
                     variant="outline"
@@ -1112,13 +1092,16 @@ function ImportarPage() {
                   >
                     {enviandoLayout ? "Enviando…" : "Enviar para análise"}
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => setVerSolicitacoes(true)}
-                  >
-                    Minhas faturas enviadas ({minhasSolicitacoes.length})
-                  </Button>
+                  {solicitacoesAnalise.length > 0 && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-xs"
+                      onClick={() => setModalAnaliseOpen(true)}
+                    >
+                      <FileText className="mr-1 size-3.5" /> Faturas enviadas ({solicitacoesAnalise.length})
+                    </Button>
+                  )}
                 </div>
                 <input
                   ref={layoutRef}
@@ -1302,7 +1285,14 @@ function ImportarPage() {
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
               <div className="space-y-1 sm:col-span-2">
-                <Label className="text-xs">Cartão / conta de destino</Label>
+                <div className="flex items-center gap-2">
+                  <Label className="text-xs">Cartão / conta de destino</Label>
+                  {!f.destino && (
+                    <Badge variant="outline" className="border-amber-500/40 text-[10px] text-amber-600 dark:text-amber-400">
+                      Não cadastrado
+                    </Badge>
+                  )}
+                </div>
                 <Select
                   value={f.destino || "nenhum"}
                   onValueChange={(v) => atualizarFatura(idx, { destino: v === "nenhum" ? "" : v })}
@@ -1552,21 +1542,52 @@ function ImportarPage() {
               );
             })()}
 
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                { label: "Limite total", valor: f.limite_total },
-                { label: "Limite utilizado", valor: f.limite_utilizado },
-                { label: "Limite disponível", valor: f.limite_disponivel },
-              ].map((k) => (
-                <div key={k.label} className="rounded-lg border bg-muted/30 px-3 py-2">
-                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                    {k.label}
-                  </p>
-                  <p className="text-sm font-semibold tabular-nums">
-                    {k.valor != null ? formatBRL(k.valor) : "não identificado"}
-                  </p>
-                </div>
-              ))}
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Limite total</Label>
+                <Input
+                  className="h-8 text-xs font-medium tabular-nums"
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="Não identificado"
+                  value={f.limite_total == null ? "" : String(f.limite_total).replace(".", ",")}
+                  onChange={(e) => {
+                    const digitado = e.target.value.replace(/\./g, "").replace(",", ".");
+                    const num = parseFloat(digitado);
+                    atualizarFatura(idx, { limite_total: isNaN(num) ? null : num });
+                  }}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Limite utilizado</Label>
+                <Input
+                  className="h-8 text-xs font-medium tabular-nums"
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="Não identificado"
+                  value={f.limite_utilizado == null ? "" : String(f.limite_utilizado).replace(".", ",")}
+                  onChange={(e) => {
+                    const digitado = e.target.value.replace(/\./g, "").replace(",", ".");
+                    const num = parseFloat(digitado);
+                    atualizarFatura(idx, { limite_utilizado: isNaN(num) ? null : num });
+                  }}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Limite disponível</Label>
+                <Input
+                  className="h-8 text-xs font-medium tabular-nums"
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="Não identificado"
+                  value={f.limite_disponivel == null ? "" : String(f.limite_disponivel).replace(".", ",")}
+                  onChange={(e) => {
+                    const digitado = e.target.value.replace(/\./g, "").replace(",", ".");
+                    const num = parseFloat(digitado);
+                    atualizarFatura(idx, { limite_disponivel: isNaN(num) ? null : num });
+                  }}
+                />
+              </div>
             </div>
           </CardHeader>
 
@@ -1603,26 +1624,16 @@ function ImportarPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {f.lancamentos.map((l) => {
-                        const ehMesmoValor = highlightValor != null && Math.abs(l.valor - highlightValor) < 0.001;
-                        return (
-                          <tr
-                            key={l.id}
-                            onClick={() => setHighlightValor(highlightValor === l.valor ? null : l.valor)}
-                            className={`border-t align-top transition-colors ${
-                              !l.incluir ? "opacity-40 line-through bg-muted/20" : ""
-                            } ${
-                              ehMesmoValor ? "bg-amber-100/90 dark:bg-amber-950/60 ring-2 ring-amber-500/80 font-semibold" : ""
-                            }`}
-                          >
-                              <td className="p-1">
-                                <Checkbox
-                                  checked={l.incluir}
-                                  onCheckedChange={(v) =>
-                                    atualizarLancamento(idx, l.id, { incluir: !!v })
-                                  }
-                                />
-                              </td>
+                      {f.lancamentos.map((l) => (
+                        <tr key={l.id} className="border-t align-top">
+                          <td className="p-1">
+                            <Checkbox
+                              checked={l.incluir}
+                              onCheckedChange={(v) =>
+                                atualizarLancamento(idx, l.id, { incluir: !!v })
+                              }
+                            />
+                          </td>
                           <td className="p-1">
                             <Input
                               type="date"
@@ -1649,6 +1660,22 @@ function ImportarPage() {
                                 el.style.height = `${el.scrollHeight}px`;
                               }}
                             />
+                            {(() => {
+                              const outrosImportados = faturas.flatMap((x) => x.lancamentos);
+                              const checagem = verificarPossivelDuplicata(l, [
+                                ...(despesasTodas as any[]),
+                                ...outrosImportados,
+                              ]);
+                              return checagem.duplicata ? (
+                                <Badge
+                                  variant="outline"
+                                  className="mt-1 gap-1 border-amber-500/40 bg-amber-500/10 text-[10px] text-amber-600 dark:text-amber-400"
+                                  title={checagem.motivo ?? undefined}
+                                >
+                                  <AlertTriangle className="size-3 shrink-0" /> Possível duplicata
+                                </Badge>
+                              ) : null;
+                            })()}
                           </td>
                           <td className="p-1">
                             <div className="flex items-center gap-1">
@@ -1792,7 +1819,7 @@ function ImportarPage() {
                             </Select>
                           </td>
                           <td className="p-1">
-                            <div className="flex items-center gap-0.5">
+                            <div className="flex items-center gap-1">
                               <Select
                                 value={l.categoria}
                                 onValueChange={(v) =>
@@ -1825,8 +1852,8 @@ function ImportarPage() {
                                 return (
                                   <Button
                                     variant="ghost"
-                                    size="sm"
-                                    className="h-7 shrink-0 px-1 text-[10px]"
+                                    size="icon"
+                                    className="size-7 shrink-0"
                                     title={
                                       adicionada
                                         ? "Remover regra de de-para"
@@ -1838,11 +1865,10 @@ function ImportarPage() {
                                     onClick={() => salvarRegra.mutate(l)}
                                   >
                                     {adicionada ? (
-                                      <BookmarkMinus className="mr-1 size-3.5" />
+                                      <BookmarkMinus className="size-4 text-emerald-600" />
                                     ) : (
-                                      <BookmarkPlus className="mr-1 size-3.5" />
+                                      <BookmarkPlus className="size-4 text-muted-foreground hover:text-primary" />
                                     )}
-                                    {adicionada ? "Remover regra" : "Salvar como regra"}
                                   </Button>
                                 );
                               })()}
@@ -1899,8 +1925,7 @@ function ImportarPage() {
                             </p>
                           </td>
                         </tr>
-                      );
-                    })}
+                      ))}
                     </tbody>
                   </table>
                 </div>
@@ -2000,106 +2025,57 @@ function ImportarPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Modal de Resumo e Divergências da Importação */}
-      <Dialog open={!!resultadoModal} onOpenChange={(aberto) => !aberto && setResultadoModal(null)}>
-        <DialogContent className="max-w-md">
+      <Dialog open={modalAnaliseOpen} onOpenChange={setModalAnaliseOpen}>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
-              <CheckCircle2 className="size-5" /> Importação Concluída com Sucesso!
-            </DialogTitle>
+            <DialogTitle>Faturas Enviadas para Análise</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-2 text-sm">
-            <div className="rounded-lg border bg-muted/40 p-3 space-y-1">
-              <p className="font-semibold text-foreground">
-                {resultadoModal?.inseridos} lançamento(s) importado(s). {resultadoModal?.ignorados} duplicado(s) ignorado(s).
-              </p>
-              {resultadoModal?.fechadas ? (
-                <p className="text-xs text-muted-foreground">
-                  {resultadoModal.fechadas} competência(s) de fatura fechada(s).
-                </p>
-              ) : null}
-            </div>
-
-            {resultadoModal?.regrasSalvas ? (
-              <div className="rounded-lg border border-blue-500/30 bg-blue-50/50 p-3 text-xs dark:bg-blue-950/30 text-blue-800 dark:text-blue-300">
-                <b>💡 Aprendizado Registrado:</b>
-                <p className="mt-0.5">
-                  {resultadoModal.regrasSalvas} classificação(ões) aprendida(s) para próximas importações.
-                </p>
-              </div>
-            ) : null}
-
+          <div className="space-y-3 py-2">
             <p className="text-xs text-muted-foreground">
-              A verificação de duplicidade é realizada comparando os dados com o seu histórico de lançamentos já cadastrados. O sistema não armazena o arquivo PDF enviado.
+              Abaixo estão os arquivos de fatura que você enviou para a nossa equipe calibrar o leitor de PDF.
             </p>
-          </div>
-          <DialogFooter>
-            <Button onClick={() => setResultadoModal(null)}>Entendido e Fechar</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Modal de Minhas Solicitações de Layout Enviadas */}
-      <Dialog open={verSolicitacoes} onOpenChange={setVerSolicitacoes}>
-        <DialogContent className="max-w-xl">
-          <DialogHeader>
-            <DialogTitle>Faturas Enviadas para Modelagem</DialogTitle>
-          </DialogHeader>
-          <div className="max-h-96 space-y-3 overflow-auto py-2">
-            {minhasSolicitacoes.length === 0 ? (
+            {solicitacoesAnalise.length === 0 ? (
               <p className="py-4 text-center text-sm text-muted-foreground">
-                Você ainda não enviou faturas para análise de layout.
+                Nenhuma fatura enviada para análise.
               </p>
             ) : (
-              minhasSolicitacoes.map((s: any) => (
-                <div key={s.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3 text-xs">
-                  <div>
-                    <b className="text-sm">{s.arquivo_nome}</b>
-                    <p className="text-muted-foreground">
-                      Banco: {s.banco_informado || "Não inf."} · Final: {s.cartao_final || "N/A"} · {new Date(s.criado_em).toLocaleDateString("pt-BR")}
+              <div className="max-h-80 space-y-2 overflow-y-auto">
+                {solicitacoesAnalise.map((item: any) => (
+                  <div key={item.id} className="rounded-lg border p-3 text-xs">
+                    <div className="flex items-center justify-between gap-2">
+                      <b className="truncate text-sm">{item.arquivo_nome}</b>
+                      <Badge variant="outline" className="shrink-0 text-[10px]">
+                        {item.status === "corrigida"
+                          ? "✓ Concluída / Tratada"
+                          : item.status === "descartada"
+                            ? "Descartada"
+                            : item.status === "em_modelagem"
+                              ? "Em análise"
+                              : "Recebida"}
+                      </Badge>
+                    </div>
+                    <p className="mt-1 text-muted-foreground">
+                      Enviado em {new Date(item.criado_em).toLocaleDateString("pt-BR")}
+                      {item.banco_informado ? ` · Banco: ${item.banco_informado}` : ""}
+                      {item.cartao_final ? ` · Final: ${item.cartao_final}` : ""}
                     </p>
-                    <span
-                      className={`mt-1 inline-block rounded px-2 py-0.5 text-[10px] font-semibold ${
-                        s.status === "corrigida"
-                          ? "bg-emerald-500/10 text-emerald-600"
-                          : s.status === "em_modelagem"
-                          ? "bg-blue-500/10 text-blue-600"
-                          : s.status === "descartada"
-                          ? "bg-rose-500/10 text-rose-600"
-                          : "bg-amber-500/10 text-amber-600"
-                      }`}
-                    >
-                      {s.status === "corrigida"
-                        ? "Concluído"
-                        : s.status === "em_modelagem"
-                        ? "Em análise"
-                        : s.status === "descartada"
-                        ? "Descartado"
-                        : "Pendente"}
-                    </span>
-                    {s.resposta_admin && (
-                      <p className="mt-1 text-[11px] text-muted-foreground italic">
-                        Mensagem: {s.resposta_admin}
+                    {item.protocolo && (
+                      <p className="mt-0.5 font-mono text-[10px] text-muted-foreground/70">
+                        Protocolo: {item.protocolo.substring(0, 8)}…
+                      </p>
+                    )}
+                    {item.resposta_admin && (
+                      <p className="mt-1 font-medium text-emerald-600">
+                        Resposta: {item.resposta_admin}
                       </p>
                     )}
                   </div>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="text-rose-600 hover:text-rose-700"
-                    disabled={excluirSolicitacao.isPending}
-                    onClick={() => excluirSolicitacao.mutate(s.id)}
-                  >
-                    <Trash2 className="mr-1 size-3.5" /> Excluir
-                  </Button>
-                </div>
-              ))
+                ))}
+              </div>
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setVerSolicitacoes(false)}>
-              Fechar
-            </Button>
+            <Button onClick={() => setModalAnaliseOpen(false)}>Fechar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

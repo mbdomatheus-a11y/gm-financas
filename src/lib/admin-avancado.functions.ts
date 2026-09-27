@@ -24,7 +24,7 @@ export const adminListarLayouts = createServerFn({ method: "GET" })
     // adminListarLogs.
     const { data, error } = await db
       .from("layout_solicitacoes")
-      .select("id,user_id,banco_informado,cartao_final,arquivo_nome,status,resposta_admin,criado_em")
+      .select("id,protocolo,user_id,banco_informado,cartao_final,arquivo_nome,status,resposta_admin,criado_em")
       .order("criado_em", { ascending: false });
     if (error) throw new Error(error.message);
     const ids = [...new Set((data ?? []).map((item: any) => item.user_id).filter(Boolean))];

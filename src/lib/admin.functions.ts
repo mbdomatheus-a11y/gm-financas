@@ -200,6 +200,40 @@ export const adminCancelarConvite = createServerFn({ method: "POST" })
     return { ok: true as const };
   });
 
+/**
+ * Item 7 (parte 2, backlog 2026-09-27): nunca permite rebaixar (admin →
+ * comum) quem é hoje o ÚNICO administrador (user_roles.role = "admin") do
+ * grupo dele. Foi assim que o próprio Matheus ficou trancado fora da
+ * administração em 2026-09-27 — sem essa checagem, dava pra qualquer
+ * caminho (inclusive o de site admin, que não é limitado a um grupo)
+ * remover o único admin de um grupo sem deixar ninguém pra reverter.
+ * Usuário sem grupo (grupo_id null) não é protegido por esta regra — não
+ * há "grupo" pra ficar sem admin.
+ */
+async function assertNaoUltimoAdminDoGrupo(db: any, userId: string) {
+  const { data: perfil } = await db
+    .from("profiles")
+    .select("grupo_id")
+    .eq("id", userId)
+    .maybeSingle();
+  const grupoId = perfil?.grupo_id as string | null | undefined;
+  if (!grupoId) return;
+
+  const { data: membrosGrupo } = await db.from("profiles").select("id").eq("grupo_id", grupoId);
+  const idsGrupo = (membrosGrupo ?? []).map((m: any) => m.id as string);
+  if (idsGrupo.length === 0) return;
+
+  const { data: rolesGrupo } = await db.from("user_roles").select("user_id, role").in("user_id", idsGrupo);
+  const admins = (rolesGrupo ?? []).filter((r: any) => r.role === "admin");
+  const ehAdminAtualmente = admins.some((r: any) => r.user_id === userId);
+
+  if (ehAdminAtualmente && admins.length <= 1) {
+    throw new Error(
+      "Esta é a única conta administradora do grupo. Promova outra pessoa a administrador antes de rebaixar esta conta — o grupo precisa sempre ter ao menos um admin.",
+    );
+  }
+}
+
 export const adminSetRole = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>
@@ -208,8 +242,12 @@ export const adminSetRole = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    await supabaseAdmin.from("user_roles").delete().eq("user_id", data.userId);
-    await supabaseAdmin.from("user_roles").insert({ user_id: data.userId, role: data.role });
+    const db = supabaseAdmin as any;
+    if (data.role === "comum") {
+      await assertNaoUltimoAdminDoGrupo(db, data.userId);
+    }
+    await db.from("user_roles").delete().eq("user_id", data.userId);
+    await db.from("user_roles").insert({ user_id: data.userId, role: data.role });
     return { ok: true };
   });
 
@@ -259,6 +297,11 @@ export const grupoAdminSetRole = createServerFn({ method: "POST" })
 
     // Impedir alterar a si mesmo
     if (data.userId === context.userId) throw new Error("Você não pode alterar seu próprio papel.");
+
+    // Item 7 (parte 2): nunca deixar o grupo sem nenhum admin.
+    if (data.role === "comum") {
+      await assertNaoUltimoAdminDoGrupo(db, data.userId);
+    }
 
     await supabaseAdmin.from("user_roles").delete().eq("user_id", data.userId);
     await supabaseAdmin.from("user_roles").insert({ user_id: data.userId, role: data.role });

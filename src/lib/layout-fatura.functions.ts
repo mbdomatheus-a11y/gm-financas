@@ -48,7 +48,7 @@ export const prepararEnvioLayout = createServerFn({ method: "POST" })
         descricao: data.descricao || null,
         status: "recebida",
       })
-      .select("id")
+      .select("id, protocolo")
       .single();
 
     if (insertError || !item) {
@@ -93,6 +93,7 @@ export const prepararEnvioLayout = createServerFn({ method: "POST" })
           <p><b>Banco:</b> ${data.banco || "Não informado"}</p>
           <p><b>Final do Cartão:</b> ${data.cartao || "Não informado"}</p>
           <p><b>Observação:</b> ${data.descricao || "Nenhuma"}</p>
+          <p><b>Protocolo:</b> ${item.protocolo}</p>
           <hr />
           <p>Acesse o painel de <b>Administração</b> para baixar a fatura e atualizar o status.</p>
         </div>
@@ -116,7 +117,7 @@ export const prepararEnvioLayout = createServerFn({ method: "POST" })
       console.error("Erro ao enviar notificação de layout para admin:", err);
     }
 
-    return { path, token: url.token, id: item.id };
+    return { path, token: url.token, id: item.id, protocolo: item.protocolo as string };
   });
 
 export const excluirSolicitacaoLayout = createServerFn({ method: "POST" })
@@ -156,7 +157,7 @@ export const listarMinhasSolicitacoesLayout = createServerFn({ method: "GET" })
 
     const { data, error } = await db
       .from("layout_solicitacoes")
-      .select("id, arquivo_nome, banco_informado, cartao_final, status, resposta_admin, criado_em")
+      .select("id, protocolo, arquivo_nome, banco_informado, cartao_final, status, resposta_admin, criado_em")
       .eq("user_id", context.userId)
       .order("criado_em", { ascending: false });
 

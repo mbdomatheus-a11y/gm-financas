@@ -82,7 +82,11 @@ export function PermissoesUsuariosCard({ compact = false }: { compact?: boolean 
     onError: (e: any) => toast.error(e.message),
   });
 
-  if (!isAdmin) return null;
+  // Item 7 (parte 2): o admin do site nunca perde acesso a este card, mesmo
+  // que o papel dele (user_roles, por grupo) tenha sido alterado por engano
+  // — foi exatamente essa combinação (isAdmin=false escondendo o card) que
+  // trancou o Matheus fora da administração em 2026-09-27.
+  if (!isAdmin && !isSiteAdmin) return null;
 
   return (
     <Card>
