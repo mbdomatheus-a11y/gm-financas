@@ -187,11 +187,48 @@ function EconomiaTotalBanner() {
   );
 }
 
+/**
+ * Dados estruturados (schema.org/SoftwareApplication) pra Google e pra
+ * mecanismos de IA (ChatGPT, Perplexity, Gemini etc.) entenderem o que é o
+ * Control ALL, categoria e preço sem depender de raspar o texto da página.
+ * Renderizado como JSON-LD no próprio HTML servido pelo SSR (não depende de
+ * JS rodar no crawler).
+ */
+const jsonLdSoftwareApplication = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: "Control ALL",
+  applicationCategory: "FinanceApplication",
+  operatingSystem: "Web",
+  url: "https://www.controlall.com.br/",
+  description:
+    "Organização financeira e da vida em um só lugar: receitas, despesas, cartões, faturas importadas, notas fiscais, pets, exames e lembretes.",
+  offers: {
+    "@type": "Offer",
+    price: "4.99",
+    priceCurrency: "BRL",
+    priceValidUntil: "2027-12-31",
+  },
+  featureList: [
+    "Controle de receitas e despesas",
+    "Importação de faturas de cartão",
+    "Guarda de notas fiscais e garantias",
+    "Carteira de vacinação de pets",
+    "Histórico de exames",
+    "Lista de compras compartilhada",
+  ],
+};
+
 function LandingPage() {
   const navigate = useNavigate();
   const videoUrl = useVideoDemonstracaoUrl();
   useEffect(() => { supabase.auth.getSession().then(({ data }) => { if (data.session) navigate({ to: "/inicio" }); }); }, [navigate]);
   return <main className="min-h-screen bg-background text-foreground">
+    <script
+      type="application/ld+json"
+      // eslint-disable-next-line react/no-danger
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdSoftwareApplication) }}
+    />
     <SiteHeader home />
     <EconomiaTotalBanner />
     <section className="overflow-hidden border-b bg-gradient-to-b from-primary/10 via-background to-background"><div className="mx-auto grid max-w-6xl gap-10 px-4 py-16 md:grid-cols-[1.1fr_.9fr] md:py-24">
