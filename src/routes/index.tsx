@@ -12,6 +12,7 @@ import { LegalDialogs } from "@/components/LegalDialogs";
 import { SiteHeader } from "@/components/SiteHeader";
 import { obterEstatisticaPublica } from "@/lib/estatisticas-site.functions";
 import { obterParceriaHome, registrarCliqueParceria } from "@/lib/parceria.functions";
+import { obterPrecoHome } from "@/lib/precos.functions";
 import { formatBRL } from "@/lib/format";
 import { useQuery } from "@tanstack/react-query";
 
@@ -169,6 +170,35 @@ function BlocoParceria() {
   );
 }
 
+/**
+ * Bloco de preços (2026-09-28): valor, descrição e itens editáveis pelo
+ * admin em Administração > Dados Gerais. Enquanto a consulta não resolve
+ * (ou se a linha ainda não existir por algum motivo), usa este padrão —
+ * o mesmo texto que já estava fixo no componente antes.
+ */
+const PRECO_PADRAO = {
+  nome: "Control ALL",
+  preco: 4.99,
+  sufixo: "/mês",
+  descricao: "Preço de lançamento previsto.",
+  itens: [
+    "Módulos pessoais e financeiros",
+    "Alertas e histórico",
+    "Compartilhamento controlado",
+    "Privacidade por padrão",
+  ],
+  botaoTexto: "Criar conta",
+};
+
+function usePrecoHome() {
+  const obterFn = useServerFn(obterPrecoHome);
+  return useQuery({
+    queryKey: ["preco-home-publica"],
+    staleTime: 60_000,
+    queryFn: () => obterFn(),
+  });
+}
+
 function EconomiaTotalBanner() {
   const obterFn = useServerFn(obterEstatisticaPublica);
   const { data } = useQuery({
@@ -222,6 +252,8 @@ const jsonLdSoftwareApplication = {
 function LandingPage() {
   const navigate = useNavigate();
   const videoUrl = useVideoDemonstracaoUrl();
+  const { data: precoData } = usePrecoHome();
+  const preco = precoData ?? PRECO_PADRAO;
   useEffect(() => { supabase.auth.getSession().then(({ data }) => { if (data.session) navigate({ to: "/inicio" }); }); }, [navigate]);
   return <main className="min-h-screen bg-background text-foreground">
     <script
@@ -238,7 +270,7 @@ function LandingPage() {
     <section id="recursos" className="mx-auto max-w-6xl px-4 py-16"><div className="mb-8 max-w-2xl"><p className="text-sm font-semibold text-primary">RECURSOS</p><h2 className="mt-2 text-3xl font-bold">Organização que acompanha a vida real.</h2></div><div className="grid gap-4 sm:grid-cols-3"><Card><CardContent className="p-5"><ShieldCheck className="size-6 text-primary"/><h3 className="mt-3 font-semibold">Privacidade por padrão</h3><p className="mt-1 text-sm text-muted-foreground">Dados pessoais e exames privados. Compartilhamento só com a sua escolha.</p></CardContent></Card><Card><CardContent className="p-5"><FileUp className="size-6 text-primary"/><h3 className="mt-3 font-semibold">Importe e confira</h3><p className="mt-1 text-sm text-muted-foreground">Faturas e exames entram como prévia para você corrigir e aprovar.</p></CardContent></Card><Card><CardContent className="p-5"><BellRing className="size-6 text-primary"/><h3 className="mt-3 font-semibold">Não deixe passar</h3><p className="mt-1 text-sm text-muted-foreground">Alertas de contas, garantias, manutenção, vacinas e lembretes.</p></CardContent></Card></div></section>
     <section id="modulos" className="border-y bg-muted/30"><div className="mx-auto max-w-6xl px-4 py-16"><p className="text-sm font-semibold text-primary">MÓDULOS</p><h2 className="mt-2 text-3xl font-bold">Cada parte da rotina, no seu lugar.</h2><p className="mt-2 text-sm text-muted-foreground">Clique em um módulo para ver mais detalhes, sem sair desta página.</p><div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{modulos.map(({icon:Icon,titulo,texto,detalhes})=><Card key={titulo} className="overflow-hidden"><Accordion type="single" collapsible><AccordionItem value={titulo} className="border-b-0"><CardContent className="p-5 pb-0"><Icon className="size-6 text-primary"/><h3 className="mt-3 font-semibold">{titulo}</h3><p className="mt-1 text-sm leading-6 text-muted-foreground">{texto}</p></CardContent><AccordionTrigger className="px-5 py-2 text-xs text-primary hover:no-underline">Ver detalhes</AccordionTrigger><AccordionContent className="px-5"><ul className="space-y-1.5 text-sm text-muted-foreground">{detalhes.map((d)=><li key={d} className="flex gap-2"><Check className="mt-0.5 size-3.5 shrink-0 text-primary"/>{d}</li>)}</ul></AccordionContent></AccordionItem></Accordion></Card>)}</div></div></section>
     <section id="demonstracao" className="mx-auto max-w-6xl px-4 py-16"><div className="grid items-center gap-8 md:grid-cols-2"><div><p className="text-sm font-semibold text-primary">DEMONSTRAÇÃO</p><h2 className="mt-2 text-3xl font-bold">Veja antes de decidir.</h2><p className="mt-4 text-muted-foreground">Esta área é visual e segura, com lançamentos fictícios — sem expor dados reais de nenhuma pessoa.</p>{!videoUrl && <Button className="mt-6" variant="outline" disabled><PlayCircle className="size-4" /> Vídeo de apresentação em breve</Button>}</div>{videoUrl ? (<Card className="overflow-hidden p-0"><video src={videoUrl} controls preload="metadata" className="aspect-video w-full bg-black" /></Card>) : (<Card className="border-dashed"><CardContent className="flex min-h-56 flex-col items-center justify-center p-8 text-center"><PlayCircle className="size-11 text-primary"/><b className="mt-3">Demonstração visual do Control ALL</b><p className="mt-1 text-sm text-muted-foreground">Vídeos e telas fictícias serão exibidos aqui.</p></CardContent></Card>)}</div></section>
-    <section id="precos" className="border-t bg-primary/5"><div className="mx-auto max-w-6xl px-4 py-16 text-center"><p className="text-sm font-semibold text-primary">PREÇOS</p><h2 className="mt-2 text-3xl font-bold">Simples para começar.</h2><Card className="mx-auto mt-7 max-w-sm border-primary"><CardContent className="p-7"><p className="font-semibold">Control ALL</p><p className="mt-3 text-4xl font-bold">R$ 4,99<span className="text-base font-normal text-muted-foreground">/mês</span></p><p className="mt-3 text-sm text-muted-foreground">Preço de lançamento previsto.</p><ul className="mt-5 space-y-2 text-left text-sm">{["Módulos pessoais e financeiros","Alertas e histórico","Compartilhamento controlado","Privacidade por padrão"].map(i=><li className="flex gap-2" key={i}><Check className="size-4 text-primary"/>{i}</li>)}</ul><Button asChild className="mt-6 w-full"><Link to="/entrar" search={{ criar: true }}>Criar conta</Link></Button></CardContent></Card></div></section>
+    <section id="precos" className="border-t bg-primary/5"><div className="mx-auto max-w-6xl px-4 py-16 text-center"><p className="text-sm font-semibold text-primary">PREÇOS</p><h2 className="mt-2 text-3xl font-bold">Simples para começar.</h2><Card className="mx-auto mt-7 max-w-sm border-primary"><CardContent className="p-7"><p className="font-semibold">{preco.nome}</p><p className="mt-3 text-4xl font-bold">{formatBRL(preco.preco)}<span className="text-base font-normal text-muted-foreground">{preco.sufixo}</span></p><p className="mt-3 text-sm text-muted-foreground">{preco.descricao}</p><ul className="mt-5 space-y-2 text-left text-sm">{preco.itens.map(i=><li className="flex gap-2" key={i}><Check className="size-4 text-primary"/>{i}</li>)}</ul><Button asChild className="mt-6 w-full"><Link to="/entrar" search={{ criar: true }}>{preco.botaoTexto}</Link></Button></CardContent></Card></div></section>
     <footer className="flex items-center justify-center gap-2 border-t px-4 py-7 text-center text-xs text-muted-foreground">© {new Date().getFullYear()} Control ALL LTDA · <LegalDialogs compact /></footer>
   </main>;
 }

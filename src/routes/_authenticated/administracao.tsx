@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Handshake, MousePointerClick, Paperclip, X } from "lucide-react";
+import { Handshake, MousePointerClick, Paperclip, Tag, X } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -70,6 +70,7 @@ import {
   confirmarParceriaImagem,
   prepararUploadParceriaImagem,
 } from "@/lib/parceria.functions";
+import { adminObterPrecoHome, adminSalvarPrecoHome } from "@/lib/precos.functions";
 import { Switch } from "@/components/ui/switch";
 import {
   Select,
@@ -188,6 +189,8 @@ function Admin() {
   const salvarParceriaFn = useServerFn(adminSalvarParceria);
   const prepararParceriaImagemFn = useServerFn(prepararUploadParceriaImagem);
   const confirmarParceriaImagemFn = useServerFn(confirmarParceriaImagem);
+  const obterPrecoFn = useServerFn(adminObterPrecoHome);
+  const salvarPrecoFn = useServerFn(adminSalvarPrecoHome);
 
   // State
   const [titulo, setTitulo] = useState("");
@@ -215,6 +218,16 @@ function Admin() {
   const [parceriaUrlInput, setParceriaUrlInput] = useState("");
   const [parceriaSloganInput, setParceriaSloganInput] = useState("");
   const [parceriaAtivoInput, setParceriaAtivoInput] = useState(false);
+  // Bloco de preços da home (2026-09-28): mesmo padrão de state local
+  // sincronizado com a query ao carregar/salvar. Os itens (lista de
+  // benefícios) ficam num Textarea, um por linha, pra não precisar de um
+  // editor de lista dedicado.
+  const [precoNomeInput, setPrecoNomeInput] = useState("");
+  const [precoValorInput, setPrecoValorInput] = useState("");
+  const [precoSufixoInput, setPrecoSufixoInput] = useState("");
+  const [precoDescricaoInput, setPrecoDescricaoInput] = useState("");
+  const [precoItensInput, setPrecoItensInput] = useState("");
+  const [precoBotaoInput, setPrecoBotaoInput] = useState("");
 
   // Queries
   const { data: layouts = [] } = useQuery({
@@ -317,6 +330,11 @@ function Admin() {
     enabled: isSiteAdmin,
     queryFn: () => obterParceriaFn(),
   });
+  const { data: precoHome } = useQuery({
+    queryKey: ["admin-preco-home"],
+    enabled: isSiteAdmin,
+    queryFn: () => obterPrecoFn(),
+  });
 
   useEffect(() => {
     if (estatisticaPublica && estatisticaPublica.economiaTotalExibida !== null) {
@@ -331,6 +349,17 @@ function Admin() {
       setParceriaAtivoInput(parceria.ativo);
     }
   }, [parceria]);
+
+  useEffect(() => {
+    if (precoHome) {
+      setPrecoNomeInput(precoHome.nome);
+      setPrecoValorInput(String(precoHome.preco));
+      setPrecoSufixoInput(precoHome.sufixo);
+      setPrecoDescricaoInput(precoHome.descricao);
+      setPrecoItensInput(precoHome.itens.join("\n"));
+      setPrecoBotaoInput(precoHome.botaoTexto);
+    }
+  }, [precoHome]);
 
   // Mutations
   const salvarAcesso = useMutation({
@@ -564,6 +593,28 @@ function Admin() {
       qc.invalidateQueries({ queryKey: ["admin-parceria-home"] });
     },
     onError: (e: any) => toast.error(e.message || "Não foi possível salvar a parceria."),
+  });
+
+  const salvarPreco = useMutation({
+    mutationFn: () =>
+      salvarPrecoFn({
+        data: {
+          nome: precoNomeInput.trim(),
+          preco: Number(precoValorInput.replace(",", ".")) || 0,
+          sufixo: precoSufixoInput.trim(),
+          descricao: precoDescricaoInput.trim(),
+          itens: precoItensInput
+            .split("\n")
+            .map((linha) => linha.trim())
+            .filter(Boolean),
+          botaoTexto: precoBotaoInput.trim(),
+        },
+      }),
+    onSuccess: () => {
+      toast.success("Preços da home salvos.");
+      qc.invalidateQueries({ queryKey: ["admin-preco-home"] });
+    },
+    onError: (e: any) => toast.error(e.message || "Não foi possível salvar os preços."),
   });
 
   async function subirParceriaImagem(files: FileList | null) {
@@ -1164,6 +1215,73 @@ function Admin() {
                 {identidadeVisual?.video_demonstracao_path && (
                   <Button variant="ghost" className="text-muted-foreground" onClick={removerVideo}>Remover</Button>
                 )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Bloco de preços da home (2026-09-28): valor, sufixo, descrição,
+              itens (lista de benefícios) e texto do botão — tudo editável
+              aqui, sem precisar tocar em código pra mudar o preço exibido. */}
+          <Card>
+            <CardContent className="space-y-4 p-4">
+              <div className="flex items-center gap-2">
+                <Tag className="size-4 text-primary" />
+                <h2 className="font-semibold">Preços na home</h2>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Card exibido na seção "Preços" da home pública. Um item por linha na lista de
+                benefícios.
+              </p>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Nome do plano</label>
+                  <Input value={precoNomeInput} onChange={(e) => setPrecoNomeInput(e.target.value)} placeholder="Control ALL" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Texto do botão</label>
+                  <Input value={precoBotaoInput} onChange={(e) => setPrecoBotaoInput(e.target.value)} placeholder="Criar conta" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Valor (R$)</label>
+                  <Input
+                    inputMode="decimal"
+                    value={precoValorInput}
+                    onChange={(e) => setPrecoValorInput(e.target.value)}
+                    placeholder="4.99"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Sufixo (ex.: /mês)</label>
+                  <Input value={precoSufixoInput} onChange={(e) => setPrecoSufixoInput(e.target.value)} placeholder="/mês" />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Descrição (abaixo do preço)</label>
+                <Input
+                  value={precoDescricaoInput}
+                  onChange={(e) => setPrecoDescricaoInput(e.target.value)}
+                  placeholder="Preço de lançamento previsto."
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">
+                  Itens listados (um por linha)
+                </label>
+                <Textarea
+                  value={precoItensInput}
+                  onChange={(e) => setPrecoItensInput(e.target.value)}
+                  placeholder={"Módulos pessoais e financeiros\nAlertas e histórico\nCompartilhamento controlado\nPrivacidade por padrão"}
+                  className="min-h-[110px] text-sm"
+                />
+              </div>
+
+              <div className="flex justify-end border-t pt-3">
+                <Button size="sm" onClick={() => salvarPreco.mutate()} disabled={salvarPreco.isPending}>
+                  {salvarPreco.isPending ? "Salvando..." : "Salvar preços"}
+                </Button>
               </div>
             </CardContent>
           </Card>
