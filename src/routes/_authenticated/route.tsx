@@ -5,10 +5,11 @@ import {
   useNavigate,
   useRouterState,
 } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { InactivityGuard } from "@/components/InactivityGuard";
 import { ComunicadosModal } from "@/components/ComunicadosModal";
+import { TourGuiado } from "@/components/TourGuiado";
 import { useModulosGlobais, type ModuloGlobal } from "@/hooks/useAuthData";
 
 export const Route = createFileRoute("/_authenticated")({
@@ -56,6 +57,9 @@ function Protegido() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
   const { habilitado, isLoading } = useModulosGlobais();
+  // Enquanto o aviso de boas-vindas estiver na tela (modal bloqueante), o
+  // tour guiado espera — evita os dois disputando a tela ao mesmo tempo.
+  const [avisoAberto, setAvisoAberto] = useState(false);
   useEffect(() => {
     const modulo = MODULO_POR_ROTA[pathname];
     if (!isLoading && modulo && !habilitado(modulo))
@@ -63,7 +67,8 @@ function Protegido() {
   }, [pathname, isLoading, habilitado, navigate]);
   return (
     <InactivityGuard>
-      <ComunicadosModal />
+      <ComunicadosModal onVisibilityChange={setAvisoAberto} />
+      <TourGuiado bloqueado={avisoAberto} />
       <Outlet />
     </InactivityGuard>
   );

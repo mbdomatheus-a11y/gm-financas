@@ -1,13 +1,15 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
+import { useQuery } from "@tanstack/react-query";
 import { Loader2, UserPlus, LogIn as LogInIcon } from "lucide-react";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
 
 import { isValidCpf, maskCpf, onlyDigits } from "@/lib/cpf";
-import { aceitarConvite } from "@/lib/convites.functions";
+import { aceitarConvite, criarContaSemConvite } from "@/lib/convites.functions";
+import { obterConfiguracaoAcesso } from "@/lib/configuracoes-site.functions";
 import { solicitarCodigoRecuperacao } from "@/lib/conta-exclusao.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -115,6 +117,8 @@ const emptyCadastro = {
 function CriarContaForm({ token }: { token: string | undefined }) {
   const navigate = useNavigate();
   const aceitar = useServerFn(aceitarConvite);
+  const criarSemConvite = useServerFn(criarContaSemConvite);
+  const obterConfig = useServerFn(obterConfiguracaoAcesso);
   const solicitarCodigo = useServerFn(solicitarCodigoRecuperacao);
   const [form, setForm] = useState(emptyCadastro);
   const [tokenInput, setTokenInput] = useState(token ?? "");
@@ -122,9 +126,17 @@ function CriarContaForm({ token }: { token: string | undefined }) {
   const [loading, setLoading] = useState(false);
   const [aceitouDocumentos, setAceitouDocumentos] = useState(false);
 
+  // Cadastro sem convite (liberado pelo admin pra fase de testes/lançamento):
+  // consulta pública, sem sessão — pode ser chamada aqui na tela de entrada.
+  const { data: config } = useQuery({
+    queryKey: ["configuracao-acesso-publica-entrar"],
+    queryFn: () => obterConfig(),
+  });
+  const cadastroLivre = !!config?.cadastro_livre_habilitado;
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!tokenInput.trim()) {
+    if (!tokenInput.trim() && !cadastroLivre) {
       toast.error("Informe o código de convite");
       return;
     }
@@ -170,41 +182,60 @@ function CriarContaForm({ token }: { token: string | undefined }) {
 
     setLoading(true);
     try {
-      const dadosCadastro = {
-        token: tokenInput.trim(),
-        nome: form.nome.trim(),
-        cpf,
-        email: form.email.trim(),
-        telefone: form.telefone.trim(),
-        dataNascimento: form.dataNascimento,
-        senha: form.senha,
-        turnstileToken: turnstileToken ?? undefined,
-        aceitouDocumentos: true,
-      };
-      let res;
-      try {
-        res = await aceitar({ data: dadosCadastro });
-      } catch (err: unknown) {
-        if (err instanceof Error && err.message.includes("RECUPERACAO_DISPONIVEL")) {
-          const recuperar = window.confirm(
-            "Encontramos uma conta excluída há menos de 90 dias. Deseja recuperar os dados anteriores? Você precisará confirmar o e-mail usado antes da exclusão. Clique em Cancelar para criar uma conta nova.",
-          );
-          if (recuperar) {
-            await solicitarCodigo({ data: { cpf, email: dadosCadastro.email } });
-            const codigoRecuperacao = window
-              .prompt(
-                "Enviamos um código ao e-mail anterior, se ele corresponder à conta. Cole o código recebido. Ele vale por 15 minutos.",
-              )
-              ?.trim();
-            if (!codigoRecuperacao) return;
-            res = await aceitar({
-              data: { ...dadosCadastro, recuperarDados: true, codigoRecuperacao },
-            });
+      // Se o admin liberou cadastro sem convite E a pessoa não colou nenhum
+      // código, usa o fluxo livre. Se ela colou um código (mesmo com o
+      // cadastro livre liberado), respeita o convite normalmente.
+      const usaCadastroLivre = cadastroLivre && !tokenInput.trim();
+      let res: { ok: boolean; email: string };
+      if (usaCadastroLivre) {
+        res = await criarSemConvite({
+          data: {
+            nome: form.nome.trim(),
+            cpf,
+            email: form.email.trim(),
+            telefone: form.telefone.trim(),
+            dataNascimento: form.dataNascimento,
+            senha: form.senha,
+            turnstileToken: turnstileToken ?? undefined,
+            aceitouDocumentos: true,
+          },
+        });
+      } else {
+        const dadosCadastro = {
+          token: tokenInput.trim(),
+          nome: form.nome.trim(),
+          cpf,
+          email: form.email.trim(),
+          telefone: form.telefone.trim(),
+          dataNascimento: form.dataNascimento,
+          senha: form.senha,
+          turnstileToken: turnstileToken ?? undefined,
+          aceitouDocumentos: true,
+        };
+        try {
+          res = await aceitar({ data: dadosCadastro });
+        } catch (err: unknown) {
+          if (err instanceof Error && err.message.includes("RECUPERACAO_DISPONIVEL")) {
+            const recuperar = window.confirm(
+              "Encontramos uma conta excluída há menos de 90 dias. Deseja recuperar os dados anteriores? Você precisará confirmar o e-mail usado antes da exclusão. Clique em Cancelar para criar uma conta nova.",
+            );
+            if (recuperar) {
+              await solicitarCodigo({ data: { cpf, email: dadosCadastro.email } });
+              const codigoRecuperacao = window
+                .prompt(
+                  "Enviamos um código ao e-mail anterior, se ele corresponder à conta. Cole o código recebido. Ele vale por 15 minutos.",
+                )
+                ?.trim();
+              if (!codigoRecuperacao) return;
+              res = await aceitar({
+                data: { ...dadosCadastro, recuperarDados: true, codigoRecuperacao },
+              });
+            } else {
+              res = await aceitar({ data: { ...dadosCadastro, recuperarDados: false } });
+            }
           } else {
-            res = await aceitar({ data: { ...dadosCadastro, recuperarDados: false } });
+            throw err;
           }
-        } else {
-          throw err;
         }
       }
       toast.success("Conta criada! Entrando…");
@@ -227,7 +258,7 @@ function CriarContaForm({ token }: { token: string | undefined }) {
   return (
     <form onSubmit={handleSubmit} className="space-y-3 rounded-2xl border bg-card p-6 shadow-card">
       <div className="space-y-1.5">
-        <Label htmlFor="c-token">Código de convite</Label>
+        <Label htmlFor="c-token">Código de convite{cadastroLivre ? " (opcional)" : ""}</Label>
         <Input
           id="c-token"
           autoComplete="off"
@@ -237,9 +268,15 @@ function CriarContaForm({ token }: { token: string | undefined }) {
           className="font-mono"
         />
         <p className="text-xs text-muted-foreground">
-          O cadastro é só por convite. Peça o código a quem já usa o Control ALL — ele pode gerar um
-          em <strong>Minha conta</strong> ou, se for admin, em{" "}
-          <strong>Usuários e Privilégios</strong>. Cada pessoa pode gerar até 3 códigos.
+          {cadastroLivre ? (
+            "O Control ALL está em fase de testes e o cadastro está aberto — pode criar sua conta sem código. Se alguém te passou um convite, cole aqui."
+          ) : (
+            <>
+              O cadastro é só por convite. Peça o código a quem já usa o Control ALL — ele pode
+              gerar um em <strong>Minha conta</strong> ou, se for admin, em{" "}
+              <strong>Usuários e Privilégios</strong>. Cada pessoa pode gerar até 3 códigos.
+            </>
+          )}
         </p>
       </div>
 

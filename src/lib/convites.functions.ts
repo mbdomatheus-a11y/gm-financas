@@ -362,3 +362,112 @@ export const aceitarConvite = createServerFn({ method: "POST" })
 
     return { ok: true, email: data.email };
   });
+
+/**
+ * Cadastro SEM convite — endpoint PÚBLICO, liberado pelo admin em
+ * Administração > Acesso e Auth ("Cadastro sem convite") pensando nos
+ * testes/lançamento inicial, pra não depender de gerar código pra cada
+ * pessoa nova. A checagem do flag é feita aqui no servidor (não só na tela)
+ * pra não dar pra contornar desligando/ligando no meio do processo.
+ *
+ * Mesma lógica de criação de `aceitarConvite`: a pessoa entra num grupo
+ * NOVO e isolado (nunca no de quem quer que seja) — aqui nem existe "quem
+ * convidou", então `convidado_por` fica nulo. Não reaproveita o fluxo de
+ * recuperação de conta excluída (esse é só pra quem já tinha convite).
+ */
+export const criarContaSemConvite = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        nome: z.string().trim().min(2).max(120),
+        cpf: z.string().regex(/^\d{11}$/, "CPF deve ter 11 dígitos"),
+        email: z.string().trim().email("E-mail inválido"),
+        telefone: z.string().trim().min(8).max(20),
+        dataNascimento: z.string().min(10),
+        senha: z.string().min(8).max(72),
+        turnstileToken: z.string().optional(),
+        aceitouDocumentos: z.literal(true),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data }) => {
+    if (!isValidCpf(data.cpf)) throw new Error("CPF inválido");
+
+    const nascimento = new Date(data.dataNascimento);
+    if (Number.isNaN(nascimento.getTime()) || nascimento > new Date()) {
+      throw new Error("Data de nascimento inválida");
+    }
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const db = supabaseAdmin as any;
+
+    const { data: config, error: configError } = await db
+      .from("configuracoes_acesso_site")
+      .select("cadastro_livre_habilitado")
+      .eq("id", true)
+      .maybeSingle();
+    if (configError) throw new Error(configError.message);
+    if (!config?.cadastro_livre_habilitado) {
+      throw new Error("O cadastro sem convite não está liberado no momento.");
+    }
+
+    if (TURNSTILE_ATIVO) {
+      const turnstileOk = await verificarTurnstileToken(data.turnstileToken ?? "");
+      if (!turnstileOk)
+        throw new Error("Verificação de segurança falhou. Recarregue e tente de novo.");
+    }
+
+    const { data: grupoNovo, error: grupoError } = await db
+      .from("grupos")
+      .insert({ nome: `Grupo de ${data.nome.trim()}` })
+      .select("id")
+      .single();
+    if (grupoError) throw new Error(grupoError.message);
+    const grupoId = grupoNovo.id;
+
+    const { data: created, error: authError } = await supabaseAdmin.auth.admin.createUser({
+      email: data.email,
+      password: data.senha,
+      email_confirm: true,
+    });
+    if (authError || !created.user) {
+      throw new Error(
+        authError?.message ?? "Não foi possível criar a conta. O e-mail já está em uso?",
+      );
+    }
+
+    const { error: profileError } = await db.from("profiles").upsert(
+      {
+        id: created.user.id,
+        nome: data.nome,
+        cpf: onlyDigits(data.cpf),
+        email: data.email,
+        telefone: data.telefone,
+        data_nascimento: data.dataNascimento,
+        grupo_id: grupoId,
+        convidado_por: null,
+        ativo: true,
+        senha_temporaria: false,
+      },
+      { onConflict: "id" },
+    );
+    if (profileError) {
+      await supabaseAdmin.auth.admin.deleteUser(created.user.id);
+      throw new Error(profileError.message);
+    }
+
+    const { error: roleError } = await db
+      .from("user_roles")
+      .insert({ user_id: created.user.id, role: "admin" });
+    if (roleError) {
+      await supabaseAdmin.auth.admin.deleteUser(created.user.id);
+      throw new Error(roleError.message);
+    }
+
+    await db.from("aceites_documentos").insert([
+      { user_id: created.user.id, documento: "termos_uso", versao: "2026-09-19" },
+      { user_id: created.user.id, documento: "aviso_privacidade", versao: "2026-09-19" },
+    ]);
+
+    return { ok: true, email: data.email };
+  });

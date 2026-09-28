@@ -37,7 +37,13 @@ function saudacaoPeloHorario(): string {
  * some pelo restante desta sessão do navegador (guardado em sessionStorage,
  * por usuário) e volta a aparecer no próximo login.
  */
-export function ComunicadosModal() {
+export function ComunicadosModal({
+  onVisibilityChange,
+}: {
+  /** Avisa o componente pai se há (ou não) um aviso bloqueando a tela agora
+   * — usado pra impedir que o tour guiado comece por cima do modal. */
+  onVisibilityChange?: (visivel: boolean) => void;
+} = {}) {
   const qc = useQueryClient();
   const { user } = useSession();
   const { data: profile } = useProfile();
@@ -72,6 +78,10 @@ export function ComunicadosModal() {
   useEffect(() => {
     setNaoExibirMais(false);
   }, [atual?.id]);
+
+  useEffect(() => {
+    onVisibilityChange?.(!!atual);
+  }, [atual, onVisibilityChange]);
 
   if (!atual) return null;
 

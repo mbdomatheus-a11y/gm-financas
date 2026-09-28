@@ -34,6 +34,11 @@ import {
   obterConfiguracaoAcesso,
 } from "@/lib/configuracoes-site.functions";
 import {
+  adminAlternarTour,
+  adminObterTourConfig,
+  adminReenviarTour,
+} from "@/lib/tour.functions";
+import {
   adminListarSolicitacoesPrivacidade,
   adminTratarSolicitacaoPrivacidade,
   adminListarChamados,
@@ -162,6 +167,9 @@ function Admin() {
   const encerrarComunicadoFn = useServerFn(adminEncerrarComunicado);
   const atualizarComunicadoFn = useServerFn(adminAtualizarComunicado);
   const reenviarComunicadoFn = useServerFn(adminReenviarComunicado);
+  const obterTourConfigFn = useServerFn(adminObterTourConfig);
+  const alternarTourFn = useServerFn(adminAlternarTour);
+  const reenviarTourFn = useServerFn(adminReenviarTour);
   const privFn = useServerFn(adminListarSolicitacoesPrivacidade);
   const tratarPrivFn = useServerFn(adminTratarSolicitacaoPrivacidade);
   const chamadosFn = useServerFn(adminListarChamados);
@@ -224,10 +232,15 @@ function Admin() {
     enabled: isSiteAdmin,
     queryFn: () => logsFn(),
   });
-  const { data: config } = useQuery<{ modo_login: "cpf" | "email" | "ambos"; segundo_fator_email: boolean; sessao_maxima_minutos: number; cota_convites: number; google_drive_habilitado: boolean } | undefined>({
+  const { data: config } = useQuery<{ modo_login: "cpf" | "email" | "ambos"; segundo_fator_email: boolean; sessao_maxima_minutos: number; cota_convites: number; google_drive_habilitado: boolean; cadastro_livre_habilitado: boolean } | undefined>({
     queryKey: ["configuracao-acesso-publica"],
     enabled: isSiteAdmin,
     queryFn: () => obterConfig() as any,
+  });
+  const { data: tourConfig } = useQuery({
+    queryKey: ["admin-tour-config"],
+    enabled: isSiteAdmin,
+    queryFn: () => obterTourConfigFn(),
   });
 
   useEffect(() => {
@@ -321,7 +334,7 @@ function Admin() {
 
   // Mutations
   const salvarAcesso = useMutation({
-    mutationFn: (valor: { modoLogin: "cpf" | "email" | "ambos"; segundoFatorEmail: boolean; sessaoMaximaMinutos: number; cotaConvites: number }) =>
+    mutationFn: (valor: { modoLogin: "cpf" | "email" | "ambos"; segundoFatorEmail: boolean; sessaoMaximaMinutos: number; cotaConvites: number; cadastroLivreHabilitado?: boolean }) =>
       salvarConfig({ data: valor }),
     onSuccess: () => { toast.success("Configuração de acesso salva."); qc.invalidateQueries({ queryKey: ["configuracao-acesso-publica"] }); },
     onError: (e: any) => toast.error(e.message),
@@ -405,6 +418,18 @@ function Admin() {
   const reenviarAviso = useMutation({
     mutationFn: (id: string) => reenviarComunicadoFn({ data: { id } }),
     onSuccess: () => { toast.success("Aviso reenviado — vai reaparecer pra todos, inclusive quem já confirmou."); qc.invalidateQueries({ queryKey: ["admin-comunicados"] }); },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const alternarTour = useMutation({
+    mutationFn: (ativo: boolean) => alternarTourFn({ data: { ativo } }),
+    onSuccess: () => { toast.success("Tour guiado atualizado."); qc.invalidateQueries({ queryKey: ["admin-tour-config"] }); },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const reenviarTour = useMutation({
+    mutationFn: () => reenviarTourFn(),
+    onSuccess: () => { toast.success("Tour reenviado — vai aparecer novamente pra quem já tinha visto."); qc.invalidateQueries({ queryKey: ["admin-tour-config"] }); },
     onError: (e: any) => toast.error(e.message),
   });
 
@@ -858,6 +883,34 @@ function Admin() {
                 <Switch
                   checked={config.google_drive_habilitado}
                   onCheckedChange={(v) => alternarGoogleDriveNotas.mutate(v)}
+                />
+              </CardContent>
+            </Card>
+          )}
+          {config && (
+            <Card>
+              <CardHeader><CardTitle className="text-sm">Cadastro sem convite</CardTitle></CardHeader>
+              <CardContent className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm">Permitir criar conta sem código de convite</p>
+                  <p className="text-xs text-muted-foreground">
+                    Pensado pra fase de testes/lançamento, pra não burocratizar a entrada de gente
+                    fora da família. Enquanto ligado, a tela de "Criar conta" libera o cadastro sem
+                    pedir convite (quem tiver um código continua podendo usá-lo). Cada pessoa que
+                    entrar assim ganha o próprio grupo novo, isolado — igual quem entra por convite.
+                  </p>
+                </div>
+                <Switch
+                  checked={config.cadastro_livre_habilitado}
+                  onCheckedChange={(v) =>
+                    salvarAcesso.mutate({
+                      modoLogin: config.modo_login,
+                      segundoFatorEmail: config.segundo_fator_email,
+                      sessaoMaximaMinutos: sessaoMin,
+                      cotaConvites: cotaConvitesInput,
+                      cadastroLivreHabilitado: v,
+                    })
+                  }
                 />
               </CardContent>
             </Card>
@@ -1351,6 +1404,34 @@ function Admin() {
                     <b className="text-foreground">{c.titulo}</b> · encerrado · {new Date(c.criado_em).toLocaleString("pt-BR")}
                   </div>
                 ))}
+              </CardContent>
+            </Card>
+          )}
+          {tourConfig && (
+            <Card>
+              <CardHeader><CardTitle className="text-sm">Tour guiado (novos usuários)</CardTitle></CardHeader>
+              <CardContent className="space-y-3">
+                <label className="flex items-center justify-between gap-3 rounded-lg border p-3 text-sm">
+                  <div>
+                    <p>Mostrar o tour depois do aviso de boas-vindas</p>
+                    <p className="text-xs text-muted-foreground">
+                      Destaca onde lançar receita e despesa pra quem é novo. {tourConfig.concluidos}{" "}
+                      pessoa(s) já concluíram ou dispensaram.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={tourConfig.ativo}
+                    onCheckedChange={(v) => alternarTour.mutate(v)}
+                  />
+                </label>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={reenviarTour.isPending}
+                  onClick={() => reenviarTour.mutate()}
+                >
+                  Mostrar tour novamente para todos
+                </Button>
               </CardContent>
             </Card>
           )}

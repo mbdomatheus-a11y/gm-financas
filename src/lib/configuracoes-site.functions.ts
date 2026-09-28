@@ -26,7 +26,9 @@ export const obterConfiguracaoAcesso = createServerFn({ method: "GET" }).handler
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await (supabaseAdmin as any)
     .from("configuracoes_acesso_site")
-    .select("modo_login,segundo_fator_email,sessao_maxima_minutos,cota_convites,google_drive_habilitado")
+    .select(
+      "modo_login,segundo_fator_email,sessao_maxima_minutos,cota_convites,google_drive_habilitado,cadastro_livre_habilitado",
+    )
     .eq("id", true)
     .single();
   if (error) throw new Error("Não foi possível carregar a configuração de acesso.");
@@ -36,6 +38,7 @@ export const obterConfiguracaoAcesso = createServerFn({ method: "GET" }).handler
     sessao_maxima_minutos: number;
     cota_convites: number;
     google_drive_habilitado: boolean;
+    cadastro_livre_habilitado: boolean;
   };
 });
 
@@ -72,6 +75,7 @@ export const adminSalvarConfiguracaoAcesso = createServerFn({ method: "POST" })
         segundoFatorEmail: z.boolean(),
         sessaoMaximaMinutos: z.number().int().min(15).max(480),
         cotaConvites: z.number().int().min(1).max(1000),
+        cadastroLivreHabilitado: z.boolean().optional(),
       })
       .parse(v),
   )
@@ -85,6 +89,9 @@ export const adminSalvarConfiguracaoAcesso = createServerFn({ method: "POST" })
       segundo_fator_email: data.segundoFatorEmail,
       sessao_maxima_minutos: data.sessaoMaximaMinutos,
       cota_convites: data.cotaConvites,
+      ...(data.cadastroLivreHabilitado !== undefined
+        ? { cadastro_livre_habilitado: data.cadastroLivreHabilitado }
+        : {}),
       atualizado_em: new Date().toISOString(),
       atualizado_por: context.userId,
     });

@@ -406,7 +406,7 @@ function ReceitasPage() {
       description={`${lista.length} lançamento(s) · ${formatBRL(total)}`}
       actions={
         can("receitas", "editar") && (
-          <Button size="sm" onClick={abrirNova}>
+          <Button size="sm" onClick={abrirNova} data-tour="nova-receita">
             <Plus className="size-4" /> Nova
           </Button>
         )

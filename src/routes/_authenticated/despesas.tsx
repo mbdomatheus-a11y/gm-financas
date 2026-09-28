@@ -786,7 +786,7 @@ function DespesasPage() {
                 </Button>
               }
             />
-            <Button size="sm" onClick={abrirNova}>
+            <Button size="sm" onClick={abrirNova} data-tour="nova-despesa">
               <Plus className="size-4" /> Nova
             </Button>
           </div>
