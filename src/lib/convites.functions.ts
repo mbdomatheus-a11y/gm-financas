@@ -144,11 +144,15 @@ export const cancelarConvite = createServerFn({ method: "POST" })
 export const listarMeusConvites = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    // Ordem crescente (mais antigo primeiro): a numeração exibida na tela
+    // (índice + 1) precisa ficar estável conforme novos convites são
+    // gerados — o novo entra no fim da lista com o número mais alto, em
+    // vez de pular pra posição 1 e empurrar todo mundo pra números maiores.
     const { data, error } = await context.supabase
       .from("convites")
       .select("id, token, usado, usado_por, criado_em, expira_em")
       .eq("criado_por", context.userId)
-      .order("criado_em", { ascending: false });
+      .order("criado_em", { ascending: true });
     if (error) throw new Error(error.message);
     return (data ?? []) as {
       id: string;

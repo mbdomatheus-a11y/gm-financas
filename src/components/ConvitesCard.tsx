@@ -102,6 +102,20 @@ export function ConvitesCard() {
   const restantes = isSiteAdmin ? Infinity : Math.max(0, cotaConvites - usados);
   const totalConvidados = convites.length;
   const totalAceitos = convites.filter((c) => c.usado).length;
+  // Convites ainda válidos pra copiar em massa: nem usados, nem expirados
+  // (os mesmos que mostram os botões de ação individuais na lista abaixo).
+  const pendentes = convites.filter(
+    (c) => !c.usado && new Date(c.expira_em).getTime() >= agora,
+  );
+
+  async function copiarTodosPendentes() {
+    if (pendentes.length === 0) return;
+    const texto = pendentes.map((c) => linkConvite(c.token)).join("\n");
+    await copiar(
+      texto,
+      `${pendentes.length} convite${pendentes.length === 1 ? "" : "s"} copiado${pendentes.length === 1 ? "" : "s"}`,
+    );
+  }
 
   return (
     <Card>
@@ -141,6 +155,18 @@ export function ConvitesCard() {
           {gerar.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
           {restantes === 0 ? "Limite de convites atingido" : "Gerar código de convite"}
         </Button>
+
+        {pendentes.length > 0 && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="w-full"
+            onClick={copiarTodosPendentes}
+          >
+            <Copy className="mr-2 size-3.5" />
+            Copiar todos os pendentes ({pendentes.length})
+          </Button>
+        )}
 
         {isLoading ? (
           <p className="text-xs text-muted-foreground">Carregando…</p>
