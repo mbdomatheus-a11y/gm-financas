@@ -106,7 +106,9 @@ export function TourGuiado({ bloqueado }: { bloqueado: boolean }) {
           ...(i < PASSOS.length - 1
             ? {
                 onNextClick: (_el: unknown, _step: unknown, opts: any) => {
-                  navigate({ to: PASSOS[i + 1].rota }).then(() => opts.driver.moveNext());
+                  const proximo = PASSOS[i + 1];
+                  if (!proximo) return;
+                  navigate({ to: proximo.rota }).then(() => opts.driver.moveNext());
                 },
               }
             : {}),
@@ -114,7 +116,8 @@ export function TourGuiado({ bloqueado }: { bloqueado: boolean }) {
       })),
     });
 
-    navigate({ to: PASSOS[0].rota }).then(() => instancia.drive(0));
+    const primeiro = PASSOS[0];
+    if (primeiro) navigate({ to: primeiro.rota }).then(() => instancia.drive(0));
 
     return () => {
       instancia.destroy();
