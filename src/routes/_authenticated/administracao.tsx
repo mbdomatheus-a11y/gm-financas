@@ -18,7 +18,9 @@ import {
   adminEncerrarComunicado,
   adminListarComunicados,
   adminAtualizarLayout,
+  adminAtualizarComunicado,
   adminCriarComunicado,
+  adminReenviarComunicado,
   adminListarLayouts,
   adminListarLogs,
   adminMetricas,
@@ -158,6 +160,8 @@ function Admin() {
   const salvarModulo = useServerFn(adminSalvarModulo);
   const listarComunicadosFn = useServerFn(adminListarComunicados);
   const encerrarComunicadoFn = useServerFn(adminEncerrarComunicado);
+  const atualizarComunicadoFn = useServerFn(adminAtualizarComunicado);
+  const reenviarComunicadoFn = useServerFn(adminReenviarComunicado);
   const privFn = useServerFn(adminListarSolicitacoesPrivacidade);
   const tratarPrivFn = useServerFn(adminTratarSolicitacaoPrivacidade);
   const chamadosFn = useServerFn(adminListarChamados);
@@ -180,6 +184,7 @@ function Admin() {
   // State
   const [titulo, setTitulo] = useState("");
   const [msg, setMsg] = useState("");
+  const [comunicadoEditandoId, setComunicadoEditandoId] = useState<string | null>(null);
   const [sessaoMin, setSessaoMin] = useState<number>(60);
   const [cotaConvitesInput, setCotaConvitesInput] = useState<number>(3);
   const [dialogPriv, setDialogPriv] = useState<{ id: string; status: string; email: string } | null>(null);
@@ -393,7 +398,14 @@ function Admin() {
 
   const limparAviso = useMutation({
     mutationFn: (id: string) => encerrarComunicadoFn({ data: { id } }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin-comunicados"] }); qc.invalidateQueries({ queryKey: ["comunicados-pendentes"] }); },
+    onSuccess: () => { toast.success("Aviso encerrado — não aparece mais pra ninguém."); qc.invalidateQueries({ queryKey: ["admin-comunicados"] }); qc.invalidateQueries({ queryKey: ["comunicados-pendentes"] }); },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const reenviarAviso = useMutation({
+    mutationFn: (id: string) => reenviarComunicadoFn({ data: { id } }),
+    onSuccess: () => { toast.success("Aviso reenviado — vai reaparecer pra todos, inclusive quem já confirmou."); qc.invalidateQueries({ queryKey: ["admin-comunicados"] }); },
+    onError: (e: any) => toast.error(e.message),
   });
 
   const atualizarLayout = useMutation({
@@ -403,8 +415,22 @@ function Admin() {
   });
 
   const comunicadoMut = useMutation({
-    mutationFn: () => criarComunicadoFn({ data: { titulo, mensagem: msg, exigeAceite: true } }),
-    onSuccess: () => { toast.success("Aviso publicado."); setTitulo(""); setMsg(""); qc.invalidateQueries({ queryKey: ["admin-comunicados"] }); },
+    mutationFn: () =>
+      comunicadoEditandoId
+        ? atualizarComunicadoFn({ data: { id: comunicadoEditandoId, titulo, mensagem: msg } })
+        : criarComunicadoFn({ data: { titulo, mensagem: msg, exigeAceite: true } }),
+    onSuccess: () => {
+      toast.success(
+        comunicadoEditandoId
+          ? "Aviso atualizado — vai reaparecer pra quem já tinha confirmado."
+          : "Aviso publicado.",
+      );
+      setTitulo("");
+      setMsg("");
+      setComunicadoEditandoId(null);
+      qc.invalidateQueries({ queryKey: ["admin-comunicados"] });
+      qc.invalidateQueries({ queryKey: ["comunicados-pendentes"] });
+    },
     onError: (e: any) => toast.error(e.message),
   });
 
@@ -1244,12 +1270,37 @@ function Admin() {
         {/* ─── ABA 6: AVISOS ─── */}
         <TabsContent value="avisos" className="space-y-4">
           <Card>
-            <CardHeader><CardTitle className="text-sm">Novo banner de aviso</CardTitle></CardHeader>
+            <CardHeader>
+              <CardTitle className="text-sm">
+                {comunicadoEditandoId ? "Editar aviso" : "Novo aviso (modal ao logar)"}
+              </CardTitle>
+            </CardHeader>
             <CardContent className="space-y-3">
               <Input placeholder="Título" value={titulo} onChange={(e) => setTitulo(e.target.value)} />
-              <Textarea placeholder="Mensagem para todos os usuários" value={msg} onChange={(e) => setMsg(e.target.value)} />
-              <Button disabled={!titulo || !msg} onClick={() => comunicadoMut.mutate()}>Publicar e exigir aceite</Button>
-              <p className="text-xs text-muted-foreground">O aviso deixa de aparecer automaticamente após 72 horas.</p>
+              <Textarea
+                placeholder="Mensagem para todos os usuários"
+                value={msg}
+                onChange={(e) => setMsg(e.target.value)}
+                rows={6}
+              />
+              <div className="flex gap-2">
+                <Button disabled={!titulo || !msg || comunicadoMut.isPending} onClick={() => comunicadoMut.mutate()}>
+                  {comunicadoEditandoId ? "Salvar alterações" : "Publicar para todos"}
+                </Button>
+                {comunicadoEditandoId && (
+                  <Button
+                    variant="ghost"
+                    onClick={() => { setComunicadoEditandoId(null); setTitulo(""); setMsg(""); }}
+                  >
+                    Cancelar edição
+                  </Button>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {comunicadoEditandoId
+                  ? "Salvar reexibe o aviso pra todo mundo, inclusive quem já tinha marcado \"não exibir mais\"."
+                  : "Aparece como um aviso que a pessoa precisa fechar ao entrar no site. Fica ativo até você encerrar."}
+              </p>
             </CardContent>
           </Card>
           <Card>
@@ -1262,9 +1313,30 @@ function Admin() {
                   <div key={c.id} className="flex items-center justify-between gap-2 rounded-lg border p-2 text-xs">
                     <div>
                       <b>{c.titulo}</b>
-                      <p className="text-muted-foreground">{new Date(c.criado_em).toLocaleString("pt-BR")}</p>
+                      <p className="text-muted-foreground">
+                        {new Date(c.criado_em).toLocaleString("pt-BR")} · {c.confirmacoes ?? 0} confirmação(ões)
+                      </p>
                     </div>
-                    <Button size="sm" variant="ghost" className="text-rose-600" onClick={() => limparAviso.mutate(c.id)}>Encerrar</Button>
+                    <div className="flex shrink-0 gap-1">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => { setComunicadoEditandoId(c.id); setTitulo(c.titulo); setMsg(c.mensagem); }}
+                      >
+                        Editar
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={reenviarAviso.isPending}
+                        onClick={() => reenviarAviso.mutate(c.id)}
+                      >
+                        Reenviar p/ todos
+                      </Button>
+                      <Button size="sm" variant="ghost" className="text-rose-600" onClick={() => limparAviso.mutate(c.id)}>
+                        Encerrar
+                      </Button>
+                    </div>
                   </div>
                 ))
               )}

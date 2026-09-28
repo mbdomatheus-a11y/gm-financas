@@ -123,6 +123,13 @@ export const adminAtualizarLayout = createServerFn({ method: "POST" })
     });
     return { ok: true as const };
   });
+// 2026-09-28: o prazo de 72h fazia sentido pra um aviso pontual, mas não
+// pro aviso de boas-vindas dos primeiros usuários de fora da família, que
+// precisa durar semanas/meses (cada um loga pela primeira vez em um dia
+// diferente). Trocado por ~2 anos — na prática, sem expiração real; quem
+// controla se o aviso aparece é o campo `ativo` (ver adminEncerrarComunicado).
+const VALIDADE_PADRAO_MS = 2 * 365 * 24 * 60 * 60 * 1000;
+
 export const adminCriarComunicado = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((v: unknown) =>
@@ -145,7 +152,7 @@ export const adminCriarComunicado = createServerFn({ method: "POST" })
         titulo: data.titulo,
         mensagem: data.mensagem,
         exige_aceite: data.exigeAceite,
-        expira_em: new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString(),
+        expira_em: new Date(Date.now() + VALIDADE_PADRAO_MS).toISOString(),
       })
       .select("id")
       .single();
@@ -158,6 +165,67 @@ export const adminCriarComunicado = createServerFn({ method: "POST" })
     });
     return { ok: true as const };
   });
+/**
+ * Edita um aviso existente. Qualquer edição de título/mensagem apaga as
+ * confirmações já registradas (comunicado_aceites) desse aviso — ou seja,
+ * quem já tinha marcado "não exibir mais" volta a ver a versão nova. Esse é
+ * o comportamento pedido: "qualquer edição reexibe pra todo mundo".
+ */
+export const adminAtualizarComunicado = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((v: unknown) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        titulo: z.string().trim().min(3).max(120),
+        mensagem: z.string().trim().min(3).max(2000),
+      })
+      .parse(v),
+  )
+  .handler(async ({ data, context }) => {
+    await admin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const db = supabaseAdmin as any;
+    const { error } = await db
+      .from("comunicados")
+      .update({ titulo: data.titulo, mensagem: data.mensagem })
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
+    const { error: resetErro } = await db
+      .from("comunicado_aceites")
+      .delete()
+      .eq("comunicado_id", data.id);
+    if (resetErro) throw new Error(resetErro.message);
+    await db.from("admin_audit_logs").insert({
+      ator_id: context.userId,
+      acao: "comunicado_editado",
+      alvo_id: data.id,
+      detalhes: {},
+    });
+    return { ok: true as const };
+  });
+/**
+ * "Ignora" as confirmações já registradas pra um aviso, sem mexer no texto
+ * — sobrepõe em todos os próximos logons, inclusive de quem já tinha
+ * marcado "não exibir mais esta mensagem".
+ */
+export const adminReenviarComunicado = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((v: unknown) => z.object({ id: z.string().uuid() }).parse(v))
+  .handler(async ({ data, context }) => {
+    await admin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const db = supabaseAdmin as any;
+    const { error } = await db.from("comunicado_aceites").delete().eq("comunicado_id", data.id);
+    if (error) throw new Error(error.message);
+    await db.from("admin_audit_logs").insert({
+      ator_id: context.userId,
+      acao: "comunicado_reenviado",
+      alvo_id: data.id,
+      detalhes: {},
+    });
+    return { ok: true as const };
+  });
 export const adminListarComunicados = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -165,11 +233,14 @@ export const adminListarComunicados = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data, error } = await (supabaseAdmin as any)
       .from("comunicados")
-      .select("id,titulo,mensagem,ativo,criado_em,expira_em")
+      .select("id,titulo,mensagem,ativo,criado_em,expira_em,comunicado_aceites(count)")
       .order("criado_em", { ascending: false })
       .limit(50);
     if (error) throw new Error(error.message);
-    return data ?? [];
+    return (data ?? []).map((item: any) => ({
+      ...item,
+      confirmacoes: item.comunicado_aceites?.[0]?.count ?? 0,
+    }));
   });
 export const adminEncerrarComunicado = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
