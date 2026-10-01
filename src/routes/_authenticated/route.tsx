@@ -59,7 +59,10 @@ function Protegido() {
   const { habilitado, isLoading } = useModulosGlobais();
   // Enquanto o aviso de boas-vindas estiver na tela (modal bloqueante), o
   // tour guiado espera — evita os dois disputando a tela ao mesmo tempo.
-  const [avisoAberto, setAvisoAberto] = useState(false);
+  // Começa travado (true) por padrão: só libera quando o ComunicadosModal
+  // confirmar que já sabe se há ou não aviso pendente (ver comentário em
+  // ComunicadosModal.tsx sobre a condição de corrida que isso evita).
+  const [avisoAberto, setAvisoAberto] = useState(true);
   useEffect(() => {
     const modulo = MODULO_POR_ROTA[pathname];
     if (!isLoading && modulo && !habilitado(modulo))

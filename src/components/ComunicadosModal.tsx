@@ -50,7 +50,7 @@ export function ComunicadosModal({
   const listar = useServerFn(meusComunicados);
   const aceitar = useServerFn(aceitarComunicado);
 
-  const { data: pendentes = [] } = useQuery({
+  const { data: pendentes = [], isPending } = useQuery({
     queryKey: ["comunicados-pendentes"],
     queryFn: () => listar(),
     refetchInterval: 60_000,
@@ -79,9 +79,15 @@ export function ComunicadosModal({
     setNaoExibirMais(false);
   }, [atual?.id]);
 
+  // Reporta "bloqueado" (true) tanto quando HÁ um aviso quanto enquanto
+  // ainda não sabemos se há — ex.: `user` ainda não carregou, ou a consulta
+  // de comunicados pendentes ainda não voltou. Sem isso, o estado inicial
+  // "sem aviso" (falso por omissão) deixava o tour guiado começar antes da
+  // consulta responder, e os dois acabavam aparecendo sobrepostos quando o
+  // aviso chegava um instante depois.
   useEffect(() => {
-    onVisibilityChange?.(!!atual);
-  }, [atual, onVisibilityChange]);
+    onVisibilityChange?.(isPending || !!atual);
+  }, [isPending, atual, onVisibilityChange]);
 
   if (!atual) return null;
 
