@@ -46,6 +46,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { AlertsBell } from "@/components/AlertsBell";
 import { BrandMark } from "@/components/BrandMark";
+import { BotaoLancamentoRapido } from "@/components/LancamentoRapido/BotaoLancamentoRapido";
 import { obterUsoOracleDoMeuGrupo } from "@/lib/oracle-admin.functions";
 import { usePrivacidadeValores } from "@/hooks/usePrivacidadeValores";
 import { Eye, EyeOff } from "lucide-react";
@@ -597,6 +598,12 @@ export function AppLayout({
           );
         })}
       </nav>
+
+      {/* Lançamento rápido por texto/áudio (IA) — pedido explícito do usuário
+          (2026-10-01): botão flutuante acessível de qualquer tela
+          autenticada, não escondido dentro dos formulários de
+          despesas/receitas. Ver claude/plano-lancamento-ia-2026-10-01.md. */}
+      <BotaoLancamentoRapido />
     </div>
   );
 }
