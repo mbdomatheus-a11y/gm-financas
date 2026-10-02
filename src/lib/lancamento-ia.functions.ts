@@ -1,11 +1,19 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { RascunhoIASchema, RASCUNHO_VAZIO, type ContextoLancamentoIA } from "@/lib/lancamento-ia";
+import { aplicarLimite } from "@/lib/rate-limit.server";
+import {
+  RascunhoIASchema,
+  RASCUNHO_VAZIO,
+  LIMITE_CARACTERES_TEXTO_IA,
+  type ContextoLancamentoIA,
+  type ResumoFinanceiroContexto,
+} from "@/lib/lancamento-ia";
 
 /**
  * Lançamento rápido por texto/áudio (IA) — server functions. Server-only:
  * nunca importar isto de um componente client. Ver
- * `claude/plano-lancamento-ia-2026-10-01.md` no projeto Claude.
+ * `claude/plano-lancamento-ia-2026-10-01.md` e
+ * `claude/plano-fase2-lancamento-2026-10-02.md` no projeto Claude.
  *
  * Mesmo padrão de `nfe.functions.ts`/`drive.functions.ts`: `fetch` puro
  * (sem SDK novo), chave em env var server-only (`process.env["..."]`, nunca
@@ -15,6 +23,30 @@ import { RascunhoIASchema, RASCUNHO_VAZIO, type ContextoLancamentoIA } from "@/l
 function chaveOpenAI(): string | null {
   const chave = process.env["OPENAI_API_KEY"];
   return chave && chave.trim() ? chave.trim() : null;
+}
+
+/** Limite diário de uso saudável (Frente 1 do plano de 2026-10-02): conta por
+ * USO (texto, áudio ou resumo — qualquer chamada que bate na OpenAI), não por
+ * token cru — mais simples de explicar pro usuário e o custo por uso já é
+ * uniforme o bastante. Reaproveita a tabela genérica `rate_limit_eventos`
+ * (mesma usada pelo rate-limit de login/recuperação de senha), chaveada pelo
+ * `userId` em vez de IP/e-mail. Lança (via `aplicarLimite`) quando estourado;
+ * quem chama decide a mensagem amigável de volta pro usuário.
+ */
+const COTA_IA_POR_DIA = 30;
+async function verificarCotaIA(userId: string): Promise<string | null> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  try {
+    await aplicarLimite(supabaseAdmin as any, {
+      rota: "ia_lancamento_uso",
+      chave: userId,
+      maxPorJanela: COTA_IA_POR_DIA,
+      janelaMinutos: 24 * 60,
+    });
+    return null;
+  } catch {
+    return `Limite diário de uso da IA atingido (${COTA_IA_POR_DIA} usos/dia, entre texto, áudio e resumo). Volta amanhã ou preencha manualmente.`;
+  }
 }
 
 function montarPrompt(ctx: ContextoLancamentoIA): string {
@@ -59,7 +91,7 @@ function extrairJson(texto: string): unknown {
 export const interpretarLancamentoIA = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { texto: string; contexto: ContextoLancamentoIA }) => input)
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
     const apiKey = chaveOpenAI();
     if (!apiKey) {
       return {
@@ -70,6 +102,14 @@ export const interpretarLancamentoIA = createServerFn({ method: "POST" })
     }
     const texto = data.texto.trim();
     if (!texto) return RASCUNHO_VAZIO;
+    if (texto.length > LIMITE_CARACTERES_TEXTO_IA) {
+      return {
+        ...RASCUNHO_VAZIO,
+        observacao_ia: `Texto muito longo (máx. ${LIMITE_CARACTERES_TEXTO_IA} caracteres) — resuma em poucas palavras ou preencha manualmente.`,
+      };
+    }
+    const avisoCota = await verificarCotaIA(context.userId);
+    if (avisoCota) return { ...RASCUNHO_VAZIO, observacao_ia: avisoCota };
 
     const modelo = process.env["OPENAI_MODEL_TEXTO"] || "gpt-4o-mini";
 
@@ -127,11 +167,14 @@ export const interpretarLancamentoIA = createServerFn({ method: "POST" })
 export const transcreverAudioIA = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { audioBase64: string; mimeType: string }) => input)
-  .handler(async ({ data }): Promise<{ texto: string; erro?: string }> => {
+  .handler(async ({ data, context }): Promise<{ texto: string; erro?: string }> => {
     const apiKey = chaveOpenAI();
     if (!apiKey) {
       return { texto: "", erro: "IA não configurada (faltando OPENAI_API_KEY no servidor)." };
     }
+    const avisoCota = await verificarCotaIA(context.userId);
+    if (avisoCota) return { texto: "", erro: avisoCota };
+
     const modelo = process.env["OPENAI_MODEL_AUDIO"] || "whisper-1";
 
     let buffer: Buffer;
@@ -176,5 +219,102 @@ export const transcreverAudioIA = createServerFn({ method: "POST" })
       return { texto };
     } catch {
       return { texto: "", erro: "Falha ao transcrever (rede ou tempo esgotado)." };
+    }
+  });
+
+/** Monta o prompt do resumo financeiro — só TRADUZ os números em texto, nunca
+ * recalcula nem inventa valor novo (mesma regra de ouro do lançamento). O
+ * resumo (`ResumoFinanceiroContexto`) é calculado no client a partir dos
+ * mesmos dados que o Dashboard já usa — ver `useResumoFinanceiroMes`. */
+function montarPromptResumo(r: ResumoFinanceiroContexto, pergunta: string): string {
+  const [ano, mes] = r.competencia.split("-");
+  const nomesMes = [
+    "janeiro",
+    "fevereiro",
+    "março",
+    "abril",
+    "maio",
+    "junho",
+    "julho",
+    "agosto",
+    "setembro",
+    "outubro",
+    "novembro",
+    "dezembro",
+  ];
+  const mesExtenso = `${nomesMes[Number(mes) - 1] ?? mes} de ${ano}`;
+  const categorias = r.topCategoriasDespesa
+    .map((c) => `${c.categoria}: R$ ${c.total.toFixed(2)}`)
+    .join("; ");
+
+  return [
+    "Você é um assistente financeiro que resume, em português do Brasil, a situação do mês de um usuário comum, em 3 a 5 frases curtas, tom direto e acolhedor, sem jargão técnico.",
+    "REGRA DE OURO: use SOMENTE os números abaixo — nunca invente, estime ou arredonde de forma que mude o sentido. Se um dado não estiver aqui, diga que não tem essa informação em vez de supor.",
+    `Mês de referência: ${mesExtenso}.`,
+    `Total de receitas no mês: R$ ${r.totalReceitas.toFixed(2)} (${r.numLancamentosReceita} lançamento(s)).`,
+    `Total de despesas no mês: R$ ${r.totalDespesas.toFixed(2)} (${r.numLancamentosDespesa} lançamento(s)).`,
+    `Saldo do mês (receitas − despesas): R$ ${r.saldo.toFixed(2)}.`,
+    r.taxaPoupancaPct != null
+      ? `Taxa de poupança do mês: ${r.taxaPoupancaPct.toFixed(1)}% da renda.`
+      : "Taxa de poupança: não calculável (sem receita cadastrada no mês).",
+    categorias ? `Categorias de despesa que mais pesaram: ${categorias}.` : "",
+    "Sempre que fizer sentido, inclua: quanto ainda está disponível pra gastar mantendo o saldo positivo, e o que aconteceria se o ritmo atual de gasto se mantivesse até o fim do mês (só como leitura qualitativa dos números acima, não um cálculo novo).",
+    pergunta
+      ? `Pergunta específica do usuário, responda considerando os dados acima: "${pergunta}"`
+      : 'O usuário só pediu um resumo geral (ex.: "como estão minhas finanças").',
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+export const resumoFinanceiroIA = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { pergunta: string; resumo: ResumoFinanceiroContexto }) => input)
+  .handler(async ({ data, context }): Promise<{ texto: string; erro?: string }> => {
+    const apiKey = chaveOpenAI();
+    if (!apiKey) {
+      return { texto: "", erro: "IA não configurada (faltando OPENAI_API_KEY no servidor)." };
+    }
+    const pergunta = data.pergunta.trim();
+    if (pergunta.length > LIMITE_CARACTERES_TEXTO_IA) {
+      return {
+        texto: "",
+        erro: `Pergunta muito longa (máx. ${LIMITE_CARACTERES_TEXTO_IA} caracteres) — resuma em poucas palavras.`,
+      };
+    }
+    const avisoCota = await verificarCotaIA(context.userId);
+    if (avisoCota) return { texto: "", erro: avisoCota };
+
+    const modelo = process.env["OPENAI_MODEL_TEXTO"] || "gpt-4o-mini";
+
+    try {
+      const res = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: modelo,
+          temperature: 0.3,
+          messages: [{ role: "system", content: montarPromptResumo(data.resumo, pergunta) }],
+        }),
+        signal: AbortSignal.timeout(20000),
+      });
+
+      if (!res.ok) {
+        const corpo = await res.text().catch(() => "");
+        return {
+          texto: "",
+          erro: `IA indisponível (${res.status}). ${corpo.slice(0, 200)}`.trim(),
+        };
+      }
+
+      const payload = await res.json();
+      const texto: string | undefined = payload?.choices?.[0]?.message?.content?.trim();
+      if (!texto) return { texto: "", erro: "IA respondeu vazio. Tente de novo." };
+      return { texto };
+    } catch {
+      return { texto: "", erro: "Falha ao contatar a IA (rede ou tempo esgotado)." };
     }
   });

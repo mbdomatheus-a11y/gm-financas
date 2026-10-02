@@ -57,3 +57,23 @@ export type ContextoLancamentoIA = {
   formasPagamento: string[]; // nomes de cartões/bancos cadastrados, já rotulados
   usuarioAtual: string | null; // nome do usuário logado, pra resolver "eu paguei"
 };
+
+/** Limite de caracteres do texto livre enviado à IA (lançamento ou pergunta
+ * de resumo) — evita custo desproporcional de quem manda um "textão" de
+ * propósito. Ver `claude/plano-fase2-lancamento-2026-10-02.md` (Frente 1). */
+export const LIMITE_CARACTERES_TEXTO_IA = 500;
+
+/** Resumo financeiro do mês, calculado no CLIENT a partir dos mesmos dados
+ * que o Dashboard já usa (`useDespesas`/`useReceitas` + `lancamentosPorCompetencias`
+ * de `@/lib/recorrencia`) — a server function só traduz isso em texto, nunca
+ * recalcula nem consulta o banco (mesmo espírito de `ContextoLancamentoIA`). */
+export type ResumoFinanceiroContexto = {
+  competencia: string; // "YYYY-MM"
+  totalReceitas: number;
+  totalDespesas: number;
+  saldo: number;
+  taxaPoupancaPct: number | null; // null quando não há receita no mês
+  topCategoriasDespesa: { categoria: string; total: number }[];
+  numLancamentosDespesa: number;
+  numLancamentosReceita: number;
+};
