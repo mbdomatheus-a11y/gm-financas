@@ -2739,6 +2739,7 @@ export type Database = {
       };
       preferencias_usuario: {
         Row: {
+          dia_virada: number | null;
           fonte: string;
           layout_menu: string;
           paleta: string;
@@ -2747,6 +2748,7 @@ export type Database = {
           user_id: string;
         };
         Insert: {
+          dia_virada?: number | null;
           fonte?: string;
           layout_menu?: string;
           paleta?: string;
@@ -2755,6 +2757,7 @@ export type Database = {
           user_id: string;
         };
         Update: {
+          dia_virada?: number | null;
           fonte?: string;
           layout_menu?: string;
           paleta?: string;

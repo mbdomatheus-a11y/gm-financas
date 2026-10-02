@@ -19,7 +19,7 @@ import { consultarProtocolo } from "@/lib/central-solicitacoes.functions";
 // já usada antes (mas que até esta sessão não tinha nenhuma tela).
 export const Route = createFileRoute("/consultar-protocolo")({
   validateSearch: (search: Record<string, unknown>) => ({
-    p: typeof search.p === "string" ? search.p : undefined,
+    p: typeof search["p"] === "string" ? search["p"] : undefined,
   }),
   head: () => ({
     meta: [

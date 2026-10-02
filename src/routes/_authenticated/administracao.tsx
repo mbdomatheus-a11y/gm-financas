@@ -94,7 +94,7 @@ import {
 // notificação abra a Administração já na aba certa (privacidade/central).
 export const Route = createFileRoute("/_authenticated/administracao")({
   validateSearch: (search: Record<string, unknown>) => ({
-    aba: typeof search.aba === "string" ? search.aba : undefined,
+    aba: typeof search["aba"] === "string" ? search["aba"] : undefined,
   }),
   component: Admin,
 });

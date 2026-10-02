@@ -40,7 +40,7 @@ export function criarCorPorCategoria(
   return (nomeCategoria: string): string => {
     const cadastrada = porNome.get(nomeCategoria);
     if (cadastrada) return cadastrada;
-    return PALETA_FALLBACK[hashIndex(nomeCategoria, PALETA_FALLBACK.length)];
+    return PALETA_FALLBACK[hashIndex(nomeCategoria, PALETA_FALLBACK.length)]!;
   };
 }
 

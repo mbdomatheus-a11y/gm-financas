@@ -488,7 +488,7 @@ function DeParaPage() {
                               ),
                             );
                             if (linhas.length === 0) return;
-                            const principal = chaveEstabelecimento(linhas[0]);
+                            const principal = chaveEstabelecimento(linhas[0]!);
                             const mudou =
                               linhas.join("\n") !==
                               (r.padroes?.length ? r.padroes : [r.estabelecimento_normalizado]).join(
