@@ -11,6 +11,8 @@ export type Preferencias = {
   layout_menu: string;
   /** Item 5 do backlog 2026-09-27: dia de virada do "mês do sistema" (1-28), ou null para mês calendário normal. */
   dia_virada: number | null;
+  /** Bloco 7 (plano-mega-2026-09-14.md): destaca a soma do módulo Veículo no card "Veículo" da Início. */
+  destacar_veiculo_inicio: boolean;
 };
 
 export const DEFAULT_PREFS: Omit<Preferencias, "user_id"> = {
@@ -19,6 +21,7 @@ export const DEFAULT_PREFS: Omit<Preferencias, "user_id"> = {
   fonte: "Plus Jakarta Sans",
   layout_menu: "lateral",
   dia_virada: null,
+  destacar_veiculo_inicio: false,
 };
 
 export function usePreferencias() {

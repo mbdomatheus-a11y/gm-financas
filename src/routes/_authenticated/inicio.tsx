@@ -17,10 +17,15 @@ import {
   ShieldCheck,
 } from "lucide-react";
 
+import { useMemo } from "react";
+
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { VisaoGeralHome } from "@/components/VisaoGeralHome";
 import { useModulosGlobais, usePermissoes } from "@/hooks/useAuthData";
+import { useVeiculos } from "@/hooks/useFinance";
+import { usePreferencias } from "@/hooks/usePreferencias";
+import { currentMonthKey, formatBRL, monthKey } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/inicio")({
   head: () => ({
@@ -96,12 +101,39 @@ const MODULOS = [
 function InicioPage() {
   const { can, isAdmin, isSiteAdmin } = usePermissoes();
   const { habilitado } = useModulosGlobais();
+  const { prefs: preferencias } = usePreferencias();
+  const { data: veiculos = [] } = useVeiculos();
   const podeVerResumoFinancas = habilitado("financas") && can("despesas", "ver");
+
+  // Bloco 7 (plano-mega-2026-09-14.md): soma do mês atual de todos os
+  // eventos do veículo com custo, só calculada/mostrada quando a
+  // preferência de destaque está ativa (evita trabalho desnecessário).
+  const somaVeiculoMes = useMemo(() => {
+    if (!preferencias.destacar_veiculo_inicio) return null;
+    const mesAtual = currentMonthKey();
+    let soma = 0;
+    for (const v of veiculos as any[]) {
+      for (const e of v.veiculo_eventos ?? []) {
+        if (e.custo != null && monthKey(e.data) === mesAtual) soma += Number(e.custo);
+      }
+    }
+    return soma;
+  }, [preferencias.destacar_veiculo_inicio, veiculos]);
   const gerais = [
-    { to: "/compartilhar" as const, label: "Compartilhar", icon: Share2, modulo: "compartilhar" as const },
+    {
+      to: "/compartilhar" as const,
+      label: "Compartilhar",
+      icon: Share2,
+      modulo: "compartilhar" as const,
+    },
     { to: "/usuarios" as const, label: "Usuários e Privilégios", icon: Users, adminOnly: true },
     { to: "/backup" as const, label: "Backup e Reset", icon: DatabaseBackup, adminOnly: true },
-    { to: "/administracao" as const, label: "Administração", icon: ShieldCheck, siteAdminOnly: true },
+    {
+      to: "/administracao" as const,
+      label: "Administração",
+      icon: ShieldCheck,
+      siteAdminOnly: true,
+    },
     { to: "/suporte" as const, label: "Suporte", icon: Headphones },
     { to: "/configuracoes" as const, label: "Configurações", icon: Settings },
   ].filter((item) => {
@@ -131,6 +163,11 @@ function InicioPage() {
                   <div>
                     <h2 className="text-lg font-semibold">{modulo.titulo}</h2>
                     <p className="mt-1 text-sm text-muted-foreground">{modulo.descricao}</p>
+                    {modulo.key === "veiculo" && somaVeiculoMes != null && (
+                      <p className="mt-1 text-sm font-semibold text-primary">
+                        {formatBRL(somaVeiculoMes)} este mês
+                      </p>
+                    )}
                   </div>
                 </CardContent>
               </Card>

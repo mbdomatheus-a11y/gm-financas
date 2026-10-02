@@ -49,11 +49,13 @@ type VeiculoDocumentoRow = {
 };
 
 type VeiculoEventoRow = {
+  aparecer_em_despesas: boolean;
   criado_por: string | null;
   created_at: string;
   custo: number | null;
   data: string;
   descricao: string | null;
+  despesa_id: string | null;
   grupo_id: string | null;
   id: string;
   km: number | null;
@@ -96,19 +98,29 @@ type VeiculoDocumentoTable = TableDefinition<
 
 type VeiculoEventoTable = TableDefinition<
   VeiculoEventoRow,
-  Omit<VeiculoEventoRow, "created_at" | "grupo_id" | "id"> & {
+  Omit<
+    VeiculoEventoRow,
+    "aparecer_em_despesas" | "created_at" | "despesa_id" | "grupo_id" | "id"
+  > & {
+    aparecer_em_despesas?: boolean;
     created_at?: string;
+    despesa_id?: string | null;
     grupo_id?: string | null;
     id?: string;
   },
   Partial<VeiculoEventoRow>,
-  []
+  [
+    {
+      foreignKeyName: "veiculo_eventos_despesa_id_fkey";
+      columns: ["despesa_id"];
+      isOneToOne: false;
+      referencedRelation: "despesas";
+      referencedColumns: ["id"];
+    },
+  ]
 >;
 
-type AppTables = Omit<
-  Database["public"]["Tables"],
-  "investimentos" | "lista_compras"
-> & {
+type AppTables = Omit<Database["public"]["Tables"], "investimentos" | "lista_compras"> & {
   investimentos: {
     Row: InvestimentoTable["Row"] & InvestimentoFields;
     Insert: InvestimentoTable["Insert"] & Partial<InvestimentoFields>;
@@ -124,12 +136,7 @@ type AppTables = Omit<
   veiculo_eventos: VeiculoEventoTable;
   veiculo_documentos: VeiculoDocumentoTable;
   veiculos: VeiculoTable;
-  site_admins: TableDefinition<
-    { user_id: string },
-    { user_id: string },
-    { user_id?: string },
-    []
-  >;
+  site_admins: TableDefinition<{ user_id: string }, { user_id: string }, { user_id?: string }, []>;
 };
 
 type AppDatabase = Omit<Database, "public"> & {

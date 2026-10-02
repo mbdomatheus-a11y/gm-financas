@@ -2795,6 +2795,7 @@ export type Database = {
       };
       preferencias_usuario: {
         Row: {
+          destacar_veiculo_inicio: boolean;
           dia_virada: number | null;
           fonte: string;
           layout_menu: string;
@@ -2804,6 +2805,7 @@ export type Database = {
           user_id: string;
         };
         Insert: {
+          destacar_veiculo_inicio?: boolean;
           dia_virada?: number | null;
           fonte?: string;
           layout_menu?: string;
@@ -2813,6 +2815,7 @@ export type Database = {
           user_id: string;
         };
         Update: {
+          destacar_veiculo_inicio?: boolean;
           dia_virada?: number | null;
           fonte?: string;
           layout_menu?: string;
@@ -3149,6 +3152,8 @@ export type Database = {
           custo: number | null;
           data: string;
           descricao: string | null;
+          aparecer_em_despesas: boolean;
+          despesa_id: string | null;
           grupo_id: string | null;
           id: string;
           km: number | null;
@@ -3156,11 +3161,13 @@ export type Database = {
           veiculo_id: string;
         };
         Insert: {
+          aparecer_em_despesas?: boolean;
           created_at?: string;
           criado_por?: string | null;
           custo?: number | null;
           data: string;
           descricao?: string | null;
+          despesa_id?: string | null;
           grupo_id?: string | null;
           id?: string;
           km?: number | null;
@@ -3168,11 +3175,13 @@ export type Database = {
           veiculo_id: string;
         };
         Update: {
+          aparecer_em_despesas?: boolean;
           created_at?: string;
           criado_por?: string | null;
           custo?: number | null;
           data?: string;
           descricao?: string | null;
+          despesa_id?: string | null;
           grupo_id?: string | null;
           id?: string;
           km?: number | null;
@@ -3180,6 +3189,13 @@ export type Database = {
           veiculo_id?: string;
         };
         Relationships: [
+          {
+            foreignKeyName: "veiculo_eventos_despesa_id_fkey";
+            columns: ["despesa_id"];
+            isOneToOne: false;
+            referencedRelation: "despesas";
+            referencedColumns: ["id"];
+          },
           {
             foreignKeyName: "veiculo_eventos_veiculo_id_fkey";
             columns: ["veiculo_id"];
