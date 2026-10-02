@@ -33,7 +33,11 @@ import {
   adminSalvarModulo,
   obterConfiguracaoAcesso,
 } from "@/lib/configuracoes-site.functions";
-import { adminAlternarTour, adminObterTourConfig, adminReenviarTour } from "@/lib/tour.functions";
+import {
+  adminAlternarTour,
+  adminObterTourConfig,
+  adminReenviarTour,
+} from "@/lib/tour.functions";
 import { IaLancamentoModoSiteCard } from "@/components/IaLancamentoModoSiteCard";
 import {
   adminListarSolicitacoesPrivacidade,
@@ -195,11 +199,7 @@ function Admin() {
   const [comunicadoEditandoId, setComunicadoEditandoId] = useState<string | null>(null);
   const [sessaoMin, setSessaoMin] = useState<number>(60);
   const [cotaConvitesInput, setCotaConvitesInput] = useState<number>(3);
-  const [dialogPriv, setDialogPriv] = useState<{
-    id: string;
-    status: string;
-    email: string;
-  } | null>(null);
+  const [dialogPriv, setDialogPriv] = useState<{ id: string; status: string; email: string } | null>(null);
   const [respostaPriv, setRespostaPriv] = useState("");
   const [statusPriv, setStatusPriv] = useState("em_atendimento");
   const [dialogChamado, setDialogChamado] = useState<{ id: string; status: string } | null>(null);
@@ -246,17 +246,7 @@ function Admin() {
     enabled: isSiteAdmin,
     queryFn: () => logsFn(),
   });
-  const { data: config } = useQuery<
-    | {
-        modo_login: "cpf" | "email" | "ambos";
-        segundo_fator_email: boolean;
-        sessao_maxima_minutos: number;
-        cota_convites: number;
-        google_drive_habilitado: boolean;
-        cadastro_livre_habilitado: boolean;
-      }
-    | undefined
-  >({
+  const { data: config } = useQuery<{ modo_login: "cpf" | "email" | "ambos"; segundo_fator_email: boolean; sessao_maxima_minutos: number; cota_convites: number; google_drive_habilitado: boolean; cadastro_livre_habilitado: boolean } | undefined>({
     queryKey: ["configuracao-acesso-publica"],
     enabled: isSiteAdmin,
     queryFn: () => obterConfig() as any,
@@ -374,17 +364,9 @@ function Admin() {
 
   // Mutations
   const salvarAcesso = useMutation({
-    mutationFn: (valor: {
-      modoLogin: "cpf" | "email" | "ambos";
-      segundoFatorEmail: boolean;
-      sessaoMaximaMinutos: number;
-      cotaConvites: number;
-      cadastroLivreHabilitado?: boolean;
-    }) => salvarConfig({ data: valor }),
-    onSuccess: () => {
-      toast.success("Configuração de acesso salva.");
-      qc.invalidateQueries({ queryKey: ["configuracao-acesso-publica"] });
-    },
+    mutationFn: (valor: { modoLogin: "cpf" | "email" | "ambos"; segundoFatorEmail: boolean; sessaoMaximaMinutos: number; cotaConvites: number; cadastroLivreHabilitado?: boolean }) =>
+      salvarConfig({ data: valor }),
+    onSuccess: () => { toast.success("Configuração de acesso salva."); qc.invalidateQueries({ queryKey: ["configuracao-acesso-publica"] }); },
     onError: (e: any) => toast.error(e.message),
   });
 
@@ -408,15 +390,13 @@ function Admin() {
   });
 
   const mudarModulo = useMutation({
-    mutationFn: (valor: { modulo: any; habilitado: boolean; userId: string | null }) =>
-      salvarModulo({ data: valor }),
+    mutationFn: (valor: { modulo: any; habilitado: boolean; userId: string | null }) => salvarModulo({ data: valor }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-modulos"] }),
     onError: (e: any) => toast.error(e.message),
   });
 
   const alternarOracle = useMutation({
-    mutationFn: (valor: { grupoId: string; habilitado: boolean }) =>
-      alternarArmazenamentoOracleFn({ data: valor }),
+    mutationFn: (valor: { grupoId: string; habilitado: boolean }) => alternarArmazenamentoOracleFn({ data: valor }),
     onSuccess: () => {
       toast.success("Armazenamento Oracle atualizado.");
       qc.invalidateQueries({ queryKey: ["admin-armazenamento-oracle"] });
@@ -425,8 +405,7 @@ function Admin() {
   });
 
   const ajustarCotaOracle = useMutation({
-    mutationFn: (valor: { grupoId: string; cotaMb: number }) =>
-      ajustarCotaOracleFn({ data: valor }),
+    mutationFn: (valor: { grupoId: string; cotaMb: number }) => ajustarCotaOracleFn({ data: valor }),
     onSuccess: () => {
       toast.success("Cota do grupo atualizada.");
       qc.invalidateQueries({ queryKey: ["admin-armazenamento-oracle"] });
@@ -440,23 +419,17 @@ function Admin() {
   const mudarModuloEmMassa = useMutation({
     mutationFn: async (valor: { modulo: any; habilitado: boolean; userIds: string[] }) =>
       Promise.all(
-        valor.userIds.map((userId) =>
-          salvarModulo({ data: { modulo: valor.modulo, habilitado: valor.habilitado, userId } }),
-        ),
+        valor.userIds.map((userId) => salvarModulo({ data: { modulo: valor.modulo, habilitado: valor.habilitado, userId } })),
       ),
     onSuccess: (_data, valor) => {
-      toast.success(
-        `${valor.userIds.length} usuário(s) ${valor.habilitado ? "liberado(s)" : "bloqueado(s)"}.`,
-      );
+      toast.success(`${valor.userIds.length} usuário(s) ${valor.habilitado ? "liberado(s)" : "bloqueado(s)"}.`);
       qc.invalidateQueries({ queryKey: ["admin-modulos"] });
     },
     onError: (e: any) => toast.error(e.message),
   });
 
   const [buscaModulo, setBuscaModulo] = useState("");
-  const [selecionadosPorModulo, setSelecionadosPorModulo] = useState<Record<string, Set<string>>>(
-    {},
-  );
+  const [selecionadosPorModulo, setSelecionadosPorModulo] = useState<Record<string, Set<string>>>({});
   function alternarSelecaoUsuario(modulo: string, userId: string) {
     setSelecionadosPorModulo((atual) => {
       const conjunto = new Set(atual[modulo] ?? []);
@@ -468,54 +441,31 @@ function Admin() {
 
   const limparAviso = useMutation({
     mutationFn: (id: string) => encerrarComunicadoFn({ data: { id } }),
-    onSuccess: () => {
-      toast.success("Aviso encerrado — não aparece mais pra ninguém.");
-      qc.invalidateQueries({ queryKey: ["admin-comunicados"] });
-      qc.invalidateQueries({ queryKey: ["comunicados-pendentes"] });
-    },
+    onSuccess: () => { toast.success("Aviso encerrado — não aparece mais pra ninguém."); qc.invalidateQueries({ queryKey: ["admin-comunicados"] }); qc.invalidateQueries({ queryKey: ["comunicados-pendentes"] }); },
     onError: (e: any) => toast.error(e.message),
   });
 
   const reenviarAviso = useMutation({
     mutationFn: (id: string) => reenviarComunicadoFn({ data: { id } }),
-    onSuccess: () => {
-      toast.success("Aviso reenviado — vai reaparecer pra todos, inclusive quem já confirmou.");
-      qc.invalidateQueries({ queryKey: ["admin-comunicados"] });
-    },
+    onSuccess: () => { toast.success("Aviso reenviado — vai reaparecer pra todos, inclusive quem já confirmou."); qc.invalidateQueries({ queryKey: ["admin-comunicados"] }); },
     onError: (e: any) => toast.error(e.message),
   });
 
   const alternarTour = useMutation({
     mutationFn: (ativo: boolean) => alternarTourFn({ data: { ativo } }),
-    onSuccess: () => {
-      toast.success("Tour guiado atualizado.");
-      qc.invalidateQueries({ queryKey: ["admin-tour-config"] });
-    },
+    onSuccess: () => { toast.success("Tour guiado atualizado."); qc.invalidateQueries({ queryKey: ["admin-tour-config"] }); },
     onError: (e: any) => toast.error(e.message),
   });
 
   const reenviarTour = useMutation({
     mutationFn: () => reenviarTourFn(),
-    onSuccess: () => {
-      toast.success("Tour reenviado — vai aparecer novamente pra quem já tinha visto.");
-      qc.invalidateQueries({ queryKey: ["admin-tour-config"] });
-    },
+    onSuccess: () => { toast.success("Tour reenviado — vai aparecer novamente pra quem já tinha visto."); qc.invalidateQueries({ queryKey: ["admin-tour-config"] }); },
     onError: (e: any) => toast.error(e.message),
   });
 
   const atualizarLayout = useMutation({
-    mutationFn: ({
-      id,
-      status,
-    }: {
-      id: string;
-      status: "corrigida" | "descartada" | "em_modelagem";
-    }) => atualizarFn({ data: { id, status: status as any } }),
-    onSuccess: () => {
-      toast.success("Solicitação atualizada.");
-      qc.invalidateQueries({ queryKey: ["admin-layouts"] });
-      qc.invalidateQueries({ queryKey: ["admin-logs"] });
-    },
+    mutationFn: ({ id, status }: { id: string; status: "corrigida" | "descartada" | "em_modelagem" }) => atualizarFn({ data: { id, status: status as any } }),
+    onSuccess: () => { toast.success("Solicitação atualizada."); qc.invalidateQueries({ queryKey: ["admin-layouts"] }); qc.invalidateQueries({ queryKey: ["admin-logs"] }); },
     onError: (e: any) => toast.error(e.message),
   });
 
@@ -541,17 +491,8 @@ function Admin() {
 
   const tratarPriv = useMutation({
     mutationFn: (p: { id: string; status: any; resposta?: string | undefined }) =>
-      tratarPrivFn({
-        data: p.resposta
-          ? { id: p.id, status: p.status, resposta: p.resposta }
-          : { id: p.id, status: p.status },
-      }),
-    onSuccess: () => {
-      toast.success("Solicitação atualizada.");
-      qc.invalidateQueries({ queryKey: ["admin-privacidade"] });
-      setDialogPriv(null);
-      setRespostaPriv("");
-    },
+      tratarPrivFn({ data: p.resposta ? { id: p.id, status: p.status, resposta: p.resposta } : { id: p.id, status: p.status } }),
+    onSuccess: () => { toast.success("Solicitação atualizada."); qc.invalidateQueries({ queryKey: ["admin-privacidade"] }); setDialogPriv(null); setRespostaPriv(""); },
     onError: (e: any) => toast.error(e.message),
   });
 
@@ -595,66 +536,44 @@ function Admin() {
 
   async function abrirLayout(id: string) {
     const aba = window.open("", "_blank");
-    if (!aba) {
-      toast.error("Permita abrir uma nova aba.");
-      return;
-    }
+    if (!aba) { toast.error("Permita abrir uma nova aba."); return; }
     try {
       const { url } = await obterLayoutUrl({ data: { id } });
       aba.location.replace(url);
       qc.invalidateQueries({ queryKey: ["admin-logs"] });
-    } catch (e: any) {
-      aba.close();
-      toast.error(e.message ?? "Não foi possível abrir o arquivo.");
-    }
+    } catch (e: any) { aba.close(); toast.error(e.message ?? "Não foi possível abrir o arquivo."); }
   }
 
   async function subirLogo(files: FileList | null) {
     const arquivo = files?.[0];
     if (!arquivo) return;
-    if (!/^image\/(jpeg|png|webp|gif)$/.test(arquivo.type) || arquivo.size > 5 * 1024 * 1024) {
-      toast.error("Envie JPG, PNG, WEBP ou GIF de até 5 MB.");
-      return;
-    }
+    if (!/^image\/(jpeg|png|webp|gif)$/.test(arquivo.type) || arquivo.size > 5 * 1024 * 1024) { toast.error("Envie JPG, PNG, WEBP ou GIF de até 5 MB."); return; }
     try {
       const envio = await prepararLogo({ data: { nome: arquivo.name } });
-      const { error } = await supabase.storage
-        .from("site_assets")
-        .uploadToSignedUrl(envio.path, envio.token, arquivo);
+      const { error } = await supabase.storage.from("site_assets").uploadToSignedUrl(envio.path, envio.token, arquivo);
       if (error) throw error;
       await confirmar({ data: { path: envio.path } });
       qc.invalidateQueries({ queryKey: ["identidade-visual-site-admin"] });
       qc.invalidateQueries({ queryKey: ["admin-logs"] });
       toast.success("Logo atualizada em todo o site.");
-    } catch (e: any) {
-      toast.error(e.message || "Não foi possível atualizar a logo.");
-    } finally {
-      if (logoInput.current) logoInput.current.value = "";
-    }
+    } catch (e: any) { toast.error(e.message || "Não foi possível atualizar a logo."); }
+    finally { if (logoInput.current) logoInput.current.value = ""; }
   }
 
   async function subirVideo(files: FileList | null) {
     const arquivo = files?.[0];
     if (!arquivo) return;
-    if (!/^video\/(mp4|webm|quicktime)$/.test(arquivo.type) || arquivo.size > 100 * 1024 * 1024) {
-      toast.error("Envie MP4, WEBM ou MOV de até 100 MB.");
-      return;
-    }
+    if (!/^video\/(mp4|webm|quicktime)$/.test(arquivo.type) || arquivo.size > 100 * 1024 * 1024) { toast.error("Envie MP4, WEBM ou MOV de até 100 MB."); return; }
     try {
       const envio = await prepararVideo({ data: { nome: arquivo.name } });
-      const { error } = await supabase.storage
-        .from("site_videos")
-        .uploadToSignedUrl(envio.path, envio.token, arquivo);
+      const { error } = await supabase.storage.from("site_videos").uploadToSignedUrl(envio.path, envio.token, arquivo);
       if (error) throw error;
       await confirmarVideoFn({ data: { path: envio.path } });
       qc.invalidateQueries({ queryKey: ["identidade-visual-site-admin"] });
       qc.invalidateQueries({ queryKey: ["admin-logs"] });
       toast.success("Vídeo de demonstração atualizado.");
-    } catch (e: any) {
-      toast.error(e.message || "Não foi possível atualizar o vídeo.");
-    } finally {
-      if (videoInput.current) videoInput.current.value = "";
-    }
+    } catch (e: any) { toast.error(e.message || "Não foi possível atualizar o vídeo."); }
+    finally { if (videoInput.current) videoInput.current.value = ""; }
   }
 
   async function removerVideo() {
@@ -662,19 +581,13 @@ function Admin() {
       await confirmarVideoFn({ data: { path: null } });
       qc.invalidateQueries({ queryKey: ["identidade-visual-site-admin"] });
       toast.success("Vídeo removido da home.");
-    } catch (e: any) {
-      toast.error(e.message || "Não foi possível remover o vídeo.");
-    }
+    } catch (e: any) { toast.error(e.message || "Não foi possível remover o vídeo."); }
   }
 
   const salvarParceria = useMutation({
     mutationFn: () =>
       salvarParceriaFn({
-        data: {
-          url: parceriaUrlInput.trim(),
-          slogan: parceriaSloganInput.trim() || null,
-          ativo: parceriaAtivoInput,
-        },
+        data: { url: parceriaUrlInput.trim(), slogan: parceriaSloganInput.trim() || null, ativo: parceriaAtivoInput },
       }),
     onSuccess: () => {
       toast.success("Parceria da home salva.");
@@ -714,9 +627,7 @@ function Admin() {
     }
     try {
       const envio = await prepararParceriaImagemFn({ data: { nome: arquivo.name } });
-      const { error } = await supabase.storage
-        .from("site_assets")
-        .uploadToSignedUrl(envio.path, envio.token, arquivo);
+      const { error } = await supabase.storage.from("site_assets").uploadToSignedUrl(envio.path, envio.token, arquivo);
       if (error) throw error;
       await confirmarParceriaImagemFn({ data: { path: envio.path } });
       qc.invalidateQueries({ queryKey: ["admin-parceria-home"] });
@@ -731,11 +642,7 @@ function Admin() {
   if (!isSiteAdmin)
     return (
       <AppLayout title="Administração">
-        <Card>
-          <CardContent className="p-8 text-center text-muted-foreground">
-            Área restrita ao administrador do site.
-          </CardContent>
-        </Card>
+        <Card><CardContent className="p-8 text-center text-muted-foreground">Área restrita ao administrador do site.</CardContent></Card>
       </AppLayout>
     );
 
@@ -749,46 +656,24 @@ function Admin() {
             <div className="text-center space-y-1">
               <div className="flex justify-center mb-3">
                 <div className="flex size-12 items-center justify-center rounded-full bg-amber-500/10">
-                  <svg
-                    className="size-6 text-amber-600"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                    />
-                  </svg>
+                  <svg className="size-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
                 </div>
               </div>
               <p className="font-semibold">Área protegida</p>
-              <p className="text-xs text-muted-foreground">
-                Confirme sua senha para acessar o painel de administração.
-              </p>
+              <p className="text-xs text-muted-foreground">Confirme sua senha para acessar o painel de administração.</p>
             </div>
             <Input
               type="password"
               placeholder="Sua senha de acesso"
               value={senhaConsulta}
-              onChange={(e) => {
-                setSenhaConsulta(e.target.value);
-                setErroSenhaConsulta("");
-              }}
+              onChange={(e) => { setSenhaConsulta(e.target.value); setErroSenhaConsulta(""); }}
               onKeyDown={async (e) => {
                 if (e.key !== "Enter") return;
                 const { error } = await supabase.auth.signInWithPassword({
                   email: (await supabase.auth.getUser()).data.user?.email ?? "",
                   password: senhaConsulta,
                 });
-                if (error) {
-                  setErroSenhaConsulta("Senha incorreta.");
-                } else {
-                  setConsultaDesbloqueada(true);
-                  setSenhaConsulta("");
-                }
+                if (error) { setErroSenhaConsulta("Senha incorreta."); } else { setConsultaDesbloqueada(true); setSenhaConsulta(""); }
               }}
             />
             {erroSenhaConsulta && <p className="text-xs text-rose-600">{erroSenhaConsulta}</p>}
@@ -801,12 +686,7 @@ function Admin() {
                   email: userResult.user?.email ?? "",
                   password: senhaConsulta,
                 });
-                if (error) {
-                  setErroSenhaConsulta("Senha incorreta.");
-                } else {
-                  setConsultaDesbloqueada(true);
-                  setSenhaConsulta("");
-                }
+                if (error) { setErroSenhaConsulta("Senha incorreta."); } else { setConsultaDesbloqueada(true); setSenhaConsulta(""); }
               }}
             >
               Confirmar e acessar
@@ -817,16 +697,9 @@ function Admin() {
     );
 
   // Contadores de badge
-  const layoutsPendentes = layouts.filter(
-    (l: any) => l.status === "recebida" || l.status === "em_modelagem",
-  ).length;
-  const privPendentes = pedidos.filter(
-    (p: any) =>
-      p.status === "recebida" || p.status === "em_atendimento" || p.status === "em_analise",
-  ).length;
-  const chamadosPendentes = chamados.filter(
-    (c: any) => c.status === "recebido" || c.status === "em_atendimento",
-  ).length;
+  const layoutsPendentes = layouts.filter((l: any) => l.status === "recebida" || l.status === "em_modelagem").length;
+  const privPendentes = pedidos.filter((p: any) => p.status === "recebida" || p.status === "em_atendimento" || p.status === "em_analise").length;
+  const chamadosPendentes = chamados.filter((c: any) => c.status === "recebido" || c.status === "em_atendimento").length;
 
   async function abrirAnexoChamado(chamadoId: string, path: string) {
     try {
@@ -839,11 +712,7 @@ function Admin() {
   const totalPendentes = layoutsPendentes + privPendentes + chamadosPendentes;
 
   const logsVisiveis = filtroLog
-    ? logs.filter(
-        (l: any) =>
-          l.acao.includes(filtroLog.toLowerCase()) ||
-          l.profiles?.nome?.toLowerCase().includes(filtroLog.toLowerCase()),
-      )
+    ? logs.filter((l: any) => l.acao.includes(filtroLog.toLowerCase()) || l.profiles?.nome?.toLowerCase().includes(filtroLog.toLowerCase()))
     : logs;
 
   return (
@@ -861,9 +730,7 @@ function Admin() {
           <TabsTrigger value="central" className="relative">
             Central de Solicitações
             {totalPendentes > 0 && (
-              <span className="ml-1 rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] text-white font-bold">
-                {totalPendentes}
-              </span>
+              <span className="ml-1 rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] text-white font-bold">{totalPendentes}</span>
             )}
           </TabsTrigger>
           <TabsTrigger value="logs">Logs de Auditoria</TabsTrigger>
@@ -873,49 +740,20 @@ function Admin() {
         <TabsContent value="dados-gerais" className="space-y-4">
           {/* Métricas gerais */}
           <div className="grid gap-3 sm:grid-cols-3">
-            <Card>
-              <CardContent className="p-4">
-                <b>{metricas?.total ?? 0}</b>
-                <p className="text-xs text-muted-foreground">usuários cadastrados</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4">
-                <b>{metricas?.ativos ?? 0}</b>
-                <p className="text-xs text-muted-foreground">contas ativas</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4">
-                <b>{metricas?.tempoMedioMin ?? 0} min</b>
-                <p className="text-xs text-muted-foreground">tempo médio de sessão</p>
-              </CardContent>
-            </Card>
+            <Card><CardContent className="p-4"><b>{metricas?.total ?? 0}</b><p className="text-xs text-muted-foreground">usuários cadastrados</p></CardContent></Card>
+            <Card><CardContent className="p-4"><b>{metricas?.ativos ?? 0}</b><p className="text-xs text-muted-foreground">contas ativas</p></CardContent></Card>
+            <Card><CardContent className="p-4"><b>{metricas?.tempoMedioMin ?? 0} min</b><p className="text-xs text-muted-foreground">tempo médio de sessão</p></CardContent></Card>
           </div>
 
           {/* Convites */}
           <Card>
-            <CardHeader>
-              <CardTitle className="text-sm">Convites</CardTitle>
-            </CardHeader>
+            <CardHeader><CardTitle className="text-sm">Convites</CardTitle></CardHeader>
             <CardContent>
               <div className="flex flex-wrap gap-4 text-sm mb-3">
-                <span>
-                  <b>{(convites as any[]).filter((c: any) => c.status === "usado").length}</b>{" "}
-                  usados
-                </span>
-                <span>
-                  <b>{(convites as any[]).filter((c: any) => c.status === "pendente").length}</b>{" "}
-                  pendentes
-                </span>
-                <span>
-                  <b>{(convites as any[]).filter((c: any) => c.status === "cancelado").length}</b>{" "}
-                  cancelados
-                </span>
-                <span>
-                  <b>{(convites as any[]).filter((c: any) => c.status === "expirado").length}</b>{" "}
-                  expirados
-                </span>
+                <span><b>{(convites as any[]).filter((c: any) => c.status === "usado").length}</b> usados</span>
+                <span><b>{(convites as any[]).filter((c: any) => c.status === "pendente").length}</b> pendentes</span>
+                <span><b>{(convites as any[]).filter((c: any) => c.status === "cancelado").length}</b> cancelados</span>
+                <span><b>{(convites as any[]).filter((c: any) => c.status === "expirado").length}</b> expirados</span>
               </div>
               <p className="text-xs text-muted-foreground">
                 Limite de {config?.cota_convites ?? 3} convites por usuário comum (ajustável na aba
@@ -923,31 +761,18 @@ function Admin() {
               </p>
               <div className="mt-3 max-h-60 overflow-auto">
                 <table className="w-full text-left text-xs">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="p-1.5">Criador</th>
-                      <th className="p-1.5">Status</th>
-                      <th className="p-1.5">Criado em</th>
-                      <th className="p-1.5">Expira em</th>
-                    </tr>
-                  </thead>
+                  <thead><tr className="border-b"><th className="p-1.5">Criador</th><th className="p-1.5">Status</th><th className="p-1.5">Criado em</th><th className="p-1.5">Expira em</th></tr></thead>
                   <tbody>
                     {(convites as any[]).map((c: any) => (
                       <tr key={c.id} className="border-b last:border-0">
                         <td className="p-1.5">{c.criador_nome}</td>
                         <td className="p-1.5">
-                          <span
-                            className={`rounded px-2 py-0.5 text-xs font-semibold ${STATUS_CONVITE[c.status]?.color ?? ""}`}
-                          >
+                          <span className={`rounded px-2 py-0.5 text-xs font-semibold ${STATUS_CONVITE[c.status]?.color ?? ""}`}>
                             {STATUS_CONVITE[c.status]?.label ?? c.status}
                           </span>
                         </td>
-                        <td className="p-1.5">
-                          {new Date(c.criado_em).toLocaleDateString("pt-BR")}
-                        </td>
-                        <td className="p-1.5">
-                          {new Date(c.expira_em).toLocaleDateString("pt-BR")}
-                        </td>
+                        <td className="p-1.5">{new Date(c.criado_em).toLocaleDateString("pt-BR")}</td>
+                        <td className="p-1.5">{new Date(c.expira_em).toLocaleDateString("pt-BR")}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -964,9 +789,7 @@ function Admin() {
 
           {/* Composição dos grupos */}
           <Card>
-            <CardHeader>
-              <CardTitle className="text-sm">Composição dos grupos</CardTitle>
-            </CardHeader>
+            <CardHeader><CardTitle className="text-sm">Composição dos grupos</CardTitle></CardHeader>
             <CardContent className="grid gap-3 md:grid-cols-2">
               {(metricas?.grupos ?? []).map((g: any) => (
                 <div key={g.id} className="rounded-lg border p-3">
@@ -974,12 +797,7 @@ function Admin() {
                   <p className="text-xs text-muted-foreground">{g.membros.length} integrante(s)</p>
                   <div className="mt-2 space-y-1">
                     {g.membros.map((m: any) => (
-                      <p key={m.id} className="text-xs">
-                        {m.nome}{" "}
-                        <span className="text-muted-foreground">
-                          {m.email ?? "sem e-mail"} · {m.ativo ? "ativo" : "inativo"}
-                        </span>
-                      </p>
+                      <p key={m.id} className="text-xs">{m.nome}{" "}<span className="text-muted-foreground">{m.email ?? "sem e-mail"} · {m.ativo ? "ativo" : "inativo"}</span></p>
                     ))}
                   </div>
                 </div>
@@ -997,64 +815,41 @@ function Admin() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm">Atividade e espaço por usuário</CardTitle>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="text-xs text-muted-foreground"
-                  onClick={() => setConsultaDesbloqueada(false)}
-                >
+                <Button size="sm" variant="ghost" className="text-xs text-muted-foreground" onClick={() => setConsultaDesbloqueada(false)}>
                   🔒 Bloquear administração
                 </Button>
               </div>
             </CardHeader>
             <CardContent>
-              <div className="max-h-96 overflow-auto">
-                <table className="w-full text-left text-sm">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="p-2">Usuário</th>
-                      <th className="p-2">Situação</th>
-                      <th className="p-2">Última atividade</th>
-                      <th className="p-2">Arquivos</th>
-                      <th className="p-2">Espaço</th>
-                      <th className="p-2">Grupo</th>
+            <div className="max-h-96 overflow-auto">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th className="p-2">Usuário</th>
+                    <th className="p-2">Situação</th>
+                    <th className="p-2">Última atividade</th>
+                    <th className="p-2">Arquivos</th>
+                    <th className="p-2">Espaço</th>
+                    <th className="p-2">Grupo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(metricas?.usuarios ?? []).map((u: any) => (
+                    <tr key={u.id} className="border-b last:border-0">
+                      <td className="p-2">{u.nome}</td>
+                      <td className="p-2">{u.ativo ? <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-700">Ativa</Badge> : <Badge variant="secondary" className="bg-rose-500/10 text-rose-700">Inativa</Badge>}</td>
+                      <td className="p-2 text-xs text-muted-foreground">{u.ultimaAtividadeEm ? new Date(u.ultimaAtividadeEm).toLocaleString("pt-BR") : "Sem acesso"}</td>
+                      <td className="p-2">{u.arquivos}</td>
+                      <td className="p-2">{formatarTamanho(u.bytesArmazenados)}</td>
+                      <td className="p-2 text-xs text-muted-foreground">{u.grupoNome}</td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {(metricas?.usuarios ?? []).map((u: any) => (
-                      <tr key={u.id} className="border-b last:border-0">
-                        <td className="p-2">{u.nome}</td>
-                        <td className="p-2">
-                          {u.ativo ? (
-                            <Badge
-                              variant="secondary"
-                              className="bg-emerald-500/10 text-emerald-700"
-                            >
-                              Ativa
-                            </Badge>
-                          ) : (
-                            <Badge variant="secondary" className="bg-rose-500/10 text-rose-700">
-                              Inativa
-                            </Badge>
-                          )}
-                        </td>
-                        <td className="p-2 text-xs text-muted-foreground">
-                          {u.ultimaAtividadeEm
-                            ? new Date(u.ultimaAtividadeEm).toLocaleString("pt-BR")
-                            : "Sem acesso"}
-                        </td>
-                        <td className="p-2">{u.arquivos}</td>
-                        <td className="p-2">{formatarTamanho(u.bytesArmazenados)}</td>
-                        <td className="p-2 text-xs text-muted-foreground">{u.grupoNome}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <p className="mt-2 text-xs text-muted-foreground">
-                Sem CPF exibido por segurança. Armazenamento não atribuído:{" "}
-                {formatarTamanho(metricas?.armazenamentoNaoAtribuidoBytes ?? 0)}.
-              </p>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Sem CPF exibido por segurança. Armazenamento não atribuído: {formatarTamanho(metricas?.armazenamentoNaoAtribuidoBytes ?? 0)}.
+            </p>
             </CardContent>
           </Card>
         </TabsContent>
@@ -1063,26 +858,15 @@ function Admin() {
         <TabsContent value="acesso" className="space-y-4">
           {config && (
             <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">Configurações de acesso e autenticação</CardTitle>
-              </CardHeader>
+              <CardHeader><CardTitle className="text-sm">Configurações de acesso e autenticação</CardTitle></CardHeader>
               <CardContent className="grid gap-4 sm:grid-cols-3">
                 <div>
                   <p className="mb-2 text-xs text-muted-foreground">Identificador no login</p>
                   <Select
                     value={config.modo_login}
-                    onValueChange={(v) =>
-                      salvarAcesso.mutate({
-                        modoLogin: v as any,
-                        segundoFatorEmail: config.segundo_fator_email,
-                        sessaoMaximaMinutos: sessaoMin,
-                        cotaConvites: cotaConvitesInput,
-                      })
-                    }
+                    onValueChange={(v) => salvarAcesso.mutate({ modoLogin: v as any, segundoFatorEmail: config.segundo_fator_email, sessaoMaximaMinutos: sessaoMin, cotaConvites: cotaConvitesInput })}
                   >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="cpf">Somente CPF</SelectItem>
                       <SelectItem value="email">Somente e-mail</SelectItem>
@@ -1094,14 +878,7 @@ function Admin() {
                   2FA por e-mail
                   <Switch
                     checked={config.segundo_fator_email}
-                    onCheckedChange={(v) =>
-                      salvarAcesso.mutate({
-                        modoLogin: config.modo_login,
-                        segundoFatorEmail: v,
-                        sessaoMaximaMinutos: sessaoMin,
-                        cotaConvites: cotaConvitesInput,
-                      })
-                    }
+                    onCheckedChange={(v) => salvarAcesso.mutate({ modoLogin: config.modo_login, segundoFatorEmail: v, sessaoMaximaMinutos: sessaoMin, cotaConvites: cotaConvitesInput })}
                   />
                 </label>
                 <div className="space-y-2">
@@ -1115,14 +892,7 @@ function Admin() {
                   />
                   <Button
                     size="sm"
-                    onClick={() =>
-                      salvarAcesso.mutate({
-                        modoLogin: config.modo_login,
-                        segundoFatorEmail: config.segundo_fator_email,
-                        sessaoMaximaMinutos: sessaoMin,
-                        cotaConvites: cotaConvitesInput,
-                      })
-                    }
+                    onClick={() => salvarAcesso.mutate({ modoLogin: config.modo_login, segundoFatorEmail: config.segundo_fator_email, sessaoMaximaMinutos: sessaoMin, cotaConvites: cotaConvitesInput })}
                   >
                     Salvar sessão
                   </Button>
@@ -1138,14 +908,7 @@ function Admin() {
                   />
                   <Button
                     size="sm"
-                    onClick={() =>
-                      salvarAcesso.mutate({
-                        modoLogin: config.modo_login,
-                        segundoFatorEmail: config.segundo_fator_email,
-                        sessaoMaximaMinutos: sessaoMin,
-                        cotaConvites: cotaConvitesInput,
-                      })
-                    }
+                    onClick={() => salvarAcesso.mutate({ modoLogin: config.modo_login, segundoFatorEmail: config.segundo_fator_email, sessaoMaximaMinutos: sessaoMin, cotaConvites: cotaConvitesInput })}
                   >
                     Salvar cota de convites
                   </Button>
@@ -1159,14 +922,10 @@ function Admin() {
           )}
           {config && (
             <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">Notas fiscais — Google Drive</CardTitle>
-              </CardHeader>
+              <CardHeader><CardTitle className="text-sm">Notas fiscais — Google Drive</CardTitle></CardHeader>
               <CardContent className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-sm">
-                    Mostrar seção de pasta/Google Drive pros usuários comuns
-                  </p>
+                  <p className="text-sm">Mostrar seção de pasta/Google Drive pros usuários comuns</p>
                   <p className="text-xs text-muted-foreground">
                     Desligado por padrão (item 15 do backlog). Enquanto desligado, só você (admin do
                     site) vê essa seção em Notas fiscais — o fluxo de conexão continua funcionando
@@ -1182,9 +941,7 @@ function Admin() {
           )}
           {config && (
             <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">Cadastro sem convite</CardTitle>
-              </CardHeader>
+              <CardHeader><CardTitle className="text-sm">Cadastro sem convite</CardTitle></CardHeader>
               <CardContent className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-sm">Permitir criar conta sem código de convite</p>
@@ -1212,16 +969,10 @@ function Admin() {
           )}
           <IaLancamentoModoSiteCard />
           <Card>
-            <CardHeader>
-              <CardTitle className="text-sm">Log de tentativas de login</CardTitle>
-            </CardHeader>
+            <CardHeader><CardTitle className="text-sm">Log de tentativas de login</CardTitle></CardHeader>
             <CardContent>
-              <p className="text-xs text-muted-foreground mb-3">
-                Identificadores com falhas de acesso registradas pelo sistema.
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Bloqueios automáticos ocorrem após 3 tentativas falhas consecutivas (15 min).
-              </p>
+              <p className="text-xs text-muted-foreground mb-3">Identificadores com falhas de acesso registradas pelo sistema.</p>
+              <p className="text-sm text-muted-foreground">Bloqueios automáticos ocorrem após 3 tentativas falhas consecutivas (15 min).</p>
             </CardContent>
           </Card>
         </TabsContent>
@@ -1230,13 +981,10 @@ function Admin() {
         <TabsContent value="modulos" className="space-y-4">
           {gestaoModulos && (
             <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">Módulos globais e exceções por usuário</CardTitle>
-              </CardHeader>
+              <CardHeader><CardTitle className="text-sm">Módulos globais e exceções por usuário</CardTitle></CardHeader>
               <CardContent className="space-y-3">
                 <p className="text-xs text-muted-foreground">
-                  Matheus (admin master) sempre enxerga todos os módulos. Desative globalmente e
-                  libere para usuários de teste individualmente.
+                  Matheus (admin master) sempre enxerga todos os módulos. Desative globalmente e libere para usuários de teste individualmente.
                 </p>
                 <Input
                   placeholder="Buscar usuário por nome ou e-mail…"
@@ -1245,17 +993,12 @@ function Admin() {
                   className="max-w-sm"
                 />
                 {gestaoModulos.modulos.map((m: any) => {
-                  const excecoesDoModulo = gestaoModulos.excecoes.filter(
-                    (x: any) => x.modulo === m.modulo,
-                  );
+                  const excecoesDoModulo = gestaoModulos.excecoes.filter((x: any) => x.modulo === m.modulo);
                   const liberados = excecoesDoModulo.filter((x: any) => x.habilitado).length;
                   const usuariosFiltrados = gestaoModulos.usuarios.filter((u: any) => {
                     const termo = buscaModulo.trim().toLowerCase();
                     if (!termo) return true;
-                    return (
-                      u.nome?.toLowerCase().includes(termo) ||
-                      u.email?.toLowerCase().includes(termo)
-                    );
+                    return u.nome?.toLowerCase().includes(termo) || u.email?.toLowerCase().includes(termo);
                   });
                   const selecionados = selecionadosPorModulo[m.modulo] ?? new Set<string>();
                   return (
@@ -1271,9 +1014,7 @@ function Admin() {
                         </div>
                         <Switch
                           checked={m.habilitado}
-                          onCheckedChange={(v) =>
-                            mudarModulo.mutate({ modulo: m.modulo, habilitado: v, userId: null })
-                          }
+                          onCheckedChange={(v) => mudarModulo.mutate({ modulo: m.modulo, habilitado: v, userId: null })}
                         />
                       </div>
                       {!m.habilitado && (
@@ -1288,11 +1029,7 @@ function Admin() {
                                 variant="default"
                                 disabled={mudarModuloEmMassa.isPending}
                                 onClick={() =>
-                                  mudarModuloEmMassa.mutate({
-                                    modulo: m.modulo,
-                                    habilitado: true,
-                                    userIds: [...selecionados],
-                                  })
+                                  mudarModuloEmMassa.mutate({ modulo: m.modulo, habilitado: true, userIds: [...selecionados] })
                                 }
                               >
                                 Liberar selecionados
@@ -1302,11 +1039,7 @@ function Admin() {
                                 variant="outline"
                                 disabled={mudarModuloEmMassa.isPending}
                                 onClick={() =>
-                                  mudarModuloEmMassa.mutate({
-                                    modulo: m.modulo,
-                                    habilitado: false,
-                                    userIds: [...selecionados],
-                                  })
+                                  mudarModuloEmMassa.mutate({ modulo: m.modulo, habilitado: false, userIds: [...selecionados] })
                                 }
                               >
                                 Bloquear selecionados
@@ -1314,12 +1047,7 @@ function Admin() {
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                onClick={() =>
-                                  setSelecionadosPorModulo((atual) => ({
-                                    ...atual,
-                                    [m.modulo]: new Set(),
-                                  }))
-                                }
+                                onClick={() => setSelecionadosPorModulo((atual) => ({ ...atual, [m.modulo]: new Set() }))}
                               >
                                 Limpar seleção
                               </Button>
@@ -1327,9 +1055,7 @@ function Admin() {
                           )}
                           <div className="flex flex-wrap gap-2">
                             {usuariosFiltrados.length === 0 && (
-                              <p className="text-xs text-muted-foreground">
-                                Nenhum usuário encontrado para "{buscaModulo}".
-                              </p>
+                              <p className="text-xs text-muted-foreground">Nenhum usuário encontrado para "{buscaModulo}".</p>
                             )}
                             {usuariosFiltrados.map((u: any) => {
                               const ex = excecoesDoModulo.find((x: any) => x.user_id === u.id);
@@ -1346,13 +1072,7 @@ function Admin() {
                                   <Button
                                     size="sm"
                                     variant={ex?.habilitado ? "default" : "outline"}
-                                    onClick={() =>
-                                      mudarModulo.mutate({
-                                        modulo: m.modulo,
-                                        habilitado: !ex?.habilitado,
-                                        userId: u.id,
-                                      })
-                                    }
+                                    onClick={() => mudarModulo.mutate({ modulo: m.modulo, habilitado: !ex?.habilitado, userId: u.id })}
                                   >
                                     {u.nome}
                                   </Button>
@@ -1380,15 +1100,14 @@ function Admin() {
               <p className="text-xs text-muted-foreground">
                 Grupos com o Oracle habilitado usam o Object Storage do Oracle Cloud como destino
                 preferencial dos comprovantes de notas fiscais (antes do Google Drive e do
-                armazenamento do site). Ao habilitar pela primeira vez, a cota sugerida é 500 MB por
-                membro do grupo — depois disso fica fixa até você ajustar manualmente aqui.
+                armazenamento do site). Ao habilitar pela primeira vez, a cota sugerida é 500 MB
+                por membro do grupo — depois disso fica fixa até você ajustar manualmente aqui.
               </p>
               {armazenamentoOracle.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Nenhum grupo encontrado.</p>
               ) : (
                 armazenamentoOracle.map((g) => {
-                  const percentual =
-                    g.cotaBytes > 0 ? Math.min(100, (g.usadoBytes / g.cotaBytes) * 100) : 0;
+                  const percentual = g.cotaBytes > 0 ? Math.min(100, (g.usadoBytes / g.cotaBytes) * 100) : 0;
                   const cotaMbAtual = Math.round(g.cotaBytes / (1024 * 1024));
                   const inputAtual = cotaOracleInput[g.grupoId] ?? String(cotaMbAtual);
                   return (
@@ -1402,9 +1121,7 @@ function Admin() {
                         </div>
                         <Switch
                           checked={g.habilitado}
-                          onCheckedChange={(v) =>
-                            alternarOracle.mutate({ grupoId: g.grupoId, habilitado: v })
-                          }
+                          onCheckedChange={(v) => alternarOracle.mutate({ grupoId: g.grupoId, habilitado: v })}
                         />
                       </div>
                       {g.habilitado && (
@@ -1417,8 +1134,8 @@ function Admin() {
                           </div>
                           <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
                             <span>
-                              {formatarTamanho(g.usadoBytes)} usados de{" "}
-                              {formatarTamanho(g.cotaBytes)} ({percentual.toFixed(1)}%)
+                              {formatarTamanho(g.usadoBytes)} usados de {formatarTamanho(g.cotaBytes)}{" "}
+                              ({percentual.toFixed(1)}%)
                             </span>
                             <div className="flex items-center gap-1.5">
                               <Input
@@ -1427,10 +1144,7 @@ function Admin() {
                                 className="h-7 w-24 text-xs"
                                 value={inputAtual}
                                 onChange={(e) =>
-                                  setCotaOracleInput((atual) => ({
-                                    ...atual,
-                                    [g.grupoId]: e.target.value,
-                                  }))
+                                  setCotaOracleInput((atual) => ({ ...atual, [g.grupoId]: e.target.value }))
                                 }
                               />
                               <span>MB</span>
@@ -1467,10 +1181,7 @@ function Admin() {
             <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
               <div>
                 <h2 className="font-semibold">Logo do Control ALL</h2>
-                <p className="text-xs text-muted-foreground">
-                  A imagem será usada na Home, login e áreas internas. JPG, PNG, WEBP ou GIF, até 5
-                  MB.
-                </p>
+                <p className="text-xs text-muted-foreground">A imagem será usada na Home, login e áreas internas. JPG, PNG, WEBP ou GIF, até 5 MB.</p>
               </div>
               <input
                 ref={logoInput}
@@ -1479,9 +1190,7 @@ function Admin() {
                 accept="image/jpeg,image/png,image/webp,image/gif"
                 onChange={(e) => subirLogo(e.target.files)}
               />
-              <Button variant="outline" onClick={() => logoInput.current?.click()}>
-                Enviar ou trocar logo
-              </Button>
+              <Button variant="outline" onClick={() => logoInput.current?.click()}>Enviar ou trocar logo</Button>
             </CardContent>
           </Card>
 
@@ -1491,9 +1200,7 @@ function Admin() {
                 <h2 className="font-semibold">Vídeo de demonstração da home</h2>
                 <p className="text-xs text-muted-foreground">
                   Exibido na seção "Demonstração" da home pública. MP4, WEBM ou MOV, até 100 MB.
-                  {identidadeVisual?.video_demonstracao_path
-                    ? " Há um vídeo publicado agora."
-                    : " Nenhum vídeo publicado ainda."}
+                  {identidadeVisual?.video_demonstracao_path ? " Há um vídeo publicado agora." : " Nenhum vídeo publicado ainda."}
                 </p>
               </div>
               <div className="flex gap-2">
@@ -1508,9 +1215,7 @@ function Admin() {
                   {identidadeVisual?.video_demonstracao_path ? "Trocar vídeo" : "Enviar vídeo"}
                 </Button>
                 {identidadeVisual?.video_demonstracao_path && (
-                  <Button variant="ghost" className="text-muted-foreground" onClick={removerVideo}>
-                    Remover
-                  </Button>
+                  <Button variant="ghost" className="text-muted-foreground" onClick={removerVideo}>Remover</Button>
                 )}
               </div>
             </CardContent>
@@ -1533,21 +1238,11 @@ function Admin() {
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-muted-foreground">Nome do plano</label>
-                  <Input
-                    value={precoNomeInput}
-                    onChange={(e) => setPrecoNomeInput(e.target.value)}
-                    placeholder="Control ALL"
-                  />
+                  <Input value={precoNomeInput} onChange={(e) => setPrecoNomeInput(e.target.value)} placeholder="Control ALL" />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">
-                    Texto do botão
-                  </label>
-                  <Input
-                    value={precoBotaoInput}
-                    onChange={(e) => setPrecoBotaoInput(e.target.value)}
-                    placeholder="Criar conta"
-                  />
+                  <label className="text-xs font-medium text-muted-foreground">Texto do botão</label>
+                  <Input value={precoBotaoInput} onChange={(e) => setPrecoBotaoInput(e.target.value)} placeholder="Criar conta" />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-muted-foreground">Valor (R$)</label>
@@ -1559,21 +1254,13 @@ function Admin() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">
-                    Sufixo (ex.: /mês)
-                  </label>
-                  <Input
-                    value={precoSufixoInput}
-                    onChange={(e) => setPrecoSufixoInput(e.target.value)}
-                    placeholder="/mês"
-                  />
+                  <label className="text-xs font-medium text-muted-foreground">Sufixo (ex.: /mês)</label>
+                  <Input value={precoSufixoInput} onChange={(e) => setPrecoSufixoInput(e.target.value)} placeholder="/mês" />
                 </div>
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">
-                  Descrição (abaixo do preço)
-                </label>
+                <label className="text-xs font-medium text-muted-foreground">Descrição (abaixo do preço)</label>
                 <Input
                   value={precoDescricaoInput}
                   onChange={(e) => setPrecoDescricaoInput(e.target.value)}
@@ -1588,19 +1275,13 @@ function Admin() {
                 <Textarea
                   value={precoItensInput}
                   onChange={(e) => setPrecoItensInput(e.target.value)}
-                  placeholder={
-                    "Módulos pessoais e financeiros\nAlertas e histórico\nCompartilhamento controlado\nPrivacidade por padrão"
-                  }
+                  placeholder={"Módulos pessoais e financeiros\nAlertas e histórico\nCompartilhamento controlado\nPrivacidade por padrão"}
                   className="min-h-[110px] text-sm"
                 />
               </div>
 
               <div className="flex justify-end border-t pt-3">
-                <Button
-                  size="sm"
-                  onClick={() => salvarPreco.mutate()}
-                  disabled={salvarPreco.isPending}
-                >
+                <Button size="sm" onClick={() => salvarPreco.mutate()} disabled={salvarPreco.isPending}>
                   {salvarPreco.isPending ? "Salvando..." : "Salvar preços"}
                 </Button>
               </div>
@@ -1625,9 +1306,7 @@ function Admin() {
 
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">
-                    Link do parceiro
-                  </label>
+                  <label className="text-xs font-medium text-muted-foreground">Link do parceiro</label>
                   <Input
                     value={parceriaUrlInput}
                     onChange={(e) => setParceriaUrlInput(e.target.value)}
@@ -1635,15 +1314,11 @@ function Admin() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">
-                    Slogan (opcional)
-                  </label>
+                  <label className="text-xs font-medium text-muted-foreground">Slogan (opcional)</label>
                   <Textarea
                     value={parceriaSloganInput}
                     onChange={(e) => setParceriaSloganInput(e.target.value)}
-                    placeholder={
-                      "Seu próximo desconto pode estar a um clique\nNão pague mais caro, antes de comprar, dá uma Picz"
-                    }
+                    placeholder={"Seu próximo desconto pode estar a um clique\nNão pague mais caro, antes de comprar, dá uma Picz"}
                     className="min-h-[72px] text-sm"
                   />
                 </div>
@@ -1652,9 +1327,7 @@ function Admin() {
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                   <Switch checked={parceriaAtivoInput} onCheckedChange={setParceriaAtivoInput} />
-                  <span className="text-sm">
-                    {parceriaAtivoInput ? "Visível na home" : "Oculto na home"}
-                  </span>
+                  <span className="text-sm">{parceriaAtivoInput ? "Visível na home" : "Oculto na home"}</span>
                 </div>
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   <MousePointerClick className="size-3.5" />
@@ -1665,11 +1338,7 @@ function Admin() {
               <div className="flex flex-wrap items-center gap-3 border-t pt-3">
                 {parceria?.preview_imagem_path ? (
                   <img
-                    src={
-                      supabase.storage
-                        .from("site_assets")
-                        .getPublicUrl(parceria.preview_imagem_path).data.publicUrl
-                    }
+                    src={supabase.storage.from("site_assets").getPublicUrl(parceria.preview_imagem_path).data.publicUrl}
                     alt="Prévia atual do site parceiro"
                     className="h-16 w-28 rounded-md border object-cover"
                   />
@@ -1685,18 +1354,10 @@ function Admin() {
                   accept="image/jpeg,image/png,image/webp"
                   onChange={(e) => subirParceriaImagem(e.target.files)}
                 />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => parceriaImagemInput.current?.click()}
-                >
+                <Button variant="outline" size="sm" onClick={() => parceriaImagemInput.current?.click()}>
                   {parceria?.preview_imagem_path ? "Trocar print" : "Enviar print"}
                 </Button>
-                <Button
-                  size="sm"
-                  onClick={() => salvarParceria.mutate()}
-                  disabled={salvarParceria.isPending}
-                >
+                <Button size="sm" onClick={() => salvarParceria.mutate()} disabled={salvarParceria.isPending}>
                   {salvarParceria.isPending ? "Salvando..." : "Salvar"}
                 </Button>
               </div>
@@ -1705,9 +1366,7 @@ function Admin() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm">
-                Economia total conquistada (exibida na home)
-              </CardTitle>
+              <CardTitle className="text-sm">Economia total conquistada (exibida na home)</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <p className="text-xs text-muted-foreground">
@@ -1737,9 +1396,7 @@ function Admin() {
                     inputMode="decimal"
                     placeholder="Ex.: 15000"
                     value={economiaExibidaInput}
-                    onChange={(e) =>
-                      setEconomiaExibidaInput(e.target.value.replace(/[^0-9.,]/g, ""))
-                    }
+                    onChange={(e) => setEconomiaExibidaInput(e.target.value.replace(/[^0-9.,]/g, ""))}
                   />
                 </div>
                 <Button
@@ -1765,20 +1422,16 @@ function Admin() {
                 >
                   Salvar e exibir no site
                 </Button>
-                {estatisticaPublica?.economiaTotalExibida !== null &&
-                  estatisticaPublica?.economiaTotalExibida !== undefined && (
-                    <Button
-                      variant="ghost"
-                      className="text-muted-foreground"
-                      onClick={() => {
-                        setEconomiaExibidaInput("");
-                        salvarEstatistica.mutate(null);
-                      }}
-                      disabled={salvarEstatistica.isPending}
-                    >
-                      Ocultar da home
-                    </Button>
-                  )}
+                {estatisticaPublica?.economiaTotalExibida !== null && estatisticaPublica?.economiaTotalExibida !== undefined && (
+                  <Button
+                    variant="ghost"
+                    className="text-muted-foreground"
+                    onClick={() => { setEconomiaExibidaInput(""); salvarEstatistica.mutate(null); }}
+                    disabled={salvarEstatistica.isPending}
+                  >
+                    Ocultar da home
+                  </Button>
+                )}
               </div>
               <p className="text-xs text-muted-foreground">
                 Enquanto nenhum valor for salvo aqui, esta estatística não aparece na home pública.
@@ -1796,11 +1449,7 @@ function Admin() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <Input
-                placeholder="Título"
-                value={titulo}
-                onChange={(e) => setTitulo(e.target.value)}
-              />
+              <Input placeholder="Título" value={titulo} onChange={(e) => setTitulo(e.target.value)} />
               <Textarea
                 placeholder="Mensagem para todos os usuários"
                 value={msg}
@@ -1808,20 +1457,13 @@ function Admin() {
                 rows={6}
               />
               <div className="flex gap-2">
-                <Button
-                  disabled={!titulo || !msg || comunicadoMut.isPending}
-                  onClick={() => comunicadoMut.mutate()}
-                >
+                <Button disabled={!titulo || !msg || comunicadoMut.isPending} onClick={() => comunicadoMut.mutate()}>
                   {comunicadoEditandoId ? "Salvar alterações" : "Publicar para todos"}
                 </Button>
                 {comunicadoEditandoId && (
                   <Button
                     variant="ghost"
-                    onClick={() => {
-                      setComunicadoEditandoId(null);
-                      setTitulo("");
-                      setMsg("");
-                    }}
+                    onClick={() => { setComunicadoEditandoId(null); setTitulo(""); setMsg(""); }}
                   >
                     Cancelar edição
                   </Button>
@@ -1829,89 +1471,65 @@ function Admin() {
               </div>
               <p className="text-xs text-muted-foreground">
                 {comunicadoEditandoId
-                  ? 'Salvar reexibe o aviso pra todo mundo, inclusive quem já tinha marcado "não exibir mais".'
+                  ? "Salvar reexibe o aviso pra todo mundo, inclusive quem já tinha marcado \"não exibir mais\"."
                   : "Aparece como um aviso que a pessoa precisa fechar ao entrar no site. Fica ativo até você encerrar."}
               </p>
             </CardContent>
           </Card>
           <Card>
-            <CardHeader>
-              <CardTitle className="text-sm">Avisos ativos</CardTitle>
-            </CardHeader>
+            <CardHeader><CardTitle className="text-sm">Avisos ativos</CardTitle></CardHeader>
             <CardContent className="space-y-2">
               {comunicados.filter((c: any) => c.ativo).length === 0 ? (
                 <p className="text-sm text-muted-foreground">Nenhum aviso ativo.</p>
               ) : (
-                comunicados
-                  .filter((c: any) => c.ativo)
-                  .map((c: any) => (
-                    <div
-                      key={c.id}
-                      className="flex items-center justify-between gap-2 rounded-lg border p-2 text-xs"
-                    >
-                      <div>
-                        <b>{c.titulo}</b>
-                        <p className="text-muted-foreground">
-                          {new Date(c.criado_em).toLocaleString("pt-BR")} · {c.confirmacoes ?? 0}{" "}
-                          confirmação(ões)
-                        </p>
-                      </div>
-                      <div className="flex shrink-0 gap-1">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => {
-                            setComunicadoEditandoId(c.id);
-                            setTitulo(c.titulo);
-                            setMsg(c.mensagem);
-                          }}
-                        >
-                          Editar
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          disabled={reenviarAviso.isPending}
-                          onClick={() => reenviarAviso.mutate(c.id)}
-                        >
-                          Reenviar p/ todos
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="text-rose-600"
-                          onClick={() => limparAviso.mutate(c.id)}
-                        >
-                          Encerrar
-                        </Button>
-                      </div>
+                comunicados.filter((c: any) => c.ativo).map((c: any) => (
+                  <div key={c.id} className="flex items-center justify-between gap-2 rounded-lg border p-2 text-xs">
+                    <div>
+                      <b>{c.titulo}</b>
+                      <p className="text-muted-foreground">
+                        {new Date(c.criado_em).toLocaleString("pt-BR")} · {c.confirmacoes ?? 0} confirmação(ões)
+                      </p>
                     </div>
-                  ))
+                    <div className="flex shrink-0 gap-1">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => { setComunicadoEditandoId(c.id); setTitulo(c.titulo); setMsg(c.mensagem); }}
+                      >
+                        Editar
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={reenviarAviso.isPending}
+                        onClick={() => reenviarAviso.mutate(c.id)}
+                      >
+                        Reenviar p/ todos
+                      </Button>
+                      <Button size="sm" variant="ghost" className="text-rose-600" onClick={() => limparAviso.mutate(c.id)}>
+                        Encerrar
+                      </Button>
+                    </div>
+                  </div>
+                ))
               )}
             </CardContent>
           </Card>
           {comunicados.filter((c: any) => !c.ativo).length > 0 && (
             <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">Histórico de avisos</CardTitle>
-              </CardHeader>
+              <CardHeader><CardTitle className="text-sm">Histórico de avisos</CardTitle></CardHeader>
               <CardContent className="space-y-2 max-h-60 overflow-auto">
-                {comunicados
-                  .filter((c: any) => !c.ativo)
-                  .map((c: any) => (
-                    <div key={c.id} className="border-b py-2 text-xs text-muted-foreground">
-                      <b className="text-foreground">{c.titulo}</b> · encerrado ·{" "}
-                      {new Date(c.criado_em).toLocaleString("pt-BR")}
-                    </div>
-                  ))}
+                {comunicados.filter((c: any) => !c.ativo).map((c: any) => (
+                  <div key={c.id} className="border-b py-2 text-xs text-muted-foreground">
+                    <b className="text-foreground">{c.titulo}</b> · encerrado · {new Date(c.criado_em).toLocaleString("pt-BR")}
+                  </div>
+                ))}
               </CardContent>
             </Card>
           )}
           {tourConfig && (
             <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">Tour guiado (novos usuários)</CardTitle>
-              </CardHeader>
+              <CardHeader><CardTitle className="text-sm">Tour guiado (novos usuários)</CardTitle></CardHeader>
               <CardContent className="space-y-3">
                 <label className="flex items-center justify-between gap-3 rounded-lg border p-3 text-sm">
                   <div>
@@ -1945,11 +1563,7 @@ function Admin() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm">Solicitações de Privacidade (LGPD)</CardTitle>
-                {privPendentes > 0 && (
-                  <span className="rounded-full bg-rose-500/10 px-2.5 py-0.5 text-xs font-medium text-rose-600">
-                    {privPendentes} pendente(s)
-                  </span>
-                )}
+                {privPendentes > 0 && <span className="rounded-full bg-rose-500/10 px-2.5 py-0.5 text-xs font-medium text-rose-600">{privPendentes} pendente(s)</span>}
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -1961,36 +1575,20 @@ function Admin() {
                     <div className="flex items-start justify-between gap-2">
                       <div>
                         <b className="text-sm">{p.email}</b>
-                        <p className="text-xs text-muted-foreground">
-                          {p.telefone} · Protocolo: {p.protocolo?.substring(0, 8)}…
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {p.motivo || "Sem detalhes"} ·{" "}
-                          {new Date(p.criado_em).toLocaleDateString("pt-BR")}
-                        </p>
+                        <p className="text-xs text-muted-foreground">{p.telefone} · Protocolo: {p.protocolo?.substring(0, 8)}…</p>
+                        <p className="text-xs text-muted-foreground">{p.motivo || "Sem detalhes"} · {new Date(p.criado_em).toLocaleDateString("pt-BR")}</p>
                       </div>
-                      <span
-                        className={`shrink-0 rounded px-2 py-0.5 text-xs font-semibold ${STATUS_PRIVACIDADE[p.status]?.color ?? ""}`}
-                      >
+                      <span className={`shrink-0 rounded px-2 py-0.5 text-xs font-semibold ${STATUS_PRIVACIDADE[p.status]?.color ?? ""}`}>
                         {STATUS_PRIVACIDADE[p.status]?.label ?? p.status}
                       </span>
                     </div>
-                    {p.resposta_admin && (
-                      <p className="text-xs italic text-muted-foreground">
-                        Última resposta: {p.resposta_admin}
-                      </p>
-                    )}
+                    {p.resposta_admin && <p className="text-xs italic text-muted-foreground">Última resposta: {p.resposta_admin}</p>}
                     {Array.isArray(p.tratativa_historico) && p.tratativa_historico.length > 0 && (
                       <details className="text-xs">
-                        <summary className="cursor-pointer text-muted-foreground">
-                          Ver histórico ({p.tratativa_historico.length})
-                        </summary>
+                        <summary className="cursor-pointer text-muted-foreground">Ver histórico ({p.tratativa_historico.length})</summary>
                         <div className="mt-1 space-y-1 pl-2 border-l">
                           {p.tratativa_historico.map((h: any, i: number) => (
-                            <p key={i} className="text-muted-foreground">
-                              {new Date(h.data).toLocaleString("pt-BR")} ·{" "}
-                              {STATUS_PRIVACIDADE[h.status]?.label ?? h.status}: {h.mensagem}
-                            </p>
+                            <p key={i} className="text-muted-foreground">{new Date(h.data).toLocaleString("pt-BR")} · {STATUS_PRIVACIDADE[h.status]?.label ?? h.status}: {h.mensagem}</p>
                           ))}
                         </div>
                       </details>
@@ -1998,11 +1596,7 @@ function Admin() {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => {
-                        setDialogPriv({ id: p.id, status: p.status, email: p.email });
-                        setStatusPriv(p.status);
-                        setRespostaPriv("");
-                      }}
+                      onClick={() => { setDialogPriv({ id: p.id, status: p.status, email: p.email }); setStatusPriv(p.status); setRespostaPriv(""); }}
                     >
                       Tratar solicitação
                     </Button>
@@ -2020,11 +1614,7 @@ function Admin() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm">Faturas enviadas para modelagem</CardTitle>
-                {layoutsPendentes > 0 && (
-                  <span className="rounded-full bg-amber-500/10 px-2.5 py-0.5 text-xs font-medium text-amber-600">
-                    {layoutsPendentes} pendente(s)
-                  </span>
-                )}
+                {layoutsPendentes > 0 && <span className="rounded-full bg-amber-500/10 px-2.5 py-0.5 text-xs font-medium text-amber-600">{layoutsPendentes} pendente(s)</span>}
               </div>
             </CardHeader>
             <CardContent className="space-y-2">
@@ -2032,71 +1622,28 @@ function Admin() {
                 <p className="text-sm text-muted-foreground">Nenhum arquivo aguardando análise.</p>
               ) : (
                 layouts.map((l: any) => (
-                  <div
-                    className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3"
-                    key={l.id}
-                  >
+                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3" key={l.id}>
                     <div>
                       <div className="flex items-center gap-2">
                         <b className="text-sm">{l.arquivo_nome}</b>
-                        <span
-                          className={`rounded px-2 py-0.5 text-xs font-semibold ${STATUS_LAYOUT[l.status]?.color ?? ""}`}
-                        >
+                        <span className={`rounded px-2 py-0.5 text-xs font-semibold ${STATUS_LAYOUT[l.status]?.color ?? ""}`}>
                           {STATUS_LAYOUT[l.status]?.label ?? l.status}
                         </span>
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        {l.profiles?.nome || l.profiles?.email || "Usuário"} ·{" "}
-                        {l.banco_informado || "Banco não inf."}{" "}
-                        {l.cartao_final ? `(Final ${l.cartao_final})` : ""} ·{" "}
-                        {new Date(l.criado_em).toLocaleDateString("pt-BR")}
+                        {l.profiles?.nome || l.profiles?.email || "Usuário"} · {l.banco_informado || "Banco não inf."} {l.cartao_final ? `(Final ${l.cartao_final})` : ""} · {new Date(l.criado_em).toLocaleDateString("pt-BR")}
                       </p>
-                      {l.resposta_admin && (
-                        <p className="mt-1 text-xs italic text-muted-foreground">
-                          {l.resposta_admin}
-                        </p>
-                      )}
+                      {l.resposta_admin && <p className="mt-1 text-xs italic text-muted-foreground">{l.resposta_admin}</p>}
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {l.status !== "corrigida" && l.status !== "descartada" && (
                         <>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => void abrirLayout(l.id)}
-                          >
-                            Baixar / Abrir
-                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => void abrirLayout(l.id)}>Baixar / Abrir</Button>
                           {l.status !== "em_modelagem" && (
-                            <Button
-                              size="sm"
-                              variant="secondary"
-                              onClick={() =>
-                                atualizarLayout.mutate({ id: l.id, status: "em_modelagem" })
-                              }
-                            >
-                              Em análise
-                            </Button>
+                            <Button size="sm" variant="secondary" onClick={() => atualizarLayout.mutate({ id: l.id, status: "em_modelagem" })}>Em análise</Button>
                           )}
-                          <Button
-                            size="sm"
-                            className="bg-emerald-600 hover:bg-emerald-700 text-white"
-                            onClick={() =>
-                              atualizarLayout.mutate({ id: l.id, status: "corrigida" })
-                            }
-                          >
-                            Concluído & Apagar PDF
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="text-rose-600"
-                            onClick={() =>
-                              atualizarLayout.mutate({ id: l.id, status: "descartada" })
-                            }
-                          >
-                            Descartar
-                          </Button>
+                          <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => atualizarLayout.mutate({ id: l.id, status: "corrigida" })}>Concluído & Apagar PDF</Button>
+                          <Button size="sm" variant="ghost" className="text-rose-600" onClick={() => atualizarLayout.mutate({ id: l.id, status: "descartada" })}>Descartar</Button>
                         </>
                       )}
                     </div>
@@ -2111,11 +1658,7 @@ function Admin() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm">Chamados de Suporte</CardTitle>
-                {chamadosPendentes > 0 && (
-                  <span className="rounded-full bg-blue-500/10 px-2.5 py-0.5 text-xs font-medium text-blue-600">
-                    {chamadosPendentes} aberto(s)
-                  </span>
-                )}
+                {chamadosPendentes > 0 && <span className="rounded-full bg-blue-500/10 px-2.5 py-0.5 text-xs font-medium text-blue-600">{chamadosPendentes} aberto(s)</span>}
               </div>
             </CardHeader>
             <CardContent className="space-y-2">
@@ -2127,10 +1670,7 @@ function Admin() {
                     <div className="flex items-start justify-between gap-2">
                       <div>
                         <b className="text-sm">{c.assunto}</b>
-                        <p className="text-xs text-muted-foreground">
-                          {c.nome || c.email} · Protocolo: {c.protocolo?.substring(0, 8)}… ·{" "}
-                          {new Date(c.criado_em).toLocaleDateString("pt-BR")}
-                        </p>
+                        <p className="text-xs text-muted-foreground">{c.nome || c.email} · Protocolo: {c.protocolo?.substring(0, 8)}… · {new Date(c.criado_em).toLocaleDateString("pt-BR")}</p>
                         <p className="text-xs text-muted-foreground line-clamp-2">{c.descricao}</p>
                         {c.anexo_path && (
                           <button
@@ -2142,17 +1682,11 @@ function Admin() {
                           </button>
                         )}
                       </div>
-                      <span
-                        className={`shrink-0 rounded px-2 py-0.5 text-xs font-semibold ${STATUS_CHAMADO[c.status]?.color ?? ""}`}
-                      >
+                      <span className={`shrink-0 rounded px-2 py-0.5 text-xs font-semibold ${STATUS_CHAMADO[c.status]?.color ?? ""}`}>
                         {STATUS_CHAMADO[c.status]?.label ?? c.status}
                       </span>
                     </div>
-                    {c.resposta_admin && (
-                      <p className="text-xs italic text-muted-foreground">
-                        Resposta: {c.resposta_admin}
-                      </p>
-                    )}
+                    {c.resposta_admin && <p className="text-xs italic text-muted-foreground">Resposta: {c.resposta_admin}</p>}
                     {c.status === "cancelado" ? (
                       // Item 9 (parte 2): chamado cancelado (pelo usuário ou pelo
                       // admin) nunca é excluído — fica visível aqui pra
@@ -2164,11 +1698,7 @@ function Admin() {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => {
-                          setDialogChamado({ id: c.id, status: c.status });
-                          setStatusChamado(c.status);
-                          setRespostaChamado("");
-                        }}
+                        onClick={() => { setDialogChamado({ id: c.id, status: c.status }); setStatusChamado(c.status); setRespostaChamado(""); }}
                       >
                         Responder / Atualizar
                       </Button>
@@ -2202,30 +1732,20 @@ function Admin() {
                   <details key={l.id} className="group rounded-lg border px-3 py-2 text-xs">
                     <summary className="flex cursor-pointer list-none items-start justify-between gap-2">
                       <div className="flex-1">
-                        <span className="font-semibold capitalize">
-                          {l.acao.replaceAll("_", " ")}
-                        </span>
+                        <span className="font-semibold capitalize">{l.acao.replaceAll("_", " ")}</span>
                         <span className="ml-2 text-muted-foreground">
-                          {l.profiles?.nome ?? l.profiles?.email ?? "Sistema"} ·{" "}
-                          {new Date(l.criado_em).toLocaleString("pt-BR")}
+                          {l.profiles?.nome ?? l.profiles?.email ?? "Sistema"} · {new Date(l.criado_em).toLocaleString("pt-BR")}
                         </span>
                         {l.detalhes?.ip && (
                           <span className="ml-2 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px]">
-                            {l.detalhes.ip}
-                            {l.detalhes.cidade ? ` · ${l.detalhes.cidade}` : ""}
+                            {l.detalhes.ip}{l.detalhes.cidade ? ` · ${l.detalhes.cidade}` : ""}
                           </span>
                         )}
-                        {l.acao?.includes("falha") ||
-                        l.acao?.includes("bloqueado") ||
-                        l.acao?.includes("login_falhou") ? (
-                          <span className="ml-2 rounded bg-rose-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-rose-600">
-                            ⚠ Falha
-                          </span>
+                        {l.acao?.includes("falha") || l.acao?.includes("bloqueado") || l.acao?.includes("login_falhou") ? (
+                          <span className="ml-2 rounded bg-rose-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-rose-600">⚠ Falha</span>
                         ) : null}
                       </div>
-                      <span className="shrink-0 text-[10px] text-muted-foreground group-open:hidden">
-                        ▼ detalhes
-                      </span>
+                      <span className="shrink-0 text-[10px] text-muted-foreground group-open:hidden">▼ detalhes</span>
                     </summary>
                     {l.detalhes && Object.keys(l.detalhes).length > 0 && (
                       <div className="mt-2 rounded bg-muted/60 p-2 font-mono text-[10px] whitespace-pre-wrap">
@@ -2241,15 +1761,7 @@ function Admin() {
       </Tabs>
 
       {/* ─── Dialog: Tratar privacidade ─── */}
-      <Dialog
-        open={!!dialogPriv}
-        onOpenChange={(o) => {
-          if (!o) {
-            setDialogPriv(null);
-            setRespostaPriv("");
-          }
-        }}
-      >
+      <Dialog open={!!dialogPriv} onOpenChange={(o) => { if (!o) { setDialogPriv(null); setRespostaPriv(""); } }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Tratar Solicitação de Privacidade</DialogTitle>
@@ -2257,14 +1769,10 @@ function Admin() {
           </DialogHeader>
           <div className="space-y-3">
             <Select value={statusPriv} onValueChange={setStatusPriv}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
+              <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 {Object.entries(STATUS_PRIVACIDADE).map(([v, s]) => (
-                  <SelectItem key={v} value={v}>
-                    {s.label}
-                  </SelectItem>
+                  <SelectItem key={v} value={v}>{s.label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -2276,24 +1784,12 @@ function Admin() {
             />
           </div>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setDialogPriv(null);
-                setRespostaPriv("");
-              }}
-            >
-              Cancelar
-            </Button>
+            <Button variant="outline" onClick={() => { setDialogPriv(null); setRespostaPriv(""); }}>Cancelar</Button>
             <Button
               disabled={tratarPriv.isPending}
               onClick={() => {
                 if (!dialogPriv) return;
-                tratarPriv.mutate({
-                  id: dialogPriv.id,
-                  status: statusPriv as any,
-                  resposta: respostaPriv || undefined,
-                });
+                tratarPriv.mutate({ id: dialogPriv.id, status: statusPriv as any, resposta: respostaPriv || undefined });
               }}
             >
               Salvar
@@ -2344,14 +1840,10 @@ function Admin() {
               </div>
             )}
             <Select value={statusChamado} onValueChange={setStatusChamado}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
+              <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 {Object.entries(STATUS_CHAMADO).map(([v, s]) => (
-                  <SelectItem key={v} value={v}>
-                    {s.label}
-                  </SelectItem>
+                  <SelectItem key={v} value={v}>{s.label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -2369,16 +1861,9 @@ function Admin() {
               onChange={(e) => {
                 const file = e.target.files?.[0] ?? null;
                 if (!file) return;
-                const tiposPermitidos = [
-                  "application/pdf",
-                  "image/png",
-                  "image/jpeg",
-                  "image/webp",
-                ];
+                const tiposPermitidos = ["application/pdf", "image/png", "image/jpeg", "image/webp"];
                 if (!tiposPermitidos.includes(file.type)) {
-                  toast.error(
-                    "Tipo de arquivo não permitido. Envie apenas imagem (JPG, PNG, WEBP) ou PDF.",
-                  );
+                  toast.error("Tipo de arquivo não permitido. Envie apenas imagem (JPG, PNG, WEBP) ou PDF.");
                   e.target.value = "";
                   return;
                 }
@@ -2433,11 +1918,7 @@ function Admin() {
               disabled={atualizarChamado.isPending}
               onClick={() => {
                 if (!dialogChamado) return;
-                atualizarChamado.mutate({
-                  id: dialogChamado.id,
-                  status: statusChamado as any,
-                  resposta: respostaChamado || undefined,
-                });
+                atualizarChamado.mutate({ id: dialogChamado.id, status: statusChamado as any, resposta: respostaChamado || undefined });
               }}
             >
               {atualizarChamado.isPending ? "Salvando…" : "Salvar"}
