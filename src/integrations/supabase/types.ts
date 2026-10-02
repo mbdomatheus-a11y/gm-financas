@@ -1307,6 +1307,8 @@ export type Database = {
           inclui_parcelas: boolean;
           modo_calculo: string;
           status: string;
+          tipo_lancamento: string;
+          data_limite: string | null;
           total_informado: number;
           total_real: number | null;
           updated_at: string;
@@ -1325,6 +1327,8 @@ export type Database = {
           inclui_parcelas?: boolean;
           modo_calculo?: string;
           status?: string;
+          tipo_lancamento?: string;
+          data_limite?: string | null;
           total_informado?: number;
           total_real?: number | null;
           updated_at?: string;
@@ -1343,6 +1347,8 @@ export type Database = {
           inclui_parcelas?: boolean;
           modo_calculo?: string;
           status?: string;
+          tipo_lancamento?: string;
+          data_limite?: string | null;
           total_informado?: number;
           total_real?: number | null;
           updated_at?: string;

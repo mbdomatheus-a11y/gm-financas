@@ -1191,10 +1191,28 @@ function DespesasPage() {
                                 </Badge>
                               )}
                               {ehTotalManual && faturaAvulsa?.status === "aberta" && (
-                                <Badge className="bg-amber-600 text-[10px] hover:bg-amber-700">
+                                <Badge
+                                  className="bg-amber-600 text-[10px] hover:bg-amber-700"
+                                  title="Veio do totalizador de fatura (Fatura do mês), não de lançamento item a item."
+                                >
                                   Total manual ativo
+                                  {faturaAvulsa.tipo_lancamento === "temporario" &&
+                                    faturaAvulsa.data_limite &&
+                                    ` · até ${monthLabelLong(monthKey(faturaAvulsa.data_limite))}`}
                                 </Badge>
                               )}
+                              {ehTotalManual &&
+                                faturaAvulsa?.status === "aberta" &&
+                                faturaAvulsa.tipo_lancamento === "temporario" &&
+                                faturaAvulsa.data_limite &&
+                                monthKey(faturaAvulsa.data_limite) < monthKey(new Date()) && (
+                                  <Badge
+                                    variant="outline"
+                                    className="border-destructive/40 text-[10px] text-destructive"
+                                  >
+                                    Prazo do total passou — considere detalhar item a item
+                                  </Badge>
+                                )}
                               {d.origem === "fatura_total_concluida" && (
                                 <Badge variant="outline" className="text-[10px]">
                                   Total manual concluído

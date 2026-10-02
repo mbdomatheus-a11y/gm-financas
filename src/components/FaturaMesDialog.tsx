@@ -42,6 +42,14 @@ export function FaturaMesDialog({ trigger }: { trigger?: React.ReactNode }) {
   const [modo, setModo] = useState<"inclui_parcelas" | "somar_parcelas" | "somente_total">(
     "inclui_parcelas",
   );
+  // Bloco 5 (plano-mega 2026-09-14): duração do lançamento avulso —
+  // "fixo" (padrão, igual ao comportamento de sempre: continua até você
+  // excluir manualmente ou importar a fatura detalhada daquele mês) ou
+  // "temporário" (com uma data-limite só pra te lembrar de voltar a
+  // detalhar esse cartão depois dela — não apaga nem bloqueia nada
+  // automaticamente, é só um aviso visual em /despesas).
+  const [tipoLancamento, setTipoLancamento] = useState<"temporario" | "fixo">("fixo");
+  const [dataLimite, setDataLimite] = useState<string>("");
 
   const qc = useQueryClient();
   const { user } = useSession();
@@ -89,6 +97,8 @@ export function FaturaMesDialog({ trigger }: { trigger?: React.ReactNode }) {
       if (!cartaoId) throw new Error("Escolha o cartão.");
       if (totalInformado <= 0) throw new Error("Informe o valor total da fatura.");
       if (negativo) throw new Error("O total informado é menor que as parcelas já previstas.");
+      if (tipoLancamento === "temporario" && !dataLimite)
+        throw new Error("Escolha até qual mês esse total vale.");
 
       const vencimento = vencimentoDoMes(competencia, cartao?.dia_vencimento);
       const registro = fatura.data as any;
@@ -161,6 +171,8 @@ export function FaturaMesDialog({ trigger }: { trigger?: React.ReactNode }) {
         status: "aberta",
         despesa_avulsa_id: despesaId,
         created_by: user?.id ?? null,
+        tipo_lancamento: tipoLancamento,
+        data_limite: tipoLancamento === "temporario" && dataLimite ? `${dataLimite}-01` : null,
       };
       if (registro) {
         const { error } = await supabase.from("fatura_mes").update(payload).eq("id", registro.id);
@@ -267,6 +279,43 @@ export function FaturaMesDialog({ trigger }: { trigger?: React.ReactNode }) {
                 </SelectItem>
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="grid gap-1.5">
+            <Label>Duração desse lançamento</Label>
+            <Select
+              value={tipoLancamento}
+              onValueChange={(v) => setTipoLancamento(v as typeof tipoLancamento)}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="fixo">
+                  Fixo — continua até eu excluir manualmente
+                </SelectItem>
+                <SelectItem value="temporario">Temporário — só até um mês específico</SelectItem>
+              </SelectContent>
+            </Select>
+            {tipoLancamento === "temporario" && (
+              <Select value={dataLimite} onValueChange={setDataLimite}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Até qual mês?" />
+                </SelectTrigger>
+                <SelectContent>
+                  {meses.map((m) => (
+                    <SelectItem key={m} value={m}>
+                      Até {monthLabelLong(m)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            <p className="text-[11px] text-muted-foreground">
+              Isso não cria nenhuma recorrência automática — é só pra marcar na tela de Despesas
+              que esse total ainda não foi detalhado item a item, e (se temporário) te lembrar de
+              voltar a detalhar depois da data escolhida.
+            </p>
           </div>
 
           <div className="rounded-lg border bg-muted/30 p-3 text-sm">
