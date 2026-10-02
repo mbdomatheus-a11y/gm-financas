@@ -9,6 +9,7 @@ import {
   BookmarkPlus,
   CheckCircle2,
   ClipboardPaste,
+  FileSpreadsheet,
   FileText,
   Image as ImageIcon,
   Loader2,
@@ -76,6 +77,7 @@ import {
   type FaturaExtraida,
   type LancamentoExtraido,
 } from "@/lib/faturas";
+import { lerPlanilhaImportacao, modeloCsvPlanilha } from "@/lib/importacao-planilha";
 
 export const Route = createFileRoute("/_authenticated/importar")({
   head: () => ({
@@ -189,10 +191,12 @@ function ImportarPage() {
     }
   }
   const imgInputRef = useRef<HTMLInputElement>(null);
+  const planilhaInputRef = useRef<HTMLInputElement>(null);
   const classificacoesEditadas = useRef(new Set<string>());
 
   const [lendo, setLendo] = useState(false);
   const [lendoImagens, setLendoImagens] = useState(false);
+  const [lendoPlanilha, setLendoPlanilha] = useState(false);
   const [faturas, setFaturas] = useState<FaturaItem[]>([]);
   const [acoesFixas, setAcoesFixas] = useState<Record<string, { acao: AcaoFixa; fixaId: string }>>(
     {},
@@ -513,6 +517,90 @@ function ImportarPage() {
     } finally {
       setLendoImagens(false);
       if (imgInputRef.current) imgInputRef.current.value = "";
+    }
+  }
+
+  /** Etapa E (plano-importacao-v2.md): planilha Excel/CSV de qualquer
+   * banco, com auto-detecção de colunas (ver `importacao-planilha.ts`). */
+  async function importarPlanilha(files: FileList | null) {
+    if (!files?.length) return;
+    const lote = Array.from(files).filter((f) => /\.(xlsx|csv)$/i.test(f.name));
+    if (!lote.length) {
+      toast.error("Selecione um arquivo .xlsx ou .csv.");
+      return;
+    }
+    setLendoPlanilha(true);
+    try {
+      const novos: FaturaItem[] = [];
+      for (const file of lote) {
+        try {
+          const { linhas, colunas } = await lerPlanilhaImportacao(file);
+          if (!linhas.length) {
+            toast.error(
+              !colunas.descricao || !colunas.valor
+                ? `${file.name}: não encontrei colunas de descrição e valor na planilha.`
+                : `${file.name}: nenhuma linha com descrição e valor válidos.`,
+            );
+            continue;
+          }
+          const hoje = new Date().toISOString().slice(0, 10);
+          const lancamentos: LancamentoExtraido[] = linhas.map((l, i) => ({
+            id: `planilha-${i}-${Math.random().toString(36).slice(2, 8)}`,
+            data_compra: l.data ?? hoje,
+            descricao: l.descricao,
+            descricao_normalizada: chaveEstabelecimento(l.descricao),
+            valor: l.valor,
+            moeda: "BRL",
+            direcao: l.direcao,
+            parcela_numero: l.parcela_numero,
+            parcela_total: l.parcela_total,
+            cartao_final: null,
+            responsavel: null,
+            categoria: "Outros",
+            confianca_data: l.data ? "alta" : "baixa",
+            valor_estimado: false,
+            incluir: true,
+          }));
+          const arquivo_hash = await hashTexto(`${file.name}-${file.size}-${file.lastModified}`);
+          const { data: jaExiste } = await supabase
+            .from("import_faturas")
+            .select("id")
+            .eq("arquivo_hash", arquivo_hash)
+            .maybeSingle();
+          const extraida = {
+            banco: "desconhecido" as BancoFatura,
+            arquivo_nome: file.name,
+            arquivo_hash,
+            paginas: 0,
+            vencimento: null,
+            competencia: null,
+            total_declarado: null,
+            limite_total: null,
+            limite_utilizado: null,
+            limite_disponivel: null,
+            finais: [],
+            lancamentos: categorizar(lancamentos),
+            texto: "",
+          };
+          novos.push({
+            ...extraida,
+            arquivo: null,
+            duplicada: !!jaExiste,
+            destino: destinoPadrao(extraida),
+          });
+          toast.success(`${file.name}: ${linhas.length} lançamento(s) interpretado(s).`);
+        } catch (erro) {
+          toast.error(
+            erro instanceof Error
+              ? `${file.name}: ${erro.message}`
+              : `${file.name}: não consegui ler a planilha.`,
+          );
+        }
+      }
+      if (novos.length) setFaturas((prev) => [...prev, ...novos]);
+    } finally {
+      setLendoPlanilha(false);
+      if (planilhaInputRef.current) planilhaInputRef.current.value = "";
     }
   }
 
@@ -1081,7 +1169,7 @@ function ImportarPage() {
   return (
     <AppLayout
       title="Importar Lançamentos"
-      description="Envie PDFs de fatura ou cole os lançamentos, revise linha a linha e confirme."
+      description="Envie PDFs de fatura, planilha ou cole os lançamentos, revise linha a linha e confirme."
       actions={
         faturas.length > 0 ? (
           <Button onClick={() => confirmar.mutate()} disabled={confirmar.isPending}>
@@ -1107,6 +1195,9 @@ function ImportarPage() {
               </TabsTrigger>
               <TabsTrigger value="prints">
                 <ImageIcon className="mr-2 size-4" /> Prints
+              </TabsTrigger>
+              <TabsTrigger value="planilha">
+                <FileSpreadsheet className="mr-2 size-4" /> Planilha
               </TabsTrigger>
             </TabsList>
 
@@ -1280,6 +1371,61 @@ function ImportarPage() {
                 PDF. Linhas sem data/descrição/valor ficam em branco para preencher manualmente na
                 prévia.
               </p>
+            </TabsContent>
+
+            <TabsContent value="planilha" className="space-y-3">
+              <div
+                className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed p-8 text-center transition-colors hover:bg-muted/50"
+                onClick={() => planilhaInputRef.current?.click()}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  void importarPlanilha(e.dataTransfer.files);
+                }}
+              >
+                {lendoPlanilha ? (
+                  <Loader2 className="size-6 animate-spin text-muted-foreground" />
+                ) : (
+                  <FileSpreadsheet className="size-6 text-muted-foreground" />
+                )}
+                <p className="text-sm font-medium">Arraste a planilha ou clique para selecionar</p>
+                <p className="text-xs text-muted-foreground">
+                  .xlsx ou .csv de qualquer banco · até 5 MB · colunas detectadas automaticamente
+                  (Data, Descrição, Valor e Parcela, quando existir)
+                </p>
+                <input
+                  ref={planilhaInputRef}
+                  type="file"
+                  accept=".xlsx,.csv"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => void importarPlanilha(e.target.files)}
+                />
+              </div>
+              <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                <span>
+                  Não precisa ser de um banco específico — funciona com qualquer planilha que tenha
+                  colunas de data, descrição e valor.
+                </span>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 shrink-0 text-xs"
+                  onClick={() => {
+                    const blob = new Blob([modeloCsvPlanilha()], {
+                      type: "text/csv;charset=utf-8",
+                    });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = "modelo-importacao.csv";
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  }}
+                >
+                  Baixar modelo .csv
+                </Button>
+              </div>
             </TabsContent>
           </Tabs>
 
