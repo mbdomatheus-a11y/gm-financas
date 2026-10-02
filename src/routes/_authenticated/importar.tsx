@@ -11,6 +11,7 @@ import {
   ClipboardPaste,
   FileSpreadsheet,
   FileText,
+  GraduationCap,
   Image as ImageIcon,
   Loader2,
   Plus,
@@ -193,6 +194,13 @@ function ImportarPage() {
   const imgInputRef = useRef<HTMLInputElement>(null);
   const planilhaInputRef = useRef<HTMLInputElement>(null);
   const classificacoesEditadas = useRef(new Set<string>());
+  // Etapa F (plano-importacao-v2.md): "linha de base" de cada lançamento
+  // (valor já extraído/corrigido automaticamente, antes de qualquer edição
+  // manual nesta sessão) — usada só para saber quando mostrar o botão
+  // "Ensinar" (a edição do usuário diverge da base) e o que gravar nela.
+  const baseCorrecao = useRef(
+    new Map<string, { data_compra: string; descricao: string; valor: number }>(),
+  );
 
   const [lendo, setLendo] = useState(false);
   const [lendoImagens, setLendoImagens] = useState(false);
@@ -318,14 +326,75 @@ function ImportarPage() {
         }
       }
     }
+    // Etapa F (plano-importacao-v2.md): aplica correções manuais já
+    // ensinadas para este layout (mesma assinatura) antes de mostrar a
+    // prévia — ver botão "Ensinar" na tabela de revisão, mais abaixo.
+    if (extraida.assinatura) {
+      const { data: aprendidas } = await supabase
+        .from("fatura_correcoes_usuario")
+        .select("campo, valor_original, valor_corrigido")
+        .eq("assinatura", extraida.assinatura);
+      if (aprendidas?.length) {
+        const porCampo = {
+          data_compra: new Map<string, string>(),
+          descricao: new Map<string, string>(),
+          valor: new Map<string, string>(),
+        } as const;
+        for (const a of aprendidas) {
+          const mapa = (porCampo as Record<string, Map<string, string>>)[a.campo];
+          mapa?.set(a.valor_original, a.valor_corrigido);
+        }
+        let aplicadas = 0;
+        extraida = {
+          ...extraida,
+          lancamentos: extraida.lancamentos.map((l) => {
+            let novo = l;
+            const dataCorrigida = porCampo.data_compra.get(l.data_compra);
+            if (dataCorrigida != null && dataCorrigida !== l.data_compra) {
+              novo = { ...novo, data_compra: dataCorrigida };
+              aplicadas++;
+            }
+            const descCorrigida = porCampo.descricao.get(l.descricao);
+            if (descCorrigida != null && descCorrigida !== l.descricao) {
+              novo = {
+                ...novo,
+                descricao: descCorrigida,
+                descricao_normalizada: chaveEstabelecimento(descCorrigida),
+              };
+              aplicadas++;
+            }
+            const valorCorrigido = porCampo.valor.get(l.valor.toFixed(2));
+            if (valorCorrigido != null) {
+              const num = Number(valorCorrigido);
+              if (Number.isFinite(num) && num !== l.valor) {
+                novo = { ...novo, valor: num };
+                aplicadas++;
+              }
+            }
+            return novo;
+          }),
+        };
+        if (aplicadas) toast.info(`${aplicadas} correção(ões) já ensinada(s) aplicada(s) de novo.`);
+      }
+    }
     const { data: jaExiste } = await supabase
       .from("import_faturas")
       .select("id")
       .eq("arquivo_hash", extraida.arquivo_hash)
       .maybeSingle();
+    const categorizados = categorizar(extraida.lancamentos);
+    if (extraida.assinatura) {
+      for (const l of categorizados) {
+        baseCorrecao.current.set(l.id, {
+          data_compra: l.data_compra,
+          descricao: l.descricao,
+          valor: l.valor,
+        });
+      }
+    }
     return {
       ...extraida,
-      lancamentos: categorizar(extraida.lancamentos),
+      lancamentos: categorizados,
       arquivo: file,
       duplicada: !!jaExiste,
       destino: destinoPadrao(extraida),
@@ -713,6 +782,60 @@ function ImportarPage() {
       if (error) throw error;
     }
   }
+
+  /** Etapa F: grava a(s) diferença(s) entre o valor atual do lançamento e
+   * sua linha de base (`baseCorrecao`) como correção aprendida para esta
+   * assinatura de layout — e passa a ser a nova linha de base, pra não
+   * reoferecer "Ensinar" de novo sem uma edição nova. */
+  const ensinarCorrecao = useMutation({
+    mutationFn: async ({ assinatura, l }: { assinatura: string; l: LancamentoExtraido }) => {
+      const base = baseCorrecao.current.get(l.id);
+      if (!base) return 0;
+      const diffs: {
+        campo: "data_compra" | "descricao" | "valor";
+        original: string;
+        corrigido: string;
+      }[] = [];
+      if (base.data_compra !== l.data_compra) {
+        diffs.push({ campo: "data_compra", original: base.data_compra, corrigido: l.data_compra });
+      }
+      if (base.descricao !== l.descricao) {
+        diffs.push({ campo: "descricao", original: base.descricao, corrigido: l.descricao });
+      }
+      if (base.valor !== l.valor) {
+        diffs.push({
+          campo: "valor",
+          original: base.valor.toFixed(2),
+          corrigido: l.valor.toFixed(2),
+        });
+      }
+      if (!diffs.length) return 0;
+      for (const d of diffs) {
+        const { error } = await supabase.from("fatura_correcoes_usuario").upsert(
+          {
+            assinatura,
+            campo: d.campo,
+            valor_original: d.original,
+            valor_corrigido: d.corrigido,
+            created_by: user?.id ?? null,
+          },
+          { onConflict: "assinatura,campo,valor_original" },
+        );
+        if (error) throw error;
+      }
+      baseCorrecao.current.set(l.id, {
+        data_compra: l.data_compra,
+        descricao: l.descricao,
+        valor: l.valor,
+      });
+      return diffs.length;
+    },
+    onSuccess: (n: number) => {
+      if (n > 0)
+        toast.success("Correção ensinada — as próximas faturas deste layout já virão certas.");
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Não foi possível salvar a correção."),
+  });
 
   const salvarRegra = useMutation({
     mutationFn: async (l: LancamentoExtraido) => {
@@ -1898,6 +2021,33 @@ function ImportarPage() {
                                     <AlertTriangle className="size-3 shrink-0" /> Possível duplicata
                                   </Badge>
                                 ) : null;
+                              })()}
+                              {(() => {
+                                // Etapa F: "Ensinar" só aparece quando esta fatura tem layout
+                                // identificado (PDF reconhecido) e o usuário editou
+                                // data/descrição/valor em relação ao que foi extraído.
+                                if (!f.assinatura) return null;
+                                const base = baseCorrecao.current.get(l.id);
+                                if (!base) return null;
+                                const divergente =
+                                  base.data_compra !== l.data_compra ||
+                                  base.descricao !== l.descricao ||
+                                  base.valor !== l.valor;
+                                if (!divergente) return null;
+                                return (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="mt-1 h-6 gap-1 px-1.5 text-[10px]"
+                                    disabled={ensinarCorrecao.isPending}
+                                    title="Lembrar esta correção para as próximas faturas deste mesmo layout"
+                                    onClick={() =>
+                                      ensinarCorrecao.mutate({ assinatura: f.assinatura!, l })
+                                    }
+                                  >
+                                    <GraduationCap className="size-3 shrink-0" /> Ensinar correção
+                                  </Button>
+                                );
                               })()}
                             </td>
                             <td className="p-1">

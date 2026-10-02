@@ -1233,6 +1233,53 @@ export type Database = {
           },
         ];
       };
+      fatura_correcoes_usuario: {
+        Row: {
+          assinatura: string;
+          campo: string;
+          created_at: string;
+          created_by: string | null;
+          grupo_id: string | null;
+          id: string;
+          ocorrencias: number;
+          updated_at: string;
+          valor_corrigido: string;
+          valor_original: string;
+        };
+        Insert: {
+          assinatura: string;
+          campo: string;
+          created_at?: string;
+          created_by?: string | null;
+          grupo_id?: string | null;
+          id?: string;
+          ocorrencias?: number;
+          updated_at?: string;
+          valor_corrigido: string;
+          valor_original: string;
+        };
+        Update: {
+          assinatura?: string;
+          campo?: string;
+          created_at?: string;
+          created_by?: string | null;
+          grupo_id?: string | null;
+          id?: string;
+          ocorrencias?: number;
+          updated_at?: string;
+          valor_corrigido?: string;
+          valor_original?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "fatura_correcoes_usuario_grupo_id_fkey";
+            columns: ["grupo_id"];
+            isOneToOne: false;
+            referencedRelation: "grupos";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       fatura_layouts: {
         Row: {
           acertos: number;
