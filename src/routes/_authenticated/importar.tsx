@@ -13,6 +13,7 @@ import {
   Image as ImageIcon,
   Loader2,
   Plus,
+  ShieldCheck,
   Trash2,
   Upload,
 } from "lucide-react";
@@ -129,7 +130,7 @@ async function hashTexto(texto: string) {
 function ImportarPage() {
   const qc = useQueryClient();
   const { user } = useSession();
-  const { exclusaoBloqueada } = usePermissoes();
+  const { can, canImportar, exclusaoBloqueada } = usePermissoes();
   const { data: profiles = [] } = useProfilesList();
   const { data: categorias = [] } = useCategorias("despesa");
   const { data: cartoes = [] } = useCartoes();
@@ -718,6 +719,13 @@ function ImportarPage() {
       let ignorados = 0;
       let fechadas = 0;
 
+      // Etapa D: ponto final e autoritativo de aplicação das permissões de
+      // importação — mesmo que algum estado de UI escapasse do bloqueio nos
+      // controles (ex.: fatura adicionada por outro fluxo), nada entra no
+      // banco fora do que o usuário tem permissão de importar.
+      const permitido = (l: LancamentoExtraido) =>
+        l.incluir && (l.parcela_total > 1 ? podeImportarParcelamentos : podeImportarLancamentos);
+
       for (const f of faturas) {
         const cartoesTocados = new Set<string>();
         const [tipoDestinoFatura, idDestinoFatura] = String(f.destino ?? "").split(":");
@@ -747,12 +755,12 @@ function ImportarPage() {
               vencimento: f.vencimento,
               competencia: f.competencia,
               total_declarado: f.total_declarado,
-              limite_total: f.limite_total,
-              limite_utilizado: f.limite_utilizado,
-              limite_disponivel: f.limite_disponivel,
+              limite_total: podeImportarLimite ? f.limite_total : null,
+              limite_utilizado: podeImportarLimite ? f.limite_utilizado : null,
+              limite_disponivel: podeImportarLimite ? f.limite_disponivel : null,
               cartao_id: cartaoPrincipal || null,
               total_extraido: f.lancamentos
-                .filter((l) => l.incluir)
+                .filter(permitido)
                 .reduce((s, l) => s + (l.direcao === "credito" ? -l.valor : l.valor), 0),
               paginas: f.paginas,
               status: "importada",
@@ -763,7 +771,7 @@ function ImportarPage() {
           .single();
         if (fatErr) throw fatErr;
 
-        for (const l of f.lancamentos.filter((x) => x.incluir)) {
+        for (const l of f.lancamentos.filter(permitido)) {
           const chave = dedupKey(l);
           const { data: existente } = await supabase
             .from("despesas")
@@ -1046,6 +1054,30 @@ function ImportarPage() {
     onError: (e: any) => toast.error(e?.message ?? "Falha ao importar."),
   });
 
+  // Etapa D (plano-importacao-v2.md): permissão granular de importação por
+  // usuário. "Ver" bloqueia a tela inteira; as outras três controlam,
+  // dentro da tela, o que pode efetivamente ser enviado.
+  const podeVerImportar = can("importar", "ver");
+  const podeImportarLancamentos = canImportar("lancamentos");
+  const podeImportarParcelamentos = canImportar("parcelamentos");
+  const podeImportarLimite = canImportar("limite");
+
+  if (!podeVerImportar) {
+    return (
+      <AppLayout title="Importar Lançamentos">
+        <Card>
+          <CardContent className="flex flex-col items-center gap-2 py-16 text-center">
+            <ShieldCheck className="size-8 text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">
+              Seu usuário não tem permissão para importar lançamentos. Fale com um administrador se
+              precisar desse acesso.
+            </p>
+          </CardContent>
+        </Card>
+      </AppLayout>
+    );
+  }
+
   return (
     <AppLayout
       title="Importar Lançamentos"
@@ -1100,7 +1132,8 @@ function ImportarPage() {
                       className="text-xs"
                       onClick={() => setModalAnaliseOpen(true)}
                     >
-                      <FileText className="mr-1 size-3.5" /> Faturas enviadas ({solicitacoesAnalise.length})
+                      <FileText className="mr-1 size-3.5" /> Faturas enviadas (
+                      {solicitacoesAnalise.length})
                     </Button>
                   )}
                 </div>
@@ -1289,7 +1322,10 @@ function ImportarPage() {
                 <div className="flex items-center gap-2">
                   <Label className="text-xs">Cartão / conta de destino</Label>
                   {!f.destino && (
-                    <Badge variant="outline" className="border-amber-500/40 text-[10px] text-amber-600 dark:text-amber-400">
+                    <Badge
+                      variant="outline"
+                      className="border-amber-500/40 text-[10px] text-amber-600 dark:text-amber-400"
+                    >
                       Não cadastrado
                     </Badge>
                   )}
@@ -1543,6 +1579,13 @@ function ImportarPage() {
               );
             })()}
 
+            {!podeImportarLimite && (
+              <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                <ShieldCheck className="size-3.5 shrink-0" />
+                Seu usuário não tem permissão para importar o limite do cartão — esses campos não
+                serão salvos.
+              </p>
+            )}
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
               <div className="space-y-1">
                 <Label className="text-xs">Limite total</Label>
@@ -1551,7 +1594,12 @@ function ImportarPage() {
                   type="text"
                   inputMode="decimal"
                   placeholder="Não identificado"
-                  value={f.limite_total == null ? "" : String(f.limite_total).replace(".", ",")}
+                  disabled={!podeImportarLimite}
+                  value={
+                    podeImportarLimite && f.limite_total != null
+                      ? String(f.limite_total).replace(".", ",")
+                      : ""
+                  }
                   onChange={(e) => {
                     const digitado = e.target.value.replace(/\./g, "").replace(",", ".");
                     const num = parseFloat(digitado);
@@ -1566,7 +1614,12 @@ function ImportarPage() {
                   type="text"
                   inputMode="decimal"
                   placeholder="Não identificado"
-                  value={f.limite_utilizado == null ? "" : String(f.limite_utilizado).replace(".", ",")}
+                  disabled={!podeImportarLimite}
+                  value={
+                    podeImportarLimite && f.limite_utilizado != null
+                      ? String(f.limite_utilizado).replace(".", ",")
+                      : ""
+                  }
                   onChange={(e) => {
                     const digitado = e.target.value.replace(/\./g, "").replace(",", ".");
                     const num = parseFloat(digitado);
@@ -1581,7 +1634,12 @@ function ImportarPage() {
                   type="text"
                   inputMode="decimal"
                   placeholder="Não identificado"
-                  value={f.limite_disponivel == null ? "" : String(f.limite_disponivel).replace(".", ",")}
+                  disabled={!podeImportarLimite}
+                  value={
+                    podeImportarLimite && f.limite_disponivel != null
+                      ? String(f.limite_disponivel).replace(".", ",")
+                      : ""
+                  }
                   onChange={(e) => {
                     const digitado = e.target.value.replace(/\./g, "").replace(",", ".");
                     const num = parseFloat(digitado);
@@ -1625,308 +1683,330 @@ function ImportarPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {f.lancamentos.map((l) => (
-                        <tr key={l.id} className="border-t align-top">
-                          <td className="p-1">
-                            <Checkbox
-                              checked={l.incluir}
-                              onCheckedChange={(v) =>
-                                atualizarLancamento(idx, l.id, { incluir: !!v })
-                              }
-                            />
-                          </td>
-                          <td className="p-1">
-                            <Input
-                              type="date"
-                              className="h-7 w-full min-w-0 px-1 text-[11px]"
-                              value={l.data_compra}
-                              onChange={(e) =>
-                                atualizarLancamento(idx, l.id, { data_compra: e.target.value })
-                              }
-                            />
-                          </td>
-                          <td className="p-1">
-                            <Textarea
-                              className="min-h-7 w-full min-w-0 resize-none overflow-hidden rounded-md px-1.5 py-1 text-[11px] leading-tight"
-                              rows={1}
-                              value={l.descricao}
-                              onChange={(e) => {
-                                atualizarLancamento(idx, l.id, { descricao: e.target.value });
-                                e.target.style.height = "auto";
-                                e.target.style.height = `${e.target.scrollHeight}px`;
-                              }}
-                              ref={(el) => {
-                                if (!el) return;
-                                el.style.height = "auto";
-                                el.style.height = `${el.scrollHeight}px`;
-                              }}
-                            />
-                            {(() => {
-                              const outrosImportados = faturas.flatMap((x) => x.lancamentos);
-                              const checagem = verificarPossivelDuplicata(l, [
-                                ...(despesasTodas as any[]),
-                                ...outrosImportados,
-                              ]);
-                              return checagem.duplicata ? (
-                                <Badge
-                                  variant="outline"
-                                  className="mt-1 gap-1 border-amber-500/40 bg-amber-500/10 text-[10px] text-amber-600 dark:text-amber-400"
-                                  title={checagem.motivo ?? undefined}
-                                >
-                                  <AlertTriangle className="size-3 shrink-0" /> Possível duplicata
-                                </Badge>
-                              ) : null;
-                            })()}
-                          </td>
-                          <td className="p-1">
-                            <div className="flex items-center gap-1">
-                              <Input
-                                type="number"
-                                min={1}
-                                className="h-7 w-12 min-w-0 px-1 text-center text-[11px] [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                                value={l.parcela_numero}
-                                onChange={(e) =>
+                      {f.lancamentos.map((l) => {
+                        // Etapa D: lançamento com parcela_total > 1 é um
+                        // parcelamento; parcela_total === 1 é lançamento
+                        // simples (ver gravação mais abaixo, mesmo critério).
+                        const ehParcelamento = l.parcela_total > 1;
+                        const permitidoPorTipo = ehParcelamento
+                          ? podeImportarParcelamentos
+                          : podeImportarLancamentos;
+                        return (
+                          <tr key={l.id} className="border-t align-top">
+                            <td className="p-1">
+                              <Checkbox
+                                checked={l.incluir && permitidoPorTipo}
+                                disabled={!permitidoPorTipo}
+                                title={
+                                  !permitidoPorTipo
+                                    ? ehParcelamento
+                                      ? "Seu usuário não tem permissão para importar parcelamentos"
+                                      : "Seu usuário não tem permissão para importar lançamentos simples"
+                                    : undefined
+                                }
+                                onCheckedChange={(v) =>
                                   atualizarLancamento(idx, l.id, {
-                                    parcela_numero: Math.max(1, Number(e.target.value) || 1),
+                                    incluir: !!v && permitidoPorTipo,
                                   })
                                 }
                               />
-                              <span className="text-[10px] text-muted-foreground">/</span>
+                            </td>
+                            <td className="p-1">
                               <Input
-                                type="number"
-                                min={1}
-                                className="h-7 w-12 min-w-0 px-1 text-center text-[11px] [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                                value={l.parcela_total}
+                                type="date"
+                                className="h-7 w-full min-w-0 px-1 text-[11px]"
+                                value={l.data_compra}
                                 onChange={(e) =>
-                                  atualizarLancamento(idx, l.id, {
-                                    parcela_total: Math.max(1, Number(e.target.value) || 1),
-                                  })
+                                  atualizarLancamento(idx, l.id, { data_compra: e.target.value })
                                 }
                               />
-                            </div>
-                          </td>
-                          <td className="p-1">
-                            <Select
-                              value={l.tipo ?? "variavel"}
-                              onValueChange={(v) =>
-                                atualizarLancamento(idx, l.id, { tipo: v as "fixa" | "variavel" })
-                              }
-                            >
-                              <SelectTrigger className="h-7 w-full min-w-0 px-1 text-[11px]">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="variavel">Variável</SelectItem>
-                                <SelectItem value="fixa">Fixa</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            {(() => {
-                              const cartaoLinha = acharCartao(f.banco, l.cartao_final);
-                              const [tipoDestino, idDestino] = String(f.destino ?? "").split(":");
-                              const correspondencia = encontrarCorrespondenciaFixa(despesasFixas, {
-                                descricao: l.descricao,
-                                valor: l.valor,
-                                direcao: l.direcao,
-                                data_compra: l.data_compra,
-                                parcela_total: l.parcela_total,
-                                cartao_final: l.cartao_final,
-                                cartao_id:
-                                  cartaoLinha?.id ??
-                                  (tipoDestino === "cartao" ? (idDestino ?? null) : null),
-                                banco_id: tipoDestino === "banco" ? (idDestino ?? null) : null,
-                                competencia: f.competencia,
-                              });
-                              return correspondencia ? (
-                                <div className="mt-1 space-y-1 text-[10px] font-medium text-amber-600">
-                                  <p>
-                                    {correspondencia.titulo}: "{correspondencia.fixa.descricao}" (
-                                    {formatBRL(Number(correspondencia.fixa.valor_total))}).
-                                  </p>
-                                  <p>Critérios: {correspondencia.motivos.join(", ")}.</p>
-                                  <Select
-                                    value={
-                                      acoesFixas[`${f.arquivo_hash}:${l.id}`]?.acao ?? "manter"
-                                    }
-                                    onValueChange={(valor) => {
-                                      const acao = valor as AcaoFixa;
-                                      setAcoesFixas((atual) => ({
-                                        ...atual,
-                                        [`${f.arquivo_hash}:${l.id}`]: {
-                                          acao,
-                                          fixaId: correspondencia.fixa.id,
-                                        },
-                                      }));
-                                      atualizarLancamento(idx, l.id, {
-                                        incluir: acao !== "ignorar",
-                                      });
-                                    }}
+                            </td>
+                            <td className="p-1">
+                              <Textarea
+                                className="min-h-7 w-full min-w-0 resize-none overflow-hidden rounded-md px-1.5 py-1 text-[11px] leading-tight"
+                                rows={1}
+                                value={l.descricao}
+                                onChange={(e) => {
+                                  atualizarLancamento(idx, l.id, { descricao: e.target.value });
+                                  e.target.style.height = "auto";
+                                  e.target.style.height = `${e.target.scrollHeight}px`;
+                                }}
+                                ref={(el) => {
+                                  if (!el) return;
+                                  el.style.height = "auto";
+                                  el.style.height = `${el.scrollHeight}px`;
+                                }}
+                              />
+                              {(() => {
+                                const outrosImportados = faturas.flatMap((x) => x.lancamentos);
+                                const checagem = verificarPossivelDuplicata(l, [
+                                  ...(despesasTodas as any[]),
+                                  ...outrosImportados,
+                                ]);
+                                return checagem.duplicata ? (
+                                  <Badge
+                                    variant="outline"
+                                    className="mt-1 gap-1 border-amber-500/40 bg-amber-500/10 text-[10px] text-amber-600 dark:text-amber-400"
+                                    title={checagem.motivo ?? undefined}
                                   >
-                                    <SelectTrigger className="h-7 text-[10px] text-foreground">
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="manter">
-                                        Manter os dois lançamentos
-                                      </SelectItem>
-                                      <SelectItem value="substituir">
-                                        Substituir só a ocorrência deste mês
-                                      </SelectItem>
-                                      <SelectItem value="ignorar">
-                                        Ignorar o lançamento importado
-                                      </SelectItem>
-                                      <SelectItem value="vincular">
-                                        Vincular à fixa sem trocar o valor
-                                      </SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-                              ) : null;
-                            })()}
-                          </td>
-                          <td className="p-1">
-                            <Input
-                              className="h-7 w-full min-w-0 px-1 text-[11px]"
-                              placeholder="0000"
-                              maxLength={4}
-                              value={l.cartao_final ?? ""}
-                              onChange={(e) =>
-                                atualizarLancamento(idx, l.id, {
-                                  cartao_final:
-                                    e.target.value.replace(/\D/g, "").slice(0, 4) || null,
-                                })
-                              }
-                            />
-                          </td>
-                          <td className="p-1">
-                            <Select
-                              value={l.responsavel ?? "none"}
-                              onValueChange={(v) =>
-                                atualizarLancamento(idx, l.id, {
-                                  responsavel: v === "none" ? null : v,
-                                })
-                              }
-                            >
-                              <SelectTrigger className="h-7 w-full min-w-0 px-1 text-[11px]">
-                                <SelectValue placeholder="—" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="none">—</SelectItem>
-                                {responsaveis.map((r) => (
-                                  <SelectItem key={r} value={r}>
-                                    {r}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </td>
-                          <td className="p-1">
-                            <div className="flex items-center gap-1">
+                                    <AlertTriangle className="size-3 shrink-0" /> Possível duplicata
+                                  </Badge>
+                                ) : null;
+                              })()}
+                            </td>
+                            <td className="p-1">
+                              <div className="flex items-center gap-1">
+                                <Input
+                                  type="number"
+                                  min={1}
+                                  className="h-7 w-12 min-w-0 px-1 text-center text-[11px] [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                  value={l.parcela_numero}
+                                  onChange={(e) =>
+                                    atualizarLancamento(idx, l.id, {
+                                      parcela_numero: Math.max(1, Number(e.target.value) || 1),
+                                    })
+                                  }
+                                />
+                                <span className="text-[10px] text-muted-foreground">/</span>
+                                <Input
+                                  type="number"
+                                  min={1}
+                                  className="h-7 w-12 min-w-0 px-1 text-center text-[11px] [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                  value={l.parcela_total}
+                                  onChange={(e) =>
+                                    atualizarLancamento(idx, l.id, {
+                                      parcela_total: Math.max(1, Number(e.target.value) || 1),
+                                    })
+                                  }
+                                />
+                              </div>
+                            </td>
+                            <td className="p-1">
                               <Select
-                                value={l.categoria}
+                                value={l.tipo ?? "variavel"}
                                 onValueChange={(v) =>
-                                  atualizarLancamento(idx, l.id, {
-                                    categoria: v,
-                                    subcategoria: null,
-                                  })
+                                  atualizarLancamento(idx, l.id, { tipo: v as "fixa" | "variavel" })
                                 }
                               >
                                 <SelectTrigger className="h-7 w-full min-w-0 px-1 text-[11px]">
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {listaCategorias.map((c) => (
-                                    <SelectItem key={c} value={c}>
-                                      {c}
+                                  <SelectItem value="variavel">Variável</SelectItem>
+                                  <SelectItem value="fixa">Fixa</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              {(() => {
+                                const cartaoLinha = acharCartao(f.banco, l.cartao_final);
+                                const [tipoDestino, idDestino] = String(f.destino ?? "").split(":");
+                                const correspondencia = encontrarCorrespondenciaFixa(
+                                  despesasFixas,
+                                  {
+                                    descricao: l.descricao,
+                                    valor: l.valor,
+                                    direcao: l.direcao,
+                                    data_compra: l.data_compra,
+                                    parcela_total: l.parcela_total,
+                                    cartao_final: l.cartao_final,
+                                    cartao_id:
+                                      cartaoLinha?.id ??
+                                      (tipoDestino === "cartao" ? (idDestino ?? null) : null),
+                                    banco_id: tipoDestino === "banco" ? (idDestino ?? null) : null,
+                                    competencia: f.competencia,
+                                  },
+                                );
+                                return correspondencia ? (
+                                  <div className="mt-1 space-y-1 text-[10px] font-medium text-amber-600">
+                                    <p>
+                                      {correspondencia.titulo}: "{correspondencia.fixa.descricao}" (
+                                      {formatBRL(Number(correspondencia.fixa.valor_total))}).
+                                    </p>
+                                    <p>Critérios: {correspondencia.motivos.join(", ")}.</p>
+                                    <Select
+                                      value={
+                                        acoesFixas[`${f.arquivo_hash}:${l.id}`]?.acao ?? "manter"
+                                      }
+                                      onValueChange={(valor) => {
+                                        const acao = valor as AcaoFixa;
+                                        setAcoesFixas((atual) => ({
+                                          ...atual,
+                                          [`${f.arquivo_hash}:${l.id}`]: {
+                                            acao,
+                                            fixaId: correspondencia.fixa.id,
+                                          },
+                                        }));
+                                        atualizarLancamento(idx, l.id, {
+                                          incluir: acao !== "ignorar",
+                                        });
+                                      }}
+                                    >
+                                      <SelectTrigger className="h-7 text-[10px] text-foreground">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="manter">
+                                          Manter os dois lançamentos
+                                        </SelectItem>
+                                        <SelectItem value="substituir">
+                                          Substituir só a ocorrência deste mês
+                                        </SelectItem>
+                                        <SelectItem value="ignorar">
+                                          Ignorar o lançamento importado
+                                        </SelectItem>
+                                        <SelectItem value="vincular">
+                                          Vincular à fixa sem trocar o valor
+                                        </SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                ) : null;
+                              })()}
+                            </td>
+                            <td className="p-1">
+                              <Input
+                                className="h-7 w-full min-w-0 px-1 text-[11px]"
+                                placeholder="0000"
+                                maxLength={4}
+                                value={l.cartao_final ?? ""}
+                                onChange={(e) =>
+                                  atualizarLancamento(idx, l.id, {
+                                    cartao_final:
+                                      e.target.value.replace(/\D/g, "").slice(0, 4) || null,
+                                  })
+                                }
+                              />
+                            </td>
+                            <td className="p-1">
+                              <Select
+                                value={l.responsavel ?? "none"}
+                                onValueChange={(v) =>
+                                  atualizarLancamento(idx, l.id, {
+                                    responsavel: v === "none" ? null : v,
+                                  })
+                                }
+                              >
+                                <SelectTrigger className="h-7 w-full min-w-0 px-1 text-[11px]">
+                                  <SelectValue placeholder="—" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="none">—</SelectItem>
+                                  {responsaveis.map((r) => (
+                                    <SelectItem key={r} value={r}>
+                                      {r}
                                     </SelectItem>
                                   ))}
                                 </SelectContent>
                               </Select>
-                              {(() => {
-                                const adicionada = regras.some(
-                                  (r) =>
-                                    r.tipo_regra === "de_para" &&
-                                    r.estabelecimento_normalizado ===
-                                      chaveEstabelecimento(l.descricao) &&
-                                    r.categoria === l.categoria &&
-                                    (r.subcategoria ?? null) === (l.subcategoria ?? null),
-                                );
-                                return (
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="size-7 shrink-0"
-                                    title={
-                                      adicionada
-                                        ? "Remover regra de de-para"
-                                        : "Salvar como regra de de-para"
-                                    }
-                                    disabled={
-                                      salvarRegra.isPending || (adicionada && exclusaoBloqueada)
-                                    }
-                                    onClick={() => salvarRegra.mutate(l)}
-                                  >
-                                    {adicionada ? (
-                                      <BookmarkMinus className="size-4 text-emerald-600" />
-                                    ) : (
-                                      <BookmarkPlus className="size-4 text-muted-foreground hover:text-primary" />
-                                    )}
-                                  </Button>
-                                );
-                              })()}
-                            </div>
-                            {l.confianca_categoria && (
-                              <p className="mt-1 text-[10px] text-muted-foreground">
-                                Confiança: {CONFIANCA_LABEL[l.confianca_categoria]}
+                            </td>
+                            <td className="p-1">
+                              <div className="flex items-center gap-1">
+                                <Select
+                                  value={l.categoria}
+                                  onValueChange={(v) =>
+                                    atualizarLancamento(idx, l.id, {
+                                      categoria: v,
+                                      subcategoria: null,
+                                    })
+                                  }
+                                >
+                                  <SelectTrigger className="h-7 w-full min-w-0 px-1 text-[11px]">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {listaCategorias.map((c) => (
+                                      <SelectItem key={c} value={c}>
+                                        {c}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                {(() => {
+                                  const adicionada = regras.some(
+                                    (r) =>
+                                      r.tipo_regra === "de_para" &&
+                                      r.estabelecimento_normalizado ===
+                                        chaveEstabelecimento(l.descricao) &&
+                                      r.categoria === l.categoria &&
+                                      (r.subcategoria ?? null) === (l.subcategoria ?? null),
+                                  );
+                                  return (
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="size-7 shrink-0"
+                                      title={
+                                        adicionada
+                                          ? "Remover regra de de-para"
+                                          : "Salvar como regra de de-para"
+                                      }
+                                      disabled={
+                                        salvarRegra.isPending || (adicionada && exclusaoBloqueada)
+                                      }
+                                      onClick={() => salvarRegra.mutate(l)}
+                                    >
+                                      {adicionada ? (
+                                        <BookmarkMinus className="size-4 text-emerald-600" />
+                                      ) : (
+                                        <BookmarkPlus className="size-4 text-muted-foreground hover:text-primary" />
+                                      )}
+                                    </Button>
+                                  );
+                                })()}
+                              </div>
+                              {l.confianca_categoria && (
+                                <p className="mt-1 text-[10px] text-muted-foreground">
+                                  Confiança: {CONFIANCA_LABEL[l.confianca_categoria]}
+                                </p>
+                              )}
+                            </td>
+                            <td className="p-1">
+                              <Select
+                                value={l.subcategoria ?? "none"}
+                                onValueChange={(v) =>
+                                  atualizarLancamento(idx, l.id, {
+                                    subcategoria: v === "none" ? null : v,
+                                  })
+                                }
+                              >
+                                <SelectTrigger className="h-7 w-full min-w-0 px-1 text-[11px]">
+                                  <SelectValue placeholder="—" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="none">—</SelectItem>
+                                  {subcategoriasDe(l.categoria).map((s) => (
+                                    <SelectItem key={s} value={s}>
+                                      {s}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </td>
+                            <td className="p-1 text-right">
+                              <Input
+                                type="number"
+                                step="0.01"
+                                className={`h-7 w-full min-w-0 px-1 text-right text-[11px] font-medium ${
+                                  l.direcao === "credito" ? "text-success" : "text-destructive"
+                                }`}
+                                value={l.valor}
+                                onChange={(e) =>
+                                  atualizarLancamento(idx, l.id, {
+                                    valor: Number(e.target.value) || 0,
+                                  })
+                                }
+                              />
+                              <p
+                                className={`mt-1 text-[10px] font-medium ${
+                                  l.direcao === "credito" ? "text-success" : "text-destructive"
+                                }`}
+                              >
+                                {l.direcao === "credito" ? "crédito" : "débito"} ·{" "}
+                                {formatBRL(l.valor * l.parcela_total)}
                               </p>
-                            )}
-                          </td>
-                          <td className="p-1">
-                            <Select
-                              value={l.subcategoria ?? "none"}
-                              onValueChange={(v) =>
-                                atualizarLancamento(idx, l.id, {
-                                  subcategoria: v === "none" ? null : v,
-                                })
-                              }
-                            >
-                              <SelectTrigger className="h-7 w-full min-w-0 px-1 text-[11px]">
-                                <SelectValue placeholder="—" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="none">—</SelectItem>
-                                {subcategoriasDe(l.categoria).map((s) => (
-                                  <SelectItem key={s} value={s}>
-                                    {s}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </td>
-                          <td className="p-1 text-right">
-                            <Input
-                              type="number"
-                              step="0.01"
-                              className={`h-7 w-full min-w-0 px-1 text-right text-[11px] font-medium ${
-                                l.direcao === "credito" ? "text-success" : "text-destructive"
-                              }`}
-                              value={l.valor}
-                              onChange={(e) =>
-                                atualizarLancamento(idx, l.id, {
-                                  valor: Number(e.target.value) || 0,
-                                })
-                              }
-                            />
-                            <p
-                              className={`mt-1 text-[10px] font-medium ${
-                                l.direcao === "credito" ? "text-success" : "text-destructive"
-                              }`}
-                            >
-                              {l.direcao === "credito" ? "crédito" : "débito"} ·{" "}
-                              {formatBRL(l.valor * l.parcela_total)}
-                            </p>
-                          </td>
-                        </tr>
-                      ))}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -2033,7 +2113,8 @@ function ImportarPage() {
           </DialogHeader>
           <div className="space-y-3 py-2">
             <p className="text-xs text-muted-foreground">
-              Abaixo estão os arquivos de fatura que você enviou para a nossa equipe calibrar o leitor de PDF.
+              Abaixo estão os arquivos de fatura que você enviou para a nossa equipe calibrar o
+              leitor de PDF.
             </p>
             {solicitacoesAnalise.length === 0 ? (
               <p className="py-4 text-center text-sm text-muted-foreground">

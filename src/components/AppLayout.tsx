@@ -72,7 +72,10 @@ function OracleQuotaBadge() {
   const formatarMb = (bytes: number) => `${(bytes / (1024 * 1024)).toFixed(0)} MB`;
 
   return (
-    <div className="mt-1.5 px-2" title={`${formatarMb(data.usadoBytes)} de ${formatarMb(data.cotaBytes)} usados`}>
+    <div
+      className="mt-1.5 px-2"
+      title={`${formatarMb(data.usadoBytes)} de ${formatarMb(data.cotaBytes)} usados`}
+    >
       <div className="flex items-center justify-between gap-2">
         <span className="text-[10px] text-muted-foreground">Armazenamento</span>
         <span className={`text-[10px] font-semibold tabular-nums ${corTexto}`}>
@@ -123,14 +126,7 @@ type NavItem = {
 };
 
 type MundoId =
-  | "financas"
-  | "lista"
-  | "notas"
-  | "calculadora"
-  | "pet"
-  | "onde_esta"
-  | "veiculo"
-  | "exames";
+  "financas" | "lista" | "notas" | "calculadora" | "pet" | "onde_esta" | "veiculo" | "exames";
 
 /**
  * Navegação em "mundos" (2026-09-18, revisado em 2026-09-26): cada módulo
@@ -176,7 +172,10 @@ const MUNDOS: Record<MundoId, { titulo: string; home: NavTo; items: NavItem[] }>
         label: "Importar Faturas",
         short: "Faturas",
         icon: FileUp,
-        modulo: "despesas",
+        // Etapa D (plano-importacao-v2.md): módulo próprio em vez de
+        // reaproveitar "despesas" — permite ao admin bloquear o acesso à
+        // importação sem afetar a visualização normal de despesas.
+        modulo: "importar",
       },
       { to: "/categorias", label: "Categorias", short: "Categ.", icon: Tags },
       {

@@ -2572,6 +2572,9 @@ export type Database = {
           modulo: string;
           pode_editar: boolean;
           pode_excluir: boolean;
+          pode_importar_lancamentos: boolean;
+          pode_importar_limite: boolean;
+          pode_importar_parcelamentos: boolean;
           pode_ver: boolean;
           user_id: string;
         };
@@ -2581,6 +2584,9 @@ export type Database = {
           modulo: string;
           pode_editar?: boolean;
           pode_excluir?: boolean;
+          pode_importar_lancamentos?: boolean;
+          pode_importar_limite?: boolean;
+          pode_importar_parcelamentos?: boolean;
           pode_ver?: boolean;
           user_id: string;
         };
@@ -2590,6 +2596,9 @@ export type Database = {
           modulo?: string;
           pode_editar?: boolean;
           pode_excluir?: boolean;
+          pode_importar_lancamentos?: boolean;
+          pode_importar_limite?: boolean;
+          pode_importar_parcelamentos?: boolean;
           pode_ver?: boolean;
           user_id?: string;
         };

@@ -22,6 +22,15 @@ const MODULOS: { key: Modulo; label: string }[] = [
   { key: "veiculos", label: "Meu Veículo" },
   { key: "compartilhar", label: "Compartilhar" },
   { key: "personalizacao", label: "Personalização" },
+  { key: "importar", label: "Importar Lançamentos" },
+];
+
+/** Etapa D (plano-importacao-v2.md): colunas extras só fazem sentido para o
+ * módulo "importar" — nas demais linhas aparece um "—" em vez de switch. */
+const CAMPOS_IMPORTACAO = [
+  { campo: "pode_importar_lancamentos" as const, label: "Lançamentos" },
+  { campo: "pode_importar_parcelamentos" as const, label: "Parcelamentos" },
+  { campo: "pode_importar_limite" as const, label: "Limite do cartão" },
 ];
 
 /**
@@ -72,6 +81,9 @@ export function PermissoesUsuariosCard({ compact = false }: { compact?: boolean 
       pode_ver: boolean;
       pode_editar: boolean;
       pode_excluir: boolean;
+      pode_importar_lancamentos?: boolean;
+      pode_importar_parcelamentos?: boolean;
+      pode_importar_limite?: boolean;
     }) => {
       const { error } = await supabase
         .from("permissoes")
@@ -151,17 +163,26 @@ export function PermissoesUsuariosCard({ compact = false }: { compact?: boolean 
                           <th className="p-1.5 font-medium">Ver</th>
                           <th className="p-1.5 font-medium">Editar</th>
                           <th className="p-1.5 font-medium">Excluir</th>
+                          {CAMPOS_IMPORTACAO.map((c) => (
+                            <th key={c.campo} className="p-1.5 font-medium">
+                              {c.label}
+                            </th>
+                          ))}
                         </tr>
                       </thead>
                       <tbody>
                         {MODULOS.map((m) => {
                           const row = permDe(p.id, m.key);
+                          const ehImportar = m.key === "importar";
                           const atual = {
                             user_id: p.id,
                             modulo: m.key,
                             pode_ver: row?.pode_ver ?? true,
                             pode_editar: row?.pode_editar ?? true,
                             pode_excluir: row?.pode_excluir ?? false,
+                            pode_importar_lancamentos: row?.pode_importar_lancamentos ?? true,
+                            pode_importar_parcelamentos: row?.pode_importar_parcelamentos ?? true,
+                            pode_importar_limite: row?.pode_importar_limite ?? true,
                           };
                           return (
                             <tr key={m.key} className="border-t">
@@ -169,15 +190,33 @@ export function PermissoesUsuariosCard({ compact = false }: { compact?: boolean 
                               {(["pode_ver", "pode_editar", "pode_excluir"] as const).map(
                                 (campo) => (
                                   <td key={campo} className="p-1.5 text-center">
+                                    {campo !== "pode_ver" && ehImportar ? (
+                                      <span className="text-muted-foreground">—</span>
+                                    ) : (
+                                      <Switch
+                                        checked={atual[campo]}
+                                        onCheckedChange={(v) =>
+                                          salvarPermissao.mutate({ ...atual, [campo]: v })
+                                        }
+                                      />
+                                    )}
+                                  </td>
+                                ),
+                              )}
+                              {CAMPOS_IMPORTACAO.map(({ campo }) => (
+                                <td key={campo} className="p-1.5 text-center">
+                                  {ehImportar ? (
                                     <Switch
                                       checked={atual[campo]}
                                       onCheckedChange={(v) =>
                                         salvarPermissao.mutate({ ...atual, [campo]: v })
                                       }
                                     />
-                                  </td>
-                                ),
-                              )}
+                                  ) : (
+                                    <span className="text-muted-foreground">—</span>
+                                  )}
+                                </td>
+                              ))}
                             </tr>
                           );
                         })}
