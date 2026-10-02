@@ -39,6 +39,7 @@ import {
 import { useCompetenciaVigente } from "@/lib/periodo-vigente";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { lancamentosPorCompetencias } from "@/lib/recorrencia";
+import { opacidadePorPosicao, posicaoTemporalDoMes } from "@/lib/tempo-visual";
 
 type Agrupamento = "cartao" | "categoria" | "responsavel" | "tipo";
 
@@ -360,7 +361,16 @@ export function VisaoGeralHome({ ocultarValores }: { ocultarValores?: boolean } 
                               ? "var(--success)"
                               : "var(--chart-2)"
                       }
-                      opacity={s.key === mes ? 1 : 0.55}
+                      // Bloco 3 (plano-mega 2026-09-14): mês selecionado sempre
+                      // em destaque total; os demais usam a opacidade padrão de
+                      // passado/futuro em vez de um valor fixo — assim um mês
+                      // futuro (ainda "previsto") fica visualmente mais apagado
+                      // que um mês passado já fechado.
+                      opacity={
+                        s.key === mes
+                          ? 1
+                          : opacidadePorPosicao(posicaoTemporalDoMes(s.key, competenciaVigente))
+                      }
                     />
                   ))}
                 </Bar>

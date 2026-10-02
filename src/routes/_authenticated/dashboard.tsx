@@ -48,6 +48,7 @@ import { usePersistedState } from "@/hooks/usePersistedState";
 import { useCategorias, useDespesas, useFaturasMes, useReceitas } from "@/hooks/useFinance";
 import { criarCorPorCategoria, nomeBaseDoGrupo } from "@/lib/categorias-cor";
 import { aplicarRegrasFaturaMes } from "@/lib/fatura-mes";
+import { opacidadePorPosicao, posicaoTemporalDoMes } from "@/lib/tempo-visual";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -705,6 +706,12 @@ function DashboardPage() {
             )}
           </div>
         </CardHeader>
+        {dados.meses.some((m: any) => posicaoTemporalDoMes(m.key, mesAtual) === "futuro") && (
+          <p className="px-6 pb-1 text-[11px] text-muted-foreground">
+            Meses além do atual aparecem com opacidade reduzida — são previstos, ainda não
+            aconteceram.
+          </p>
+        )}
         <CardContent className="h-[340px]">
           <ResponsiveContainer width="100%" height="100%">
             {tipoGrafico === "linhas" ? (
@@ -763,6 +770,14 @@ function DashboardPage() {
                 <Legend wrapperStyle={{ fontSize: 12 }} />
                 {visaoFluxo !== "despesas" && (
                   <Bar dataKey="Receitas" fill="var(--success)" radius={[6, 6, 0, 0]}>
+                    {/* Bloco 3 (plano-mega 2026-09-14): mês além do atual vem com
+                        opacidade reduzida — ainda é previsão, não aconteceu. */}
+                    {dados.meses.map((m: any, i: number) => (
+                      <Cell
+                        key={m.key}
+                        fillOpacity={opacidadePorPosicao(posicaoTemporalDoMes(m.key, mesAtual))}
+                      />
+                    ))}
                     {dados.meses.length <= 12 && (
                       <LabelList
                         dataKey="Receitas"
@@ -776,6 +791,12 @@ function DashboardPage() {
                 {visaoFluxo !== "receitas" &&
                   (visaoFluxo === "despesas" ? (
                     <Bar dataKey="Despesas" fill="var(--destructive)" radius={[6, 6, 0, 0]}>
+                      {dados.meses.map((m: any, i: number) => (
+                        <Cell
+                          key={m.key}
+                          fillOpacity={opacidadePorPosicao(posicaoTemporalDoMes(m.key, mesAtual))}
+                        />
+                      ))}
                       <LabelList
                         dataKey="Despesas"
                         position="top"
@@ -797,7 +818,14 @@ function DashboardPage() {
                             : 0
                         }
                         onClick={(e: any) => setDrill({ mes: e?.payload?.key, grupo: g })}
-                      />
+                      >
+                        {dados.meses.map((m: any) => (
+                          <Cell
+                            key={m.key}
+                            fillOpacity={opacidadePorPosicao(posicaoTemporalDoMes(m.key, mesAtual))}
+                          />
+                        ))}
+                      </Bar>
                     ))
                   ))}
                 {visaoFluxo === "ambos" && dados.meses.length <= 12 && dados.grupos.length > 0 && (
