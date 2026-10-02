@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Loader2, Mic, Sparkles, Square } from "lucide-react";
@@ -48,6 +48,7 @@ import {
   type ContextoLancamentoIA,
   type RascunhoIA,
 } from "@/lib/lancamento-ia";
+import { obterModoIaLancamento } from "@/lib/ia-lancamento-modo.functions";
 
 /** Grava no máximo 60s de áudio — mantém "1 áudio" como unidade de custo
  * previsível pra IA, em vez de deixar a pessoa gravar minutos à toa. Ver
@@ -109,7 +110,25 @@ export function LancamentoRapidoDialog({
   const interpretarFn = useServerFn(interpretarLancamentoIA);
   const transcreverFn = useServerFn(transcreverAudioIA);
   const resumirFn = useServerFn(resumoFinanceiroIA);
+  const obterModoFn = useServerFn(obterModoIaLancamento);
   const { resumo } = useResumoFinanceiroMes();
+
+  /** Frente 2 do plano de 2026-10-02: o admin (site e/ou grupo) controla se a
+   * IA aceita texto, áudio, os dois ou nenhum. Só busca enquanto o diálogo
+   * está aberto — não há necessidade antes disso. A trava de verdade é no
+   * servidor (`verificarModoIA` em `lancamento-ia.functions.ts`); isto aqui é
+   * só pra já mostrar a UI certa, evitando frustrar quem clicaria em algo que
+   * o servidor ia recusar de qualquer jeito. */
+  const { data: modoIaConfig } = useQuery({
+    queryKey: ["ia-lancamento-modo"],
+    queryFn: () => obterModoFn(),
+    enabled: open,
+    staleTime: 60_000,
+  });
+  const modoIa = modoIaConfig?.modo ?? "ambos";
+  const iaDesabilitada = modoIa === "desabilitado";
+  const textoPermitido = !iaDesabilitada && modoIa !== "somente_audio";
+  const audioPermitido = !iaDesabilitada && modoIa !== "somente_texto";
 
   const hoje = toISODate(new Date());
   const nomeUsuarioAtual = profile?.nome ?? null;
@@ -129,6 +148,13 @@ export function LancamentoRapidoDialog({
   const [respostaResumo, setRespostaResumo] = useState<string | null>(null);
   const [resumindo, setResumindo] = useState(false);
 
+  /** Modo "somente_audio": o campo de texto fica travado pra digitação livre
+   * até que uma transcrição de áudio preencha algo — não existe trava real
+   * no servidor pra "forçar só áudio" (a mesma função de interpretar serve
+   * texto digitado ou transcrito), então isto é um nudge de UI, não uma
+   * trava de segurança (documentado na Frente 2 do plano). */
+  const [textoLiberadoPorAudio, setTextoLiberadoPorAudio] = useState(false);
+
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const limiteGravacaoRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -140,6 +166,7 @@ export function LancamentoRapidoDialog({
     setForm(formVazio(hoje, nomeUsuarioAtual ?? RESPONSAVEIS_EXTRA));
     setPerguntaResumo("");
     setRespostaResumo(null);
+    setTextoLiberadoPorAudio(false);
   }
 
   function fechar() {
@@ -206,6 +233,7 @@ export function LancamentoRapidoDialog({
         return;
       }
       setTexto((atual) => (atual ? `${atual} ${resultado.texto}` : resultado.texto));
+      setTextoLiberadoPorAudio(true);
     } catch {
       toast.error("Falha ao transcrever o áudio. Você pode digitar em vez disso.");
     } finally {
@@ -231,7 +259,9 @@ export function LancamentoRapidoDialog({
         ],
         usuarioAtual: nomeUsuarioAtual,
       };
-      const draft = await interpretarFn({ data: { texto, contexto } });
+      const draft = await interpretarFn({
+        data: { texto, contexto, origem: textoLiberadoPorAudio ? "audio" : "manual" },
+      });
       setRascunho(draft);
       aplicarRascunhoNoForm(draft);
       if (draft.observacao_ia) toast.info(draft.observacao_ia);
@@ -387,152 +417,205 @@ export function LancamentoRapidoDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <Tabs value={modo} onValueChange={(v) => setModo(v as "lancar" | "resumo")}>
-          <TabsList className="w-full">
-            <TabsTrigger value="lancar" className="flex-1">
-              Lançar
-            </TabsTrigger>
-            <TabsTrigger value="resumo" className="flex-1">
-              Resumo
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="resumo" className="space-y-3">
-            <p className="text-xs text-muted-foreground">
-              Pergunte algo específico (ex.: "quanto ainda posso gastar esse mês?") ou deixe em
-              branco pra um resumo geral.
+        {iaDesabilitada ? (
+          <div className="space-y-3 rounded-lg border bg-muted/40 p-4 text-sm">
+            <p>
+              O lançamento e o resumo por IA estão desativados agora pelo administrador. Você ainda
+              pode lançar manualmente.
             </p>
-            <Textarea
-              value={perguntaResumo}
-              onChange={(e) =>
-                setPerguntaResumo(e.target.value.slice(0, LIMITE_CARACTERES_TEXTO_IA))
-              }
-              placeholder='Ex.: "como estão minhas finanças esse mês?" (opcional)'
-              rows={2}
-              disabled={resumindo}
-            />
-            <Button type="button" size="sm" onClick={resumir} disabled={resumindo}>
-              {resumindo ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Sparkles className="size-4" />
-              )}
-              {perguntaResumo.trim() ? "Perguntar à IA" : "Resumir meu mês"}
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => {
+                setRascunho(RASCUNHO_VAZIO);
+                setModo("lancar");
+              }}
+            >
+              Preencher manualmente
             </Button>
-            {respostaResumo && (
-              <div className="rounded-lg border bg-muted/40 p-3 text-sm whitespace-pre-wrap">
-                {respostaResumo}
-              </div>
-            )}
-          </TabsContent>
+          </div>
+        ) : (
+          <Tabs value={modo} onValueChange={(v) => setModo(v as "lancar" | "resumo")}>
+            <TabsList className="w-full">
+              <TabsTrigger value="lancar" className="flex-1">
+                Lançar
+              </TabsTrigger>
+              {textoPermitido && (
+                <TabsTrigger value="resumo" className="flex-1">
+                  Resumo
+                </TabsTrigger>
+              )}
+            </TabsList>
 
-          <TabsContent value="lancar" className="space-y-3">
-            <Textarea
-              value={texto}
-              onChange={(e) => setTexto(e.target.value.slice(0, LIMITE_CARACTERES_TEXTO_IA))}
-              placeholder="Ex.: gastei 45 reais de uber hoje, no cartão nubank"
-              rows={3}
-              disabled={gravando || transcrevendo}
-            />
-            <div className="flex items-center gap-2">
-              {!gravando ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={iniciarGravacao}
-                  disabled={transcrevendo}
-                >
-                  <Mic className="size-4" /> Gravar áudio
-                </Button>
-              ) : (
-                <Button type="button" variant="destructive" size="sm" onClick={pararGravacao}>
-                  <Square className="size-4" /> Parar gravação
-                </Button>
-              )}
-              {transcrevendo && (
-                <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <Loader2 className="size-3.5 animate-spin" /> Transcrevendo áudio…
-                </span>
-              )}
-              <Button
-                type="button"
-                size="sm"
-                className="ml-auto"
-                onClick={interpretar}
-                disabled={interpretando || gravando || transcrevendo || !texto.trim()}
-              >
-                {interpretando ? (
+            <TabsContent value="resumo" className="space-y-3">
+              <p className="text-xs text-muted-foreground">
+                Pergunte algo específico (ex.: "quanto ainda posso gastar esse mês?") ou deixe em
+                branco pra um resumo geral.
+              </p>
+              <Textarea
+                value={perguntaResumo}
+                onChange={(e) =>
+                  setPerguntaResumo(e.target.value.slice(0, LIMITE_CARACTERES_TEXTO_IA))
+                }
+                placeholder='Ex.: "como estão minhas finanças esse mês?" (opcional)'
+                rows={2}
+                disabled={resumindo}
+              />
+              <Button type="button" size="sm" onClick={resumir} disabled={resumindo}>
+                {resumindo ? (
                   <Loader2 className="size-4 animate-spin" />
                 ) : (
                   <Sparkles className="size-4" />
                 )}
-                Interpretar com IA
+                {perguntaResumo.trim() ? "Perguntar à IA" : "Resumir meu mês"}
               </Button>
-            </div>
-
-            {!mostrarFormulario && (
-              <p className="text-xs text-muted-foreground">
-                Também dá pra pular a IA: escreva a descrição e clique em "Interpretar" — se ela não
-                conseguir, o formulário abaixo abre em branco pra você preencher na mão.
-              </p>
-            )}
-
-            {mostrarFormulario && (
-              <div className="space-y-3 rounded-lg border p-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <Field label="Tipo">
-                    <Select
-                      value={form.tipo}
-                      onValueChange={(v) =>
-                        setForm({ ...form, tipo: v as "despesa" | "receita", categoria: "" })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="despesa">Despesa</SelectItem>
-                        <SelectItem value="receita">Receita</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </Field>
-                  <Field label="Data">
-                    <Input
-                      type="date"
-                      value={form.data}
-                      onChange={(e) => setForm({ ...form, data: e.target.value })}
-                    />
-                  </Field>
+              {respostaResumo && (
+                <div className="rounded-lg border bg-muted/40 p-3 text-sm whitespace-pre-wrap">
+                  {respostaResumo}
                 </div>
+              )}
+            </TabsContent>
 
-                <Field label="Descrição">
-                  <Input
-                    value={form.descricao}
-                    onChange={(e) => setForm({ ...form, descricao: e.target.value })}
-                    placeholder="Ex.: Mercado"
-                  />
-                </Field>
+            <TabsContent value="lancar" className="space-y-3">
+              {modoIa === "somente_audio" && !textoLiberadoPorAudio && (
+                <p className="text-xs text-muted-foreground">
+                  O administrador liberou apenas entrada por áudio agora — grave um áudio pra
+                  liberar o campo de texto, ou preencha o formulário manualmente.
+                </p>
+              )}
+              <Textarea
+                value={texto}
+                onChange={(e) => setTexto(e.target.value.slice(0, LIMITE_CARACTERES_TEXTO_IA))}
+                placeholder="Ex.: gastei 45 reais de uber hoje, no cartão nubank"
+                rows={3}
+                disabled={
+                  gravando ||
+                  transcrevendo ||
+                  (modoIa === "somente_audio" && !textoLiberadoPorAudio)
+                }
+              />
+              <div className="flex items-center gap-2">
+                {audioPermitido &&
+                  (!gravando ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={iniciarGravacao}
+                      disabled={transcrevendo}
+                    >
+                      <Mic className="size-4" /> Gravar áudio
+                    </Button>
+                  ) : (
+                    <Button type="button" variant="destructive" size="sm" onClick={pararGravacao}>
+                      <Square className="size-4" /> Parar gravação
+                    </Button>
+                  ))}
+                {transcrevendo && (
+                  <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Loader2 className="size-3.5 animate-spin" /> Transcrevendo áudio…
+                  </span>
+                )}
+                <Button
+                  type="button"
+                  size="sm"
+                  className="ml-auto"
+                  onClick={interpretar}
+                  disabled={interpretando || gravando || transcrevendo || !texto.trim()}
+                >
+                  {interpretando ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="size-4" />
+                  )}
+                  Interpretar com IA
+                </Button>
+              </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <Field label="Valor (R$)">
+              {!mostrarFormulario && (
+                <p className="text-xs text-muted-foreground">
+                  Também dá pra pular a IA: escreva a descrição e clique em "Interpretar" — se ela
+                  não conseguir, o formulário abaixo abre em branco pra você preencher na mão.
+                </p>
+              )}
+
+              {mostrarFormulario && (
+                <div className="space-y-3 rounded-lg border p-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="Tipo">
+                      <Select
+                        value={form.tipo}
+                        onValueChange={(v) =>
+                          setForm({ ...form, tipo: v as "despesa" | "receita", categoria: "" })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="despesa">Despesa</SelectItem>
+                          <SelectItem value="receita">Receita</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                    <Field label="Data">
+                      <Input
+                        type="date"
+                        value={form.data}
+                        onChange={(e) => setForm({ ...form, data: e.target.value })}
+                      />
+                    </Field>
+                  </div>
+
+                  <Field label="Descrição">
                     <Input
-                      inputMode="decimal"
-                      value={form.valor}
-                      onChange={(e) => setForm({ ...form, valor: e.target.value })}
-                      placeholder="0,00"
+                      value={form.descricao}
+                      onChange={(e) => setForm({ ...form, descricao: e.target.value })}
+                      placeholder="Ex.: Mercado"
                     />
                   </Field>
-                  <Field label={form.tipo === "despesa" ? "Parcelas" : "Responsável"}>
-                    {form.tipo === "despesa" ? (
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="Valor (R$)">
                       <Input
-                        type="number"
-                        min={1}
-                        max={60}
-                        value={form.parcelas}
-                        onChange={(e) => setForm({ ...form, parcelas: e.target.value })}
+                        inputMode="decimal"
+                        value={form.valor}
+                        onChange={(e) => setForm({ ...form, valor: e.target.value })}
+                        placeholder="0,00"
                       />
-                    ) : (
+                    </Field>
+                    <Field label={form.tipo === "despesa" ? "Parcelas" : "Responsável"}>
+                      {form.tipo === "despesa" ? (
+                        <Input
+                          type="number"
+                          min={1}
+                          max={60}
+                          value={form.parcelas}
+                          onChange={(e) => setForm({ ...form, parcelas: e.target.value })}
+                        />
+                      ) : (
+                        <Select
+                          value={form.responsavel}
+                          onValueChange={(v) => setForm({ ...form, responsavel: v })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {perfis.map((p: any) => (
+                              <SelectItem key={p.id} value={p.nome}>
+                                {p.nome}
+                              </SelectItem>
+                            ))}
+                            <SelectItem value={RESPONSAVEIS_EXTRA}>{RESPONSAVEIS_EXTRA}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </Field>
+                  </div>
+
+                  {form.tipo === "despesa" && (
+                    <Field label="Responsável">
                       <Select
                         value={form.responsavel}
                         onValueChange={(v) => setForm({ ...form, responsavel: v })}
@@ -549,80 +632,59 @@ export function LancamentoRapidoDialog({
                           <SelectItem value={RESPONSAVEIS_EXTRA}>{RESPONSAVEIS_EXTRA}</SelectItem>
                         </SelectContent>
                       </Select>
-                    )}
+                    </Field>
+                  )}
+
+                  <Field label="Categoria">
+                    <Select
+                      value={form.categoria}
+                      onValueChange={(v) => setForm({ ...form, categoria: v })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(form.tipo === "despesa" ? categoriasDespesa : categoriasReceita).map(
+                          (c: any) => (
+                            <SelectItem key={c.id} value={c.nome}>
+                              {c.nome}
+                            </SelectItem>
+                          ),
+                        )}
+                      </SelectContent>
+                    </Select>
                   </Field>
+
+                  {form.tipo === "despesa" && (
+                    <Field label="Forma de pagamento (opcional)">
+                      <Select
+                        value={form.pagamento}
+                        onValueChange={(v) => setForm({ ...form, pagamento: v as FormaPagamento })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="nenhum">Pix / dinheiro / não informado</SelectItem>
+                          {cartoes.map((c: any) => (
+                            <SelectItem key={c.id} value={`cartao:${c.id}`}>
+                              {c.apelido || "Cartão"} {c.final ? `•${c.final}` : ""}
+                            </SelectItem>
+                          ))}
+                          {bancos.map((b: any) => (
+                            <SelectItem key={b.id} value={`banco:${b.id}`}>
+                              {b.nome}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                  )}
                 </div>
-
-                {form.tipo === "despesa" && (
-                  <Field label="Responsável">
-                    <Select
-                      value={form.responsavel}
-                      onValueChange={(v) => setForm({ ...form, responsavel: v })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {perfis.map((p: any) => (
-                          <SelectItem key={p.id} value={p.nome}>
-                            {p.nome}
-                          </SelectItem>
-                        ))}
-                        <SelectItem value={RESPONSAVEIS_EXTRA}>{RESPONSAVEIS_EXTRA}</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </Field>
-                )}
-
-                <Field label="Categoria">
-                  <Select
-                    value={form.categoria}
-                    onValueChange={(v) => setForm({ ...form, categoria: v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(form.tipo === "despesa" ? categoriasDespesa : categoriasReceita).map(
-                        (c: any) => (
-                          <SelectItem key={c.id} value={c.nome}>
-                            {c.nome}
-                          </SelectItem>
-                        ),
-                      )}
-                    </SelectContent>
-                  </Select>
-                </Field>
-
-                {form.tipo === "despesa" && (
-                  <Field label="Forma de pagamento (opcional)">
-                    <Select
-                      value={form.pagamento}
-                      onValueChange={(v) => setForm({ ...form, pagamento: v as FormaPagamento })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="nenhum">Pix / dinheiro / não informado</SelectItem>
-                        {cartoes.map((c: any) => (
-                          <SelectItem key={c.id} value={`cartao:${c.id}`}>
-                            {c.apelido || "Cartão"} {c.final ? `•${c.final}` : ""}
-                          </SelectItem>
-                        ))}
-                        {bancos.map((b: any) => (
-                          <SelectItem key={b.id} value={`banco:${b.id}`}>
-                            {b.nome}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </Field>
-                )}
-              </div>
-            )}
-          </TabsContent>
-        </Tabs>
+              )}
+            </TabsContent>
+          </Tabs>
+        )}
 
         <DialogFooter>
           <Button variant="ghost" onClick={fechar}>

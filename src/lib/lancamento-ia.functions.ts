@@ -8,6 +8,7 @@ import {
   type ContextoLancamentoIA,
   type ResumoFinanceiroContexto,
 } from "@/lib/lancamento-ia";
+import { grupoDoUsuario, resolverModoIaLancamento } from "@/lib/ia-lancamento-modo.functions";
 
 /**
  * Lançamento rápido por texto/áudio (IA) — server functions. Server-only:
@@ -47,6 +48,43 @@ async function verificarCotaIA(userId: string): Promise<string | null> {
   } catch {
     return `Limite diário de uso da IA atingido (${COTA_IA_POR_DIA} usos/dia, entre texto, áudio e resumo). Volta amanhã ou preencha manualmente.`;
   }
+}
+
+/** Frente 2 do plano de 2026-10-02: trava de servidor pro controle de modo
+ * (texto/áudio/ambos/desabilitado) que o admin do site e o admin do grupo
+ * definem em `ia-lancamento-modo.functions.ts`. Não basta esconder o botão
+ * na UI — um usuário determinado poderia chamar a server function direto,
+ * então a verificação real tem que ficar aqui também.
+ *
+ * `resumoFinanceiroIA` só aceita pergunta em TEXTO (não tem opção de áudio
+ * na UI), então ela é tratada como "entrada de texto" pra esse controle:
+ * com modo "somente_audio" ela também fica bloqueada, e com "somente_texto"
+ * continua liberada. "desabilitado" bloqueia todo o módulo de IA, incluindo
+ * o resumo.
+ *
+ * `interpretarLancamentoIA` é infraestrutura compartilhada: tanto texto
+ * digitado quanto a transcrição de um áudio passam pelo mesmo campo `texto`.
+ * Por isso ela chama isto com `tipoEntrada` baseado no `data.origem` que o
+ * client manda (ver o comentário no inputValidator dela) em vez de sempre
+ * "texto" — senão o modo "somente_audio" bloquearia até quem gravou áudio
+ * de verdade, o que tornaria esse modo inutilizável. */
+async function verificarModoIA(
+  context: { supabase: any; userId: string },
+  tipoEntrada: "texto" | "audio",
+): Promise<string | null> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const grupoId = await grupoDoUsuario(context);
+  const modo = await resolverModoIaLancamento(supabaseAdmin as any, grupoId);
+  if (modo === "desabilitado") {
+    return "O uso da IA para lançamentos/resumo está desativado pelo administrador. Preencha manualmente.";
+  }
+  if (tipoEntrada === "texto" && modo === "somente_audio") {
+    return "O administrador liberou apenas entrada por áudio para a IA neste momento. Grave um áudio ou preencha manualmente.";
+  }
+  if (tipoEntrada === "audio" && modo === "somente_texto") {
+    return "O administrador liberou apenas entrada por texto para a IA neste momento. Digite ou preencha manualmente.";
+  }
+  return null;
 }
 
 function montarPrompt(ctx: ContextoLancamentoIA): string {
@@ -90,7 +128,21 @@ function extrairJson(texto: string): unknown {
 
 export const interpretarLancamentoIA = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { texto: string; contexto: ContextoLancamentoIA }) => input)
+  .inputValidator(
+    (input: {
+      texto: string;
+      contexto: ContextoLancamentoIA;
+      /** "audio" quando o texto chegou aqui a partir de uma transcrição
+       * (`transcreverAudioIA`) nesta mesma sessão de diálogo, "manual" (ou
+       * ausente) quando foi digitado. Usado só pra resolver o modo
+       * "somente_audio" sem bloquear quem legitimamente gravou um áudio —
+       * ver comentário de `verificarModoIA`. Não é uma prova criptográfica de
+       * origem (o client podia mentir), então isto é tratado como
+       * preferência do admin, não trava de segurança — mesmo espírito do
+       * "fail open" de `resolverModoIaLancamento`. */
+      origem?: "manual" | "audio";
+    }) => input,
+  )
   .handler(async ({ data, context }) => {
     const apiKey = chaveOpenAI();
     if (!apiKey) {
@@ -108,6 +160,8 @@ export const interpretarLancamentoIA = createServerFn({ method: "POST" })
         observacao_ia: `Texto muito longo (máx. ${LIMITE_CARACTERES_TEXTO_IA} caracteres) — resuma em poucas palavras ou preencha manualmente.`,
       };
     }
+    const avisoModo = await verificarModoIA(context, data.origem === "audio" ? "audio" : "texto");
+    if (avisoModo) return { ...RASCUNHO_VAZIO, observacao_ia: avisoModo };
     const avisoCota = await verificarCotaIA(context.userId);
     if (avisoCota) return { ...RASCUNHO_VAZIO, observacao_ia: avisoCota };
 
@@ -172,6 +226,8 @@ export const transcreverAudioIA = createServerFn({ method: "POST" })
     if (!apiKey) {
       return { texto: "", erro: "IA não configurada (faltando OPENAI_API_KEY no servidor)." };
     }
+    const avisoModo = await verificarModoIA(context, "audio");
+    if (avisoModo) return { texto: "", erro: avisoModo };
     const avisoCota = await verificarCotaIA(context.userId);
     if (avisoCota) return { texto: "", erro: avisoCota };
 
@@ -282,6 +338,8 @@ export const resumoFinanceiroIA = createServerFn({ method: "POST" })
         erro: `Pergunta muito longa (máx. ${LIMITE_CARACTERES_TEXTO_IA} caracteres) — resuma em poucas palavras.`,
       };
     }
+    const avisoModo = await verificarModoIA(context, "texto");
+    if (avisoModo) return { texto: "", erro: avisoModo };
     const avisoCota = await verificarCotaIA(context.userId);
     if (avisoCota) return { texto: "", erro: avisoCota };
 
