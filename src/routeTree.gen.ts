@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as BloquearContaRouteImport } from './routes/bloquear-conta'
+import { Route as ConsultarProtocoloRouteImport } from './routes/consultar-protocolo'
 import { Route as EntrarRouteImport } from './routes/entrar'
 import { Route as EsqueciSenhaRouteImport } from './routes/esqueci-senha'
 import { Route as PrivacidadeRouteImport } from './routes/privacidade'
@@ -44,6 +45,7 @@ import { Route as AuthenticatedUsuariosRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedVeiculosRouteImport } from './routes/_authenticated/veiculos'
 import { Route as CalculadorasIndexRouteImport } from './routes/calculadoras/index'
 import { Route as CalculadorasDiferencaEntreDatasRouteImport } from './routes/calculadoras/diferenca-entre-datas'
+import { Route as CalculadorasSimuladorDeDoseDiluicaoRouteImport } from './routes/calculadoras/simulador-de-dose-diluicao'
 import { Route as CalculadorasSomarDiasADataRouteImport } from './routes/calculadoras/somar-dias-a-data'
 import { Route as CalculadorasSomarHorariosRouteImport } from './routes/calculadoras/somar-horarios'
 import { Route as LinksTemporariosIndexRouteImport } from './routes/links-temporarios/index'
@@ -63,6 +65,11 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
 const BloquearContaRoute = BloquearContaRouteImport.update({
   id: '/bloquear-conta',
   path: '/bloquear-conta',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConsultarProtocoloRoute = ConsultarProtocoloRouteImport.update({
+  id: '/consultar-protocolo',
+  path: '/consultar-protocolo',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EntrarRoute = EntrarRouteImport.update({
@@ -233,6 +240,12 @@ const CalculadorasDiferencaEntreDatasRoute =
     path: '/calculadoras/diferenca-entre-datas',
     getParentRoute: () => rootRouteImport,
   } as any)
+const CalculadorasSimuladorDeDoseDiluicaoRoute =
+  CalculadorasSimuladorDeDoseDiluicaoRouteImport.update({
+    id: '/calculadoras/simulador-de-dose-diluicao',
+    path: '/calculadoras/simulador-de-dose-diluicao',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const CalculadorasSomarDiasADataRoute =
   CalculadorasSomarDiasADataRouteImport.update({
     id: '/calculadoras/somar-dias-a-data',
@@ -269,6 +282,7 @@ const OauthGoogleDriveReturnRoute = OauthGoogleDriveReturnRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/bloquear-conta': typeof BloquearContaRoute
+  '/consultar-protocolo': typeof ConsultarProtocoloRoute
   '/entrar': typeof EntrarRoute
   '/esqueci-senha': typeof EsqueciSenhaRoute
   '/privacidade': typeof PrivacidadeRoute
@@ -300,6 +314,7 @@ export interface FileRoutesByFullPath {
   '/usuarios': typeof AuthenticatedUsuariosRoute
   '/veiculos': typeof AuthenticatedVeiculosRoute
   '/calculadoras/diferenca-entre-datas': typeof CalculadorasDiferencaEntreDatasRoute
+  '/calculadoras/simulador-de-dose-diluicao': typeof CalculadorasSimuladorDeDoseDiluicaoRoute
   '/calculadoras/somar-dias-a-data': typeof CalculadorasSomarDiasADataRoute
   '/calculadoras/somar-horarios': typeof CalculadorasSomarHorariosRoute
   '/links-temporarios/$id': typeof LinksTemporariosIdRoute
@@ -311,6 +326,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/bloquear-conta': typeof BloquearContaRoute
+  '/consultar-protocolo': typeof ConsultarProtocoloRoute
   '/entrar': typeof EntrarRoute
   '/esqueci-senha': typeof EsqueciSenhaRoute
   '/privacidade': typeof PrivacidadeRoute
@@ -342,6 +358,7 @@ export interface FileRoutesByTo {
   '/usuarios': typeof AuthenticatedUsuariosRoute
   '/veiculos': typeof AuthenticatedVeiculosRoute
   '/calculadoras/diferenca-entre-datas': typeof CalculadorasDiferencaEntreDatasRoute
+  '/calculadoras/simulador-de-dose-diluicao': typeof CalculadorasSimuladorDeDoseDiluicaoRoute
   '/calculadoras/somar-dias-a-data': typeof CalculadorasSomarDiasADataRoute
   '/calculadoras/somar-horarios': typeof CalculadorasSomarHorariosRoute
   '/links-temporarios/$id': typeof LinksTemporariosIdRoute
@@ -355,6 +372,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/bloquear-conta': typeof BloquearContaRoute
+  '/consultar-protocolo': typeof ConsultarProtocoloRoute
   '/entrar': typeof EntrarRoute
   '/esqueci-senha': typeof EsqueciSenhaRoute
   '/privacidade': typeof PrivacidadeRoute
@@ -386,6 +404,7 @@ export interface FileRoutesById {
   '/_authenticated/usuarios': typeof AuthenticatedUsuariosRoute
   '/_authenticated/veiculos': typeof AuthenticatedVeiculosRoute
   '/calculadoras/diferenca-entre-datas': typeof CalculadorasDiferencaEntreDatasRoute
+  '/calculadoras/simulador-de-dose-diluicao': typeof CalculadorasSimuladorDeDoseDiluicaoRoute
   '/calculadoras/somar-dias-a-data': typeof CalculadorasSomarDiasADataRoute
   '/calculadoras/somar-horarios': typeof CalculadorasSomarHorariosRoute
   '/links-temporarios/$id': typeof LinksTemporariosIdRoute
@@ -399,6 +418,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/bloquear-conta'
+    | '/consultar-protocolo'
     | '/entrar'
     | '/esqueci-senha'
     | '/privacidade'
@@ -430,6 +450,7 @@ export interface FileRouteTypes {
     | '/usuarios'
     | '/veiculos'
     | '/calculadoras/diferenca-entre-datas'
+    | '/calculadoras/simulador-de-dose-diluicao'
     | '/calculadoras/somar-dias-a-data'
     | '/calculadoras/somar-horarios'
     | '/links-temporarios/$id'
@@ -441,6 +462,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/bloquear-conta'
+    | '/consultar-protocolo'
     | '/entrar'
     | '/esqueci-senha'
     | '/privacidade'
@@ -472,6 +494,7 @@ export interface FileRouteTypes {
     | '/usuarios'
     | '/veiculos'
     | '/calculadoras/diferenca-entre-datas'
+    | '/calculadoras/simulador-de-dose-diluicao'
     | '/calculadoras/somar-dias-a-data'
     | '/calculadoras/somar-horarios'
     | '/links-temporarios/$id'
@@ -484,6 +507,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/bloquear-conta'
+    | '/consultar-protocolo'
     | '/entrar'
     | '/esqueci-senha'
     | '/privacidade'
@@ -515,6 +539,7 @@ export interface FileRouteTypes {
     | '/_authenticated/usuarios'
     | '/_authenticated/veiculos'
     | '/calculadoras/diferenca-entre-datas'
+    | '/calculadoras/simulador-de-dose-diluicao'
     | '/calculadoras/somar-dias-a-data'
     | '/calculadoras/somar-horarios'
     | '/links-temporarios/$id'
@@ -528,12 +553,14 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   BloquearContaRoute: typeof BloquearContaRoute
+  ConsultarProtocoloRoute: typeof ConsultarProtocoloRoute
   EntrarRoute: typeof EntrarRoute
   EsqueciSenhaRoute: typeof EsqueciSenhaRoute
   PrivacidadeRoute: typeof PrivacidadeRoute
   RedefinirSenhaRoute: typeof RedefinirSenhaRoute
   TermosDeUsoRoute: typeof TermosDeUsoRoute
   CalculadorasDiferencaEntreDatasRoute: typeof CalculadorasDiferencaEntreDatasRoute
+  CalculadorasSimuladorDeDoseDiluicaoRoute: typeof CalculadorasSimuladorDeDoseDiluicaoRoute
   CalculadorasSomarDiasADataRoute: typeof CalculadorasSomarDiasADataRoute
   CalculadorasSomarHorariosRoute: typeof CalculadorasSomarHorariosRoute
   LinksTemporariosIdRoute: typeof LinksTemporariosIdRoute
@@ -564,6 +591,13 @@ declare module '@tanstack/react-router' {
       path: '/bloquear-conta'
       fullPath: '/bloquear-conta'
       preLoaderRoute: typeof BloquearContaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/consultar-protocolo': {
+      id: '/consultar-protocolo'
+      path: '/consultar-protocolo'
+      fullPath: '/consultar-protocolo'
+      preLoaderRoute: typeof ConsultarProtocoloRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/entrar': {
@@ -790,6 +824,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CalculadorasDiferencaEntreDatasRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/calculadoras/simulador-de-dose-diluicao': {
+      id: '/calculadoras/simulador-de-dose-diluicao'
+      path: '/calculadoras/simulador-de-dose-diluicao'
+      fullPath: '/calculadoras/simulador-de-dose-diluicao'
+      preLoaderRoute: typeof CalculadorasSimuladorDeDoseDiluicaoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/calculadoras/somar-dias-a-data': {
       id: '/calculadoras/somar-dias-a-data'
       path: '/calculadoras/somar-dias-a-data'
@@ -898,12 +939,15 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   BloquearContaRoute: BloquearContaRoute,
+  ConsultarProtocoloRoute: ConsultarProtocoloRoute,
   EntrarRoute: EntrarRoute,
   EsqueciSenhaRoute: EsqueciSenhaRoute,
   PrivacidadeRoute: PrivacidadeRoute,
   RedefinirSenhaRoute: RedefinirSenhaRoute,
   TermosDeUsoRoute: TermosDeUsoRoute,
   CalculadorasDiferencaEntreDatasRoute: CalculadorasDiferencaEntreDatasRoute,
+  CalculadorasSimuladorDeDoseDiluicaoRoute:
+    CalculadorasSimuladorDeDoseDiluicaoRoute,
   CalculadorasSomarDiasADataRoute: CalculadorasSomarDiasADataRoute,
   CalculadorasSomarHorariosRoute: CalculadorasSomarHorariosRoute,
   LinksTemporariosIdRoute: LinksTemporariosIdRoute,

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { ArrowDownRight, ArrowUpRight, ChevronDown, ChevronRight, Eye, EyeOff, Minus } from "lucide-react";
 import {
   Bar,
@@ -249,7 +250,12 @@ export function VisaoGeralHome({ ocultarValores }: { ocultarValores?: boolean } 
   return (
     <>
       <div className="mb-4 grid gap-3 sm:grid-cols-2">
-        <Card className="bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent border-emerald-500/20">
+        <Card className="bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent border-emerald-500/20 transition-colors hover:bg-emerald-500/5">
+          <Link
+            to="/despesas"
+            search={{ economia: true, mes: "todos" }}
+            className="block focus-visible:outline-none"
+          >
           <CardContent className="p-4 flex items-center justify-between">
             <div>
               <div className="flex items-center gap-1">
@@ -274,6 +280,7 @@ export function VisaoGeralHome({ ocultarValores }: { ocultarValores?: boolean } 
               💰
             </div>
           </CardContent>
+          </Link>
         </Card>
 
         <Card className="bg-gradient-to-br from-blue-500/10 via-blue-500/5 to-transparent border-blue-500/20">

@@ -98,10 +98,13 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/_authenticated/despesas")({
   validateSearch: (
     s: Record<string, unknown>,
-  ): { cartao?: string; modo?: "lista" | "cartao"; mes?: string } => ({
+  ): { cartao?: string; modo?: "lista" | "cartao"; mes?: string; economia?: boolean } => ({
     ...(typeof s["cartao"] === "string" && s["cartao"] ? { cartao: s["cartao"] } : {}),
     ...(s["modo"] === "cartao" || s["modo"] === "lista" ? { modo: s["modo"] } : {}),
     ...(typeof s["mes"] === "string" && s["mes"] ? { mes: s["mes"] } : {}),
+    // Bloco 3 (plano-mega-2026-09-14.md): o card "Economia Conquistada" da
+    // Início usa isso pra levar direto aos lançamentos que geraram a economia.
+    ...(s["economia"] === true ? { economia: true } : {}),
   }),
   head: () => ({
     meta: [
@@ -214,6 +217,7 @@ function DespesasPage() {
    * usando o campo `origem` que já existe em `despesas` — nenhuma coluna
    * nova. */
   const [filtroOrigem, setFiltroOrigem] = usePersistedState("despesas.filtroOrigem", "todos");
+  const [filtroEconomia, setFiltroEconomia] = useState(search.economia ?? false);
   // `modo=cartao` na URL (ex.: vindo do card "Parcelas mensalizadas" do
   // dashboard) abre a página já na visão "Por cartão".
   const [modoLista, setModoLista] = useState<"lista" | "cartao">(search.modo ?? "lista");
@@ -662,6 +666,7 @@ function DespesasPage() {
     if (filtroResponsavel !== "todos" && d.responsavel !== filtroResponsavel) return false;
     if (filtroOrigem === "diretos" && d.origem && d.origem !== "manual") return false;
     if (filtroOrigem === "fatura" && (!d.origem || d.origem === "manual")) return false;
+    if (filtroEconomia && !d.economia_conquistada) return false;
     if (
       busca &&
       !correspondeBuscaComValor(
@@ -792,6 +797,10 @@ function DespesasPage() {
       label: filtroOrigem === "diretos" ? "Lançamentos diretos" : "De fatura/importação",
       clear: () => setFiltroOrigem("todos"),
     },
+    filtroEconomia && {
+      label: "Economia conquistada",
+      clear: () => setFiltroEconomia(false),
+    },
     filtroMes !== "todos" && {
       label: monthLabelLong(filtroMes),
       clear: () => setFiltroMes("todos"),
@@ -806,6 +815,7 @@ function DespesasPage() {
     setFiltroResponsavel("todos");
     setFiltroOrigem("todos");
     setFiltroMes("todos");
+    setFiltroEconomia(false);
     setBusca("");
   }
 
