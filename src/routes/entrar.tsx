@@ -11,6 +11,7 @@ import { isValidCpf, maskCpf, onlyDigits } from "@/lib/cpf";
 import { aceitarConvite, criarContaSemConvite } from "@/lib/convites.functions";
 import { obterConfiguracaoAcesso } from "@/lib/configuracoes-site.functions";
 import { solicitarCodigoRecuperacao } from "@/lib/conta-exclusao.functions";
+import { rotaDaTelaInicial } from "@/lib/tela-inicial-padrao";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -52,14 +53,24 @@ export const Route = createFileRoute("/entrar")({
 function LoginPage() {
   const navigate = useNavigate();
   const search = Route.useSearch();
+  const obterConfigInicial = useServerFn(obterConfiguracaoAcesso);
+  const { data: configInicial } = useQuery({
+    queryKey: ["configuracao-acesso-publica-entrar"],
+    queryFn: () => obterConfigInicial(),
+  });
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       const returnUrl = sessionStorage.getItem("control-all-return-url");
-      const target = search.next || (returnUrl && returnUrl.startsWith("/") ? returnUrl : "/inicio");
+      const target =
+        search.next ||
+        (returnUrl && returnUrl.startsWith("/")
+          ? returnUrl
+          : rotaDaTelaInicial(configInicial?.tela_inicial_padrao));
       if (data.session) window.location.assign(target);
     });
-  }, [search.next]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search.next, configInicial?.tela_inicial_padrao]);
 
   return (
     <main className="min-h-screen bg-background">
@@ -115,7 +126,6 @@ const emptyCadastro = {
  * não é obrigatório.
  */
 function CriarContaForm({ token }: { token: string | undefined }) {
-  const navigate = useNavigate();
   const aceitar = useServerFn(aceitarConvite);
   const criarSemConvite = useServerFn(criarContaSemConvite);
   const obterConfig = useServerFn(obterConfiguracaoAcesso);
@@ -247,7 +257,7 @@ function CriarContaForm({ token }: { token: string | undefined }) {
         toast.info("Conta criada — faça login na aba Entrar.");
         return;
       }
-      navigate({ to: "/inicio" });
+      window.location.assign(rotaDaTelaInicial(config?.tela_inicial_padrao));
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Não foi possível criar a conta");
     } finally {

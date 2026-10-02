@@ -22,6 +22,7 @@ import { Route as AuthenticatedBackupRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedCartoesRouteImport } from './routes/_authenticated/cartoes'
 import { Route as AuthenticatedCategoriasRouteImport } from './routes/_authenticated/categorias'
 import { Route as AuthenticatedCompartilharRouteImport } from './routes/_authenticated/compartilhar'
+import { Route as AuthenticatedConfiguracoesRouteImport } from './routes/_authenticated/configuracoes'
 import { Route as AuthenticatedContaRouteImport } from './routes/_authenticated/conta'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedDeParaRouteImport } from './routes/_authenticated/de-para'
@@ -114,6 +115,12 @@ const AuthenticatedCompartilharRoute =
   AuthenticatedCompartilharRouteImport.update({
     id: '/compartilhar',
     path: '/compartilhar',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedConfiguracoesRoute =
+  AuthenticatedConfiguracoesRouteImport.update({
+    id: '/configuracoes',
+    path: '/configuracoes',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedContaRoute = AuthenticatedContaRouteImport.update({
@@ -272,6 +279,7 @@ export interface FileRoutesByFullPath {
   '/cartoes': typeof AuthenticatedCartoesRoute
   '/categorias': typeof AuthenticatedCategoriasRoute
   '/compartilhar': typeof AuthenticatedCompartilharRoute
+  '/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/conta': typeof AuthenticatedContaRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/de-para': typeof AuthenticatedDeParaRoute
@@ -313,6 +321,7 @@ export interface FileRoutesByTo {
   '/cartoes': typeof AuthenticatedCartoesRoute
   '/categorias': typeof AuthenticatedCategoriasRoute
   '/compartilhar': typeof AuthenticatedCompartilharRoute
+  '/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/conta': typeof AuthenticatedContaRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/de-para': typeof AuthenticatedDeParaRoute
@@ -356,6 +365,7 @@ export interface FileRoutesById {
   '/_authenticated/cartoes': typeof AuthenticatedCartoesRoute
   '/_authenticated/categorias': typeof AuthenticatedCategoriasRoute
   '/_authenticated/compartilhar': typeof AuthenticatedCompartilharRoute
+  '/_authenticated/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/_authenticated/conta': typeof AuthenticatedContaRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/de-para': typeof AuthenticatedDeParaRoute
@@ -399,6 +409,7 @@ export interface FileRouteTypes {
     | '/cartoes'
     | '/categorias'
     | '/compartilhar'
+    | '/configuracoes'
     | '/conta'
     | '/dashboard'
     | '/de-para'
@@ -440,6 +451,7 @@ export interface FileRouteTypes {
     | '/cartoes'
     | '/categorias'
     | '/compartilhar'
+    | '/configuracoes'
     | '/conta'
     | '/dashboard'
     | '/de-para'
@@ -482,6 +494,7 @@ export interface FileRouteTypes {
     | '/_authenticated/cartoes'
     | '/_authenticated/categorias'
     | '/_authenticated/compartilhar'
+    | '/_authenticated/configuracoes'
     | '/_authenticated/conta'
     | '/_authenticated/dashboard'
     | '/_authenticated/de-para'
@@ -621,6 +634,13 @@ declare module '@tanstack/react-router' {
       path: '/compartilhar'
       fullPath: '/compartilhar'
       preLoaderRoute: typeof AuthenticatedCompartilharRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/configuracoes': {
+      id: '/_authenticated/configuracoes'
+      path: '/configuracoes'
+      fullPath: '/configuracoes'
+      preLoaderRoute: typeof AuthenticatedConfiguracoesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/conta': {
@@ -821,6 +841,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedCartoesRoute: typeof AuthenticatedCartoesRoute
   AuthenticatedCategoriasRoute: typeof AuthenticatedCategoriasRoute
   AuthenticatedCompartilharRoute: typeof AuthenticatedCompartilharRoute
+  AuthenticatedConfiguracoesRoute: typeof AuthenticatedConfiguracoesRoute
   AuthenticatedContaRoute: typeof AuthenticatedContaRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDeParaRoute: typeof AuthenticatedDeParaRoute
@@ -848,6 +869,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCartoesRoute: AuthenticatedCartoesRoute,
   AuthenticatedCategoriasRoute: AuthenticatedCategoriasRoute,
   AuthenticatedCompartilharRoute: AuthenticatedCompartilharRoute,
+  AuthenticatedConfiguracoesRoute: AuthenticatedConfiguracoesRoute,
   AuthenticatedContaRoute: AuthenticatedContaRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDeParaRoute: AuthenticatedDeParaRoute,

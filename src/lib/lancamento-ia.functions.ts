@@ -316,6 +316,7 @@ function montarPromptResumo(r: ResumoFinanceiroContexto, pergunta: string): stri
       : "Taxa de poupança: não calculável (sem receita cadastrada no mês).",
     categorias ? `Categorias de despesa que mais pesaram: ${categorias}.` : "",
     "Sempre que fizer sentido, inclua: quanto ainda está disponível pra gastar mantendo o saldo positivo, e o que aconteceria se o ritmo atual de gasto se mantivesse até o fim do mês (só como leitura qualitativa dos números acima, não um cálculo novo).",
+    'Se a pergunta citar um gasto pontual específico que a pessoa está pensando em fazer agora (ex.: "posso gastar R$ 40 na mesa de almoço hoje?", "dá pra comprar isso?"), compare o valor citado na pergunta com o saldo disponível do mês e diga claramente se cabe no orçamento e quanto sobraria depois — sem jamais inventar o valor do gasto, use só o que a pessoa escreveu.',
     pergunta
       ? `Pergunta específica do usuário, responda considerando os dados acima: "${pergunta}"`
       : 'O usuário só pediu um resumo geral (ex.: "como estão minhas finanças").',

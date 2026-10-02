@@ -14,7 +14,9 @@ type Passo = {
   descricao: string;
 };
 
-// Só "lançar receita" e "lançar despesa" nesta primeira versão (2026-09-28).
+// Primeira versão (2026-09-28): só "lançar receita" e "lançar despesa".
+// Estendido na Frente 4 (plano de 2026-10-02) com lançamento/resumo por IA,
+// nota fiscal e lista de compras — cobrindo os fluxos mais usados do site.
 // Cada passo mora numa rota diferente — ver comentário no componente sobre
 // como a navegação entre elas é feita no meio do tour.
 const PASSOS: Passo[] = [
@@ -28,7 +30,27 @@ const PASSOS: Passo[] = [
     rota: "/receitas",
     selector: '[data-tour="nova-receita"]',
     titulo: "Lance uma receita",
-    descricao: "E aqui pra registrar uma nova receita. Pronto — você já sabe o essencial!",
+    descricao: "E aqui pra registrar uma nova receita.",
+  },
+  {
+    rota: "/dashboard",
+    selector: '[data-tour="lancamento-ia"]',
+    titulo: "Lance por texto ou áudio",
+    descricao:
+      "Esse botão flutuante abre a IA: fale ou digite um lançamento em linguagem natural, ou peça um resumo das suas finanças do mês.",
+  },
+  {
+    rota: "/notas",
+    selector: '[data-tour="nova-nota"]',
+    titulo: "Guarde uma nota fiscal",
+    descricao: "Fotografe ou envie o comprovante aqui — sem precisar guardar o papel.",
+  },
+  {
+    rota: "/lista-compras",
+    selector: '[data-tour="adicionar-item-lista"]',
+    titulo: "Crie uma lista de compras",
+    descricao:
+      "Adicione itens aqui. Se mais de uma pessoa tiver acesso, dá pra exigir aprovação antes de marcar como comprado. Pronto — você já sabe o essencial!",
   },
 ];
 

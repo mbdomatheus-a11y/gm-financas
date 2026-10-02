@@ -32,6 +32,7 @@ export function BotaoLancamentoRapido() {
         className="fixed bottom-20 right-4 z-40 h-12 gap-2 rounded-full px-4 shadow-lg lg:bottom-6"
         aria-label="Lançar com IA ou ver resumo das finanças"
         title="Lançar com IA ou ver resumo das finanças"
+        data-tour="lancamento-ia"
       >
         <Sparkles className="size-5" />
         <span className="hidden sm:inline">Lançar com IA</span>

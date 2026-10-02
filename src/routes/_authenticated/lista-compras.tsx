@@ -502,7 +502,7 @@ function ListaComprasPage() {
           aria-label="Alertar em"
           title="Alertar em"
         />
-        <Button type="submit" disabled={adicionar.isPending}>
+        <Button type="submit" disabled={adicionar.isPending} data-tour="adicionar-item-lista">
           <Plus className="size-4" /> Adicionar
         </Button>
       </form>

@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { obterConfiguracaoAcesso } from "@/lib/configuracoes-site.functions";
 import { confirmarSegundoFator, iniciarLoginSeguro } from "@/lib/seguranca-conta.functions";
+import { rotaDaTelaInicial } from "@/lib/tela-inicial-padrao";
 
 /**
  * Formulário de login por e-mail (contas novas) OU CPF (contas antigas,
@@ -159,7 +160,7 @@ export function EntrarForm({
     if (resultado.senhaTemporaria) {
       navigate({ to: "/nova-senha" });
     } else {
-      window.location.assign(next ?? "/inicio");
+      window.location.assign(next ?? rotaDaTelaInicial(config?.tela_inicial_padrao));
     }
   }
 
@@ -176,7 +177,11 @@ export function EntrarForm({
       sessionStorage.setItem("control-all-sessao-iniciada", String(Date.now()));
       sessionStorage.setItem("control-all-sessao-max-min", String(desafio2fa.minutos));
       onSucesso?.();
-      window.location.assign(desafio2fa.senhaTemporaria ? "/nova-senha" : (next ?? "/inicio"));
+      window.location.assign(
+        desafio2fa.senhaTemporaria
+          ? "/nova-senha"
+          : (next ?? rotaDaTelaInicial(config?.tela_inicial_padrao)),
+      );
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Código inválido");
     } finally {

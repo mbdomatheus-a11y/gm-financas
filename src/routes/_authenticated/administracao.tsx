@@ -39,6 +39,7 @@ import {
   adminReenviarTour,
 } from "@/lib/tour.functions";
 import { IaLancamentoModoSiteCard } from "@/components/IaLancamentoModoSiteCard";
+import { TelaInicialPadraoCard } from "@/components/TelaInicialPadraoCard";
 import {
   adminListarSolicitacoesPrivacidade,
   adminTratarSolicitacaoPrivacidade,
@@ -968,6 +969,7 @@ function Admin() {
             </Card>
           )}
           <IaLancamentoModoSiteCard />
+          <TelaInicialPadraoCard />
           <Card>
             <CardHeader><CardTitle className="text-sm">Log de tentativas de login</CardTitle></CardHeader>
             <CardContent>

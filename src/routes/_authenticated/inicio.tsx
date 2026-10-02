@@ -3,7 +3,6 @@ import {
   ArrowRight,
   Calculator,
   DatabaseBackup,
-  Palette,
   ReceiptText,
   Settings,
   Share2,
@@ -103,14 +102,8 @@ function InicioPage() {
     { to: "/usuarios" as const, label: "Usuários e Privilégios", icon: Users, adminOnly: true },
     { to: "/backup" as const, label: "Backup e Reset", icon: DatabaseBackup, adminOnly: true },
     { to: "/administracao" as const, label: "Administração", icon: ShieldCheck, siteAdminOnly: true },
-    {
-      to: "/personalizacao" as const,
-      label: "Personalização",
-      icon: Palette,
-      modulo: "personalizacao" as const,
-    },
     { to: "/suporte" as const, label: "Suporte", icon: Headphones },
-    { to: "/conta" as const, label: "Configurações da conta", icon: Settings },
+    { to: "/configuracoes" as const, label: "Configurações", icon: Settings },
   ].filter((item) => {
     if ("siteAdminOnly" in item && item.siteAdminOnly) return isSiteAdmin;
     if ("adminOnly" in item && item.adminOnly) return isAdmin;

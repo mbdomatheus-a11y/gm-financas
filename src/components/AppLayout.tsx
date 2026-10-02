@@ -11,7 +11,6 @@ import {
   PiggyBank,
   Share2,
   Users,
-  Palette,
   Settings,
   LogOut,
   Menu,
@@ -106,6 +105,7 @@ type NavTo =
   | "/backup"
   | "/personalizacao"
   | "/conta"
+  | "/configuracoes"
   | "/pets"
   | "/onde-esta"
   | "/exames"
@@ -313,13 +313,11 @@ const GLOBAL: NavItem[] = [
     adminOnly: true,
   },
   {
-    to: "/personalizacao",
-    label: "Personalização",
-    short: "Tema",
-    icon: Palette,
-    modulo: "personalizacao",
+    to: "/configuracoes",
+    label: "Configurações",
+    short: "Config.",
+    icon: Settings,
   },
-  { to: "/conta", label: "Configurações da conta", short: "Conta", icon: Settings },
   { to: "/suporte", label: "Suporte", short: "Suporte", icon: Headphones },
 ];
 

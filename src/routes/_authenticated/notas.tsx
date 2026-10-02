@@ -547,7 +547,7 @@ function NotasPage() {
       title="Notas fiscais"
       description="Comprovantes, chave de acesso e controle de garantia"
       actions={
-        <Button size="sm" className="gap-2" onClick={() => setEscolha(true)}>
+        <Button size="sm" className="gap-2" onClick={() => setEscolha(true)} data-tour="nova-nota">
           <Plus className="size-4" /> Nova nota
         </Button>
       }
