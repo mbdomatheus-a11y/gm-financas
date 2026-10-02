@@ -726,15 +726,13 @@ function ImportarPage() {
             ? idDestinoFatura
             : (f.lancamentos.map((l) => acharCartao(f.banco, l.cartao_final)?.id).find(Boolean) ??
               null);
-        let path: string | null = null;
-        if (f.arquivo) {
-          path = `${lote.id}/${f.arquivo_hash}.pdf`;
-          const up = await supabase.storage.from("faturas").upload(path, f.arquivo, {
-            contentType: "application/pdf",
-            upsert: true,
-          });
-          if (up.error) throw up.error;
-        }
+        // Etapa C (plano-importacao-v2, 2026-10-02): o arquivo em si nunca é
+        // mais enviado ao Storage — só hash + metadados do lote (lidos
+        // acima, antes deste loop) seguem gravados, pra evitar reimportar o
+        // mesmo arquivo sem querer. `storage_path` fica sempre nulo agora;
+        // a coluna continua existindo só por histórico de faturas já
+        // importadas antes desta mudança.
+        const path: string | null = null;
 
         const { data: fatura, error: fatErr } = await supabase
           .from("import_faturas")
@@ -1036,6 +1034,9 @@ function ImportarPage() {
       toast.success(
         `${inseridos} lançamento(s) importado(s). ${ignorados} duplicado(s) ignorado(s).` +
           (fechadas ? ` ${fechadas} competência(s) fechada(s).` : ""),
+      );
+      toast.info(
+        "O arquivo enviado foi processado e descartado — nada além dos lançamentos foi armazenado.",
       );
       if (regrasSalvas)
         toast.info(`${regrasSalvas} classificação(ões) aprendida(s) para próximas importações.`);
