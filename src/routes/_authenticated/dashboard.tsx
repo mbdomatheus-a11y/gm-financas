@@ -46,6 +46,7 @@ import {
 import { useCotacao } from "@/hooks/useCotacao";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { useCategorias, useDespesas, useFaturasMes, useReceitas } from "@/hooks/useFinance";
+import { criarCorPorCategoria, nomeBaseDoGrupo } from "@/lib/categorias-cor";
 import { aplicarRegrasFaturaMes } from "@/lib/fatura-mes";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -162,6 +163,13 @@ function DashboardPage() {
   const { data: receitas = [] } = useReceitas();
   const { data: despesas = [] } = useDespesas();
   const { data: faturasMes = [] } = useFaturasMes();
+  // Bloco 3 (plano-mega 2026-09-14): cor por categoria vem sempre do
+  // cadastro em /categorias, não mais sorteada por posição no gráfico.
+  const { data: categoriasDespesa = [] } = useCategorias("despesa");
+  const corPorCategoria = useMemo(
+    () => criarCorPorCategoria(categoriasDespesa as any[]),
+    [categoriasDespesa],
+  );
 
   // Item 5 (backlog 2026-09-27): "mês do sistema" — se o usuário configurou
   // um dia de virada em Minha Conta, `mesAtual` passa a refletir esse ciclo
@@ -564,7 +572,12 @@ function DashboardPage() {
     return { lista, total };
   }, [parcelas, grupoDe, mesPie, cotacao]);
 
-  const corGrupo = (g: string) => PALETA[dados.grupos.indexOf(g) % PALETA.length];
+  // Só faz sentido usar a cor cadastrada da categoria quando o agrupamento
+  // atual é "por categoria" — em "fixa x variável"/"por responsável" o
+  // grupo não é uma categoria de verdade, então cai no fallback por hash
+  // (determinístico, mas sem relação com /categorias).
+  const corGrupo = (g: string) =>
+    agrupamento === "categoria" ? corPorCategoria(g) : corPorCategoria(`__grupo__${g}`);
 
   return (
     <AppLayout
@@ -932,8 +945,8 @@ function DashboardPage() {
                     className="cursor-pointer"
                     onClick={() => setDrill({ mes: mesPie })}
                   >
-                    {dados.pie.map((_, i) => (
-                      <Cell key={i} fill={PALETA[i % PALETA.length]} />
+                    {dados.pie.map((fatia, i) => (
+                      <Cell key={i} fill={corPorCategoria(nomeBaseDoGrupo(fatia.name))} />
                     ))}
                   </Pie>
                   <Tooltip formatter={(v: any) => formatBRL(Number(v))} />
