@@ -6,6 +6,8 @@ import { chaveEstabelecimento, normalizarEstabelecimento } from "@/lib/categoriz
 export type LinhaDePara = {
   descricao: string;
   estabelecimento_normalizado: string;
+  /** Bloco 4: variações extras de descrição que também batem na mesma regra. */
+  padroes?: string[];
   categoria: string;
   subcategoria: string | null;
   prioridade: number;

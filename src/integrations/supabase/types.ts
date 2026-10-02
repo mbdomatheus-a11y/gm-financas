@@ -302,6 +302,7 @@ export type Database = {
           grupo_id: string | null;
           id: string;
           origem_arquivo: string | null;
+          padroes: string[];
           prioridade: number;
           subcategoria: string | null;
           texto_original: string | null;
@@ -317,6 +318,7 @@ export type Database = {
           grupo_id?: string | null;
           id?: string;
           origem_arquivo?: string | null;
+          padroes?: string[];
           prioridade?: number;
           subcategoria?: string | null;
           texto_original?: string | null;
@@ -332,6 +334,7 @@ export type Database = {
           grupo_id?: string | null;
           id?: string;
           origem_arquivo?: string | null;
+          padroes?: string[];
           prioridade?: number;
           subcategoria?: string | null;
           texto_original?: string | null;
