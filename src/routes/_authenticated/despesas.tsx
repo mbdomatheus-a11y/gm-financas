@@ -1,9 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
   ArrowLeftRight,
+  Calculator,
   CheckCircle2,
   ChevronDown,
   CreditCard,
@@ -186,6 +187,12 @@ function DespesasPage() {
   const [tab, setTab] = usePersistedState<"total" | "fixa" | "variavel">("despesas.tab", "total");
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
+  // Bloco 6 (plano-mega 2026-09-14): simulação visual de corte em despesas
+  // fixas — desmarcar itens aqui só recalcula o total exibido na hora,
+  // nunca grava nada no banco. Estado local, puro "e se", reseta ao trocar
+  // de aba/mês ou sair da tela.
+  const [simulandoCortes, setSimulandoCortes] = useState(false);
+  const [idsExcluidosSimulacao, setIdsExcluidosSimulacao] = useState<Set<string>>(new Set());
   const [form, setForm] = useState<any>(novoForm("fixa"));
   const [duplicata, setDuplicata] = useState<any | null>(null);
   const [busca, setBusca] = useState("");
@@ -709,6 +716,24 @@ function DespesasPage() {
     return { total, pago, aberto, proximo };
   }, [listaVisivel, cotacao, filtroMes, lancamentosDoFiltro, lancamentoPorDespesa, idsIgnoradosPorTotal]);
 
+  // Bloco 6: sai da simulação sozinho ao trocar de aba/mês — os ids
+  // excluídos de uma simulação não fazem sentido mais depois disso.
+  useEffect(() => {
+    setSimulandoCortes(false);
+    setIdsExcluidosSimulacao(new Set());
+  }, [tab, filtroMes]);
+
+  const simulacao = useMemo(() => {
+    if (!simulandoCortes) return null;
+    let economia = 0;
+    for (const d of listaVisivel as any[]) {
+      if (idsIgnoradosPorTotal.has(d.id)) continue;
+      if (!idsExcluidosSimulacao.has(d.id)) continue;
+      economia += toBRL(valorVisivel(d), d.moeda, cotacao);
+    }
+    return { totalSimulado: resumo.total - economia, economia };
+  }, [simulandoCortes, listaVisivel, idsExcluidosSimulacao, idsIgnoradosPorTotal, cotacao, resumo.total]);
+
   /** Agrupa por cartão. Despesas fixas sem cartão ficam em 'Recorrente fora do cartão'. Demais sem cartão ficam em 'Sem atribuição'. */
   const gruposLista = useMemo(() => {
     if (modoLista === "lista")
@@ -829,6 +854,38 @@ function DespesasPage() {
           </div>
         ))}
       </div>
+
+      {/* Bloco 6 (plano-mega 2026-09-14): simular corte de despesas fixas —
+          desmarcar itens aqui só recalcula o total na hora, nada é gravado
+          no banco (estado local, reseta ao trocar de aba/mês ou sair). */}
+      {tab === "fixa" && filtroMes !== "todos" && modoLista === "lista" && lista.length > 0 && (
+        <div className="mb-3 space-y-2">
+          <Button
+            size="sm"
+            variant={simulandoCortes ? "secondary" : "outline"}
+            className="h-9 text-xs"
+            onClick={() => setSimulandoCortes((v) => !v)}
+          >
+            <Calculator className="size-3.5" />
+            {simulandoCortes ? "Sair da simulação" : "Simular cortes"}
+          </Button>
+          {simulandoCortes && simulacao && (
+            <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-muted/20 px-3 py-2 text-xs">
+              <span className="text-muted-foreground">
+                Desmarque abaixo os gastos que você cortaria — nada é salvo, é só pra visualizar.
+              </span>
+              <span className="font-semibold">
+                Total simulado: {formatBRL(simulacao.totalSimulado)}
+              </span>
+              {simulacao.economia > 0 && (
+                <span className="font-semibold text-success">
+                  Economia: {formatBRL(simulacao.economia)}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="mb-3 space-y-2">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -1092,10 +1149,27 @@ function DespesasPage() {
                             can("despesas", "editar") && "cursor-pointer",
                             (ignoradaNoMes ||
                               d.origem === "fatura_total_concluida" ||
-                              d.economia_conquistada) &&
+                              d.economia_conquistada ||
+                              (simulandoCortes && idsExcluidosSimulacao.has(d.id))) &&
                               "opacity-60 line-through bg-muted/20",
                           )}
                         >
+                          {simulandoCortes && tab === "fixa" && (
+                            <Checkbox
+                              className="shrink-0"
+                              checked={!idsExcluidosSimulacao.has(d.id)}
+                              onClick={(e) => e.stopPropagation()}
+                              onCheckedChange={(checked) => {
+                                setIdsExcluidosSimulacao((prev) => {
+                                  const next = new Set(prev);
+                                  if (checked) next.delete(d.id);
+                                  else next.add(d.id);
+                                  return next;
+                                });
+                              }}
+                              aria-label={`Incluir ${d.descricao} na simulação`}
+                            />
+                          )}
                           <div
                             className="h-8 w-1 shrink-0 rounded-full"
                             style={{ backgroundColor: d.cartoes?.cor ?? "var(--muted-foreground)" }}
