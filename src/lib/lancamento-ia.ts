@@ -13,7 +13,17 @@ import { z } from "zod";
  */
 export const RascunhoIASchema = z.object({
   tipo: z.enum(["despesa", "receita"]).nullable(),
+  /** Curta e objetiva de propósito (Item 3 da Frente 3, plano de
+   * 2026-10-02) — qualquer detalhe extra do texto do usuário que não caiba
+   * numa descrição direta vai para `observacao`, nunca concatenado aqui. */
   descricao: z.string().trim().min(1).nullable(),
+  /** Detalhe adicional que o usuário mencionou e não cabe numa descrição
+   * curta (ex.: "almoço com os amigos do trabalho, dividimos a conta
+   * porque esqueci a carteira" → descricao: "Almoço com amigos", observacao:
+   * "Dividimos a conta porque esqueci a carteira"). Salvo no campo
+   * `observacoes` de despesas/receitas — distinto de `observacao_ia`, que é
+   * aviso do SISTEMA (cota, erro, texto longo), não do usuário. */
+  observacao: z.string().trim().min(1).nullable().optional(),
   valor: z.number().positive().nullable(),
   data: z
     .string()
@@ -35,6 +45,7 @@ export type RascunhoIA = z.infer<typeof RascunhoIASchema>;
 export const RASCUNHO_VAZIO: RascunhoIA = {
   tipo: null,
   descricao: null,
+  observacao: null,
   valor: null,
   data: null,
   categoria: null,

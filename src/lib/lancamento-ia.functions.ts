@@ -91,9 +91,10 @@ function montarPrompt(ctx: ContextoLancamentoIA): string {
   return [
     "Você extrai dados de um lançamento financeiro (despesa ou receita) a partir de um texto escrito por um usuário comum, em português do Brasil.",
     "Responda APENAS com um objeto JSON válido, sem markdown, sem comentários, exatamente com estas chaves:",
-    `{"tipo": "despesa" | "receita" | null, "descricao": string | null, "valor": number | null, "data": "AAAA-MM-DD" | null, "categoria": string | null, "responsavel": string | null, "forma_pagamento": string | null, "parcelas": number | null, "confianca": number entre 0 e 1, "campos_faltantes": string[], "observacao_ia": string | null}`,
+    `{"tipo": "despesa" | "receita" | null, "descricao": string | null, "observacao": string | null, "valor": number | null, "data": "AAAA-MM-DD" | null, "categoria": string | null, "responsavel": string | null, "forma_pagamento": string | null, "parcelas": number | null, "confianca": number entre 0 e 1, "campos_faltantes": string[], "observacao_ia": string | null}`,
     "",
     "REGRA DE OURO: nunca invente. Se um campo não puder ser determinado com segurança a partir do texto, devolva null para ele e liste o nome em campos_faltantes. Nunca chute valor, data ou categoria.",
+    'descricao deve ser CURTA e objetiva — poucas palavras, o essencial (ex.: "Almoço com amigos", "Mercado do mês", "Salário"). NUNCA transcreva o texto inteiro do usuário em descricao. Qualquer detalhe adicional que o usuário tenha mencionado (motivo, contexto, combinação feita, quem estava junto etc.) vai em observacao, nunca concatenado em descricao. Se não houver nada além do essencial, observacao fica null.',
     `Data de hoje (para resolver "hoje", "ontem", "dia 5" etc.): ${ctx.hoje}.`,
     `Usuário logado (para resolver "eu paguei", "eu recebi"): ${ctx.usuarioAtual ?? "desconhecido"}.`,
     ctx.perfis.length

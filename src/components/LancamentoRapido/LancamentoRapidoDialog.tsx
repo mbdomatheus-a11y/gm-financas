@@ -1,8 +1,8 @@
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Loader2, Mic, Sparkles, Square } from "lucide-react";
+import { AlertTriangle, Loader2, Mic, Sparkles, Square } from "lucide-react";
 
 import {
   Dialog,
@@ -12,6 +12,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -32,7 +33,9 @@ import {
   useBancos,
   useCartoes,
   useCategorias,
+  useDespesas,
   useProfilesList,
+  useReceitas,
 } from "@/hooks/useFinance";
 import { useResumoFinanceiroMes } from "@/hooks/useResumoFinanceiroMes";
 import { classificar } from "@/lib/categorizacao";
@@ -60,6 +63,9 @@ type FormaPagamento = "nenhum" | `cartao:${string}` | `banco:${string}`;
 type FormConfirma = {
   tipo: "despesa" | "receita";
   descricao: string;
+  /** Detalhe extra que não cabe numa descrição curta (Item 3, Frente 3) —
+   * salvo no campo `observacoes` de despesas/receitas. */
+  observacao: string;
   valor: string;
   data: string;
   categoria: string;
@@ -72,6 +78,7 @@ function formVazio(hoje: string, responsavelPadrao: string): FormConfirma {
   return {
     tipo: "despesa",
     descricao: "",
+    observacao: "",
     valor: "",
     data: hoje,
     categoria: "",
@@ -106,6 +113,8 @@ export function LancamentoRapidoDialog({
   const { data: categoriasReceita = [] } = useCategorias("receita");
   const { data: cartoes = [] } = useCartoes();
   const { data: bancos = [] } = useBancos();
+  const { data: despesasExistentes = [] } = useDespesas();
+  const { data: receitasExistentes = [] } = useReceitas();
 
   const interpretarFn = useServerFn(interpretarLancamentoIA);
   const transcreverFn = useServerFn(transcreverAudioIA);
@@ -143,6 +152,10 @@ export function LancamentoRapidoDialog({
   const [form, setForm] = useState<FormConfirma>(
     formVazio(hoje, nomeUsuarioAtual ?? RESPONSAVEIS_EXTRA),
   );
+  /** Item 3 (plano de 2026-10-02, Frente 3): mesma trava de duplicidade de
+   * `/despesas` e `/receitas` — mesmo valor + mesma data já cadastrados
+   * exige confirmação explícita, por padrão só o primeiro é salvo. */
+  const [duplicata, setDuplicata] = useState<any | null>(null);
 
   const [perguntaResumo, setPerguntaResumo] = useState("");
   const [respostaResumo, setRespostaResumo] = useState<string | null>(null);
@@ -167,6 +180,7 @@ export function LancamentoRapidoDialog({
     setPerguntaResumo("");
     setRespostaResumo(null);
     setTextoLiberadoPorAudio(false);
+    setDuplicata(null);
   }
 
   function fechar() {
@@ -318,6 +332,7 @@ export function LancamentoRapidoDialog({
     setForm({
       tipo,
       descricao: draft.descricao ?? "",
+      observacao: draft.observacao ?? "",
       valor: draft.valor != null ? String(draft.valor) : "",
       data: draft.data ?? hoje,
       categoria: (categoriaAchada as any)?.nome ?? categoriaFallback ?? "",
@@ -329,6 +344,30 @@ export function LancamentoRapidoDialog({
           : "nenhum",
       parcelas: draft.parcelas ? String(draft.parcelas) : "1",
     });
+  }
+
+  /** Item 3 (plano de 2026-10-02, Frente 3): mesma trava já existente em
+   * `/despesas` e `/receitas` — mesmo valor + mesma data exige confirmação
+   * explícita antes de salvar um segundo lançamento igual. */
+  const possivelDuplicata = useMemo(() => {
+    const valorNum = Number(form.valor.replace(",", "."));
+    if (!Number.isFinite(valorNum) || valorNum <= 0 || !form.data) return null;
+    const lista = form.tipo === "despesa" ? despesasExistentes : receitasExistentes;
+    return (
+      (lista as any[]).find((item) => {
+        const valorItem = Number(form.tipo === "despesa" ? item.valor_total : item.valor);
+        const dataItem = form.tipo === "despesa" ? item.data_compra : item.data_recebimento;
+        return Math.abs(valorItem - valorNum) < 0.01 && dataItem === form.data;
+      }) ?? null
+    );
+  }, [despesasExistentes, receitasExistentes, form.tipo, form.valor, form.data]);
+
+  function tentarSalvar() {
+    if (possivelDuplicata && !duplicata) {
+      setDuplicata(possivelDuplicata);
+      return;
+    }
+    salvar.mutate();
   }
 
   const salvar = useMutation({
@@ -348,6 +387,7 @@ export function LancamentoRapidoDialog({
           .from("despesas")
           .insert({
             descricao: form.descricao.trim(),
+            observacoes: form.observacao.trim() || null,
             valor_total: valorNum,
             moeda: "BRL",
             categoria: form.categoria || "Categoria a confirmar",
@@ -379,6 +419,7 @@ export function LancamentoRapidoDialog({
       } else {
         const { error } = await supabase.from("receitas").insert({
           descricao: form.descricao.trim(),
+          observacoes: form.observacao.trim() || null,
           valor: valorNum,
           moeda: "BRL",
           categoria: form.categoria || "Outros",
@@ -539,6 +580,17 @@ export function LancamentoRapidoDialog({
                 </p>
               )}
 
+              {mostrarFormulario && duplicata && (
+                <Alert className="border-warning/40 bg-warning/10">
+                  <AlertTriangle className="size-4 text-warning" />
+                  <AlertTitle className="text-sm">Possível duplicidade</AlertTitle>
+                  <AlertDescription className="text-xs">
+                    Já existe "{duplicata.descricao}" com o mesmo valor nessa mesma data. Clique em
+                    salvar novamente para confirmar mesmo assim.
+                  </AlertDescription>
+                </Alert>
+              )}
+
               {mostrarFormulario && (
                 <div className="space-y-3 rounded-lg border p-3">
                   <div className="grid grid-cols-2 gap-3">
@@ -572,6 +624,15 @@ export function LancamentoRapidoDialog({
                       value={form.descricao}
                       onChange={(e) => setForm({ ...form, descricao: e.target.value })}
                       placeholder="Ex.: Mercado"
+                    />
+                  </Field>
+
+                  <Field label="Observação (opcional)">
+                    <Textarea
+                      value={form.observacao}
+                      onChange={(e) => setForm({ ...form, observacao: e.target.value })}
+                      placeholder="Detalhes extras que não cabem na descrição"
+                      rows={2}
                     />
                   </Field>
 
@@ -691,9 +752,9 @@ export function LancamentoRapidoDialog({
             Cancelar
           </Button>
           {modo === "lancar" && mostrarFormulario && (
-            <Button onClick={() => salvar.mutate()} disabled={salvar.isPending}>
+            <Button onClick={tentarSalvar} disabled={salvar.isPending}>
               {salvar.isPending ? <Loader2 className="size-4 animate-spin" /> : null}
-              Salvar lançamento
+              {duplicata ? "Salvar mesmo assim" : "Salvar lançamento"}
             </Button>
           )}
         </DialogFooter>

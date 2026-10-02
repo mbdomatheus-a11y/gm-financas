@@ -202,6 +202,11 @@ function DespesasPage() {
     "despesas.filtroResponsavel",
     "todos",
   );
+  /** Item 3 (plano de 2026-10-02, Frente 3): distinguir lançamentos diretos
+   * (avulsos, inclui os feitos por IA) dos vindos de fatura/importação,
+   * usando o campo `origem` que já existe em `despesas` — nenhuma coluna
+   * nova. */
+  const [filtroOrigem, setFiltroOrigem] = usePersistedState("despesas.filtroOrigem", "todos");
   // `modo=cartao` na URL (ex.: vindo do card "Parcelas mensalizadas" do
   // dashboard) abre a página já na visão "Por cartão".
   const [modoLista, setModoLista] = useState<"lista" | "cartao">(search.modo ?? "lista");
@@ -648,6 +653,8 @@ function DespesasPage() {
     if (filtroBanco !== "todos" && d.banco_id !== filtroBanco) return false;
     if (filtroCategoria !== "todos" && d.categoria !== filtroCategoria) return false;
     if (filtroResponsavel !== "todos" && d.responsavel !== filtroResponsavel) return false;
+    if (filtroOrigem === "diretos" && d.origem && d.origem !== "manual") return false;
+    if (filtroOrigem === "fatura" && (!d.origem || d.origem === "manual")) return false;
     if (
       busca &&
       !correspondeBuscaComValor(
@@ -756,6 +763,10 @@ function DespesasPage() {
       label: filtroResponsavel,
       clear: () => setFiltroResponsavel("todos"),
     },
+    filtroOrigem !== "todos" && {
+      label: filtroOrigem === "diretos" ? "Lançamentos diretos" : "De fatura/importação",
+      clear: () => setFiltroOrigem("todos"),
+    },
     filtroMes !== "todos" && {
       label: monthLabelLong(filtroMes),
       clear: () => setFiltroMes("todos"),
@@ -768,6 +779,7 @@ function DespesasPage() {
     setFiltroBanco("todos");
     setFiltroCategoria("todos");
     setFiltroResponsavel("todos");
+    setFiltroOrigem("todos");
     setFiltroMes("todos");
     setBusca("");
   }
@@ -912,6 +924,16 @@ function DespesasPage() {
                   {r}
                 </SelectItem>
               ))}
+            </SelectContent>
+          </Select>
+          <Select value={filtroOrigem} onValueChange={setFiltroOrigem}>
+            <SelectTrigger className="h-11 text-xs">
+              <SelectValue placeholder="Origem" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Diretos e de fatura</SelectItem>
+              <SelectItem value="diretos">Só lançamentos diretos</SelectItem>
+              <SelectItem value="fatura">Só de fatura/importação</SelectItem>
             </SelectContent>
           </Select>
           <Select value={filtroMes} onValueChange={setFiltroMes}>
@@ -1102,6 +1124,14 @@ function DespesasPage() {
                               {d.origem === "fatura_total_concluida" && (
                                 <Badge variant="outline" className="text-[10px]">
                                   Total manual concluído
+                                </Badge>
+                              )}
+                              {d.origem && d.origem !== "manual" && (
+                                <Badge
+                                  variant="outline"
+                                  className="border-sky-500/30 text-[10px] text-sky-600 dark:text-sky-400"
+                                >
+                                  {d.origem.startsWith("fatura") ? "De fatura" : "Importado"}
                                 </Badge>
                               )}
                               {d.economia_conquistada && (

@@ -1,11 +1,23 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, CreditCard, List, Pencil, Plus, Search, Trash2, TrendingUp, X } from "lucide-react";
+import {
+  AlertTriangle,
+  ChevronDown,
+  CreditCard,
+  List,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+  TrendingUp,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 
 import { AppLayout } from "@/components/AppLayout";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { IndiceReajusteField } from "@/components/IndiceReajusteField";
 import {
   competenciaDe,
@@ -126,6 +138,7 @@ function ReceitasPage() {
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<any>(emptyForm);
+  const [duplicata, setDuplicata] = useState<any | null>(null);
   // Item 3 (backlog 2026-09-27): filtros e modo de exibição lembrados por
   // sessão (localStorage) e restaurados quando o usuário volta pra tela.
   const [filtroMes, setFiltroMes] = usePersistedState("receitas.filtroMes", "atual_proximo");
@@ -231,15 +244,43 @@ function ReceitasPage() {
       ? (modoLista === "lista" ? key === mesAtual : true) || grupos.length === 1
       : !fechados[key];
 
+  /** Item 3 (plano de 2026-10-02, Frente 3): mesmo valor + mesma data já
+   * cadastrados exige confirmação explícita antes de deixar entrar um
+   * segundo lançamento igual — por padrão só o primeiro é salvo. Mesma
+   * trava já existente em `/despesas` (`possivelDuplicata`), aqui em
+   * paridade pra receitas (que antes não tinha checagem nenhuma). */
+  const possivelDuplicata = useMemo(() => {
+    if (editId) return null;
+    const valorNum = Number(String(form.valor).replace(",", "."));
+    if (!valorNum || !form.data_recebimento) return null;
+    return (
+      receitas.find(
+        (r: any) =>
+          Math.abs(Number(r.valor) - valorNum) < 0.01 &&
+          r.data_recebimento === form.data_recebimento,
+      ) ?? null
+    );
+  }, [receitas, editId, form.valor, form.data_recebimento]);
+
+  function tentarSalvar() {
+    if (possivelDuplicata && !duplicata) {
+      setDuplicata(possivelDuplicata);
+      return;
+    }
+    salvar.mutate();
+  }
+
   function abrirNova() {
     setEditId(null);
     setForm(emptyForm);
+    setDuplicata(null);
     setOpen(true);
   }
 
   function abrirEdicao(r: any) {
     if (!can("receitas", "editar")) return;
     setEditId(r.id);
+    setDuplicata(null);
     setForm({
       descricao: r.descricao ?? "",
       valor: String(r.valor ?? ""),
@@ -382,6 +423,7 @@ function ReceitasPage() {
       setOpen(false);
       setEditId(null);
       setForm(emptyForm);
+      setDuplicata(null);
       qc.invalidateQueries();
     },
     onError: (e: any) => toast.error(e?.errors?.[0]?.message ?? e.message ?? "Erro ao salvar"),
@@ -633,6 +675,7 @@ function ReceitasPage() {
           if (!o) {
             setEditId(null);
             setForm(emptyForm);
+            setDuplicata(null);
           }
         }}
       >
@@ -640,6 +683,19 @@ function ReceitasPage() {
           <DialogHeader>
             <DialogTitle>{editId ? "Editar receita" : "Nova receita"}</DialogTitle>
           </DialogHeader>
+
+          {duplicata && (
+            <Alert className="border-warning/40 bg-warning/10">
+              <AlertTriangle className="size-4 text-warning" />
+              <AlertTitle className="text-sm">Possível duplicidade</AlertTitle>
+              <AlertDescription className="text-xs">
+                Já existe “{duplicata.descricao}” de {formatBRL(Number(duplicata.valor))} em{" "}
+                {formatDate(duplicata.data_recebimento)}. Clique em salvar novamente para confirmar
+                mesmo assim.
+              </AlertDescription>
+            </Alert>
+          )}
+
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Descrição" className="sm:col-span-2">
               <Input
@@ -864,8 +920,8 @@ function ReceitasPage() {
             </Field>
           </div>
           <DialogFooter>
-            <Button onClick={() => salvar.mutate()} disabled={salvar.isPending}>
-              {editId ? "Salvar alterações" : "Salvar receita"}
+            <Button onClick={tentarSalvar} disabled={salvar.isPending}>
+              {duplicata ? "Salvar mesmo assim" : editId ? "Salvar alterações" : "Salvar receita"}
             </Button>
           </DialogFooter>
         </DialogContent>
