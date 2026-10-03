@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { AlertTriangle, Loader2, Mic, Sparkles, Square } from "lucide-react";
+import { AlertTriangle, History, Loader2, Mic, Sparkles, Square, Trash2 } from "lucide-react";
 
 import {
   Dialog,
@@ -13,6 +13,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -98,6 +99,35 @@ function acharPorNome<T>(lista: T[], nome: string | null, nomeDe: (item: T) => s
   return lista.find((item) => chave(nomeDe(item)) === alvo) ?? null;
 }
 
+export type ItemHistoricoIA = {
+  id: string;
+  dataHora: string;
+  tipo: "lancamento" | "resumo";
+  perguntaOuEntrada: string;
+  respostaOuDetalhes: string;
+};
+
+const CHAVE_HISTORICO_IA = "controlall_ia_historico";
+
+function carregarHistoricoIA(): ItemHistoricoIA[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(CHAVE_HISTORICO_IA);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function salvarHistoricoIA(itens: ItemHistoricoIA[]) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(CHAVE_HISTORICO_IA, JSON.stringify(itens.slice(0, 50)));
+  } catch {
+    // ignora falhas de localStorage
+  }
+}
+
 export function LancamentoRapidoDialog({
   open,
   onOpenChange,
@@ -122,12 +152,6 @@ export function LancamentoRapidoDialog({
   const obterModoFn = useServerFn(obterModoIaLancamento);
   const { resumo } = useResumoFinanceiroMes();
 
-  /** Frente 2 do plano de 2026-10-02: o admin (site e/ou grupo) controla se a
-   * IA aceita texto, áudio, os dois ou nenhum. Só busca enquanto o diálogo
-   * está aberto — não há necessidade antes disso. A trava de verdade é no
-   * servidor (`verificarModoIA` em `lancamento-ia.functions.ts`); isto aqui é
-   * só pra já mostrar a UI certa, evitando frustrar quem clicaria em algo que
-   * o servidor ia recusar de qualquer jeito. */
   const { data: modoIaConfig } = useQuery({
     queryKey: ["ia-lancamento-modo"],
     queryFn: () => obterModoFn(),
@@ -142,7 +166,42 @@ export function LancamentoRapidoDialog({
   const hoje = toISODate(new Date());
   const nomeUsuarioAtual = profile?.nome ?? null;
 
-  const [modo, setModo] = useState<"lancar" | "resumo">("lancar");
+  const [modo, setModo] = useState<"lancar" | "resumo" | "historico">("lancar");
+  const [historico, setHistorico] = useState<ItemHistoricoIA[]>(() => carregarHistoricoIA());
+
+  function registrarNoHistorico(tipo: "lancamento" | "resumo", entrada: string, saida: string) {
+    const novoItem: ItemHistoricoIA = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      dataHora: new Date().toISOString(),
+      tipo,
+      perguntaOuEntrada: entrada,
+      respostaOuDetalhes: saida,
+    };
+    setHistorico((prev) => {
+      const atualizado = [novoItem, ...prev].slice(0, 50);
+      salvarHistoricoIA(atualizado);
+      return atualizado;
+    });
+  }
+
+  function limparHistorico() {
+    setHistorico([]);
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.removeItem(CHAVE_HISTORICO_IA);
+      } catch {}
+    }
+    toast.success("Histórico de IA limpo.");
+  }
+
+  function removerItemHistorico(id: string) {
+    setHistorico((prev) => {
+      const atualizado = prev.filter((i) => i.id !== id);
+      salvarHistoricoIA(atualizado);
+      return atualizado;
+    });
+    toast.success("Item removido.");
+  }
 
   const [texto, setTexto] = useState("");
   const [gravando, setGravando] = useState(false);
@@ -152,20 +211,12 @@ export function LancamentoRapidoDialog({
   const [form, setForm] = useState<FormConfirma>(
     formVazio(hoje, nomeUsuarioAtual ?? RESPONSAVEIS_EXTRA),
   );
-  /** Item 3 (plano de 2026-10-02, Frente 3): mesma trava de duplicidade de
-   * `/despesas` e `/receitas` — mesmo valor + mesma data já cadastrados
-   * exige confirmação explícita, por padrão só o primeiro é salvo. */
   const [duplicata, setDuplicata] = useState<any | null>(null);
 
   const [perguntaResumo, setPerguntaResumo] = useState("");
   const [respostaResumo, setRespostaResumo] = useState<string | null>(null);
   const [resumindo, setResumindo] = useState(false);
 
-  /** Modo "somente_audio": o campo de texto fica travado pra digitação livre
-   * até que uma transcrição de áudio preencha algo — não existe trava real
-   * no servidor pra "forçar só áudio" (a mesma função de interpretar serve
-   * texto digitado ou transcrito), então isto é um nudge de UI, não uma
-   * trava de segurança (documentado na Frente 2 do plano). */
   const [textoLiberadoPorAudio, setTextoLiberadoPorAudio] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -297,6 +348,11 @@ export function LancamentoRapidoDialog({
         return;
       }
       setRespostaResumo(r.texto);
+      registrarNoHistorico(
+        "resumo",
+        perguntaResumo.trim() || "Resumo financeiro do mês",
+        r.texto,
+      );
       qc.invalidateQueries({ queryKey: ["lista-compras"] });
       qc.invalidateQueries({ queryKey: ["resumo-ia-lista-compras"] });
     } catch {
@@ -435,6 +491,11 @@ export function LancamentoRapidoDialog({
     },
     onSuccess: () => {
       toast.success(form.tipo === "despesa" ? "Despesa lançada" : "Receita lançada");
+      registrarNoHistorico(
+        "lancamento",
+        texto.trim() || form.descricao,
+        `${form.tipo === "despesa" ? "Despesa" : "Receita"}: ${form.descricao} · R$ ${form.valor} · ${form.data}${form.categoria ? ` · ${form.categoria}` : ""}${form.responsavel ? ` · ${form.responsavel}` : ""}`,
+      );
       qc.invalidateQueries({ queryKey: ["despesas"] });
       qc.invalidateQueries({ queryKey: ["parcelas"] });
       qc.invalidateQueries({ queryKey: ["receitas"] });
@@ -478,7 +539,7 @@ export function LancamentoRapidoDialog({
             </Button>
           </div>
         ) : (
-          <Tabs value={modo} onValueChange={(v) => setModo(v as "lancar" | "resumo")}>
+          <Tabs value={modo} onValueChange={(v) => setModo(v as "lancar" | "resumo" | "historico")}>
             <TabsList className="w-full">
               <TabsTrigger value="lancar" className="flex-1">
                 Lançar
@@ -488,7 +549,92 @@ export function LancamentoRapidoDialog({
                   Resumo
                 </TabsTrigger>
               )}
+              <TabsTrigger value="historico" className="flex-1 flex items-center justify-center gap-1.5">
+                Histórico
+                {historico.length > 0 && (
+                  <Badge variant="secondary" className="h-4 px-1 text-[10px] font-mono leading-none">
+                    {historico.length}
+                  </Badge>
+                )}
+              </TabsTrigger>
             </TabsList>
+
+            <TabsContent value="historico" className="space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs text-muted-foreground">
+                  Perguntas de resumo e lançamentos interpretados com auxílio da IA.
+                </p>
+                {historico.length > 0 && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={limparHistorico}
+                    className="h-7 text-xs text-destructive hover:text-destructive flex items-center gap-1"
+                  >
+                    <Trash2 className="size-3.5" /> Limpar tudo
+                  </Button>
+                )}
+              </div>
+
+              {historico.length === 0 ? (
+                <div className="rounded-lg border border-dashed p-6 text-center text-xs text-muted-foreground">
+                  <History className="mx-auto mb-2 size-6 opacity-40" />
+                  Nenhum registro no histórico de IA ainda.
+                  <p className="mt-1 text-[11px]">
+                    Perguntas na aba Resumo e lançamentos salvos aparecerão aqui para você consultar quando quiser.
+                  </p>
+                </div>
+              ) : (
+                <div className="max-h-[360px] space-y-2.5 overflow-y-auto pr-1">
+                  {historico.map((item) => (
+                    <div
+                      key={item.id}
+                      className="rounded-lg border bg-muted/20 p-3 text-xs space-y-1.5 transition-colors hover:bg-muted/35"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5">
+                          <Badge
+                            variant={item.tipo === "resumo" ? "default" : "secondary"}
+                            className="text-[10px] px-1.5 py-0 h-4.5"
+                          >
+                            {item.tipo === "resumo" ? "Resumo" : "Lançamento"}
+                          </Badge>
+                          <span className="text-[10px] text-muted-foreground font-mono">
+                            {new Date(item.dataHora).toLocaleString("pt-BR", {
+                              day: "2-digit",
+                              month: "2-digit",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </span>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removerItemHistorico(item.id)}
+                          className="size-5 text-muted-foreground hover:text-destructive"
+                          title="Remover este item"
+                        >
+                          <Trash2 className="size-3" />
+                        </Button>
+                      </div>
+
+                      <div className="space-y-1">
+                        <p className="font-medium text-foreground">
+                          <span className="text-muted-foreground font-normal">Entrada: </span>
+                          "{item.perguntaOuEntrada}"
+                        </p>
+                        <div className="rounded bg-background/80 p-2 border text-[11px] whitespace-pre-wrap text-muted-foreground font-sans">
+                          {item.respostaOuDetalhes}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </TabsContent>
 
             <TabsContent value="resumo" className="space-y-3">
               <p className="text-xs text-muted-foreground">

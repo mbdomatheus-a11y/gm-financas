@@ -17,13 +17,71 @@ export type ConsultaNotaResultado = {
   motivo?: string;
 };
 
-function limpar(texto: string): string {
+function decodificarEntidadesHTML(texto: string): string {
+  const mapa: Record<string, string> = {
+    "&nbsp;": " ",
+    "&amp;": "&",
+    "&quot;": '"',
+    "&#39;": "'",
+    "&lt;": "<",
+    "&gt;": ">",
+    "&atilde;": "ã",
+    "&Atilde;": "Ã",
+    "&otilde;": "õ",
+    "&Otilde;": "Õ",
+    "&aacute;": "á",
+    "&Aacute;": "Á",
+    "&eacute;": "é",
+    "&Eacute;": "É",
+    "&iacute;": "í",
+    "&Iacute;": "Í",
+    "&oacute;": "ó",
+    "&Oacute;": "Ó",
+    "&uacute;": "ú",
+    "&Uacute;": "Ú",
+    "&ccedil;": "ç",
+    "&Ccedil;": "Ç",
+    "&acirc;": "â",
+    "&Acirc;": "Â",
+    "&ecirc;": "ê",
+    "&Ecirc;": "Ê",
+    "&ocirc;": "ô",
+    "&Ocirc;": "Ô",
+    "&ordm;": "º",
+    "&ordf;": "ª",
+  };
   return texto
-    .replace(/<[^>]*>/g, " ")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/\s+/g, " ")
+    .replace(/&[a-zA-Z]+;/g, (m) => mapa[m] ?? m)
+    .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(Number(dec)))
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
+}
+
+function limpar(texto: string): string {
+  return decodificarEntidadesHTML(
+    texto
+      .replace(/<[^>]*>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim(),
+  );
+}
+
+function limparDescricaoItem(textoBruto: string): string {
+  // Remove códigos anexos como "(Código: 12345)", "(Cód: ...)" ou "(Código do Produto: ...)"
+  let limpo = textoBruto
+    .replace(/<span[^>]*class=["']?[^"']*RCurva[^"']*["']?[^>]*>[\s\S]*?<\/span>/gi, " ")
+    .replace(/\(C[oó]digo(?:\s*do\s*produto)?\s*:[^)]*\)/gi, "")
+    .replace(/\(C[oó]d\.?\s*:[^)]*\)/gi, "")
+    .replace(/C[oó]digo(?:\s*do\s*produto)?\s*:\s*\d+/gi, "");
+
+  limpo = limpar(limpo);
+
+  // Normaliza pontuação e espaços duplos
+  limpo = limpo
+    .replace(/\s{2,}/g, " ")
+    .replace(/^[-–—:\s]+|[-–—:\s]+$/g, "")
     .trim();
+
+  return limpo;
 }
 
 function numeroBR(texto: string): number {
@@ -92,18 +150,61 @@ export const consultarNota = createServerFn({ method: "POST" })
     const dataCompra = dataMatch ? `${dataMatch[3]}-${dataMatch[2]}-${dataMatch[1]}` : null;
 
     const itens: NotaItemLido[] = [];
-    const linhaRe =
-      /txtTit[^>]*>([^<]{2,120})<[\s\S]{0,600}?Qtde[^0-9]{0,20}([\d.,]+)[\s\S]{0,200}?Vl\.?\s*Unit[^0-9]{0,20}([\d.,]+)[\s\S]{0,300}?([\d.]+,\d{2})/gi;
-    let m: RegExpExecArray | null;
-    while ((m = linhaRe.exec(html)) && itens.length < 200) {
-      const quantidade = numeroBR(m[2] ?? "1") || 1;
-      const unit = numeroBR(m[3] ?? "0");
+
+    // Estratégia 1: Tabela SEFAZ clássica (tr com id="Item..." ou classes de itens)
+    const trItemRe = /<tr[^>]*id=["']?Item[^"'>]*["']?[^>]*>([\s\S]*?)<\/tr>/gi;
+    let trMatch: RegExpExecArray | null;
+    while ((trMatch = trItemRe.exec(html)) && itens.length < 200) {
+      const trConteudo = trMatch[1] ?? "";
+
+      // Descrição do produto: busca em txtTit, fixo-prod-desc-tot ou td
+      const descMatch =
+        /<(?:span|td)[^>]*class=["']?[^"']*(?:txtTit|fixo-prod-desc-tot)[^"']*["']?[^>]*>([\s\S]*?)<\/(?:span|td)>/i.exec(
+          trConteudo,
+        ) ?? /<td[^>]*>([\s\S]*?)<\/td>/i.exec(trConteudo);
+
+      const descBruta = descMatch?.[1] ?? "";
+      const descricao = limparDescricaoItem(descBruta);
+      if (!descricao) continue;
+
+      const qtdMatch = /Qtde[^0-9]{0,25}([\d.,]+)/i.exec(trConteudo);
+      const unitMatch = /Vl\.?\s*Unit[^0-9]{0,25}([\d.,]+)/i.exec(trConteudo);
+      const totalItemMatch =
+        /<(?:span|td)[^>]*class=["']?[^"']*(?:valor|totalNumb)[^"']*["']?[^>]*>([\d.]+,\d{2})<\/(?:span|td)>/i.exec(
+          trConteudo,
+        ) ?? /([\d.]+,\d{2})\s*<\/(?:td|span)>/i.exec(trConteudo);
+
+      const quantidade = qtdMatch?.[1] ? numeroBR(qtdMatch[1]) || 1 : 1;
+      const unit = unitMatch?.[1] ? numeroBR(unitMatch[1]) : 0;
+      const totalItem = totalItemMatch?.[1]
+        ? numeroBR(totalItemMatch[1])
+        : Number((unit * quantidade).toFixed(2));
+
       itens.push({
-        descricao: limpar(m[1] ?? ""),
+        descricao,
         quantidade,
         valor_unitario: unit,
-        valor_total: numeroBR(m[4] ?? "0") || Number((unit * quantidade).toFixed(2)),
+        valor_total: totalItem,
       });
+    }
+
+    // Estratégia 2: Se não capturou por <tr>, usa regex refinada sobre spans de txtTit/fixo-prod
+    if (itens.length === 0) {
+      const linhaRe =
+        /<(?:span|td)[^>]*class=["']?[^"']*(?:txtTit|fixo-prod-desc-tot)[^"']*["']?[^>]*>([\s\S]*?)<\/(?:span|td)>[\s\S]{0,600}?Qtde[^0-9]{0,25}([\d.,]+)[\s\S]{0,250}?Vl\.?\s*Unit[^0-9]{0,25}([\d.,]+)[\s\S]{0,350}?([\d.]+,\d{2})/gi;
+      let m: RegExpExecArray | null;
+      while ((m = linhaRe.exec(html)) && itens.length < 200) {
+        const descricao = limparDescricaoItem(m[1] ?? "");
+        if (!descricao) continue;
+        const quantidade = numeroBR(m[2] ?? "1") || 1;
+        const unit = numeroBR(m[3] ?? "0");
+        itens.push({
+          descricao,
+          quantidade,
+          valor_unitario: unit,
+          valor_total: numeroBR(m[4] ?? "0") || Number((unit * quantidade).toFixed(2)),
+        });
+      }
     }
 
     const achouAlgo = !!emitente || valor !== null || itens.length > 0;

@@ -7,6 +7,7 @@ import {
   ArrowDownRight,
   ArrowUpRight,
   CalendarClock,
+  CheckCircle2,
   Landmark,
   Wallet,
   X,
@@ -551,11 +552,18 @@ function DashboardPage() {
     };
   }, [receitasProjetadas, despesas, parcelas, cotacao, mesAtual, mesPie, meses, grupoDe]);
 
-  // Item 2 (backlog 2026-09-27): "Dívida total em aberto" revisada.
-  // A última parcela real é lida direto de `despesa.parcelas` (dados
-  // persistidos), não do horizonte gerado pra outros gráficos — assim o
-  // padrão da caixa reflete a última parcela que de fato existe, mesmo que
-  // seja mais longe no futuro que a janela normal do dashboard.
+  // Pedido 3 (2026-10-03): O último mês do gráfico comanda o horizonte padrão da dívida
+  const mesFimGrafico = useMemo(() => {
+    return meses[meses.length - 1] ?? mesAtual;
+  }, [meses, mesAtual]);
+
+  // Sempre que o filtro do gráfico mudar (janela ou intervalo customizado),
+  // o gráfico manda na data ("aqui deveria ser sempre a data do filtro do grafico"):
+  useEffect(() => {
+    setMesLimiteDividaOverride(null);
+  }, [janela, mesInicioCustom, mesFimCustom]);
+
+  // Última parcela variável/parcelada real nos dados persistidos
   const ultimaParcelaRealDivida = useMemo(() => {
     let maior: string | null = null;
     for (const d of despesas as any[]) {
@@ -568,7 +576,8 @@ function DashboardPage() {
     return maior ?? mesAtual;
   }, [despesas, mesAtual]);
 
-  const mesLimiteDivida = mesLimiteDividaOverride ?? ultimaParcelaRealDivida;
+  // A data padrão da dívida é o mês final do gráfico. O usuário pode alterar manualmente se quiser.
+  const mesLimiteDivida = mesLimiteDividaOverride ?? mesFimGrafico;
 
   const mesesParaDivida = useMemo(() => {
     const now = new Date();
@@ -600,6 +609,20 @@ function DashboardPage() {
       alemDaUltimaParcela: mesLimiteDivida > ultimaParcelaRealDivida,
     };
   }, [despesas, faturasMes, mesesParaDivida, mesLimiteDivida, ultimaParcelaRealDivida, cotacao]);
+
+  // Pedido 3 (2026-10-03): Alívio de parcelas que terminam no período selecionado no gráfico
+  const alivioPeriodo = useMemo(() => {
+    const gruposNoPeriodo = dados.alivioParcelamentos.filter(
+      (g) => meses.includes(g.mes) || (g.mes >= mesAtual && g.mes <= mesFimGrafico),
+    );
+    const totalAlivio = gruposNoPeriodo.reduce((s, g) => s + g.total, 0);
+    const qtdContratos = gruposNoPeriodo.reduce((s, g) => s + g.itens.length, 0);
+    return {
+      totalAlivio,
+      qtdContratos,
+      grupos: gruposNoPeriodo,
+    };
+  }, [dados.alivioParcelamentos, meses, mesAtual, mesFimGrafico]);
 
   const detalhe = useMemo(() => {
     if (!drill) return [];
@@ -702,10 +725,28 @@ function DashboardPage() {
         <CardDividaTotal
           info={dividaInfo}
           mesLimite={mesLimiteDivida}
+          mesFimGrafico={mesFimGrafico}
           ultimaParcelaReal={ultimaParcelaRealDivida}
           onMesChange={setMesLimiteDividaOverride}
           onRestaurarPadrao={() => setMesLimiteDividaOverride(null)}
           temOverride={mesLimiteDividaOverride !== null}
+        />
+        <StatCard
+          label="Parcelas que terminam"
+          value={alivioPeriodo.totalAlivio}
+          icon={CheckCircle2}
+          tone="success"
+          hint={
+            alivioPeriodo.qtdContratos > 0
+              ? `${alivioPeriodo.qtdContratos} ${alivioPeriodo.qtdContratos === 1 ? "parcelamento encerra" : "parcelamentos encerram"} no período`
+              : `Nenhum término até ${monthLabel(mesFimGrafico)}`
+          }
+          display={
+            alivioPeriodo.totalAlivio > 0
+              ? `+${fmtGlobal(alivioPeriodo.totalAlivio)}/mês`
+              : "R$ 0,00"
+          }
+          href="#parcelamentos-terminando"
         />
       </div>
 
@@ -911,7 +952,7 @@ function DashboardPage() {
 
       {/* Pedido 2 (2026-10-03): Parcelamentos que terminam — alívio mensal */}
       {dados.alivioParcelamentos.length > 0 && (
-        <Card className="mt-4">
+        <Card id="parcelamentos-terminando" className="mt-4">
           <CardHeader className="space-y-0 pb-3">
             <CardTitle className="text-base">Parcelamentos que terminam</CardTitle>
             <p className="text-[11px] text-muted-foreground mt-1">
@@ -1369,6 +1410,7 @@ function EmptyChart() {
 function CardDividaTotal({
   info,
   mesLimite,
+  mesFimGrafico,
   ultimaParcelaReal,
   onMesChange,
   onRestaurarPadrao,
@@ -1376,6 +1418,7 @@ function CardDividaTotal({
 }: {
   info: { total: number; variavel: number; fixa: number; alemDaUltimaParcela: boolean };
   mesLimite: string;
+  mesFimGrafico: string;
   ultimaParcelaReal: string;
   onMesChange: (mes: string) => void;
   onRestaurarPadrao: () => void;
@@ -1419,15 +1462,24 @@ function CardDividaTotal({
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           <MonthPicker value={mesLimite} onChange={onMesChange} ariaLabel="Projetar dívida até" className="h-7" />
           {temOverride && (
-            <Button type="button" size="sm" variant="ghost" className="h-7 text-[11px]" onClick={onRestaurarPadrao}>
-              Padrão
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="h-7 text-[11px]"
+              onClick={onRestaurarPadrao}
+              title={`Restaurar data do gráfico (${monthLabel(mesFimGrafico)})`}
+            >
+              Gráfico ({monthLabel(mesFimGrafico)})
             </Button>
           )}
         </div>
         <p className="mt-1 text-[10px] text-muted-foreground">
-          {info.alemDaUltimaParcela
-            ? `Além da última parcela real (${monthLabel(ultimaParcelaReal)}) — só custo fixo projetado.`
-            : "Até a última parcela variável que existe nos seus lançamentos."}
+          {temOverride
+            ? `Personalizado manual (gráfico: ${monthLabel(mesFimGrafico)}).`
+            : info.alemDaUltimaParcela
+              ? `Além da última parcela real (${monthLabel(ultimaParcelaReal)}) — só custo fixo projetado.`
+              : `Até ${monthLabelLong(mesLimite)} · conforme período do gráfico.`}
         </p>
       </CardContent>
     </Card>
