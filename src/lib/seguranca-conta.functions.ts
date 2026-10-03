@@ -208,6 +208,8 @@ export const atualizarMeusDados = createServerFn({ method: "POST" })
         email: z.string().trim().email("E-mail inválido"),
         telefone: z.string().trim().max(20).optional().nullable(),
         dataNascimento: z.string().max(10).optional().nullable(),
+        cpf: z.string().trim().optional().nullable(),
+        horasTrabalhoMes: z.number().int().min(1).max(720).optional().nullable(),
       })
       .parse(v),
   )
@@ -217,7 +219,7 @@ export const atualizarMeusDados = createServerFn({ method: "POST" })
 
     const { data: anterior } = await db
       .from("profiles")
-      .select("nome, email, telefone, data_nascimento")
+      .select("nome, email, telefone, data_nascimento, cpf, horas_trabalho_mes")
       .eq("id", context.userId)
       .single();
 
@@ -230,6 +232,31 @@ export const atualizarMeusDados = createServerFn({ method: "POST" })
       if (authErr) throw new Error(authErr.message || "Erro ao atualizar e-mail.");
     }
 
+    // Tratamento e validação de CPF
+    let cpfFinal: string | null = null;
+    if (data.cpf !== undefined) {
+      if (data.cpf && data.cpf.trim() !== "") {
+        const digitos = onlyDigits(data.cpf);
+        if (digitos.length > 0) {
+          if (!isValidCpf(digitos)) {
+            throw new Error("CPF inválido. Verifique os números digitados.");
+          }
+          const { data: existente } = await db
+            .from("profiles")
+            .select("id")
+            .eq("cpf", digitos)
+            .neq("id", context.userId)
+            .maybeSingle();
+          if (existente) {
+            throw new Error("Este CPF já está cadastrado em outra conta.");
+          }
+          cpfFinal = digitos;
+        }
+      }
+    } else {
+      cpfFinal = anterior?.cpf ?? null;
+    }
+
     const { error: perfErr } = await db
       .from("profiles")
       .update({
@@ -237,6 +264,10 @@ export const atualizarMeusDados = createServerFn({ method: "POST" })
         email: data.email,
         telefone: data.telefone || null,
         data_nascimento: data.dataNascimento || null,
+        ...(data.cpf !== undefined ? { cpf: cpfFinal } : {}),
+        ...(data.horasTrabalhoMes !== undefined
+          ? { horas_trabalho_mes: data.horasTrabalhoMes || 160 }
+          : {}),
       })
       .eq("id", context.userId);
     if (perfErr) throw new Error(perfErr.message);
@@ -252,6 +283,74 @@ export const atualizarMeusDados = createServerFn({ method: "POST" })
     });
 
     return { ok: true as const };
+  });
+
+export const garantirPerfilUsuarioOAuth = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const db = supabaseAdmin as any;
+
+    const { data: perfilExistente } = await db
+      .from("profiles")
+      .select("id, grupo_id")
+      .eq("id", context.userId)
+      .maybeSingle();
+
+    if (perfilExistente) {
+      return { ok: true as const, jaExistia: true };
+    }
+
+    const { data: authUser, error: authErr } =
+      await supabaseAdmin.auth.admin.getUserById(context.userId);
+    if (authErr || !authUser?.user) {
+      throw new Error("Usuário autenticado não encontrado.");
+    }
+
+    const email = authUser.user.email ?? "";
+    const meta = (authUser.user.user_metadata ?? {}) as Record<string, any>;
+    const nome = (meta["full_name"] || meta["name"] || email.split("@")[0] || "Usuário") as string;
+
+    // Cria grupo isolado para o novo usuário OAuth
+    const { data: grupoNovo, error: grupoErr } = await db
+      .from("grupos")
+      .insert({ nome: `Grupo de ${nome}` })
+      .select("id")
+      .single();
+    if (grupoErr) throw new Error(grupoErr.message);
+
+    // Cria perfil vinculado
+    const { error: perfilErr } = await db.from("profiles").upsert(
+      {
+        id: context.userId,
+        nome,
+        email,
+        grupo_id: grupoNovo.id,
+        ativo: true,
+        cpf: null,
+        horas_trabalho_mes: 160,
+        senha_temporaria: false,
+      },
+      { onConflict: "id" },
+    );
+    if (perfilErr) throw new Error(perfilErr.message);
+
+    // Concede permissão de administrador ao seu grupo
+    await db.from("user_roles").upsert(
+      { user_id: context.userId, role: "admin" },
+      { onConflict: "user_id,role" },
+    );
+
+    // Registra aceite dos termos legais
+    await db.from("aceites_documentos").upsert(
+      [
+        { user_id: context.userId, documento: "termos_uso", versao: "2026-09-19" },
+        { user_id: context.userId, documento: "aviso_privacidade", versao: "2026-09-19" },
+      ],
+      { onConflict: "user_id,documento,versao" },
+    );
+
+    return { ok: true as const, jaExistia: false };
   });
 
 export async function notificarSenhaAlterada(userId: string) {

@@ -147,10 +147,10 @@ export const aceitarConvite = createServerFn({ method: "POST" })
       .object({
         token: z.string().min(1),
         nome: z.string().trim().min(2).max(120),
-        cpf: z.string().regex(/^\d{11}$/, "CPF deve ter 11 dígitos"),
+        cpf: z.string().trim().optional().nullable(),
         email: z.string().trim().email("E-mail inválido"),
-        telefone: z.string().trim().min(8).max(20),
-        dataNascimento: z.string().min(10),
+        telefone: z.string().trim().max(20).optional().nullable(),
+        dataNascimento: z.string().max(10).optional().nullable(),
         senha: z.string().min(8).max(72),
         turnstileToken: z.string().optional(),
         recuperarDados: z.boolean().optional(),
@@ -160,11 +160,20 @@ export const aceitarConvite = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data }) => {
-    if (!isValidCpf(data.cpf)) throw new Error("CPF inválido");
+    let cpfDigitos: string | null = null;
+    if (data.cpf && data.cpf.trim() !== "") {
+      const digitos = onlyDigits(data.cpf);
+      if (digitos.length > 0) {
+        if (!isValidCpf(digitos)) throw new Error("CPF inválido");
+        cpfDigitos = digitos;
+      }
+    }
 
-    const nascimento = new Date(data.dataNascimento);
-    if (Number.isNaN(nascimento.getTime()) || nascimento > new Date()) {
-      throw new Error("Data de nascimento inválida");
+    if (data.dataNascimento) {
+      const nascimento = new Date(data.dataNascimento);
+      if (Number.isNaN(nascimento.getTime()) || nascimento > new Date()) {
+        throw new Error("Data de nascimento inválida");
+      }
     }
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -182,17 +191,21 @@ export const aceitarConvite = createServerFn({ method: "POST" })
       throw new Error("Este convite expirou. Peça um novo link.");
     }
 
-    const { data: contaArquivada, error: archiveError } = await db
-      .from("contas_excluidas")
-      .select("id, grupo_id, expira_em, email, auth_user_id_original")
-      .eq("cpf", onlyDigits(data.cpf))
-      .is("restaurada_em", null)
-      .is("excluida_definitivamente_em", null)
-      .gt("expira_em", new Date().toISOString())
-      .order("excluida_em", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (archiveError) throw new Error(archiveError.message);
+    let contaArquivada = null;
+    if (cpfDigitos) {
+      const { data: arq, error: archiveError } = await db
+        .from("contas_excluidas")
+        .select("id, grupo_id, expira_em, email, auth_user_id_original")
+        .eq("cpf", cpfDigitos)
+        .is("restaurada_em", null)
+        .is("excluida_definitivamente_em", null)
+        .gt("expira_em", new Date().toISOString())
+        .order("excluida_em", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (archiveError) throw new Error(archiveError.message);
+      contaArquivada = arq;
+    }
     if (contaArquivada && data.recuperarDados === undefined) {
       throw new Error("RECUPERACAO_DISPONIVEL");
     }
@@ -225,10 +238,10 @@ export const aceitarConvite = createServerFn({ method: "POST" })
         .from("profiles")
         .update({
           nome: data.nome,
-          cpf: onlyDigits(data.cpf),
+          cpf: cpfDigitos,
           email: data.email,
-          telefone: data.telefone,
-          data_nascimento: data.dataNascimento,
+          telefone: data.telefone || null,
+          data_nascimento: data.dataNascimento || null,
           grupo_id: contaArquivada.grupo_id,
           ativo: true,
           senha_temporaria: false,
@@ -299,10 +312,10 @@ export const aceitarConvite = createServerFn({ method: "POST" })
       {
         id: created.user.id,
         nome: data.nome,
-        cpf: onlyDigits(data.cpf),
+        cpf: cpfDigitos,
         email: data.email,
-        telefone: data.telefone,
-        data_nascimento: data.dataNascimento,
+        telefone: data.telefone || null,
+        data_nascimento: data.dataNascimento || null,
         grupo_id: grupoId,
         convidado_por: convite.criado_por,
         ativo: true,

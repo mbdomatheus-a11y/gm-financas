@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile, usePermissoes } from "@/hooks/useAuthData";
-import { maskCpf } from "@/lib/cpf";
+import { maskCpf, onlyDigits } from "@/lib/cpf";
 import { useServerFn } from "@tanstack/react-start";
 import { excluirMinhaConta } from "@/lib/conta-exclusao.functions";
 import { alterarMinhaSenha, atualizarMeusDados } from "@/lib/seguranca-conta.functions";
@@ -72,6 +72,8 @@ function ContaPage() {
   const [formEmail, setFormEmail] = useState("");
   const [formTelefone, setFormTelefone] = useState("");
   const [formDataNascimento, setFormDataNascimento] = useState("");
+  const [formCpf, setFormCpf] = useState("");
+  const [formHorasMes, setFormHorasMes] = useState("160");
 
   useEffect(() => {
     if (perfil) {
@@ -79,6 +81,8 @@ function ContaPage() {
       setFormEmail(perfil.email ?? "");
       setFormTelefone(perfil.telefone ?? "");
       setFormDataNascimento(perfil.data_nascimento ?? "");
+      setFormCpf(perfil.cpf ? maskCpf(perfil.cpf) : "");
+      setFormHorasMes(String((perfil as any)?.horas_trabalho_mes ?? 160));
     }
   }, [perfil]);
 
@@ -90,6 +94,8 @@ function ContaPage() {
           email: formEmail,
           telefone: formTelefone || null,
           dataNascimento: formDataNascimento || null,
+          cpf: formCpf ? onlyDigits(formCpf) : null,
+          horasTrabalhoMes: Number(formHorasMes) || 160,
         },
       });
     },
@@ -240,9 +246,33 @@ function ContaPage() {
                       : "—"}
                   </span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">CPF</span>
-                  <span className="font-medium">{perfil?.cpf ? maskCpf(perfil.cpf) : "—"}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">
+                      {perfil?.cpf ? maskCpf(perfil.cpf) : "Não cadastrado"}
+                    </span>
+                    {perfil?.cpf ? (
+                      <Badge variant="outline" className="border-success/40 text-[10px] text-success">
+                        Login por CPF ativo
+                      </Badge>
+                    ) : (
+                      <Badge variant="secondary" className="text-[10px]">
+                        Opcional
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-muted-foreground">Jornada mensal de trabalho</span>
+                    <p className="text-[11px] text-muted-foreground">
+                      Base p/ cálculo de valor da hora na Lista de Compras
+                    </p>
+                  </div>
+                  <span className="font-medium">
+                    {(perfil as any)?.horas_trabalho_mes ?? 160}h / mês
+                  </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Perfil</span>
@@ -268,9 +298,30 @@ function ContaPage() {
                 <Field label="Data de nascimento">
                   <Input type="date" value={formDataNascimento} onChange={(e) => setFormDataNascimento(e.target.value)} />
                 </Field>
-                <div className="rounded-lg bg-muted/40 p-2 text-xs text-muted-foreground">
-                  O CPF não pode ser alterado por motivos de segurança e conformidade legal.
-                </div>
+                <Field label="CPF (para habilitar login com CPF)">
+                  <Input
+                    inputMode="numeric"
+                    value={maskCpf(formCpf)}
+                    onChange={(e) => setFormCpf(onlyDigits(e.target.value).slice(0, 11))}
+                    placeholder="000.000.000-00 (opcional)"
+                  />
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    Ao salvar seu CPF, você pode utilizá-lo para acessar sua conta na tela de login.
+                  </p>
+                </Field>
+                <Field label="Carga horária mensal de trabalho (horas/mês)">
+                  <Input
+                    type="number"
+                    min={1}
+                    max={720}
+                    value={formHorasMes}
+                    onChange={(e) => setFormHorasMes(e.target.value)}
+                    placeholder="160"
+                  />
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    Usado para converter o custo de itens da Lista de Compras em tempo de trabalho (padrão: 160h).
+                  </p>
+                </Field>
                 <Button
                   className="w-full"
                   onClick={() => salvarDados.mutate()}

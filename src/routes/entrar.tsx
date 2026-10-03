@@ -20,8 +20,13 @@ import { TURNSTILE_ATIVO } from "@/lib/turnstile-config";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BrandMark } from "@/components/BrandMark";
 import { LegalDialogs } from "@/components/LegalDialogs";
+import { SocialAuthButtons } from "@/components/SocialAuthButtons";
 import { obterConfiguracaoAcesso } from "@/lib/configuracoes-site.functions";
-import { confirmarSegundoFator, iniciarLoginSeguro } from "@/lib/seguranca-conta.functions";
+import {
+  confirmarSegundoFator,
+  iniciarLoginSeguro,
+  garantirPerfilUsuarioOAuth,
+} from "@/lib/seguranca-conta.functions";
 
 export const Route = createFileRoute("/entrar")({
   validateSearch: (s: Record<string, unknown>): { convite?: string; next?: string } => ({
@@ -51,14 +56,23 @@ export const Route = createFileRoute("/entrar")({
 function LoginPage() {
   const navigate = useNavigate();
   const search = Route.useSearch();
+  const garantirPerfilOAuth = useServerFn(garantirPerfilUsuarioOAuth);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      const returnUrl = sessionStorage.getItem("control-all-return-url");
-      const target = search.next || (returnUrl && returnUrl.startsWith("/") ? returnUrl : "/inicio");
-      if (data.session) window.location.assign(target);
+    supabase.auth.getSession().then(async ({ data }) => {
+      if (data.session) {
+        try {
+          await garantirPerfilOAuth();
+        } catch {
+          // Continua caso o perfil já esteja inicializado
+        }
+        const returnUrl = sessionStorage.getItem("control-all-return-url");
+        const target =
+          search.next || (returnUrl && returnUrl.startsWith("/") ? returnUrl : "/inicio");
+        window.location.assign(target);
+      }
     });
-  }, [search.next]);
+  }, [search.next, garantirPerfilOAuth]);
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-10">
@@ -363,6 +377,8 @@ function EntrarForm({ next }: { next?: string }) {
         Entrar
       </Button>
 
+      <SocialAuthButtons next={next} labelPrefix="Entrar com" />
+
       <Link
         to="/esqueci-senha"
         className="block w-full text-center text-xs text-muted-foreground underline-offset-4 hover:underline"
@@ -410,9 +426,9 @@ function CriarContaForm({ token }: { token: string | undefined }) {
       toast.error("Informe o código de convite");
       return;
     }
-    const cpf = onlyDigits(form.cpf);
-    if (!isValidCpf(cpf)) {
-      toast.error("CPF inválido");
+    const cpfLimpo = onlyDigits(form.cpf);
+    if (cpfLimpo.length > 0 && !isValidCpf(cpfLimpo)) {
+      toast.error("CPF informado é inválido");
       return;
     }
     if (form.nome.trim().length < 2) {
@@ -421,14 +437,6 @@ function CriarContaForm({ token }: { token: string | undefined }) {
     }
     if (!form.email.includes("@")) {
       toast.error("E-mail inválido");
-      return;
-    }
-    if (form.telefone.trim().length < 8) {
-      toast.error("Informe um telefone válido");
-      return;
-    }
-    if (!form.dataNascimento) {
-      toast.error("Informe a data de nascimento");
       return;
     }
     if (form.senha.length < 8) {
@@ -455,13 +463,13 @@ function CriarContaForm({ token }: { token: string | undefined }) {
       const dadosCadastro = {
         token: tokenInput.trim(),
         nome: form.nome.trim(),
-        cpf,
+        cpf: cpfLimpo || undefined,
         email: form.email.trim(),
-        telefone: form.telefone.trim(),
-        dataNascimento: form.dataNascimento,
+        telefone: form.telefone.trim() || undefined,
+        dataNascimento: form.dataNascimento || undefined,
         senha: form.senha,
         turnstileToken: turnstileToken ?? undefined,
-        aceitouDocumentos: true,
+        aceitouDocumentos: true as const,
       };
       let res;
       try {
@@ -472,7 +480,7 @@ function CriarContaForm({ token }: { token: string | undefined }) {
             "Encontramos uma conta excluída há menos de 90 dias. Deseja recuperar os dados anteriores? Você precisará confirmar o e-mail usado antes da exclusão. Clique em Cancelar para criar uma conta nova.",
           );
           if (recuperar) {
-            await solicitarCodigo({ data: { cpf, email: dadosCadastro.email } });
+            await solicitarCodigo({ data: { cpf: cpfLimpo, email: dadosCadastro.email } });
             const codigoRecuperacao = window
               .prompt(
                 "Enviamos um código ao e-mail anterior, se ele corresponder à conta. Cole o código recebido. Ele vale por 15 minutos.",
@@ -519,9 +527,8 @@ function CriarContaForm({ token }: { token: string | undefined }) {
           className="font-mono"
         />
         <p className="text-xs text-muted-foreground">
-          O cadastro é só por convite. Peça o código a quem já usa o Control ALL — ele pode gerar um
-          em <strong>Minha conta</strong> ou, se for admin, em{" "}
-          <strong>Usuários e Privilégios</strong>. Cada pessoa pode gerar até 3 códigos.
+          O cadastro inicial é por convite. Peça o código a quem já usa o Control ALL — ele pode gerar um
+          em <strong>Minha conta</strong>. Cada pessoa pode gerar até 3 códigos.
         </p>
       </div>
 
@@ -547,16 +554,6 @@ function CriarContaForm({ token }: { token: string | undefined }) {
         />
       </div>
       <div className="space-y-1.5">
-        <Label htmlFor="c-cpf">CPF</Label>
-        <Input
-          id="c-cpf"
-          inputMode="numeric"
-          value={maskCpf(form.cpf)}
-          onChange={(e) => setForm({ ...form, cpf: onlyDigits(e.target.value).slice(0, 11) })}
-          placeholder="000.000.000-00"
-        />
-      </div>
-      <div className="space-y-1.5">
         <Label htmlFor="c-email">E-mail</Label>
         <Input
           id="c-email"
@@ -567,7 +564,21 @@ function CriarContaForm({ token }: { token: string | undefined }) {
         />
       </div>
       <div className="space-y-1.5">
-        <Label htmlFor="c-telefone">Telefone</Label>
+        <Label htmlFor="c-cpf">
+          CPF <span className="text-xs font-normal text-muted-foreground">(opcional)</span>
+        </Label>
+        <Input
+          id="c-cpf"
+          inputMode="numeric"
+          value={maskCpf(form.cpf)}
+          onChange={(e) => setForm({ ...form, cpf: onlyDigits(e.target.value).slice(0, 11) })}
+          placeholder="000.000.000-00 (pode preencher depois no perfil)"
+        />
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="c-telefone">
+          Telefone <span className="text-xs font-normal text-muted-foreground">(opcional)</span>
+        </Label>
         <Input
           id="c-telefone"
           inputMode="tel"
@@ -577,7 +588,10 @@ function CriarContaForm({ token }: { token: string | undefined }) {
         />
       </div>
       <div className="space-y-1.5">
-        <Label htmlFor="c-nascimento">Data de nascimento</Label>
+        <Label htmlFor="c-nascimento">
+          Data de nascimento{" "}
+          <span className="text-xs font-normal text-muted-foreground">(opcional)</span>
+        </Label>
         <Input
           id="c-nascimento"
           type="date"
@@ -612,6 +626,8 @@ function CriarContaForm({ token }: { token: string | undefined }) {
         {loading && <Loader2 className="mr-2 size-4 animate-spin" />}
         Criar conta
       </Button>
+
+      <SocialAuthButtons labelPrefix="Cadastrar com" />
     </form>
   );
 }

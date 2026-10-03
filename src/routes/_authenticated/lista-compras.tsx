@@ -5,8 +5,11 @@ import {
   Apple,
   BellRing,
   CheckCircle2,
+  Clock,
   Download,
+  Flame,
   Gamepad2,
+  HelpCircle,
   MoreVertical,
   Plus,
   Repeat,
@@ -15,6 +18,8 @@ import {
   Sofa,
   Sparkles,
   Trash2,
+  TrendingUp,
+  Wallet,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -41,9 +46,12 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { appSupabase } from "@/integrations/supabase/app-types";
-import { usePermissoes, useSession } from "@/hooks/useAuthData";
-import { useProfilesList } from "@/hooks/useFinance";
-import { addMonths, formatDate, toISODate } from "@/lib/format";
+import { usePermissoes, useProfile, useSession } from "@/hooks/useAuthData";
+import { useDespesas, useFaturasMes, useProfilesList, useReceitas } from "@/hooks/useFinance";
+import { useCotacao } from "@/hooks/useCotacao";
+import { lancamentosPorCompetencias } from "@/lib/recorrencia";
+import { aplicarRegrasFaturaMes } from "@/lib/fatura-mes";
+import { addMonths, formatDate, formatBRL, monthKey, toBRL, toISODate } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/lista-compras")({
   head: () => ({
@@ -83,12 +91,21 @@ function ListaComprasPage() {
   const { exclusaoBloqueada } = usePermissoes();
   const qc = useQueryClient();
   const { user } = useSession();
+  const { data: meuPerfil } = useProfile();
   const { data: profiles = [] } = useProfilesList();
+  const { data: receitas = [] } = useReceitas();
+  const { data: despesas = [] } = useDespesas();
+  const { data: faturasMes = [] } = useFaturasMes();
+  const cotacao = useCotacao();
+
   const [lista, setLista] = useState<"compras" | "unicos">("compras");
   const [filtro, setFiltro] = useState<CategoriaId | "todas">("todas");
+  const [filtroHorizonte, setFiltroHorizonte] = useState<"todos" | "imediato" | "longo_prazo">("todos");
   const [nome, setNome] = useState("");
   const [categoria, setCategoria] = useState<CategoriaId>("alimentacao");
   const [quantidade, setQuantidade] = useState("1");
+  const [valorEstimadoInput, setValorEstimadoInput] = useState("");
+  const [horizonte, setHorizonte] = useState<"imediato" | "longo_prazo">("imediato");
   const [alertaEm, setAlertaEm] = useState("");
   const [aprovacoesNecessarias, setAprovacoesNecessarias] = useState("0");
   const [observacao, setObservacao] = useState("");
@@ -99,6 +116,69 @@ function ListaComprasPage() {
   // pra aprovar); com 2, até 1; e assim por diante.
   const pessoasComAcesso = useMemo(() => (profiles as any[]).filter((p) => p.ativo), [profiles]);
   const maxAprovacoes = Math.max(0, pessoasComAcesso.length - 1);
+
+  const mesAtualKey = useMemo(() => monthKey(new Date()), []);
+
+  // Gamificação financeira exclusiva do Control ALL baseada na renda líquida real e sobra livre
+  const finCalculado = useMemo(() => {
+    // 1. Receitas líquidas do mês corrente
+    const receitasDoMes = (receitas as any[]).filter(
+      (r) => monthKey(r.data_recebimento) === mesAtualKey,
+    );
+    const totalReceitaLiquida = receitasDoMes.reduce((acc, r) => {
+      const val = Number(r.valor_liquido ?? r.valor ?? 0);
+      return acc + toBRL(val, r.moeda, cotacao);
+    }, 0);
+
+    // 2. Despesas já comprometidas do mês (fixas + variáveis + faturas)
+    const despesasComp = lancamentosPorCompetencias(despesas as any[], [mesAtualKey]);
+    const parcelasComRegras = aplicarRegrasFaturaMes(despesasComp, faturasMes as any[]);
+    const totalComprometido = parcelasComRegras.reduce((acc, p) => {
+      return acc + toBRL(Number(p.valor), p.despesa?.moeda ?? "BRL", cotacao);
+    }, 0);
+
+    // 3. Sobra livre real (o que resta da renda líquida)
+    const sobraLivre = Math.max(0, totalReceitaLiquida - totalComprometido);
+
+    // 4. Jornada mensal de trabalho do perfil (default: 160h)
+    const horasTrabalho = Number((meuPerfil as any)?.horas_trabalho_mes) || 160;
+    const valorHora = totalReceitaLiquida > 0 ? totalReceitaLiquida / horasTrabalho : 0;
+    const valorMinuto = valorHora / 60;
+
+    return {
+      mesAtualKey,
+      totalReceitaLiquida,
+      totalComprometido,
+      sobraLivre,
+      horasTrabalho,
+      valorHora,
+      valorMinuto,
+    };
+  }, [receitas, despesas, faturasMes, mesAtualKey, cotacao, meuPerfil]);
+
+  const calcularImpacto = (valor: number) => {
+    if (!valor || valor <= 0) return null;
+    const { valorHora, sobraLivre } = finCalculado;
+    const horas = valorHora > 0 ? valor / valorHora : 0;
+    const minutosTotais = Math.round(horas * 60);
+    const h = Math.floor(minutosTotais / 60);
+    const m = minutosTotais % 60;
+    let tempoFormatado = "";
+    if (h > 0 && m > 0) tempoFormatado = `${h}h ${m}min`;
+    else if (h > 0) tempoFormatado = `${h}h`;
+    else tempoFormatado = `${Math.max(1, m)}min`;
+
+    const percentualSobra =
+      sobraLivre > 0 ? Math.round((valor / sobraLivre) * 100) : null;
+
+    return {
+      horas,
+      minutosTotais,
+      tempoFormatado,
+      percentualSobra,
+      excedeSobra: sobraLivre <= 0 || (percentualSobra !== null && percentualSobra > 100),
+    };
+  };
 
   const { data: itens = [] } = useQuery({
     queryKey: ["lista-compras"],
@@ -116,13 +196,25 @@ function ListaComprasPage() {
 
   const daLista = useMemo(
     () =>
-      itens.filter(
-        (i) => (i.lista ?? "compras") === lista && (filtro === "todas" || i.categoria === filtro),
-      ),
-    [itens, lista, filtro],
+      itens.filter((i) => {
+        const itemAny = i as any;
+        const bateLista = (i.lista ?? "compras") === lista;
+        const bateCategoria = filtro === "todas" || i.categoria === filtro;
+        const bateHorizonte =
+          filtroHorizonte === "todos" || (itemAny.horizonte ?? "imediato") === filtroHorizonte;
+        return bateLista && bateCategoria && bateHorizonte;
+      }),
+    [itens, lista, filtro, filtroHorizonte],
   );
   const pendentes = daLista.filter((i) => !i.comprado);
   const comprados = daLista.filter((i) => i.comprado);
+
+  const totalEstimadoPendentes = useMemo(() => {
+    return pendentes.reduce(
+      (acc, item) => acc + (Number((item as any).valor_estimado) || 0) * (item.quantidade || 1),
+      0,
+    );
+  }, [pendentes]);
 
   const hoje = toISODate(new Date());
   const alertasVencidos = itens.filter((i) => i.alerta_em && i.alerta_em <= hoje);
@@ -133,11 +225,15 @@ function ListaComprasPage() {
       if (texto.length < 2) throw new Error("Informe o nome do item");
       if (itens.length >= LIMITE) throw new Error(`Limite de ${LIMITE} itens atingido`);
       const { data: auth } = await supabase.auth.getUser();
+      const valorNum = valorEstimadoInput ? Number(valorEstimadoInput.replace(",", ".")) : null;
+
       const { error } = await (appSupabase.from("lista_compras") as any).insert({
         nome: texto,
         categoria,
         lista,
         quantidade: Math.max(1, Number(quantidade) || 1),
+        valor_estimado: valorNum && !isNaN(valorNum) && valorNum > 0 ? valorNum : null,
+        horizonte,
         alerta_em: alertaEm || null,
         aprovacoes_necessarias: Math.min(
           maxAprovacoes,
@@ -152,6 +248,8 @@ function ListaComprasPage() {
     onSuccess: () => {
       setNome("");
       setQuantidade("1");
+      setValorEstimadoInput("");
+      setHorizonte("imediato");
       setAlertaEm("");
       setAprovacoesNecessarias("0");
       setObservacao("");
@@ -317,29 +415,62 @@ function ListaComprasPage() {
     const jaAprovei = !!user?.id && aprovadores.includes(user.id);
     const bloqueadoPorAprovacao = necessarias > 0 && faltam > 0 && !item.comprado;
 
+    const valorTotalItem = (Number(item.valor_estimado) || 0) * (item.quantidade || 1);
+    const impacto = valorTotalItem > 0 ? calcularImpacto(valorTotalItem) : null;
+    const isLongoPrazo = (item.horizonte ?? "imediato") === "longo_prazo";
+
     return (
-      <div className="flex items-center gap-3 px-3 py-2.5">
+      <div className="flex items-start gap-3 px-3 py-3">
         <Checkbox
           checked={item.comprado}
           onCheckedChange={() => alternar.mutate(item)}
           disabled={bloqueadoPorAprovacao}
           title={bloqueadoPorAprovacao ? `Faltam ${faltam} aprovação(ões)` : undefined}
           aria-label={`Marcar ${item.nome}`}
+          className="mt-1"
         />
         <div className="min-w-0 flex-1">
-          <p
-            className={`truncate text-sm font-medium ${item.comprado ? "text-muted-foreground line-through" : ""}`}
-          >
-            {item.nome}
-            {item.quantidade > 1 && (
-              <span className="text-muted-foreground"> · {item.quantidade} un.</span>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <p
+              className={`text-sm font-medium ${item.comprado ? "text-muted-foreground line-through" : ""}`}
+            >
+              {item.nome}
+              {item.quantidade > 1 && (
+                <span className="text-muted-foreground"> · {item.quantidade} un.</span>
+              )}
+            </p>
+
+            {valorTotalItem > 0 && (
+              <Badge variant="outline" className="font-semibold text-xs text-foreground">
+                {formatBRL(valorTotalItem)}
+              </Badge>
             )}
-          </p>
-          <p className="truncate text-xs text-muted-foreground">
+
+            <Badge
+              variant="outline"
+              className={
+                isLongoPrazo
+                  ? "border-purple-500/40 bg-purple-500/10 text-purple-700 text-[10px]"
+                  : "border-border text-[10px] text-muted-foreground"
+              }
+            >
+              {isLongoPrazo ? "Longo Prazo" : "Imediato"}
+            </Badge>
+
+            {impacto && (
+              <Badge variant="secondary" className="gap-1 text-[11px] font-normal">
+                <Clock className="size-3 text-primary" />
+                {impacto.tempoFormatado} de trabalho
+              </Badge>
+            )}
+          </div>
+
+          <p className="truncate text-xs text-muted-foreground mt-0.5">
             {categoriaLabel(item.categoria)} · pedido em{" "}
             {item.created_at ? formatDate(item.created_at) : "—"}
             {item.comprado_em && ` · concluído em ${formatDate(item.comprado_em)}`}
           </p>
+
           {item.alerta_em && (
             <p
               className={`mt-0.5 inline-flex items-center gap-1 text-xs ${alerta ? "font-medium text-destructive" : "text-muted-foreground"}`}
@@ -347,12 +478,74 @@ function ListaComprasPage() {
               <BellRing className="size-3" /> Alerta em {formatDate(item.alerta_em)}
             </p>
           )}
+
           {item.observacao && <p className="mt-1 text-xs text-muted-foreground">{item.observacao}</p>}
+
           {Array.isArray(item.links) && item.links.length > 0 && (
-            <div className="mt-1 flex flex-wrap gap-2">{item.links.map((link: any, index: number) => <a key={`${link.url}-${index}`} href={link.url} target="_blank" rel="noreferrer" className="text-xs text-primary underline">Ver link{item.links.length > 1 ? ` ${index + 1}` : ""}</a>)}</div>
+            <div className="mt-1 flex flex-wrap gap-2">
+              {item.links.map((link: any, index: number) => (
+                <a
+                  key={`${link.url}-${index}`}
+                  href={link.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-xs text-primary underline"
+                >
+                  Ver link{item.links.length > 1 ? ` ${index + 1}` : ""}
+                </a>
+              ))}
+            </div>
           )}
+
+          {/* Gamificação: Box de Impacto na Renda e Aprovação/Decisão */}
+          {impacto && !item.comprado && (
+            <div className="mt-2 rounded-lg border border-border/70 bg-muted/40 p-2.5 text-xs text-muted-foreground">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <div>
+                  <p className="font-medium text-foreground">
+                    ⏱ Para comprar este item são necessários{" "}
+                    <span className="font-bold text-primary">{impacto.tempoFormatado}</span> do mês.
+                  </p>
+                  <p className="mt-0.5 text-[11px]">
+                    {impacto.percentualSobra !== null ? (
+                      <>
+                        Como só usamos o que sobra da renda já comprometida (sobra de{" "}
+                        {formatBRL(finCalculado.sobraLivre)}), isso consome{" "}
+                        <span
+                          className={`font-semibold ${
+                            impacto.excedeSobra ? "text-destructive font-bold" : "text-foreground"
+                          }`}
+                        >
+                          {impacto.percentualSobra}%
+                        </span>{" "}
+                        do que está sobrando este mês. Deseja aprovar e seguir?
+                      </>
+                    ) : (
+                      <>
+                        Sua renda deste mês já está 100% comprometida por despesas e faturas. Esta compra exigirá reservas ou reorganização de orçamento.
+                      </>
+                    )}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs gap-1 border-primary/40 text-primary hover:bg-primary/10"
+                    onClick={() => alternar.mutate(item)}
+                    disabled={bloqueadoPorAprovacao}
+                  >
+                    <CheckCircle2 className="size-3.5" />
+                    Aprovar e seguir
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {necessarias > 0 && !item.comprado && (
-            <div className="mt-1 flex items-center gap-1.5">
+            <div className="mt-2 flex items-center gap-1.5">
               <Badge
                 variant="outline"
                 className={
@@ -360,7 +553,7 @@ function ListaComprasPage() {
                 }
               >
                 <ShieldCheck className="size-3" />
-                {aprovadores.length}/{necessarias} aprovações
+                {aprovadores.length}/{necessarias} aprovações necessárias
               </Badge>
               {!souCriador && (
                 <Button
@@ -370,7 +563,7 @@ function ListaComprasPage() {
                   onClick={() => aprovar.mutate(item)}
                 >
                   <CheckCircle2 className="size-3" />
-                  {jaAprovei ? "Remover aprovação" : "Aprovar"}
+                  {jaAprovei ? "Remover minha aprovação" : "Aprovar"}
                 </Button>
               )}
             </div>
@@ -414,7 +607,7 @@ function ListaComprasPage() {
   return (
     <AppLayout
       title="Lista de compras"
-      description={`${itens.length}/${LIMITE} itens registrados`}
+      description={`${itens.length}/${LIMITE} itens registrados · Gamificação e Poder de Compra`}
       actions={
         <div className="flex gap-2">
           <Button size="sm" variant="outline" onClick={exportar}>
@@ -428,6 +621,70 @@ function ListaComprasPage() {
         </div>
       }
     >
+      {/* Card de Gamificação Financeira: Valor da Hora Líquida e Sobra Livre Real */}
+      <Card className="mb-5 overflow-hidden border-primary/20 bg-gradient-to-r from-primary/5 via-background to-primary/5">
+        <CardContent className="p-4 sm:p-5">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="gap-1 border-primary/30 text-primary">
+                  <Flame className="size-3.5" /> Gamificação Financeira
+                </Badge>
+                <span className="text-xs text-muted-foreground">
+                  Competência: {finCalculado.mesAtualKey}
+                </span>
+              </div>
+              <h3 className="text-base font-semibold tracking-tight">
+                Seu Tempo de Trabalho Líquido & Poder de Compra
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                Baseado na sua receita líquida real deste mês ({formatBRL(finCalculado.totalReceitaLiquida)})
+                e jornada de {finCalculado.horasTrabalho}h/mês configurada no seu perfil.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <div className="rounded-xl border bg-card p-3 shadow-xs">
+                <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                  <Clock className="size-3 text-primary" /> Hora Líquida
+                </span>
+                <p className="text-base font-bold text-foreground">
+                  {finCalculado.valorHora > 0 ? formatBRL(finCalculado.valorHora) : "R$ 0,00"}
+                  <span className="text-[10px] font-normal text-muted-foreground">/h</span>
+                </p>
+                <p className="text-[10px] text-muted-foreground">
+                  ≈ {finCalculado.valorMinuto > 0 ? formatBRL(finCalculado.valorMinuto) : "R$ 0,00"}/min
+                </p>
+              </div>
+
+              <div className="rounded-xl border bg-card p-3 shadow-xs">
+                <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                  <Wallet className="size-3 text-success" /> Sobra Livre Real
+                </span>
+                <p className="text-base font-bold text-success">
+                  {formatBRL(finCalculado.sobraLivre)}
+                </p>
+                <p className="text-[10px] text-muted-foreground">
+                  Comprometido: {formatBRL(finCalculado.totalComprometido)}
+                </p>
+              </div>
+
+              <div className="col-span-2 sm:col-span-1 rounded-xl border bg-card p-3 shadow-xs">
+                <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                  <ShoppingCart className="size-3 text-primary" /> Na Lista
+                </span>
+                <p className="text-base font-bold text-foreground">
+                  {formatBRL(totalEstimadoPendentes)}
+                </p>
+                <p className="text-[10px] text-muted-foreground">
+                  {pendentes.length} pendente(s)
+                </p>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {alertasVencidos.length > 0 && (
         <Card className="mb-4 border-destructive/40 bg-destructive/5">
           <CardContent className="flex items-start gap-3 py-3">
@@ -456,94 +713,171 @@ function ListaComprasPage() {
       </Tabs>
 
       <form
-        className="mt-4 grid gap-2 sm:grid-cols-[1fr_170px_80px_170px_auto]"
+        className="mt-4 space-y-2.5 rounded-xl border bg-card p-3.5 shadow-xs"
         onSubmit={(e) => {
           e.preventDefault();
           adicionar.mutate();
         }}
       >
-        <div>
-          <Label className="sr-only">Item</Label>
-          <Input
-            value={nome}
-            onChange={(e) => setNome(e.target.value)}
-            placeholder="Ex.: sabonete, arroz, feijão…"
-          />
-        </div>
-        <Select value={categoria} onValueChange={(v) => setCategoria(v as CategoriaId)}>
-          <SelectTrigger aria-label="Categoria">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {CATEGORIAS.map((c) => (
-              <SelectItem key={c.id} value={c.id}>
-                {c.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Input
-          value={quantidade}
-          onChange={(e) => setQuantidade(e.target.value)}
-          inputMode="numeric"
-          aria-label="Quantidade"
-        />
-        <Input
-          type="date"
-          value={alertaEm}
-          onChange={(e) => setAlertaEm(e.target.value)}
-          aria-label="Alertar em"
-          title="Alertar em"
-        />
-        <Button type="submit" disabled={adicionar.isPending}>
-          <Plus className="size-4" /> Adicionar
-        </Button>
-      </form>
-
-      <div className="mt-2 grid gap-2 sm:grid-cols-2">
-        <Input value={linkCompra} onChange={(e) => setLinkCompra(e.target.value)} type="url" placeholder="Adicionar link de compra ou referência (Instagram, TikTok, Facebook...)" />
-        <Input value={observacao} onChange={(e) => setObservacao(e.target.value)} placeholder="Observação para quem vai aprovar" />
-      </div>
-
-      {maxAprovacoes >= 1 && (
-        <div className="mt-2 flex items-center gap-2">
-          <Label className="shrink-0 text-xs text-muted-foreground">
-            Aprovações p/ comprar este item
-          </Label>
-          <Select value={aprovacoesNecessarias} onValueChange={setAprovacoesNecessarias}>
-            <SelectTrigger className="h-8 w-40" aria-label="Aprovações necessárias">
+        <div className="grid gap-2 sm:grid-cols-[1fr_150px_90px_130px_140px_auto]">
+          <div>
+            <Label className="sr-only">Item</Label>
+            <Input
+              value={nome}
+              onChange={(e) => setNome(e.target.value)}
+              placeholder="Nome do item (ex.: Arroz, Tênis, Furadeira…)"
+            />
+          </div>
+          <Select value={categoria} onValueChange={(v) => setCategoria(v as CategoriaId)}>
+            <SelectTrigger aria-label="Categoria">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="0">Nenhuma</SelectItem>
-              {Array.from({ length: maxAprovacoes }, (_, i) => i + 1).map((n) => (
-                <SelectItem key={n} value={String(n)}>
-                  {n}
+              {CATEGORIAS.map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.label}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
-        </div>
-      )}
-
-      <div className="mt-4 flex flex-wrap gap-1.5">
-        <Button
-          size="sm"
-          variant={filtro === "todas" ? "default" : "outline"}
-          onClick={() => setFiltro("todas")}
-        >
-          Todas
-        </Button>
-        {CATEGORIAS.map((c) => (
-          <Button
-            key={c.id}
-            size="sm"
-            variant={filtro === c.id ? "default" : "outline"}
-            onClick={() => setFiltro(c.id)}
-          >
-            <c.icon className="size-4" /> {c.label}
+          <Input
+            value={quantidade}
+            onChange={(e) => setQuantidade(e.target.value)}
+            inputMode="numeric"
+            placeholder="Qtd"
+            aria-label="Quantidade"
+          />
+          <Input
+            value={valorEstimadoInput}
+            onChange={(e) => setValorEstimadoInput(e.target.value)}
+            inputMode="decimal"
+            placeholder="Valor R$ un."
+            aria-label="Valor estimado"
+          />
+          <Select value={horizonte} onValueChange={(v) => setHorizonte(v as any)}>
+            <SelectTrigger aria-label="Horizonte">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="imediato">Imediato (Mês)</SelectItem>
+              <SelectItem value="longo_prazo">Longo Prazo</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button type="submit" disabled={adicionar.isPending}>
+            <Plus className="size-4" /> Adicionar
           </Button>
-        ))}
+        </div>
+
+        {/* Prévia em tempo real da gamificação ao digitar valor estimado */}
+        {(() => {
+          const valNum = Number(valorEstimadoInput.replace(",", ".")) * (Number(quantidade) || 1);
+          const impacto = calcularImpacto(valNum);
+          if (!impacto) return null;
+          return (
+            <div className="flex items-center gap-2 rounded-lg bg-primary/10 px-3 py-2 text-xs text-primary font-medium">
+              <Clock className="size-4 shrink-0" />
+              <span>
+                Custo de trabalho estimado: <strong>{impacto.tempoFormatado}</strong>
+                {impacto.percentualSobra !== null && (
+                  <>
+                    {" "}
+                    · Consome <strong>{impacto.percentualSobra}%</strong> da sua sobra livre no mês (restam {formatBRL(finCalculado.sobraLivre)})
+                  </>
+                )}
+              </span>
+            </div>
+          );
+        })()}
+
+        <div className="grid gap-2 sm:grid-cols-[1fr_1fr_160px_auto]">
+          <Input
+            value={linkCompra}
+            onChange={(e) => setLinkCompra(e.target.value)}
+            type="url"
+            placeholder="Link de compra ou referência (Instagram, TikTok, Amazon...)"
+          />
+          <Input
+            value={observacao}
+            onChange={(e) => setObservacao(e.target.value)}
+            placeholder="Observação para quem vai aprovar"
+          />
+          <Input
+            type="date"
+            value={alertaEm}
+            onChange={(e) => setAlertaEm(e.target.value)}
+            aria-label="Alertar em"
+            title="Alertar em"
+          />
+          {maxAprovacoes >= 1 && (
+            <Select value={aprovacoesNecessarias} onValueChange={setAprovacoesNecessarias}>
+              <SelectTrigger className="w-36" aria-label="Aprovações necessárias">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="0">Sem aprovação</SelectItem>
+                {Array.from({ length: maxAprovacoes }, (_, i) => i + 1).map((n) => (
+                  <SelectItem key={n} value={String(n)}>
+                    {n} aprovação(ões)
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
+      </form>
+
+      {/* Barra de Filtros: Horizonte e Categorias */}
+      <div className="mt-4 flex flex-col gap-2 rounded-lg border bg-card/60 p-2.5">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-xs font-semibold text-muted-foreground mr-1">Horizonte:</span>
+          <Button
+            size="sm"
+            variant={filtroHorizonte === "todos" ? "default" : "outline"}
+            className="h-7 text-xs"
+            onClick={() => setFiltroHorizonte("todos")}
+          >
+            Todos os prazos
+          </Button>
+          <Button
+            size="sm"
+            variant={filtroHorizonte === "imediato" ? "default" : "outline"}
+            className="h-7 text-xs"
+            onClick={() => setFiltroHorizonte("imediato")}
+          >
+            Imediatos (Consumo do mês)
+          </Button>
+          <Button
+            size="sm"
+            variant={filtroHorizonte === "longo_prazo" ? "default" : "outline"}
+            className="h-7 text-xs"
+            onClick={() => setFiltroHorizonte("longo_prazo")}
+          >
+            Longo Prazo (Desejos / Projetos)
+          </Button>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-1.5 border-t pt-2">
+          <span className="text-xs font-semibold text-muted-foreground mr-1">Categoria:</span>
+          <Button
+            size="sm"
+            variant={filtro === "todas" ? "default" : "outline"}
+            className="h-7 text-xs"
+            onClick={() => setFiltro("todas")}
+          >
+            Todas
+          </Button>
+          {CATEGORIAS.map((c) => (
+            <Button
+              key={c.id}
+              size="sm"
+              variant={filtro === c.id ? "default" : "outline"}
+              className="h-7 text-xs"
+              onClick={() => setFiltro(c.id)}
+            >
+              <c.icon className="size-3.5 mr-1" /> {c.label}
+            </Button>
+          ))}
+        </div>
       </div>
 
       <div className="mt-4 space-y-4">
