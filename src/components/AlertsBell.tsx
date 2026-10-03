@@ -4,6 +4,7 @@ import { Bell } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { alertasDosVeiculos } from "@/lib/veiculo-alertas";
 import { diasRestantes } from "@/lib/nfe";
+import { proximaVirada } from "@/lib/periodo-vigente";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useServerFn } from "@tanstack/react-start";
@@ -16,7 +17,23 @@ import {
 } from "@/lib/comunicados.functions";
 import { useIsAdmin } from "@/hooks/useAuthData";
 
-type Aviso = { chave: string; texto: string; destino?: "/notas" | "/veiculos" | "/lista-compras" };
+type Aviso = {
+  chave: string;
+  texto: string;
+  destino?: "/notas" | "/veiculos" | "/lista-compras" | "/cartoes" | "/despesas";
+};
+
+// Fatura de cartão (fechamento/vencimento, pedido explícito do usuário em
+// 2026-10-02): limiares mais curtos que os de garantia/veículo (crítico
+// ≤15/atenção ≤30 dias) porque o ciclo é mensal — um limiar de 30 dias
+// disparia quase sempre, pra qualquer cartão, o tempo todo.
+const LIMIAR_ATENCAO_FATURA_DIAS = 7;
+const LIMIAR_CRITICO_FATURA_DIAS = 3;
+// Contas/parcelas a vencer (idem, pedido explícito do usuário): mesma
+// janela e limiares já usados pra garantia de nota fiscal e alertas do
+// veículo (crítico ≤15/atenção ≤30 dias), aplicados sobre `parcelas` reais
+// não pagas — nunca projeta parcela que não existe de verdade.
+const JANELA_PARCELAS_DIAS = 30;
 
 export function AlertsBell() {
   const historicoFn = useServerFn(meuHistoricoAlertas);
@@ -40,7 +57,7 @@ export function AlertsBell() {
   const { data: avisos = [] } = useQuery({
     queryKey: ["alertas-globais"],
     queryFn: async (): Promise<Aviso[]> => {
-      const [veiculos, notas, compras] = await Promise.all([
+      const [veiculos, notas, compras, cartoes, parcelas] = await Promise.all([
         supabase
           .from("veiculos")
           .select(
@@ -54,8 +71,15 @@ export function AlertsBell() {
           .from("lista_compras")
           .select("id,nome,comprado,aprovacoes_necessarias,aprovado_por,alerta_em")
           .eq("comprado", false),
+        supabase.from("cartoes").select("id,apelido,dia_fechamento,dia_vencimento"),
+        supabase
+          .from("parcelas")
+          .select("id,vencimento,despesas(descricao)")
+          .eq("paga", false)
+          .order("vencimento", { ascending: true })
+          .limit(200),
       ]);
-      if (veiculos.error || notas.error || compras.error)
+      if (veiculos.error || notas.error || compras.error || cartoes.error || parcelas.error)
         throw new Error("Não foi possível carregar os alertas.");
       const alertas: Aviso[] = alertasDosVeiculos(veiculos.data ?? []).map((alerta) => {
         const veiculo = (veiculos.data ?? []).find((item) => item.id === alerta.veiculoId);
@@ -99,6 +123,47 @@ export function AlertsBell() {
             destino: "/lista-compras",
           });
         }
+      }
+      // Fatura de cartão fechando/vencendo em breve — pedido explícito do
+      // usuário em 2026-10-02 (central de avisos, item "notificações").
+      const hoje = new Date();
+      for (const cartao of cartoes.data ?? []) {
+        const checagens: { tipo: string; dia: number | null; rotulo: string }[] = [
+          { tipo: "fechamento", dia: cartao.dia_fechamento, rotulo: "Fechamento da fatura" },
+          { tipo: "vencimento", dia: cartao.dia_vencimento, rotulo: "Vencimento da fatura" },
+        ];
+        for (const c of checagens) {
+          if (!c.dia) continue;
+          const proxima = proximaVirada(hoje, c.dia);
+          const dias = Math.round(
+            (proxima.getTime() - new Date(hoje.toDateString()).getTime()) / 86400000,
+          );
+          if (dias > LIMIAR_ATENCAO_FATURA_DIAS) continue;
+          alertas.push({
+            chave: `cartao:${cartao.id}:${c.tipo}:${proxima.toISOString().slice(0, 10)}`,
+            texto: `${cartao.apelido}: ${c.rotulo.toLowerCase()} ${dias === 0 ? "é hoje" : `em ${dias}d`}${dias <= LIMIAR_CRITICO_FATURA_DIAS ? " !" : ""}`,
+            destino: "/cartoes",
+          });
+        }
+      }
+      // Contas e parcelas a vencer — mesmo pedido, só parcelas reais e não
+      // pagas (nunca inventa parcela projetada de despesa fixa sem prazo).
+      for (const parcela of parcelas.data ?? []) {
+        const dias = diasRestantes(parcela.vencimento);
+        if (dias === null || dias < -JANELA_PARCELAS_DIAS || dias > JANELA_PARCELAS_DIAS) continue;
+        const descricao = (parcela as { despesas?: { descricao?: string } | null }).despesas
+          ?.descricao;
+        alertas.push({
+          chave: `parcela:${parcela.id}:${parcela.vencimento}`,
+          texto: `${descricao ?? "Despesa"}: parcela ${
+            dias < 0
+              ? `venceu há ${Math.abs(dias)}d`
+              : dias === 0
+                ? "vence hoje"
+                : `vence em ${dias}d`
+          }`,
+          destino: "/despesas",
+        });
       }
       return alertas.slice(0, 50);
     },
