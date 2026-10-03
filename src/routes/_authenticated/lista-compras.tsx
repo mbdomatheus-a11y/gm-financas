@@ -84,7 +84,7 @@ function ListaComprasPage() {
   const qc = useQueryClient();
   const { user } = useSession();
   const { data: profiles = [] } = useProfilesList();
-  const [lista, setLista] = useState<"compras" | "unicos">("compras");
+  const [lista, setLista] = useState<"compras" | "unicos" | "todas">("todas");
   const [filtro, setFiltro] = useState<CategoriaId | "todas">("todas");
   const [nome, setNome] = useState("");
   const [categoria, setCategoria] = useState<CategoriaId>("alimentacao");
@@ -121,7 +121,9 @@ function ListaComprasPage() {
   const daLista = useMemo(
     () =>
       itens.filter(
-        (i) => (i.lista ?? "compras") === lista && (filtro === "todas" || i.categoria === filtro),
+        (i) =>
+          (lista === "todas" || (i.lista ?? "compras") === lista) &&
+          (filtro === "todas" || i.categoria === filtro),
       ),
     [itens, lista, filtro],
   );
@@ -140,7 +142,7 @@ function ListaComprasPage() {
       const { error } = await (appSupabase.from("lista_compras") as any).insert({
         nome: texto,
         categoria,
-        lista,
+        lista: lista === "todas" ? "compras" : lista,
         quantidade: Math.max(1, Number(quantidade) || 1),
         alerta_em: alertaEm || null,
         aprovacoes_necessarias: Math.min(
@@ -451,8 +453,11 @@ function ListaComprasPage() {
         </Card>
       )}
 
-      <Tabs value={lista} onValueChange={(v) => setLista(v as "compras" | "unicos")}>
+      <Tabs value={lista} onValueChange={(v) => setLista(v as "compras" | "unicos" | "todas")}>
         <TabsList className="h-9">
+          <TabsTrigger value="todas" className="text-xs">
+            Tudo
+          </TabsTrigger>
           <TabsTrigger value="compras" className="text-xs">
             Lista de compras
           </TabsTrigger>

@@ -26,6 +26,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { correspondeBuscaComValor } from "@/lib/busca";
 import { AppLayout } from "@/components/AppLayout";
 import { usePersistedState } from "@/hooks/usePersistedState";
+import { usePrivacidadeValores } from "@/hooks/usePrivacidadeValores";
 import { Field } from "@/routes/_authenticated/receitas";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -177,6 +178,7 @@ function DespesasPage() {
   const { data: cartoes = [] } = useCartoes();
   const { data: bancos = [] } = useBancos();
   const { data: perfis = [] } = useProfilesList();
+  const { formatar } = usePrivacidadeValores();
 
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
@@ -822,7 +824,7 @@ function DespesasPage() {
   return (
     <AppLayout
       title="Despesas"
-      description={`${lista.length} lançamento(s) · ${formatBRL(resumo.total)}`}
+      description={`${lista.length} lançamento(s) · ${formatar(resumo.total)}`}
       actions={
         can("despesas", "editar") && (
           <div className="flex items-center gap-2">
@@ -842,17 +844,17 @@ function DespesasPage() {
     >
       <div className="mb-3 grid grid-cols-2 gap-2 lg:grid-cols-4">
         {[
-          { label: "Total", valor: formatBRL(resumo.total), cor: "text-foreground", hint: "" },
-          { label: "Pago", valor: formatBRL(resumo.pago), cor: "text-success", hint: "" },
+          { label: "Total", valor: formatar(resumo.total), cor: "text-foreground", hint: "" },
+          { label: "Pago", valor: formatar(resumo.pago), cor: "text-success", hint: "" },
           {
             label: "Em aberto",
-            valor: formatBRL(resumo.aberto),
+            valor: formatar(resumo.aberto),
             cor: "text-destructive",
             hint: "",
           },
           {
             label: "Próximo vencimento",
-            valor: resumo.proximo ? formatBRL(resumo.proximo.valor) : "—",
+            valor: resumo.proximo ? formatar(resumo.proximo.valor) : "—",
             cor: "text-warning",
             hint: resumo.proximo ? formatDate(resumo.proximo.data) : "sem parcelas futuras",
           },
@@ -1103,7 +1105,7 @@ function DespesasPage() {
                     />
                   </div>
                   <div className="shrink-0 text-right">
-                    <p className="text-sm font-bold tabular-nums">{formatBRL(grupo.total)}</p>
+                    <p className="text-sm font-bold tabular-nums">{formatar(grupo.total)}</p>
                     <p className="text-[10px] text-muted-foreground">
                       {grupo.itens.length} lançamento(s) ·{" "}
                       {resumo.total > 0 ? ((grupo.total / resumo.total) * 100).toFixed(0) : 0}%
@@ -1250,7 +1252,7 @@ function DespesasPage() {
                               {d.tipo === "fixa"
                                 ? ` · ${filtroMes === "todos" ? "valor mensal" : monthLabelLong(filtroMes)}`
                                 : d.total_parcelas > 1
-                                  ? ` · ${d.total_parcelas}x de ${formatBRL(
+                                  ? ` · ${d.total_parcelas}x de ${formatar(
                                       toBRL(
                                         Number(d.valor_total) / d.total_parcelas,
                                         d.moeda,
@@ -1274,7 +1276,7 @@ function DespesasPage() {
 
                           <div className="shrink-0 text-right">
                             <p className="text-sm font-bold tabular-nums">
-                              {formatBRL(toBRL(valorVisivel(d), d.moeda, cotacao))}
+                              {formatar(toBRL(valorVisivel(d), d.moeda, cotacao))}
                             </p>
                             {d.moeda === "USD" && (
                               <p className="text-[10px] text-muted-foreground">

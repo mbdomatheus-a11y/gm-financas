@@ -32,6 +32,9 @@ import {
   adminSalvarConfiguracaoAcesso,
   adminSalvarModulo,
   obterConfiguracaoAcesso,
+  obterProtecaoAdmin,
+  salvarProtecaoAdmin,
+  verificarPinAdmin,
 } from "@/lib/configuracoes-site.functions";
 import {
   adminAlternarTour,
@@ -212,6 +215,55 @@ function Admin() {
   const [consultaDesbloqueada, setConsultaDesbloqueada] = useState(false);
   const [senhaConsulta, setSenhaConsulta] = useState("");
   const [erroSenhaConsulta, setErroSenhaConsulta] = useState("");
+  const [pinConsulta, setPinConsulta] = useState("");
+  const [preferirSenhaConta, setPreferirSenhaConta] = useState(false);
+  const [novoPinInput, setNovoPinInput] = useState("");
+  const [tipoProtecaoInput, setTipoProtecaoInput] = useState<"nenhuma" | "senha" | "pin">("senha");
+
+  const { data: protecaoAdmin } = useQuery({
+    queryKey: ["admin-protecao"],
+    enabled: isSiteAdmin,
+    queryFn: () => obterProtecaoAdmin(),
+  });
+
+  useEffect(() => {
+    if (protecaoAdmin?.tipo) {
+      setTipoProtecaoInput(protecaoAdmin.tipo);
+      if (protecaoAdmin.tipo === "nenhuma") {
+        setConsultaDesbloqueada(true);
+      }
+    }
+  }, [protecaoAdmin?.tipo]);
+
+  const salvarProtecaoMut = useMutation({
+    mutationFn: (dados: { tipo: "nenhuma" | "senha" | "pin"; pin?: string }) =>
+      salvarProtecaoAdmin({ data: dados }),
+    onSuccess: () => {
+      toast.success("Proteção de acesso à administração atualizada.");
+      qc.invalidateQueries({ queryKey: ["admin-protecao"] });
+      setNovoPinInput("");
+    },
+    onError: (e: any) => toast.error(e.message || "Erro ao salvar proteção."),
+  });
+
+  const verificarPinMut = useMutation({
+    mutationFn: (pin: string) => verificarPinAdmin({ data: { pin } }),
+    onSuccess: (res) => {
+      if (res.valido) {
+        setConsultaDesbloqueada(true);
+        setPinConsulta("");
+        setErroSenhaConsulta("");
+      } else {
+        setErroSenhaConsulta(
+          res.semPinConfigurado
+            ? "Nenhum PIN configurado ainda. Acesse com sua senha."
+            : "PIN incorreto.",
+        );
+      }
+    },
+    onError: (e: any) => toast.error(e.message || "Erro ao validar PIN."),
+  });
+
   const [economiaExibidaInput, setEconomiaExibidaInput] = useState("");
   const [cotaOracleInput, setCotaOracleInput] = useState<Record<string, string>>({});
   // Bloco de parceria/patrocínio da home (2026-09-27): URL e slogan ficam em
@@ -647,9 +699,14 @@ function Admin() {
       </AppLayout>
     );
 
-  // A senha extra (re-autenticação) agora protege a ENTRADA da tela inteira,
-  // não só a aba "Consulta" — pede a senha uma vez e libera todas as abas.
-  if (!consultaDesbloqueada)
+  // A proteção configurada protege a ENTRADA da tela inteira:
+  // - "nenhuma": entra direto sem bloqueio
+  // - "pin": exige o PIN de 4 dígitos
+  // - "senha": exige a senha da conta
+  const tipoProtecao = protecaoAdmin?.tipo ?? "senha";
+  const emModoPin = tipoProtecao === "pin" && !preferirSenhaConta;
+
+  if (!consultaDesbloqueada && tipoProtecao !== "nenhuma")
     return (
       <AppLayout title="Administração do site" description="Painel de controle administrativo">
         <Card>
@@ -661,37 +718,104 @@ function Admin() {
                 </div>
               </div>
               <p className="font-semibold">Área protegida</p>
-              <p className="text-xs text-muted-foreground">Confirme sua senha para acessar o painel de administração.</p>
+              <p className="text-xs text-muted-foreground">
+                {emModoPin
+                  ? "Digite seu PIN de 4 dígitos para acessar a administração."
+                  : "Confirme sua senha de acesso para entrar na administração."}
+              </p>
             </div>
-            <Input
-              type="password"
-              placeholder="Sua senha de acesso"
-              value={senhaConsulta}
-              onChange={(e) => { setSenhaConsulta(e.target.value); setErroSenhaConsulta(""); }}
-              onKeyDown={async (e) => {
-                if (e.key !== "Enter") return;
-                const { error } = await supabase.auth.signInWithPassword({
-                  email: (await supabase.auth.getUser()).data.user?.email ?? "",
-                  password: senhaConsulta,
-                });
-                if (error) { setErroSenhaConsulta("Senha incorreta."); } else { setConsultaDesbloqueada(true); setSenhaConsulta(""); }
-              }}
-            />
-            {erroSenhaConsulta && <p className="text-xs text-rose-600">{erroSenhaConsulta}</p>}
-            <Button
-              className="w-full"
-              disabled={!senhaConsulta}
-              onClick={async () => {
-                const { data: userResult } = await supabase.auth.getUser();
-                const { error } = await supabase.auth.signInWithPassword({
-                  email: userResult.user?.email ?? "",
-                  password: senhaConsulta,
-                });
-                if (error) { setErroSenhaConsulta("Senha incorreta."); } else { setConsultaDesbloqueada(true); setSenhaConsulta(""); }
-              }}
-            >
-              Confirmar e acessar
-            </Button>
+
+            {emModoPin ? (
+              <div className="space-y-3">
+                <Input
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={4}
+                  placeholder="PIN de 4 dígitos"
+                  className="text-center text-xl tracking-widest font-mono"
+                  value={pinConsulta}
+                  onChange={(e) => {
+                    const v = e.target.value.replace(/\D/g, "").slice(0, 4);
+                    setPinConsulta(v);
+                    setErroSenhaConsulta("");
+                    if (v.length === 4) {
+                      verificarPinMut.mutate(v);
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && pinConsulta.length === 4) {
+                      verificarPinMut.mutate(pinConsulta);
+                    }
+                  }}
+                />
+                {erroSenhaConsulta && <p className="text-xs text-rose-600 text-center">{erroSenhaConsulta}</p>}
+                <Button
+                  className="w-full"
+                  disabled={pinConsulta.length !== 4 || verificarPinMut.isPending}
+                  onClick={() => verificarPinMut.mutate(pinConsulta)}
+                >
+                  {verificarPinMut.isPending ? "Verificando…" : "Confirmar PIN"}
+                </Button>
+                <div className="text-center pt-1">
+                  <button
+                    type="button"
+                    className="text-xs text-muted-foreground underline hover:text-foreground"
+                    onClick={() => {
+                      setPreferirSenhaConta(true);
+                      setErroSenhaConsulta("");
+                    }}
+                  >
+                    Entrar com a senha da conta
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <Input
+                  type="password"
+                  placeholder="Sua senha de acesso"
+                  value={senhaConsulta}
+                  onChange={(e) => { setSenhaConsulta(e.target.value); setErroSenhaConsulta(""); }}
+                  onKeyDown={async (e) => {
+                    if (e.key !== "Enter") return;
+                    const { error } = await supabase.auth.signInWithPassword({
+                      email: (await supabase.auth.getUser()).data.user?.email ?? "",
+                      password: senhaConsulta,
+                    });
+                    if (error) { setErroSenhaConsulta("Senha incorreta."); } else { setConsultaDesbloqueada(true); setSenhaConsulta(""); }
+                  }}
+                />
+                {erroSenhaConsulta && <p className="text-xs text-rose-600 text-center">{erroSenhaConsulta}</p>}
+                <Button
+                  className="w-full"
+                  disabled={!senhaConsulta}
+                  onClick={async () => {
+                    const { data: userResult } = await supabase.auth.getUser();
+                    const { error } = await supabase.auth.signInWithPassword({
+                      email: userResult.user?.email ?? "",
+                      password: senhaConsulta,
+                    });
+                    if (error) { setErroSenhaConsulta("Senha incorreta."); } else { setConsultaDesbloqueada(true); setSenhaConsulta(""); }
+                  }}
+                >
+                  Confirmar e acessar
+                </Button>
+                {protecaoAdmin?.temPin && (
+                  <div className="text-center pt-1">
+                    <button
+                      type="button"
+                      className="text-xs text-muted-foreground underline hover:text-foreground"
+                      onClick={() => {
+                        setPreferirSenhaConta(false);
+                        setErroSenhaConsulta("");
+                      }}
+                    >
+                      Entrar com PIN de 4 dígitos
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
       </AppLayout>
@@ -857,6 +981,72 @@ function Admin() {
 
         {/* ─── ABA 3: ACESSO E AUTENTICAÇÃO ─── */}
         <TabsContent value="acesso" className="space-y-4">
+          {/* Card Proteção de Entrada na Administração (Pedido 7) */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">Proteção de entrada na Administração</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-xs text-muted-foreground">
+                Defina se e como a entrada no painel administrativo deve ser protegida.
+              </p>
+              <div className="grid gap-4 sm:grid-cols-3 items-end">
+                <div className="space-y-1.5">
+                  <p className="text-xs font-medium">Tipo de bloqueio</p>
+                  <Select
+                    value={tipoProtecaoInput}
+                    onValueChange={(v: any) => {
+                      setTipoProtecaoInput(v);
+                      if (v !== "pin") {
+                        salvarProtecaoMut.mutate({ tipo: v });
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="h-10">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="senha">Senha da conta (padrão)</SelectItem>
+                      <SelectItem value="pin">PIN numérico de 4 dígitos</SelectItem>
+                      <SelectItem value="nenhuma">Sem senha (acesso direto)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {tipoProtecaoInput === "pin" && (
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <p className="text-xs font-medium">
+                      {protecaoAdmin?.temPin ? "Alterar PIN de 4 dígitos" : "Criar PIN de 4 dígitos"}
+                    </p>
+                    <div className="flex gap-2">
+                      <Input
+                        type="password"
+                        inputMode="numeric"
+                        maxLength={4}
+                        placeholder="Ex.: 1234"
+                        className="h-10 text-center font-mono tracking-widest max-w-[140px]"
+                        value={novoPinInput}
+                        onChange={(e) => setNovoPinInput(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                      />
+                      <Button
+                        className="h-10"
+                        disabled={novoPinInput.length !== 4 || salvarProtecaoMut.isPending}
+                        onClick={() => salvarProtecaoMut.mutate({ tipo: "pin", pin: novoPinInput })}
+                      >
+                        {salvarProtecaoMut.isPending ? "Salvando…" : "Salvar PIN"}
+                      </Button>
+                    </div>
+                    {protecaoAdmin?.temPin && (
+                      <p className="text-[11px] text-muted-foreground">
+                        PIN atual configurado e ativo. Digite 4 novos números acima caso queira alterar.
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
           {config && (
             <Card>
               <CardHeader><CardTitle className="text-sm">Configurações de acesso e autenticação</CardTitle></CardHeader>

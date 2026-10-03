@@ -65,7 +65,8 @@ import {
   toBRL,
 } from "@/lib/format";
 import { useCompetenciaVigente } from "@/lib/periodo-vigente";
-import { lancamentosPorCompetencias } from "@/lib/recorrencia";
+import { lancamentosPorCompetencias, receitasPorCompetencias } from "@/lib/recorrencia";
+import { usePrivacidadeValores } from "@/hooks/usePrivacidadeValores";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
@@ -199,6 +200,8 @@ function DashboardPage() {
   );
   const [drill, setDrill] = useState<{ mes: string; grupo?: string } | null>(null);
   const [editando, setEditando] = useState<any | null>(null);
+  // Pedido 2 (2026-10-03): meses do card de alívio de parcelamentos que podem ser expandidos
+  const [alivioExpandido, setAlivioExpandido] = useState<Record<string, boolean>>({});
 
   // Item 2 (backlog 2026-09-27): "Dívida total em aberto" nasce projetando
   // até a última parcela variável/parcelada que realmente existe nos dados
@@ -258,6 +261,11 @@ function DashboardPage() {
     [despesas, mesesSelecionaveis, faturasMes],
   );
 
+  const receitasProjetadas = useMemo(
+    () => receitasPorCompetencias(receitas as any[], mesesSelecionaveis),
+    [receitas, mesesSelecionaveis],
+  );
+
   const grupoDe = useMemo(
     () => (p: any) =>
       agrupamento === "categoria"
@@ -271,7 +279,7 @@ function DashboardPage() {
   );
 
   const dados = useMemo(() => {
-    const receitasMes = receitas.filter((r: any) => monthKey(r.data_recebimento) === mesAtual);
+    const receitasMes = receitasProjetadas.filter((r) => r.competencia === mesAtual);
     const totalReceitas = receitasMes.reduce(
       (s: number, r: any) => s + toBRL(Number(r.valor), r.moeda, cotacao),
       0,
@@ -324,8 +332,8 @@ function DashboardPage() {
       .map(([g]) => g);
 
     const serie = meses.map((key: string) => {
-      const rec = receitas
-        .filter((r: any) => monthKey(r.data_recebimento) === key)
+      const rec = receitasProjetadas
+        .filter((r) => r.competencia === key)
         .reduce((s: number, r: any) => s + toBRL(Number(r.valor), r.moeda, cotacao), 0);
       const linha: any = { mes: monthLabel(key), key, Receitas: Number(rec.toFixed(2)) };
       let des = 0;
@@ -373,8 +381,8 @@ function DashboardPage() {
     // Mês anterior, para variação percentual nos indicadores.
     const ref = new Date(`${mesAtual}-01T12:00:00`);
     const mesAnterior = monthKey(new Date(ref.getFullYear(), ref.getMonth() - 1, 1));
-    const receitasAnt = receitas
-      .filter((r: any) => monthKey(r.data_recebimento) === mesAnterior)
+    const receitasAnt = receitasProjetadas
+      .filter((r) => r.competencia === mesAnterior)
       .reduce((s: number, r: any) => s + toBRL(Number(r.valor), r.moeda, cotacao), 0);
     const despesasAnt = parcelas
       .filter((p: any) => monthKey(p.vencimento) === mesAnterior)
@@ -456,6 +464,44 @@ function DashboardPage() {
       .sort((a: any, b: any) => a.vencimento.localeCompare(b.vencimento))
       .slice(0, 8);
 
+    // Pedido 2 (2026-10-03): Parcelamentos que terminam — agrupado por mês do último
+    // vencimento, mostrando quanto cada despesa "libera" no orçamento ao terminar.
+    // Percorre as despesas parceladas não quitadas e marca o mês da última parcela não paga.
+    const alivioMap = new Map<
+      string,
+      { mes: string; total: number; itens: { id: string; descricao: string; cartao: string; valor: number; ultimaParcela: string }[] }
+    >();
+    for (const d of despesas as any[]) {
+      if (d.tipo === "fixa" || !d.parcelas?.length) continue;
+      const parcelasD: any[] = d.parcelas;
+      const naoPatgas = parcelasD.filter((p) => !p.paga);
+      if (!naoPatgas.length) continue;
+      const ultima = naoPatgas.reduce((m: any, p: any) =>
+        p.vencimento > m.vencimento ? p : m
+      );
+      const mesFim = monthKey(ultima.vencimento);
+      // Valor mensal que vai "aliviar" = valor da parcela
+      const valorParcela = toBRL(Number(ultima.valor ?? d.valor_parcela ?? d.valor), d.moeda, cotacao);
+      if (!alivioMap.has(mesFim)) {
+        alivioMap.set(mesFim, { mes: mesFim, total: 0, itens: [] });
+      }
+      const entry = alivioMap.get(mesFim)!;
+      entry.total = Number((entry.total + valorParcela).toFixed(2));
+      entry.itens.push({
+        id: d.id,
+        descricao: d.descricao,
+        cartao: identificacaoDespesa(d) || "Sem forma de pagamento",
+        valor: valorParcela,
+        ultimaParcela: ultima.vencimento,
+      });
+    }
+    // Só meses futuros (a partir do mês atual) ordenados
+    const now2 = mesAtual;
+    const alivioParcelamentos = Array.from(alivioMap.values())
+      .filter((g) => g.mes >= now2)
+      .sort((a, b) => a.mes.localeCompare(b.mes))
+      .slice(0, 18); // máximo 18 meses à frente
+
     return {
       totalReceitas,
       totalDespesas,
@@ -480,8 +526,9 @@ function DashboardPage() {
       grupos: gruposFinais,
       parceladas,
       top5,
+      alivioParcelamentos,
     };
-  }, [receitas, despesas, parcelas, cotacao, mesAtual, mesPie, meses, grupoDe]);
+  }, [receitasProjetadas, despesas, parcelas, cotacao, mesAtual, mesPie, meses, grupoDe]);
 
   // Item 2 (backlog 2026-09-27): "Dívida total em aberto" revisada.
   // A última parcela real é lida direto de `despesa.parcelas` (dados
@@ -580,6 +627,8 @@ function DashboardPage() {
   const corGrupo = (g: string) =>
     agrupamento === "categoria" ? corPorCategoria(g) : corPorCategoria(`__grupo__${g}`);
 
+  const { formatar: fmtGlobal } = usePrivacidadeValores();
+
   return (
     <AppLayout
       title="Dashboard"
@@ -605,7 +654,7 @@ function DashboardPage() {
           icon={ArrowDownRight}
           tone="destructive"
           delta={dados.deltaDespesas}
-          hint={`Fixas ${formatBRL(dados.fixas)} · Variáveis ${formatBRL(dados.variaveis)}`}
+          hint={`Fixas ${fmtGlobal(dados.fixas)} · Variáveis ${fmtGlobal(dados.variaveis)}`}
           to="/despesas"
         />
 
@@ -625,7 +674,7 @@ function DashboardPage() {
           value={dados.fixas + dados.variaveis}
           icon={CalendarClock}
           tone="warning"
-          hint={`Fixas ${formatBRL(dados.fixas)} · Variáveis ${formatBRL(dados.variaveis)}`}
+          hint={`Fixas ${fmtGlobal(dados.fixas)} · Variáveis ${fmtGlobal(dados.variaveis)}`}
           to="/despesas"
           search={{ modo: "cartao" }}
         />
@@ -838,6 +887,60 @@ function DashboardPage() {
           </ResponsiveContainer>
         </CardContent>
       </Card>
+
+      {/* Pedido 2 (2026-10-03): Parcelamentos que terminam — alívio mensal */}
+      {dados.alivioParcelamentos.length > 0 && (
+        <Card className="mt-4">
+          <CardHeader className="space-y-0 pb-3">
+            <CardTitle className="text-base">Parcelamentos que terminam</CardTitle>
+            <p className="text-[11px] text-muted-foreground mt-1">
+              Quanto cada mês libera no orçamento quando parcelas terminam. Clique para ver os detalhes.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {dados.alivioParcelamentos.map((g) => {
+              const expandido = alivioExpandido[g.mes] ?? false;
+              return (
+                <div key={g.mes} className="rounded-lg border overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => setAlivioExpandido((prev) => ({ ...prev, [g.mes]: !expandido }))}
+                    className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-muted/40"
+                  >
+                    <ChevronDown
+                      className={`size-4 shrink-0 text-muted-foreground transition-transform ${expandido ? "" : "-rotate-90"}`}
+                    />
+                    <span className="flex-1 text-sm font-semibold">{monthLabelLong(g.mes)}</span>
+                    <Badge variant="secondary" className="text-[10px]">
+                      {g.itens.length} parcela{g.itens.length > 1 ? "s" : ""}
+                    </Badge>
+                    <span className="shrink-0 text-sm font-bold tabular-nums text-success">
+                      +{formatBRL(g.total)}/mês
+                    </span>
+                  </button>
+                  {expandido && (
+                    <div className="divide-y border-t">
+                      {g.itens.map((item) => (
+                        <div key={item.id} className="flex items-center justify-between gap-3 px-4 py-2 text-sm">
+                          <div className="min-w-0">
+                            <p className="truncate font-medium">{item.descricao}</p>
+                            <p className="truncate text-xs text-muted-foreground">
+                              {item.cartao} · última parcela em {formatDate(item.ultimaParcela)}
+                            </p>
+                          </div>
+                          <span className="shrink-0 font-semibold tabular-nums text-success">
+                            +{formatBRL(item.valor)}/mês
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
+      )}
 
       <Card className="mt-4">
         <Collapsible open={agrupamentosAberto} onOpenChange={setAgrupamentosAberto}>
@@ -1257,6 +1360,11 @@ function CardDividaTotal({
   onRestaurarPadrao: () => void;
   temOverride: boolean;
 }) {
+  const [visao, setVisao] = useState<"total" | "fixa" | "variavel">("total");
+  const { formatar } = usePrivacidadeValores();
+  const valorExibido = visao === "fixa" ? info.fixa : visao === "variavel" ? info.variavel : info.total;
+  const rotuloVisao = visao === "fixa" ? "Somente fixas" : visao === "variavel" ? "Somente variáveis" : "Total";
+
   return (
     <Card className="overflow-hidden">
       <CardContent className="p-4">
@@ -1264,11 +1372,28 @@ function CardDividaTotal({
           <p className="text-xs font-medium text-muted-foreground">Dívida total em aberto</p>
           <Landmark className="size-4 text-destructive" />
         </div>
+        {/* Seletor Total / Fixas / Variáveis */}
+        <div className="mt-2 flex gap-1.5">
+          {(["total", "fixa", "variavel"] as const).map((v) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => setVisao(v)}
+              className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors touch-manipulation ${
+                visao === v
+                  ? "bg-destructive/15 text-destructive font-semibold"
+                  : "text-muted-foreground hover:bg-muted"
+              }`}
+            >
+              {v === "total" ? "Total" : v === "fixa" ? "Fixas" : "Variáveis"}
+            </button>
+          ))}
+        </div>
         <div className="mt-2 flex flex-wrap items-baseline gap-2">
-          <p className="text-xl font-bold tracking-tight">{formatBRL(info.total)}</p>
+          <p className="text-xl font-bold tracking-tight">{formatar(valorExibido)}</p>
         </div>
         <p className="mt-1 text-[11px] text-muted-foreground">
-          Fixas {formatBRL(info.fixa)} · Variáveis {formatBRL(info.variavel)}
+          {rotuloVisao} · Fixas {formatar(info.fixa)} · Variáveis {formatar(info.variavel)}
         </p>
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           <MonthPicker value={mesLimite} onChange={onMesChange} ariaLabel="Projetar dívida até" className="h-7" />
@@ -1320,6 +1445,7 @@ function StatCard({
   /** Âncora na própria página (ex.: "#fluxo-caixa"), pra quando o destino natural é um gráfico já visível no dashboard, não outra rota. */
   href?: string;
 }) {
+  const { formatar } = usePrivacidadeValores();
   const toneClass =
     tone === "success" ? "text-success" : tone === "warning" ? "text-warning" : "text-destructive";
 
@@ -1330,7 +1456,7 @@ function StatCard({
         <Icon className={`size-4 ${toneClass}`} />
       </div>
       <div className="mt-2 flex flex-wrap items-baseline gap-2">
-        <p className="text-xl font-bold tracking-tight">{display ?? formatBRL(value)}</p>
+        <p className="text-xl font-bold tracking-tight">{display ?? formatar(value)}</p>
         {delta != null && Number.isFinite(delta) && (
           <span
             className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${

@@ -295,3 +295,96 @@ export function lancamentosPorCompetencias(
 
   return out;
 }
+
+export interface ReceitaCompetencia {
+  id: string;
+  receita_id: string;
+  descricao: string;
+  valor: number;
+  moeda: string;
+  categoria: string;
+  responsavel: string;
+  data_recebimento: string;
+  competencia: string;
+  recorrente: boolean;
+  tipo: "fixa" | "variavel";
+  frequencia?: string | null;
+  observacoes?: string | null;
+  cartao_id?: string | null;
+  projetada: boolean;
+  receitaOriginal: any;
+}
+
+/**
+ * Projeta receitas para as competências solicitadas.
+ * Receitas pontuais/variáveis aparecem em sua respectiva data de recebimento.
+ * Receitas fixas (recorrentes sem prazo ou com prazo) projetam para qualquer mês
+ * futuro ou presente selecionado (ex: 2026, 2029, 2030), aplicando reajustes se configurados.
+ */
+export function receitasPorCompetencias(
+  receitas: any[],
+  competencias: string[],
+): ReceitaCompetencia[] {
+  const desejadas = new Set(competencias.map(competenciaDe));
+  const out: ReceitaCompetencia[] = [];
+
+  for (const receita of receitas) {
+    const ehRecorrente = Boolean(receita.recorrente);
+    const recorrencia = ehRecorrente ? recorrenciaDaReceita(receita) : null;
+
+    if (!recorrencia) {
+      // Receita pontual / variável
+      const competencia = competenciaDe(receita.data_recebimento);
+      if (desejadas.has(competencia)) {
+        out.push({
+          id: String(receita.id),
+          receita_id: String(receita.id),
+          descricao: receita.descricao,
+          valor: Number(receita.valor),
+          moeda: receita.moeda ?? "BRL",
+          categoria: receita.categoria ?? "Outros",
+          responsavel: receita.responsavel ?? "",
+          data_recebimento: receita.data_recebimento,
+          competencia,
+          recorrente: false,
+          tipo: "variavel",
+          frequencia: receita.frequencia ?? null,
+          observacoes: receita.observacoes ?? null,
+          cartao_id: receita.cartao_id ?? null,
+          projetada: false,
+          receitaOriginal: receita,
+        });
+      }
+      continue;
+    }
+
+    // Receita recorrente / fixa
+    for (const competencia of desejadas) {
+      const valor = valorNaCompetencia(recorrencia, competencia);
+      if (valor == null) continue;
+      const ehMesOriginal = competenciaDe(receita.data_recebimento) === competencia;
+      const dataRecebimento = vencimentoDaCompetencia(recorrencia.inicio, competencia);
+      out.push({
+        id: ehMesOriginal ? String(receita.id) : `rec_proj:${receita.id}:${competencia}`,
+        receita_id: String(receita.id),
+        descricao: receita.descricao,
+        valor,
+        moeda: receita.moeda ?? "BRL",
+        categoria: receita.categoria ?? "Outros",
+        responsavel: receita.responsavel ?? "",
+        data_recebimento: dataRecebimento,
+        competencia,
+        recorrente: true,
+        tipo: "fixa",
+        frequencia: receita.frequencia ?? "mensal",
+        observacoes: receita.observacoes ?? null,
+        cartao_id: receita.cartao_id ?? null,
+        projetada: !ehMesOriginal,
+        receitaOriginal: receita,
+      });
+    }
+  }
+
+  return out;
+}
+

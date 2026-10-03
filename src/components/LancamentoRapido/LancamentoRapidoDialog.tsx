@@ -297,6 +297,8 @@ export function LancamentoRapidoDialog({
         return;
       }
       setRespostaResumo(r.texto);
+      qc.invalidateQueries({ queryKey: ["lista-compras"] });
+      qc.invalidateQueries({ queryKey: ["resumo-ia-lista-compras"] });
     } catch {
       toast.error("IA indisponível agora — tente de novo em instantes.");
     } finally {
@@ -490,15 +492,16 @@ export function LancamentoRapidoDialog({
 
             <TabsContent value="resumo" className="space-y-3">
               <p className="text-xs text-muted-foreground">
-                Pergunte algo específico (ex.: "quanto ainda posso gastar esse mês?") ou deixe em
-                branco pra um resumo geral.
+                Pergunte sobre suas finanças (ex.: <em>"quais contas terminam em novembro?"</em>,{" "}
+                <em>"quanto gasto com assinaturas?"</em>, <em>"o que falta comprar?"</em>) ou peça{" "}
+                <em>"adicione café na lista de compras"</em>.
               </p>
               <Textarea
                 value={perguntaResumo}
                 onChange={(e) =>
                   setPerguntaResumo(e.target.value.slice(0, LIMITE_CARACTERES_TEXTO_IA))
                 }
-                placeholder='Ex.: "como estão minhas finanças esse mês?" (opcional)'
+                placeholder='Ex.: "quais contas terminam em novembro?" ou "adicione leite na lista"'
                 rows={2}
                 disabled={resumindo}
               />

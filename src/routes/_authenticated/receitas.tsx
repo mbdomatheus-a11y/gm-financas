@@ -19,11 +19,13 @@ import { z } from "zod";
 import { AppLayout } from "@/components/AppLayout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { IndiceReajusteField } from "@/components/IndiceReajusteField";
+import { MonthPicker } from "@/components/MonthPicker";
 import {
   competenciaDe,
   HORIZONTE_SEM_PRAZO,
   PERIODICIDADES,
   projetarCompetencias,
+  receitasPorCompetencias,
   somarMeses,
   type ModoReajuste,
   type Periodicidade,
@@ -31,6 +33,7 @@ import {
 } from "@/lib/recorrencia";
 import { correspondeBuscaComValor } from "@/lib/busca";
 import { usePersistedState } from "@/hooks/usePersistedState";
+import { usePrivacidadeValores } from "@/hooks/usePrivacidadeValores";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -134,6 +137,7 @@ function ReceitasPage() {
   const { data: categorias = [] } = useCategorias("receita");
   const { data: cartoes = [] } = useCartoes();
   const { data: perfis = [] } = useProfilesList();
+  const { formatar } = usePrivacidadeValores();
 
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -142,6 +146,8 @@ function ReceitasPage() {
   // Item 3 (backlog 2026-09-27): filtros e modo de exibição lembrados por
   // sessão (localStorage) e restaurados quando o usuário volta pra tela.
   const [filtroMes, setFiltroMes] = usePersistedState("receitas.filtroMes", "atual_proximo");
+  const [filtroMesCustom, setFiltroMesCustom] = usePersistedState("receitas.filtroMesCustom", currentMonthKey());
+  const [filtroTipo, setFiltroTipo] = usePersistedState<"todas" | "fixa" | "variavel">("receitas.filtroTipo", "todas");
   const [filtroCat, setFiltroCat] = usePersistedState("receitas.filtroCat", "todas");
   const [filtroResp, setFiltroResp] = usePersistedState("receitas.filtroResp", "todos");
   const [busca, setBusca] = useState("");
@@ -160,36 +166,64 @@ function ReceitasPage() {
 
   const mesSeguinte = useMemo(() => monthKey(addMonths(new Date(), 1)), []);
 
-  const lista = receitas.filter((r: any) => {
-    const mk = monthKey(r.data_recebimento);
+  /** Competências a projetar com base no filtro de mês selecionado */
+  const competenciasParaFiltro = useMemo(() => {
     if (filtroMes === "atual_proximo") {
-      if (mk !== currentMonthKey() && mk !== mesSeguinte) return false;
-    } else if (filtroMes !== "todos" && mk !== filtroMes) {
-      return false;
+      return [currentMonthKey(), mesSeguinte];
     }
-    if (filtroCat !== "todas" && r.categoria !== filtroCat) return false;
-    if (filtroResp !== "todos" && r.responsavel !== filtroResp) return false;
-    if (
-      busca &&
-      !correspondeBuscaComValor(
-        `${r.descricao} ${r.categoria} ${r.responsavel}`,
-        Number(r.valor),
-        busca,
+    if (filtroMes === "todos") {
+      // Cobre os meses com receitas no banco + próximos 36 meses (para fixas sem prazo)
+      const now = new Date();
+      const horizonte: string[] = [];
+      for (let i = -24; i <= 36; i++) {
+        horizonte.push(monthKey(new Date(now.getFullYear(), now.getMonth() + i, 1)));
+      }
+      return horizonte;
+    }
+    if (filtroMes === "custom") {
+      return [filtroMesCustom];
+    }
+    // mês específico selecionado no select
+    return [filtroMes];
+  }, [filtroMes, filtroMesCustom, mesSeguinte]);
+
+  const lista = useMemo(() => {
+    const projetadas = receitasPorCompetencias(receitas as any[], competenciasParaFiltro);
+    return projetadas.filter((r) => {
+      if (filtroTipo !== "todas" && r.tipo !== filtroTipo) return false;
+      if (filtroCat !== "todas" && r.categoria !== filtroCat) return false;
+      if (filtroResp !== "todos" && r.responsavel !== filtroResp) return false;
+      if (
+        busca &&
+        !correspondeBuscaComValor(
+          `${r.descricao} ${r.categoria} ${r.responsavel}`,
+          Number(r.valor),
+          busca,
+        )
       )
-    )
-      return false;
-    return true;
-  });
+        return false;
+      return true;
+    });
+  }, [receitas, competenciasParaFiltro, filtroTipo, filtroCat, filtroResp, busca]);
 
   const chips = [
     filtroMes !== "atual_proximo" &&
-      filtroMes !== "todos" && {
+      filtroMes !== "todos" &&
+      filtroMes !== "custom" && {
         label: filtroMes,
         clear: () => setFiltroMes("atual_proximo"),
       },
     filtroMes === "todos" && {
       label: "Todos os meses",
       clear: () => setFiltroMes("atual_proximo"),
+    },
+    filtroMes === "custom" && {
+      label: `Mês: ${filtroMesCustom}`,
+      clear: () => setFiltroMes("atual_proximo"),
+    },
+    filtroTipo !== "todas" && {
+      label: filtroTipo === "fixa" ? "Somente fixas" : "Somente variáveis",
+      clear: () => setFiltroTipo("todas"),
     },
     filtroCat !== "todas" && { label: filtroCat, clear: () => setFiltroCat("todas") },
     filtroResp !== "todos" && { label: filtroResp, clear: () => setFiltroResp("todos") },
@@ -198,6 +232,7 @@ function ReceitasPage() {
 
   function limparFiltros() {
     setFiltroMes("atual_proximo");
+    setFiltroTipo("todas");
     setFiltroCat("todas");
     setFiltroResp("todos");
     setBusca("");
@@ -213,7 +248,8 @@ function ReceitasPage() {
   const grupos = useMemo(() => {
     const map = new Map<string, any[]>();
     for (const r of lista as any[]) {
-      const k = modoLista === "cartao" ? r.cartao_id ?? "sem" : monthKey(r.data_recebimento);
+      // usa r.competencia para agrupamento (já vem preenchido pela projeção dinâmica)
+      const k = modoLista === "cartao" ? r.cartao_id ?? "sem" : (r.competencia ?? monthKey(r.data_recebimento));
       if (!map.has(k)) map.set(k, []);
       map.get(k)!.push(r);
     }
@@ -364,7 +400,21 @@ function ReceitasPage() {
       });
 
       if (editId) {
-        const { error } = await supabase.from("receitas").update(parsed).eq("id", editId);
+        const payload: any = {
+          ...parsed,
+          recorrencia_inicio: recorrencia ? recorrencia.inicio : null,
+          recorrencia_sem_prazo: Boolean(recorrencia?.semPrazo),
+          recorrencia_meses: recorrencia?.meses ?? null,
+          reajuste_modo: recorrencia?.reajuste?.modo ?? null,
+          reajuste_percentual:
+            recorrencia?.reajuste?.modo === "percentual" ? recorrencia.reajuste.percentual : null,
+          reajuste_valor_fixo:
+            recorrencia?.reajuste?.modo === "fixo" ? recorrencia.reajuste.valorFixo : null,
+          reajuste_periodicidade: recorrencia?.reajuste?.periodicidade ?? null,
+          reajuste_indice: recorrencia?.reajuste?.indice ?? null,
+          reajuste_inicio: recorrencia?.reajuste?.inicio ?? null,
+        };
+        const { error } = await supabase.from("receitas").update(payload).eq("id", editId);
         if (error) throw error;
         return;
       }
@@ -372,32 +422,42 @@ function ReceitasPage() {
       const base = { ...parsed, created_by: user?.id ?? null };
       let rows: any[];
 
-      if (recorrencia && parsed.recorrente) {
-        // Mensal recorrente: mesmo motor de "sem prazo" + reajuste das despesas fixas —
-        // materializa um horizonte de meses à frente em vez de travar num total fixo.
-        const inicio = competenciaDe(recorrencia.inicio);
-        const projecao = projetarCompetencias(
-          recorrencia,
-          inicio,
-          somarMeses(inicio, HORIZONTE_SEM_PRAZO - 1),
-        );
-        const baseDate = new Date(`${parsed.data_recebimento}T12:00:00`);
-        rows = projecao.map((c) => ({
-          ...base,
-          valor: c.valor,
-          data_recebimento: toISODate(addMonths(baseDate, c.ordem)),
-          recorrencia_inicio: recorrencia.inicio,
-          recorrencia_sem_prazo: true,
-          recorrencia_meses: null,
-          reajuste_modo: recorrencia.reajuste?.modo ?? null,
-          reajuste_percentual:
-            recorrencia.reajuste?.modo === "percentual" ? recorrencia.reajuste.percentual : null,
-          reajuste_valor_fixo:
-            recorrencia.reajuste?.modo === "fixo" ? recorrencia.reajuste.valorFixo : null,
-          reajuste_periodicidade: recorrencia.reajuste?.periodicidade ?? null,
-          reajuste_indice: recorrencia.reajuste?.indice ?? null,
-          reajuste_inicio: recorrencia.reajuste?.inicio ?? null,
-        }));
+      if (recorrencia && parsed.recorrente && parsed.frequencia === "mensal") {
+        // Mensal recorrente: salva apenas 1 row indeterminada, projeção dinâmica em tempo real
+        rows = [
+          {
+            ...base,
+            recorrencia_inicio: recorrencia.inicio,
+            recorrencia_sem_prazo: true,
+            recorrencia_meses: null,
+            reajuste_modo: recorrencia.reajuste?.modo ?? null,
+            reajuste_percentual:
+              recorrencia.reajuste?.modo === "percentual" ? recorrencia.reajuste.percentual : null,
+            reajuste_valor_fixo:
+              recorrencia.reajuste?.modo === "fixo" ? recorrencia.reajuste.valorFixo : null,
+            reajuste_periodicidade: recorrencia.reajuste?.periodicidade ?? null,
+            reajuste_indice: recorrencia.reajuste?.indice ?? null,
+            reajuste_inicio: recorrencia.reajuste?.inicio ?? null,
+          },
+        ];
+      } else if (recorrencia && parsed.recorrente) {
+        // Sem prazo com periodicidade anual/semestral
+        rows = [
+          {
+            ...base,
+            recorrencia_inicio: recorrencia.inicio,
+            recorrencia_sem_prazo: true,
+            recorrencia_meses: null,
+            reajuste_modo: recorrencia.reajuste?.modo ?? null,
+            reajuste_percentual:
+              recorrencia.reajuste?.modo === "percentual" ? recorrencia.reajuste.percentual : null,
+            reajuste_valor_fixo:
+              recorrencia.reajuste?.modo === "fixo" ? recorrencia.reajuste.valorFixo : null,
+            reajuste_periodicidade: recorrencia.reajuste?.periodicidade ?? null,
+            reajuste_indice: recorrencia.reajuste?.indice ?? null,
+            reajuste_inicio: recorrencia.reajuste?.inicio ?? null,
+          },
+        ];
       } else if (parsed.recorrente) {
         // Semanal/bimestral: mantém o modelo simples anterior (12 ocorrências, valor fixo).
         rows = [base];
@@ -445,7 +505,7 @@ function ReceitasPage() {
   return (
     <AppLayout
       title="Receitas"
-      description={`${lista.length} lançamento(s) · ${formatBRL(total)}`}
+      description={`${lista.length} lançamento(s) · ${formatar(total)}`}
       actions={
         can("receitas", "editar") && (
           <Button size="sm" onClick={abrirNova} data-tour="nova-receita">
@@ -467,7 +527,7 @@ function ReceitasPage() {
         />
       </div>
 
-      <div className="mb-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
+      <div className="mb-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
         <Select value={filtroMes} onValueChange={setFiltroMes}>
           <SelectTrigger className="h-11 text-xs">
             <SelectValue placeholder="Mês" />
@@ -475,11 +535,30 @@ function ReceitasPage() {
           <SelectContent>
             <SelectItem value="atual_proximo">Mês atual e próximo</SelectItem>
             <SelectItem value="todos">Todos os meses</SelectItem>
+            <SelectItem value="custom">Mês específico…</SelectItem>
             {meses.map((m) => (
               <SelectItem key={m} value={m}>
                 {m}
               </SelectItem>
             ))}
+          </SelectContent>
+        </Select>
+        {filtroMes === "custom" && (
+          <MonthPicker
+            value={filtroMesCustom}
+            onChange={setFiltroMesCustom}
+            ariaLabel="Selecionar mês"
+            className="h-11"
+          />
+        )}
+        <Select value={filtroTipo} onValueChange={(v) => setFiltroTipo(v as "todas" | "fixa" | "variavel")}>
+          <SelectTrigger className="h-11 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todas">Todas (fixa + variável)</SelectItem>
+            <SelectItem value="fixa">Somente fixas</SelectItem>
+            <SelectItem value="variavel">Somente variáveis</SelectItem>
           </SelectContent>
         </Select>
         <Select value={filtroCat} onValueChange={setFiltroCat}>
@@ -578,7 +657,7 @@ function ReceitasPage() {
                   {g.itens.length} lançamento{g.itens.length > 1 ? "s" : ""}
                 </Badge>
                 <span className="shrink-0 text-sm font-bold tabular-nums text-success">
-                  {formatBRL(g.total)}
+                  {formatar(g.total)}
                 </span>
               </button>
               {aberto && (
@@ -586,9 +665,9 @@ function ReceitasPage() {
                   {g.itens.map((r: any) => (
                     <div
                       key={r.id}
-                      onClick={() => abrirEdicao(r)}
+                      onClick={() => !r.projetada && abrirEdicao(r.receitaOriginal ?? r)}
                       className={`flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-muted/30 ${
-                        can("receitas", "editar") ? "cursor-pointer" : ""
+                        can("receitas", "editar") && !r.projetada ? "cursor-pointer" : r.projetada ? "opacity-75" : ""
                       }`}
                     >
                       <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-success/10">
@@ -598,19 +677,25 @@ function ReceitasPage() {
                         <p className="truncate text-sm font-semibold leading-tight">
                           <span className="text-primary">{r.responsavel} · </span>
                           {r.descricao}
+                          {r.projetada && (
+                            <Badge variant="outline" className="ml-1.5 h-4 px-1 text-[9px] text-muted-foreground">
+                              projetada
+                            </Badge>
+                          )}
                         </p>
                         <p className="truncate text-[11px] text-muted-foreground">
                           {r.categoria} · {formatDate(r.data_recebimento)}
-                          {r.recorrente ? ` · ${r.frequencia}` : ""}
-                          {r.recorrencia_sem_prazo ? " · sem prazo" : ""}
-                          {r.reajuste_periodicidade
-                            ? ` · reajuste ${r.reajuste_modo === "fixo" ? "fixo" : "%"} ${r.reajuste_periodicidade}`
+                          {r.tipo === "fixa" && " · fixa"}
+                          {r.recorrente && r.tipo !== "fixa" ? ` · ${r.frequencia}` : ""}
+                          {(r.receitaOriginal?.recorrencia_sem_prazo || r.receitaOriginal?.recorrencia_inicio) ? " · sem prazo" : ""}
+                          {r.receitaOriginal?.reajuste_periodicidade
+                            ? ` · reajuste ${r.receitaOriginal.reajuste_modo === "fixo" ? "fixo" : "%"} ${r.receitaOriginal.reajuste_periodicidade}`
                             : ""}
                         </p>
                       </div>
                       <div className="shrink-0 text-right">
                         <p className="text-sm font-bold tabular-nums text-success">
-                          {formatBRL(toBRL(Number(r.valor), r.moeda, cotacao))}
+                          {formatar(toBRL(Number(r.valor), r.moeda, cotacao))}
                         </p>
                         {r.moeda === "USD" && (
                           <p className="text-[10px] text-muted-foreground">
@@ -619,28 +704,28 @@ function ReceitasPage() {
                         )}
                       </div>
                       <div className="flex shrink-0 items-center">
-                        {can("receitas", "editar") && (
+                        {can("receitas", "editar") && !r.projetada && (
                           <Button
                             variant="ghost"
                             size="icon"
                             className="size-8 text-muted-foreground hover:text-primary"
                             onClick={(e) => {
                               e.stopPropagation();
-                              abrirEdicao(r);
+                              abrirEdicao(r.receitaOriginal ?? r);
                             }}
                             aria-label="Editar receita"
                           >
                             <Pencil className="size-4" />
                           </Button>
                         )}
-                        {can("receitas", "excluir") && (
+                        {can("receitas", "excluir") && !r.projetada && (
                           <Button
                             variant="ghost"
                             size="icon"
                             className="size-8 text-muted-foreground hover:text-destructive"
                             onClick={(e) => {
                               e.stopPropagation();
-                              excluir.mutate(r.id);
+                              excluir.mutate(r.receita_id ?? r.id);
                             }}
                             aria-label="Excluir receita"
                           >
@@ -657,14 +742,15 @@ function ReceitasPage() {
         })}
       </div>
 
-      {lista.some((r: any) => r.recorrente) && (
+      {lista.some((r: any) => r.tipo === "fixa") && (
         <p className="mt-4 text-xs text-muted-foreground">
           <Badge variant="secondary" className="mr-2">
-            Recorrentes
+            Receitas fixas
           </Badge>
-          Receitas mensais recorrentes não têm mais data fim: são geradas automaticamente por{" "}
-          {HORIZONTE_SEM_PRAZO} meses à frente (mesmo modelo das despesas fixas), com reajuste
-          periódico opcional. Semanais/bimestrais continuam com 12 ocorrências fixas.
+          Receitas fixas são projetadas dinamicamente para qualquer mês futuro — filtre por um mês
+          específico para ver 2029, 2030, etc. Entradas marcadas como <em>projetada</em> são
+          calculadas automaticamente; edite a receita original para alterar o valor ou as regras de
+          reajuste.
         </p>
       )}
 

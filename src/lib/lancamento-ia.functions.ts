@@ -304,9 +304,33 @@ function montarPromptResumo(r: ResumoFinanceiroContexto, pergunta: string): stri
     .map((c) => `${c.categoria}: R$ ${c.total.toFixed(2)}`)
     .join("; ");
 
+  const parcelamentos = (r.parcelamentosFuturos ?? [])
+    .map(
+      (p) =>
+        `- ${p.descricao}: parcela de R$ ${p.valorParcela.toFixed(2)}, termina em ${p.mesFim} (faltam ${p.parcelasRestantes} de ${p.totalParcelas} parcelas)`,
+    )
+    .join("\n");
+
+  const fixos = (r.gastosFixosRecorrentes ?? [])
+    .map((g) => `- ${g.descricao} (${g.categoria}): R$ ${g.valor.toFixed(2)}`)
+    .join("\n");
+
+  const comprasPendentes = (r.itensListaCompras ?? [])
+    .filter((c) => !c.comprado)
+    .map((c) => `- ${c.nome} (${c.quantidade} un., categoria: ${c.categoria})`)
+    .join("\n");
+
+  const notas = (r.notasFiscais ?? [])
+    .map(
+      (n) =>
+        `- ${n.descricao}${n.emitente ? ` (${n.emitente})` : ""}${n.valor ? `: R$ ${n.valor.toFixed(2)}` : ""}${n.garantiaAte ? ` · garantia até ${n.garantiaAte}` : ""}`,
+    )
+    .join("\n");
+
   return [
-    "Você é um assistente financeiro que resume, em português do Brasil, a situação do mês de um usuário comum, em 3 a 5 frases curtas, tom direto e acolhedor, sem jargão técnico.",
-    "REGRA DE OURO: use SOMENTE os números abaixo — nunca invente, estime ou arredonde de forma que mude o sentido. Se um dado não estiver aqui, diga que não tem essa informação em vez de supor.",
+    "Você é o assistente inteligente do Control ALL, pessoal, ágil, prestativo e acolhedor.",
+    "Você responde perguntas abertas do usuário sobre suas finanças, parcelamentos, assinaturas, compras e notas fiscais.",
+    "REGRA DE OURO: baseie-se SOMENTE nos dados fornecidos abaixo — nunca invente ou deduza valores não existentes.",
     `Mês de referência: ${mesExtenso}.`,
     `Total de receitas no mês: R$ ${r.totalReceitas.toFixed(2)} (${r.numLancamentosReceita} lançamento(s)).`,
     `Total de despesas no mês: R$ ${r.totalDespesas.toFixed(2)} (${r.numLancamentosDespesa} lançamento(s)).`,
@@ -315,11 +339,17 @@ function montarPromptResumo(r: ResumoFinanceiroContexto, pergunta: string): stri
       ? `Taxa de poupança do mês: ${r.taxaPoupancaPct.toFixed(1)}% da renda.`
       : "Taxa de poupança: não calculável (sem receita cadastrada no mês).",
     categorias ? `Categorias de despesa que mais pesaram: ${categorias}.` : "",
-    "Sempre que fizer sentido, inclua: quanto ainda está disponível pra gastar mantendo o saldo positivo, e o que aconteceria se o ritmo atual de gasto se mantivesse até o fim do mês (só como leitura qualitativa dos números acima, não um cálculo novo).",
-    'Se a pergunta citar um gasto pontual específico que a pessoa está pensando em fazer agora (ex.: "posso gastar R$ 40 na mesa de almoço hoje?", "dá pra comprar isso?"), compare o valor citado na pergunta com o saldo disponível do mês e diga claramente se cabe no orçamento e quanto sobraria depois — sem jamais inventar o valor do gasto, use só o que a pessoa escreveu.',
+    parcelamentos ? `\nPARCELAMENTOS ATIVOS E MÊS DE TÉRMINO:\n${parcelamentos}` : "",
+    fixos ? `\nGASTOS FIXOS E ASSINATURAS CADASTRADAS:\n${fixos}` : "",
+    comprasPendentes
+      ? `\nITENS PENDENTES NA LISTA DE COMPRAS:\n${comprasPendentes}`
+      : "Lista de compras está vazia ou sem itens pendentes.",
+    notas ? `\nNOTAS FISCAIS E GARANTIAS CADASTRADAS:\n${notas}` : "",
+    "\nAÇÕES POSSÍVEIS:",
+    'Se o usuário pedir para adicionar, incluir ou colocar itens na lista de compras (ex.: "adicione leite na lista", "coloque 2 sabonetes na lista de compras", "preciso comprar café"), confirme que adicionou e inclua OBRIGATORIAMENTE no final da mensagem a tag: [AÇÃO:ADICIONAR_COMPRA:{"nome":"Nome do item","quantidade":1}] (substituindo o nome e a quantidade conforme solicitado).',
     pergunta
-      ? `Pergunta específica do usuário, responda considerando os dados acima: "${pergunta}"`
-      : 'O usuário só pediu um resumo geral (ex.: "como estão minhas finanças").',
+      ? `\nPergunta do usuário: "${pergunta}"`
+      : "O usuário pediu um resumo geral do mês (destaque o saldo, o que mais pesou e uma dica prática).",
   ]
     .filter(Boolean)
     .join("\n");
@@ -371,8 +401,29 @@ export const resumoFinanceiroIA = createServerFn({ method: "POST" })
       }
 
       const payload = await res.json();
-      const texto: string | undefined = payload?.choices?.[0]?.message?.content?.trim();
+      let texto: string | undefined = payload?.choices?.[0]?.message?.content?.trim();
       if (!texto) return { texto: "", erro: "IA respondeu vazio. Tente de novo." };
+
+      // Verifica se a IA disparou uma ação de adicionar na lista de compras
+      const matchAcao = texto.match(/\[AÇÃO:ADICIONAR_COMPRA:(\{.*?\})\]/i);
+      if (matchAcao && matchAcao[1]) {
+        try {
+          const item = JSON.parse(matchAcao[1]);
+          if (item?.nome) {
+            await (context.supabase.from("lista_compras") as any).insert({
+              nome: String(item.nome).trim(),
+              quantidade: Math.max(1, Number(item.quantidade) || 1),
+              categoria: item.categoria || "mercado",
+              lista: "compras",
+              created_by: context.userId,
+            });
+          }
+        } catch {
+          // ignora falha de parse da ação
+        }
+        texto = texto.replace(/\[AÇÃO:ADICIONAR_COMPRA:\{.*?\}\]/gi, "").trim();
+      }
+
       return { texto };
     } catch {
       return { texto: "", erro: "Falha ao contatar a IA (rede ou tempo esgotado)." };

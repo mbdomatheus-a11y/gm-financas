@@ -87,4 +87,33 @@ export type ResumoFinanceiroContexto = {
   topCategoriasDespesa: { categoria: string; total: number }[];
   numLancamentosDespesa: number;
   numLancamentosReceita: number;
+  /** Parcelamentos ativos com mês de término para responder perguntas como 'quais contas terminam em novembro?' */
+  parcelamentosFuturos?: {
+    descricao: string;
+    mesFim: string; // "YYYY-MM"
+    valorParcela: number;
+    parcelasRestantes: number;
+    totalParcelas: number;
+  }[];
+  /** Gastos fixos e assinaturas cadastradas para responder 'quanto estou gastando com assinaturas?' */
+  gastosFixosRecorrentes?: {
+    descricao: string;
+    valor: number;
+    categoria: string;
+  }[];
+  /** Itens da lista de compras para consultar e verificar compras pendentes */
+  itensListaCompras?: {
+    nome: string;
+    quantidade: number;
+    categoria: string;
+    comprado: boolean;
+  }[];
+  /** Notas fiscais salvas com produtos, valores e garantias */
+  notasFiscais?: {
+    descricao: string;
+    emitente?: string | null;
+    valor?: number | null;
+    dataCompra?: string | null;
+    garantiaAte?: string | null;
+  }[];
 };

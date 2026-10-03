@@ -230,3 +230,90 @@ export const adminLimparExcecaoModulo = createServerFn({ method: "POST" })
       .eq("modulo", data.modulo);
     return { ok: true as const };
   });
+
+export const obterProtecaoAdmin = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await exigirAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const db = supabaseAdmin as any;
+    const { data } = await db
+      .from("configuracoes_casal")
+      .select("chave,valor")
+      .in("chave", ["admin_protecao_tipo", "admin_pin_hash"]);
+    const map = new Map((data ?? []).map((d: any) => [d.chave, d.valor]));
+    const tipo = (map.get("admin_protecao_tipo") ?? "senha") as "nenhuma" | "senha" | "pin";
+    const temPin = Boolean(map.get("admin_pin_hash"));
+    return { tipo, temPin };
+  });
+
+export const salvarProtecaoAdmin = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((v: unknown) =>
+    z.object({
+      tipo: z.enum(["nenhuma", "senha", "pin"]),
+      pin: z.string().regex(/^\d{4}$/, "PIN deve conter exatamente 4 dígitos").optional(),
+    }).parse(v),
+  )
+  .handler(async ({ data, context }) => {
+    await exigirAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const db = supabaseAdmin as any;
+
+    const upserts: Array<{ chave: string; valor: string | null; updated_at: string }> = [
+      {
+        chave: "admin_protecao_tipo",
+        valor: data.tipo,
+        updated_at: new Date().toISOString(),
+      },
+    ];
+
+    if (data.pin) {
+      const crypto = await import("node:crypto");
+      const pinHash = crypto.createHash("sha256").update(data.pin).digest("hex");
+      upserts.push({
+        chave: "admin_pin_hash",
+        valor: pinHash,
+        updated_at: new Date().toISOString(),
+      });
+    }
+
+    for (const item of upserts) {
+      await db.from("configuracoes_casal").upsert(item, { onConflict: "chave" });
+    }
+
+    await db.from("admin_audit_logs").insert({
+      ator_id: context.userId,
+      acao: "admin_protecao_alterada",
+      detalhes: { tipo: data.tipo, pinDefinido: Boolean(data.pin) },
+    });
+
+    return { ok: true as const };
+  });
+
+export const verificarPinAdmin = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((v: unknown) =>
+    z.object({
+      pin: z.string().min(1),
+    }).parse(v),
+  )
+  .handler(async ({ data, context }) => {
+    await exigirAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const db = supabaseAdmin as any;
+    const { data: row } = await db
+      .from("configuracoes_casal")
+      .select("valor")
+      .eq("chave", "admin_pin_hash")
+      .maybeSingle();
+
+    if (!row?.valor) {
+      return { valido: false, semPinConfigurado: true };
+    }
+
+    const crypto = await import("node:crypto");
+    const digitadoHash = crypto.createHash("sha256").update(data.pin).digest("hex");
+    const valido = digitadoHash === row.valor;
+    return { valido, semPinConfigurado: false };
+  });
