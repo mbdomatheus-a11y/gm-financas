@@ -325,62 +325,105 @@ export function receitasPorCompetencias(
   receitas: any[],
   competencias: string[],
 ): ReceitaCompetencia[] {
-  const desejadas = new Set(competencias.map(competenciaDe));
+  const desejadas = Array.from(new Set(competencias.map(competenciaDe))).sort();
   const out: ReceitaCompetencia[] = [];
 
-  for (const receita of receitas) {
-    const ehRecorrente = Boolean(receita.recorrente);
-    const recorrencia = ehRecorrente ? recorrenciaDaReceita(receita) : null;
+  // Mapeia receitas recorrentes e seu início mais antigo para projetar nos meses futuros onde não há registro no banco
+  // Agrupamos por chave única: descricao + responsavel + frequencia
+  const recorrentes = new Map<string, any>();
+  const inicios = new Map<string, string>();
 
-    if (!recorrencia) {
-      // Receita pontual / variável
-      const competencia = competenciaDe(receita.data_recebimento);
-      if (desejadas.has(competencia)) {
-        out.push({
-          id: String(receita.id),
-          receita_id: String(receita.id),
-          descricao: receita.descricao,
-          valor: Number(receita.valor),
-          moeda: receita.moeda ?? "BRL",
-          categoria: receita.categoria ?? "Outros",
-          responsavel: receita.responsavel ?? "",
-          data_recebimento: receita.data_recebimento,
-          competencia,
-          recorrente: false,
-          tipo: "variavel",
-          frequencia: receita.frequencia ?? null,
-          observacoes: receita.observacoes ?? null,
-          cartao_id: receita.cartao_id ?? null,
-          projetada: false,
-          receitaOriginal: receita,
-        });
+  for (const r of receitas) {
+    if (r.recorrente) {
+      const chave = `${(r.descricao ?? "").toLowerCase().trim()}::${(r.responsavel ?? "").toLowerCase().trim()}::${r.frequencia ?? "mensal"}`;
+      const dataInicio = r.recorrencia_inicio ?? r.data_recebimento;
+      const inicioAtual = inicios.get(chave);
+      if (!inicioAtual || dataInicio < inicioAtual) {
+        inicios.set(chave, dataInicio);
       }
-      continue;
+
+      const anterior = recorrentes.get(chave);
+      // Mantemos o registro mais recente para parâmetros de valor e reajuste
+      if (
+        !anterior ||
+        (r.recorrencia_inicio && !anterior.recorrencia_inicio) ||
+        r.data_recebimento > anterior.data_recebimento
+      ) {
+        recorrentes.set(chave, r);
+      }
+    }
+  }
+
+  for (const competencia of desejadas) {
+    // 1. Lançamentos que realmente existem no banco nesta competência
+    const noBancoDesteMes = receitas.filter(
+      (r) => competenciaDe(r.data_recebimento) === competencia,
+    );
+
+    const chavesNoMes = new Set<string>();
+
+    for (const r of noBancoDesteMes) {
+      const ehFixa = Boolean(r.recorrente);
+      const chave = `${(r.descricao ?? "").toLowerCase().trim()}::${(r.responsavel ?? "").toLowerCase().trim()}::${r.frequencia ?? "mensal"}`;
+      if (ehFixa) {
+        chavesNoMes.add(chave);
+      }
+      out.push({
+        id: String(r.id),
+        receita_id: String(r.id),
+        descricao: r.descricao,
+        valor: Number(r.valor),
+        moeda: r.moeda ?? "BRL",
+        categoria: r.categoria ?? "Outros",
+        responsavel: r.responsavel ?? "",
+        data_recebimento: r.data_recebimento,
+        competencia,
+        recorrente: ehFixa,
+        tipo: ehFixa ? "fixa" : "variavel",
+        frequencia: r.frequencia ?? (ehFixa ? "mensal" : null),
+        observacoes: r.observacoes ?? null,
+        cartao_id: r.cartao_id ?? null,
+        projetada: false,
+        receitaOriginal: r,
+      });
     }
 
-    // Receita recorrente / fixa
-    for (const competencia of desejadas) {
+    // 2. Projeta receitas fixas para competências onde AINDA NÃO EXISTE lançamento gravado no banco
+    for (const [chave, rec] of recorrentes.entries()) {
+      if (chavesNoMes.has(chave)) {
+        // Já tem registro no banco para este mês, não projeta duplicata!
+        continue;
+      }
+      const dataInicio = inicios.get(chave) ?? rec.recorrencia_inicio ?? rec.data_recebimento;
+      // Não projeta em meses anteriores à data de início da receita
+      if (mesesEntreCompetencias(competenciaDe(dataInicio), competencia) < 0) {
+        continue;
+      }
+
+      const recorrencia = recorrenciaDaReceita({ ...rec, recorrencia_inicio: dataInicio });
+      if (!recorrencia) continue;
+
       const valor = valorNaCompetencia(recorrencia, competencia);
       if (valor == null) continue;
-      const ehMesOriginal = competenciaDe(receita.data_recebimento) === competencia;
+
       const dataRecebimento = vencimentoDaCompetencia(recorrencia.inicio, competencia);
       out.push({
-        id: ehMesOriginal ? String(receita.id) : `rec_proj:${receita.id}:${competencia}`,
-        receita_id: String(receita.id),
-        descricao: receita.descricao,
+        id: `rec_proj:${rec.id}:${competencia}`,
+        receita_id: String(rec.id),
+        descricao: rec.descricao,
         valor,
-        moeda: receita.moeda ?? "BRL",
-        categoria: receita.categoria ?? "Outros",
-        responsavel: receita.responsavel ?? "",
+        moeda: rec.moeda ?? "BRL",
+        categoria: rec.categoria ?? "Outros",
+        responsavel: rec.responsavel ?? "",
         data_recebimento: dataRecebimento,
         competencia,
         recorrente: true,
         tipo: "fixa",
-        frequencia: receita.frequencia ?? "mensal",
-        observacoes: receita.observacoes ?? null,
-        cartao_id: receita.cartao_id ?? null,
-        projetada: !ehMesOriginal,
-        receitaOriginal: receita,
+        frequencia: rec.frequencia ?? "mensal",
+        observacoes: rec.observacoes ?? null,
+        cartao_id: rec.cartao_id ?? null,
+        projetada: true,
+        receitaOriginal: rec,
       });
     }
   }
