@@ -464,24 +464,44 @@ function DashboardPage() {
       .sort((a: any, b: any) => a.vencimento.localeCompare(b.vencimento))
       .slice(0, 8);
 
-    // Pedido 2 (2026-10-03): Parcelamentos que terminam — agrupado por mês do último
-    // vencimento, mostrando quanto cada despesa "libera" no orçamento ao terminar.
-    // Percorre as despesas parceladas não quitadas e marca o mês da última parcela não paga.
+    // Pedido 2 (2026-10-03): Parcelamentos que terminam — agrupado por mês da ÚLTIMA parcela
+    // do contrato (numero === total), mostrando quanto cada despesa "libera" no orçamento.
+    // Regras:
+    //   1. Apenas despesas variáveis parceladas (não fixa, não fatura manual de cartão).
+    //   2. Uma despesa SÓ aparece se sua parcela final (numero === total) ainda não foi paga.
+    //      Parcelas intermediárias (ex. 9/10) não indicam término — só a 10/10 indica.
+    //   3. Faturas manuais de cartão (origem = "fatura_total_concluida") são lançamentos
+    //      avulsos mensais e NÃO têm prazo de término — devem ser ignoradas.
     const alivioMap = new Map<
       string,
-      { mes: string; total: number; itens: { id: string; descricao: string; cartao: string; valor: number; ultimaParcela: string }[] }
+      { mes: string; total: number; itens: { id: string; descricao: string; cartao: string; valor: number; ultimaParcela: string; numeroParcela: string }[] }
     >();
     for (const d of despesas as any[]) {
+      // Exclui: fixas, sem parcelas, e faturas manuais de cartão (lançamentos sem prazo definido)
       if (d.tipo === "fixa" || !d.parcelas?.length) continue;
+      if (d.origem === "fatura_total_concluida") continue;
+
       const parcelasD: any[] = d.parcelas;
-      const naoPatgas = parcelasD.filter((p) => !p.paga);
-      if (!naoPatgas.length) continue;
-      const ultima = naoPatgas.reduce((m: any, p: any) =>
-        p.vencimento > m.vencimento ? p : m
+      // Identifica o total real de parcelas: usa o maior `total` nas rows de parcela,
+      // com fallback em `d.total_parcelas`
+      const totalParcelas = parcelasD.reduce(
+        (mx: number, p: any) => Math.max(mx, Number(p.total) || 0),
+        0,
+      ) || Number(d.total_parcelas) || 0;
+
+      if (totalParcelas <= 1) continue; // à vista, não é parcelamento que "termina"
+
+      // A parcela que ENCERRA o contrato é aquela com numero === totalParcelas
+      const parcelaFinal = parcelasD.find(
+        (p: any) => Number(p.numero) === totalParcelas,
       );
-      const mesFim = monthKey(ultima.vencimento);
-      // Valor mensal que vai "aliviar" = valor da parcela
-      const valorParcela = toBRL(Number(ultima.valor ?? d.valor_parcela ?? d.valor), d.moeda, cotacao);
+
+      // Só considera se a parcela final existe e ainda não foi paga
+      if (!parcelaFinal || parcelaFinal.paga) continue;
+
+      const mesFim = monthKey(parcelaFinal.vencimento);
+      const valorParcela = toBRL(Number(parcelaFinal.valor ?? d.valor_parcela ?? d.valor), d.moeda, cotacao);
+
       if (!alivioMap.has(mesFim)) {
         alivioMap.set(mesFim, { mes: mesFim, total: 0, itens: [] });
       }
@@ -492,7 +512,8 @@ function DashboardPage() {
         descricao: d.descricao,
         cartao: identificacaoDespesa(d) || "Sem forma de pagamento",
         valor: valorParcela,
-        ultimaParcela: ultima.vencimento,
+        ultimaParcela: parcelaFinal.vencimento,
+        numeroParcela: `${totalParcelas}/${totalParcelas}`,
       });
     }
     // Só meses futuros (a partir do mês atual) ordenados
@@ -925,7 +946,7 @@ function DashboardPage() {
                           <div className="min-w-0">
                             <p className="truncate font-medium">{item.descricao}</p>
                             <p className="truncate text-xs text-muted-foreground">
-                              {item.cartao} · última parcela em {formatDate(item.ultimaParcela)}
+                              {item.cartao} · parcela {item.numeroParcela} · vence em {formatDate(item.ultimaParcela)}
                             </p>
                           </div>
                           <span className="shrink-0 font-semibold tabular-nums text-success">
