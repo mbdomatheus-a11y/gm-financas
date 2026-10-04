@@ -5,7 +5,14 @@ import { useEffect } from "react";
 
 export function useBrandLogoUrl() {
   const { data: logoPath } = useQuery({
-    queryKey: ["identidade-visual-site"],
+    // Query key exclusiva deste hook — não compartilhar com outras queries
+    // que leem a mesma tabela (ex.: a aba Personalização em administracao.tsx),
+    // mesmo que pareça conveniente reaproveitar o cache: se os dois lados
+    // devolverem formatos diferentes (aqui é uma string, lá é um objeto),
+    // o React Query mistura o cache e este hook recebe um objeto em vez de
+    // string, quebrando getPublicUrl (2026-09-26: foi exatamente isso que
+    // derrubou a página /administracao).
+    queryKey: ["brand-logo-path"],
     staleTime: 60_000,
     queryFn: async () => {
       const { data } = await (supabase as any)
@@ -16,7 +23,7 @@ export function useBrandLogoUrl() {
       return data?.logo_path as string | null | undefined;
     },
   });
-  return logoPath
+  return typeof logoPath === "string" && logoPath
     ? supabase.storage.from("site_assets").getPublicUrl(logoPath).data.publicUrl
     : "/brand/control-all-network.jfif";
 }

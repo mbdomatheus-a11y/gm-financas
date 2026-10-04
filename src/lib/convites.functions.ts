@@ -5,31 +5,53 @@ import { isValidCpf, onlyDigits } from "@/lib/cpf";
 import { verificarTurnstileToken } from "@/lib/turnstile.functions";
 import { TURNSTILE_ATIVO } from "@/lib/turnstile-config";
 
-/** Máximo de convites (aceitos + pendentes não expirados) por pessoa. */
-const COTA_CONVITES = 3;
+/** URL base do site pra montar o link de convite clicável. */
+const urlBase = () => process.env["SITE_URL"] || "https://www.controlall.com.br";
+
+/** Cota padrão de convites (aceitos + pendentes não expirados) por pessoa,
+ * usada apenas se a configuração do site ainda não tiver sido carregada. O
+ * valor real e ajustável pelo admin vem de `configuracoes_acesso_site`. */
+const COTA_CONVITES_PADRAO = 3;
 
 /**
- * Cria um convite pro grupo do usuário logado, respeitando a cota de
- * COTA_CONVITES por pessoa. Convites usados e pendentes não expirados contam.
- * A consulta usa a sessão validada e as políticas da própria tabela.
+ * Cria um convite pro grupo do usuário logado, respeitando a cota
+ * configurável (`configuracoes_acesso_site.cota_convites`) por pessoa.
+ * O admin do site (tabela `site_admins`) pode convidar de forma ILIMITADA,
+ * independente da cota configurada. Convites usados e pendentes não
+ * expirados contam para a cota.
  */
 export const criarConvite = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const meuId = context.userId;
 
-    const { data: convites, error: convitesError } = await context.supabase
-      .from("convites")
-      .select("usado, expira_em")
-      .eq("criado_por", meuId);
-    if (convitesError) throw new Error(convitesError.message);
+    const { data: souAdmin } = await context.supabase
+      .from("site_admins")
+      .select("user_id")
+      .eq("user_id", meuId)
+      .maybeSingle();
 
-    const agora = Date.now();
-    const usados = (convites ?? []).filter(
-      (convite) => convite.usado || new Date(convite.expira_em).getTime() >= agora,
-    ).length;
-    if (usados >= COTA_CONVITES) {
-      throw new Error(`Você já atingiu o limite de ${COTA_CONVITES} convites.`);
+    if (!souAdmin) {
+      const { data: cfg } = await context.supabase
+        .from("configuracoes_acesso_site")
+        .select("cota_convites")
+        .eq("id", true)
+        .maybeSingle();
+      const cotaConvites = cfg?.cota_convites ?? COTA_CONVITES_PADRAO;
+
+      const { data: convites, error: convitesError } = await context.supabase
+        .from("convites")
+        .select("usado, expira_em")
+        .eq("criado_por", meuId);
+      if (convitesError) throw new Error(convitesError.message);
+
+      const agora = Date.now();
+      const usados = (convites ?? []).filter(
+        (convite) => convite.usado || new Date(convite.expira_em).getTime() >= agora,
+      ).length;
+      if (usados >= cotaConvites) {
+        throw new Error(`Você já atingiu o limite de ${cotaConvites} convites.`);
+      }
     }
 
     const { data: perfil, error: perfilError } = await context.supabase
@@ -74,15 +96,17 @@ export const enviarConvitePorEmail = createServerFn({ method: "POST" })
       throw new Error("Este convite expirou. Gere um novo.");
     }
 
+    const link = `${urlBase()}/entrar?convite=${encodeURIComponent(convite.token)}`;
     const { enviarEmail } = await import("@/lib/email.server");
     const resultado = await enviarEmail({
       to: data.email,
       subject: "Você foi convidado para o Control ALL",
       html: `
         <p>Você recebeu um convite para criar sua conta no <strong>Control ALL</strong>.</p>
-        <p>Código de convite:</p>
+        <p>Clique no link abaixo para já abrir a criação de conta com o convite preenchido:</p>
+        <p><a href="${link}" style="font-size:16px">${link}</a></p>
+        <p>Ou, se preferir, acesse o site, na aba "Criar conta", e cole este código no campo de convite:</p>
         <p style="font-family:monospace;font-size:18px;letter-spacing:1px">${convite.token}</p>
-        <p>Acesse o site, na aba "Criar conta", e cole esse código no campo de convite.</p>
         <p style="color:#888;font-size:12px">Se você não esperava este e-mail, pode ignorá-lo.</p>
       `,
     });
@@ -120,11 +144,15 @@ export const cancelarConvite = createServerFn({ method: "POST" })
 export const listarMeusConvites = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    // Ordem crescente (mais antigo primeiro): a numeração exibida na tela
+    // (índice + 1) precisa ficar estável conforme novos convites são
+    // gerados — o novo entra no fim da lista com o número mais alto, em
+    // vez de pular pra posição 1 e empurrar todo mundo pra números maiores.
     const { data, error } = await context.supabase
       .from("convites")
       .select("id, token, usado, usado_por, criado_em, expira_em")
       .eq("criado_por", context.userId)
-      .order("criado_em", { ascending: false });
+      .order("criado_em", { ascending: true });
     if (error) throw new Error(error.message);
     return (data ?? []) as {
       id: string;
@@ -343,6 +371,115 @@ export const aceitarConvite = createServerFn({ method: "POST" })
       .from("convites")
       .update({ usado: true, usado_por: created.user.id })
       .eq("id", convite.id);
+
+    await db.from("aceites_documentos").insert([
+      { user_id: created.user.id, documento: "termos_uso", versao: "2026-09-19" },
+      { user_id: created.user.id, documento: "aviso_privacidade", versao: "2026-09-19" },
+    ]);
+
+    return { ok: true, email: data.email };
+  });
+
+/**
+ * Cadastro SEM convite — endpoint PÚBLICO, liberado pelo admin em
+ * Administração > Acesso e Auth ("Cadastro sem convite") pensando nos
+ * testes/lançamento inicial, pra não depender de gerar código pra cada
+ * pessoa nova. A checagem do flag é feita aqui no servidor (não só na tela)
+ * pra não dar pra contornar desligando/ligando no meio do processo.
+ *
+ * Mesma lógica de criação de `aceitarConvite`: a pessoa entra num grupo
+ * NOVO e isolado (nunca no de quem quer que seja) — aqui nem existe "quem
+ * convidou", então `convidado_por` fica nulo. Não reaproveita o fluxo de
+ * recuperação de conta excluída (esse é só pra quem já tinha convite).
+ */
+export const criarContaSemConvite = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        nome: z.string().trim().min(2).max(120),
+        cpf: z.string().regex(/^\d{11}$/, "CPF deve ter 11 dígitos"),
+        email: z.string().trim().email("E-mail inválido"),
+        telefone: z.string().trim().min(8).max(20),
+        dataNascimento: z.string().min(10),
+        senha: z.string().min(8).max(72),
+        turnstileToken: z.string().optional(),
+        aceitouDocumentos: z.literal(true),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data }) => {
+    if (!isValidCpf(data.cpf)) throw new Error("CPF inválido");
+
+    const nascimento = new Date(data.dataNascimento);
+    if (Number.isNaN(nascimento.getTime()) || nascimento > new Date()) {
+      throw new Error("Data de nascimento inválida");
+    }
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const db = supabaseAdmin as any;
+
+    const { data: config, error: configError } = await db
+      .from("configuracoes_acesso_site")
+      .select("cadastro_livre_habilitado")
+      .eq("id", true)
+      .maybeSingle();
+    if (configError) throw new Error(configError.message);
+    if (!config?.cadastro_livre_habilitado) {
+      throw new Error("O cadastro sem convite não está liberado no momento.");
+    }
+
+    if (TURNSTILE_ATIVO) {
+      const turnstileOk = await verificarTurnstileToken(data.turnstileToken ?? "");
+      if (!turnstileOk)
+        throw new Error("Verificação de segurança falhou. Recarregue e tente de novo.");
+    }
+
+    const { data: grupoNovo, error: grupoError } = await db
+      .from("grupos")
+      .insert({ nome: `Grupo de ${data.nome.trim()}` })
+      .select("id")
+      .single();
+    if (grupoError) throw new Error(grupoError.message);
+    const grupoId = grupoNovo.id;
+
+    const { data: created, error: authError } = await supabaseAdmin.auth.admin.createUser({
+      email: data.email,
+      password: data.senha,
+      email_confirm: true,
+    });
+    if (authError || !created.user) {
+      throw new Error(
+        authError?.message ?? "Não foi possível criar a conta. O e-mail já está em uso?",
+      );
+    }
+
+    const { error: profileError } = await db.from("profiles").upsert(
+      {
+        id: created.user.id,
+        nome: data.nome,
+        cpf: onlyDigits(data.cpf),
+        email: data.email,
+        telefone: data.telefone,
+        data_nascimento: data.dataNascimento,
+        grupo_id: grupoId,
+        convidado_por: null,
+        ativo: true,
+        senha_temporaria: false,
+      },
+      { onConflict: "id" },
+    );
+    if (profileError) {
+      await supabaseAdmin.auth.admin.deleteUser(created.user.id);
+      throw new Error(profileError.message);
+    }
+
+    const { error: roleError } = await db
+      .from("user_roles")
+      .insert({ user_id: created.user.id, role: "admin" });
+    if (roleError) {
+      await supabaseAdmin.auth.admin.deleteUser(created.user.id);
+      throw new Error(roleError.message);
+    }
 
     await db.from("aceites_documentos").insert([
       { user_id: created.user.id, documento: "termos_uso", versao: "2026-09-19" },

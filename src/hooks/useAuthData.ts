@@ -89,7 +89,13 @@ export type Modulo =
   | "investimentos"
   | "veiculos"
   | "compartilhar"
-  | "personalizacao";
+  | "personalizacao"
+  | "importar";
+
+/** Etapa D (plano-importacao-v2.md): os três tipos de dado que a tela
+ * `/importar` pode gravar, controláveis individualmente por usuário além do
+ * "Ver" genérico (que controla o acesso à tela como um todo). */
+export type TipoImportacao = "lancamentos" | "parcelamentos" | "limite";
 
 export function usePermissoes() {
   const { user } = useSession();
@@ -117,5 +123,24 @@ export function usePermissoes() {
     return row.pode_excluir;
   };
 
-  return { ...query, can, isAdmin: !!isAdmin, isSiteAdmin: !!isSiteAdmin, exclusaoBloqueada };
+  /** Etapa D: permissão granular por tipo de dado importado. Default
+   * permissivo (igual ao `can` genérico) quando não existe linha — admin
+   * continua sempre liberado. */
+  const canImportar = (tipo: TipoImportacao) => {
+    if (isAdmin) return true;
+    const row = query.data?.find((p) => p.modulo === "importar");
+    if (!row) return true;
+    if (tipo === "lancamentos") return row.pode_importar_lancamentos;
+    if (tipo === "parcelamentos") return row.pode_importar_parcelamentos;
+    return row.pode_importar_limite;
+  };
+
+  return {
+    ...query,
+    can,
+    canImportar,
+    isAdmin: !!isAdmin,
+    isSiteAdmin: !!isSiteAdmin,
+    exclusaoBloqueada,
+  };
 }

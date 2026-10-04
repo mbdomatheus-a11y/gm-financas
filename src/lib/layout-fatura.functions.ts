@@ -19,21 +19,28 @@ export const prepararEnvioLayout = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const db = supabaseAdmin as any;
 
-    const { data: perfil } = await db
+    const { data: perfil, error: perfilError } = await db
       .from("profiles")
       .select("grupo_id, nome, email")
       .eq("id", context.userId)
       .single();
+    if (perfilError) {
+      console.error("[prepararEnvioLayout] Falha ao buscar perfil:", perfilError);
+    }
 
     const path = `${context.userId}/${crypto.randomUUID()}-${data.nome.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
-    const { data: url, error } = await db.storage.from("layouts_analise").createSignedUploadUrl(path);
-    if (error) throw new Error(error.message);
 
+    // Registro criado ANTES da URL de upload: se o insert falhar, o usuário
+    // recebe erro claro e nenhum arquivo "fantasma" fica no storage sem
+    // registro correspondente (bug corrigido em 2026-09-26: um arquivo
+    // enviado sem erro visível ficava só no storage, sem aparecer na
+    // Central de Solicitações, porque uma versão antiga do insert não
+    // enviava a coluna obrigatória `status`).
     const { data: item, error: insertError } = await db
       .from("layout_solicitacoes")
       .insert({
         user_id: context.userId,
-        grupo_id: perfil?.grupo_id,
+        grupo_id: perfil?.grupo_id ?? null,
         arquivo_nome: data.nome,
         arquivo_path: path,
         banco_informado: data.banco || null,
@@ -41,21 +48,43 @@ export const prepararEnvioLayout = createServerFn({ method: "POST" })
         descricao: data.descricao || null,
         status: "recebida",
       })
-      .select("id")
+      .select("id, protocolo")
       .single();
 
-    if (insertError) throw new Error(insertError.message);
+    if (insertError || !item) {
+      console.error("[prepararEnvioLayout] Falha ao registrar solicitação:", insertError);
+      throw new Error(
+        insertError?.message ??
+          "Não foi possível registrar sua fatura para análise. Tente novamente ou contate o suporte.",
+      );
+    }
+
+    const { data: url, error } = await db.storage.from("layouts_analise").createSignedUploadUrl(path);
+    if (error) {
+      // Reverte o registro já criado, já que não haverá upload correspondente.
+      await db.from("layout_solicitacoes").delete().eq("id", item.id);
+      console.error("[prepararEnvioLayout] Falha ao gerar URL de upload:", error);
+      throw new Error(error.message);
+    }
 
     // Notificar administradores via e-mail e notificação do sistema
     try {
-      const { data: admins } = await db
-        .from("site_admins")
-        .select("user_id, profiles:user_id(email, nome)");
+      const { data: admins } = await db.from("site_admins").select("user_id");
 
-      const adminEmails = (admins ?? [])
-        .map((a: any) => a.profiles?.email)
-        .filter(Boolean);
+      // Nota: site_admins.user_id não tem FK para public.profiles (nem para
+      // auth.users), então o embed `profiles:user_id(...)` do PostgREST
+      // sempre falhava aqui — isso significa que nenhum e-mail de
+      // notificação de fatura enviada jamais chegou a ser disparado antes
+      // desta correção (2026-09-26); o erro era engolido pelo catch abaixo.
+      const adminIds = [...new Set((admins ?? []).map((a: any) => a.user_id).filter(Boolean))];
+      const { data: adminPerfis } = adminIds.length
+        ? await db.from("profiles").select("id,nome,email").in("id", adminIds)
+        : { data: [] };
 
+      const adminEmails = (adminPerfis ?? []).map((p: any) => p.email).filter(Boolean);
+
+      const { obterUrlBaseSite } = await import("@/lib/email.server");
+      const base = obterUrlBaseSite();
       const nomeUsuario = perfil?.nome || perfil?.email || "Usuário";
       const assunto = `[Control ALL] Nova Fatura Enviada para Modelagem: ${data.nome}`;
       const corpoHtml = `
@@ -66,8 +95,10 @@ export const prepararEnvioLayout = createServerFn({ method: "POST" })
           <p><b>Banco:</b> ${data.banco || "Não informado"}</p>
           <p><b>Final do Cartão:</b> ${data.cartao || "Não informado"}</p>
           <p><b>Observação:</b> ${data.descricao || "Nenhuma"}</p>
-          <hr />
-          <p>Acesse o painel de <b>Administração</b> para baixar a fatura e atualizar o status.</p>
+          <p><b>Protocolo:</b> ${item.protocolo}</p>
+          <p style="margin-top: 20px;">
+            <a href="${base}/administracao?aba=central" style="background:#0f172a;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none;">Tratar solicitação</a>
+          </p>
         </div>
       `;
 
@@ -89,7 +120,7 @@ export const prepararEnvioLayout = createServerFn({ method: "POST" })
       console.error("Erro ao enviar notificação de layout para admin:", err);
     }
 
-    return { path, token: url.token, id: item.id };
+    return { path, token: url.token, id: item.id, protocolo: item.protocolo as string };
   });
 
 export const excluirSolicitacaoLayout = createServerFn({ method: "POST" })
@@ -129,7 +160,7 @@ export const listarMinhasSolicitacoesLayout = createServerFn({ method: "GET" })
 
     const { data, error } = await db
       .from("layout_solicitacoes")
-      .select("id, arquivo_nome, banco_informado, cartao_final, status, resposta_admin, criado_em")
+      .select("id, protocolo, arquivo_nome, banco_informado, cartao_final, status, resposta_admin, criado_em")
       .eq("user_id", context.userId)
       .order("criado_em", { ascending: false });
 

@@ -6,6 +6,8 @@ import { chaveEstabelecimento, normalizarEstabelecimento } from "@/lib/categoriz
 export type LinhaDePara = {
   descricao: string;
   estabelecimento_normalizado: string;
+  /** Bloco 4: variações extras de descrição que também batem na mesma regra. */
+  padroes?: string[];
   categoria: string;
   subcategoria: string | null;
   prioridade: number;
@@ -15,7 +17,8 @@ const COL_DESCRICAO = ["descricao", "descrição", "estabelecimento", "texto", "
 const COL_CATEGORIA = ["categoria", "para", "classificacao", "classificação"];
 const COL_SUB = ["subcategoria", "sub", "detalhe"];
 
-function achar(colunas: string[], alvos: string[]): string | null {
+/** Reaproveitado também pelo import de planilha genérica (Etapa E). */
+export function achar(colunas: string[], alvos: string[]): string | null {
   const norm = (s: string) =>
     s
       .normalize("NFD")
@@ -78,7 +81,8 @@ export async function lerPlanilhaDePara(file: File): Promise<LinhaDePara[]> {
   return out;
 }
 
-function lerCsv(conteudo: string): string[][] {
+/** Reaproveitado também pelo import de planilha genérica (Etapa E). */
+export function lerCsv(conteudo: string): string[][] {
   const primeiraLinha = conteudo.split(/\r?\n/, 1)[0] ?? "";
   const separador =
     (primeiraLinha.match(/;/g)?.length ?? 0) > (primeiraLinha.match(/,/g)?.length ?? 0) ? ";" : ",";

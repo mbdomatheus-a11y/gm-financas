@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as BloquearContaRouteImport } from './routes/bloquear-conta'
+import { Route as ConsultarProtocoloRouteImport } from './routes/consultar-protocolo'
 import { Route as EntrarRouteImport } from './routes/entrar'
 import { Route as EsqueciSenhaRouteImport } from './routes/esqueci-senha'
 import { Route as PrivacidadeRouteImport } from './routes/privacidade'
@@ -22,6 +23,7 @@ import { Route as AuthenticatedBackupRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedCartoesRouteImport } from './routes/_authenticated/cartoes'
 import { Route as AuthenticatedCategoriasRouteImport } from './routes/_authenticated/categorias'
 import { Route as AuthenticatedCompartilharRouteImport } from './routes/_authenticated/compartilhar'
+import { Route as AuthenticatedConfiguracoesRouteImport } from './routes/_authenticated/configuracoes'
 import { Route as AuthenticatedContaRouteImport } from './routes/_authenticated/conta'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedDeParaRouteImport } from './routes/_authenticated/de-para'
@@ -43,8 +45,11 @@ import { Route as AuthenticatedUsuariosRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedVeiculosRouteImport } from './routes/_authenticated/veiculos'
 import { Route as CalculadorasIndexRouteImport } from './routes/calculadoras/index'
 import { Route as CalculadorasDiferencaEntreDatasRouteImport } from './routes/calculadoras/diferenca-entre-datas'
+import { Route as CalculadorasSimuladorDeDoseDiluicaoRouteImport } from './routes/calculadoras/simulador-de-dose-diluicao'
 import { Route as CalculadorasSomarDiasADataRouteImport } from './routes/calculadoras/somar-dias-a-data'
 import { Route as CalculadorasSomarHorariosRouteImport } from './routes/calculadoras/somar-horarios'
+import { Route as LinksTemporariosIndexRouteImport } from './routes/links-temporarios/index'
+import { Route as LinksTemporariosIdRouteImport } from './routes/links-temporarios/$id'
 import { Route as ApiCronDescarteLayoutsRouteImport } from './routes/api/cron/descarte-layouts'
 import { Route as OauthGoogleDriveReturnRouteImport } from './routes/oauth/google-drive/return'
 
@@ -60,6 +65,11 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
 const BloquearContaRoute = BloquearContaRouteImport.update({
   id: '/bloquear-conta',
   path: '/bloquear-conta',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConsultarProtocoloRoute = ConsultarProtocoloRouteImport.update({
+  id: '/consultar-protocolo',
+  path: '/consultar-protocolo',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EntrarRoute = EntrarRouteImport.update({
@@ -112,6 +122,12 @@ const AuthenticatedCompartilharRoute =
   AuthenticatedCompartilharRouteImport.update({
     id: '/compartilhar',
     path: '/compartilhar',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedConfiguracoesRoute =
+  AuthenticatedConfiguracoesRouteImport.update({
+    id: '/configuracoes',
+    path: '/configuracoes',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedContaRoute = AuthenticatedContaRouteImport.update({
@@ -224,6 +240,12 @@ const CalculadorasDiferencaEntreDatasRoute =
     path: '/calculadoras/diferenca-entre-datas',
     getParentRoute: () => rootRouteImport,
   } as any)
+const CalculadorasSimuladorDeDoseDiluicaoRoute =
+  CalculadorasSimuladorDeDoseDiluicaoRouteImport.update({
+    id: '/calculadoras/simulador-de-dose-diluicao',
+    path: '/calculadoras/simulador-de-dose-diluicao',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const CalculadorasSomarDiasADataRoute =
   CalculadorasSomarDiasADataRouteImport.update({
     id: '/calculadoras/somar-dias-a-data',
@@ -236,6 +258,16 @@ const CalculadorasSomarHorariosRoute =
     path: '/calculadoras/somar-horarios',
     getParentRoute: () => rootRouteImport,
   } as any)
+const LinksTemporariosIndexRoute = LinksTemporariosIndexRouteImport.update({
+  id: '/links-temporarios/',
+  path: '/links-temporarios/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LinksTemporariosIdRoute = LinksTemporariosIdRouteImport.update({
+  id: '/links-temporarios/$id',
+  path: '/links-temporarios/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiCronDescarteLayoutsRoute = ApiCronDescarteLayoutsRouteImport.update({
   id: '/api/cron/descarte-layouts',
   path: '/api/cron/descarte-layouts',
@@ -250,6 +282,7 @@ const OauthGoogleDriveReturnRoute = OauthGoogleDriveReturnRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/bloquear-conta': typeof BloquearContaRoute
+  '/consultar-protocolo': typeof ConsultarProtocoloRoute
   '/entrar': typeof EntrarRoute
   '/esqueci-senha': typeof EsqueciSenhaRoute
   '/privacidade': typeof PrivacidadeRoute
@@ -260,6 +293,7 @@ export interface FileRoutesByFullPath {
   '/cartoes': typeof AuthenticatedCartoesRoute
   '/categorias': typeof AuthenticatedCategoriasRoute
   '/compartilhar': typeof AuthenticatedCompartilharRoute
+  '/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/conta': typeof AuthenticatedContaRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/de-para': typeof AuthenticatedDeParaRoute
@@ -280,15 +314,19 @@ export interface FileRoutesByFullPath {
   '/usuarios': typeof AuthenticatedUsuariosRoute
   '/veiculos': typeof AuthenticatedVeiculosRoute
   '/calculadoras/diferenca-entre-datas': typeof CalculadorasDiferencaEntreDatasRoute
+  '/calculadoras/simulador-de-dose-diluicao': typeof CalculadorasSimuladorDeDoseDiluicaoRoute
   '/calculadoras/somar-dias-a-data': typeof CalculadorasSomarDiasADataRoute
   '/calculadoras/somar-horarios': typeof CalculadorasSomarHorariosRoute
+  '/links-temporarios/$id': typeof LinksTemporariosIdRoute
   '/calculadoras/': typeof CalculadorasIndexRoute
+  '/links-temporarios/': typeof LinksTemporariosIndexRoute
   '/api/cron/descarte-layouts': typeof ApiCronDescarteLayoutsRoute
   '/oauth/google-drive/return': typeof OauthGoogleDriveReturnRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/bloquear-conta': typeof BloquearContaRoute
+  '/consultar-protocolo': typeof ConsultarProtocoloRoute
   '/entrar': typeof EntrarRoute
   '/esqueci-senha': typeof EsqueciSenhaRoute
   '/privacidade': typeof PrivacidadeRoute
@@ -299,6 +337,7 @@ export interface FileRoutesByTo {
   '/cartoes': typeof AuthenticatedCartoesRoute
   '/categorias': typeof AuthenticatedCategoriasRoute
   '/compartilhar': typeof AuthenticatedCompartilharRoute
+  '/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/conta': typeof AuthenticatedContaRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/de-para': typeof AuthenticatedDeParaRoute
@@ -319,9 +358,12 @@ export interface FileRoutesByTo {
   '/usuarios': typeof AuthenticatedUsuariosRoute
   '/veiculos': typeof AuthenticatedVeiculosRoute
   '/calculadoras/diferenca-entre-datas': typeof CalculadorasDiferencaEntreDatasRoute
+  '/calculadoras/simulador-de-dose-diluicao': typeof CalculadorasSimuladorDeDoseDiluicaoRoute
   '/calculadoras/somar-dias-a-data': typeof CalculadorasSomarDiasADataRoute
   '/calculadoras/somar-horarios': typeof CalculadorasSomarHorariosRoute
+  '/links-temporarios/$id': typeof LinksTemporariosIdRoute
   '/calculadoras': typeof CalculadorasIndexRoute
+  '/links-temporarios': typeof LinksTemporariosIndexRoute
   '/api/cron/descarte-layouts': typeof ApiCronDescarteLayoutsRoute
   '/oauth/google-drive/return': typeof OauthGoogleDriveReturnRoute
 }
@@ -330,6 +372,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/bloquear-conta': typeof BloquearContaRoute
+  '/consultar-protocolo': typeof ConsultarProtocoloRoute
   '/entrar': typeof EntrarRoute
   '/esqueci-senha': typeof EsqueciSenhaRoute
   '/privacidade': typeof PrivacidadeRoute
@@ -340,6 +383,7 @@ export interface FileRoutesById {
   '/_authenticated/cartoes': typeof AuthenticatedCartoesRoute
   '/_authenticated/categorias': typeof AuthenticatedCategoriasRoute
   '/_authenticated/compartilhar': typeof AuthenticatedCompartilharRoute
+  '/_authenticated/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/_authenticated/conta': typeof AuthenticatedContaRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/de-para': typeof AuthenticatedDeParaRoute
@@ -360,9 +404,12 @@ export interface FileRoutesById {
   '/_authenticated/usuarios': typeof AuthenticatedUsuariosRoute
   '/_authenticated/veiculos': typeof AuthenticatedVeiculosRoute
   '/calculadoras/diferenca-entre-datas': typeof CalculadorasDiferencaEntreDatasRoute
+  '/calculadoras/simulador-de-dose-diluicao': typeof CalculadorasSimuladorDeDoseDiluicaoRoute
   '/calculadoras/somar-dias-a-data': typeof CalculadorasSomarDiasADataRoute
   '/calculadoras/somar-horarios': typeof CalculadorasSomarHorariosRoute
+  '/links-temporarios/$id': typeof LinksTemporariosIdRoute
   '/calculadoras/': typeof CalculadorasIndexRoute
+  '/links-temporarios/': typeof LinksTemporariosIndexRoute
   '/api/cron/descarte-layouts': typeof ApiCronDescarteLayoutsRoute
   '/oauth/google-drive/return': typeof OauthGoogleDriveReturnRoute
 }
@@ -371,6 +418,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/bloquear-conta'
+    | '/consultar-protocolo'
     | '/entrar'
     | '/esqueci-senha'
     | '/privacidade'
@@ -381,6 +429,7 @@ export interface FileRouteTypes {
     | '/cartoes'
     | '/categorias'
     | '/compartilhar'
+    | '/configuracoes'
     | '/conta'
     | '/dashboard'
     | '/de-para'
@@ -401,15 +450,19 @@ export interface FileRouteTypes {
     | '/usuarios'
     | '/veiculos'
     | '/calculadoras/diferenca-entre-datas'
+    | '/calculadoras/simulador-de-dose-diluicao'
     | '/calculadoras/somar-dias-a-data'
     | '/calculadoras/somar-horarios'
+    | '/links-temporarios/$id'
     | '/calculadoras/'
+    | '/links-temporarios/'
     | '/api/cron/descarte-layouts'
     | '/oauth/google-drive/return'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/bloquear-conta'
+    | '/consultar-protocolo'
     | '/entrar'
     | '/esqueci-senha'
     | '/privacidade'
@@ -420,6 +473,7 @@ export interface FileRouteTypes {
     | '/cartoes'
     | '/categorias'
     | '/compartilhar'
+    | '/configuracoes'
     | '/conta'
     | '/dashboard'
     | '/de-para'
@@ -440,9 +494,12 @@ export interface FileRouteTypes {
     | '/usuarios'
     | '/veiculos'
     | '/calculadoras/diferenca-entre-datas'
+    | '/calculadoras/simulador-de-dose-diluicao'
     | '/calculadoras/somar-dias-a-data'
     | '/calculadoras/somar-horarios'
+    | '/links-temporarios/$id'
     | '/calculadoras'
+    | '/links-temporarios'
     | '/api/cron/descarte-layouts'
     | '/oauth/google-drive/return'
   id:
@@ -450,6 +507,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/bloquear-conta'
+    | '/consultar-protocolo'
     | '/entrar'
     | '/esqueci-senha'
     | '/privacidade'
@@ -460,6 +518,7 @@ export interface FileRouteTypes {
     | '/_authenticated/cartoes'
     | '/_authenticated/categorias'
     | '/_authenticated/compartilhar'
+    | '/_authenticated/configuracoes'
     | '/_authenticated/conta'
     | '/_authenticated/dashboard'
     | '/_authenticated/de-para'
@@ -480,9 +539,12 @@ export interface FileRouteTypes {
     | '/_authenticated/usuarios'
     | '/_authenticated/veiculos'
     | '/calculadoras/diferenca-entre-datas'
+    | '/calculadoras/simulador-de-dose-diluicao'
     | '/calculadoras/somar-dias-a-data'
     | '/calculadoras/somar-horarios'
+    | '/links-temporarios/$id'
     | '/calculadoras/'
+    | '/links-temporarios/'
     | '/api/cron/descarte-layouts'
     | '/oauth/google-drive/return'
   fileRoutesById: FileRoutesById
@@ -491,15 +553,19 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   BloquearContaRoute: typeof BloquearContaRoute
+  ConsultarProtocoloRoute: typeof ConsultarProtocoloRoute
   EntrarRoute: typeof EntrarRoute
   EsqueciSenhaRoute: typeof EsqueciSenhaRoute
   PrivacidadeRoute: typeof PrivacidadeRoute
   RedefinirSenhaRoute: typeof RedefinirSenhaRoute
   TermosDeUsoRoute: typeof TermosDeUsoRoute
   CalculadorasDiferencaEntreDatasRoute: typeof CalculadorasDiferencaEntreDatasRoute
+  CalculadorasSimuladorDeDoseDiluicaoRoute: typeof CalculadorasSimuladorDeDoseDiluicaoRoute
   CalculadorasSomarDiasADataRoute: typeof CalculadorasSomarDiasADataRoute
   CalculadorasSomarHorariosRoute: typeof CalculadorasSomarHorariosRoute
+  LinksTemporariosIdRoute: typeof LinksTemporariosIdRoute
   CalculadorasIndexRoute: typeof CalculadorasIndexRoute
+  LinksTemporariosIndexRoute: typeof LinksTemporariosIndexRoute
   ApiCronDescarteLayoutsRoute: typeof ApiCronDescarteLayoutsRoute
   OauthGoogleDriveReturnRoute: typeof OauthGoogleDriveReturnRoute
 }
@@ -525,6 +591,13 @@ declare module '@tanstack/react-router' {
       path: '/bloquear-conta'
       fullPath: '/bloquear-conta'
       preLoaderRoute: typeof BloquearContaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/consultar-protocolo': {
+      id: '/consultar-protocolo'
+      path: '/consultar-protocolo'
+      fullPath: '/consultar-protocolo'
+      preLoaderRoute: typeof ConsultarProtocoloRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/entrar': {
@@ -595,6 +668,13 @@ declare module '@tanstack/react-router' {
       path: '/compartilhar'
       fullPath: '/compartilhar'
       preLoaderRoute: typeof AuthenticatedCompartilharRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/configuracoes': {
+      id: '/_authenticated/configuracoes'
+      path: '/configuracoes'
+      fullPath: '/configuracoes'
+      preLoaderRoute: typeof AuthenticatedConfiguracoesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/conta': {
@@ -744,6 +824,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CalculadorasDiferencaEntreDatasRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/calculadoras/simulador-de-dose-diluicao': {
+      id: '/calculadoras/simulador-de-dose-diluicao'
+      path: '/calculadoras/simulador-de-dose-diluicao'
+      fullPath: '/calculadoras/simulador-de-dose-diluicao'
+      preLoaderRoute: typeof CalculadorasSimuladorDeDoseDiluicaoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/calculadoras/somar-dias-a-data': {
       id: '/calculadoras/somar-dias-a-data'
       path: '/calculadoras/somar-dias-a-data'
@@ -756,6 +843,20 @@ declare module '@tanstack/react-router' {
       path: '/calculadoras/somar-horarios'
       fullPath: '/calculadoras/somar-horarios'
       preLoaderRoute: typeof CalculadorasSomarHorariosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/links-temporarios/': {
+      id: '/links-temporarios/'
+      path: '/links-temporarios'
+      fullPath: '/links-temporarios/'
+      preLoaderRoute: typeof LinksTemporariosIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/links-temporarios/$id': {
+      id: '/links-temporarios/$id'
+      path: '/links-temporarios/$id'
+      fullPath: '/links-temporarios/$id'
+      preLoaderRoute: typeof LinksTemporariosIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/cron/descarte-layouts': {
@@ -781,6 +882,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedCartoesRoute: typeof AuthenticatedCartoesRoute
   AuthenticatedCategoriasRoute: typeof AuthenticatedCategoriasRoute
   AuthenticatedCompartilharRoute: typeof AuthenticatedCompartilharRoute
+  AuthenticatedConfiguracoesRoute: typeof AuthenticatedConfiguracoesRoute
   AuthenticatedContaRoute: typeof AuthenticatedContaRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDeParaRoute: typeof AuthenticatedDeParaRoute
@@ -808,6 +910,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCartoesRoute: AuthenticatedCartoesRoute,
   AuthenticatedCategoriasRoute: AuthenticatedCategoriasRoute,
   AuthenticatedCompartilharRoute: AuthenticatedCompartilharRoute,
+  AuthenticatedConfiguracoesRoute: AuthenticatedConfiguracoesRoute,
   AuthenticatedContaRoute: AuthenticatedContaRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDeParaRoute: AuthenticatedDeParaRoute,
@@ -836,15 +939,20 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   BloquearContaRoute: BloquearContaRoute,
+  ConsultarProtocoloRoute: ConsultarProtocoloRoute,
   EntrarRoute: EntrarRoute,
   EsqueciSenhaRoute: EsqueciSenhaRoute,
   PrivacidadeRoute: PrivacidadeRoute,
   RedefinirSenhaRoute: RedefinirSenhaRoute,
   TermosDeUsoRoute: TermosDeUsoRoute,
   CalculadorasDiferencaEntreDatasRoute: CalculadorasDiferencaEntreDatasRoute,
+  CalculadorasSimuladorDeDoseDiluicaoRoute:
+    CalculadorasSimuladorDeDoseDiluicaoRoute,
   CalculadorasSomarDiasADataRoute: CalculadorasSomarDiasADataRoute,
   CalculadorasSomarHorariosRoute: CalculadorasSomarHorariosRoute,
+  LinksTemporariosIdRoute: LinksTemporariosIdRoute,
   CalculadorasIndexRoute: CalculadorasIndexRoute,
+  LinksTemporariosIndexRoute: LinksTemporariosIndexRoute,
   ApiCronDescarteLayoutsRoute: ApiCronDescarteLayoutsRoute,
   OauthGoogleDriveReturnRoute: OauthGoogleDriveReturnRoute,
 }

@@ -7,41 +7,18 @@ function hash(identificador: string) {
   return createHash("sha256").update(identificador.trim().toLowerCase()).digest("hex");
 }
 
-export const consultarBloqueioLogin = createServerFn({ method: "POST" })
-  .inputValidator((value: unknown) =>
-    z.object({ identificador: z.string().min(3).max(180) }).parse(value),
-  )
-  .handler(async ({ data }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: tentativa, error } = await (supabaseAdmin as any)
-      .from("login_tentativas")
-      .select("bloqueado_ate")
-      .eq("identificador_hash", hash(data.identificador))
-      .maybeSingle();
-    if (error) throw new Error("Não foi possível verificar a segurança do acesso.");
-    const bloqueadoAte = tentativa?.bloqueado_ate ? new Date(tentativa.bloqueado_ate) : null;
-    return {
-      bloqueadoAte: bloqueadoAte && bloqueadoAte > new Date() ? bloqueadoAte.toISOString() : null,
-    };
-  });
-
-export const registrarFalhaLogin = createServerFn({ method: "POST" })
-  .inputValidator((value: unknown) =>
-    z.object({ identificador: z.string().min(3).max(180) }).parse(value),
-  )
-  .handler(async ({ data }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: tentativa, error } = await (supabaseAdmin as any).rpc(
-      "registrar_tentativa_login",
-      {
-        p_hash: hash(data.identificador),
-        p_sucesso: false,
-      },
-    );
-    if (error) throw new Error("Não foi possível registrar a tentativa de acesso.");
-    const retorno = Array.isArray(tentativa) ? tentativa[0] : tentativa;
-    return { bloqueadoAte: retorno?.bloqueado_ate ?? null, falhas: retorno?.falhas ?? 0 };
-  });
+// Nota de segurança (item 15 do backlog, revisão de 2026-09-26):
+// `consultarBloqueioLogin` e `registrarFalhaLogin` foram removidas daqui —
+// eram server functions públicas (sem `requireSupabaseAuth`) que não
+// tinham nenhum uso na UI (confirmado por busca em todo o repositório) mas
+// continuavam expostas por HTTP. `registrarFalhaLogin` em especial permitia
+// que qualquer pessoa, sem autenticação, chamasse
+// `registrar_tentativa_login` (RPC SECURITY DEFINER) e bloqueasse a conta
+// de qualquer usuário só sabendo o e-mail/CPF (o hash é sha256 simples),
+// sem nunca tentar a senha real — o fluxo real de login (`iniciarLoginSeguro`
+// em seguranca-conta.functions.ts) já registra falhas e sucessos por conta
+// própria, então essas duas funções eram código morto e superfície de
+// ataque desnecessária.
 
 export const registrarSucessoLogin = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

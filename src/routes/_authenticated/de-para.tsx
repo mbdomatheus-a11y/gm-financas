@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { usePermissoes, useSession } from "@/hooks/useAuthData";
 import { useCategorias } from "@/hooks/useFinance";
@@ -137,6 +138,9 @@ function DeParaPage() {
       const payload = linhas.map((l) => ({
         texto_original: l.descricao,
         estabelecimento_normalizado: l.estabelecimento_normalizado,
+        // Bloco 4: quando a linha não traz variações extras, a regra fica
+        // com um padrão só — igual ao comportamento de sempre.
+        padroes: l.padroes && l.padroes.length > 0 ? l.padroes : [l.estabelecimento_normalizado],
         tipo_regra: "de_para",
         categoria: l.categoria,
         subcategoria: l.subcategoria,
@@ -182,7 +186,13 @@ function DeParaPage() {
       patch,
     }: {
       id: string;
-      patch: Partial<{ categoria: string; subcategoria: string | null; ativo: boolean }>;
+      patch: Partial<{
+        categoria: string;
+        subcategoria: string | null;
+        ativo: boolean;
+        padroes: string[];
+        estabelecimento_normalizado: string;
+      }>;
     }) => {
       const { error } = await supabase.from("categoria_regras").update(patch).eq("id", id);
       if (error) throw error;
@@ -373,9 +383,11 @@ function DeParaPage() {
           </div>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_1fr_auto]">
             <div className="space-y-1">
-              <Label className="text-xs">Descrição</Label>
-              <Input
-                className="h-9"
+              <Label className="text-xs">Descrição (uma variação por linha)</Label>
+              <Textarea
+                className="min-h-9 py-2 text-sm"
+                rows={1}
+                placeholder={"PERNAMBUCANAS 377\n377\nPERNAMBUCANAS 377 PARC"}
                 value={nova.descricao}
                 onChange={(e) => setNova((n) => ({ ...n, descricao: e.target.value }))}
               />
@@ -401,10 +413,22 @@ function DeParaPage() {
                 className="h-9"
                 disabled={!nova.descricao.trim() || !nova.categoria.trim() || salvar.isPending}
                 onClick={() => {
+                  // Bloco 4: cada linha da textarea é uma variação de
+                  // descrição que deve bater na mesma regra/categoria.
+                  const linhas = Array.from(
+                    new Set(
+                      nova.descricao
+                        .split("\n")
+                        .map((l) => l.trim())
+                        .filter(Boolean),
+                    ),
+                  );
+                  const principal = linhas[0] ?? nova.descricao.trim();
                   salvar.mutate([
                     {
-                      descricao: nova.descricao.trim(),
-                      estabelecimento_normalizado: chaveEstabelecimento(nova.descricao),
+                      descricao: principal,
+                      estabelecimento_normalizado: chaveEstabelecimento(principal),
+                      padroes: linhas,
                       categoria: nova.categoria.trim(),
                       subcategoria: nova.subcategoria.trim() || null,
                       prioridade: 300,
@@ -445,9 +469,38 @@ function DeParaPage() {
                         <p className="font-medium">
                           {r.texto_original ?? r.estabelecimento_normalizado}
                         </p>
-                        <p className="text-[11px] text-muted-foreground">
-                          {r.estabelecimento_normalizado}
-                        </p>
+                        {/* Bloco 4: edita as variações que casam com essa regra,
+                            uma por linha — primeira linha vira o padrão principal
+                            (estabelecimento_normalizado), mantido por compatibilidade. */}
+                        <Textarea
+                          className="mt-1 min-h-7 py-1 text-[11px] text-muted-foreground"
+                          rows={1}
+                          defaultValue={(r.padroes?.length ? r.padroes : [r.estabelecimento_normalizado]).join(
+                            "\n",
+                          )}
+                          onBlur={(e) => {
+                            const linhas = Array.from(
+                              new Set(
+                                e.target.value
+                                  .split("\n")
+                                  .map((l: string) => l.trim())
+                                  .filter(Boolean),
+                              ),
+                            );
+                            if (linhas.length === 0) return;
+                            const principal = chaveEstabelecimento(linhas[0]!);
+                            const mudou =
+                              linhas.join("\n") !==
+                              (r.padroes?.length ? r.padroes : [r.estabelecimento_normalizado]).join(
+                                "\n",
+                              );
+                            if (mudou)
+                              atualizar.mutate({
+                                id: r.id,
+                                patch: { padroes: linhas, estabelecimento_normalizado: principal },
+                              });
+                          }}
+                        />
                       </td>
                       <td className="p-2">
                         <Input

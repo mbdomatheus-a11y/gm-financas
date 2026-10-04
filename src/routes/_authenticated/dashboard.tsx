@@ -7,8 +7,8 @@ import {
   ArrowDownRight,
   ArrowUpRight,
   CalendarClock,
+  CheckCircle2,
   Landmark,
-  PiggyBank,
   Wallet,
   X,
 } from "lucide-react";
@@ -30,10 +30,13 @@ import {
 } from "recharts";
 
 import { AppLayout } from "@/components/AppLayout";
+import { MonthPicker } from "@/components/MonthPicker";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ChevronDown } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -42,15 +45,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useCotacao } from "@/hooks/useCotacao";
+import { usePersistedState } from "@/hooks/usePersistedState";
 import { useCategorias, useDespesas, useFaturasMes, useReceitas } from "@/hooks/useFinance";
+import { criarCorPorCategoria, nomeBaseDoGrupo } from "@/lib/categorias-cor";
 import { aplicarRegrasFaturaMes } from "@/lib/fatura-mes";
+import { opacidadePorPosicao, posicaoTemporalDoMes } from "@/lib/tempo-visual";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 import {
-  currentMonthKey,
   formatBRL,
   formatDate,
   formatUSD,
@@ -60,7 +65,9 @@ import {
   monthLabelLong,
   toBRL,
 } from "@/lib/format";
-import { lancamentosPorCompetencias } from "@/lib/recorrencia";
+import { useCompetenciaVigente } from "@/lib/periodo-vigente";
+import { lancamentosPorCompetencias, receitasPorCompetencias } from "@/lib/recorrencia";
+import { usePrivacidadeValores } from "@/hooks/usePrivacidadeValores";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
@@ -98,6 +105,7 @@ const JANELAS = [
   { value: "6", label: "Próximos 6 meses" },
   { value: "12", label: "Próximos 12 meses" },
   { value: "24", label: "Próximos 24 meses" },
+  { value: "custom", label: "Período personalizado" },
 ];
 
 /** Gera as chaves de mês da janela escolhida (negativo = passado incluindo o mês atual). */
@@ -111,6 +119,29 @@ function monthWindow(janela: string): string[] {
   } else {
     for (let i = 0; i < n; i++)
       out.push(monthKey(new Date(now.getFullYear(), now.getMonth() + i, 1)));
+  }
+  return out;
+}
+
+/** Gera as chaves de mês entre `inicio` e `fim` (ambos "YYYY-MM", inclusive). */
+function monthRange(inicio: string, fim: string): string[] {
+  const [yi, mi] = inicio.split("-").map(Number);
+  const [yf, mf] = fim.split("-").map(Number);
+  if (!yi || !mi || !yf || !mf) return [];
+  const out: string[] = [];
+  let y = yi;
+  let m = mi;
+  // Limite de segurança pra nunca gerar uma janela absurdamente grande
+  // (ex.: datas trocadas por engano) — 30 anos de meses é mais que suficiente.
+  let guarda = 0;
+  while ((y < yf || (y === yf && m <= mf)) && guarda < 360) {
+    out.push(`${y}-${String(m).padStart(2, "0")}`);
+    m++;
+    if (m > 12) {
+      m = 1;
+      y++;
+    }
+    guarda++;
   }
   return out;
 }
@@ -135,24 +166,92 @@ function DashboardPage() {
   const { data: receitas = [] } = useReceitas();
   const { data: despesas = [] } = useDespesas();
   const { data: faturasMes = [] } = useFaturasMes();
+  // Bloco 3 (plano-mega 2026-09-14): cor por categoria vem sempre do
+  // cadastro em /categorias, não mais sorteada por posição no gráfico.
+  const { data: categoriasDespesa = [] } = useCategorias("despesa");
+  const corPorCategoria = useMemo(
+    () => criarCorPorCategoria(categoriasDespesa as any[]),
+    [categoriasDespesa],
+  );
 
-  const mesAtual = currentMonthKey();
+  // Item 5 (backlog 2026-09-27): "mês do sistema" — se o usuário configurou
+  // um dia de virada em Minha Conta, `mesAtual` passa a refletir esse ciclo
+  // em vez do mês calendário, em todas as caixas que dependem dele aqui
+  // (Receitas/Despesas/Saldo/Parcelas do mês). Sem configuração, comporta-se
+  // exatamente como antes (mês calendário normal).
+  const mesAtual = useCompetenciaVigente();
   const [janela, setJanela] = useState("-6");
-  const [visaoFluxo, setVisaoFluxo] = useState<"ambos" | "receitas" | "despesas">("ambos");
-  const [tipoGrafico, setTipoGrafico] = useState<"barras" | "linhas">("barras");
+  const [mesInicioCustom, setMesInicioCustom] = useState(mesAtual);
+  const [mesFimCustom, setMesFimCustom] = useState(mesAtual);
+  // Item 3 (backlog 2026-09-27): preferências de exibição do gráfico
+  // (fluxo/tipo) e do agrupamento lembradas por sessão (localStorage) e
+  // restauradas quando o usuário volta pro Dashboard.
+  const [visaoFluxo, setVisaoFluxo] = usePersistedState<"ambos" | "receitas" | "despesas">(
+    "dashboard.visaoFluxo",
+    "ambos",
+  );
+  const [tipoGrafico, setTipoGrafico] = usePersistedState<"barras" | "linhas">(
+    "dashboard.tipoGrafico",
+    "barras",
+  );
   const [mesPie, setMesPie] = useState(mesAtual);
-  const [agrupamento, setAgrupamento] = useState<Agrupamento>("categoria");
+  const [agrupamento, setAgrupamento] = usePersistedState<Agrupamento>(
+    "dashboard.agrupamento",
+    "categoria",
+  );
   const [drill, setDrill] = useState<{ mes: string; grupo?: string } | null>(null);
   const [editando, setEditando] = useState<any | null>(null);
+  // Pedido 2 (2026-10-03): meses do card de alívio de parcelamentos que podem ser expandidos
+  const [alivioExpandido, setAlivioExpandido] = useState<Record<string, boolean>>({});
 
-  const meses = useMemo(() => monthWindow(janela), [janela]);
+  // Item 2 (backlog 2026-09-27): "Dívida total em aberto" nasce projetando
+  // até a última parcela variável/parcelada que realmente existe nos dados
+  // (não um horizonte arbitrário fixo). O usuário pode escolher outro
+  // mês/ano nessa própria caixa — se escolher uma data além dessa última
+  // parcela real, só o custo FIXO (recorrente) é projetado dali em diante,
+  // nunca parcelas variáveis inventadas.
+  const [mesLimiteDividaOverride, setMesLimiteDividaOverride] = useState<string | null>(null);
+
+  // Item 10 (backlog 2026-09-27): agrupamentos nascem recolhidos por padrão;
+  // a escolha do usuário (expandido/recolhido) é lembrada entre sessões.
+  const AGRUPAMENTOS_ABERTO_KEY = "financas_agrupamentos_dashboard_aberto";
+  const [agrupamentosAberto, setAgrupamentosAberto] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      return localStorage.getItem(AGRUPAMENTOS_ABERTO_KEY) === "true";
+    } catch {
+      return false;
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem(AGRUPAMENTOS_ABERTO_KEY, String(agrupamentosAberto));
+    } catch {
+      // Ignora falhas de localStorage
+    }
+  }, [agrupamentosAberto]);
+
+  const meses = useMemo(() => {
+    if (janela === "custom") {
+      const inicio = mesInicioCustom <= mesFimCustom ? mesInicioCustom : mesFimCustom;
+      const fim = mesInicioCustom <= mesFimCustom ? mesFimCustom : mesInicioCustom;
+      return monthRange(inicio, fim);
+    }
+    return monthWindow(janela);
+  }, [janela, mesInicioCustom, mesFimCustom]);
+
+  // Janela usada para calcular parcelas/lançamentos por competência — cobre
+  // sempre pelo menos -12..+24 meses (padrão), mas se o período personalizado
+  // escolhido for maior que isso, amplia para cobrir o intervalo escolhido.
   const mesesSelecionaveis = useMemo(() => {
     const now = new Date();
-    const out: string[] = [];
+    const base: string[] = [];
     for (let i = -12; i <= 24; i++)
-      out.push(monthKey(new Date(now.getFullYear(), now.getMonth() + i, 1)));
-    return out;
-  }, []);
+      base.push(monthKey(new Date(now.getFullYear(), now.getMonth() + i, 1)));
+    if (meses.length === 0) return base;
+    const uniao = new Set([...base, ...meses]);
+    return Array.from(uniao).sort();
+  }, [meses]);
 
   const parcelas = useMemo(
     () =>
@@ -161,6 +260,11 @@ function DashboardPage() {
         faturasMes as any[],
       ),
     [despesas, mesesSelecionaveis, faturasMes],
+  );
+
+  const receitasProjetadas = useMemo(
+    () => receitasPorCompetencias(receitas as any[], mesesSelecionaveis),
+    [receitas, mesesSelecionaveis],
   );
 
   const grupoDe = useMemo(
@@ -176,7 +280,7 @@ function DashboardPage() {
   );
 
   const dados = useMemo(() => {
-    const receitasMes = receitas.filter((r: any) => monthKey(r.data_recebimento) === mesAtual);
+    const receitasMes = receitasProjetadas.filter((r) => r.competencia === mesAtual);
     const totalReceitas = receitasMes.reduce(
       (s: number, r: any) => s + toBRL(Number(r.valor), r.moeda, cotacao),
       0,
@@ -229,8 +333,8 @@ function DashboardPage() {
       .map(([g]) => g);
 
     const serie = meses.map((key: string) => {
-      const rec = receitas
-        .filter((r: any) => monthKey(r.data_recebimento) === key)
+      const rec = receitasProjetadas
+        .filter((r) => r.competencia === key)
         .reduce((s: number, r: any) => s + toBRL(Number(r.valor), r.moeda, cotacao), 0);
       const linha: any = { mes: monthLabel(key), key, Receitas: Number(rec.toFixed(2)) };
       let des = 0;
@@ -278,8 +382,8 @@ function DashboardPage() {
     // Mês anterior, para variação percentual nos indicadores.
     const ref = new Date(`${mesAtual}-01T12:00:00`);
     const mesAnterior = monthKey(new Date(ref.getFullYear(), ref.getMonth() - 1, 1));
-    const receitasAnt = receitas
-      .filter((r: any) => monthKey(r.data_recebimento) === mesAnterior)
+    const receitasAnt = receitasProjetadas
+      .filter((r) => r.competencia === mesAnterior)
       .reduce((s: number, r: any) => s + toBRL(Number(r.valor), r.moeda, cotacao), 0);
     const despesasAnt = parcelas
       .filter((p: any) => monthKey(p.vencimento) === mesAnterior)
@@ -361,6 +465,65 @@ function DashboardPage() {
       .sort((a: any, b: any) => a.vencimento.localeCompare(b.vencimento))
       .slice(0, 8);
 
+    // Pedido 2 (2026-10-03): Parcelamentos que terminam — agrupado por mês da ÚLTIMA parcela
+    // do contrato (numero === total), mostrando quanto cada despesa "libera" no orçamento.
+    // Regras:
+    //   1. Apenas despesas variáveis parceladas (não fixa, não fatura manual de cartão).
+    //   2. Uma despesa SÓ aparece se sua parcela final (numero === total) ainda não foi paga.
+    //      Parcelas intermediárias (ex. 9/10) não indicam término — só a 10/10 indica.
+    //   3. Faturas manuais de cartão (origem = "fatura_total_concluida") são lançamentos
+    //      avulsos mensais e NÃO têm prazo de término — devem ser ignoradas.
+    const alivioMap = new Map<
+      string,
+      { mes: string; total: number; itens: { id: string; descricao: string; cartao: string; valor: number; ultimaParcela: string; numeroParcela: string }[] }
+    >();
+    for (const d of despesas as any[]) {
+      // Exclui: fixas, sem parcelas, e faturas manuais de cartão (lançamentos sem prazo definido)
+      if (d.tipo === "fixa" || !d.parcelas?.length) continue;
+      if (d.origem === "fatura_total_concluida") continue;
+
+      const parcelasD: any[] = d.parcelas;
+      // Identifica o total real de parcelas: usa o maior `total` nas rows de parcela,
+      // com fallback em `d.total_parcelas`
+      const totalParcelas = parcelasD.reduce(
+        (mx: number, p: any) => Math.max(mx, Number(p.total) || 0),
+        0,
+      ) || Number(d.total_parcelas) || 0;
+
+      if (totalParcelas <= 1) continue; // à vista, não é parcelamento que "termina"
+
+      // A parcela que ENCERRA o contrato é aquela com numero === totalParcelas
+      const parcelaFinal = parcelasD.find(
+        (p: any) => Number(p.numero) === totalParcelas,
+      );
+
+      // Só considera se a parcela final existe e ainda não foi paga
+      if (!parcelaFinal || parcelaFinal.paga) continue;
+
+      const mesFim = monthKey(parcelaFinal.vencimento);
+      const valorParcela = toBRL(Number(parcelaFinal.valor ?? d.valor_parcela ?? d.valor), d.moeda, cotacao);
+
+      if (!alivioMap.has(mesFim)) {
+        alivioMap.set(mesFim, { mes: mesFim, total: 0, itens: [] });
+      }
+      const entry = alivioMap.get(mesFim)!;
+      entry.total = Number((entry.total + valorParcela).toFixed(2));
+      entry.itens.push({
+        id: d.id,
+        descricao: d.descricao,
+        cartao: identificacaoDespesa(d) || "Sem forma de pagamento",
+        valor: valorParcela,
+        ultimaParcela: parcelaFinal.vencimento,
+        numeroParcela: `${totalParcelas}/${totalParcelas}`,
+      });
+    }
+    // Só meses futuros (a partir do mês atual) ordenados
+    const now2 = mesAtual;
+    const alivioParcelamentos = Array.from(alivioMap.values())
+      .filter((g) => g.mes >= now2)
+      .sort((a, b) => a.mes.localeCompare(b.mes))
+      .slice(0, 18); // máximo 18 meses à frente
+
     return {
       totalReceitas,
       totalDespesas,
@@ -385,8 +548,81 @@ function DashboardPage() {
       grupos: gruposFinais,
       parceladas,
       top5,
+      alivioParcelamentos,
     };
-  }, [receitas, despesas, parcelas, cotacao, mesAtual, mesPie, meses, grupoDe]);
+  }, [receitasProjetadas, despesas, parcelas, cotacao, mesAtual, mesPie, meses, grupoDe]);
+
+  // Pedido 3 (2026-10-03): O último mês do gráfico comanda o horizonte padrão da dívida
+  const mesFimGrafico = useMemo(() => {
+    return meses[meses.length - 1] ?? mesAtual;
+  }, [meses, mesAtual]);
+
+  // Sempre que o filtro do gráfico mudar (janela ou intervalo customizado),
+  // o gráfico manda na data ("aqui deveria ser sempre a data do filtro do grafico"):
+  useEffect(() => {
+    setMesLimiteDividaOverride(null);
+  }, [janela, mesInicioCustom, mesFimCustom]);
+
+  // Última parcela variável/parcelada real nos dados persistidos
+  const ultimaParcelaRealDivida = useMemo(() => {
+    let maior: string | null = null;
+    for (const d of despesas as any[]) {
+      if (d.tipo === "fixa") continue;
+      for (const p of d.parcelas ?? []) {
+        const chave = monthKey(p.vencimento);
+        if (!maior || chave > maior) maior = chave;
+      }
+    }
+    return maior ?? mesAtual;
+  }, [despesas, mesAtual]);
+
+  // A data padrão da dívida é o mês final do gráfico. O usuário pode alterar manualmente se quiser.
+  const mesLimiteDivida = mesLimiteDividaOverride ?? mesFimGrafico;
+
+  const mesesParaDivida = useMemo(() => {
+    const now = new Date();
+    const inicioPadrao = monthKey(new Date(now.getFullYear(), now.getMonth() - 12, 1));
+    const fim = mesLimiteDivida > ultimaParcelaRealDivida ? mesLimiteDivida : ultimaParcelaRealDivida;
+    return monthRange(inicioPadrao, fim);
+  }, [mesLimiteDivida, ultimaParcelaRealDivida]);
+
+  const dividaInfo = useMemo(() => {
+    const parcelasDivida = aplicarRegrasFaturaMes(
+      lancamentosPorCompetencias(despesas as any[], mesesParaDivida),
+      faturasMes as any[],
+    );
+    // Nunca inventa parcela variável além da última que realmente existe —
+    // se o mês escolhido for mais longe, o limite pro cálculo da parte
+    // variável fica travado na última parcela real.
+    const limiteVariavel =
+      mesLimiteDivida < ultimaParcelaRealDivida ? mesLimiteDivida : ultimaParcelaRealDivida;
+    const variavel = parcelasDivida
+      .filter((p: any) => p.despesa.tipo !== "fixa" && !p.paga && monthKey(p.vencimento) <= limiteVariavel)
+      .reduce((s: number, p: any) => s + toBRL(Number(p.valor), p.despesa.moeda, cotacao), 0);
+    const fixa = parcelasDivida
+      .filter((p: any) => p.despesa.tipo === "fixa" && !p.paga && monthKey(p.vencimento) <= mesLimiteDivida)
+      .reduce((s: number, p: any) => s + toBRL(Number(p.valor), p.despesa.moeda, cotacao), 0);
+    return {
+      total: variavel + fixa,
+      variavel,
+      fixa,
+      alemDaUltimaParcela: mesLimiteDivida > ultimaParcelaRealDivida,
+    };
+  }, [despesas, faturasMes, mesesParaDivida, mesLimiteDivida, ultimaParcelaRealDivida, cotacao]);
+
+  // Pedido 3 (2026-10-03): Alívio de parcelas que terminam no período selecionado no gráfico
+  const alivioPeriodo = useMemo(() => {
+    const gruposNoPeriodo = dados.alivioParcelamentos.filter(
+      (g) => meses.includes(g.mes) || (g.mes >= mesAtual && g.mes <= mesFimGrafico),
+    );
+    const totalAlivio = gruposNoPeriodo.reduce((s, g) => s + g.total, 0);
+    const qtdContratos = gruposNoPeriodo.reduce((s, g) => s + g.itens.length, 0);
+    return {
+      totalAlivio,
+      qtdContratos,
+      grupos: gruposNoPeriodo,
+    };
+  }, [dados.alivioParcelamentos, meses, mesAtual, mesFimGrafico]);
 
   const detalhe = useMemo(() => {
     if (!drill) return [];
@@ -428,7 +664,14 @@ function DashboardPage() {
     return { lista, total };
   }, [parcelas, grupoDe, mesPie, cotacao]);
 
-  const corGrupo = (g: string) => PALETA[dados.grupos.indexOf(g) % PALETA.length];
+  // Só faz sentido usar a cor cadastrada da categoria quando o agrupamento
+  // atual é "por categoria" — em "fixa x variável"/"por responsável" o
+  // grupo não é uma categoria de verdade, então cai no fallback por hash
+  // (determinístico, mas sem relação com /categorias).
+  const corGrupo = (g: string) =>
+    agrupamento === "categoria" ? corPorCategoria(g) : corPorCategoria(`__grupo__${g}`);
+
+  const { formatar: fmtGlobal } = usePrivacidadeValores();
 
   return (
     <AppLayout
@@ -445,6 +688,7 @@ function DashboardPage() {
           tone="success"
           delta={dados.deltaReceitas}
           deltaGoodUp
+          to="/receitas"
         />
         <StatCard
           label="Despesas do mês"
@@ -454,40 +698,59 @@ function DashboardPage() {
           icon={ArrowDownRight}
           tone="destructive"
           delta={dados.deltaDespesas}
-          hint={`Fixas ${formatBRL(dados.fixas)} · Variáveis ${formatBRL(dados.variaveis)}`}
+          hint={`Fixas ${fmtGlobal(dados.fixas)} · Variáveis ${fmtGlobal(dados.variaveis)}`}
+          to="/despesas"
         />
 
+        {/* "Saldo do mês" e "Taxa de poupança" não têm uma única tela
+            equivalente no site (são métricas derivadas de receitas −
+            despesas) — o destino mais honesto é o próprio gráfico de fluxo
+            de caixa mês a mês, mais abaixo nesta mesma página. */}
         <StatCard
           label="Saldo do mês"
           value={dados.saldo}
           icon={Wallet}
           tone={dados.saldo >= 0 ? "success" : "destructive"}
+          href="#fluxo-caixa"
         />
         <StatCard
-          label="Taxa de poupança"
-          value={dados.saldo}
-          icon={PiggyBank}
-          tone={dados.taxaPoupanca >= 0 ? "success" : "destructive"}
-          display={`${dados.taxaPoupanca.toFixed(0)}%`}
-          hint={`Média de despesas na janela: ${formatBRL(dados.mediaDespesas)}`}
-        />
-        <StatCard
-          label="Parcelas mensalizadas"
-          value={dados.mensalizado}
+          label="Parcelas do mês (fixas + variáveis)"
+          value={dados.fixas + dados.variaveis}
           icon={CalendarClock}
           tone="warning"
-          hint="Parcelas com vencimento neste mês"
+          hint={`Fixas ${fmtGlobal(dados.fixas)} · Variáveis ${fmtGlobal(dados.variaveis)}`}
+          to="/despesas"
+          search={{ modo: "cartao" }}
+        />
+        <CardDividaTotal
+          info={dividaInfo}
+          mesLimite={mesLimiteDivida}
+          mesFimGrafico={mesFimGrafico}
+          ultimaParcelaReal={ultimaParcelaRealDivida}
+          onMesChange={setMesLimiteDividaOverride}
+          onRestaurarPadrao={() => setMesLimiteDividaOverride(null)}
+          temOverride={mesLimiteDividaOverride !== null}
         />
         <StatCard
-          label="Dívida total em aberto"
-          value={dados.dividaTotal}
-          icon={Landmark}
-          tone="destructive"
-          hint="Tudo que ainda falta quitar"
+          label="Parcelas que terminam"
+          value={alivioPeriodo.totalAlivio}
+          icon={CheckCircle2}
+          tone="success"
+          hint={
+            alivioPeriodo.qtdContratos > 0
+              ? `${alivioPeriodo.qtdContratos} ${alivioPeriodo.qtdContratos === 1 ? "parcelamento encerra" : "parcelamentos encerram"} no período`
+              : `Nenhum término até ${monthLabel(mesFimGrafico)}`
+          }
+          display={
+            alivioPeriodo.totalAlivio > 0
+              ? `+${fmtGlobal(alivioPeriodo.totalAlivio)}/mês`
+              : "R$ 0,00"
+          }
+          href="#parcelamentos-terminando"
         />
       </div>
 
-      <Card className="mt-4">
+      <Card id="fluxo-caixa" className="mt-4">
         <CardHeader className="flex flex-col gap-2 space-y-0 sm:flex-row sm:items-center sm:justify-between">
           <CardTitle className="text-base">Fluxo de caixa mês a mês</CardTitle>
           <div className="flex flex-wrap gap-2">
@@ -537,8 +800,29 @@ function DashboardPage() {
                 ))}
               </SelectContent>
             </Select>
+            {janela === "custom" && (
+              <div className="flex items-center gap-1.5">
+                <MonthPicker
+                  value={mesInicioCustom}
+                  onChange={setMesInicioCustom}
+                  ariaLabel="Mês inicial"
+                />
+                <span className="text-xs text-muted-foreground">até</span>
+                <MonthPicker
+                  value={mesFimCustom}
+                  onChange={setMesFimCustom}
+                  ariaLabel="Mês final"
+                />
+              </div>
+            )}
           </div>
         </CardHeader>
+        {dados.meses.some((m: any) => posicaoTemporalDoMes(m.key, mesAtual) === "futuro") && (
+          <p className="px-6 pb-1 text-[11px] text-muted-foreground">
+            Meses além do atual aparecem com opacidade reduzida — são previstos, ainda não
+            aconteceram.
+          </p>
+        )}
         <CardContent className="h-[340px]">
           <ResponsiveContainer width="100%" height="100%">
             {tipoGrafico === "linhas" ? (
@@ -597,6 +881,14 @@ function DashboardPage() {
                 <Legend wrapperStyle={{ fontSize: 12 }} />
                 {visaoFluxo !== "despesas" && (
                   <Bar dataKey="Receitas" fill="var(--success)" radius={[6, 6, 0, 0]}>
+                    {/* Bloco 3 (plano-mega 2026-09-14): mês além do atual vem com
+                        opacidade reduzida — ainda é previsão, não aconteceu. */}
+                    {dados.meses.map((m: any, i: number) => (
+                      <Cell
+                        key={m.key}
+                        fillOpacity={opacidadePorPosicao(posicaoTemporalDoMes(m.key, mesAtual))}
+                      />
+                    ))}
                     {dados.meses.length <= 12 && (
                       <LabelList
                         dataKey="Receitas"
@@ -610,6 +902,12 @@ function DashboardPage() {
                 {visaoFluxo !== "receitas" &&
                   (visaoFluxo === "despesas" ? (
                     <Bar dataKey="Despesas" fill="var(--destructive)" radius={[6, 6, 0, 0]}>
+                      {dados.meses.map((m: any, i: number) => (
+                        <Cell
+                          key={m.key}
+                          fillOpacity={opacidadePorPosicao(posicaoTemporalDoMes(m.key, mesAtual))}
+                        />
+                      ))}
                       <LabelList
                         dataKey="Despesas"
                         position="top"
@@ -631,7 +929,14 @@ function DashboardPage() {
                             : 0
                         }
                         onClick={(e: any) => setDrill({ mes: e?.payload?.key, grupo: g })}
-                      />
+                      >
+                        {dados.meses.map((m: any) => (
+                          <Cell
+                            key={m.key}
+                            fillOpacity={opacidadePorPosicao(posicaoTemporalDoMes(m.key, mesAtual))}
+                          />
+                        ))}
+                      </Bar>
                     ))
                   ))}
                 {visaoFluxo === "ambos" && dados.meses.length <= 12 && dados.grupos.length > 0 && (
@@ -645,49 +950,114 @@ function DashboardPage() {
         </CardContent>
       </Card>
 
-      <Card className="mt-4">
-        <CardHeader className="flex flex-col gap-2 space-y-0 sm:flex-row sm:items-center sm:justify-between">
-          <CardTitle className="text-base">
-            Agrupamentos de {monthLabelLong(mesPie)} — maior para menor
-          </CardTitle>
-          <Select value={mesPie} onValueChange={setMesPie}>
-            <SelectTrigger className="h-8 w-[140px] text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {mesesSelecionaveis.map((m) => (
-                <SelectItem key={m} value={m}>
-                  {monthLabel(m)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          {agrupamentosMes.lista.length === 0 && (
-            <p className="text-sm text-muted-foreground">Sem despesas neste mês.</p>
-          )}
-          {agrupamentosMes.lista.map((g) => {
-            const pct = agrupamentosMes.total ? (g.total / agrupamentosMes.total) * 100 : 0;
-            return (
-              <button
-                key={g.grupo}
-                type="button"
-                onClick={() => setDrill({ mes: mesPie, grupo: g.grupo })}
-                className="w-full rounded-lg border px-3 py-2 text-left transition-colors hover:bg-muted/60"
-              >
-                <div className="flex items-center justify-between gap-3 text-sm">
-                  <span className="truncate font-medium capitalize">{g.grupo}</span>
-                  <span className="shrink-0 font-semibold tabular-nums">{formatBRL(g.total)}</span>
+      {/* Pedido 2 (2026-10-03): Parcelamentos que terminam — alívio mensal */}
+      {dados.alivioParcelamentos.length > 0 && (
+        <Card id="parcelamentos-terminando" className="mt-4">
+          <CardHeader className="space-y-0 pb-3">
+            <CardTitle className="text-base">Parcelamentos que terminam</CardTitle>
+            <p className="text-[11px] text-muted-foreground mt-1">
+              Quanto cada mês libera no orçamento quando parcelas terminam. Clique para ver os detalhes.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {dados.alivioParcelamentos.map((g) => {
+              const expandido = alivioExpandido[g.mes] ?? false;
+              return (
+                <div key={g.mes} className="rounded-lg border overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => setAlivioExpandido((prev) => ({ ...prev, [g.mes]: !expandido }))}
+                    className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-muted/40"
+                  >
+                    <ChevronDown
+                      className={`size-4 shrink-0 text-muted-foreground transition-transform ${expandido ? "" : "-rotate-90"}`}
+                    />
+                    <span className="flex-1 text-sm font-semibold">{monthLabelLong(g.mes)}</span>
+                    <Badge variant="secondary" className="text-[10px]">
+                      {g.itens.length} parcela{g.itens.length > 1 ? "s" : ""}
+                    </Badge>
+                    <span className="shrink-0 text-sm font-bold tabular-nums text-success">
+                      +{formatBRL(g.total)}/mês
+                    </span>
+                  </button>
+                  {expandido && (
+                    <div className="divide-y border-t">
+                      {g.itens.map((item) => (
+                        <div key={item.id} className="flex items-center justify-between gap-3 px-4 py-2 text-sm">
+                          <div className="min-w-0">
+                            <p className="truncate font-medium">{item.descricao}</p>
+                            <p className="truncate text-xs text-muted-foreground">
+                              {item.cartao} · parcela {item.numeroParcela} · vence em {formatDate(item.ultimaParcela)}
+                            </p>
+                          </div>
+                          <span className="shrink-0 font-semibold tabular-nums text-success">
+                            +{formatBRL(item.valor)}/mês
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                <Progress value={pct} className="mt-1.5 h-1.5" />
-                <p className="mt-1 text-[11px] text-muted-foreground">
-                  {g.itens} lançamento(s) · {pct.toFixed(1)}% do mês
-                </p>
+              );
+            })}
+          </CardContent>
+        </Card>
+      )}
+
+      <Card className="mt-4">
+        <Collapsible open={agrupamentosAberto} onOpenChange={setAgrupamentosAberto}>
+          <CardHeader className="flex flex-col gap-2 space-y-0 sm:flex-row sm:items-center sm:justify-between">
+            <CollapsibleTrigger asChild>
+              <button type="button" className="flex items-center gap-1.5 text-left">
+                <ChevronDown
+                  className={`size-4 shrink-0 text-muted-foreground transition-transform ${agrupamentosAberto ? "rotate-0" : "-rotate-90"}`}
+                />
+                <CardTitle className="text-base">
+                  Agrupamentos de {monthLabelLong(mesPie)} — maior para menor
+                </CardTitle>
               </button>
-            );
-          })}
-        </CardContent>
+            </CollapsibleTrigger>
+            <Select value={mesPie} onValueChange={setMesPie}>
+              <SelectTrigger className="h-8 w-[140px] text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {mesesSelecionaveis.map((m) => (
+                  <SelectItem key={m} value={m}>
+                    {monthLabel(m)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </CardHeader>
+          <CollapsibleContent>
+            <CardContent className="space-y-2">
+              {agrupamentosMes.lista.length === 0 && (
+                <p className="text-sm text-muted-foreground">Sem despesas neste mês.</p>
+              )}
+              {agrupamentosMes.lista.map((g) => {
+                const pct = agrupamentosMes.total ? (g.total / agrupamentosMes.total) * 100 : 0;
+                return (
+                  <button
+                    key={g.grupo}
+                    type="button"
+                    onClick={() => setDrill({ mes: mesPie, grupo: g.grupo })}
+                    className="w-full rounded-lg border px-3 py-2 text-left transition-colors hover:bg-muted/60"
+                  >
+                    <div className="flex items-center justify-between gap-3 text-sm">
+                      <span className="truncate font-medium capitalize">{g.grupo}</span>
+                      <span className="shrink-0 font-semibold tabular-nums">{formatBRL(g.total)}</span>
+                    </div>
+                    <Progress value={pct} className="mt-1.5 h-1.5" />
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      {g.itens} lançamento(s) · {pct.toFixed(1)}% do mês
+                    </p>
+                  </button>
+                );
+              })}
+            </CardContent>
+          </CollapsibleContent>
+        </Collapsible>
       </Card>
 
       {drill && (
@@ -768,8 +1138,8 @@ function DashboardPage() {
                     className="cursor-pointer"
                     onClick={() => setDrill({ mes: mesPie })}
                   >
-                    {dados.pie.map((_, i) => (
-                      <Cell key={i} fill={PALETA[i % PALETA.length]} />
+                    {dados.pie.map((fatia, i) => (
+                      <Cell key={i} fill={corPorCategoria(nomeBaseDoGrupo(fatia.name))} />
                     ))}
                   </Pie>
                   <Tooltip formatter={(v: any) => formatBRL(Number(v))} />
@@ -1028,6 +1398,94 @@ function EmptyChart() {
   );
 }
 
+/**
+ * Item 2 (backlog 2026-09-27): card dedicado pra "Dívida total em aberto",
+ * com seletor de mês/ano próprio (por isso não usa o `StatCard` genérico,
+ * cujo corpo inteiro é um link clicável — não daria pra ter um MonthPicker
+ * interativo dentro). Por padrão mostra o total projetado até a última
+ * parcela variável/parcelada que realmente existe; ao escolher uma data
+ * além dela, some com o custo fixo recorrente, sem inventar parcela
+ * variável nenhuma.
+ */
+function CardDividaTotal({
+  info,
+  mesLimite,
+  mesFimGrafico,
+  ultimaParcelaReal,
+  onMesChange,
+  onRestaurarPadrao,
+  temOverride,
+}: {
+  info: { total: number; variavel: number; fixa: number; alemDaUltimaParcela: boolean };
+  mesLimite: string;
+  mesFimGrafico: string;
+  ultimaParcelaReal: string;
+  onMesChange: (mes: string) => void;
+  onRestaurarPadrao: () => void;
+  temOverride: boolean;
+}) {
+  const [visao, setVisao] = useState<"total" | "fixa" | "variavel">("total");
+  const { formatar } = usePrivacidadeValores();
+  const valorExibido = visao === "fixa" ? info.fixa : visao === "variavel" ? info.variavel : info.total;
+  const rotuloVisao = visao === "fixa" ? "Somente fixas" : visao === "variavel" ? "Somente variáveis" : "Total";
+
+  return (
+    <Card className="overflow-hidden">
+      <CardContent className="p-4">
+        <div className="flex items-start justify-between gap-2">
+          <p className="text-xs font-medium text-muted-foreground">Dívida total em aberto</p>
+          <Landmark className="size-4 text-destructive" />
+        </div>
+        {/* Seletor Total / Fixas / Variáveis */}
+        <div className="mt-2 flex gap-1.5">
+          {(["total", "fixa", "variavel"] as const).map((v) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => setVisao(v)}
+              className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors touch-manipulation ${
+                visao === v
+                  ? "bg-destructive/15 text-destructive font-semibold"
+                  : "text-muted-foreground hover:bg-muted"
+              }`}
+            >
+              {v === "total" ? "Total" : v === "fixa" ? "Fixas" : "Variáveis"}
+            </button>
+          ))}
+        </div>
+        <div className="mt-2 flex flex-wrap items-baseline gap-2">
+          <p className="text-xl font-bold tracking-tight">{formatar(valorExibido)}</p>
+        </div>
+        <p className="mt-1 text-[11px] text-muted-foreground">
+          {rotuloVisao} · Fixas {formatar(info.fixa)} · Variáveis {formatar(info.variavel)}
+        </p>
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          <MonthPicker value={mesLimite} onChange={onMesChange} ariaLabel="Projetar dívida até" className="h-7" />
+          {temOverride && (
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="h-7 text-[11px]"
+              onClick={onRestaurarPadrao}
+              title={`Restaurar data do gráfico (${monthLabel(mesFimGrafico)})`}
+            >
+              Gráfico ({monthLabel(mesFimGrafico)})
+            </Button>
+          )}
+        </div>
+        <p className="mt-1 text-[10px] text-muted-foreground">
+          {temOverride
+            ? `Personalizado manual (gráfico: ${monthLabel(mesFimGrafico)}).`
+            : info.alemDaUltimaParcela
+              ? `Além da última parcela real (${monthLabel(ultimaParcelaReal)}) — só custo fixo projetado.`
+              : `Até ${monthLabelLong(mesLimite)} · conforme período do gráfico.`}
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
 function StatCard({
   label,
   value,
@@ -1039,6 +1497,9 @@ function StatCard({
   display,
   delta,
   deltaGoodUp,
+  to,
+  search,
+  href,
 }: {
   label: string;
   value: number;
@@ -1050,42 +1511,65 @@ function StatCard({
   display?: string;
   delta?: number | null;
   deltaGoodUp?: boolean;
+  /** Rota pra onde o card navega ao ser clicado. Sem isso (e sem `href`), o card fica só informativo. */
+  to?: string;
+  /** Search params da rota de destino (ex.: { modo: "cartao" }). */
+  search?: Record<string, string>;
+  /** Âncora na própria página (ex.: "#fluxo-caixa"), pra quando o destino natural é um gráfico já visível no dashboard, não outra rota. */
+  href?: string;
 }) {
+  const { formatar } = usePrivacidadeValores();
   const toneClass =
     tone === "success" ? "text-success" : tone === "warning" ? "text-warning" : "text-destructive";
-  return (
-    <Card className="overflow-hidden">
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between gap-2">
-          <p className="text-xs font-medium text-muted-foreground">{label}</p>
-          <Icon className={`size-4 ${toneClass}`} />
-        </div>
-        <div className="mt-2 flex flex-wrap items-baseline gap-2">
-          <p className="text-xl font-bold tracking-tight">{display ?? formatBRL(value)}</p>
-          {delta != null && Number.isFinite(delta) && (
-            <span
-              className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
-                delta >= 0 === !!deltaGoodUp
-                  ? "bg-success/10 text-success"
-                  : "bg-destructive/10 text-destructive"
-              }`}
-            >
-              {delta >= 0 ? (
-                <ArrowUpRight className="size-3" />
-              ) : (
-                <ArrowDownRight className="size-3" />
-              )}
-              {Math.abs(delta).toFixed(0)}% vs. mês anterior
-            </span>
-          )}
-        </div>
-        {!!usd && !!cotacao && (
-          <p className="mt-0.5 text-[11px] text-muted-foreground">
-            inclui {formatUSD(usd)} na cotação do dia
-          </p>
+
+  const body = (
+    <>
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-xs font-medium text-muted-foreground">{label}</p>
+        <Icon className={`size-4 ${toneClass}`} />
+      </div>
+      <div className="mt-2 flex flex-wrap items-baseline gap-2">
+        <p className="text-xl font-bold tracking-tight">{display ?? formatar(value)}</p>
+        {delta != null && Number.isFinite(delta) && (
+          <span
+            className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
+              delta >= 0 === !!deltaGoodUp
+                ? "bg-success/10 text-success"
+                : "bg-destructive/10 text-destructive"
+            }`}
+          >
+            {delta >= 0 ? (
+              <ArrowUpRight className="size-3" />
+            ) : (
+              <ArrowDownRight className="size-3" />
+            )}
+            {Math.abs(delta).toFixed(0)}% vs. mês anterior
+          </span>
         )}
-        {hint && <p className="mt-1 text-[11px] text-muted-foreground">{hint}</p>}
-      </CardContent>
+      </div>
+      {!!usd && !!cotacao && (
+        <p className="mt-0.5 text-[11px] text-muted-foreground">
+          inclui {formatUSD(usd)} na cotação do dia
+        </p>
+      )}
+      {hint && <p className="mt-1 text-[11px] text-muted-foreground">{hint}</p>}
+    </>
+  );
+
+  const clicavel = !!to || !!href;
+  return (
+    <Card className={clicavel ? "overflow-hidden transition-colors hover:bg-muted/40" : "overflow-hidden"}>
+      {to ? (
+        <Link to={to} {...(search ? { search } : {})} className="block focus-visible:outline-none">
+          <CardContent className="p-4">{body}</CardContent>
+        </Link>
+      ) : href ? (
+        <a href={href} className="block focus-visible:outline-none">
+          <CardContent className="p-4">{body}</CardContent>
+        </a>
+      ) : (
+        <CardContent className="p-4">{body}</CardContent>
+      )}
     </Card>
   );
 }

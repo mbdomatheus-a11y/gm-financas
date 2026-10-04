@@ -14,32 +14,44 @@ import {
   enviarConvitePorEmail,
   listarMeusConvites,
 } from "@/lib/convites.functions";
+import { obterConfiguracaoAcesso } from "@/lib/configuracoes-site.functions";
+import { usePermissoes } from "@/hooks/useAuthData";
 import { formatDate } from "@/lib/format";
 
-const COTA_CONVITES = 3;
+const COTA_CONVITES_PADRAO = 3;
 
-async function copiar(texto: string) {
+async function copiar(texto: string, mensagem = "Copiado") {
   try {
     await navigator.clipboard.writeText(texto);
-    toast.success("Código copiado");
+    toast.success(mensagem);
   } catch {
     toast.error("Não foi possível copiar — copie manualmente");
   }
 }
 
+/** Monta o link de convite clicável a partir do domínio que a pessoa está
+ * usando agora (evita apontar pro domínio de preview errado). Ao abrir, a
+ * tela de login já pré-preenche o código e pula direto pra "Criar conta". */
+function linkConvite(token: string) {
+  if (typeof window === "undefined") return token;
+  return `${window.location.origin}/entrar?convite=${encodeURIComponent(token)}`;
+}
+
 /**
- * Card de convites em cascata: mostra a cota (até 3 por pessoa), gera novos
- * códigos e lista os já criados. Cada código é digitado manualmente pela
- * pessoa convidada direto na tela de cadastro do site (não depende mais de
- * um link com domínio específico, que podia apontar pro domínio de preview
- * errado). Usado em `/conta` (qualquer usuário) e em `/usuarios` (admin).
+ * Card de convites em cascata: mostra a cota configurável, gera novos
+ * códigos e lista os já criados. Cada código pode ser copiado como link
+ * clicável (abre direto na criação de conta) ou como texto puro, e digitado
+ * manualmente se preferir. Usado em `/conta` (qualquer usuário) e em
+ * `/usuarios` (admin).
  */
 export function ConvitesCard() {
   const qc = useQueryClient();
+  const { isSiteAdmin } = usePermissoes();
   const listar = useServerFn(listarMeusConvites);
   const criar = useServerFn(criarConvite);
   const enviarEmail = useServerFn(enviarConvitePorEmail);
   const cancelar = useServerFn(cancelarConvite);
+  const obterConfig = useServerFn(obterConfiguracaoAcesso);
   const [copiadoId, setCopiadoId] = useState<string | null>(null);
   const [emailAbertoId, setEmailAbertoId] = useState<string | null>(null);
   const [emailInput, setEmailInput] = useState("");
@@ -48,6 +60,13 @@ export function ConvitesCard() {
     queryKey: ["meus-convites"],
     queryFn: async () => listar(),
   });
+
+  const { data: config } = useQuery({
+    queryKey: ["configuracao-acesso-publica"],
+    queryFn: () => obterConfig(),
+    staleTime: 60_000,
+  });
+  const cotaConvites = config?.cota_convites ?? COTA_CONVITES_PADRAO;
 
   const gerar = useMutation({
     mutationFn: async () => criar(),
@@ -80,28 +99,53 @@ export function ConvitesCard() {
 
   const agora = Date.now();
   const usados = convites.filter((c) => c.usado || new Date(c.expira_em).getTime() >= agora).length;
-  const restantes = Math.max(0, COTA_CONVITES - usados);
+  const restantes = isSiteAdmin ? Infinity : Math.max(0, cotaConvites - usados);
+  const totalConvidados = convites.length;
+  const totalAceitos = convites.filter((c) => c.usado).length;
+  // Convites ainda válidos pra copiar em massa: nem usados, nem expirados
+  // (os mesmos que mostram os botões de ação individuais na lista abaixo).
+  const pendentes = convites.filter(
+    (c) => !c.usado && new Date(c.expira_em).getTime() >= agora,
+  );
+
+  async function copiarTodosPendentes() {
+    if (pendentes.length === 0) return;
+    const texto = pendentes.map((c) => linkConvite(c.token)).join("\n");
+    await copiar(
+      texto,
+      `${pendentes.length} convite${pendentes.length === 1 ? "" : "s"} copiado${pendentes.length === 1 ? "" : "s"}`,
+    );
+  }
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-sm">
           <UserPlus className="size-4" /> Convidar pessoas
+          {totalConvidados > 0 && (
+            <span className="text-xs font-normal text-muted-foreground">
+              ({totalConvidados} {totalConvidados === 1 ? "convidado" : "convidados"} e {totalAceitos} {totalAceitos === 1 ? "aceito" : "aceitos"})
+            </span>
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
         <p className="text-xs text-muted-foreground">
-          Cada pessoa pode convidar até {COTA_CONVITES}. Quem você convidar também poderá convidar
-          mais {COTA_CONVITES}, e assim por diante. Gere um código abaixo e envie pra pessoa
-          (WhatsApp, mensagem, ou pelo botão de e-mail) — ela acessa o site e digita o código na
-          tela de cadastro pra criar a própria conta, num grupo separado, com os próprios dados.
+          {isSiteAdmin
+            ? "Como admin do site, você pode gerar convites sem limite."
+            : `Você pode convidar até ${cotaConvites} pessoas. Quem você convidar também poderá convidar mais gente, e assim por diante.`}{" "}
+          Gere um código abaixo e envie pra pessoa (WhatsApp, mensagem, ou pelo botão de e-mail) —
+          ela acessa o site e digita o código na tela de cadastro pra criar a própria conta, num
+          grupo separado, com os próprios dados.
         </p>
-        <div className="flex items-center justify-between rounded-lg border bg-muted/30 px-3 py-2 text-sm">
-          <span className="text-muted-foreground">Convites usados</span>
-          <span className="font-semibold tabular-nums">
-            {usados} / {COTA_CONVITES}
-          </span>
-        </div>
+        {!isSiteAdmin && (
+          <div className="flex items-center justify-between rounded-lg border bg-muted/30 px-3 py-2 text-sm">
+            <span className="text-muted-foreground">Convites usados</span>
+            <span className="font-semibold tabular-nums">
+              {usados} / {cotaConvites}
+            </span>
+          </div>
+        )}
         <Button
           size="sm"
           className="w-full"
@@ -112,18 +156,33 @@ export function ConvitesCard() {
           {restantes === 0 ? "Limite de convites atingido" : "Gerar código de convite"}
         </Button>
 
+        {pendentes.length > 0 && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="w-full"
+            onClick={copiarTodosPendentes}
+          >
+            <Copy className="mr-2 size-3.5" />
+            Copiar todos os pendentes ({pendentes.length})
+          </Button>
+        )}
+
         {isLoading ? (
           <p className="text-xs text-muted-foreground">Carregando…</p>
         ) : convites.length === 0 ? (
           <p className="text-xs text-muted-foreground">Nenhum convite gerado ainda.</p>
         ) : (
           <div className="space-y-2">
-            {convites.map((c) => {
+            {convites.map((c, index) => {
               const expirado = !c.usado && new Date(c.expira_em).getTime() < agora;
               const podeAgir = !c.usado && !expirado;
               return (
                 <div key={c.id} className="rounded-lg border px-3 py-2 text-xs">
                   <div className="flex items-center gap-2">
+                    <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-semibold text-muted-foreground">
+                      {index + 1}
+                    </span>
                     <KeyRound className="size-3.5 shrink-0 text-muted-foreground" />
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-mono">{c.token}</p>
@@ -146,9 +205,10 @@ export function ConvitesCard() {
                           className="size-7 shrink-0"
                           onClick={() => {
                             setCopiadoId(c.id);
-                            copiar(c.token);
+                            copiar(linkConvite(c.token), "Link de convite copiado");
                           }}
-                          aria-label="Copiar código do convite"
+                          aria-label="Copiar link de convite (abre direto na criação de conta)"
+                          title="Copiar link de convite"
                         >
                           <Copy
                             className={c.id === copiadoId ? "size-3.5 text-success" : "size-3.5"}

@@ -1,23 +1,39 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, CreditCard, List, Pencil, Plus, Search, Trash2, TrendingUp, X } from "lucide-react";
+import {
+  AlertTriangle,
+  ChevronDown,
+  CreditCard,
+  List,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+  TrendingUp,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 
 import { AppLayout } from "@/components/AppLayout";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { IndiceReajusteField } from "@/components/IndiceReajusteField";
+import { MonthPicker } from "@/components/MonthPicker";
 import {
   competenciaDe,
   HORIZONTE_SEM_PRAZO,
   PERIODICIDADES,
   projetarCompetencias,
+  receitasPorCompetencias,
   somarMeses,
   type ModoReajuste,
   type Periodicidade,
   type RecorrenciaFixa,
 } from "@/lib/recorrencia";
 import { correspondeBuscaComValor } from "@/lib/busca";
+import { usePersistedState } from "@/hooks/usePersistedState";
+import { usePrivacidadeValores } from "@/hooks/usePrivacidadeValores";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -61,6 +77,7 @@ import {
   toBRL,
   toISODate,
 } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/receitas")({
   head: () => ({
@@ -121,56 +138,85 @@ function ReceitasPage() {
   const { data: categorias = [] } = useCategorias("receita");
   const { data: cartoes = [] } = useCartoes();
   const { data: perfis = [] } = useProfilesList();
+  const { formatar } = usePrivacidadeValores();
 
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<any>(emptyForm);
-  const [filtroMes, setFiltroMes] = useState("atual_proximo");
-  const [filtroCat, setFiltroCat] = useState("todas");
-  const [filtroResp, setFiltroResp] = useState("todos");
+  const [duplicata, setDuplicata] = useState<any | null>(null);
+  // Item 3 (backlog 2026-09-27): filtros e modo de exibição lembrados por
+  // sessão (localStorage) e restaurados quando o usuário volta pra tela.
+  const [tab, setTab] = usePersistedState<"total" | "fixa" | "variavel">("receitas.tab", "total");
+  const [filtroMes, setFiltroMes] = usePersistedState("receitas.filtroMes", currentMonthKey());
+  const [filtroMesCustom, setFiltroMesCustom] = usePersistedState("receitas.filtroMesCustom", currentMonthKey());
+  const [filtroCat, setFiltroCat] = usePersistedState("receitas.filtroCat", "todas");
+  const [filtroResp, setFiltroResp] = usePersistedState("receitas.filtroResp", "todos");
   const [busca, setBusca] = useState("");
-  const [modoLista, setModoLista] = useState<"lista" | "cartao">("lista");
-
-  const meses = useMemo(
-    () =>
-      Array.from(new Set(receitas.map((r: any) => monthKey(r.data_recebimento))))
-        .sort()
-        .reverse(),
-    [receitas],
+  const [modoLista, setModoLista] = usePersistedState<"lista" | "cartao">(
+    "receitas.modoLista",
+    "lista",
   );
 
-  const mesSeguinte = useMemo(() => monthKey(addMonths(new Date(), 1)), []);
+  /** 61 meses: 2 anos anteriores, mês atual e 3 anos à frente (igual a despesas) */
+  const meses = useMemo(() => {
+    const now = new Date();
+    return Array.from({ length: 61 }, (_, i) =>
+      monthKey(new Date(now.getFullYear(), now.getMonth() + 36 - i, 1)),
+    );
+  }, []);
 
-  const lista = receitas.filter((r: any) => {
-    const mk = monthKey(r.data_recebimento);
-    if (filtroMes === "atual_proximo") {
-      if (mk !== currentMonthKey() && mk !== mesSeguinte) return false;
-    } else if (filtroMes !== "todos" && mk !== filtroMes) {
-      return false;
+  /** Competências a carregar: se o usuário está em um mês específico, só aquele mês! */
+  const competenciasParaFiltro = useMemo(() => {
+    if (filtroMes === "todos") {
+      return meses.slice().reverse();
     }
-    if (filtroCat !== "todas" && r.categoria !== filtroCat) return false;
-    if (filtroResp !== "todos" && r.responsavel !== filtroResp) return false;
-    if (
-      busca &&
-      !correspondeBuscaComValor(
-        `${r.descricao} ${r.categoria} ${r.responsavel}`,
-        Number(r.valor),
-        busca,
+    if (filtroMes === "custom") {
+      return [filtroMesCustom];
+    }
+    if (filtroMes === "atual_proximo" || !filtroMes) {
+      return [currentMonthKey()];
+    }
+    return [filtroMes];
+  }, [filtroMes, filtroMesCustom, meses]);
+
+  const lista = useMemo(() => {
+    const projetadas = receitasPorCompetencias(receitas as any[], competenciasParaFiltro);
+    return projetadas.filter((r) => {
+      if (tab !== "total" && r.tipo !== tab) return false;
+      if (filtroCat !== "todas" && r.categoria !== filtroCat) return false;
+      if (filtroResp !== "todos" && r.responsavel !== filtroResp) return false;
+      if (
+        busca &&
+        !correspondeBuscaComValor(
+          `${r.descricao} ${r.categoria} ${r.responsavel}`,
+          Number(r.valor),
+          busca,
+        )
       )
-    )
-      return false;
-    return true;
-  });
+        return false;
+      return true;
+    });
+  }, [receitas, competenciasParaFiltro, tab, filtroCat, filtroResp, busca]);
 
   const chips = [
-    filtroMes !== "atual_proximo" &&
-      filtroMes !== "todos" && {
-        label: filtroMes,
-        clear: () => setFiltroMes("atual_proximo"),
+    filtroMes !== currentMonthKey() &&
+      filtroMes !== "todos" &&
+      filtroMes !== "custom" &&
+      filtroMes !== "atual_proximo" && {
+        label: monthLabelLong(filtroMes),
+        clear: () => setFiltroMes(currentMonthKey()),
       },
     filtroMes === "todos" && {
       label: "Todos os meses",
-      clear: () => setFiltroMes("atual_proximo"),
+      clear: () => setFiltroMes(currentMonthKey()),
+    },
+    filtroMes === "custom" && {
+      label: `Mês: ${monthLabelLong(filtroMesCustom)}`,
+      clear: () => setFiltroMes(currentMonthKey()),
+    },
+    tab !== "total" && {
+      label: tab === "fixa" ? "Somente fixas" : "Somente variáveis",
+      clear: () => setTab("total"),
     },
     filtroCat !== "todas" && { label: filtroCat, clear: () => setFiltroCat("todas") },
     filtroResp !== "todos" && { label: filtroResp, clear: () => setFiltroResp("todos") },
@@ -178,7 +224,8 @@ function ReceitasPage() {
   ].filter(Boolean) as { label: string; clear: () => void }[];
 
   function limparFiltros() {
-    setFiltroMes("atual_proximo");
+    setFiltroMes(currentMonthKey());
+    setTab("total");
     setFiltroCat("todas");
     setFiltroResp("todos");
     setBusca("");
@@ -194,7 +241,8 @@ function ReceitasPage() {
   const grupos = useMemo(() => {
     const map = new Map<string, any[]>();
     for (const r of lista as any[]) {
-      const k = modoLista === "cartao" ? r.cartao_id ?? "sem" : monthKey(r.data_recebimento);
+      // usa r.competencia para agrupamento (já vem preenchido pela projeção dinâmica)
+      const k = modoLista === "cartao" ? r.cartao_id ?? "sem" : (r.competencia ?? monthKey(r.data_recebimento));
       if (!map.has(k)) map.set(k, []);
       map.get(k)!.push(r);
     }
@@ -225,15 +273,43 @@ function ReceitasPage() {
       ? (modoLista === "lista" ? key === mesAtual : true) || grupos.length === 1
       : !fechados[key];
 
+  /** Item 3 (plano de 2026-10-02, Frente 3): mesmo valor + mesma data já
+   * cadastrados exige confirmação explícita antes de deixar entrar um
+   * segundo lançamento igual — por padrão só o primeiro é salvo. Mesma
+   * trava já existente em `/despesas` (`possivelDuplicata`), aqui em
+   * paridade pra receitas (que antes não tinha checagem nenhuma). */
+  const possivelDuplicata = useMemo(() => {
+    if (editId) return null;
+    const valorNum = Number(String(form.valor).replace(",", "."));
+    if (!valorNum || !form.data_recebimento) return null;
+    return (
+      receitas.find(
+        (r: any) =>
+          Math.abs(Number(r.valor) - valorNum) < 0.01 &&
+          r.data_recebimento === form.data_recebimento,
+      ) ?? null
+    );
+  }, [receitas, editId, form.valor, form.data_recebimento]);
+
+  function tentarSalvar() {
+    if (possivelDuplicata && !duplicata) {
+      setDuplicata(possivelDuplicata);
+      return;
+    }
+    salvar.mutate();
+  }
+
   function abrirNova() {
     setEditId(null);
     setForm(emptyForm);
+    setDuplicata(null);
     setOpen(true);
   }
 
   function abrirEdicao(r: any) {
     if (!can("receitas", "editar")) return;
     setEditId(r.id);
+    setDuplicata(null);
     setForm({
       descricao: r.descricao ?? "",
       valor: String(r.valor ?? ""),
@@ -317,7 +393,21 @@ function ReceitasPage() {
       });
 
       if (editId) {
-        const { error } = await supabase.from("receitas").update(parsed).eq("id", editId);
+        const payload: any = {
+          ...parsed,
+          recorrencia_inicio: recorrencia ? recorrencia.inicio : null,
+          recorrencia_sem_prazo: Boolean(recorrencia?.semPrazo),
+          recorrencia_meses: recorrencia?.meses ?? null,
+          reajuste_modo: recorrencia?.reajuste?.modo ?? null,
+          reajuste_percentual:
+            recorrencia?.reajuste?.modo === "percentual" ? recorrencia.reajuste.percentual : null,
+          reajuste_valor_fixo:
+            recorrencia?.reajuste?.modo === "fixo" ? recorrencia.reajuste.valorFixo : null,
+          reajuste_periodicidade: recorrencia?.reajuste?.periodicidade ?? null,
+          reajuste_indice: recorrencia?.reajuste?.indice ?? null,
+          reajuste_inicio: recorrencia?.reajuste?.inicio ?? null,
+        };
+        const { error } = await supabase.from("receitas").update(payload).eq("id", editId);
         if (error) throw error;
         return;
       }
@@ -325,32 +415,42 @@ function ReceitasPage() {
       const base = { ...parsed, created_by: user?.id ?? null };
       let rows: any[];
 
-      if (recorrencia && parsed.recorrente) {
-        // Mensal recorrente: mesmo motor de "sem prazo" + reajuste das despesas fixas —
-        // materializa um horizonte de meses à frente em vez de travar num total fixo.
-        const inicio = competenciaDe(recorrencia.inicio);
-        const projecao = projetarCompetencias(
-          recorrencia,
-          inicio,
-          somarMeses(inicio, HORIZONTE_SEM_PRAZO - 1),
-        );
-        const baseDate = new Date(`${parsed.data_recebimento}T12:00:00`);
-        rows = projecao.map((c) => ({
-          ...base,
-          valor: c.valor,
-          data_recebimento: toISODate(addMonths(baseDate, c.ordem)),
-          recorrencia_inicio: recorrencia.inicio,
-          recorrencia_sem_prazo: true,
-          recorrencia_meses: null,
-          reajuste_modo: recorrencia.reajuste?.modo ?? null,
-          reajuste_percentual:
-            recorrencia.reajuste?.modo === "percentual" ? recorrencia.reajuste.percentual : null,
-          reajuste_valor_fixo:
-            recorrencia.reajuste?.modo === "fixo" ? recorrencia.reajuste.valorFixo : null,
-          reajuste_periodicidade: recorrencia.reajuste?.periodicidade ?? null,
-          reajuste_indice: recorrencia.reajuste?.indice ?? null,
-          reajuste_inicio: recorrencia.reajuste?.inicio ?? null,
-        }));
+      if (recorrencia && parsed.recorrente && parsed.frequencia === "mensal") {
+        // Mensal recorrente: salva apenas 1 row indeterminada, projeção dinâmica em tempo real
+        rows = [
+          {
+            ...base,
+            recorrencia_inicio: recorrencia.inicio,
+            recorrencia_sem_prazo: true,
+            recorrencia_meses: null,
+            reajuste_modo: recorrencia.reajuste?.modo ?? null,
+            reajuste_percentual:
+              recorrencia.reajuste?.modo === "percentual" ? recorrencia.reajuste.percentual : null,
+            reajuste_valor_fixo:
+              recorrencia.reajuste?.modo === "fixo" ? recorrencia.reajuste.valorFixo : null,
+            reajuste_periodicidade: recorrencia.reajuste?.periodicidade ?? null,
+            reajuste_indice: recorrencia.reajuste?.indice ?? null,
+            reajuste_inicio: recorrencia.reajuste?.inicio ?? null,
+          },
+        ];
+      } else if (recorrencia && parsed.recorrente) {
+        // Sem prazo com periodicidade anual/semestral
+        rows = [
+          {
+            ...base,
+            recorrencia_inicio: recorrencia.inicio,
+            recorrencia_sem_prazo: true,
+            recorrencia_meses: null,
+            reajuste_modo: recorrencia.reajuste?.modo ?? null,
+            reajuste_percentual:
+              recorrencia.reajuste?.modo === "percentual" ? recorrencia.reajuste.percentual : null,
+            reajuste_valor_fixo:
+              recorrencia.reajuste?.modo === "fixo" ? recorrencia.reajuste.valorFixo : null,
+            reajuste_periodicidade: recorrencia.reajuste?.periodicidade ?? null,
+            reajuste_indice: recorrencia.reajuste?.indice ?? null,
+            reajuste_inicio: recorrencia.reajuste?.inicio ?? null,
+          },
+        ];
       } else if (parsed.recorrente) {
         // Semanal/bimestral: mantém o modelo simples anterior (12 ocorrências, valor fixo).
         rows = [base];
@@ -376,6 +476,7 @@ function ReceitasPage() {
       setOpen(false);
       setEditId(null);
       setForm(emptyForm);
+      setDuplicata(null);
       qc.invalidateQueries();
     },
     onError: (e: any) => toast.error(e?.errors?.[0]?.message ?? e.message ?? "Erro ao salvar"),
@@ -397,75 +498,106 @@ function ReceitasPage() {
   return (
     <AppLayout
       title="Receitas"
-      description={`${lista.length} lançamento(s) · ${formatBRL(total)}`}
+      description={`${lista.length} lançamento(s) · ${formatar(total)}`}
       actions={
         can("receitas", "editar") && (
-          <Button size="sm" onClick={abrirNova}>
+          <Button size="sm" onClick={abrirNova} data-tour="nova-receita">
             <Plus className="size-4" /> Nova
           </Button>
         )
       }
     >
-      <div className="relative mb-2">
-        <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          value={busca}
-          onChange={(e) => setBusca(e.target.value)}
-          placeholder="Buscar descrição, categoria ou responsável"
-          className="h-9 pl-8"
-        />
-      </div>
+      <div className="mb-3 space-y-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
+            <TabsList className="h-10">
+              <TabsTrigger value="total" className="px-3.5 py-2 text-xs">
+                Total
+              </TabsTrigger>
+              <TabsTrigger value="fixa" className="px-3.5 py-2 text-xs">
+                Fixas
+              </TabsTrigger>
+              <TabsTrigger value="variavel" className="px-3.5 py-2 text-xs">
+                Variáveis
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
 
-      <div className="mb-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
-        <Select value={filtroMes} onValueChange={setFiltroMes}>
-          <SelectTrigger>
-            <SelectValue placeholder="Mês" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="atual_proximo">Mês atual e próximo</SelectItem>
-            <SelectItem value="todos">Todos os meses</SelectItem>
-            {meses.map((m) => (
-              <SelectItem key={m} value={m}>
-                {m}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={filtroCat} onValueChange={setFiltroCat}>
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="todas">Todas as categorias</SelectItem>
-            {categorias.map((c: any) => (
-              <SelectItem key={c.id} value={c.nome}>
-                {c.nome}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={filtroResp} onValueChange={setFiltroResp}>
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="todos">Todos responsáveis</SelectItem>
-            {responsaveis.map((r) => (
-              <SelectItem key={r} value={r}>
-                {r}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              placeholder="Buscar descrição, categoria ou responsável"
+              className="h-11 pl-9"
+            />
+          </div>
 
-      <div className="mb-3 flex justify-end">
-        <Tabs value={modoLista} onValueChange={(v) => setModoLista(v as "lista" | "cartao")}>
-          <TabsList className="h-9">
-            <TabsTrigger value="lista" className="gap-1 text-xs"><List className="size-3.5" /> Por mês</TabsTrigger>
-            <TabsTrigger value="cartao" className="gap-1 text-xs"><CreditCard className="size-3.5" /> Por cartão</TabsTrigger>
-          </TabsList>
-        </Tabs>
+          <Tabs value={modoLista} onValueChange={(v) => setModoLista(v as "lista" | "cartao")}>
+            <TabsList className="h-10">
+              <TabsTrigger value="lista" className="gap-1 px-3.5 py-2 text-xs">
+                <List className="size-3.5" /> Por mês
+              </TabsTrigger>
+              <TabsTrigger value="cartao" className="gap-1 px-3.5 py-2 text-xs">
+                <CreditCard className="size-3.5" /> Por cartão
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <Select
+            value={filtroMes === "atual_proximo" ? currentMonthKey() : filtroMes}
+            onValueChange={setFiltroMes}
+          >
+            <SelectTrigger className="h-11 text-xs">
+              <SelectValue placeholder="Mês" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos os meses</SelectItem>
+              <SelectItem value="custom">Mês específico…</SelectItem>
+              {meses.map((m) => (
+                <SelectItem key={m} value={m}>
+                  {monthLabelLong(m)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {filtroMes === "custom" && (
+            <MonthPicker
+              value={filtroMesCustom}
+              onChange={setFiltroMesCustom}
+              ariaLabel="Selecionar mês"
+              className="h-11"
+            />
+          )}
+          <Select value={filtroCat} onValueChange={setFiltroCat}>
+            <SelectTrigger className="h-11 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todas">Todas as categorias</SelectItem>
+              {categorias.map((c: any) => (
+                <SelectItem key={c.id} value={c.nome}>
+                  {c.nome}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={filtroResp} onValueChange={setFiltroResp}>
+            <SelectTrigger className="h-11 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos responsáveis</SelectItem>
+              {responsaveis.map((r) => (
+                <SelectItem key={r} value={r}>
+                  {r}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {chips.length > 0 && (
@@ -474,29 +606,16 @@ function ReceitasPage() {
             <button
               key={c.label}
               onClick={c.clear}
-              className="inline-flex items-center gap-1 rounded-full border bg-muted/50 px-2.5 py-1 text-[11px] font-medium hover:bg-muted"
+              className="inline-flex items-center gap-1.5 rounded-full border bg-muted/50 px-3 py-1.5 text-[11px] font-medium hover:bg-muted"
             >
               {c.label}
               <X className="size-3" />
             </button>
           ))}
-          <Button variant="ghost" size="sm" className="h-6 text-[11px]" onClick={limparFiltros}>
+          <Button variant="ghost" size="sm" className="h-8 text-[11px]" onClick={limparFiltros}>
             Limpar filtros
           </Button>
         </div>
-      )}
-
-      {filtroMes === "atual_proximo" && (
-        <p className="mb-3 text-xs text-muted-foreground">
-          Mostrando só o mês atual e o próximo.{" "}
-          <button
-            type="button"
-            className="font-medium text-primary underline-offset-4 hover:underline"
-            onClick={() => setFiltroMes("todos")}
-          >
-            Ver todos os meses
-          </button>
-        </p>
       )}
 
       <div className="space-y-4">
@@ -527,7 +646,7 @@ function ReceitasPage() {
                   {g.itens.length} lançamento{g.itens.length > 1 ? "s" : ""}
                 </Badge>
                 <span className="shrink-0 text-sm font-bold tabular-nums text-success">
-                  {formatBRL(g.total)}
+                  {formatar(g.total)}
                 </span>
               </button>
               {aberto && (
@@ -535,10 +654,11 @@ function ReceitasPage() {
                   {g.itens.map((r: any) => (
                     <div
                       key={r.id}
-                      onClick={() => abrirEdicao(r)}
-                      className={`flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-muted/30 ${
-                        can("receitas", "editar") ? "cursor-pointer" : ""
-                      }`}
+                      onClick={() => can("receitas", "editar") && abrirEdicao(r.receitaOriginal ?? r)}
+                      className={cn(
+                        "flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-muted/30",
+                        can("receitas", "editar") && "cursor-pointer",
+                      )}
                     >
                       <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-success/10">
                         <TrendingUp className="size-4 text-success" />
@@ -550,16 +670,17 @@ function ReceitasPage() {
                         </p>
                         <p className="truncate text-[11px] text-muted-foreground">
                           {r.categoria} · {formatDate(r.data_recebimento)}
-                          {r.recorrente ? ` · ${r.frequencia}` : ""}
-                          {r.recorrencia_sem_prazo ? " · sem prazo" : ""}
-                          {r.reajuste_periodicidade
-                            ? ` · reajuste ${r.reajuste_modo === "fixo" ? "fixo" : "%"} ${r.reajuste_periodicidade}`
+                          {r.tipo === "fixa" && " · fixa"}
+                          {r.recorrente && r.tipo !== "fixa" ? ` · ${r.frequencia}` : ""}
+                          {(r.receitaOriginal?.recorrencia_sem_prazo || r.receitaOriginal?.recorrencia_inicio) ? " · sem prazo" : ""}
+                          {r.receitaOriginal?.reajuste_periodicidade
+                            ? ` · reajuste ${r.receitaOriginal.reajuste_modo === "fixo" ? "fixo" : "%"} ${r.receitaOriginal.reajuste_periodicidade}`
                             : ""}
                         </p>
                       </div>
                       <div className="shrink-0 text-right">
                         <p className="text-sm font-bold tabular-nums text-success">
-                          {formatBRL(toBRL(Number(r.valor), r.moeda, cotacao))}
+                          {formatar(toBRL(Number(r.valor), r.moeda, cotacao))}
                         </p>
                         {r.moeda === "USD" && (
                           <p className="text-[10px] text-muted-foreground">
@@ -575,7 +696,7 @@ function ReceitasPage() {
                             className="size-8 text-muted-foreground hover:text-primary"
                             onClick={(e) => {
                               e.stopPropagation();
-                              abrirEdicao(r);
+                              abrirEdicao(r.receitaOriginal ?? r);
                             }}
                             aria-label="Editar receita"
                           >
@@ -589,7 +710,7 @@ function ReceitasPage() {
                             className="size-8 text-muted-foreground hover:text-destructive"
                             onClick={(e) => {
                               e.stopPropagation();
-                              excluir.mutate(r.id);
+                              excluir.mutate(r.receita_id ?? r.id);
                             }}
                             aria-label="Excluir receita"
                           >
@@ -606,14 +727,15 @@ function ReceitasPage() {
         })}
       </div>
 
-      {lista.some((r: any) => r.recorrente) && (
+      {lista.some((r: any) => r.tipo === "fixa") && (
         <p className="mt-4 text-xs text-muted-foreground">
           <Badge variant="secondary" className="mr-2">
-            Recorrentes
+            Receitas fixas
           </Badge>
-          Receitas mensais recorrentes não têm mais data fim: são geradas automaticamente por{" "}
-          {HORIZONTE_SEM_PRAZO} meses à frente (mesmo modelo das despesas fixas), com reajuste
-          periódico opcional. Semanais/bimestrais continuam com 12 ocorrências fixas.
+          Receitas fixas são projetadas dinamicamente para qualquer mês futuro — filtre por um mês
+          específico para ver 2029, 2030, etc. Entradas marcadas como <em>projetada</em> são
+          calculadas automaticamente; edite a receita original para alterar o valor ou as regras de
+          reajuste.
         </p>
       )}
 
@@ -624,6 +746,7 @@ function ReceitasPage() {
           if (!o) {
             setEditId(null);
             setForm(emptyForm);
+            setDuplicata(null);
           }
         }}
       >
@@ -631,6 +754,19 @@ function ReceitasPage() {
           <DialogHeader>
             <DialogTitle>{editId ? "Editar receita" : "Nova receita"}</DialogTitle>
           </DialogHeader>
+
+          {duplicata && (
+            <Alert className="border-warning/40 bg-warning/10">
+              <AlertTriangle className="size-4 text-warning" />
+              <AlertTitle className="text-sm">Possível duplicidade</AlertTitle>
+              <AlertDescription className="text-xs">
+                Já existe “{duplicata.descricao}” de {formatBRL(Number(duplicata.valor))} em{" "}
+                {formatDate(duplicata.data_recebimento)}. Clique em salvar novamente para confirmar
+                mesmo assim.
+              </AlertDescription>
+            </Alert>
+          )}
+
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Descrição" className="sm:col-span-2">
               <Input
@@ -855,8 +991,8 @@ function ReceitasPage() {
             </Field>
           </div>
           <DialogFooter>
-            <Button onClick={() => salvar.mutate()} disabled={salvar.isPending}>
-              {editId ? "Salvar alterações" : "Salvar receita"}
+            <Button onClick={tentarSalvar} disabled={salvar.isPending}>
+              {duplicata ? "Salvar mesmo assim" : editId ? "Salvar alterações" : "Salvar receita"}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -246,6 +246,56 @@ export const uploadNotaArquivo = createServerFn({ method: "POST" })
     }
     const nome = data.nome.replace(/[\\/\r\n]/g, "_").slice(0, 180);
     const { randomUUID } = await import("node:crypto");
+
+    // Oracle Object Storage (2026-09-26): primeira tentativa, só para
+    // grupos que o admin habilitou explicitamente na tela de
+    // Administração — mantém a cota do Supabase Storage livre para os
+    // demais grupos. Se o grupo não tem Oracle habilitado, não tem cota
+    // livre, ou o Oracle não está configurado nesta implantação, segue
+    // silenciosamente para o Google Drive/site como já acontecia antes.
+    try {
+      const { oracleStorageConfigurado, uploadParaOracle } =
+        await import("@/server/oracle-storage.server");
+      if (oracleStorageConfigurado()) {
+        const { data: perfilGrupoOracle } = await context.supabase
+          .from("profiles")
+          .select("grupo_id")
+          .eq("id", context.userId)
+          .maybeSingle();
+        const grupoIdOracle = perfilGrupoOracle?.grupo_id as string | undefined;
+        if (grupoIdOracle) {
+          const { objectKey } = await uploadParaOracle({
+            supabase: context.supabase,
+            grupoId: grupoIdOracle,
+            notaId: data.notaId,
+            nome,
+            mimeType: data.mimeType,
+            bytes: fileBytes,
+            userId: context.userId,
+          });
+          const { error: registroError } = await context.supabase.from("nota_arquivos").insert({
+            nota_id: data.notaId,
+            drive_file_id: `oracle:${objectKey}`,
+            link: null,
+            thumbnail_link: null,
+            mime_type: data.mimeType,
+            nome,
+            created_by: context.userId,
+          });
+          if (registroError) throw registroError;
+          return { ok: true as const, destino: "oracle" as const, fileId: objectKey };
+        }
+      }
+    } catch (oracleError) {
+      // Grupo sem Oracle habilitado, sem cota livre, ou falha de rede —
+      // em qualquer caso, segue para o próximo destino da cadeia em vez
+      // de interromper o envio da nota fiscal.
+      console.error(
+        "Upload para Oracle não realizado, seguindo para o próximo destino:",
+        oracleError instanceof Error ? oracleError.message : oracleError,
+      );
+    }
+
     const salvarNoSite = async (aviso?: string) => {
       const path = `${data.notaId}/${randomUUID()}-${nome}`;
       const bucket = context.supabase.storage.from("comprovantes");
@@ -291,13 +341,53 @@ export const uploadNotaArquivo = createServerFn({ method: "POST" })
     try {
       accessToken = await googleDriveAccessToken(refreshToken);
     } catch {
-      return salvarNoSite("A conexão Google expirou; o arquivo ficou salvo no site.");
+      // O refresh token não funciona mais (revogado pelo usuário, senha do
+      // Google trocada, ou — em app não verificado — expirou por inatividade).
+      // Sem isso, TODO envio ia cair aqui pra sempre, em silêncio, com
+      // driveStatus continuando a dizer "Conectado" indefinidamente. Remove a
+      // conexão morta pra driveStatus passar a refletir a realidade e a
+      // pessoa ser convidada a reconectar.
+      try {
+        const { deleteConnectionForUser } = await import("@/server/appUserConnections.server");
+        await deleteConnectionForUser(context.userId, CONNECTOR_ID);
+      } catch {
+        /* mesmo se a limpeza falhar, segue com o fallback abaixo */
+      }
+      return salvarNoSite(
+        "A conexão com o Google Drive expirou — reconecte em Notas Fiscais. Este arquivo ficou salvo no site.",
+      );
     }
-    // O escopo drive.file só garante acesso aos arquivos e pastas criados pelo app.
+    // O escopo drive.file só garante acesso aos arquivos e pastas criados
+    // pelo app OU escolhidos pela pessoa via um seletor do Google — não a
+    // uma pasta qualquer colada por link. Por isso, se o grupo configurou
+    // uma pasta em "Pasta dos comprovantes" (Configurações), tenta usar
+    // essa pasta como destino; se o Drive recusar (pasta não criada pelo
+    // app, sem esse acesso), cai pro fallback abaixo com aviso claro, em vez
+    // de silenciosamente ignorar a escolha da pessoa e usar outra pasta.
     let destinoId: string;
     try {
-      const rootId = await ensureFolder(accessToken, ROOT_FOLDER);
-      destinoId = await ensureFolder(accessToken, SUB_FOLDER, rootId);
+      const { data: perfilGrupo } = await context.supabase
+        .from("profiles")
+        .select("grupo_id")
+        .eq("id", context.userId)
+        .maybeSingle();
+      const grupoId = perfilGrupo?.grupo_id as string | undefined;
+      const pastaEscolhidaId = grupoId
+        ? ((
+            await context.supabase
+              .from("configuracoes_casal")
+              .select("valor")
+              .eq("grupo_id", grupoId)
+              .eq("chave", `${grupoId}:drive_folder_id`)
+              .maybeSingle()
+          ).data?.valor as string | undefined)
+        : undefined;
+      if (pastaEscolhidaId) {
+        destinoId = pastaEscolhidaId;
+      } else {
+        const rootId = await ensureFolder(accessToken, ROOT_FOLDER);
+        destinoId = await ensureFolder(accessToken, SUB_FOLDER, rootId);
+      }
     } catch {
       return salvarNoSite(
         "O Google Drive não pôde preparar a pasta; o arquivo ficou salvo no site.",
@@ -355,4 +445,63 @@ export const uploadNotaArquivo = createServerFn({ method: "POST" })
     if (error) throw error;
 
     return { ok: true as const, destino: "google_drive" as const, fileId: file.id };
+  });
+
+/**
+ * Resolve links assinados (1h) para arquivos de nota fiscal salvos no
+ * Oracle Object Storage (2026-09-27). Os arquivos do Oracle são gravados em
+ * `nota_arquivos.drive_file_id` como `"oracle:<object_key>"`, com
+ * `link`/`thumbnail_link` sempre null no banco (bucket privado, precisa de
+ * URL assinada gerada a cada uso). O componente de Notas Fiscais chama esta
+ * função com a lista de object_keys visíveis na tela — mesmo padrão já
+ * usado no client para os arquivos "supabase:" (createSignedUrls), mas aqui
+ * via server porque as credenciais do Oracle não podem ir pro client.
+ *
+ * Retorna um mapa { [objectKey]: url }; um object_key que falhar (por
+ * exemplo, se o Oracle não estiver mais configurado) fica de fora do mapa
+ * em vez de derrubar a tela inteira.
+ */
+export const resolverUrlsOracle = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { objectKeys: string[] }) => {
+    if (!Array.isArray(input?.objectKeys) || input.objectKeys.length === 0) {
+      throw new Error("Informe ao menos um object_key.");
+    }
+    if (input.objectKeys.length > 100) throw new Error("Muitos arquivos de uma vez.");
+    if (!input.objectKeys.every((k) => typeof k === "string" && k.length > 0)) {
+      throw new Error("object_key inválido.");
+    }
+    return { objectKeys: input.objectKeys };
+  })
+  .handler(async ({ data, context }) => {
+    // Confere que cada object_key pedido pertence ao grupo do usuário —
+    // evita que alguém peça a URL assinada de um arquivo de outro grupo
+    // sabendo (ou adivinhando) o object_key.
+    const { data: perfil } = await context.supabase
+      .from("profiles")
+      .select("grupo_id")
+      .eq("id", context.userId)
+      .maybeSingle();
+    const grupoId = perfil?.grupo_id as string | undefined;
+    if (!grupoId) return { urls: {} as Record<string, string> };
+
+    const prefixoPermitido = `${grupoId}/`;
+    const objectKeysDoGrupo = data.objectKeys.filter((k) => k.startsWith(prefixoPermitido));
+    if (objectKeysDoGrupo.length === 0) return { urls: {} as Record<string, string> };
+
+    const { oracleStorageConfigurado, urlAssinadaOracle } =
+      await import("@/server/oracle-storage.server");
+    if (!oracleStorageConfigurado()) return { urls: {} as Record<string, string> };
+
+    const urls: Record<string, string> = {};
+    await Promise.all(
+      objectKeysDoGrupo.map(async (objectKey) => {
+        try {
+          urls[objectKey] = await urlAssinadaOracle(objectKey);
+        } catch (err) {
+          console.error(`Não foi possível gerar URL assinada para ${objectKey}:`, err);
+        }
+      }),
+    );
+    return { urls };
   });

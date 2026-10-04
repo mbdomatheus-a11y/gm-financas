@@ -400,6 +400,14 @@ const POR_TIPO: Partial<Record<TipoLancamento, Sugestao>> = {
 export type RegraUsuario = {
   id?: string;
   estabelecimento_normalizado: string;
+  /**
+   * Bloco 4 (plano-mega 2026-09-14): uma regra pode casar com várias
+   * variações de descrição (ex. "PERNAMBUCANAS 377" e "377" e
+   * "PERNAMBUCANAS 377 PARC" todas batendo na mesma categoria), em vez de
+   * um único texto. Quando vazio/ausente, cai no comportamento antigo de
+   * usar só `estabelecimento_normalizado` — nenhuma regra existente quebra.
+   */
+  padroes?: string[] | null;
   tipo_regra?: string | null;
   categoria: string;
   subcategoria: string | null;
@@ -456,13 +464,15 @@ export function classificar(descricao: string, ctx: ContextoClassificacao = {}):
     .filter((r) => r.ativo !== false)
     .sort((a, b) => (b.prioridade ?? 100) - (a.prioridade ?? 100));
   const regra = regras.find((r) => {
-    const alvo = chaveEstabelecimento(r.estabelecimento_normalizado);
-    if (!alvo) return false;
-    return (
-      alvo === chaveNome ||
-      chaveNome.includes(alvo) ||
-      chaveBruta.includes(alvo)
-    );
+    // Bloco 4: casa contra QUALQUER padrão cadastrado na regra — a lista
+    // completa quando existir, senão só o texto único de sempre.
+    const textos =
+      r.padroes && r.padroes.length > 0 ? r.padroes : [r.estabelecimento_normalizado];
+    return textos.some((texto) => {
+      const alvo = chaveEstabelecimento(texto);
+      if (!alvo) return false;
+      return alvo === chaveNome || chaveNome.includes(alvo) || chaveBruta.includes(alvo);
+    });
   });
   if (regra) {
     return {

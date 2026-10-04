@@ -2,7 +2,7 @@ import { useState, type ReactNode } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { encerrarSessao } from "@/lib/login-protecao.functions";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   LayoutDashboard,
   TrendingUp,
@@ -11,7 +11,6 @@ import {
   PiggyBank,
   Share2,
   Users,
-  Palette,
   Settings,
   LogOut,
   Menu,
@@ -46,6 +45,49 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { AlertsBell } from "@/components/AlertsBell";
 import { BrandMark } from "@/components/BrandMark";
+import { BotaoLancamentoRapido } from "@/components/LancamentoRapido/BotaoLancamentoRapido";
+import { obterUsoOracleDoMeuGrupo } from "@/lib/oracle-admin.functions";
+import { usePrivacidadeValores } from "@/hooks/usePrivacidadeValores";
+import { Eye, EyeOff } from "lucide-react";
+
+/** Item 16 (backlog 2026-09-27): mostra a cota de armazenamento Oracle do
+ * PRÓPRIO grupo do usuário (nunca de outro grupo), embaixo do nome do site
+ * e do usuário, com escala de cor conforme o uso (verde/amarelo/vermelho).
+ * Fica em branco (não renderiza nada) se o Oracle não estiver habilitado
+ * para o grupo — evita confundir quem nunca usou essa área. */
+function OracleQuotaBadge() {
+  const obterFn = useServerFn(obterUsoOracleDoMeuGrupo);
+  const { data } = useQuery({
+    queryKey: ["oracle-quota-meu-grupo"],
+    queryFn: () => obterFn(),
+    staleTime: 60_000,
+  });
+
+  if (!data || !data.habilitado || data.cotaBytes <= 0) return null;
+
+  const pct = Math.min(100, (data.usadoBytes / data.cotaBytes) * 100);
+  const cor = pct >= 90 ? "bg-destructive" : pct >= 70 ? "bg-warning" : "bg-success";
+  const corTexto = pct >= 90 ? "text-destructive" : pct >= 70 ? "text-warning" : "text-success";
+
+  const formatarMb = (bytes: number) => `${(bytes / (1024 * 1024)).toFixed(0)} MB`;
+
+  return (
+    <div
+      className="mt-1.5 px-2"
+      title={`${formatarMb(data.usadoBytes)} de ${formatarMb(data.cotaBytes)} usados`}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[10px] text-muted-foreground">Armazenamento</span>
+        <span className={`text-[10px] font-semibold tabular-nums ${corTexto}`}>
+          {formatarMb(data.usadoBytes)} / {formatarMb(data.cotaBytes)}
+        </span>
+      </div>
+      <div className="mt-0.5 h-1 overflow-hidden rounded-full bg-muted">
+        <div className={`h-full rounded-full ${cor}`} style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  );
+}
 
 type NavTo =
   | "/inicio"
@@ -66,6 +108,7 @@ type NavTo =
   | "/backup"
   | "/personalizacao"
   | "/conta"
+  | "/configuracoes"
   | "/pets"
   | "/onde-esta"
   | "/exames"
@@ -82,17 +125,21 @@ type NavItem = {
   moduloGlobal?: ModuloGlobal;
 };
 
-type MundoId = "financas" | "lista" | "notas" | "calculadora" | "vida";
+type MundoId =
+  "financas" | "lista" | "notas" | "calculadora" | "pet" | "onde_esta" | "veiculo" | "exames";
 
 /**
- * Navegação em "mundos" (2026-09-18): em vez de uma lista única com tudo
- * misturado, a Home mostra só 4 caixas (Finanças, Lista, Notas fiscais e Calculadora) e,
- * dentro de cada uma, o menu lateral passa a mostrar só os itens daquele
- * mundo — pra não misturar despesas/investimentos com a lista de compras,
- * por exemplo. "Início" fica sempre fixo no topo do menu como botão de
- * voltar. Ferramentas administrativas/utilitárias (Compartilhar,
- * Usuários, Backup, Personalização, Conta) ficam numa seção
- * global, visível o tempo todo, independente do mundo atual.
+ * Navegação em "mundos" (2026-09-18, revisado em 2026-09-26): cada módulo
+ * da Início (Finanças, Lista, Notas, Calculadora, Pet, Onde está?, Veículo,
+ * Exames) vira seu próprio "mundo", com o mesmo nome exibido nos dois
+ * lugares — antes "Vida" e "Veículo" ficavam agrupados/escondidos dentro de
+ * outros mundos e não apareciam como opção própria na barra do topo. Dentro
+ * de cada mundo, o menu lateral mostra só os itens daquele mundo — pra não
+ * misturar despesas/investimentos com a lista de compras, por exemplo.
+ * "Início" fica sempre fixo no topo do menu como botão de voltar.
+ * Ferramentas administrativas/utilitárias (Compartilhar, Usuários, Backup,
+ * Personalização, Conta) ficam numa seção global, visível o tempo todo,
+ * independente do mundo atual.
  */
 const MUNDOS: Record<MundoId, { titulo: string; home: NavTo; items: NavItem[] }> = {
   financas: {
@@ -125,7 +172,10 @@ const MUNDOS: Record<MundoId, { titulo: string; home: NavTo; items: NavItem[] }>
         label: "Importar Faturas",
         short: "Faturas",
         icon: FileUp,
-        modulo: "despesas",
+        // Etapa D (plano-importacao-v2.md): módulo próprio em vez de
+        // reaproveitar "despesas" — permite ao admin bloquear o acesso à
+        // importação sem afetar a visualização normal de despesas.
+        modulo: "importar",
       },
       { to: "/categorias", label: "Categorias", short: "Categ.", icon: Tags },
       {
@@ -149,18 +199,10 @@ const MUNDOS: Record<MundoId, { titulo: string; home: NavTo; items: NavItem[] }>
         icon: PiggyBank,
         modulo: "investimentos",
       },
-      {
-        to: "/veiculos",
-        label: "Meu Veículo",
-        short: "Veículo",
-        icon: Car,
-        modulo: "veiculos",
-        moduloGlobal: "veiculo",
-      },
     ],
   },
   lista: {
-    titulo: "Lista de compras",
+    titulo: "Lista",
     home: "/lista-compras",
     items: [
       {
@@ -173,7 +215,7 @@ const MUNDOS: Record<MundoId, { titulo: string; home: NavTo; items: NavItem[] }>
     ],
   },
   notas: {
-    titulo: "Notas fiscais",
+    titulo: "Notas",
     home: "/notas",
     items: [
       {
@@ -198,11 +240,15 @@ const MUNDOS: Record<MundoId, { titulo: string; home: NavTo; items: NavItem[] }>
       },
     ],
   },
-  vida: {
-    titulo: "Vida",
+  pet: {
+    titulo: "Pet",
     home: "/pets",
+    items: [{ to: "/pets", label: "Pet", short: "Pet", icon: PawPrint, moduloGlobal: "pet" }],
+  },
+  onde_esta: {
+    titulo: "Onde está?",
+    home: "/onde-esta",
     items: [
-      { to: "/pets", label: "Pet", short: "Pet", icon: PawPrint, moduloGlobal: "pet" },
       {
         to: "/onde-esta",
         label: "Onde está?",
@@ -210,6 +256,26 @@ const MUNDOS: Record<MundoId, { titulo: string; home: NavTo; items: NavItem[] }>
         icon: MapPin,
         moduloGlobal: "onde_esta",
       },
+    ],
+  },
+  veiculo: {
+    titulo: "Veículo",
+    home: "/veiculos",
+    items: [
+      {
+        to: "/veiculos",
+        label: "Meu Veículo",
+        short: "Veículo",
+        icon: Car,
+        modulo: "veiculos",
+        moduloGlobal: "veiculo",
+      },
+    ],
+  },
+  exames: {
+    titulo: "Exames",
+    home: "/exames",
+    items: [
       { to: "/exames", label: "Exames", short: "Exames", icon: FileHeart, moduloGlobal: "exames" },
     ],
   },
@@ -246,13 +312,11 @@ const GLOBAL: NavItem[] = [
     adminOnly: true,
   },
   {
-    to: "/personalizacao",
-    label: "Personalização",
-    short: "Tema",
-    icon: Palette,
-    modulo: "personalizacao",
+    to: "/configuracoes",
+    label: "Configurações",
+    short: "Config.",
+    icon: Settings,
   },
-  { to: "/conta", label: "Configurações da conta", short: "Conta", icon: Settings },
   { to: "/suporte", label: "Suporte", short: "Suporte", icon: Headphones },
 ];
 
@@ -281,6 +345,7 @@ export function AppLayout({
   const { prefs } = usePreferencias();
   const { data: profile } = useProfile();
   const { can, isSiteAdmin } = usePermissoes();
+  const { ocultarValores, toggle: alternarOcultarValores } = usePrivacidadeValores();
   const { habilitado } = useModulosGlobais();
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -309,7 +374,18 @@ export function AppLayout({
     lista: "lista",
     notas: "notas",
     calculadora: "calculadora",
+    pet: "pet",
+    onde_esta: "onde_esta",
+    veiculo: "veiculo",
+    exames: "exames",
   };
+  const mundoVisivel = (id: MundoId) => {
+    const m = MUNDOS[id];
+    const global = mundoGlobal[id];
+    if (global && !habilitado(global)) return false;
+    return m.items.filter(podeVer).length > 0;
+  };
+  const mundosVisiveis = (Object.keys(MUNDOS) as MundoId[]).filter(mundoVisivel);
   const itensDoMundo = (
     mundo && (!mundoId || !mundoGlobal[mundoId] || habilitado(mundoGlobal[mundoId]!))
       ? mundo.items
@@ -393,6 +469,7 @@ export function AppLayout({
           <p className="truncate text-xs text-muted-foreground">{profile?.nome ?? ""}</p>
         </div>
       </Link>
+      <OracleQuotaBadge />
       <NavLinks onNavigate={onNavigate} />
       <Button
         variant="ghost"
@@ -413,32 +490,82 @@ export function AppLayout({
       )}
 
       <div className={cn(!bottomNav && "lg:pl-64")}>
-        <header className="sticky top-0 z-20 flex items-center gap-3 border-b bg-background/80 px-4 py-3 backdrop-blur-md">
-          <Sheet open={open} onOpenChange={setOpen}>
-            <SheetTrigger asChild>
+        <header className="sticky top-0 z-20 border-b bg-background/80 backdrop-blur-md">
+          <div className="flex items-center gap-3 px-4 py-3">
+            <Sheet open={open} onOpenChange={setOpen}>
+              <SheetTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn(!bottomNav && "lg:hidden")}
+                  aria-label="Abrir menu"
+                >
+                  <Menu className="size-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-72 bg-sidebar p-0">
+                <SheetTitle className="sr-only">Menu</SheetTitle>
+                <SidebarInner onNavigate={() => setOpen(false)} />
+              </SheetContent>
+            </Sheet>
+
+            <div className="min-w-0 flex-1">
+              <h1 className="truncate text-base font-semibold leading-tight sm:text-lg">{title}</h1>
+              {description && (
+                <p className="truncate text-xs text-muted-foreground">{description}</p>
+              )}
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
               <Button
                 variant="ghost"
                 size="icon"
-                className={cn(!bottomNav && "lg:hidden")}
-                aria-label="Abrir menu"
+                onClick={alternarOcultarValores}
+                aria-label={ocultarValores ? "Mostrar valores em R$" : "Ocultar valores em R$"}
+                title={
+                  ocultarValores
+                    ? "Mostrar valores em R$ (global)"
+                    : "Ocultar valores em R$ (global) — cada caixa também tem seu próprio olho"
+                }
               >
-                <Menu className="size-5" />
+                {ocultarValores ? <EyeOff className="size-4.5" /> : <Eye className="size-4.5" />}
               </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-72 bg-sidebar p-0">
-              <SheetTitle className="sr-only">Menu</SheetTitle>
-              <SidebarInner onNavigate={() => setOpen(false)} />
-            </SheetContent>
-          </Sheet>
+              <AlertsBell />
+              {actions}
+            </div>
+          </div>
 
-          <div className="min-w-0 flex-1">
-            <h1 className="truncate text-base font-semibold leading-tight sm:text-lg">{title}</h1>
-            {description && <p className="truncate text-xs text-muted-foreground">{description}</p>}
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <AlertsBell />
-            {actions}
-          </div>
+          {/* Alternador de módulos (2026-09-26): antes, ao entrar num módulo
+              (ex.: Finanças), os outros módulos (Lista, Onde está?, Exames…)
+              desapareciam do menu lateral e só voltavam pela Início. Esta
+              barra fica sempre visível no topo, mostra em qual módulo você
+              está (destacado) e deixa pular pra qualquer outro em 1 clique. */}
+          {mundosVisiveis.length > 0 && (
+            <nav
+              aria-label="Módulos"
+              className="flex gap-1.5 overflow-x-auto px-3 pb-2.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            >
+              {mundosVisiveis.map((id) => {
+                const m = MUNDOS[id];
+                const Icon = m.items[0]!.icon;
+                const ativo = mundoId === id;
+                return (
+                  <Link
+                    key={id}
+                    to={m.home}
+                    className={cn(
+                      "flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                      ativo
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-transparent bg-muted/60 text-muted-foreground hover:bg-muted",
+                    )}
+                  >
+                    <Icon className="size-3.5" />
+                    {m.titulo}
+                  </Link>
+                );
+              })}
+            </nav>
+          )}
         </header>
 
         <main className="mx-auto w-full max-w-7xl px-4 pb-28 pt-5 lg:pb-10">{children}</main>
@@ -468,6 +595,12 @@ export function AppLayout({
           );
         })}
       </nav>
+
+      {/* Lançamento rápido por texto/áudio (IA) — pedido explícito do usuário
+          (2026-10-01): botão flutuante acessível de qualquer tela
+          autenticada, não escondido dentro dos formulários de
+          despesas/receitas. Ver claude/plano-lancamento-ia-2026-10-01.md. */}
+      <BotaoLancamentoRapido />
     </div>
   );
 }

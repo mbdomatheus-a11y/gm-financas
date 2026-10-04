@@ -14,14 +14,28 @@ export const adminListarLayouts = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     await admin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data, error } = await (supabaseAdmin as any)
+    const db = supabaseAdmin as any;
+    // Nota: layout_solicitacoes.user_id referencia auth.users, não
+    // public.profiles diretamente — por isso o embed `profiles:user_id(...)`
+    // do PostgREST nunca funcionou (não há FK direta para resolver a
+    // relação) e essa consulta sempre falhava, deixando a Central de
+    // Solicitações sempre vazia mesmo com faturas pendentes. Corrigido
+    // em 2026-09-26 buscando os perfis manualmente, como já é feito em
+    // adminListarLogs.
+    const { data, error } = await db
       .from("layout_solicitacoes")
-      .select(
-        "id,user_id,banco_informado,cartao_final,arquivo_nome,status,resposta_admin,criado_em,profiles:user_id(nome,email)",
-      )
+      .select("id,protocolo,user_id,banco_informado,cartao_final,arquivo_nome,status,resposta_admin,criado_em")
       .order("criado_em", { ascending: false });
     if (error) throw new Error(error.message);
-    return data ?? [];
+    const ids = [...new Set((data ?? []).map((item: any) => item.user_id).filter(Boolean))];
+    const { data: perfis } = ids.length
+      ? await db.from("profiles").select("id,nome,email").in("id", ids)
+      : { data: [] };
+    const porId = new Map((perfis ?? []).map((perfil: any) => [perfil.id, perfil]));
+    return (data ?? []).map((item: any) => ({
+      ...item,
+      profiles: porId.get(item.user_id) ?? null,
+    }));
   });
 export const adminObterLayoutUrl = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -109,6 +123,13 @@ export const adminAtualizarLayout = createServerFn({ method: "POST" })
     });
     return { ok: true as const };
   });
+// 2026-09-28: o prazo de 72h fazia sentido pra um aviso pontual, mas não
+// pro aviso de boas-vindas dos primeiros usuários de fora da família, que
+// precisa durar semanas/meses (cada um loga pela primeira vez em um dia
+// diferente). Trocado por ~2 anos — na prática, sem expiração real; quem
+// controla se o aviso aparece é o campo `ativo` (ver adminEncerrarComunicado).
+const VALIDADE_PADRAO_MS = 2 * 365 * 24 * 60 * 60 * 1000;
+
 export const adminCriarComunicado = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((v: unknown) =>
@@ -131,7 +152,7 @@ export const adminCriarComunicado = createServerFn({ method: "POST" })
         titulo: data.titulo,
         mensagem: data.mensagem,
         exige_aceite: data.exigeAceite,
-        expira_em: new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString(),
+        expira_em: new Date(Date.now() + VALIDADE_PADRAO_MS).toISOString(),
       })
       .select("id")
       .single();
@@ -144,6 +165,67 @@ export const adminCriarComunicado = createServerFn({ method: "POST" })
     });
     return { ok: true as const };
   });
+/**
+ * Edita um aviso existente. Qualquer edição de título/mensagem apaga as
+ * confirmações já registradas (comunicado_aceites) desse aviso — ou seja,
+ * quem já tinha marcado "não exibir mais" volta a ver a versão nova. Esse é
+ * o comportamento pedido: "qualquer edição reexibe pra todo mundo".
+ */
+export const adminAtualizarComunicado = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((v: unknown) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        titulo: z.string().trim().min(3).max(120),
+        mensagem: z.string().trim().min(3).max(2000),
+      })
+      .parse(v),
+  )
+  .handler(async ({ data, context }) => {
+    await admin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const db = supabaseAdmin as any;
+    const { error } = await db
+      .from("comunicados")
+      .update({ titulo: data.titulo, mensagem: data.mensagem })
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
+    const { error: resetErro } = await db
+      .from("comunicado_aceites")
+      .delete()
+      .eq("comunicado_id", data.id);
+    if (resetErro) throw new Error(resetErro.message);
+    await db.from("admin_audit_logs").insert({
+      ator_id: context.userId,
+      acao: "comunicado_editado",
+      alvo_id: data.id,
+      detalhes: {},
+    });
+    return { ok: true as const };
+  });
+/**
+ * "Ignora" as confirmações já registradas pra um aviso, sem mexer no texto
+ * — sobrepõe em todos os próximos logons, inclusive de quem já tinha
+ * marcado "não exibir mais esta mensagem".
+ */
+export const adminReenviarComunicado = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((v: unknown) => z.object({ id: z.string().uuid() }).parse(v))
+  .handler(async ({ data, context }) => {
+    await admin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const db = supabaseAdmin as any;
+    const { error } = await db.from("comunicado_aceites").delete().eq("comunicado_id", data.id);
+    if (error) throw new Error(error.message);
+    await db.from("admin_audit_logs").insert({
+      ator_id: context.userId,
+      acao: "comunicado_reenviado",
+      alvo_id: data.id,
+      detalhes: {},
+    });
+    return { ok: true as const };
+  });
 export const adminListarComunicados = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -151,11 +233,14 @@ export const adminListarComunicados = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data, error } = await (supabaseAdmin as any)
       .from("comunicados")
-      .select("id,titulo,mensagem,ativo,criado_em,expira_em")
+      .select("id,titulo,mensagem,ativo,criado_em,expira_em,comunicado_aceites(count)")
       .order("criado_em", { ascending: false })
       .limit(50);
     if (error) throw new Error(error.message);
-    return data ?? [];
+    return (data ?? []).map((item: any) => ({
+      ...item,
+      confirmacoes: item.comunicado_aceites?.[0]?.count ?? 0,
+    }));
   });
 export const adminEncerrarComunicado = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -227,22 +312,11 @@ export const adminMetricas = createServerFn({ method: "GET" })
           new Date(s.iniciou_em).getTime(),
       )
       .filter((n: number) => n >= 0 && n <= 24 * 60 * 60 * 1000);
-    // Saldo mensal por grupo (mês atual)
-    const agora = new Date();
-    const inicioMes = new Date(agora.getFullYear(), agora.getMonth(), 1).toISOString().slice(0, 10);
-    const fimMes = new Date(agora.getFullYear(), agora.getMonth() + 1, 0).toISOString().slice(0, 10);
-    const [{ data: receitasMes }, { data: despesasMes }] = await Promise.all([
-      db.from("receitas").select("valor,grupo_id").gte("data", inicioMes).lte("data", fimMes),
-      db.from("despesas").select("valor,grupo_id").gte("data", inicioMes).lte("data", fimMes).is("excluida_em", null),
-    ]);
-    const recPorGrupo = new Map<string, number>();
-    const desPorGrupo = new Map<string, number>();
-    for (const r of receitasMes ?? []) {
-      if (r.grupo_id) recPorGrupo.set(r.grupo_id, (recPorGrupo.get(r.grupo_id) ?? 0) + Number(r.valor));
-    }
-    for (const d of despesasMes ?? []) {
-      if (d.grupo_id) desPorGrupo.set(d.grupo_id, (desPorGrupo.get(d.grupo_id) ?? 0) + Number(d.valor));
-    }
+    // 2026-09-26: removido o saldo mensal (receitas/despesas) por grupo —
+    // decisão do proprietário: o administrador do site não deve ter acesso
+    // a dados financeiros de nenhum grupo além do seu próprio, nem em
+    // formato agregado. A composição de grupos abaixo mantém só dados de
+    // cadastro (nome, membros), sem nenhum valor financeiro.
 
     return {
       total: total ?? 0,
@@ -278,8 +352,6 @@ export const adminMetricas = createServerFn({ method: "GET" })
         membros: (perfis ?? [])
           .filter((p: any) => p.grupo_id === g.id)
           .map((p: any) => ({ id: p.id, nome: p.nome, email: p.email, ativo: p.ativo })),
-        receitas: recPorGrupo.get(g.id) ?? 0,
-        despesas: desPorGrupo.get(g.id) ?? 0,
       })),
     };
   });

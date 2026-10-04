@@ -20,6 +20,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { Field } from "@/routes/_authenticated/receitas";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -115,6 +116,9 @@ const eventoSchema = z.object({
   km: z.number().int().nonnegative().nullable(),
   custo: z.number().nonnegative().nullable(),
   descricao: z.string().max(300).nullable(),
+  // Bloco 7 (plano-mega-2026-09-14.md): mostrar (ou não) este evento também
+  // no painel principal de despesas.
+  aparecer_em_despesas: z.boolean(),
 });
 
 const eventoFormVazio = {
@@ -123,6 +127,7 @@ const eventoFormVazio = {
   km: "",
   custo: "",
   descricao: "",
+  aparecer_em_despesas: false,
 };
 
 function VeiculosPage() {
@@ -243,31 +248,90 @@ function VeiculosPage() {
         km: eventoForm.km !== "" ? Number(eventoForm.km) : null,
         custo: eventoForm.custo !== "" ? Number(String(eventoForm.custo).replace(",", ".")) : null,
         descricao: eventoForm.descricao || null,
+        aparecer_em_despesas: eventoForm.aparecer_em_despesas,
       });
-      const { error } = await appSupabase.from("veiculo_eventos").insert({
-        veiculo_id: eventoVeiculoId,
-        ...parsed,
-        criado_por: user?.id ?? null,
-      });
+      const { data: evento, error } = await appSupabase
+        .from("veiculo_eventos")
+        .insert({
+          veiculo_id: eventoVeiculoId,
+          ...parsed,
+          criado_por: user?.id ?? null,
+        })
+        .select()
+        .single();
       if (error) throw error;
+
+      // Bloco 7: espelha este evento como uma despesa comum (categoria
+      // "Veículo"), só quando o usuário marcou a caixinha e há um custo —
+      // `despesa_id` volta pro evento pra manter os dois sincronizados.
+      if (parsed.aparecer_em_despesas && parsed.custo != null && parsed.custo > 0) {
+        const descricaoDespesa = `${labelTipoEvento(parsed.tipo)}${
+          parsed.descricao ? ` — ${parsed.descricao}` : ""
+        }`;
+        const { data: despesa, error: despesaErr } = await supabase
+          .from("despesas")
+          .insert({
+            categoria: "Veículo",
+            descricao: descricaoDespesa,
+            data_compra: parsed.data,
+            data_primeira_parcela: parsed.data,
+            valor_total: parsed.custo,
+            total_parcelas: 1,
+            moeda: "BRL",
+            direcao: "debito",
+            tipo: "variavel",
+            origem: "manual",
+            created_by: user?.id ?? null,
+          })
+          .select("id")
+          .single();
+        if (despesaErr) throw despesaErr;
+        const { error: parcelaErr } = await supabase.from("parcelas").insert({
+          despesa_id: despesa.id,
+          numero: 1,
+          total: 1,
+          valor: parsed.custo,
+          moeda: "BRL",
+          vencimento: parsed.data,
+          paga: true,
+          data_pagamento: parsed.data,
+        });
+        if (parcelaErr) throw parcelaErr;
+        const { error: linkErr } = await appSupabase
+          .from("veiculo_eventos")
+          .update({ despesa_id: despesa.id })
+          .eq("id", evento.id);
+        if (linkErr) throw linkErr;
+      }
     },
     onSuccess: () => {
       toast.success("Evento registrado");
       setEventoVeiculoId(null);
       setEventoForm(eventoFormVazio);
       qc.invalidateQueries({ queryKey: ["veiculos"] });
+      qc.invalidateQueries({ queryKey: ["despesas"] });
     },
     onError: (e: any) => toast.error(e?.errors?.[0]?.message ?? e.message ?? "Erro ao salvar"),
   });
 
   const excluirEvento = useMutation({
     mutationFn: async (id: string) => {
+      // Se este evento tinha uma despesa espelhada (Bloco 7), remove a
+      // despesa (e suas parcelas, por FK cascade) antes de remover o
+      // evento — não deixa despesa órfã no painel principal.
+      const todosEventos = veiculos.flatMap((v: any) => v.veiculo_eventos ?? []);
+      const despesaId = todosEventos.find((e: any) => e.id === id)?.despesa_id;
+      if (despesaId) {
+        const { error: despesaErr } = await supabase.from("despesas").delete().eq("id", despesaId);
+        if (despesaErr) throw despesaErr;
+      }
       const { error } = await appSupabase.from("veiculo_eventos").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
       toast.success("Evento removido");
       qc.invalidateQueries({ queryKey: ["veiculos"] });
+      qc.invalidateQueries({ queryKey: ["despesas"] });
     },
   });
 
@@ -772,6 +836,13 @@ function VeiculosPage() {
                 placeholder="Ex.: Óleo 5W30 + filtro, oficina do Zé"
               />
             </Field>
+            <label className="flex items-center gap-2 text-sm sm:col-span-2">
+              <Checkbox
+                checked={eventoForm.aparecer_em_despesas}
+                onCheckedChange={(v) => setEventoForm({ ...eventoForm, aparecer_em_despesas: !!v })}
+              />
+              Mostrar também no painel principal de Despesas (categoria "Veículo")
+            </label>
           </div>
           <DialogFooter>
             <Button onClick={() => salvarEvento.mutate()} disabled={salvarEvento.isPending}>

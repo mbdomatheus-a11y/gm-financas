@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
-import { ArrowDownRight, ArrowUpRight, ChevronDown, ChevronRight, Minus } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Link } from "@tanstack/react-router";
+import { ArrowDownRight, ArrowUpRight, ChevronDown, ChevronRight, Eye, EyeOff, Minus } from "lucide-react";
 import {
   Bar,
   BarChart,
@@ -22,11 +23,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { EditarDespesaRapido } from "@/components/EditarDespesaRapido";
+import { Button } from "@/components/ui/button";
 import { useCotacao } from "@/hooks/useCotacao";
 import { useDespesas, useFaturasMes, useReceitas } from "@/hooks/useFinance";
+import { usePrivacidadeValores } from "@/hooks/usePrivacidadeValores";
 import { aplicarRegrasFaturaMes } from "@/lib/fatura-mes";
 import {
-  currentMonthKey,
   formatBRL,
   formatDate,
   identificacaoDespesa,
@@ -35,7 +37,10 @@ import {
   monthLabelLong,
   toBRL,
 } from "@/lib/format";
+import { useCompetenciaVigente } from "@/lib/periodo-vigente";
+import { usePersistedState } from "@/hooks/usePersistedState";
 import { lancamentosPorCompetencias } from "@/lib/recorrencia";
+import { opacidadePorPosicao, posicaoTemporalDoMes } from "@/lib/tempo-visual";
 
 type Agrupamento = "cartao" | "categoria" | "responsavel" | "tipo";
 
@@ -90,16 +95,59 @@ function Delta({ valor }: { valor: number | null }) {
   );
 }
 
-export function VisaoGeralHome({ ocultarValores = false }: { ocultarValores?: boolean } = {}) {
+/** Botão "olho" pequeno, usado por caixa/card individual — sobrepõe o
+ * global só para aquele item (item 4 do backlog 2026-09-27). */
+function BotaoOlhoItem({ oculto, onClick }: { oculto: boolean; onClick: () => void }) {
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      className="size-6 shrink-0 text-muted-foreground"
+      onClick={onClick}
+      aria-label={oculto ? "Mostrar valores desta caixa" : "Ocultar valores desta caixa"}
+      title={oculto ? "Mostrar valores desta caixa" : "Ocultar valores desta caixa"}
+    >
+      {oculto ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+    </Button>
+  );
+}
+
+export function VisaoGeralHome({ ocultarValores }: { ocultarValores?: boolean } = {}) {
   const cotacao = useCotacao();
   const { data: despesas = [] } = useDespesas();
   const { data: faturasMes = [] } = useFaturasMes();
   const { data: receitas = [] } = useReceitas();
 
-  const valorFmt = (v: number) => (ocultarValores ? "R$ ••••••" : formatBRL(v));
+  // `ocultarValores` explícito (prop) continua funcionando pra quem já
+  // chamava assim; sem prop, cada card decide sozinho via seu próprio
+  // hook (global + override por item).
+  const globalHook = usePrivacidadeValores();
+  const economiaPrivacidade = usePrivacidadeValores("economia-conquistada");
+  const receitasPrivacidade = usePrivacidadeValores("receitas-home");
+  const despesasPrivacidade = usePrivacidadeValores("despesas-home");
 
-  const [agrupamento, setAgrupamento] = useState<Agrupamento>("cartao");
-  const [mes, setMes] = useState(currentMonthKey());
+  const ocultoEconomia = ocultarValores ?? economiaPrivacidade.ocultoNesteItem;
+  const ocultoReceitas = ocultarValores ?? receitasPrivacidade.ocultoNesteItem;
+  const ocultoDespesas = ocultarValores ?? despesasPrivacidade.ocultoNesteItem;
+  const valorFmt = (v: number) => (globalHook.ocultarValores ? "R$ ••••••" : formatBRL(v));
+  const valorFmtItem = (v: number, oculto: boolean) => (oculto ? "R$ ••••••" : formatBRL(v));
+
+  // Item 3 (backlog 2026-09-27): agrupamento lembrado por sessão
+  // (localStorage) e restaurado quando o usuário volta pra tela.
+  const [agrupamento, setAgrupamento] = usePersistedState<Agrupamento>(
+    "inicio.agrupamento",
+    "cartao",
+  );
+  // Item 5 (backlog 2026-09-27): "mês do sistema" — `mes` inicia (e se
+  // realinha, caso a preferência de dia de virada ainda esteja carregando no
+  // primeiro render) com a competência vigente considerando o dia de virada
+  // configurado pelo usuário em Minha Conta. Sem configuração, comporta-se
+  // exatamente como antes (mês calendário normal).
+  const competenciaVigente = useCompetenciaVigente();
+  const [mes, setMes] = useState(competenciaVigente);
+  useEffect(() => {
+    setMes(competenciaVigente);
+  }, [competenciaVigente]);
   const [aberto, setAberto] = useState<string | null>(null);
   const [editando, setEditando] = useState<any | null>(null);
 
@@ -195,21 +243,34 @@ export function VisaoGeralHome({ ocultarValores = false }: { ocultarValores?: bo
 
   const economiaTotal = useMemo(() => {
     return (despesas as any[])
-      .filter((d) => d.observacoes?.includes("[ECONOMIA_CONQUISTADA]"))
+      .filter((d) => d.economia_conquistada)
       .reduce((s, d) => s + toBRL(Number(d.valor_total ?? 0), d.moeda ?? "BRL", cotacao), 0);
   }, [despesas, cotacao]);
 
   return (
     <>
       <div className="mb-4 grid gap-3 sm:grid-cols-2">
-        <Card className="bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent border-emerald-500/20">
+        <Card className="bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent border-emerald-500/20 transition-colors hover:bg-emerald-500/5">
+          <Link
+            to="/despesas"
+            search={{ economia: true, mes: "todos" }}
+            className="block focus-visible:outline-none"
+          >
           <CardContent className="p-4 flex items-center justify-between">
             <div>
-              <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wide">
-                Economia Conquistada
-              </p>
+              <div className="flex items-center gap-1">
+                <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wide">
+                  Economia Conquistada
+                </p>
+                {!ocultarValores && (
+                  <BotaoOlhoItem
+                    oculto={ocultoEconomia}
+                    onClick={economiaPrivacidade.toggleItem}
+                  />
+                )}
+              </div>
               <h3 className="text-xl font-bold tabular-nums text-emerald-700 dark:text-emerald-300">
-                {valorFmt(economiaTotal)}
+                {valorFmtItem(economiaTotal, ocultoEconomia)}
               </h3>
               <p className="text-[11px] text-muted-foreground mt-0.5">
                 Economizado em tarifas, anuidades e cobranças renegociadas
@@ -219,6 +280,7 @@ export function VisaoGeralHome({ ocultarValores = false }: { ocultarValores?: bo
               💰
             </div>
           </CardContent>
+          </Link>
         </Card>
 
         <Card className="bg-gradient-to-br from-blue-500/10 via-blue-500/5 to-transparent border-blue-500/20">
@@ -306,7 +368,16 @@ export function VisaoGeralHome({ ocultarValores = false }: { ocultarValores?: bo
                               ? "var(--success)"
                               : "var(--chart-2)"
                       }
-                      opacity={s.key === mes ? 1 : 0.55}
+                      // Bloco 3 (plano-mega 2026-09-14): mês selecionado sempre
+                      // em destaque total; os demais usam a opacidade padrão de
+                      // passado/futuro em vez de um valor fixo — assim um mês
+                      // futuro (ainda "previsto") fica visualmente mais apagado
+                      // que um mês passado já fechado.
+                      opacity={
+                        s.key === mes
+                          ? 1
+                          : opacidadePorPosicao(posicaoTemporalDoMes(s.key, competenciaVigente))
+                      }
                     />
                   ))}
                 </Bar>
@@ -341,10 +412,23 @@ export function VisaoGeralHome({ ocultarValores = false }: { ocultarValores?: bo
       <Card className="mb-4">
         <CardHeader className="flex flex-col gap-2 space-y-0 pb-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <CardTitle className="text-base">{monthLabelLong(mes)}</CardTitle>
+            <div className="flex items-center gap-1">
+              <CardTitle className="text-base">{monthLabelLong(mes)}</CardTitle>
+              {!ocultarValores && (
+                <BotaoOlhoItem oculto={ocultoDespesas} onClick={despesasPrivacidade.toggleItem} />
+              )}
+            </div>
             <p className="mt-0.5 flex items-center gap-2 text-sm text-muted-foreground">
-              Total {valorFmt(grupos.total)} <Delta valor={grupos.deltaTotal} /> vs. mês anterior
+              Total {valorFmtItem(grupos.total, ocultoDespesas)} <Delta valor={grupos.deltaTotal} /> vs. mês anterior
             </p>
+            {mesSelecionado && (
+              <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                Receita do mês: {valorFmtItem(mesSelecionado.Receitas, ocultoReceitas)}
+                {!ocultarValores && (
+                  <BotaoOlhoItem oculto={ocultoReceitas} onClick={receitasPrivacidade.toggleItem} />
+                )}
+              </p>
+            )}
           </div>
           <Select value={agrupamento} onValueChange={(v) => setAgrupamento(v as Agrupamento)}>
             <SelectTrigger className="w-full sm:w-56">
@@ -384,7 +468,7 @@ export function VisaoGeralHome({ ocultarValores = false }: { ocultarValores?: bo
                     <div className="flex items-center justify-between gap-2">
                       <span className="truncate text-sm font-medium">{g.grupo}</span>
                       <span className="shrink-0 text-sm font-semibold tabular-nums">
-                        {valorFmt(g.total)}
+                        {valorFmtItem(g.total, ocultoDespesas)}
                       </span>
                     </div>
                     <div className="mt-1 flex items-center gap-2">
@@ -425,7 +509,7 @@ export function VisaoGeralHome({ ocultarValores = false }: { ocultarValores?: bo
                           </p>
                         </div>
                         <span className="shrink-0 text-sm font-semibold tabular-nums">
-                          {valorFmt(p.valorBRL)}
+                          {valorFmtItem(p.valorBRL, ocultoDespesas)}
                         </span>
                       </button>
                     ))}

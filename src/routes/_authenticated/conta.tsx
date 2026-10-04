@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { LogOut, Pencil, ShieldCheck, Trash2 } from "lucide-react";
+import { CalendarClock, Car, LogOut, Pencil, ShieldCheck, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
@@ -9,11 +9,14 @@ import { useQueryClient } from "@tanstack/react-query";
 import { AppLayout } from "@/components/AppLayout";
 import { ConvitesCard } from "@/components/ConvitesCard";
 import { PermissoesUsuariosCard } from "@/components/PermissoesUsuariosCard";
+import { ConciliacaoFaturasCard } from "@/components/ConciliacaoFaturasCard";
+import { IaLancamentoModoGrupoCard } from "@/components/IaLancamentoModoGrupoCard";
 import { Field } from "@/routes/_authenticated/receitas";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile, usePermissoes } from "@/hooks/useAuthData";
 import { maskCpf, onlyDigits } from "@/lib/cpf";
@@ -21,6 +24,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { excluirMinhaConta } from "@/lib/conta-exclusao.functions";
 import { alterarMinhaSenha, atualizarMeusDados } from "@/lib/seguranca-conta.functions";
 import { aceitarConviteGrupo, convidarParaMeuGrupo } from "@/lib/grupos.functions";
+import { usePreferencias } from "@/hooks/usePreferencias";
+import { proximaVirada } from "@/lib/periodo-vigente";
 import {
   Dialog,
   DialogContent,
@@ -74,6 +79,60 @@ function ContaPage() {
   const [formDataNascimento, setFormDataNascimento] = useState("");
   const [formCpf, setFormCpf] = useState("");
   const [formHorasMes, setFormHorasMes] = useState("160");
+
+  // Item 5 (backlog 2026-09-27): "mês do sistema" — dia de virada customizado
+  // usado por `useCompetenciaVigente()` no Dashboard e na Início. Sem
+  // configuração salva (dia_virada null), o comportamento é o mês calendário
+  // normal, igual a antes desta funcionalidade existir.
+  const { prefs: preferencias, save: salvarPreferencias } = usePreferencias();
+  const [usarDiaVirada, setUsarDiaVirada] = useState(false);
+  const [diaViradaInput, setDiaViradaInput] = useState("");
+
+  useEffect(() => {
+    setUsarDiaVirada(preferencias.dia_virada != null);
+    setDiaViradaInput(preferencias.dia_virada != null ? String(preferencias.dia_virada) : "");
+  }, [preferencias.dia_virada]);
+
+  const salvarMesSistema = () => {
+    if (!usarDiaVirada) {
+      salvarPreferencias.mutate(
+        { dia_virada: null },
+        { onSuccess: () => toast.success("Mês do sistema voltou ao calendário normal.") },
+      );
+      return;
+    }
+    const dia = Number(diaViradaInput);
+    if (!Number.isInteger(dia) || dia < 1 || dia > 28) {
+      toast.error("Informe um dia de virada entre 1 e 28.");
+      return;
+    }
+    salvarPreferencias.mutate(
+      { dia_virada: dia },
+      { onSuccess: () => toast.success("Mês do sistema atualizado.") },
+    );
+  };
+
+  // Bloco 7 (plano-mega-2026-09-14.md): destaque da soma do módulo Veículo
+  // no card "Veículo" da Início — preferência de perfil, desligada por padrão.
+  const [destacarVeiculo, setDestacarVeiculo] = useState(false);
+  useEffect(() => {
+    setDestacarVeiculo(!!preferencias.destacar_veiculo_inicio);
+  }, [preferencias.destacar_veiculo_inicio]);
+
+  function salvarDestaqueVeiculo(valor: boolean) {
+    setDestacarVeiculo(valor);
+    salvarPreferencias.mutate(
+      { destacar_veiculo_inicio: valor },
+      {
+        onSuccess: () =>
+          toast.success(
+            valor
+              ? "Soma do Veículo agora aparece destacada na Início."
+              : "Destaque do Veículo desativado.",
+          ),
+      },
+    );
+  }
 
   useEffect(() => {
     if (perfil) {
@@ -210,15 +269,27 @@ function ContaPage() {
             </Button>
           </CardContent>
         </Card>
+        <ConciliacaoFaturasCard />
+        {isAdmin && <IaLancamentoModoGrupoCard />}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm">Seus dados cadastrais</CardTitle>
             {!editandoDados ? (
-              <Button size="sm" variant="ghost" className="h-8 gap-1 text-xs" onClick={() => setEditandoDados(true)}>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-8 gap-1 text-xs"
+                onClick={() => setEditandoDados(true)}
+              >
                 <Pencil className="size-3.5" /> Editar dados
               </Button>
             ) : (
-              <Button size="sm" variant="ghost" className="h-8 text-xs text-muted-foreground" onClick={() => setEditandoDados(false)}>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-8 text-xs text-muted-foreground"
+                onClick={() => setEditandoDados(false)}
+              >
                 Cancelar
               </Button>
             )}
@@ -290,13 +361,25 @@ function ContaPage() {
                   <Input value={formNome} onChange={(e) => setFormNome(e.target.value)} />
                 </Field>
                 <Field label="E-mail de acesso">
-                  <Input type="email" value={formEmail} onChange={(e) => setFormEmail(e.target.value)} />
+                  <Input
+                    type="email"
+                    value={formEmail}
+                    onChange={(e) => setFormEmail(e.target.value)}
+                  />
                 </Field>
                 <Field label="Telefone / WhatsApp">
-                  <Input value={formTelefone} onChange={(e) => setFormTelefone(e.target.value)} placeholder="(11) 99999-9999" />
+                  <Input
+                    value={formTelefone}
+                    onChange={(e) => setFormTelefone(e.target.value)}
+                    placeholder="(11) 99999-9999"
+                  />
                 </Field>
                 <Field label="Data de nascimento">
-                  <Input type="date" value={formDataNascimento} onChange={(e) => setFormDataNascimento(e.target.value)} />
+                  <Input
+                    type="date"
+                    value={formDataNascimento}
+                    onChange={(e) => setFormDataNascimento(e.target.value)}
+                  />
                 </Field>
                 <Field label="CPF (para habilitar login com CPF)">
                   <Input
@@ -331,6 +414,85 @@ function ContaPage() {
                 </Button>
               </div>
             )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-sm">
+              <CalendarClock className="size-4" /> Mês do sistema
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4 text-sm">
+            <p className="text-muted-foreground">
+              Por padrão, o Dashboard e a Início consideram o mês calendário (1º ao último dia). Se
+              o seu ciclo financeiro não coincide com o calendário — por exemplo, seu cartão fecha
+              todo dia 10 — configure um dia de virada: a partir dele, essas telas já passam a
+              tratar o mês seguinte como "mês atual".
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant={!usarDiaVirada ? "default" : "outline"}
+                size="sm"
+                onClick={() => setUsarDiaVirada(false)}
+              >
+                Mês calendário normal
+              </Button>
+              <Button
+                type="button"
+                variant={usarDiaVirada ? "default" : "outline"}
+                size="sm"
+                onClick={() => setUsarDiaVirada(true)}
+              >
+                Dia de virada customizado
+              </Button>
+            </div>
+            {usarDiaVirada && (
+              <Field label="Dia de virada (1 a 28)">
+                <Input
+                  type="number"
+                  min={1}
+                  max={28}
+                  value={diaViradaInput}
+                  onChange={(e) => setDiaViradaInput(e.target.value)}
+                  className="max-w-[120px]"
+                />
+              </Field>
+            )}
+            {preferencias.dia_virada != null && (
+              <p className="text-xs text-muted-foreground">
+                Próxima virada:{" "}
+                {proximaVirada(new Date(), preferencias.dia_virada).toLocaleDateString("pt-BR")}
+              </p>
+            )}
+            <p className="text-xs text-muted-foreground">
+              Vale por enquanto apenas para o Dashboard e a Início — as demais telas continuam
+              considerando o mês calendário.
+            </p>
+            <Button onClick={salvarMesSistema} disabled={salvarPreferencias.isPending} size="sm">
+              {salvarPreferencias.isPending ? "Salvando..." : "Salvar"}
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-sm">
+              <Car className="size-4" /> Destaque do módulo Veículo
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm">
+            <p className="text-muted-foreground">
+              Quando ativado, o card "Veículo" na Início mostra em destaque a soma dos gastos do
+              veículo no mês atual.
+            </p>
+            <div className="flex items-center gap-2">
+              <Switch checked={destacarVeiculo} onCheckedChange={salvarDestaqueVeiculo} />
+              <span className="text-xs text-muted-foreground">
+                {destacarVeiculo ? "Ativado" : "Desativado"}
+              </span>
+            </div>
           </CardContent>
         </Card>
 

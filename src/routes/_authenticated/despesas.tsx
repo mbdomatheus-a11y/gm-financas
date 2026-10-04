@@ -1,9 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
   ArrowLeftRight,
+  Calculator,
   CheckCircle2,
   ChevronDown,
   CreditCard,
@@ -24,6 +25,8 @@ import { z } from "zod";
 import { Checkbox } from "@/components/ui/checkbox";
 import { correspondeBuscaComValor } from "@/lib/busca";
 import { AppLayout } from "@/components/AppLayout";
+import { usePersistedState } from "@/hooks/usePersistedState";
+import { usePrivacidadeValores } from "@/hooks/usePrivacidadeValores";
 import { Field } from "@/routes/_authenticated/receitas";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -94,8 +97,16 @@ import {
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/despesas")({
-  validateSearch: (s: Record<string, unknown>): { cartao?: string } =>
-    typeof s["cartao"] === "string" && s["cartao"] ? { cartao: s["cartao"] } : {},
+  validateSearch: (
+    s: Record<string, unknown>,
+  ): { cartao?: string; modo?: "lista" | "cartao"; mes?: string; economia?: boolean } => ({
+    ...(typeof s["cartao"] === "string" && s["cartao"] ? { cartao: s["cartao"] } : {}),
+    ...(s["modo"] === "cartao" || s["modo"] === "lista" ? { modo: s["modo"] } : {}),
+    ...(typeof s["mes"] === "string" && s["mes"] ? { mes: s["mes"] } : {}),
+    // Bloco 3 (plano-mega-2026-09-14.md): o card "Economia Conquistada" da
+    // Início usa isso pra levar direto aos lançamentos que geraram a economia.
+    ...(s["economia"] === true ? { economia: true } : {}),
+  }),
   head: () => ({
     meta: [
       { title: "Despesas — Control ALL" },
@@ -125,6 +136,7 @@ const schema = z.object({
   data_primeira_parcela: z.string().min(10, "Informe a data da 1ª parcela"),
   responsavel: z.string().min(1, "Informe o responsável"),
   observacoes: z.string().max(500).nullable(),
+  economia_conquistada: z.boolean(),
 });
 
 function novoForm(tipo: "fixa" | "variavel") {
@@ -141,6 +153,7 @@ function novoForm(tipo: "fixa" | "variavel") {
     data_primeira_parcela: toISODate(new Date()),
     responsavel: "",
     observacoes: "",
+    economia_conquistada: false,
     recorrencia_duracao: "sem_prazo",
     recorrencia_meses: "12",
     reajuste_tipo: "nenhum",
@@ -165,21 +178,51 @@ function DespesasPage() {
   const { data: cartoes = [] } = useCartoes();
   const { data: bancos = [] } = useBancos();
   const { data: perfis = [] } = useProfilesList();
+  const { formatar } = usePrivacidadeValores();
 
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
 
-  const [tab, setTab] = useState<"total" | "fixa" | "variavel">("total");
+  // Item 3 (backlog 2026-09-27): aba e filtros de categoria/banco/responsável
+  // são lembrados por sessão (localStorage) e restaurados quando o usuário
+  // volta pra tela. `filtroMes` e `modoLista` ficam de fora de propósito —
+  // eles já têm sua própria lógica de default (mês atual / `?mes=`/`?modo=`
+  // vindos de outras telas, ex. o card "Dívida total" do dashboard), e
+  // persistir por localStorage entraria em conflito com esse comportamento.
+  const [tab, setTab] = usePersistedState<"total" | "fixa" | "variavel">("despesas.tab", "total");
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
+  // Bloco 6 (plano-mega 2026-09-14): simulação visual de corte em despesas
+  // fixas — desmarcar itens aqui só recalcula o total exibido na hora,
+  // nunca grava nada no banco. Estado local, puro "e se", reseta ao trocar
+  // de aba/mês ou sair da tela.
+  const [simulandoCortes, setSimulandoCortes] = useState(false);
+  const [idsExcluidosSimulacao, setIdsExcluidosSimulacao] = useState<Set<string>>(new Set());
   const [form, setForm] = useState<any>(novoForm("fixa"));
   const [duplicata, setDuplicata] = useState<any | null>(null);
   const [busca, setBusca] = useState("");
-  const [filtroMes, setFiltroMes] = useState(monthKey(new Date()));
-  const [filtroBanco, setFiltroBanco] = useState("todos");
-  const [filtroCategoria, setFiltroCategoria] = useState("todos");
-  const [filtroResponsavel, setFiltroResponsavel] = useState("todos");
-  const [modoLista, setModoLista] = useState<"lista" | "cartao">("lista");
+  // `mes=todos` na URL (ex.: vindo do card "Dívida total em aberto" do
+  // dashboard) abre a página já mostrando a dívida completa, não só a do
+  // mês atual.
+  const [filtroMes, setFiltroMes] = useState(search.mes ?? monthKey(new Date()));
+  const [filtroBanco, setFiltroBanco] = usePersistedState("despesas.filtroBanco", "todos");
+  const [filtroCategoria, setFiltroCategoria] = usePersistedState(
+    "despesas.filtroCategoria",
+    "todos",
+  );
+  const [filtroResponsavel, setFiltroResponsavel] = usePersistedState(
+    "despesas.filtroResponsavel",
+    "todos",
+  );
+  /** Item 3 (plano de 2026-10-02, Frente 3): distinguir lançamentos diretos
+   * (avulsos, inclui os feitos por IA) dos vindos de fatura/importação,
+   * usando o campo `origem` que já existe em `despesas` — nenhuma coluna
+   * nova. */
+  const [filtroOrigem, setFiltroOrigem] = usePersistedState("despesas.filtroOrigem", "todos");
+  const [filtroEconomia, setFiltroEconomia] = useState(search.economia ?? false);
+  // `modo=cartao` na URL (ex.: vindo do card "Parcelas mensalizadas" do
+  // dashboard) abre a página já na visão "Por cartão".
+  const [modoLista, setModoLista] = useState<"lista" | "cartao">(search.modo ?? "lista");
   const [expandida, setExpandida] = useState<string | null>(null);
   const [grupoExpandido, setGrupoExpandido] = useState<string | null>(null);
 
@@ -294,6 +337,7 @@ function DespesasPage() {
       data_primeira_parcela: d.recorrencia_inicio ?? d.data_primeira_parcela,
       responsavel: d.responsavel ?? "",
       observacoes: d.observacoes ?? "",
+      economia_conquistada: !!d.economia_conquistada,
       recorrencia_duracao: d.recorrencia_meses ? "prazo" : "sem_prazo",
       recorrencia_meses: String(d.recorrencia_meses ?? 12),
       reajuste_tipo: d.reajuste_percentual ? "composto" : "nenhum",
@@ -308,10 +352,6 @@ function DespesasPage() {
 
   const salvar = useMutation({
     mutationFn: async () => {
-      const obsFinal = form.economia_conquistada
-        ? `[ECONOMIA_CONQUISTADA] ${form.observacoes || ""}`.trim()
-        : form.observacoes || null;
-
       const parsed = schema.parse({
         descricao: form.descricao,
         valor_total: valorNum,
@@ -322,7 +362,8 @@ function DespesasPage() {
         total_parcelas: nParcelas,
         data_primeira_parcela: form.data_primeira_parcela,
         responsavel: form.responsavel,
-        observacoes: obsFinal,
+        observacoes: form.observacoes || null,
+        economia_conquistada: !!form.economia_conquistada,
       });
       const [tipoPg, idPg] = String(form.pagamento).split(":");
       const vinculos = {
@@ -625,6 +666,9 @@ function DespesasPage() {
     if (filtroBanco !== "todos" && d.banco_id !== filtroBanco) return false;
     if (filtroCategoria !== "todos" && d.categoria !== filtroCategoria) return false;
     if (filtroResponsavel !== "todos" && d.responsavel !== filtroResponsavel) return false;
+    if (filtroOrigem === "diretos" && d.origem && d.origem !== "manual") return false;
+    if (filtroOrigem === "fatura" && (!d.origem || d.origem === "manual")) return false;
+    if (filtroEconomia && !d.economia_conquistada) return false;
     if (
       busca &&
       !correspondeBuscaComValor(
@@ -678,6 +722,24 @@ function DespesasPage() {
     }
     return { total, pago, aberto, proximo };
   }, [listaVisivel, cotacao, filtroMes, lancamentosDoFiltro, lancamentoPorDespesa, idsIgnoradosPorTotal]);
+
+  // Bloco 6: sai da simulação sozinho ao trocar de aba/mês — os ids
+  // excluídos de uma simulação não fazem sentido mais depois disso.
+  useEffect(() => {
+    setSimulandoCortes(false);
+    setIdsExcluidosSimulacao(new Set());
+  }, [tab, filtroMes]);
+
+  const simulacao = useMemo(() => {
+    if (!simulandoCortes) return null;
+    let economia = 0;
+    for (const d of listaVisivel as any[]) {
+      if (idsIgnoradosPorTotal.has(d.id)) continue;
+      if (!idsExcluidosSimulacao.has(d.id)) continue;
+      economia += toBRL(valorVisivel(d), d.moeda, cotacao);
+    }
+    return { totalSimulado: resumo.total - economia, economia };
+  }, [simulandoCortes, listaVisivel, idsExcluidosSimulacao, idsIgnoradosPorTotal, cotacao, resumo.total]);
 
   /** Agrupa por cartão. Despesas fixas sem cartão ficam em 'Recorrente fora do cartão'. Demais sem cartão ficam em 'Sem atribuição'. */
   const gruposLista = useMemo(() => {
@@ -733,6 +795,14 @@ function DespesasPage() {
       label: filtroResponsavel,
       clear: () => setFiltroResponsavel("todos"),
     },
+    filtroOrigem !== "todos" && {
+      label: filtroOrigem === "diretos" ? "Lançamentos diretos" : "De fatura/importação",
+      clear: () => setFiltroOrigem("todos"),
+    },
+    filtroEconomia && {
+      label: "Economia conquistada",
+      clear: () => setFiltroEconomia(false),
+    },
     filtroMes !== "todos" && {
       label: monthLabelLong(filtroMes),
       clear: () => setFiltroMes("todos"),
@@ -745,14 +815,16 @@ function DespesasPage() {
     setFiltroBanco("todos");
     setFiltroCategoria("todos");
     setFiltroResponsavel("todos");
+    setFiltroOrigem("todos");
     setFiltroMes("todos");
+    setFiltroEconomia(false);
     setBusca("");
   }
 
   return (
     <AppLayout
       title="Despesas"
-      description={`${lista.length} lançamento(s) · ${formatBRL(resumo.total)}`}
+      description={`${lista.length} lançamento(s) · ${formatar(resumo.total)}`}
       actions={
         can("despesas", "editar") && (
           <div className="flex items-center gap-2">
@@ -763,7 +835,7 @@ function DespesasPage() {
                 </Button>
               }
             />
-            <Button size="sm" onClick={abrirNova}>
+            <Button size="sm" onClick={abrirNova} data-tour="nova-despesa">
               <Plus className="size-4" /> Nova
             </Button>
           </div>
@@ -772,17 +844,17 @@ function DespesasPage() {
     >
       <div className="mb-3 grid grid-cols-2 gap-2 lg:grid-cols-4">
         {[
-          { label: "Total", valor: formatBRL(resumo.total), cor: "text-foreground", hint: "" },
-          { label: "Pago", valor: formatBRL(resumo.pago), cor: "text-success", hint: "" },
+          { label: "Total", valor: formatar(resumo.total), cor: "text-foreground", hint: "" },
+          { label: "Pago", valor: formatar(resumo.pago), cor: "text-success", hint: "" },
           {
             label: "Em aberto",
-            valor: formatBRL(resumo.aberto),
+            valor: formatar(resumo.aberto),
             cor: "text-destructive",
             hint: "",
           },
           {
             label: "Próximo vencimento",
-            valor: resumo.proximo ? formatBRL(resumo.proximo.valor) : "—",
+            valor: resumo.proximo ? formatar(resumo.proximo.valor) : "—",
             cor: "text-warning",
             hint: resumo.proximo ? formatDate(resumo.proximo.data) : "sem parcelas futuras",
           },
@@ -795,36 +867,73 @@ function DespesasPage() {
         ))}
       </div>
 
+      {/* Bloco 6 (plano-mega 2026-09-14): simular corte de despesas fixas —
+          desmarcar itens aqui só recalcula o total na hora, nada é gravado
+          no banco (estado local, reseta ao trocar de aba/mês ou sair). */}
+      {tab === "fixa" && filtroMes !== "todos" && modoLista === "lista" && lista.length > 0 && (
+        <div className="mb-3 space-y-2">
+          <Button
+            size="sm"
+            variant={simulandoCortes ? "secondary" : "outline"}
+            className="h-9 text-xs"
+            onClick={() => setSimulandoCortes((v) => !v)}
+          >
+            <Calculator className="size-3.5" />
+            {simulandoCortes ? "Sair da simulação" : "Simular cortes"}
+          </Button>
+          {simulandoCortes && simulacao && (
+            <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-muted/20 px-3 py-2 text-xs">
+              <span className="text-muted-foreground">
+                Desmarque abaixo os gastos que você cortaria — nada é salvo, é só pra visualizar.
+              </span>
+              <span className="font-semibold">
+                Total simulado: {formatBRL(simulacao.totalSimulado)}
+              </span>
+              {simulacao.economia > 0 && (
+                <span className="font-semibold text-success">
+                  Economia: {formatBRL(simulacao.economia)}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="mb-3 space-y-2">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          {/* Ajuste mobile (otimização para celulares, 2026-09-27): abas,
+              busca e selects de filtro ganham altura/toque maiores (~40-44px)
+              — os h-9/py-1 anteriores ficavam abaixo do mínimo recomendado
+              de toque confortável no dedo. Só nesta tela e em Receitas por
+              ora (telas apontadas como as mais usadas no celular). */}
           <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
-            <TabsList className="h-9">
-              <TabsTrigger value="total" className="text-xs">
+            <TabsList className="h-10">
+              <TabsTrigger value="total" className="px-3.5 py-2 text-xs">
                 Total
               </TabsTrigger>
-              <TabsTrigger value="fixa" className="text-xs">
+              <TabsTrigger value="fixa" className="px-3.5 py-2 text-xs">
                 Fixas
               </TabsTrigger>
-              <TabsTrigger value="variavel" className="text-xs">
+              <TabsTrigger value="variavel" className="px-3.5 py-2 text-xs">
                 Variáveis
               </TabsTrigger>
             </TabsList>
           </Tabs>
           <div className="relative flex-1">
-            <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
               placeholder="Buscar descrição, categoria ou responsável"
-              className="h-9 pl-8"
+              className="h-11 pl-9"
             />
           </div>
           <Tabs value={modoLista} onValueChange={(v) => setModoLista(v as "lista" | "cartao")}>
-            <TabsList className="h-9">
-              <TabsTrigger value="lista" className="gap-1 text-xs">
+            <TabsList className="h-10">
+              <TabsTrigger value="lista" className="gap-1 px-3.5 py-2 text-xs">
                 <ListIcon className="size-3.5" /> Lista
               </TabsTrigger>
-              <TabsTrigger value="cartao" className="gap-1 text-xs">
+              <TabsTrigger value="cartao" className="gap-1 px-3.5 py-2 text-xs">
                 <CreditCard className="size-3.5" /> Por cartão
               </TabsTrigger>
             </TabsList>
@@ -833,7 +942,7 @@ function DespesasPage() {
 
         <div className="grid grid-cols-2 gap-2 lg:grid-cols-5">
           <Select value={filtroCartao} onValueChange={setFiltroCartao}>
-            <SelectTrigger className="h-9 text-xs">
+            <SelectTrigger className="h-11 text-xs">
               <SelectValue placeholder="Cartão" />
             </SelectTrigger>
             <SelectContent>
@@ -848,7 +957,7 @@ function DespesasPage() {
             </SelectContent>
           </Select>
           <Select value={filtroBanco} onValueChange={setFiltroBanco}>
-            <SelectTrigger className="h-9 text-xs">
+            <SelectTrigger className="h-11 text-xs">
               <SelectValue placeholder="Banco" />
             </SelectTrigger>
             <SelectContent>
@@ -861,7 +970,7 @@ function DespesasPage() {
             </SelectContent>
           </Select>
           <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
-            <SelectTrigger className="h-9 text-xs">
+            <SelectTrigger className="h-11 text-xs">
               <SelectValue placeholder="Categoria" />
             </SelectTrigger>
             <SelectContent>
@@ -874,7 +983,7 @@ function DespesasPage() {
             </SelectContent>
           </Select>
           <Select value={filtroResponsavel} onValueChange={setFiltroResponsavel}>
-            <SelectTrigger className="h-9 text-xs">
+            <SelectTrigger className="h-11 text-xs">
               <SelectValue placeholder="Responsável" />
             </SelectTrigger>
             <SelectContent>
@@ -886,8 +995,18 @@ function DespesasPage() {
               ))}
             </SelectContent>
           </Select>
+          <Select value={filtroOrigem} onValueChange={setFiltroOrigem}>
+            <SelectTrigger className="h-11 text-xs">
+              <SelectValue placeholder="Origem" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Diretos e de fatura</SelectItem>
+              <SelectItem value="diretos">Só lançamentos diretos</SelectItem>
+              <SelectItem value="fatura">Só de fatura/importação</SelectItem>
+            </SelectContent>
+          </Select>
           <Select value={filtroMes} onValueChange={setFiltroMes}>
-            <SelectTrigger className="h-9 text-xs">
+            <SelectTrigger className="h-11 text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -907,13 +1026,13 @@ function DespesasPage() {
               <button
                 key={c.label}
                 onClick={c.clear}
-                className="inline-flex items-center gap-1 rounded-full border bg-muted/50 px-2.5 py-1 text-[11px] font-medium hover:bg-muted"
+                className="inline-flex items-center gap-1.5 rounded-full border bg-muted/50 px-3 py-1.5 text-[11px] font-medium hover:bg-muted"
               >
                 {c.label}
                 <X className="size-3" />
               </button>
             ))}
-            <Button variant="ghost" size="sm" className="h-6 text-[11px]" onClick={limparFiltros}>
+            <Button variant="ghost" size="sm" className="h-8 text-[11px]" onClick={limparFiltros}>
               Limpar filtros
             </Button>
           </div>
@@ -932,7 +1051,7 @@ function DespesasPage() {
             <Button
               size="sm"
               variant="outline"
-              className="h-7 text-xs"
+              className="h-9 text-xs"
               disabled={marcarLote.isPending || idsDoLote(lista, "abertas").length === 0}
               onClick={() => marcarLote.mutate({ ids: idsDoLote(lista, "abertas"), paga: true })}
             >
@@ -941,7 +1060,7 @@ function DespesasPage() {
             <Button
               size="sm"
               variant="outline"
-              className="h-7 text-xs"
+              className="h-9 text-xs"
               disabled={marcarLote.isPending || idsDoLote(lista, "pagas").length === 0}
               onClick={() => marcarLote.mutate({ ids: idsDoLote(lista, "pagas"), paga: false })}
             >
@@ -986,7 +1105,7 @@ function DespesasPage() {
                     />
                   </div>
                   <div className="shrink-0 text-right">
-                    <p className="text-sm font-bold tabular-nums">{formatBRL(grupo.total)}</p>
+                    <p className="text-sm font-bold tabular-nums">{formatar(grupo.total)}</p>
                     <p className="text-[10px] text-muted-foreground">
                       {grupo.itens.length} lançamento(s) ·{" "}
                       {resumo.total > 0 ? ((grupo.total / resumo.total) * 100).toFixed(0) : 0}%
@@ -996,7 +1115,7 @@ function DespesasPage() {
                     <Button
                       size="sm"
                       variant="outline"
-                      className="h-7 shrink-0 text-xs"
+                      className="h-9 shrink-0 text-xs"
                       disabled={
                         marcarLote.isPending || idsDoLote(grupo.itens, "abertas").length === 0
                       }
@@ -1040,10 +1159,29 @@ function DespesasPage() {
                           className={cn(
                             "flex items-center gap-3 px-3 py-2.5 transition-colors hover:bg-muted/40",
                             can("despesas", "editar") && "cursor-pointer",
-                            (ignoradaNoMes || d.origem === "fatura_total_concluida") &&
+                            (ignoradaNoMes ||
+                              d.origem === "fatura_total_concluida" ||
+                              d.economia_conquistada ||
+                              (simulandoCortes && idsExcluidosSimulacao.has(d.id))) &&
                               "opacity-60 line-through bg-muted/20",
                           )}
                         >
+                          {simulandoCortes && tab === "fixa" && (
+                            <Checkbox
+                              className="shrink-0"
+                              checked={!idsExcluidosSimulacao.has(d.id)}
+                              onClick={(e) => e.stopPropagation()}
+                              onCheckedChange={(checked) => {
+                                setIdsExcluidosSimulacao((prev) => {
+                                  const next = new Set(prev);
+                                  if (checked) next.delete(d.id);
+                                  else next.add(d.id);
+                                  return next;
+                                });
+                              }}
+                              aria-label={`Incluir ${d.descricao} na simulação`}
+                            />
+                          )}
                           <div
                             className="h-8 w-1 shrink-0 rounded-full"
                             style={{ backgroundColor: d.cartoes?.cor ?? "var(--muted-foreground)" }}
@@ -1065,13 +1203,47 @@ function DespesasPage() {
                                 </Badge>
                               )}
                               {ehTotalManual && faturaAvulsa?.status === "aberta" && (
-                                <Badge className="bg-amber-600 text-[10px] hover:bg-amber-700">
+                                <Badge
+                                  className="bg-amber-600 text-[10px] hover:bg-amber-700"
+                                  title="Veio do totalizador de fatura (Fatura do mês), não de lançamento item a item."
+                                >
                                   Total manual ativo
+                                  {faturaAvulsa.tipo_lancamento === "temporario" &&
+                                    faturaAvulsa.data_limite &&
+                                    ` · até ${monthLabelLong(monthKey(faturaAvulsa.data_limite))}`}
                                 </Badge>
                               )}
+                              {ehTotalManual &&
+                                faturaAvulsa?.status === "aberta" &&
+                                faturaAvulsa.tipo_lancamento === "temporario" &&
+                                faturaAvulsa.data_limite &&
+                                monthKey(faturaAvulsa.data_limite) < monthKey(new Date()) && (
+                                  <Badge
+                                    variant="outline"
+                                    className="border-destructive/40 text-[10px] text-destructive"
+                                  >
+                                    Prazo do total passou — considere detalhar item a item
+                                  </Badge>
+                                )}
                               {d.origem === "fatura_total_concluida" && (
                                 <Badge variant="outline" className="text-[10px]">
                                   Total manual concluído
+                                </Badge>
+                              )}
+                              {d.origem && d.origem !== "manual" && (
+                                <Badge
+                                  variant="outline"
+                                  className="border-sky-500/30 text-[10px] text-sky-600 dark:text-sky-400"
+                                >
+                                  {d.origem.startsWith("fatura") ? "De fatura" : "Importado"}
+                                </Badge>
+                              )}
+                              {d.economia_conquistada && (
+                                <Badge
+                                  variant="outline"
+                                  className="border-emerald-500/30 text-[10px] text-emerald-600 dark:text-emerald-400"
+                                >
+                                  Economia conquistada
                                 </Badge>
                               )}
                             </div>
@@ -1080,7 +1252,7 @@ function DespesasPage() {
                               {d.tipo === "fixa"
                                 ? ` · ${filtroMes === "todos" ? "valor mensal" : monthLabelLong(filtroMes)}`
                                 : d.total_parcelas > 1
-                                  ? ` · ${d.total_parcelas}x de ${formatBRL(
+                                  ? ` · ${d.total_parcelas}x de ${formatar(
                                       toBRL(
                                         Number(d.valor_total) / d.total_parcelas,
                                         d.moeda,
@@ -1104,7 +1276,7 @@ function DespesasPage() {
 
                           <div className="shrink-0 text-right">
                             <p className="text-sm font-bold tabular-nums">
-                              {formatBRL(toBRL(valorVisivel(d), d.moeda, cotacao))}
+                              {formatar(toBRL(valorVisivel(d), d.moeda, cotacao))}
                             </p>
                             {d.moeda === "USD" && (
                               <p className="text-[10px] text-muted-foreground">
@@ -1201,7 +1373,7 @@ function DespesasPage() {
                                   onClick={() => togglePaga.mutate({ id: p.id, paga: !p.paga })}
                                   disabled={!can("despesas", "editar")}
                                   className={cn(
-                                    "inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-medium tabular-nums transition-colors",
+                                    "inline-flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-[11px] font-medium tabular-nums transition-colors",
                                     p.paga
                                       ? "border-success/30 bg-success/10 text-success"
                                       : "border-border bg-background text-muted-foreground hover:border-primary/40",

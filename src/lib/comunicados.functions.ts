@@ -10,7 +10,8 @@ export const meusComunicados = createServerFn({ method: "GET" })
       .from("comunicados")
       .select("id,titulo,mensagem,exige_aceite")
       .eq("ativo", true)
-      .gt("expira_em", new Date().toISOString());
+      .gt("expira_em", new Date().toISOString())
+      .order("criado_em", { ascending: false });
     if (error) throw new Error(error.message);
     const { data: aceitos } = await db
       .from("comunicado_aceites")

@@ -1,11 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import {
-  prepararEnvioLayout,
-  excluirSolicitacaoLayout,
-  listarMinhasSolicitacoesLayout,
-} from "@/lib/layout-fatura.functions";
+import { prepararEnvioLayout } from "@/lib/layout-fatura.functions";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
@@ -13,10 +9,13 @@ import {
   BookmarkPlus,
   CheckCircle2,
   ClipboardPaste,
+  FileSpreadsheet,
   FileText,
+  GraduationCap,
   Image as ImageIcon,
   Loader2,
   Plus,
+  ShieldCheck,
   Trash2,
   Upload,
 } from "lucide-react";
@@ -56,6 +55,7 @@ import {
   useProfilesList,
 } from "@/hooks/useFinance";
 import { formatBRL } from "@/lib/format";
+import { verificarPossivelDuplicata } from "@/lib/duplicidade";
 import { encontrarCorrespondenciaFixa, type FixaCandidata } from "@/lib/correspondencia-fixa";
 import { mesesEntreCompetencias, somarMeses, vencimentoDaCompetencia } from "@/lib/recorrencia";
 import {
@@ -78,6 +78,7 @@ import {
   type FaturaExtraida,
   type LancamentoExtraido,
 } from "@/lib/faturas";
+import { lerPlanilhaImportacao, modeloCsvPlanilha } from "@/lib/importacao-planilha";
 
 export const Route = createFileRoute("/_authenticated/importar")({
   head: () => ({
@@ -132,7 +133,7 @@ async function hashTexto(texto: string) {
 function ImportarPage() {
   const qc = useQueryClient();
   const { user } = useSession();
-  const { exclusaoBloqueada } = usePermissoes();
+  const { can, canImportar, exclusaoBloqueada } = usePermissoes();
   const { data: profiles = [] } = useProfilesList();
   const { data: categorias = [] } = useCategorias("despesa");
   const { data: cartoes = [] } = useCartoes();
@@ -151,6 +152,19 @@ function ImportarPage() {
   const layoutRef = useRef<HTMLInputElement>(null);
   const prepararLayout = useServerFn(prepararEnvioLayout);
   const [enviandoLayout, setEnviandoLayout] = useState(false);
+  const [modalAnaliseOpen, setModalAnaliseOpen] = useState(false);
+
+  const { data: solicitacoesAnalise = [] } = useQuery({
+    queryKey: ["layout_solicitacoes"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("layout_solicitacoes")
+        .select("*")
+        .order("criado_em", { ascending: false });
+      if (error) return [];
+      return data ?? [];
+    },
+  });
 
   async function enviarParaModelagem(files: FileList | null) {
     const file = files?.[0];
@@ -166,9 +180,9 @@ function ImportarPage() {
         .from("layouts_analise")
         .uploadToSignedUrl(envio.path, envio.token, file);
       if (error) throw error;
-      qc.invalidateQueries({ queryKey: ["minhas-solicitacoes-layout"] });
+      qc.invalidateQueries({ queryKey: ["layout_solicitacoes"] });
       toast.success(
-        "Fatura enviada para análise. Usaremos apenas o layout e o arquivo será descartado em até 30 dias.",
+        `Fatura enviada para análise. Protocolo: ${envio.protocolo}. Usaremos apenas o layout e o arquivo será descartado em até 30 dias.`,
       );
     } catch (e: any) {
       toast.error(e.message ?? "Não foi possível enviar.");
@@ -178,36 +192,19 @@ function ImportarPage() {
     }
   }
   const imgInputRef = useRef<HTMLInputElement>(null);
+  const planilhaInputRef = useRef<HTMLInputElement>(null);
   const classificacoesEditadas = useRef(new Set<string>());
-
-  const [verSolicitacoes, setVerSolicitacoes] = useState(false);
-  const [highlightValor, setHighlightValor] = useState<number | null>(null);
-  const [resultadoModal, setResultadoModal] = useState<{
-    inseridos: number;
-    ignorados: number;
-    regrasSalvas: number;
-    fechadas: number;
-  } | null>(null);
-
-  const minhasSolicitacoesFn = useServerFn(listarMinhasSolicitacoesLayout);
-  const excluirSolicitacaoFn = useServerFn(excluirSolicitacaoLayout);
-
-  const { data: minhasSolicitacoes = [] } = useQuery({
-    queryKey: ["minhas-solicitacoes-layout"],
-    queryFn: () => minhasSolicitacoesFn(),
-  });
-
-  const excluirSolicitacao = useMutation({
-    mutationFn: (id: string) => excluirSolicitacaoFn({ data: { id } }),
-    onSuccess: () => {
-      toast.success("Solicitação de layout excluída.");
-      qc.invalidateQueries({ queryKey: ["minhas-solicitacoes-layout"] });
-    },
-    onError: (e: any) => toast.error(e.message ?? "Não foi possível excluir a solicitação."),
-  });
+  // Etapa F (plano-importacao-v2.md): "linha de base" de cada lançamento
+  // (valor já extraído/corrigido automaticamente, antes de qualquer edição
+  // manual nesta sessão) — usada só para saber quando mostrar o botão
+  // "Ensinar" (a edição do usuário diverge da base) e o que gravar nela.
+  const baseCorrecao = useRef(
+    new Map<string, { data_compra: string; descricao: string; valor: number }>(),
+  );
 
   const [lendo, setLendo] = useState(false);
   const [lendoImagens, setLendoImagens] = useState(false);
+  const [lendoPlanilha, setLendoPlanilha] = useState(false);
   const [faturas, setFaturas] = useState<FaturaItem[]>([]);
   const [acoesFixas, setAcoesFixas] = useState<Record<string, { acao: AcaoFixa; fixaId: string }>>(
     {},
@@ -329,14 +326,75 @@ function ImportarPage() {
         }
       }
     }
+    // Etapa F (plano-importacao-v2.md): aplica correções manuais já
+    // ensinadas para este layout (mesma assinatura) antes de mostrar a
+    // prévia — ver botão "Ensinar" na tabela de revisão, mais abaixo.
+    if (extraida.assinatura) {
+      const { data: aprendidas } = await supabase
+        .from("fatura_correcoes_usuario")
+        .select("campo, valor_original, valor_corrigido")
+        .eq("assinatura", extraida.assinatura);
+      if (aprendidas?.length) {
+        const porCampo = {
+          data_compra: new Map<string, string>(),
+          descricao: new Map<string, string>(),
+          valor: new Map<string, string>(),
+        } as const;
+        for (const a of aprendidas) {
+          const mapa = (porCampo as Record<string, Map<string, string>>)[a.campo];
+          mapa?.set(a.valor_original, a.valor_corrigido);
+        }
+        let aplicadas = 0;
+        extraida = {
+          ...extraida,
+          lancamentos: extraida.lancamentos.map((l) => {
+            let novo = l;
+            const dataCorrigida = porCampo.data_compra.get(l.data_compra);
+            if (dataCorrigida != null && dataCorrigida !== l.data_compra) {
+              novo = { ...novo, data_compra: dataCorrigida };
+              aplicadas++;
+            }
+            const descCorrigida = porCampo.descricao.get(l.descricao);
+            if (descCorrigida != null && descCorrigida !== l.descricao) {
+              novo = {
+                ...novo,
+                descricao: descCorrigida,
+                descricao_normalizada: chaveEstabelecimento(descCorrigida),
+              };
+              aplicadas++;
+            }
+            const valorCorrigido = porCampo.valor.get(l.valor.toFixed(2));
+            if (valorCorrigido != null) {
+              const num = Number(valorCorrigido);
+              if (Number.isFinite(num) && num !== l.valor) {
+                novo = { ...novo, valor: num };
+                aplicadas++;
+              }
+            }
+            return novo;
+          }),
+        };
+        if (aplicadas) toast.info(`${aplicadas} correção(ões) já ensinada(s) aplicada(s) de novo.`);
+      }
+    }
     const { data: jaExiste } = await supabase
       .from("import_faturas")
       .select("id")
       .eq("arquivo_hash", extraida.arquivo_hash)
       .maybeSingle();
+    const categorizados = categorizar(extraida.lancamentos);
+    if (extraida.assinatura) {
+      for (const l of categorizados) {
+        baseCorrecao.current.set(l.id, {
+          data_compra: l.data_compra,
+          descricao: l.descricao,
+          valor: l.valor,
+        });
+      }
+    }
     return {
       ...extraida,
-      lancamentos: categorizar(extraida.lancamentos),
+      lancamentos: categorizados,
       arquivo: file,
       duplicada: !!jaExiste,
       destino: destinoPadrao(extraida),
@@ -531,6 +589,90 @@ function ImportarPage() {
     }
   }
 
+  /** Etapa E (plano-importacao-v2.md): planilha Excel/CSV de qualquer
+   * banco, com auto-detecção de colunas (ver `importacao-planilha.ts`). */
+  async function importarPlanilha(files: FileList | null) {
+    if (!files?.length) return;
+    const lote = Array.from(files).filter((f) => /\.(xlsx|csv)$/i.test(f.name));
+    if (!lote.length) {
+      toast.error("Selecione um arquivo .xlsx ou .csv.");
+      return;
+    }
+    setLendoPlanilha(true);
+    try {
+      const novos: FaturaItem[] = [];
+      for (const file of lote) {
+        try {
+          const { linhas, colunas } = await lerPlanilhaImportacao(file);
+          if (!linhas.length) {
+            toast.error(
+              !colunas.descricao || !colunas.valor
+                ? `${file.name}: não encontrei colunas de descrição e valor na planilha.`
+                : `${file.name}: nenhuma linha com descrição e valor válidos.`,
+            );
+            continue;
+          }
+          const hoje = new Date().toISOString().slice(0, 10);
+          const lancamentos: LancamentoExtraido[] = linhas.map((l, i) => ({
+            id: `planilha-${i}-${Math.random().toString(36).slice(2, 8)}`,
+            data_compra: l.data ?? hoje,
+            descricao: l.descricao,
+            descricao_normalizada: chaveEstabelecimento(l.descricao),
+            valor: l.valor,
+            moeda: "BRL",
+            direcao: l.direcao,
+            parcela_numero: l.parcela_numero,
+            parcela_total: l.parcela_total,
+            cartao_final: null,
+            responsavel: null,
+            categoria: "Outros",
+            confianca_data: l.data ? "alta" : "baixa",
+            valor_estimado: false,
+            incluir: true,
+          }));
+          const arquivo_hash = await hashTexto(`${file.name}-${file.size}-${file.lastModified}`);
+          const { data: jaExiste } = await supabase
+            .from("import_faturas")
+            .select("id")
+            .eq("arquivo_hash", arquivo_hash)
+            .maybeSingle();
+          const extraida = {
+            banco: "desconhecido" as BancoFatura,
+            arquivo_nome: file.name,
+            arquivo_hash,
+            paginas: 0,
+            vencimento: null,
+            competencia: null,
+            total_declarado: null,
+            limite_total: null,
+            limite_utilizado: null,
+            limite_disponivel: null,
+            finais: [],
+            lancamentos: categorizar(lancamentos),
+            texto: "",
+          };
+          novos.push({
+            ...extraida,
+            arquivo: null,
+            duplicada: !!jaExiste,
+            destino: destinoPadrao(extraida),
+          });
+          toast.success(`${file.name}: ${linhas.length} lançamento(s) interpretado(s).`);
+        } catch (erro) {
+          toast.error(
+            erro instanceof Error
+              ? `${file.name}: ${erro.message}`
+              : `${file.name}: não consegui ler a planilha.`,
+          );
+        }
+      }
+      if (novos.length) setFaturas((prev) => [...prev, ...novos]);
+    } finally {
+      setLendoPlanilha(false);
+      if (planilhaInputRef.current) planilhaInputRef.current.value = "";
+    }
+  }
+
   function atualizarFatura(idx: number, patch: Partial<FaturaItem>) {
     setFaturas((prev) => prev.map((f, i) => (i === idx ? { ...f, ...patch } : f)));
   }
@@ -641,6 +783,60 @@ function ImportarPage() {
     }
   }
 
+  /** Etapa F: grava a(s) diferença(s) entre o valor atual do lançamento e
+   * sua linha de base (`baseCorrecao`) como correção aprendida para esta
+   * assinatura de layout — e passa a ser a nova linha de base, pra não
+   * reoferecer "Ensinar" de novo sem uma edição nova. */
+  const ensinarCorrecao = useMutation({
+    mutationFn: async ({ assinatura, l }: { assinatura: string; l: LancamentoExtraido }) => {
+      const base = baseCorrecao.current.get(l.id);
+      if (!base) return 0;
+      const diffs: {
+        campo: "data_compra" | "descricao" | "valor";
+        original: string;
+        corrigido: string;
+      }[] = [];
+      if (base.data_compra !== l.data_compra) {
+        diffs.push({ campo: "data_compra", original: base.data_compra, corrigido: l.data_compra });
+      }
+      if (base.descricao !== l.descricao) {
+        diffs.push({ campo: "descricao", original: base.descricao, corrigido: l.descricao });
+      }
+      if (base.valor !== l.valor) {
+        diffs.push({
+          campo: "valor",
+          original: base.valor.toFixed(2),
+          corrigido: l.valor.toFixed(2),
+        });
+      }
+      if (!diffs.length) return 0;
+      for (const d of diffs) {
+        const { error } = await supabase.from("fatura_correcoes_usuario").upsert(
+          {
+            assinatura,
+            campo: d.campo,
+            valor_original: d.original,
+            valor_corrigido: d.corrigido,
+            created_by: user?.id ?? null,
+          },
+          { onConflict: "assinatura,campo,valor_original" },
+        );
+        if (error) throw error;
+      }
+      baseCorrecao.current.set(l.id, {
+        data_compra: l.data_compra,
+        descricao: l.descricao,
+        valor: l.valor,
+      });
+      return diffs.length;
+    },
+    onSuccess: (n: number) => {
+      if (n > 0)
+        toast.success("Correção ensinada — as próximas faturas deste layout já virão certas.");
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Não foi possível salvar a correção."),
+  });
+
   const salvarRegra = useMutation({
     mutationFn: async (l: LancamentoExtraido) => {
       const chave = chaveEstabelecimento(l.descricao);
@@ -734,6 +930,13 @@ function ImportarPage() {
       let ignorados = 0;
       let fechadas = 0;
 
+      // Etapa D: ponto final e autoritativo de aplicação das permissões de
+      // importação — mesmo que algum estado de UI escapasse do bloqueio nos
+      // controles (ex.: fatura adicionada por outro fluxo), nada entra no
+      // banco fora do que o usuário tem permissão de importar.
+      const permitido = (l: LancamentoExtraido) =>
+        l.incluir && (l.parcela_total > 1 ? podeImportarParcelamentos : podeImportarLancamentos);
+
       for (const f of faturas) {
         const cartoesTocados = new Set<string>();
         const [tipoDestinoFatura, idDestinoFatura] = String(f.destino ?? "").split(":");
@@ -742,15 +945,13 @@ function ImportarPage() {
             ? idDestinoFatura
             : (f.lancamentos.map((l) => acharCartao(f.banco, l.cartao_final)?.id).find(Boolean) ??
               null);
-        let path: string | null = null;
-        if (f.arquivo) {
-          path = `${lote.id}/${f.arquivo_hash}.pdf`;
-          const up = await supabase.storage.from("faturas").upload(path, f.arquivo, {
-            contentType: "application/pdf",
-            upsert: true,
-          });
-          if (up.error) throw up.error;
-        }
+        // Etapa C (plano-importacao-v2, 2026-10-02): o arquivo em si nunca é
+        // mais enviado ao Storage — só hash + metadados do lote (lidos
+        // acima, antes deste loop) seguem gravados, pra evitar reimportar o
+        // mesmo arquivo sem querer. `storage_path` fica sempre nulo agora;
+        // a coluna continua existindo só por histórico de faturas já
+        // importadas antes desta mudança.
+        const path: string | null = null;
 
         const { data: fatura, error: fatErr } = await supabase
           .from("import_faturas")
@@ -765,12 +966,12 @@ function ImportarPage() {
               vencimento: f.vencimento,
               competencia: f.competencia,
               total_declarado: f.total_declarado,
-              limite_total: f.limite_total,
-              limite_utilizado: f.limite_utilizado,
-              limite_disponivel: f.limite_disponivel,
+              limite_total: podeImportarLimite ? f.limite_total : null,
+              limite_utilizado: podeImportarLimite ? f.limite_utilizado : null,
+              limite_disponivel: podeImportarLimite ? f.limite_disponivel : null,
               cartao_id: cartaoPrincipal || null,
               total_extraido: f.lancamentos
-                .filter((l) => l.incluir)
+                .filter(permitido)
                 .reduce((s, l) => s + (l.direcao === "credito" ? -l.valor : l.valor), 0),
               paginas: f.paginas,
               status: "importada",
@@ -781,7 +982,7 @@ function ImportarPage() {
           .single();
         if (fatErr) throw fatErr;
 
-        for (const l of f.lancamentos.filter((x) => x.incluir)) {
+        for (const l of f.lancamentos.filter(permitido)) {
           const chave = dedupKey(l);
           const { data: existente } = await supabase
             .from("despesas")
@@ -1049,20 +1250,49 @@ function ImportarPage() {
       setFaturas([]);
       setAcoesFixas({});
       classificacoesEditadas.current.clear();
-      setResultadoModal({
-        inseridos,
-        ignorados,
-        regrasSalvas,
-        fechadas,
-      });
+      toast.success(
+        `${inseridos} lançamento(s) importado(s). ${ignorados} duplicado(s) ignorado(s).` +
+          (fechadas ? ` ${fechadas} competência(s) fechada(s).` : ""),
+      );
+      toast.info(
+        "O arquivo enviado foi processado e descartado — nada além dos lançamentos foi armazenado.",
+      );
+      if (regrasSalvas)
+        toast.info(`${regrasSalvas} classificação(ões) aprendida(s) para próximas importações.`);
+      if (falhasDePara)
+        toast.warning(`${falhasDePara} regra(s) de de-para não puderam ser salvas.`);
     },
     onError: (e: any) => toast.error(e?.message ?? "Falha ao importar."),
   });
 
+  // Etapa D (plano-importacao-v2.md): permissão granular de importação por
+  // usuário. "Ver" bloqueia a tela inteira; as outras três controlam,
+  // dentro da tela, o que pode efetivamente ser enviado.
+  const podeVerImportar = can("importar", "ver");
+  const podeImportarLancamentos = canImportar("lancamentos");
+  const podeImportarParcelamentos = canImportar("parcelamentos");
+  const podeImportarLimite = canImportar("limite");
+
+  if (!podeVerImportar) {
+    return (
+      <AppLayout title="Importar Lançamentos">
+        <Card>
+          <CardContent className="flex flex-col items-center gap-2 py-16 text-center">
+            <ShieldCheck className="size-8 text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">
+              Seu usuário não tem permissão para importar lançamentos. Fale com um administrador se
+              precisar desse acesso.
+            </p>
+          </CardContent>
+        </Card>
+      </AppLayout>
+    );
+  }
+
   return (
     <AppLayout
       title="Importar Lançamentos"
-      description="Envie PDFs de fatura ou cole os lançamentos, revise linha a linha e confirme."
+      description="Envie PDFs de fatura, planilha ou cole os lançamentos, revise linha a linha e confirme."
       actions={
         faturas.length > 0 ? (
           <Button onClick={() => confirmar.mutate()} disabled={confirmar.isPending}>
@@ -1089,6 +1319,9 @@ function ImportarPage() {
               <TabsTrigger value="prints">
                 <ImageIcon className="mr-2 size-4" /> Prints
               </TabsTrigger>
+              <TabsTrigger value="planilha">
+                <FileSpreadsheet className="mr-2 size-4" /> Planilha
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="pdf">
@@ -1097,7 +1330,7 @@ function ImportarPage() {
                   Seu banco não foi reconhecido? Envie uma cópia para modelagem. Os dados não serão
                   usados e o arquivo será descartado em até 30 dias.
                 </span>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <Button
                     size="sm"
                     variant="outline"
@@ -1106,13 +1339,17 @@ function ImportarPage() {
                   >
                     {enviandoLayout ? "Enviando…" : "Enviar para análise"}
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => setVerSolicitacoes(true)}
-                  >
-                    Minhas faturas enviadas ({minhasSolicitacoes.length})
-                  </Button>
+                  {solicitacoesAnalise.length > 0 && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-xs"
+                      onClick={() => setModalAnaliseOpen(true)}
+                    >
+                      <FileText className="mr-1 size-3.5" /> Faturas enviadas (
+                      {solicitacoesAnalise.length})
+                    </Button>
+                  )}
                 </div>
                 <input
                   ref={layoutRef}
@@ -1258,6 +1495,61 @@ function ImportarPage() {
                 prévia.
               </p>
             </TabsContent>
+
+            <TabsContent value="planilha" className="space-y-3">
+              <div
+                className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed p-8 text-center transition-colors hover:bg-muted/50"
+                onClick={() => planilhaInputRef.current?.click()}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  void importarPlanilha(e.dataTransfer.files);
+                }}
+              >
+                {lendoPlanilha ? (
+                  <Loader2 className="size-6 animate-spin text-muted-foreground" />
+                ) : (
+                  <FileSpreadsheet className="size-6 text-muted-foreground" />
+                )}
+                <p className="text-sm font-medium">Arraste a planilha ou clique para selecionar</p>
+                <p className="text-xs text-muted-foreground">
+                  .xlsx ou .csv de qualquer banco · até 5 MB · colunas detectadas automaticamente
+                  (Data, Descrição, Valor e Parcela, quando existir)
+                </p>
+                <input
+                  ref={planilhaInputRef}
+                  type="file"
+                  accept=".xlsx,.csv"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => void importarPlanilha(e.target.files)}
+                />
+              </div>
+              <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                <span>
+                  Não precisa ser de um banco específico — funciona com qualquer planilha que tenha
+                  colunas de data, descrição e valor.
+                </span>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 shrink-0 text-xs"
+                  onClick={() => {
+                    const blob = new Blob([modeloCsvPlanilha()], {
+                      type: "text/csv;charset=utf-8",
+                    });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = "modelo-importacao.csv";
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  }}
+                >
+                  Baixar modelo .csv
+                </Button>
+              </div>
+            </TabsContent>
           </Tabs>
 
           {faturas.length > 0 && (
@@ -1296,7 +1588,17 @@ function ImportarPage() {
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
               <div className="space-y-1 sm:col-span-2">
-                <Label className="text-xs">Cartão / conta de destino</Label>
+                <div className="flex items-center gap-2">
+                  <Label className="text-xs">Cartão / conta de destino</Label>
+                  {!f.destino && (
+                    <Badge
+                      variant="outline"
+                      className="border-amber-500/40 text-[10px] text-amber-600 dark:text-amber-400"
+                    >
+                      Não cadastrado
+                    </Badge>
+                  )}
+                </div>
                 <Select
                   value={f.destino || "nenhum"}
                   onValueChange={(v) => atualizarFatura(idx, { destino: v === "nenhum" ? "" : v })}
@@ -1546,21 +1848,74 @@ function ImportarPage() {
               );
             })()}
 
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                { label: "Limite total", valor: f.limite_total },
-                { label: "Limite utilizado", valor: f.limite_utilizado },
-                { label: "Limite disponível", valor: f.limite_disponivel },
-              ].map((k) => (
-                <div key={k.label} className="rounded-lg border bg-muted/30 px-3 py-2">
-                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                    {k.label}
-                  </p>
-                  <p className="text-sm font-semibold tabular-nums">
-                    {k.valor != null ? formatBRL(k.valor) : "não identificado"}
-                  </p>
-                </div>
-              ))}
+            {!podeImportarLimite && (
+              <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                <ShieldCheck className="size-3.5 shrink-0" />
+                Seu usuário não tem permissão para importar o limite do cartão — esses campos não
+                serão salvos.
+              </p>
+            )}
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Limite total</Label>
+                <Input
+                  className="h-8 text-xs font-medium tabular-nums"
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="Não identificado"
+                  disabled={!podeImportarLimite}
+                  value={
+                    podeImportarLimite && f.limite_total != null
+                      ? String(f.limite_total).replace(".", ",")
+                      : ""
+                  }
+                  onChange={(e) => {
+                    const digitado = e.target.value.replace(/\./g, "").replace(",", ".");
+                    const num = parseFloat(digitado);
+                    atualizarFatura(idx, { limite_total: isNaN(num) ? null : num });
+                  }}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Limite utilizado</Label>
+                <Input
+                  className="h-8 text-xs font-medium tabular-nums"
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="Não identificado"
+                  disabled={!podeImportarLimite}
+                  value={
+                    podeImportarLimite && f.limite_utilizado != null
+                      ? String(f.limite_utilizado).replace(".", ",")
+                      : ""
+                  }
+                  onChange={(e) => {
+                    const digitado = e.target.value.replace(/\./g, "").replace(",", ".");
+                    const num = parseFloat(digitado);
+                    atualizarFatura(idx, { limite_utilizado: isNaN(num) ? null : num });
+                  }}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Limite disponível</Label>
+                <Input
+                  className="h-8 text-xs font-medium tabular-nums"
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="Não identificado"
+                  disabled={!podeImportarLimite}
+                  value={
+                    podeImportarLimite && f.limite_disponivel != null
+                      ? String(f.limite_disponivel).replace(".", ",")
+                      : ""
+                  }
+                  onChange={(e) => {
+                    const digitado = e.target.value.replace(/\./g, "").replace(",", ".");
+                    const num = parseFloat(digitado);
+                    atualizarFatura(idx, { limite_disponivel: isNaN(num) ? null : num });
+                  }}
+                />
+              </div>
             </div>
           </CardHeader>
 
@@ -1598,303 +1953,356 @@ function ImportarPage() {
                     </thead>
                     <tbody>
                       {f.lancamentos.map((l) => {
-                        const ehMesmoValor = highlightValor != null && Math.abs(l.valor - highlightValor) < 0.001;
+                        // Etapa D: lançamento com parcela_total > 1 é um
+                        // parcelamento; parcela_total === 1 é lançamento
+                        // simples (ver gravação mais abaixo, mesmo critério).
+                        const ehParcelamento = l.parcela_total > 1;
+                        const permitidoPorTipo = ehParcelamento
+                          ? podeImportarParcelamentos
+                          : podeImportarLancamentos;
                         return (
-                          <tr
-                            key={l.id}
-                            onClick={() => setHighlightValor(highlightValor === l.valor ? null : l.valor)}
-                            className={`border-t align-top transition-colors ${
-                              !l.incluir ? "opacity-40 line-through bg-muted/20" : ""
-                            } ${
-                              ehMesmoValor ? "bg-amber-100/90 dark:bg-amber-950/60 ring-2 ring-amber-500/80 font-semibold" : ""
-                            }`}
-                          >
-                              <td className="p-1">
-                                <Checkbox
-                                  checked={l.incluir}
-                                  onCheckedChange={(v) =>
-                                    atualizarLancamento(idx, l.id, { incluir: !!v })
+                          <tr key={l.id} className="border-t align-top">
+                            <td className="p-1">
+                              <Checkbox
+                                checked={l.incluir && permitidoPorTipo}
+                                disabled={!permitidoPorTipo}
+                                title={
+                                  !permitidoPorTipo
+                                    ? ehParcelamento
+                                      ? "Seu usuário não tem permissão para importar parcelamentos"
+                                      : "Seu usuário não tem permissão para importar lançamentos simples"
+                                    : undefined
+                                }
+                                onCheckedChange={(v) =>
+                                  atualizarLancamento(idx, l.id, {
+                                    incluir: !!v && permitidoPorTipo,
+                                  })
+                                }
+                              />
+                            </td>
+                            <td className="p-1">
+                              <Input
+                                type="date"
+                                className="h-7 w-full min-w-0 px-1 text-[11px]"
+                                value={l.data_compra}
+                                onChange={(e) =>
+                                  atualizarLancamento(idx, l.id, { data_compra: e.target.value })
+                                }
+                              />
+                            </td>
+                            <td className="p-1">
+                              <Textarea
+                                className="min-h-7 w-full min-w-0 resize-none overflow-hidden rounded-md px-1.5 py-1 text-[11px] leading-tight"
+                                rows={1}
+                                value={l.descricao}
+                                onChange={(e) => {
+                                  atualizarLancamento(idx, l.id, { descricao: e.target.value });
+                                  e.target.style.height = "auto";
+                                  e.target.style.height = `${e.target.scrollHeight}px`;
+                                }}
+                                ref={(el) => {
+                                  if (!el) return;
+                                  el.style.height = "auto";
+                                  el.style.height = `${el.scrollHeight}px`;
+                                }}
+                              />
+                              {(() => {
+                                const outrosImportados = faturas.flatMap((x) => x.lancamentos);
+                                const checagem = verificarPossivelDuplicata(l, [
+                                  ...(despesasTodas as any[]),
+                                  ...outrosImportados,
+                                ]);
+                                return checagem.duplicata ? (
+                                  <Badge
+                                    variant="outline"
+                                    className="mt-1 gap-1 border-amber-500/40 bg-amber-500/10 text-[10px] text-amber-600 dark:text-amber-400"
+                                    title={checagem.motivo ?? undefined}
+                                  >
+                                    <AlertTriangle className="size-3 shrink-0" /> Possível duplicata
+                                  </Badge>
+                                ) : null;
+                              })()}
+                              {(() => {
+                                // Etapa F: "Ensinar" só aparece quando esta fatura tem layout
+                                // identificado (PDF reconhecido) e o usuário editou
+                                // data/descrição/valor em relação ao que foi extraído.
+                                if (!f.assinatura) return null;
+                                const base = baseCorrecao.current.get(l.id);
+                                if (!base) return null;
+                                const divergente =
+                                  base.data_compra !== l.data_compra ||
+                                  base.descricao !== l.descricao ||
+                                  base.valor !== l.valor;
+                                if (!divergente) return null;
+                                return (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="mt-1 h-6 gap-1 px-1.5 text-[10px]"
+                                    disabled={ensinarCorrecao.isPending}
+                                    title="Lembrar esta correção para as próximas faturas deste mesmo layout"
+                                    onClick={() =>
+                                      ensinarCorrecao.mutate({ assinatura: f.assinatura!, l })
+                                    }
+                                  >
+                                    <GraduationCap className="size-3 shrink-0" /> Ensinar correção
+                                  </Button>
+                                );
+                              })()}
+                            </td>
+                            <td className="p-1">
+                              <div className="flex items-center gap-1">
+                                <Input
+                                  type="number"
+                                  min={1}
+                                  className="h-7 w-12 min-w-0 px-1 text-center text-[11px] [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                  value={l.parcela_numero}
+                                  onChange={(e) =>
+                                    atualizarLancamento(idx, l.id, {
+                                      parcela_numero: Math.max(1, Number(e.target.value) || 1),
+                                    })
                                   }
                                 />
-                              </td>
-                          <td className="p-1">
-                            <Input
-                              type="date"
-                              className="h-7 w-full min-w-0 px-1 text-[11px]"
-                              value={l.data_compra}
-                              onChange={(e) =>
-                                atualizarLancamento(idx, l.id, { data_compra: e.target.value })
-                              }
-                            />
-                          </td>
-                          <td className="p-1">
-                            <Textarea
-                              className="min-h-7 w-full min-w-0 resize-none overflow-hidden rounded-md px-1.5 py-1 text-[11px] leading-tight"
-                              rows={1}
-                              value={l.descricao}
-                              onChange={(e) => {
-                                atualizarLancamento(idx, l.id, { descricao: e.target.value });
-                                e.target.style.height = "auto";
-                                e.target.style.height = `${e.target.scrollHeight}px`;
-                              }}
-                              ref={(el) => {
-                                if (!el) return;
-                                el.style.height = "auto";
-                                el.style.height = `${el.scrollHeight}px`;
-                              }}
-                            />
-                          </td>
-                          <td className="p-1">
-                            <div className="flex items-center gap-1">
-                              <Input
-                                type="number"
-                                min={1}
-                                className="h-7 w-12 min-w-0 px-1 text-center text-[11px] [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                                value={l.parcela_numero}
-                                onChange={(e) =>
-                                  atualizarLancamento(idx, l.id, {
-                                    parcela_numero: Math.max(1, Number(e.target.value) || 1),
-                                  })
-                                }
-                              />
-                              <span className="text-[10px] text-muted-foreground">/</span>
-                              <Input
-                                type="number"
-                                min={1}
-                                className="h-7 w-12 min-w-0 px-1 text-center text-[11px] [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                                value={l.parcela_total}
-                                onChange={(e) =>
-                                  atualizarLancamento(idx, l.id, {
-                                    parcela_total: Math.max(1, Number(e.target.value) || 1),
-                                  })
-                                }
-                              />
-                            </div>
-                          </td>
-                          <td className="p-1">
-                            <Select
-                              value={l.tipo ?? "variavel"}
-                              onValueChange={(v) =>
-                                atualizarLancamento(idx, l.id, { tipo: v as "fixa" | "variavel" })
-                              }
-                            >
-                              <SelectTrigger className="h-7 w-full min-w-0 px-1 text-[11px]">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="variavel">Variável</SelectItem>
-                                <SelectItem value="fixa">Fixa</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            {(() => {
-                              const cartaoLinha = acharCartao(f.banco, l.cartao_final);
-                              const [tipoDestino, idDestino] = String(f.destino ?? "").split(":");
-                              const correspondencia = encontrarCorrespondenciaFixa(despesasFixas, {
-                                descricao: l.descricao,
-                                valor: l.valor,
-                                direcao: l.direcao,
-                                data_compra: l.data_compra,
-                                parcela_total: l.parcela_total,
-                                cartao_final: l.cartao_final,
-                                cartao_id:
-                                  cartaoLinha?.id ??
-                                  (tipoDestino === "cartao" ? (idDestino ?? null) : null),
-                                banco_id: tipoDestino === "banco" ? (idDestino ?? null) : null,
-                                competencia: f.competencia,
-                              });
-                              return correspondencia ? (
-                                <div className="mt-1 space-y-1 text-[10px] font-medium text-amber-600">
-                                  <p>
-                                    {correspondencia.titulo}: "{correspondencia.fixa.descricao}" (
-                                    {formatBRL(Number(correspondencia.fixa.valor_total))}).
-                                  </p>
-                                  <p>Critérios: {correspondencia.motivos.join(", ")}.</p>
-                                  <Select
-                                    value={
-                                      acoesFixas[`${f.arquivo_hash}:${l.id}`]?.acao ?? "manter"
-                                    }
-                                    onValueChange={(valor) => {
-                                      const acao = valor as AcaoFixa;
-                                      setAcoesFixas((atual) => ({
-                                        ...atual,
-                                        [`${f.arquivo_hash}:${l.id}`]: {
-                                          acao,
-                                          fixaId: correspondencia.fixa.id,
-                                        },
-                                      }));
-                                      atualizarLancamento(idx, l.id, {
-                                        incluir: acao !== "ignorar",
-                                      });
-                                    }}
-                                  >
-                                    <SelectTrigger className="h-7 text-[10px] text-foreground">
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="manter">
-                                        Manter os dois lançamentos
-                                      </SelectItem>
-                                      <SelectItem value="substituir">
-                                        Substituir só a ocorrência deste mês
-                                      </SelectItem>
-                                      <SelectItem value="ignorar">
-                                        Ignorar o lançamento importado
-                                      </SelectItem>
-                                      <SelectItem value="vincular">
-                                        Vincular à fixa sem trocar o valor
-                                      </SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-                              ) : null;
-                            })()}
-                          </td>
-                          <td className="p-1">
-                            <Input
-                              className="h-7 w-full min-w-0 px-1 text-[11px]"
-                              placeholder="0000"
-                              maxLength={4}
-                              value={l.cartao_final ?? ""}
-                              onChange={(e) =>
-                                atualizarLancamento(idx, l.id, {
-                                  cartao_final:
-                                    e.target.value.replace(/\D/g, "").slice(0, 4) || null,
-                                })
-                              }
-                            />
-                          </td>
-                          <td className="p-1">
-                            <Select
-                              value={l.responsavel ?? "none"}
-                              onValueChange={(v) =>
-                                atualizarLancamento(idx, l.id, {
-                                  responsavel: v === "none" ? null : v,
-                                })
-                              }
-                            >
-                              <SelectTrigger className="h-7 w-full min-w-0 px-1 text-[11px]">
-                                <SelectValue placeholder="—" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="none">—</SelectItem>
-                                {responsaveis.map((r) => (
-                                  <SelectItem key={r} value={r}>
-                                    {r}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </td>
-                          <td className="p-1">
-                            <div className="flex items-center gap-0.5">
+                                <span className="text-[10px] text-muted-foreground">/</span>
+                                <Input
+                                  type="number"
+                                  min={1}
+                                  className="h-7 w-12 min-w-0 px-1 text-center text-[11px] [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                  value={l.parcela_total}
+                                  onChange={(e) =>
+                                    atualizarLancamento(idx, l.id, {
+                                      parcela_total: Math.max(1, Number(e.target.value) || 1),
+                                    })
+                                  }
+                                />
+                              </div>
+                            </td>
+                            <td className="p-1">
                               <Select
-                                value={l.categoria}
+                                value={l.tipo ?? "variavel"}
                                 onValueChange={(v) =>
-                                  atualizarLancamento(idx, l.id, {
-                                    categoria: v,
-                                    subcategoria: null,
-                                  })
+                                  atualizarLancamento(idx, l.id, { tipo: v as "fixa" | "variavel" })
                                 }
                               >
                                 <SelectTrigger className="h-7 w-full min-w-0 px-1 text-[11px]">
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {listaCategorias.map((c) => (
-                                    <SelectItem key={c} value={c}>
-                                      {c}
+                                  <SelectItem value="variavel">Variável</SelectItem>
+                                  <SelectItem value="fixa">Fixa</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              {(() => {
+                                const cartaoLinha = acharCartao(f.banco, l.cartao_final);
+                                const [tipoDestino, idDestino] = String(f.destino ?? "").split(":");
+                                const correspondencia = encontrarCorrespondenciaFixa(
+                                  despesasFixas,
+                                  {
+                                    descricao: l.descricao,
+                                    valor: l.valor,
+                                    direcao: l.direcao,
+                                    data_compra: l.data_compra,
+                                    parcela_total: l.parcela_total,
+                                    cartao_final: l.cartao_final,
+                                    cartao_id:
+                                      cartaoLinha?.id ??
+                                      (tipoDestino === "cartao" ? (idDestino ?? null) : null),
+                                    banco_id: tipoDestino === "banco" ? (idDestino ?? null) : null,
+                                    competencia: f.competencia,
+                                  },
+                                );
+                                return correspondencia ? (
+                                  <div className="mt-1 space-y-1 text-[10px] font-medium text-amber-600">
+                                    <p>
+                                      {correspondencia.titulo}: "{correspondencia.fixa.descricao}" (
+                                      {formatBRL(Number(correspondencia.fixa.valor_total))}).
+                                    </p>
+                                    <p>Critérios: {correspondencia.motivos.join(", ")}.</p>
+                                    <Select
+                                      value={
+                                        acoesFixas[`${f.arquivo_hash}:${l.id}`]?.acao ?? "manter"
+                                      }
+                                      onValueChange={(valor) => {
+                                        const acao = valor as AcaoFixa;
+                                        setAcoesFixas((atual) => ({
+                                          ...atual,
+                                          [`${f.arquivo_hash}:${l.id}`]: {
+                                            acao,
+                                            fixaId: correspondencia.fixa.id,
+                                          },
+                                        }));
+                                        atualizarLancamento(idx, l.id, {
+                                          incluir: acao !== "ignorar",
+                                        });
+                                      }}
+                                    >
+                                      <SelectTrigger className="h-7 text-[10px] text-foreground">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="manter">
+                                          Manter os dois lançamentos
+                                        </SelectItem>
+                                        <SelectItem value="substituir">
+                                          Substituir só a ocorrência deste mês
+                                        </SelectItem>
+                                        <SelectItem value="ignorar">
+                                          Ignorar o lançamento importado
+                                        </SelectItem>
+                                        <SelectItem value="vincular">
+                                          Vincular à fixa sem trocar o valor
+                                        </SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                ) : null;
+                              })()}
+                            </td>
+                            <td className="p-1">
+                              <Input
+                                className="h-7 w-full min-w-0 px-1 text-[11px]"
+                                placeholder="0000"
+                                maxLength={4}
+                                value={l.cartao_final ?? ""}
+                                onChange={(e) =>
+                                  atualizarLancamento(idx, l.id, {
+                                    cartao_final:
+                                      e.target.value.replace(/\D/g, "").slice(0, 4) || null,
+                                  })
+                                }
+                              />
+                            </td>
+                            <td className="p-1">
+                              <Select
+                                value={l.responsavel ?? "none"}
+                                onValueChange={(v) =>
+                                  atualizarLancamento(idx, l.id, {
+                                    responsavel: v === "none" ? null : v,
+                                  })
+                                }
+                              >
+                                <SelectTrigger className="h-7 w-full min-w-0 px-1 text-[11px]">
+                                  <SelectValue placeholder="—" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="none">—</SelectItem>
+                                  {responsaveis.map((r) => (
+                                    <SelectItem key={r} value={r}>
+                                      {r}
                                     </SelectItem>
                                   ))}
                                 </SelectContent>
                               </Select>
-                              {(() => {
-                                const adicionada = regras.some(
-                                  (r) =>
-                                    r.tipo_regra === "de_para" &&
-                                    r.estabelecimento_normalizado ===
-                                      chaveEstabelecimento(l.descricao) &&
-                                    r.categoria === l.categoria &&
-                                    (r.subcategoria ?? null) === (l.subcategoria ?? null),
-                                );
-                                return (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-7 shrink-0 px-1 text-[10px]"
-                                    title={
-                                      adicionada
-                                        ? "Remover regra de de-para"
-                                        : "Salvar como regra de de-para"
-                                    }
-                                    disabled={
-                                      salvarRegra.isPending || (adicionada && exclusaoBloqueada)
-                                    }
-                                    onClick={() => salvarRegra.mutate(l)}
-                                  >
-                                    {adicionada ? (
-                                      <BookmarkMinus className="mr-1 size-3.5" />
-                                    ) : (
-                                      <BookmarkPlus className="mr-1 size-3.5" />
-                                    )}
-                                    {adicionada ? "Remover regra" : "Salvar como regra"}
-                                  </Button>
-                                );
-                              })()}
-                            </div>
-                            {l.confianca_categoria && (
-                              <p className="mt-1 text-[10px] text-muted-foreground">
-                                Confiança: {CONFIANCA_LABEL[l.confianca_categoria]}
+                            </td>
+                            <td className="p-1">
+                              <div className="flex items-center gap-1">
+                                <Select
+                                  value={l.categoria}
+                                  onValueChange={(v) =>
+                                    atualizarLancamento(idx, l.id, {
+                                      categoria: v,
+                                      subcategoria: null,
+                                    })
+                                  }
+                                >
+                                  <SelectTrigger className="h-7 w-full min-w-0 px-1 text-[11px]">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {listaCategorias.map((c) => (
+                                      <SelectItem key={c} value={c}>
+                                        {c}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                {(() => {
+                                  const adicionada = regras.some(
+                                    (r) =>
+                                      r.tipo_regra === "de_para" &&
+                                      r.estabelecimento_normalizado ===
+                                        chaveEstabelecimento(l.descricao) &&
+                                      r.categoria === l.categoria &&
+                                      (r.subcategoria ?? null) === (l.subcategoria ?? null),
+                                  );
+                                  return (
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="size-7 shrink-0"
+                                      title={
+                                        adicionada
+                                          ? "Remover regra de de-para"
+                                          : "Salvar como regra de de-para"
+                                      }
+                                      disabled={
+                                        salvarRegra.isPending || (adicionada && exclusaoBloqueada)
+                                      }
+                                      onClick={() => salvarRegra.mutate(l)}
+                                    >
+                                      {adicionada ? (
+                                        <BookmarkMinus className="size-4 text-emerald-600" />
+                                      ) : (
+                                        <BookmarkPlus className="size-4 text-muted-foreground hover:text-primary" />
+                                      )}
+                                    </Button>
+                                  );
+                                })()}
+                              </div>
+                              {l.confianca_categoria && (
+                                <p className="mt-1 text-[10px] text-muted-foreground">
+                                  Confiança: {CONFIANCA_LABEL[l.confianca_categoria]}
+                                </p>
+                              )}
+                            </td>
+                            <td className="p-1">
+                              <Select
+                                value={l.subcategoria ?? "none"}
+                                onValueChange={(v) =>
+                                  atualizarLancamento(idx, l.id, {
+                                    subcategoria: v === "none" ? null : v,
+                                  })
+                                }
+                              >
+                                <SelectTrigger className="h-7 w-full min-w-0 px-1 text-[11px]">
+                                  <SelectValue placeholder="—" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="none">—</SelectItem>
+                                  {subcategoriasDe(l.categoria).map((s) => (
+                                    <SelectItem key={s} value={s}>
+                                      {s}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </td>
+                            <td className="p-1 text-right">
+                              <Input
+                                type="number"
+                                step="0.01"
+                                className={`h-7 w-full min-w-0 px-1 text-right text-[11px] font-medium ${
+                                  l.direcao === "credito" ? "text-success" : "text-destructive"
+                                }`}
+                                value={l.valor}
+                                onChange={(e) =>
+                                  atualizarLancamento(idx, l.id, {
+                                    valor: Number(e.target.value) || 0,
+                                  })
+                                }
+                              />
+                              <p
+                                className={`mt-1 text-[10px] font-medium ${
+                                  l.direcao === "credito" ? "text-success" : "text-destructive"
+                                }`}
+                              >
+                                {l.direcao === "credito" ? "crédito" : "débito"} ·{" "}
+                                {formatBRL(l.valor * l.parcela_total)}
                               </p>
-                            )}
-                          </td>
-                          <td className="p-1">
-                            <Select
-                              value={l.subcategoria ?? "none"}
-                              onValueChange={(v) =>
-                                atualizarLancamento(idx, l.id, {
-                                  subcategoria: v === "none" ? null : v,
-                                })
-                              }
-                            >
-                              <SelectTrigger className="h-7 w-full min-w-0 px-1 text-[11px]">
-                                <SelectValue placeholder="—" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="none">—</SelectItem>
-                                {subcategoriasDe(l.categoria).map((s) => (
-                                  <SelectItem key={s} value={s}>
-                                    {s}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </td>
-                          <td className="p-1 text-right">
-                            <Input
-                              type="number"
-                              step="0.01"
-                              className={`h-7 w-full min-w-0 px-1 text-right text-[11px] font-medium ${
-                                l.direcao === "credito" ? "text-success" : "text-destructive"
-                              }`}
-                              value={l.valor}
-                              onChange={(e) =>
-                                atualizarLancamento(idx, l.id, {
-                                  valor: Number(e.target.value) || 0,
-                                })
-                              }
-                            />
-                            <p
-                              className={`mt-1 text-[10px] font-medium ${
-                                l.direcao === "credito" ? "text-success" : "text-destructive"
-                              }`}
-                            >
-                              {l.direcao === "credito" ? "crédito" : "débito"} ·{" "}
-                              {formatBRL(l.valor * l.parcela_total)}
-                            </p>
-                          </td>
-                        </tr>
-                      );
-                    })}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -1994,106 +2402,58 @@ function ImportarPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Modal de Resumo e Divergências da Importação */}
-      <Dialog open={!!resultadoModal} onOpenChange={(aberto) => !aberto && setResultadoModal(null)}>
-        <DialogContent className="max-w-md">
+      <Dialog open={modalAnaliseOpen} onOpenChange={setModalAnaliseOpen}>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
-              <CheckCircle2 className="size-5" /> Importação Concluída com Sucesso!
-            </DialogTitle>
+            <DialogTitle>Faturas Enviadas para Análise</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-2 text-sm">
-            <div className="rounded-lg border bg-muted/40 p-3 space-y-1">
-              <p className="font-semibold text-foreground">
-                {resultadoModal?.inseridos} lançamento(s) importado(s). {resultadoModal?.ignorados} duplicado(s) ignorado(s).
-              </p>
-              {resultadoModal?.fechadas ? (
-                <p className="text-xs text-muted-foreground">
-                  {resultadoModal.fechadas} competência(s) de fatura fechada(s).
-                </p>
-              ) : null}
-            </div>
-
-            {resultadoModal?.regrasSalvas ? (
-              <div className="rounded-lg border border-blue-500/30 bg-blue-50/50 p-3 text-xs dark:bg-blue-950/30 text-blue-800 dark:text-blue-300">
-                <b>💡 Aprendizado Registrado:</b>
-                <p className="mt-0.5">
-                  {resultadoModal.regrasSalvas} classificação(ões) aprendida(s) para próximas importações.
-                </p>
-              </div>
-            ) : null}
-
+          <div className="space-y-3 py-2">
             <p className="text-xs text-muted-foreground">
-              A verificação de duplicidade é realizada comparando os dados com o seu histórico de lançamentos já cadastrados. O sistema não armazena o arquivo PDF enviado.
+              Abaixo estão os arquivos de fatura que você enviou para a nossa equipe calibrar o
+              leitor de PDF.
             </p>
-          </div>
-          <DialogFooter>
-            <Button onClick={() => setResultadoModal(null)}>Entendido e Fechar</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Modal de Minhas Solicitações de Layout Enviadas */}
-      <Dialog open={verSolicitacoes} onOpenChange={setVerSolicitacoes}>
-        <DialogContent className="max-w-xl">
-          <DialogHeader>
-            <DialogTitle>Faturas Enviadas para Modelagem</DialogTitle>
-          </DialogHeader>
-          <div className="max-h-96 space-y-3 overflow-auto py-2">
-            {minhasSolicitacoes.length === 0 ? (
+            {solicitacoesAnalise.length === 0 ? (
               <p className="py-4 text-center text-sm text-muted-foreground">
-                Você ainda não enviou faturas para análise de layout.
+                Nenhuma fatura enviada para análise.
               </p>
             ) : (
-              minhasSolicitacoes.map((s: any) => (
-                <div key={s.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3 text-xs">
-                  <div>
-                    <b className="text-sm">{s.arquivo_nome}</b>
-                    <p className="text-muted-foreground">
-                      Banco: {s.banco_informado || "Não inf."} · Final: {s.cartao_final || "N/A"} · {new Date(s.criado_em).toLocaleDateString("pt-BR")}
+              <div className="max-h-80 space-y-2 overflow-y-auto">
+                {solicitacoesAnalise.map((item: any) => (
+                  <div key={item.id} className="rounded-lg border p-3 text-xs">
+                    <div className="flex items-center justify-between gap-2">
+                      <b className="truncate text-sm">{item.arquivo_nome}</b>
+                      <Badge variant="outline" className="shrink-0 text-[10px]">
+                        {item.status === "corrigida"
+                          ? "✓ Concluída / Tratada"
+                          : item.status === "descartada"
+                            ? "Descartada"
+                            : item.status === "em_modelagem"
+                              ? "Em análise"
+                              : "Recebida"}
+                      </Badge>
+                    </div>
+                    <p className="mt-1 text-muted-foreground">
+                      Enviado em {new Date(item.criado_em).toLocaleDateString("pt-BR")}
+                      {item.banco_informado ? ` · Banco: ${item.banco_informado}` : ""}
+                      {item.cartao_final ? ` · Final: ${item.cartao_final}` : ""}
                     </p>
-                    <span
-                      className={`mt-1 inline-block rounded px-2 py-0.5 text-[10px] font-semibold ${
-                        s.status === "corrigida"
-                          ? "bg-emerald-500/10 text-emerald-600"
-                          : s.status === "em_modelagem"
-                          ? "bg-blue-500/10 text-blue-600"
-                          : s.status === "descartada"
-                          ? "bg-rose-500/10 text-rose-600"
-                          : "bg-amber-500/10 text-amber-600"
-                      }`}
-                    >
-                      {s.status === "corrigida"
-                        ? "Concluído"
-                        : s.status === "em_modelagem"
-                        ? "Em análise"
-                        : s.status === "descartada"
-                        ? "Descartado"
-                        : "Pendente"}
-                    </span>
-                    {s.resposta_admin && (
-                      <p className="mt-1 text-[11px] text-muted-foreground italic">
-                        Mensagem: {s.resposta_admin}
+                    {item.protocolo && (
+                      <p className="mt-0.5 font-mono text-[10px] text-muted-foreground/70">
+                        Protocolo: {item.protocolo.substring(0, 8)}…
+                      </p>
+                    )}
+                    {item.resposta_admin && (
+                      <p className="mt-1 font-medium text-emerald-600">
+                        Resposta: {item.resposta_admin}
                       </p>
                     )}
                   </div>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="text-rose-600 hover:text-rose-700"
-                    disabled={excluirSolicitacao.isPending}
-                    onClick={() => excluirSolicitacao.mutate(s.id)}
-                  >
-                    <Trash2 className="mr-1 size-3.5" /> Excluir
-                  </Button>
-                </div>
-              ))
+                ))}
+              </div>
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setVerSolicitacoes(false)}>
-              Fechar
-            </Button>
+            <Button onClick={() => setModalAnaliseOpen(false)}>Fechar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

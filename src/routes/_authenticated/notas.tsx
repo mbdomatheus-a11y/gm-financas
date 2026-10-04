@@ -51,12 +51,14 @@ import {
   disconnectDrive,
   driveStatus,
   getPastaDrive,
+  resolverUrlsOracle,
   setPastaDrive,
   startDriveConnect,
   uploadNotaArquivo,
 } from "@/lib/drive.functions";
 import { consultarNota } from "@/lib/nfe.functions";
 import { usePermissoes } from "@/hooks/useAuthData";
+import { obterConfiguracaoAcesso } from "@/lib/configuracoes-site.functions";
 
 export const Route = createFileRoute("/_authenticated/notas")({
   head: () => ({
@@ -130,6 +132,10 @@ function useNotas() {
         .order("data_compra", { ascending: false });
       if (error) throw error;
       const notas = data ?? [];
+
+      // Arquivos "supabase:<path>": bucket privado no Supabase Storage,
+      // resolvido direto no client (mesma sessão do usuário já tem acesso
+      // via RLS do storage).
       const paths = [
         ...new Set(
           notas.flatMap((nota) =>
@@ -150,16 +156,49 @@ function useNotas() {
           if (url) links.set(path, url);
         });
       }
+
+      // Arquivos "oracle:<object_key>" (2026-09-27): bucket privado no
+      // Oracle Object Storage — as credenciais não existem no client, então
+      // a URL assinada precisa vir do server (resolverUrlsOracle).
+      const objectKeysOracle = [
+        ...new Set(
+          notas.flatMap((nota) =>
+            (nota.nota_arquivos ?? [])
+              .filter((arquivo) => arquivo.drive_file_id.startsWith("oracle:"))
+              .map((arquivo) => arquivo.drive_file_id.slice("oracle:".length)),
+          ),
+        ),
+      ];
+      const linksOracle = new Map<string, string>();
+      if (objectKeysOracle.length) {
+        try {
+          const { urls } = await resolverUrlsOracle({ data: { objectKeys: objectKeysOracle } });
+          Object.entries(urls).forEach(([objectKey, url]) => linksOracle.set(objectKey, url));
+        } catch (err) {
+          console.error("Não foi possível carregar os arquivos do Oracle:", err);
+        }
+      }
+
       return notas.map((nota) => ({
         ...nota,
         nota_arquivos: (nota.nota_arquivos ?? []).map((arquivo) => {
-          if (!arquivo.drive_file_id.startsWith("supabase:")) return arquivo;
-          const url = links.get(arquivo.drive_file_id.slice("supabase:".length)) ?? null;
-          return {
-            ...arquivo,
-            link: url,
-            thumbnail_link: arquivo.mime_type?.startsWith("image/") ? url : null,
-          };
+          if (arquivo.drive_file_id.startsWith("supabase:")) {
+            const url = links.get(arquivo.drive_file_id.slice("supabase:".length)) ?? null;
+            return {
+              ...arquivo,
+              link: url,
+              thumbnail_link: arquivo.mime_type?.startsWith("image/") ? url : null,
+            };
+          }
+          if (arquivo.drive_file_id.startsWith("oracle:")) {
+            const url = linksOracle.get(arquivo.drive_file_id.slice("oracle:".length)) ?? null;
+            return {
+              ...arquivo,
+              link: url,
+              thumbnail_link: arquivo.mime_type?.startsWith("image/") ? url : null,
+            };
+          }
+          return arquivo;
         }),
       }));
     },
@@ -187,7 +226,7 @@ function SeloGarantia({ fim }: { fim: string | null }) {
 }
 
 function NotasPage() {
-  const { exclusaoBloqueada } = usePermissoes();
+  const { exclusaoBloqueada, isSiteAdmin } = usePermissoes();
   const qc = useQueryClient();
   const { data: notas = [], isLoading } = useNotas();
   const [filtro, setFiltro] = useState<Filtro>("todas");
@@ -212,6 +251,17 @@ function NotasPage() {
   const consultar = useServerFn(consultarNota);
 
   const drive = useQuery({ queryKey: ["drive-status"], queryFn: () => status({}) });
+
+  // Item 15 (backlog 2026-09-27): a seção de pasta/Google Drive fica oculta
+  // pro usuário comum por padrão — só o admin do site vê sempre, e pode
+  // reabilitar pra todo mundo mais tarde via essa mesma configuração global.
+  const obterConfigAcesso = useServerFn(obterConfiguracaoAcesso);
+  const configAcesso = useQuery({
+    queryKey: ["configuracao-acesso-publica"],
+    queryFn: () => obterConfigAcesso(),
+    staleTime: 60_000,
+  });
+  const mostrarSecaoDrive = isSiteAdmin || !!configAcesso.data?.google_drive_habilitado;
 
   const lerPasta = useServerFn(getPastaDrive);
   const gravarPasta = useServerFn(setPastaDrive);
@@ -412,10 +462,19 @@ function NotasPage() {
       return destinos;
     },
     onSuccess: (destinos) => {
+      // Se misturou destinos (alguns arquivos foram pro Drive, outros
+      // caíram no site), diz isso claramente — dizer só "enviado ao Google
+      // Drive" quando pelo menos um foi escondia que outro(s) não foram
+      // (o aviso individual de cada arquivo já aparece, mas o resumo final
+      // não podia contradizer isso).
+      const foiDrive = destinos.has("google_drive");
+      const foiSite = destinos.has("site");
       toast.success(
-        destinos.has("google_drive")
-          ? "Comprovante enviado ao Google Drive."
-          : "Comprovante guardado no site.",
+        foiDrive && foiSite
+          ? "Parte dos comprovantes foi ao Google Drive; o restante ficou salvo no site."
+          : foiDrive
+            ? "Comprovante enviado ao Google Drive."
+            : "Comprovante guardado no site.",
       );
       void qc.invalidateQueries({ queryKey: ["notas-fiscais"] });
     },
@@ -488,7 +547,7 @@ function NotasPage() {
       title="Notas fiscais"
       description="Comprovantes, chave de acesso e controle de garantia"
       actions={
-        <Button size="sm" className="gap-2" onClick={() => setEscolha(true)}>
+        <Button size="sm" className="gap-2" onClick={() => setEscolha(true)} data-tour="nova-nota">
           <Plus className="size-4" /> Nova nota
         </Button>
       }
@@ -516,7 +575,14 @@ function NotasPage() {
       />
 
       <div className="space-y-4">
+        {mostrarSecaoDrive && (
         <Card>
+          {isSiteAdmin && !configAcesso.data?.google_drive_habilitado && (
+            <div className="border-b bg-amber-500/10 px-4 py-2 text-[11px] text-amber-700">
+              Visível só pra você (admin). Oculto pros usuários comuns — reative em Administração
+              → Módulos.
+            </div>
+          )}
           <CardContent className="space-y-4 py-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3">
@@ -566,9 +632,9 @@ function NotasPage() {
                     <p className="text-sm font-semibold">Envio automático pelo Google Drive</p>
                     <p className="text-xs text-muted-foreground">
                       {drive.data?.connected
-                        ? pasta.data?.provider === "Google Drive"
-                          ? "Conectado. O envio usa a pasta criada pelo aplicativo no seu Drive"
-                          : "Conectado. Os arquivos serão salvos na pasta criada pelo aplicativo no seu Drive"
+                        ? pasta.data?.provider === "Google Drive" && pasta.data?.folderId
+                          ? "Conectado. Tentamos usar a pasta que você configurou abaixo — se o Drive não deixar (só funciona com pastas criadas ou abertas pelo próprio app), cai automaticamente para a pasta padrão do app"
+                          : "Conectado. O envio usa a pasta que o próprio app cria no seu Drive (\"Finanças do Casal/Notas fiscais\")"
                         : drive.data?.googleAvailable
                           ? "Opcional: conecte. Sem conexão, os arquivos ficam privados no site"
                           : "Seus arquivos ficam privados no site. Google Drive aguarda configuração"}
@@ -602,6 +668,7 @@ function NotasPage() {
             </div>
           </CardContent>
         </Card>
+        )}
 
         {aVencer.length > 0 && (
           <Card className="border-warning/40 bg-warning/5">
