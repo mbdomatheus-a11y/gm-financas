@@ -1,11 +1,30 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
-import { ArrowRight, BarChart3, BellRing, Check, FileHeart, FileUp, ListChecks, MapPin, PawPrint, PlayCircle, Percent, ReceiptText, ShieldCheck, Sparkles, Wallet } from "lucide-react";
+import {
+  ArrowRight,
+  Calculator,
+  Check,
+  FileUp,
+  Percent,
+  ReceiptText,
+  ShieldCheck,
+  Sparkles,
+  TrendingUp,
+  Wallet,
+  QrCode,
+  CalendarClock,
+  Layers,
+} from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { BrandAnimado } from "@/components/ferramentas/BrandAnimado";
 import { BrandMark } from "@/components/BrandMark";
 import { LegalDialogs } from "@/components/LegalDialogs";
@@ -17,104 +36,75 @@ import { formatBRL } from "@/lib/format";
 import { useQuery } from "@tanstack/react-query";
 
 export const Route = createFileRoute("/")({
-  head: () => ({ meta: [
-    { title: "Control ALL | Organização financeira e da vida" },
-    { name: "description", content: "Organize finanças, documentos, rotina da família, pets e exames em um só lugar." },
-    { property: "og:title", content: "Control ALL | Tudo da sua vida, organizado" },
-    { property: "og:description", content: "Controle finanças, lista, documentos, pets, exames e lembretes." },
-    { property: "og:url", content: "https://www.controlall.com.br/" },
-  ], links: [{ rel: "canonical", href: "https://www.controlall.com.br/" }] }), component: LandingPage,
+  head: () => ({
+    meta: [
+      { title: "Control ALL | Finanças Pessoais e Notas Fiscais Inteligentes" },
+      {
+        name: "description",
+        content:
+          "Controle completo de receitas, despesas, parcelamentos de cartão e leitura automática de notas fiscais com IA.",
+      },
+      {
+        property: "og:title",
+        content: "Control ALL | Seu dinheiro e notas fiscais organizados",
+      },
+      {
+        property: "og:description",
+        content:
+          "Gerencie fluxo de caixa, parcelamentos de cartão, leia cupons fiscais do SEFAZ com IA e use calculadoras gratuitas.",
+      },
+      { property: "og:url", content: "https://www.controlall.com.br/" },
+    ],
+    links: [{ rel: "canonical", href: "https://www.controlall.com.br/" }],
+  }),
+  component: LandingPage,
 });
 
 const modulos = [
   {
     icon: Wallet,
-    titulo: "Finanças",
-    texto: "Receitas, despesas, cartões, investimentos e faturas importadas com revisão.",
+    titulo: "Finanças Pessoais Completas",
+    destaque: "Principal",
+    texto:
+      "Receitas, despesas fixas e variáveis, projeção mensal e acompanhamento detalhado de parcelas.",
     detalhes: [
-      "Fluxo de caixa mês a mês, com período personalizado.",
-      "Importação de faturas de cartão com revisão antes de confirmar.",
-      "Conciliação automática de contas vencidas e economia conquistada.",
-      "Compartilhamento com quem você escolher.",
-    ],
-  },
-  {
-    icon: ListChecks,
-    titulo: "Lista de Compras",
-    texto: "Compras compartilhadas, links de referência e aprovações.",
-    detalhes: [
-      "Até 4 links de referência por item (Instagram, TikTok, loja, etc.).",
-      "Aprovação em grupo antes de marcar como comprado.",
-      "Histórico do que já foi comprado.",
+      "Fluxo de caixa inteligente mês a mês, com períodos customizáveis.",
+      "Acompanhamento exato de parcelas futuras: saiba quando cada dívida termina.",
+      "Importação e conferência de faturas de cartão com validação antes de lançar.",
+      "Histórico de economia conquistada e conciliação automática.",
+      "Compartilhamento seguro com familiares sem misturar contas.",
     ],
   },
   {
     icon: ReceiptText,
-    titulo: "Notas fiscais",
-    texto: "Guarde comprovantes, garantias e lembretes de vencimento.",
+    titulo: "Notas Fiscais Inteligentes com IA",
+    destaque: "Destaque",
+    texto:
+      "Escaneie cupons fiscais e QR Code do SEFAZ para extração automática de todos os itens e preços.",
     detalhes: [
-      "Fotos e PDFs organizados por compra.",
-      "Salva direto no seu Google Drive — sem custo de armazenamento extra.",
-      "Lembretes de garantia perto do vencimento.",
+      "Leitura rápida via QR Code ou chave de acesso da NF-e / NFC-e.",
+      "Detalhamento automático de cada item: nome, quantidade, valor unitário e total.",
+      "Guarda de comprovantes e notas de garantia direto no seu Google Drive.",
+      "Alertas automáticos de garantia perto do vencimento para você nunca perder prazo.",
+      "IA assistente que sumariza seus gastos e gera lançamentos com 1 clique.",
     ],
   },
   {
-    icon: PawPrint,
-    titulo: "Pet",
-    texto: "Carteira de vacinação, vermifugação, dados do animal e alertas.",
+    icon: Calculator,
+    titulo: "Calculadoras & Ferramentas Extras",
+    destaque: "Bônus Gratuito",
+    texto:
+      "Calculadoras financeiras e utilitários úteis disponíveis para te apoiar em qualquer decisão.",
     detalhes: [
-      "Carteirinha digital por pet.",
-      "Alertas de próxima dose e vermifugação.",
-      "Histórico completo de saúde.",
-    ],
-  },
-  {
-    icon: MapPin,
-    titulo: "Onde está?",
-    texto: "Local, cômodo e detalhe de onde cada item está guardado — com busca rápida.",
-    detalhes: [
-      "Cadastre local, cômodo, caixa/gaveta e até validade — tudo opcional.",
-      "Busque por nome do item (\"pilha AAA\") e veja onde está guardado.",
-      "Simples de preencher só com o que você souber no momento.",
-    ],
-  },
-  {
-    icon: FileHeart,
-    titulo: "Exames",
-    texto: "Histórico privado, anexos e evolução de resultados com seu aceite.",
-    detalhes: [
-      "Anexe resultados e acompanhe a evolução.",
-      "Privado por padrão — nada é compartilhado sem seu aceite.",
-      "Organização por data e tipo de exame.",
+      "Calculadora CLT vs PJ completa com impostos e benefícios para comparar propostas.",
+      "Simulador de Juros Compostos e Independência Financeira.",
+      "Gamificação financeira: descubra quantas horas de trabalho cada compra exige.",
+      "Links temporários com criptografia de ponta a ponta para compartilhar dados com segurança.",
+      "Conversor e cotação de moedas em tempo real.",
     ],
   },
 ];
 
-function useVideoDemonstracaoUrl() {
-  const { data: path } = useQuery({
-    queryKey: ["identidade-visual-site-video"],
-    staleTime: 60_000,
-    queryFn: async () => {
-      const { data } = await (supabase as any)
-        .from("identidade_visual_site")
-        .select("video_demonstracao_path")
-        .eq("id", true)
-        .maybeSingle();
-      return (data?.video_demonstracao_path as string | null | undefined) ?? null;
-    },
-  });
-  return typeof path === "string" && path
-    ? supabase.storage.from("site_videos").getPublicUrl(path).data.publicUrl
-    : null;
-}
-
-/**
- * Bloco de parceria/patrocínio discreto na home (2026-09-27, a pedido do
- * usuário): link pro site de um parceiro (ex.: piczofertas.com.br), com
- * prévia enviada pelo admin, slogan e contador de cliques. Só renderiza
- * quando há uma parceria ativa configurada em /administracao — sem
- * configuração, o espaço fica vazio como antes.
- */
 function useParceriaHome() {
   const obterFn = useServerFn(obterParceriaHome);
   return useQuery({
@@ -138,13 +128,13 @@ function BlocoParceria() {
       target="_blank"
       rel="noopener noreferrer sponsored"
       onClick={() => {
-        registrarCliqueFn().catch(() => {
-          // Falha ao contar o clique não deve impedir a navegação.
-        });
+        registrarCliqueFn().catch(() => {});
       }}
       className="group mt-auto flex flex-col gap-2 rounded-xl border-2 border-amber-400/70 bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 p-4 text-left shadow-sm transition-transform hover:scale-[1.02] dark:border-amber-500/40 dark:from-amber-950/30 dark:via-orange-950/20 dark:to-amber-950/30"
     >
-      <p className="text-[9px] font-medium uppercase tracking-wide text-muted-foreground">Patrocinado</p>
+      <p className="text-[9px] font-medium uppercase tracking-wide text-muted-foreground">
+        Patrocinado
+      </p>
       {previewUrl && (
         <img
           src={previewUrl}
@@ -170,24 +160,20 @@ function BlocoParceria() {
   );
 }
 
-/**
- * Bloco de preços (2026-09-28): valor, descrição e itens editáveis pelo
- * admin em Administração > Dados Gerais. Enquanto a consulta não resolve
- * (ou se a linha ainda não existir por algum motivo), usa este padrão —
- * o mesmo texto que já estava fixo no componente antes.
- */
 const PRECO_PADRAO = {
-  nome: "Control ALL",
+  nome: "Control ALL Pro",
   preco: 4.99,
   sufixo: "/mês",
-  descricao: "Preço de lançamento previsto.",
+  descricao: "Acesso completo a Finanças, Notas Fiscais com IA e todas as calculadoras.",
   itens: [
-    "Módulos pessoais e financeiros",
-    "Alertas e histórico",
-    "Compartilhamento controlado",
-    "Privacidade por padrão",
+    "Módulo de Finanças Pessoais sem limites",
+    "Leitor de Notas Fiscais e QR Code SEFAZ com IA",
+    "Previsão de fluxo de caixa e alívio de parcelas",
+    "Guarda de comprovantes no Google Drive",
+    "Calculadoras e ferramentas extras inclusas",
+    "Privacidade total: seus dados são seus",
   ],
-  botaoTexto: "Criar conta",
+  botaoTexto: "Criar conta grátis",
 };
 
 function usePrecoHome() {
@@ -211,19 +197,14 @@ function EconomiaTotalBanner() {
     <section className="border-b bg-emerald-500/10">
       <div className="mx-auto max-w-6xl px-4 py-3 text-center text-sm">
         <span className="font-semibold text-emerald-700">{formatBRL(valor)}</span>{" "}
-        <span className="text-muted-foreground">já economizados por quem usa o Control ALL, em assinaturas e contas ajustadas.</span>
+        <span className="text-muted-foreground">
+          já economizados por quem usa o Control ALL para ajustar gastos e parcelas.
+        </span>
       </div>
     </section>
   );
 }
 
-/**
- * Dados estruturados (schema.org/SoftwareApplication) pra Google e pra
- * mecanismos de IA (ChatGPT, Perplexity, Gemini etc.) entenderem o que é o
- * Control ALL, categoria e preço sem depender de raspar o texto da página.
- * Renderizado como JSON-LD no próprio HTML servido pelo SSR (não depende de
- * JS rodar no crawler).
- */
 const jsonLdSoftwareApplication = {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
@@ -232,7 +213,7 @@ const jsonLdSoftwareApplication = {
   operatingSystem: "Web",
   url: "https://www.controlall.com.br/",
   description:
-    "Organização financeira e da vida em um só lugar: receitas, despesas, cartões, faturas importadas, notas fiscais, pets, exames e lembretes.",
+    "Controle financeiro inteligente: receitas, despesas, parcelamentos e leitura automática de notas fiscais com IA.",
   offers: {
     "@type": "Offer",
     price: "4.99",
@@ -241,36 +222,278 @@ const jsonLdSoftwareApplication = {
   },
   featureList: [
     "Controle de receitas e despesas",
-    "Importação de faturas de cartão",
-    "Guarda de notas fiscais e garantias",
-    "Carteira de vacinação de pets",
-    "Histórico de exames",
-    "Lista de compras compartilhada",
+    "Importação e conferência de faturas de cartão",
+    "Leitor inteligente de notas fiscais com IA e SEFAZ",
+    "Controle de parcelamentos e previsão de alívio",
+    "Calculadoras financeiras gratuitas",
   ],
 };
 
 function LandingPage() {
   const navigate = useNavigate();
-  const videoUrl = useVideoDemonstracaoUrl();
   const { data: precoData } = usePrecoHome();
   const preco = precoData ?? PRECO_PADRAO;
-  useEffect(() => { supabase.auth.getSession().then(({ data }) => { if (data.session) navigate({ to: "/inicio" }); }); }, [navigate]);
-  return <main className="min-h-screen bg-background text-foreground">
-    <script
-      type="application/ld+json"
-      // eslint-disable-next-line react/no-danger
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdSoftwareApplication) }}
-    />
-    <SiteHeader home />
-    <EconomiaTotalBanner />
-    <section className="overflow-hidden border-b bg-gradient-to-b from-primary/10 via-background to-background"><div className="mx-auto grid max-w-6xl gap-10 px-4 py-16 md:grid-cols-[1.1fr_.9fr] md:py-24">
-      <div className="flex flex-col justify-center"><BrandAnimado className="mb-5" /><p className="mb-3 inline-flex w-fit items-center gap-2 rounded-full border bg-background px-3 py-1 text-xs font-medium"><Sparkles className="size-3.5 text-primary" /> Uma casa mais leve começa com clareza</p><h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl">A vida da sua família organizada em um só lugar.</h1><p className="mt-5 max-w-xl text-base leading-7 text-muted-foreground">Do dinheiro aos documentos, do pet aos exames: o Control ALL transforma tarefas espalhadas em uma rotina simples, privada e compartilhável quando você quiser. Notas fiscais ficam salvas direto no seu Google Drive, contas vencidas se conciliam automaticamente e você ainda pode enviar links temporários criptografados sem precisar de conta.</p><div className="mt-7 flex flex-wrap gap-3"><Button asChild size="lg"><Link to="/entrar">Começar agora <ArrowRight className="size-4" /></Link></Button><Button asChild size="lg" variant="outline"><a href="#demonstracao"><PlayCircle className="size-4" /> Ver demonstração</a></Button></div><div className="mt-4 flex flex-wrap gap-x-5 gap-y-2"><Link to="/calculadoras" className="inline-flex w-fit items-center gap-2 rounded-full bg-primary/10 px-3 py-1.5 text-sm font-medium text-primary transition hover:bg-primary/20">Usar calculadoras gratuitas <ArrowRight className="size-4" /></Link><Link to="/links-temporarios" className="inline-flex w-fit items-center gap-2 rounded-full bg-primary/10 px-3 py-1.5 text-sm font-medium text-primary transition hover:bg-primary/20">Enviar link temporário <ArrowRight className="size-4" /></Link></div><p className="mt-3 text-xs text-muted-foreground">R$ 4,99 por mês. Cobrança será habilitada no lançamento comercial.</p></div>
-      <Card className="border-primary/20 bg-card/80 shadow-xl"><CardContent className="flex h-full flex-col space-y-4 p-5"><div className="flex items-center justify-between"><div><p className="text-sm text-muted-foreground">Visão de exemplo</p><b>Seu mês em ordem</b></div><BrandMark className="size-11 opacity-90" /></div><div className="grid grid-cols-2 gap-3"><div className="rounded-xl bg-emerald-500/10 p-3"><p className="text-xs text-muted-foreground">Entradas</p><b className="text-emerald-700">R$ 8.240,00</b></div><div className="rounded-xl bg-primary/10 p-3"><p className="text-xs text-muted-foreground">Planejado</p><b>R$ 5.190,00</b></div></div><div className="space-y-2 rounded-xl border p-3 text-sm"><p className="font-medium">Próximos cuidados</p><p className="flex items-center gap-2 text-muted-foreground"><BellRing className="size-4 text-primary" /> Garantia do liquidificador em 12 dias</p><p className="flex items-center gap-2 text-muted-foreground"><PawPrint className="size-4 text-primary" /> Reforço da vacina do pet em breve</p><p className="flex items-center gap-2 text-muted-foreground"><FileHeart className="size-4 text-primary" /> 3 resultados aguardando revisão</p></div><p className="text-center text-xs text-muted-foreground">Dados fictícios para demonstração.</p><BlocoParceria /></CardContent></Card>
-    </div></section>
-    <section id="recursos" className="mx-auto max-w-6xl px-4 py-16"><div className="mb-8 max-w-2xl"><p className="text-sm font-semibold text-primary">RECURSOS</p><h2 className="mt-2 text-3xl font-bold">Organização que acompanha a vida real.</h2></div><div className="grid gap-4 sm:grid-cols-3"><Card><CardContent className="p-5"><ShieldCheck className="size-6 text-primary"/><h3 className="mt-3 font-semibold">Privacidade por padrão</h3><p className="mt-1 text-sm text-muted-foreground">Dados pessoais e exames privados. Compartilhamento só com a sua escolha.</p></CardContent></Card><Card><CardContent className="p-5"><FileUp className="size-6 text-primary"/><h3 className="mt-3 font-semibold">Importe e confira</h3><p className="mt-1 text-sm text-muted-foreground">Faturas e exames entram como prévia para você corrigir e aprovar.</p></CardContent></Card><Card><CardContent className="p-5"><BellRing className="size-6 text-primary"/><h3 className="mt-3 font-semibold">Não deixe passar</h3><p className="mt-1 text-sm text-muted-foreground">Alertas de contas, garantias, manutenção, vacinas e lembretes.</p></CardContent></Card></div></section>
-    <section id="modulos" className="border-y bg-muted/30"><div className="mx-auto max-w-6xl px-4 py-16"><p className="text-sm font-semibold text-primary">MÓDULOS</p><h2 className="mt-2 text-3xl font-bold">Cada parte da rotina, no seu lugar.</h2><p className="mt-2 text-sm text-muted-foreground">Clique em um módulo para ver mais detalhes, sem sair desta página.</p><div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{modulos.map(({icon:Icon,titulo,texto,detalhes})=><Card key={titulo} className="overflow-hidden"><Accordion type="single" collapsible><AccordionItem value={titulo} className="border-b-0"><CardContent className="p-5 pb-0"><Icon className="size-6 text-primary"/><h3 className="mt-3 font-semibold">{titulo}</h3><p className="mt-1 text-sm leading-6 text-muted-foreground">{texto}</p></CardContent><AccordionTrigger className="px-5 py-2 text-xs text-primary hover:no-underline">Ver detalhes</AccordionTrigger><AccordionContent className="px-5"><ul className="space-y-1.5 text-sm text-muted-foreground">{detalhes.map((d)=><li key={d} className="flex gap-2"><Check className="mt-0.5 size-3.5 shrink-0 text-primary"/>{d}</li>)}</ul></AccordionContent></AccordionItem></Accordion></Card>)}</div></div></section>
-    <section id="demonstracao" className="mx-auto max-w-6xl px-4 py-16"><div className="grid items-center gap-8 md:grid-cols-2"><div><p className="text-sm font-semibold text-primary">DEMONSTRAÇÃO</p><h2 className="mt-2 text-3xl font-bold">Veja antes de decidir.</h2><p className="mt-4 text-muted-foreground">Esta área é visual e segura, com lançamentos fictícios — sem expor dados reais de nenhuma pessoa.</p>{!videoUrl && <Button className="mt-6" variant="outline" disabled><PlayCircle className="size-4" /> Vídeo de apresentação em breve</Button>}</div>{videoUrl ? (<Card className="overflow-hidden p-0"><video src={videoUrl} controls preload="metadata" className="aspect-video w-full bg-black" /></Card>) : (<Card className="border-dashed"><CardContent className="flex min-h-56 flex-col items-center justify-center p-8 text-center"><PlayCircle className="size-11 text-primary"/><b className="mt-3">Demonstração visual do Control ALL</b><p className="mt-1 text-sm text-muted-foreground">Vídeos e telas fictícias serão exibidos aqui.</p></CardContent></Card>)}</div></section>
-    <section id="precos" className="border-t bg-primary/5"><div className="mx-auto max-w-6xl px-4 py-16 text-center"><p className="text-sm font-semibold text-primary">PREÇOS</p><h2 className="mt-2 text-3xl font-bold">Simples para começar.</h2><Card className="mx-auto mt-7 max-w-sm border-primary"><CardContent className="p-7"><p className="font-semibold">{preco.nome}</p><p className="mt-3 text-4xl font-bold">{formatBRL(preco.preco)}<span className="text-base font-normal text-muted-foreground">{preco.sufixo}</span></p><p className="mt-3 text-sm text-muted-foreground">{preco.descricao}</p><ul className="mt-5 space-y-2 text-left text-sm">{preco.itens.map(i=><li className="flex gap-2" key={i}><Check className="size-4 text-primary"/>{i}</li>)}</ul><Button asChild className="mt-6 w-full"><Link to="/entrar" search={{ criar: true }}>{preco.botaoTexto}</Link></Button></CardContent></Card></div></section>
-    <footer className="flex items-center justify-center gap-2 border-t px-4 py-7 text-center text-xs text-muted-foreground">© {new Date().getFullYear()} Control ALL LTDA · <LegalDialogs compact /></footer>
-  </main>;
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) navigate({ to: "/inicio" });
+    });
+  }, [navigate]);
+
+  return (
+    <main className="min-h-screen bg-background text-foreground">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdSoftwareApplication) }}
+      />
+      <SiteHeader home />
+      <EconomiaTotalBanner />
+
+      {/* Hero Section */}
+      <section className="overflow-hidden border-b bg-gradient-to-b from-primary/10 via-background to-background">
+        <div className="mx-auto grid max-w-6xl gap-10 px-4 py-16 md:grid-cols-[1.1fr_.9fr] md:py-24">
+          <div className="flex flex-col justify-center">
+            <BrandAnimado className="mb-5" />
+
+            <div className="mb-4 inline-flex w-fit items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+              <Sparkles className="size-3.5" />
+              Módulo de Finanças & Notas Fiscais com IA
+            </div>
+
+            <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl lg:text-5xl leading-tight">
+              Seu dinheiro e suas notas fiscais, finalmente sob controle.
+            </h1>
+
+            <p className="mt-5 max-w-xl text-base leading-7 text-muted-foreground">
+              Abandone planilhas confusas e notas espalhadas. O <strong>Control ALL</strong> une
+              fluxo de caixa inteligente, acompanhamento exato de parcelas e leitura instantânea de
+              cupons fiscais via QR Code do SEFAZ com IA. Tudo em uma experiência simples, moderna e
+              100% privada.
+            </p>
+
+            <div className="mt-8 flex flex-wrap items-center gap-3">
+              <Button asChild size="lg" className="h-12 px-6 text-sm font-semibold shadow-md">
+                <Link to="/entrar" search={{ criar: true }}>
+                  Criar minha conta grátis <ArrowRight className="ml-2 size-4" />
+                </Link>
+              </Button>
+              <Button asChild size="lg" variant="outline" className="h-12 px-5 text-sm">
+                <Link to="/calculadoras">
+                  <Calculator className="mr-2 size-4 text-primary" /> Usar calculadoras
+                </Link>
+              </Button>
+            </div>
+
+            <div className="mt-5 flex items-center gap-4 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1.5">
+                <Check className="size-3.5 text-emerald-600" /> Sem fidelidade
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Check className="size-3.5 text-emerald-600" /> Cadastro rápido sem burocracia
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Check className="size-3.5 text-emerald-600" /> Seus dados protegidos
+              </span>
+            </div>
+          </div>
+
+          {/* Card Hero Demonstrativo */}
+          <Card className="border-primary/20 bg-card/90 shadow-2xl backdrop-blur-sm">
+            <CardContent className="flex h-full flex-col space-y-4 p-6">
+              <div className="flex items-center justify-between border-b pb-4">
+                <div>
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Painel Financeiro
+                  </span>
+                  <p className="text-base font-bold">Resumo do Mês em Tempo Real</p>
+                </div>
+                <BrandMark className="size-10 opacity-90" />
+              </div>
+
+              {/* Indicadores */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-xl bg-emerald-500/10 p-3.5 border border-emerald-500/20">
+                  <p className="text-xs text-muted-foreground">Receitas do mês</p>
+                  <p className="text-lg font-bold text-emerald-700 dark:text-emerald-400">
+                    R$ 8.240,00
+                  </p>
+                  <span className="text-[10px] text-emerald-600 font-medium">
+                    ✓ Líquido disponível
+                  </span>
+                </div>
+                <div className="rounded-xl bg-primary/10 p-3.5 border border-primary/20">
+                  <p className="text-xs text-muted-foreground">Despesas + Parcelas</p>
+                  <p className="text-lg font-bold text-foreground">R$ 5.190,00</p>
+                  <span className="text-[10px] text-primary font-medium">Fixas + Variáveis</span>
+                </div>
+              </div>
+
+              {/* Caixa de IA e Notas */}
+              <div className="space-y-2.5 rounded-xl border bg-muted/40 p-4 text-xs">
+                <div className="flex items-center justify-between font-semibold">
+                  <span className="flex items-center gap-2 text-primary">
+                    <QrCode className="size-4" /> Cupom Fiscal lido via SEFAZ
+                  </span>
+                  <span className="rounded bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:text-emerald-400">
+                    IA Processou
+                  </span>
+                </div>
+                <p className="text-muted-foreground">
+                  Supermercado · <strong>14 itens categorizados automaticamente</strong> (hortifrúti,
+                  higiene e laticínios). Comprovante arquivado no Google Drive.
+                </p>
+              </div>
+
+              {/* Alívio de Parcelas */}
+              <div className="flex items-center justify-between rounded-xl bg-cyan-500/10 border border-cyan-500/20 p-3 text-xs">
+                <div className="flex items-center gap-2 text-cyan-800 dark:text-cyan-300">
+                  <TrendingUp className="size-4 shrink-0" />
+                  <span>Parcela 10/10 quitada este mês</span>
+                </div>
+                <span className="font-bold text-cyan-900 dark:text-cyan-200">+R$ 380 livres/mês</span>
+              </div>
+
+              <BlocoParceria />
+            </CardContent>
+          </Card>
+        </div>
+      </section>
+
+      {/* Seção dos Módulos Principais */}
+      <section id="modulos" className="border-b bg-muted/30">
+        <div className="mx-auto max-w-6xl px-4 py-16">
+          <div className="text-center max-w-2xl mx-auto mb-12">
+            <p className="text-xs font-bold uppercase tracking-wider text-primary">O QUE VOCÊ TEM NO CONTROL ALL</p>
+            <h2 className="mt-2 text-3xl font-extrabold tracking-tight sm:text-4xl">
+              Foco no que realmente importa para sua tranquilidade.
+            </h2>
+            <p className="mt-3 text-sm text-muted-foreground">
+              Projetado para dar clareza imediata às suas decisões financeiras e desburocratizar a
+              guarda de comprovantes fiscais.
+            </p>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-3">
+            {modulos.map(({ icon: Icon, titulo, destaque, texto, detalhes }) => (
+              <Card key={titulo} className="flex flex-col overflow-hidden border shadow-sm transition hover:shadow-md">
+                <CardContent className="flex flex-1 flex-col p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                      <Icon className="size-6" />
+                    </div>
+                    <span className="rounded-full bg-muted px-2.5 py-0.5 text-[11px] font-semibold text-muted-foreground">
+                      {destaque}
+                    </span>
+                  </div>
+
+                  <h3 className="text-lg font-bold tracking-tight">{titulo}</h3>
+                  <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{texto}</p>
+
+                  <ul className="mt-5 space-y-2 border-t pt-4 text-xs text-muted-foreground">
+                    {detalhes.map((d) => (
+                      <li key={d} className="flex items-start gap-2">
+                        <Check className="mt-0.5 size-3.5 shrink-0 text-emerald-600" />
+                        <span>{d}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Diferenciais / Por que escolher */}
+      <section className="mx-auto max-w-6xl px-4 py-16">
+        <div className="mb-10 max-w-2xl">
+          <p className="text-xs font-bold uppercase tracking-wider text-primary">DIFERENCIAIS</p>
+          <h2 className="mt-2 text-3xl font-bold tracking-tight">Feito para a vida financeira real.</h2>
+        </div>
+
+        <div className="grid gap-5 sm:grid-cols-3">
+          <Card className="border bg-card/50">
+            <CardContent className="p-6">
+              <ShieldCheck className="size-7 text-primary" />
+              <h3 className="mt-4 font-bold text-base">Privacidade Absoluta</h3>
+              <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                Seus dados não são vendidos para anunciantes nem compartilhados com terceiros. O
+                controle do que você vê e compartilha é 100% seu.
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="border bg-card/50">
+            <CardContent className="p-6">
+              <Sparkles className="size-7 text-emerald-600" />
+              <h3 className="mt-4 font-bold text-base">IA que Poupa Horas</h3>
+              <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                Não perca tempo digitando cada item de uma compra. Aponte a câmera pro QR Code e a IA
+                extrai, separa e categoriza tudo em 3 segundos.
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="border bg-card/50">
+            <CardContent className="p-6">
+              <CalendarClock className="size-7 text-cyan-600" />
+              <h3 className="mt-4 font-bold text-base">Alívio de Parcelamentos</h3>
+              <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                Descubra com precisão quanto da sua renda vai ser liberada nos próximos meses à
+                medida que compras antigas forem sendo quitadas.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </section>
+
+      {/* Seção Preços / Comece Agora */}
+      <section id="precos" className="border-t bg-primary/5">
+        <div className="mx-auto max-w-6xl px-4 py-16 text-center">
+          <p className="text-xs font-bold uppercase tracking-wider text-primary">ACESSO COMPLETO</p>
+          <h2 className="mt-2 text-3xl font-extrabold tracking-tight sm:text-4xl">
+            Simples, transparente e acessível.
+          </h2>
+
+          <Card className="mx-auto mt-8 max-w-sm border-primary shadow-xl">
+            <CardContent className="p-8">
+              <p className="text-sm font-bold text-primary uppercase tracking-wider">{preco.nome}</p>
+              <p className="mt-3 text-4xl font-extrabold">
+                {formatBRL(preco.preco)}
+                <span className="text-base font-normal text-muted-foreground">{preco.sufixo}</span>
+              </p>
+              <p className="mt-2 text-xs text-muted-foreground">{preco.descricao}</p>
+
+              <ul className="mt-6 space-y-2.5 text-left text-xs text-muted-foreground border-y py-4">
+                {preco.itens.map((i) => (
+                  <li className="flex items-center gap-2" key={i}>
+                    <Check className="size-4 shrink-0 text-emerald-600" />
+                    <span>{i}</span>
+                  </li>
+                ))}
+              </ul>
+
+              <Button asChild size="lg" className="mt-6 w-full font-semibold">
+                <Link to="/entrar" search={{ criar: true }}>
+                  {preco.botaoTexto}
+                </Link>
+              </Button>
+              <p className="mt-2 text-[10px] text-muted-foreground">
+                Cancele quando quiser. Sem taxa de adesão.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t px-6 py-8 text-xs text-muted-foreground max-w-6xl mx-auto">
+        <p>© {new Date().getFullYear()} Control ALL LTDA. Todos os direitos reservados.</p>
+        <div className="flex items-center gap-4">
+          <Link to="/calculadoras" className="hover:underline">Calculadoras</Link>
+          <LegalDialogs compact />
+        </div>
+      </footer>
+    </main>
+  );
 }

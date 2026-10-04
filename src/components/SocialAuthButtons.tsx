@@ -17,7 +17,7 @@ export function SocialAuthButtons({
 }: SocialAuthButtonsProps) {
   const [loadingProvider, setLoadingProvider] = useState<string | null>(null);
 
-  const handleOAuth = async (provider: "google" | "azure" | "apple") => {
+  const handleOAuth = async (provider: "google" | "azure") => {
     try {
       setLoadingProvider(provider);
       const origin = window.location.origin;
@@ -111,24 +111,6 @@ export function SocialAuthButtons({
             </svg>
           )}
           <span>{labelPrefix} Microsoft</span>
-        </Button>
-
-        {/* Apple */}
-        <Button
-          type="button"
-          variant="outline"
-          className="h-10 w-full justify-center gap-2.5 text-xs font-medium hover:bg-muted/60"
-          onClick={() => handleOAuth("apple")}
-          disabled={loadingProvider !== null}
-        >
-          {loadingProvider === "apple" ? (
-            <Loader2 className="size-4 animate-spin text-muted-foreground" />
-          ) : (
-            <svg className="size-4 shrink-0 fill-current" viewBox="0 0 170 170">
-              <path d="M150.37 130.25c-2.45 5.66-5.35 10.87-8.71 15.66-4.58 6.53-8.33 11.05-11.22 13.56-4.48 4.12-9.28 6.23-14.42 6.35-3.69 0-8.14-1.05-13.32-3.18-5.19-2.12-9.97-3.17-14.34-3.17-4.58 0-9.49 1.05-14.75 3.17-5.26 2.13-9.5 3.24-12.74 3.35-4.35.13-9.16-1.9-14.42-6.08-3.7-3.04-7.58-7.7-11.64-13.99-6.97-10.78-12.01-22.68-15.14-35.69-3.12-13.01-4.69-25.17-4.69-36.48 0-14.47 3.59-26.63 10.77-36.48 7.18-9.85 16.31-14.89 27.39-15.11 5.01 0 10.39 1.25 16.14 3.76 5.75 2.5 9.77 3.82 12.05 3.94 1.85-.12 6.09-1.5 12.72-4.14 6.63-2.64 12.33-3.81 17.1-3.52 12.74.87 22.84 5.92 30.3 15.14-11.09 6.74-16.52 16.03-16.3 27.87.22 9.24 3.79 17.06 10.71 23.47 6.92 6.41 15.12 10.15 24.6 11.22-2.17 6.53-4.8 13.06-7.88 19.59zM119.22 31.84c0-7.39 2.66-14.28 7.98-20.67 5.32-6.39 11.96-10.45 19.92-12.17.65 3.91.76 7.42.33 10.53-.87 6.08-3.69 12.06-8.47 17.93-4.78 5.87-10.87 9.4-18.26 10.59-.22-1.74-.75-3.81-1.5-6.21z" />
-            </svg>
-          )}
-          <span>{labelPrefix} Apple</span>
         </Button>
       </div>
     </div>

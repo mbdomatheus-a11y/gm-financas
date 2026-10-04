@@ -8,6 +8,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import { AppLayout } from "@/components/AppLayout";
 import { ConvitesCard } from "@/components/ConvitesCard";
+import { ConviteAmigosBanner } from "@/components/ConviteAmigosBanner";
 import { PermissoesUsuariosCard } from "@/components/PermissoesUsuariosCard";
 import { ConciliacaoFaturasCard } from "@/components/ConciliacaoFaturasCard";
 import { IaLancamentoModoGrupoCard } from "@/components/IaLancamentoModoGrupoCard";
@@ -227,6 +228,7 @@ function ContaPage() {
   return (
     <AppLayout title="Minha conta" description="Dados de acesso e segurança">
       <div className="grid gap-4 lg:grid-cols-2">
+        <ConviteAmigosBanner className="lg:col-span-2" />
         {conviteGrupo && (
           <Card className="border-primary lg:col-span-2">
             <CardHeader>
