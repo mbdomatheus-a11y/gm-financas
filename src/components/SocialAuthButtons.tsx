@@ -33,7 +33,12 @@ export function SocialAuthButtons({
       });
 
       if (error) {
-        toast.error(`Falha na autenticação via ${provider}: ${error.message}`);
+        const msgAmigavel =
+          error.message.includes("provider is not enabled") ||
+          error.message.includes("validation_failed")
+            ? "Login social ainda não está ativo neste ambiente. Use e-mail e senha ou aguarde a ativação."
+            : `Falha na autenticação: ${error.message}`;
+        toast.error(msgAmigavel);
         setLoadingProvider(null);
       }
     } catch (err: unknown) {

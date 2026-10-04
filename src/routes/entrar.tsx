@@ -265,126 +265,269 @@ function CriarContaForm({ token }: { token: string | undefined }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-3 rounded-2xl border bg-card p-6 shadow-card">
-      <div className="space-y-1.5">
-        <Label htmlFor="c-token">Código de convite</Label>
-        <Input
-          id="c-token"
-          autoComplete="off"
-          placeholder="Cole aqui o código que você recebeu"
-          value={tokenInput}
-          onChange={(e) => setTokenInput(e.target.value)}
-          className="font-mono"
-        />
-        <p className="text-xs text-muted-foreground">
-          {cadastroLivre ? (
-            "O Control ALL está em fase de testes e o cadastro está aberto — pode criar sua conta sem código. Se alguém te passou um convite, cole aqui."
-          ) : (
-            <>
-              O cadastro é só por convite. Peça o código a quem já usa o Control ALL — ele pode
-              gerar um em <strong>Minha conta</strong> ou, se for admin, em{" "}
-              <strong>Usuários e Privilégios</strong>. Cada pessoa pode gerar até 3 códigos.
-            </>
+    <OnboardingWizard
+      form={form}
+      setForm={setForm}
+      tokenInput={tokenInput}
+      setTokenInput={setTokenInput}
+      turnstileToken={turnstileToken}
+      setTurnstileToken={setTurnstileToken}
+      loading={loading}
+      aceitouDocumentos={aceitouDocumentos}
+      setAceitouDocumentos={setAceitouDocumentos}
+      cadastroLivre={cadastroLivre}
+      onSubmit={handleSubmit}
+    />
+  );
+}
+
+// ─── Tipos do wizard ──────────────────────────────────────────────────────────
+
+type FormState = typeof emptyCadastro;
+
+type StepId = "boas-vindas" | "convite" | "nome" | "email" | "senha" | "termos";
+
+const STEP_META: Record<StepId, { titulo: string; subtitulo: string }> = {
+  "boas-vindas": {
+    titulo: "Bem-vindo ao Control ALL 🎉",
+    subtitulo: "Comece a organizar suas finanças em menos de 2 minutos.",
+  },
+  convite: {
+    titulo: "Você tem um código de convite?",
+    subtitulo: "Cole aqui se alguém te convidou — ou avance sem código.",
+  },
+  nome: {
+    titulo: "Como podemos te chamar?",
+    subtitulo: "Seu nome aparece no painel e nos relatórios.",
+  },
+  email: {
+    titulo: "Qual é o seu e-mail?",
+    subtitulo: "Você vai usar para entrar. Pode ser o mesmo da sua conta Google.",
+  },
+  senha: {
+    titulo: "Crie uma senha segura",
+    subtitulo: "Mínimo 8 caracteres. Guarde bem — você vai precisar!",
+  },
+  termos: {
+    titulo: "Quase lá! ✅",
+    subtitulo: "Aceite os termos para concluir o cadastro.",
+  },
+};
+
+interface WizardProps {
+  form: FormState;
+  setForm: (f: FormState) => void;
+  tokenInput: string;
+  setTokenInput: (v: string) => void;
+  turnstileToken: string | null;
+  setTurnstileToken: (v: string | null) => void;
+  loading: boolean;
+  aceitouDocumentos: boolean;
+  setAceitouDocumentos: (v: boolean) => void;
+  cadastroLivre: boolean;
+  onSubmit: (e: React.FormEvent) => void;
+}
+
+// ─── Wizard de onboarding ─────────────────────────────────────────────────────
+
+function OnboardingWizard({
+  form,
+  setForm,
+  tokenInput,
+  setTokenInput,
+  turnstileToken,
+  setTurnstileToken,
+  loading,
+  aceitouDocumentos,
+  setAceitouDocumentos,
+  cadastroLivre,
+  onSubmit,
+}: WizardProps) {
+  const stepsVisiveis: StepId[] = cadastroLivre
+    ? ["boas-vindas", "nome", "email", "senha", "termos"]
+    : ["boas-vindas", "convite", "nome", "email", "senha", "termos"];
+
+  const [stepIdx, setStepIdx] = useState(0);
+  const currentStepId: StepId = stepsVisiveis[stepIdx] ?? "boas-vindas";
+  const meta = STEP_META[currentStepId];
+  const isLast = stepIdx === stepsVisiveis.length - 1;
+  const progresso = Math.round(((stepIdx + 1) / stepsVisiveis.length) * 100);
+
+  const motivacao: Partial<Record<StepId, string>> = {
+    nome: "👋 Ótimo começo!",
+    email: `Olá, ${form.nome.split(" ")[0] || "você"}! Só mais alguns passos…`,
+    senha: "Falta pouco! Crie uma senha e pronto.",
+    termos: `${form.nome.split(" ")[0] || "Você"} está quase lá! 🚀`,
+  };
+
+  function avancar() {
+    if (currentStepId === "convite" && !cadastroLivre && !tokenInput.trim()) {
+      toast.error("Informe o código de convite para continuar");
+      return;
+    }
+    if (currentStepId === "nome" && form.nome.trim().length < 2) {
+      toast.error("Informe ao menos seu primeiro nome");
+      return;
+    }
+    if (currentStepId === "email" && !form.email.includes("@")) {
+      toast.error("Informe um e-mail válido");
+      return;
+    }
+    if (currentStepId === "senha") {
+      if (form.senha.length < 8) { toast.error("A senha precisa ter ao menos 8 caracteres"); return; }
+      if (form.senha !== form.confirmarSenha) { toast.error("As senhas não conferem"); return; }
+    }
+    setStepIdx((i) => Math.min(i + 1, stepsVisiveis.length - 1));
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (e.key === "Enter" && !isLast) { e.preventDefault(); avancar(); }
+  }
+
+  return (
+    <form onSubmit={onSubmit} onKeyDown={handleKeyDown}>
+      <div className="rounded-2xl border bg-card shadow-card overflow-hidden">
+        {/* Barra de progresso */}
+        <div className="h-1 bg-muted">
+          <div className="h-full bg-primary transition-all duration-500" style={{ width: `${progresso}%` }} />
+        </div>
+
+        <div className="p-6 space-y-5">
+          {/* Cabeçalho motivacional */}
+          <div className="space-y-1 text-center">
+            {motivacao[currentStepId] && (
+              <p className="text-xs font-medium text-primary">{motivacao[currentStepId]}</p>
+            )}
+            <h2 className="text-lg font-semibold tracking-tight">{meta.titulo}</h2>
+            <p className="text-sm text-muted-foreground">{meta.subtitulo}</p>
+          </div>
+
+          {/* Passo 1: boas-vindas */}
+          {currentStepId === "boas-vindas" && (
+            <div className="space-y-4">
+              <div className="rounded-xl bg-muted/50 p-4 space-y-2 text-sm text-muted-foreground">
+                <p>✅ <strong>Receitas e despesas</strong> num só lugar</p>
+                <p>📊 <strong>Parcelas, cartões e faturas</strong> sempre organizados</p>
+                <p>🤖 <strong>IA que lê notas fiscais</strong> e gera lançamentos</p>
+                <p>🎯 <strong>Gamificação financeira</strong> — veja quanto cada compra custa em horas de trabalho</p>
+              </div>
+              <SocialAuthButtons labelPrefix="Cadastrar com" />
+              <div className="relative my-1">
+                <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border" /></div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-card px-2 text-muted-foreground">ou crie com e-mail</span>
+                </div>
+              </div>
+            </div>
           )}
-        </p>
-      </div>
 
-      <label className="flex items-start gap-2 rounded-lg border p-3 text-xs text-muted-foreground">
-        <Checkbox
-          checked={aceitouDocumentos}
-          onCheckedChange={(checked) => setAceitouDocumentos(checked === true)}
-        />
-        <span>
-          Li e aceito os{" "}
-          <span className="inline-flex gap-1">
-            <LegalDialogs compact />
-          </span>
-          . Entendo que sou responsável por proteger minha senha e não compartilhar meu acesso.
-        </span>
-      </label>
-      <div className="space-y-1.5">
-        <Label htmlFor="c-nome">Nome completo</Label>
-        <Input
-          id="c-nome"
-          value={form.nome}
-          onChange={(e) => setForm({ ...form, nome: e.target.value })}
-        />
-      </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="c-email">E-mail</Label>
-        <Input
-          id="c-email"
-          type="email"
-          autoComplete="email"
-          value={form.email}
-          onChange={(e) => setForm({ ...form, email: e.target.value })}
-        />
-      </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="c-cpf">
-          CPF <span className="text-xs font-normal text-muted-foreground">(opcional)</span>
-        </Label>
-        <Input
-          id="c-cpf"
-          inputMode="numeric"
-          value={maskCpf(form.cpf)}
-          onChange={(e) => setForm({ ...form, cpf: onlyDigits(e.target.value).slice(0, 11) })}
-          placeholder="000.000.000-00 (pode preencher depois no perfil)"
-        />
-      </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="c-telefone">
-          Telefone <span className="text-xs font-normal text-muted-foreground">(opcional)</span>
-        </Label>
-        <Input
-          id="c-telefone"
-          inputMode="tel"
-          placeholder="(00) 00000-0000"
-          value={form.telefone}
-          onChange={(e) => setForm({ ...form, telefone: e.target.value })}
-        />
-      </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="c-nascimento">
-          Data de nascimento{" "}
-          <span className="text-xs font-normal text-muted-foreground">(opcional)</span>
-        </Label>
-        <Input
-          id="c-nascimento"
-          type="date"
-          value={form.dataNascimento}
-          onChange={(e) => setForm({ ...form, dataNascimento: e.target.value })}
-        />
-      </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="c-senha">Senha</Label>
-        <Input
-          id="c-senha"
-          type="password"
-          autoComplete="new-password"
-          value={form.senha}
-          onChange={(e) => setForm({ ...form, senha: e.target.value })}
-        />
-      </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="c-confirma">Confirmar senha</Label>
-        <Input
-          id="c-confirma"
-          type="password"
-          autoComplete="new-password"
-          value={form.confirmarSenha}
-          onChange={(e) => setForm({ ...form, confirmarSenha: e.target.value })}
-        />
-      </div>
+          {/* Passo 2: convite */}
+          {currentStepId === "convite" && (
+            <div className="space-y-2">
+              <Input
+                autoFocus
+                autoComplete="off"
+                placeholder="Cole o código aqui (ou deixe em branco)"
+                value={tokenInput}
+                onChange={(e) => setTokenInput(e.target.value)}
+                className="font-mono text-center text-base tracking-widest h-12"
+              />
+              <p className="text-xs text-muted-foreground text-center">
+                Peça a quem já usa o Control ALL — cada usuário pode gerar até 3 convites.
+              </p>
+            </div>
+          )}
 
-      {TURNSTILE_ATIVO && <TurnstileWidget onVerify={setTurnstileToken} />}
+          {/* Passo 3: nome */}
+          {currentStepId === "nome" && (
+            <Input
+              autoFocus id="c-nome" placeholder="Seu nome" autoComplete="name"
+              value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })}
+              className="h-12 text-base"
+            />
+          )}
 
-      <Button type="submit" className="h-11 w-full" disabled={loading}>
-        {loading && <Loader2 className="mr-2 size-4 animate-spin" />}
-        Criar conta
-      </Button>
+          {/* Passo 4: email */}
+          {currentStepId === "email" && (
+            <Input
+              autoFocus id="c-email" type="email" placeholder="voce@email.com" autoComplete="email"
+              value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })}
+              className="h-12 text-base"
+            />
+          )}
 
-      <SocialAuthButtons labelPrefix="Cadastrar com" />
+          {/* Passo 5: senha */}
+          {currentStepId === "senha" && (
+            <div className="space-y-3">
+              <Input
+                autoFocus id="c-senha" type="password" placeholder="Mínimo 8 caracteres" autoComplete="new-password"
+                value={form.senha} onChange={(e) => setForm({ ...form, senha: e.target.value })}
+                className="h-12 text-base"
+              />
+              <Input
+                id="c-confirma" type="password" placeholder="Confirme a senha" autoComplete="new-password"
+                value={form.confirmarSenha} onChange={(e) => setForm({ ...form, confirmarSenha: e.target.value })}
+                className="h-12 text-base"
+              />
+              {form.senha.length >= 8 && form.senha === form.confirmarSenha && (
+                <p className="text-xs text-green-600 font-medium text-center">✅ Senhas conferem!</p>
+              )}
+            </div>
+          )}
+
+          {/* Passo 6: termos */}
+          {currentStepId === "termos" && (
+            <div className="space-y-4">
+              {TURNSTILE_ATIVO && <TurnstileWidget onVerify={setTurnstileToken} />}
+              <label className="flex items-start gap-3 rounded-xl border p-4 cursor-pointer hover:bg-muted/40 transition-colors">
+                <Checkbox
+                  checked={aceitouDocumentos}
+                  onCheckedChange={(v) => setAceitouDocumentos(v === true)}
+                  className="mt-0.5"
+                />
+                <span className="text-sm text-muted-foreground leading-relaxed">
+                  Li e aceito os{" "}<span className="inline-flex gap-1"><LegalDialogs compact /></span>.
+                  {" "}Entendo que sou responsável por proteger minha senha.
+                </span>
+              </label>
+              {aceitouDocumentos && (
+                <p className="text-xs text-green-600 font-medium text-center">✅ Tudo certo, pode criar sua conta!</p>
+              )}
+            </div>
+          )}
+
+          {/* Navegação */}
+          <div className={`flex gap-2 pt-1 ${stepIdx > 0 ? "justify-between" : "justify-end"}`}>
+            {stepIdx > 0 && (
+              <Button type="button" variant="ghost" size="sm" onClick={() => setStepIdx((i) => Math.max(i - 1, 0))} disabled={loading}>
+                ← Voltar
+              </Button>
+            )}
+            {isLast ? (
+              <Button
+                type="submit" className="flex-1 h-11"
+                disabled={loading || !aceitouDocumentos || (TURNSTILE_ATIVO && !turnstileToken)}
+              >
+                {loading && <Loader2 className="mr-2 size-4 animate-spin" />}
+                {loading ? "Criando conta…" : "Criar minha conta 🚀"}
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                className={currentStepId === "boas-vindas" ? "w-full h-11" : "flex-1 h-11"}
+                onClick={avancar}
+              >
+                {currentStepId === "boas-vindas" ? "Criar conta com e-mail →" : "Continuar →"}
+              </Button>
+            )}
+          </div>
+
+          {/* Indicador de passo */}
+          <p className="text-center text-xs text-muted-foreground">
+            {stepIdx + 1} de {stepsVisiveis.length}
+          </p>
+        </div>
+      </div>
     </form>
   );
 }
