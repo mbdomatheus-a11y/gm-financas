@@ -32,7 +32,10 @@ export const obterConfiguracaoAcesso = createServerFn({ method: "GET" }).handler
     .eq("id", true)
     .single();
   if (error) throw new Error("Não foi possível carregar a configuração de acesso.");
-  return data as {
+  return {
+    ...data,
+    cadastro_livre_habilitado: data.cadastro_livre_habilitado ?? true,
+  } as {
     modo_login: "cpf" | "email" | "ambos";
     segundo_fator_email: boolean;
     sessao_maxima_minutos: number;

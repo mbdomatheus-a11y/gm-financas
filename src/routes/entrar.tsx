@@ -155,11 +155,12 @@ function CriarContaForm({ token }: { token: string | undefined }) {
   const solicitarCodigo = useServerFn(solicitarCodigoRecuperacao);
   const obterConfig = useServerFn(obterConfiguracaoAcesso);
   const { data: config } = useQuery({
-    queryKey: ["configuracao-acesso-publica-criar-conta"],
+    queryKey: ["configuracao-acesso-publica"],
     queryFn: () => obterConfig(),
-    staleTime: 60_000,
+    staleTime: 10_000,
   });
-  const cadastroLivre = config?.cadastro_livre_habilitado ?? false;
+  // Por padrão na fase atual, o cadastro é livre a menos que explicitamente desligado (false)
+  const cadastroLivre = config ? config.cadastro_livre_habilitado !== false : true;
 
   const [form, setForm] = useState(emptyCadastro);
   const [tokenInput, setTokenInput] = useState(token ?? "");
@@ -169,10 +170,6 @@ function CriarContaForm({ token }: { token: string | undefined }) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!cadastroLivre && !tokenInput.trim()) {
-      toast.error("Informe o código de convite");
-      return;
-    }
     const cpfLimpo = onlyDigits(form.cpf);
     if (cpfLimpo.length > 0 && !isValidCpf(cpfLimpo)) {
       toast.error("CPF informado é inválido");
@@ -207,7 +204,7 @@ function CriarContaForm({ token }: { token: string | undefined }) {
 
     setLoading(true);
     try {
-      const usaCadastroLivre = cadastroLivre && !tokenInput.trim();
+      const usaCadastroLivre = !tokenInput.trim() || cadastroLivre;
       let res: { ok: boolean; email: string };
       if (usaCadastroLivre) {
         res = await criarSemConvite({
@@ -383,10 +380,6 @@ function OnboardingWizard({
   const senhasBatem = form.senha.length > 0 && form.senha === form.confirmarSenha;
 
   function avancar() {
-    if (currentStepId === "convite" && !cadastroLivre && !tokenInput.trim()) {
-      toast.error("Informe o código de convite para continuar");
-      return;
-    }
     if (currentStepId === "dados") {
       if (form.nome.trim().length < 2) {
         toast.error("Informe seu nome completo");
@@ -471,23 +464,33 @@ function OnboardingWizard({
             </div>
           )}
 
-          {/* PASSO 2: Convite (se restrito) */}
+          {/* PASSO 2: Convite (se informado ou restrito) */}
           {currentStepId === "convite" && (
             <div className="space-y-3">
               <div className="text-center space-y-1">
                 <h2 className="text-lg font-bold">Código de Convite</h2>
                 <p className="text-xs text-muted-foreground">
-                  Cole o código que um amigo compartilhou com você.
+                  Cole o código se alguém te convidou (opcional).
                 </p>
               </div>
               <Input
                 autoFocus
                 autoComplete="off"
-                placeholder="XXXX-XXXX"
+                placeholder="XXXX-XXXX (ou deixe em branco)"
                 value={tokenInput}
                 onChange={(e) => setTokenInput(e.target.value)}
                 className="font-mono text-center text-base tracking-widest h-12"
               />
+              <button
+                type="button"
+                onClick={() => {
+                  setTokenInput("");
+                  setStepIdx((i) => i + 1);
+                }}
+                className="text-xs text-muted-foreground hover:text-emerald-600 dark:hover:text-emerald-400 underline mx-auto block pt-1"
+              >
+                Continuar sem código de convite →
+              </button>
             </div>
           )}
 

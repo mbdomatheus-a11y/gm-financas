@@ -27,12 +27,13 @@ export const criarContaSemConvite = createServerFn({ method: "POST" })
 
     // 1. Verificar se cadastro livre está habilitado
     const { data: conf } = await db
-      .from("configuracoes_site")
+      .from("configuracoes_acesso_site")
       .select("cadastro_livre_habilitado")
-      .limit(1)
-      .single();
+      .eq("id", true)
+      .maybeSingle();
 
-    if (!conf?.cadastro_livre_habilitado) {
+    const cadastroLivre = conf?.cadastro_livre_habilitado ?? true;
+    if (!cadastroLivre) {
       throw new Error("Cadastro sem convite não está habilitado no momento.");
     }
 
