@@ -138,3 +138,8 @@ Pendente de teste manual: login com usuário realmente novo no domínio de produ
 - Em 05/10 02:11 UTC o app gpt-engineer-app[bot] (Lovable, ainda conectado ao GitHub) publicou 7 commits; o último (be1c2f8, "Fixed build and updated deps") apagou 143 arquivos (AlertsBell, EntrarForm, SocialAuthButtons, docs, vercel.json, migrations 20260926 a 20261002...) e adicionou um .env (apenas URL e chave pública do Supabase) removendo linhas do .gitignore.
 - Decisão: não integrar os commits do bot. O trabalho desta sessão foi refeito em cima de 61464c6 (último commit real do Matheus) e a main será atualizada com force-with-lease, com o OK explícito do Matheus. Backup do trabalho antigo: branch local backup-local-5573e7f.
 - Ação do Matheus: desconectar o app do Lovable do repositório (GitHub > Settings > Integrations) para não repetir.
+
+### Correção 2026-10-05: "duplicate key value violates unique constraint profiles_pkey" no cadastro sem convite
+- Causa: o gatilho on_auth_user_created (handle_new_user) já cria a linha em profiles quando o usuário de autenticação é criado; src/lib/convites-livres.functions.ts (usado por entrar.tsx) fazia insert puro em profiles. Além disso, os passos 7 e 8 usavam colunas inexistentes (user_roles.grupo_id e aceites_documentos.versao_termos/versao_privacidade) e falhavam em silêncio, deixando o usuário sem papel de admin e sem aceite dos termos.
+- Correção: upsert em profiles (ativo true, senha_temporaria false, cpf nulo se vazio), papel admin via upsert em user_roles, aceites com as colunas documento/versao, limpeza do grupo e do usuário de autenticação se algo falhar, cota explícita de 512 MB no grupo.
+- Resíduo: grupo órfão "Marcus's Group" (0 membros, criado na tentativa que falhou) em produção; pode ser apagado.

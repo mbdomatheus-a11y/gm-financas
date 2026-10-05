@@ -72,7 +72,7 @@ export const criarContaSemConvite = createServerFn({ method: "POST" })
     const nomeGrupo = `${data.nome.trim().split(" ")[0]}'s Group`;
     const { data: grupo, error: grupoErr } = await db
       .from("grupos")
-      .insert({ nome: nomeGrupo, criado_por: userId })
+      .insert({ nome: nomeGrupo, criado_por: userId, oracle_storage_cota_bytes: 536870912 })
       .select("id")
       .single();
     if (grupoErr || !grupo) {
@@ -80,31 +80,53 @@ export const criarContaSemConvite = createServerFn({ method: "POST" })
       throw new Error("Erro ao criar grupo: " + grupoErr?.message);
     }
 
-    // 6. Criar perfil
-    const { error: perfilErr } = await db.from("profiles").insert({
-      id: userId,
-      nome: data.nome.trim(),
-      email: emailNorm,
-      cpf: data.cpf || null,
-      telefone: data.telefone?.trim() || null,
-      data_nascimento: data.dataNascimento || null,
-      grupo_id: grupo.id,
-    });
+    // 6. Criar/atualizar perfil.
+    // O gatilho `on_auth_user_created` (handle_new_user) JÁ cria uma linha em
+    // `profiles` assim que o usuário de autenticação é criado; por isso aqui é
+    // upsert (insert puro causava "duplicate key ... profiles_pkey").
+    const cpfLimpo = data.cpf ? data.cpf.replace(/\D/g, "") : "";
+    const { error: perfilErr } = await db.from("profiles").upsert(
+      {
+        id: userId,
+        nome: data.nome.trim(),
+        email: emailNorm,
+        cpf: cpfLimpo || null,
+        telefone: data.telefone?.trim() || null,
+        data_nascimento: data.dataNascimento || null,
+        grupo_id: grupo.id,
+        ativo: true,
+        senha_temporaria: false,
+      },
+      { onConflict: "id" },
+    );
     if (perfilErr) {
       await supabaseAdmin.auth.admin.deleteUser(userId);
+      await db.from("grupos").delete().eq("id", grupo.id);
       throw new Error("Erro ao criar perfil: " + perfilErr.message);
     }
 
-    // 7. Criar papel de admin
-    await db.from("user_roles").insert({ user_id: userId, role: "admin", grupo_id: grupo.id });
+    // 7. Papel de admin do próprio grupo (tabela user_roles não tem grupo_id).
+    const { error: roleErr } = await db
+      .from("user_roles")
+      .upsert({ user_id: userId, role: "admin" }, { onConflict: "user_id,role" });
+    if (roleErr) {
+      await supabaseAdmin.auth.admin.deleteUser(userId);
+      await db.from("grupos").delete().eq("id", grupo.id);
+      throw new Error("Erro ao definir permissões: " + roleErr.message);
+    }
 
-    // 8. Registrar aceite dos documentos
-    await db.from("aceites_documentos").insert({
-      user_id: userId,
-      grupo_id: grupo.id,
-      versao_termos: "1.0",
-      versao_privacidade: "1.0",
-    });
+    // 8. Registrar aceite dos documentos (colunas reais: documento e versao).
+    const { error: aceiteErr } = await db.from("aceites_documentos").upsert(
+      [
+        { user_id: userId, documento: "termos_uso", versao: "2026-09-19" },
+        { user_id: userId, documento: "aviso_privacidade", versao: "2026-09-19" },
+      ],
+      { onConflict: "user_id,documento,versao" },
+    );
+    if (aceiteErr) {
+      // Não bloqueia o cadastro, mas fica registrado no log do servidor.
+      console.error("Falha ao registrar aceite de documentos:", aceiteErr.message);
+    }
 
     return { ok: true, email: emailNorm };
   });
