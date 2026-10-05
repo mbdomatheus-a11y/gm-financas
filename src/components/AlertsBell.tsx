@@ -15,7 +15,7 @@ import {
   marcarAlertaLido,
   versoesAtivasSite,
 } from "@/lib/comunicados.functions";
-import { useIsAdmin } from "@/hooks/useAuthData";
+import { useIsSiteAdmin } from "@/hooks/useAuthData";
 
 type Aviso = {
   chave: string;
@@ -41,7 +41,7 @@ export function AlertsBell() {
   const marcarFn = useServerFn(marcarAlertaLido);
   const versoesFn = useServerFn(versoesAtivasSite);
   const limparFn = useServerFn(limparVersoesSite);
-  const { data: isAdmin } = useIsAdmin();
+  const { data: isSiteAdminUser } = useIsSiteAdmin();
   const { data: versoes = [], refetch: refetchVersoes } = useQuery({
     queryKey: ["versoes-site"],
     queryFn: () => versoesFn(),
@@ -237,7 +237,7 @@ export function AlertsBell() {
             ),
           )
         )}
-        {isAdmin && versoes.length > 0 && (
+        {isSiteAdminUser && versoes.length > 0 && (
           <Button
             variant="outline"
             size="sm"

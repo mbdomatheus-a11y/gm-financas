@@ -132,8 +132,16 @@ export const sincronizarVersaoSite = createServerFn({ method: "POST" })
 
 export const versoesAtivasSite = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async () => {
+  .handler(async ({ context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // Avisos de "nova versão publicada" são do admin master do site; usuários
+    // comuns (e admins de grupo) nunca recebem esse alerta.
+    const { data: siteAdmin } = await (supabaseAdmin as any)
+      .from("site_admins")
+      .select("user_id")
+      .eq("user_id", context.userId)
+      .maybeSingle();
+    if (!siteAdmin) return [];
     const { data, error } = await (supabaseAdmin as any)
       .from("versoes_site")
       .select("versao,build_em,criado_em")
@@ -149,13 +157,13 @@ export const limparVersoesSite = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const db = supabaseAdmin as any;
-    const { data: role } = await db
-      .from("user_roles")
-      .select("role")
+    // Versões do site são globais: só o admin MASTER do site (site_admins) pode limpar.
+    const { data: siteAdmin } = await db
+      .from("site_admins")
+      .select("user_id")
       .eq("user_id", context.userId)
-      .eq("role", "admin")
       .maybeSingle();
-    if (!role) throw new Error("Apenas o administrador pode limpar o histórico de versões.");
+    if (!siteAdmin) throw new Error("Apenas o administrador do site pode limpar o histórico de versões.");
     const { error } = await db
       .from("versoes_site")
       .update({ ativo: false, limpo_em: new Date().toISOString(), limpo_por: context.userId })

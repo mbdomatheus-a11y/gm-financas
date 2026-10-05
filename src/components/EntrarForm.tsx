@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { urlRetornoSegura } from "@/lib/return-url";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Link, useNavigate } from "@tanstack/react-router";
@@ -161,7 +162,7 @@ export function EntrarForm({
     if (resultado.senhaTemporaria) {
       navigate({ to: "/nova-senha" });
     } else {
-      window.location.assign(next ?? rotaDaTelaInicial(config?.tela_inicial_padrao));
+      window.location.assign(urlRetornoSegura(next) ?? rotaDaTelaInicial(config?.tela_inicial_padrao));
     }
   }
 
@@ -181,7 +182,7 @@ export function EntrarForm({
       window.location.assign(
         desafio2fa.senhaTemporaria
           ? "/nova-senha"
-          : (next ?? rotaDaTelaInicial(config?.tela_inicial_padrao)),
+          : (urlRetornoSegura(next) ?? rotaDaTelaInicial(config?.tela_inicial_padrao)),
       );
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Código inválido");
@@ -311,9 +312,11 @@ export function EntrarForm({
           Esqueci minha senha
         </Link>
       ) : null}
-      <p className="text-center text-[11px] text-muted-foreground">
-        Conta antiga criada por CPF? O link por e-mail não funciona pra ela — peça a um
-        administrador para redefinir em <strong>Usuários e Privilégios</strong>.
+
+      <SocialAuthButtons next={next} />
+
+      <p className="text-center text-[11px] text-muted-foreground pt-1">
+        Conta antiga criada por CPF? Você pode entrar digitando seu CPF ou e-mail normalmente.
       </p>
     </form>
   );

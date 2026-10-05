@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -44,6 +44,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useGamificacaoFinanceira } from "@/components/GamificacaoFinanceira";
 import { supabase } from "@/integrations/supabase/client";
 import { appSupabase } from "@/integrations/supabase/app-types";
 import { usePermissoes, useProfile, useSession } from "@/hooks/useAuthData";
@@ -123,42 +124,18 @@ function ListaComprasPage() {
 
   const mesAtualKey = useMemo(() => monthKey(new Date()), []);
 
-  // Gamificação financeira exclusiva do Control ALL baseada na renda líquida real e sobra livre
-  const finCalculado = useMemo(() => {
-    // 1. Receitas líquidas do mês corrente
-    const receitasDoMes = (receitas as any[]).filter(
-      (r) => monthKey(r.data_recebimento) === mesAtualKey,
-    );
-    const totalReceitaLiquida = receitasDoMes.reduce((acc, r) => {
-      const val = Number(r.valor_liquido ?? r.valor ?? 0);
-      return acc + toBRL(val, r.moeda, cotacao);
-    }, 0);
-
-    // 2. Despesas já comprometidas do mês (fixas + variáveis + faturas)
-    const despesasComp = lancamentosPorCompetencias(despesas as any[], [mesAtualKey]);
-    const parcelasComRegras = aplicarRegrasFaturaMes(despesasComp, faturasMes as any[]);
-    const totalComprometido = parcelasComRegras.reduce((acc, p) => {
-      return acc + toBRL(Number(p.valor), p.despesa?.moeda ?? "BRL", cotacao);
-    }, 0);
-
-    // 3. Sobra livre real (o que resta da renda líquida)
-    const sobraLivre = Math.max(0, totalReceitaLiquida - totalComprometido);
-
-    // 4. Jornada mensal de trabalho do perfil (default: 160h)
-    const horasTrabalho = Number((meuPerfil as any)?.horas_trabalho_mes) || 160;
-    const valorHora = totalReceitaLiquida > 0 ? totalReceitaLiquida / horasTrabalho : 0;
-    const valorMinuto = valorHora / 60;
-
-    return {
-      mesAtualKey,
-      totalReceitaLiquida,
-      totalComprometido,
-      sobraLivre,
-      horasTrabalho,
-      valorHora,
-      valorMinuto,
-    };
-  }, [receitas, despesas, faturasMes, mesAtualKey, cotacao, meuPerfil]);
+  // Gamificação alimentada pelas RESPOSTAS do usuário (card no Início), não pelos
+  // dados lançados: usuário novo começa zerado e responde 3 perguntas.
+  const gam = useGamificacaoFinanceira();
+  const finCalculado = {
+    mesAtualKey,
+    totalReceitaLiquida: gam.renda,
+    totalComprometido: gam.comprometido,
+    sobraLivre: gam.sobra,
+    horasTrabalho: gam.horas,
+    valorHora: gam.valorHora,
+    valorMinuto: gam.valorMinuto,
+  };
 
   const calcularImpacto = (valor: number) => {
     if (!valor || valor <= 0) return null;
@@ -628,69 +605,22 @@ function ListaComprasPage() {
         </div>
       }
     >
-      {/* Card de Gamificação Financeira: Valor da Hora Líquida e Sobra Livre Real */}
-      <Card className="mb-5 overflow-hidden border-primary/20 bg-gradient-to-r from-primary/5 via-background to-primary/5">
-        <CardContent className="p-4 sm:p-5">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <Badge variant="outline" className="gap-1 border-primary/30 text-primary">
-                  <Flame className="size-3.5" /> Gamificação Financeira
-                </Badge>
-                <span className="text-xs text-muted-foreground">
-                  Competência: {finCalculado.mesAtualKey}
-                </span>
-              </div>
-              <h3 className="text-base font-semibold tracking-tight">
-                Seu Tempo de Trabalho Líquido & Poder de Compra
-              </h3>
-              <p className="text-xs text-muted-foreground">
-                Baseado na sua receita líquida real deste mês ({formatBRL(finCalculado.totalReceitaLiquida)})
-                e jornada de {finCalculado.horasTrabalho}h/mês configurada no seu perfil.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              <div className="rounded-xl border bg-card p-3 shadow-xs">
-                <span className="text-[11px] text-muted-foreground flex items-center gap-1">
-                  <Clock className="size-3 text-primary" /> Hora Líquida
-                </span>
-                <p className="text-base font-bold text-foreground">
-                  {finCalculado.valorHora > 0 ? formatBRL(finCalculado.valorHora) : "R$ 0,00"}
-                  <span className="text-[10px] font-normal text-muted-foreground">/h</span>
-                </p>
-                <p className="text-[10px] text-muted-foreground">
-                  ≈ {finCalculado.valorMinuto > 0 ? formatBRL(finCalculado.valorMinuto) : "R$ 0,00"}/min
-                </p>
-              </div>
-
-              <div className="rounded-xl border bg-card p-3 shadow-xs">
-                <span className="text-[11px] text-muted-foreground flex items-center gap-1">
-                  <Wallet className="size-3 text-success" /> Sobra Livre Real
-                </span>
-                <p className="text-base font-bold text-success">
-                  {formatBRL(finCalculado.sobraLivre)}
-                </p>
-                <p className="text-[10px] text-muted-foreground">
-                  Comprometido: {formatBRL(finCalculado.totalComprometido)}
-                </p>
-              </div>
-
-              <div className="col-span-2 sm:col-span-1 rounded-xl border bg-card p-3 shadow-xs">
-                <span className="text-[11px] text-muted-foreground flex items-center gap-1">
-                  <ShoppingCart className="size-3 text-primary" /> Na Lista
-                </span>
-                <p className="text-base font-bold text-foreground">
-                  {formatBRL(totalEstimadoPendentes)}
-                </p>
-                <p className="text-[10px] text-muted-foreground">
-                  {pendentes.length} pendente(s)
-                </p>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Gamificação compacta: o card completo (com as perguntas) fica no Início */}
+      {!gam.respondido ? (
+        <p className="mb-4 rounded-lg border border-dashed p-3 text-xs text-muted-foreground">
+          Quer ver quanto cada compra custa em horas de trabalho? Responda 3 perguntas rápidas no{" "}
+          <Link to="/inicio" className="font-medium text-primary underline">
+            Início
+          </Link>
+          .
+        </p>
+      ) : (
+        <p className="mb-4 rounded-lg border bg-muted/40 p-3 text-xs">
+          Sua hora líquida: <strong>{formatBRL(finCalculado.valorHora)}</strong> · Sobra livre:{" "}
+          <strong>{formatBRL(finCalculado.sobraLivre)}</strong> · Na lista:{" "}
+          <strong>{formatBRL(totalEstimadoPendentes)}</strong> ({pendentes.length} pendente(s))
+        </p>
+      )}
 
       {alertasVencidos.length > 0 && (
         <Card className="mb-4 border-destructive/40 bg-destructive/5">

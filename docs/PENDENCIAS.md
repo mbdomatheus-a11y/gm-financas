@@ -2,7 +2,7 @@
 
 > **Última atualização:** Outubro/2026 · Commit `c8ca3f8`  
 > **Repositório:** `mbdomatheus-a11y/gm-financas`  
-> **Branch ativa:** `main` (Sincronizada com o Lovable — histórico preservado sem force push)  
+> **Branch ativa:** `main` (hospedagem oficial: Vercel; o Lovable NÃO é mais usado e deve permanecer desconectado do repositório)  
 > **Testes:** 307 passando (0 falhas) · `bun test`
 
 ---
@@ -101,3 +101,40 @@
 | [`src/routes/_authenticated/lista-compras.tsx`](file:///c:/Users/Usúario/Desktop/Finanças/AntiGravity/src/routes/_authenticated/lista-compras.tsx) | Gamificação financeira completa (cálculo de hora líquida e impacto da compra) |
 | [`src/routes/_authenticated/dashboard.tsx`](file:///c:/Users/Usúario/Desktop/Finanças/AntiGravity/src/routes/_authenticated/dashboard.tsx) | 6 cards superiores, sincronização de dívida e alívio de parcelas terminando |
 | [`supabase/migrations/20261004200000_cadastro_livre_habilitado_default.sql`](file:///c:/Users/Usúario/Desktop/Finanças/AntiGravity/supabase/migrations/20261004200000_cadastro_livre_habilitado_default.sql) | ✨ Migration garantindo coluna e valor default `true` no banco |
+
+---
+
+## Sessão 2026-10-04: plano de isolamento, onboarding e gamificação (documentado ANTES de executar)
+
+### Diagnóstico (Claude Cowork, leitura de repo, banco ao vivo e Obsidian)
+- O commit 61464c6 citado no resumo do Antigravity NÃO existe. HEAD real: 61ec4d1 (03/10), já no origin/main.
+- Trabalho NÃO commitado: login social (SocialAuthButtons.tsx), CPF opcional (convites.functions.ts, entrar.tsx, EntrarForm.tsx, seguranca-conta.functions.ts), banner Convide amigos (conta.tsx), gamificação na lista (lista-compras.tsx), migration 20261003180000_cpf_opcional_profiles.sql. A migration 20261004200000 citada no resumo não existe no disco.
+- Mais de 100 arquivos aparecem modificados apenas por fim de linha CRLF/LF. Não commitar esse ruído.
+- RLS ao vivo: tabelas financeiras já usam grupo_id = private.meu_grupo_id(). Nenhuma policy ativa usa is_active_member(), então recriar essas policies não é necessário.
+- Furos reais de isolamento: comprovantes e parcela_auditoria só exigem meu_grupo_id() IS NOT NULL (qualquer usuário logado lê todos os grupos).
+- Provável causa de "vi as coisas do admin": a conta de teste 4633c0fa (guilhermeferres@gmail.com) é antiga (14/09) e está no grupo do admin master (00000000-0000-0000-0000-000000000001).
+- Pedidos abertos: aterrissagem indo para Administração (suspeita: control-all-return-url no sessionStorage), cota inicial deve ser 0 de 512 MB (aparecia 7 de 1024), tour não aparece para novo usuário (incluir lançar receita e despesa), gamificação no início alimentada por perguntas, alerta da calculadora ligável pelo admin, alertas do admin vazando para outros usuários (auditar).
+
+### Ordem de execução
+1. Segurança (policies, alertas/avisos do admin, conta 4633c0fa), 2. cota + aterrissagem + tour, 3. gamificação + toggle do alerta da calculadora, 4. verificação, commit limpo e documentação final.
+Regra do projeto: tudo que for feito é registrado aqui e em docs/PENDENCIAS.md.
+
+### Execução 2026-10-04 (resultado)
+Banco de produção (Supabase wjapagkdgjlavonbmjdu):
+- Criadas policies por grupo comprovantes_grupo e parcela_auditoria_grupo (migration 20261004210000). PENDENTE: o MCP não executa DROP POLICY sem confirmação do usuário (timeout). As policies antigas comprovantes_membro_ativo e parcela_auditoria_membro_ativo continuam existindo e mantêm o furo até serem removidas manualmente no SQL Editor: DROP POLICY comprovantes_membro_ativo ON public.comprovantes; DROP POLICY parcela_auditoria_membro_ativo ON public.parcela_auditoria;
+- Conta de teste 4633c0fa (guilhermeferres@gmail.com) estava dentro do grupo master 00000000-...-0001 e por isso via dados, cota 1 GB e uso do admin. Movida para grupo próprio f8f367ed-e939-43f7-843f-56ce8bd763f4 (512 MB, 0 usado).
+- Cota padrão de grupo novo agora 512 MB (default da coluna, migration 20261004220000, e insert explícito em convites.functions.ts e seguranca-conta.functions.ts). oracle-admin.functions.ts usa 512 MB por membro ao habilitar.
+- A migration 20261003180000 (CPF opcional, horas_trabalho_mes, valor_estimado, horizonte) NUNCA tinha sido aplicada em produção; as colunas e o DROP NOT NULL do cpf foram aplicados agora (consolidado em 20261004230000). Não foi removida a constraint profiles_cpf_key (DROP gated); como NULL é permitido em UNIQUE, não impede cadastro sem CPF.
+Código:
+- Aterrissagem: novo src/lib/return-url.ts (rotas restritas nunca são lembradas; chave limpa no logout, inatividade e após uso; usuário novo sempre vai para a tela de abertura do admin). Causa: AppLayout gravava qualquer rota (inclusive /administracao) em sessionStorage e nunca apagava.
+- Alertas: aviso "Nova versão publicada" e botão "Limpar versões para todos" agora só para site admin (antes qualquer admin de grupo, inclusive todo usuário novo, via papel admin do grupo). limparVersoesSite exige site_admins.
+- Tour: passo inicial de boas-vindas; só marca como concluído quando a pessoa fecha ou conclui (antes onDestroyed marcava concluído até quando o tour quebrava, e o usuário novo nunca via). Para reexibir a quem já "concluiu", usar Administração > Avisos > reenviar tour.
+- Gamificação: card "Quanto vale o seu tempo" no Início, alimentado por 3 perguntas (renda líquida, horas/mês, contas fixas) gravadas por salvarPerfilFinanceiro em profiles; Lista de compras mostra total pendente em horas de trabalho e % da sobra. Novas colunas: renda_liquida_informada, compromissos_fixos_informados, perfil_financeiro_respondido_em.
+- Corrigido conta.tsx (declarações duplicadas de estado que quebravam o tsc); tsc limpo.
+Pendente de decisão: qual é o "alerta da calculadora" a ser ligado/desligado pelo admin (único candidato no código: aviso de uso acadêmico do Simulador de dose/diluição).
+Pendente de teste manual: login com usuário realmente novo no domínio de produção.
+
+### Incidente 2026-10-05: bot do Lovable sobrescreveu a main
+- Em 05/10 02:11 UTC o app gpt-engineer-app[bot] (Lovable, ainda conectado ao GitHub) publicou 7 commits; o último (be1c2f8, "Fixed build and updated deps") apagou 143 arquivos (AlertsBell, EntrarForm, SocialAuthButtons, docs, vercel.json, migrations 20260926 a 20261002...) e adicionou um .env (apenas URL e chave pública do Supabase) removendo linhas do .gitignore.
+- Decisão: não integrar os commits do bot. O trabalho desta sessão foi refeito em cima de 61464c6 (último commit real do Matheus) e a main será atualizada com force-with-lease, com o OK explícito do Matheus. Backup do trabalho antigo: branch local backup-local-5573e7f.
+- Ação do Matheus: desconectar o app do Lovable do repositório (GitHub > Settings > Integrations) para não repetir.

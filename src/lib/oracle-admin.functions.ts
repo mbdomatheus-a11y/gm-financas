@@ -15,7 +15,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
  * perder membros depois.
  */
 
-const QUINHENTOS_MB = 500 * 1024 * 1024;
+const QUINHENTOS_MB = 512 * 1024 * 1024; // cota padrão: 512 MB por membro
 
 async function assertSiteAdmin(context: { supabase: any; userId: string }) {
   const { data } = await context.supabase
@@ -113,7 +113,10 @@ export const adminAlternarArmazenamentoOracle = createServerFn({ method: "POST" 
 
     // Primeira vez habilitando (nunca teve cota customizada = ainda está no
     // valor padrão de 1GB da migração original): sugere 500MB por membro.
-    if (data.habilitado && Number(grupo.oracle_storage_cota_bytes) === 1_073_741_824) {
+    if (
+      data.habilitado &&
+      [1_073_741_824, 524_288_000, 536_870_912].includes(Number(grupo.oracle_storage_cota_bytes))
+    ) {
       const { count, error: countError } = await db
         .from("profiles")
         .select("id", { count: "exact", head: true })

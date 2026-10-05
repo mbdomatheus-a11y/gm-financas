@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { limparUrlRetorno } from "@/lib/return-url";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { LockKeyhole } from "lucide-react";
@@ -38,6 +39,7 @@ export function InactivityGuard({ children }: { children: ReactNode }) {
     }
     sessionStorage.removeItem("control-all-sessao-iniciada");
     sessionStorage.removeItem("control-all-sessao-max-min");
+    limparUrlRetorno();
     await supabase.auth.signOut();
     window.location.assign("/entrar");
   }

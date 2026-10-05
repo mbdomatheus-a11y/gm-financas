@@ -9,7 +9,8 @@ import { useSession } from "@/hooks/useAuthData";
 
 type Passo = {
   rota: string;
-  selector: string;
+  /** Sem selector = passo de boas-vindas, centralizado na tela. */
+  selector?: string;
   titulo: string;
   descricao: string;
 };
@@ -20,6 +21,12 @@ type Passo = {
 // Cada passo mora numa rota diferente — ver comentário no componente sobre
 // como a navegação entre elas é feita no meio do tour.
 const PASSOS: Passo[] = [
+  {
+    rota: "/dashboard",
+    titulo: "Bem-vindo ao Control ALL!",
+    descricao:
+      "Em menos de um minuto mostramos como lançar uma despesa e uma receita, e o que mais o site faz por você. Dá pra fechar a qualquer momento.",
+  },
   {
     rota: "/despesas",
     selector: '[data-tour="nova-despesa"]',
@@ -116,12 +123,16 @@ export function TourGuiado({ bloqueado }: { bloqueado: boolean }) {
       nextBtnText: "Próximo",
       prevBtnText: "Voltar",
       doneBtnText: "Concluir",
-      onDestroyed: () => {
+      // Só conta como concluído quando a PESSOA fecha/conclui o tour. Antes,
+      // `onDestroyed` marcava como concluído até quando o tour era destruído
+      // sozinho (elemento não encontrado, troca de rota), e o usuário novo
+      // nunca chegava a ver o tour (corrigido em 2026-10-04).
+      onDestroyStarted: (_el: unknown, _step: unknown, opts: any) => {
         void finalizar();
+        opts.driver.destroy();
       },
       steps: PASSOS.map((passo, i) => ({
-        element: passo.selector,
-        waitForElement: 4000,
+        ...(passo.selector ? { element: passo.selector, waitForElement: 4000 } : {}),
         popover: {
           title: passo.titulo,
           description: passo.descricao,

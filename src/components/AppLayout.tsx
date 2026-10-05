@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react";
+import { lembrarUrlRetorno, limparUrlRetorno } from "@/lib/return-url";
 import { useServerFn } from "@tanstack/react-start";
 import { encerrarSessao } from "@/lib/login-protecao.functions";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
@@ -357,7 +358,7 @@ export function AppLayout({
   // Preserva o caminho atual e parâmetros para recuperar se a sessão for reconectada
   if (typeof window !== "undefined" && pathname && pathname !== "/entrar" && pathname !== "/") {
     const currentFullUrl = `${location.pathname}${location.searchStr ?? ""}`;
-    sessionStorage.setItem("control-all-return-url", currentFullUrl);
+    lembrarUrlRetorno(currentFullUrl);
   }
 
   const podeVer = (i: NavItem) => {
@@ -407,6 +408,7 @@ export function AppLayout({
     await supabase.auth.signOut();
     sessionStorage.removeItem("control-all-sessao-iniciada");
     sessionStorage.removeItem("control-all-sessao-max-min");
+    limparUrlRetorno();
     navigate({ to: "/entrar", replace: true });
   }
 

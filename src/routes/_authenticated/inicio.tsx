@@ -22,6 +22,7 @@ import { useMemo } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { VisaoGeralHome } from "@/components/VisaoGeralHome";
+import { GamificacaoFinanceira } from "@/components/GamificacaoFinanceira";
 import { useModulosGlobais, usePermissoes } from "@/hooks/useAuthData";
 import { useVeiculos } from "@/hooks/useFinance";
 import { usePreferencias } from "@/hooks/usePreferencias";
@@ -145,6 +146,7 @@ function InicioPage() {
 
   return (
     <AppLayout title="Início" description="Escolha o que deseja acessar">
+      <GamificacaoFinanceira />
       <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {MODULOS.filter((modulo) => habilitado(modulo.key)).map((modulo) => {
           const Icon = modulo.icon;

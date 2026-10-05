@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { lerUrlRetorno, limparUrlRetorno, urlRetornoSegura } from "@/lib/return-url";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -79,17 +80,21 @@ function LoginPage() {
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data }) => {
       if (data.session) {
+        let novoUsuario = false;
         try {
-          await garantirPerfilOAuth();
+          const r = await garantirPerfilOAuth();
+          novoUsuario = r.jaExistia === false;
         } catch {
           // Continua caso o perfil já esteja inicializado
         }
-        const returnUrl = sessionStorage.getItem("control-all-return-url");
+        // Usuário recém-criado SEMPRE cai na tela de abertura padrão definida
+        // pelo admin (nunca numa rota lembrada de outra sessão).
+        const retorno = novoUsuario ? null : lerUrlRetorno();
         const target =
-          search.next ||
-          (returnUrl && returnUrl.startsWith("/")
-            ? returnUrl
-            : rotaDaTelaInicial(configInicial?.tela_inicial_padrao));
+          urlRetornoSegura(search.next) ??
+          retorno ??
+          rotaDaTelaInicial(configInicial?.tela_inicial_padrao);
+        limparUrlRetorno();
         window.location.assign(target);
       }
     });
