@@ -15,6 +15,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { obterConfiguracaoAcesso } from "@/lib/configuracoes-site.functions";
 import { confirmarSegundoFator, iniciarLoginSeguro } from "@/lib/seguranca-conta.functions";
 import { rotaDaTelaInicial } from "@/lib/tela-inicial-padrao";
+import { SocialAuthButtons } from "@/components/SocialAuthButtons";
 
 /**
  * Formulário de login por e-mail (contas novas) OU CPF (contas antigas,
@@ -299,6 +300,8 @@ export function EntrarForm({
         {loading && <Loader2 className="mr-2 size-4 animate-spin" />}
         Entrar
       </Button>
+
+      <SocialAuthButtons next={next} labelPrefix="Entrar com" />
 
       {esqueciSenhaComoLink ? (
         <Link
