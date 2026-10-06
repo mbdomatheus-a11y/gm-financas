@@ -6,7 +6,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
  * Item 17 (2026-10-05): liga/desliga o aviso exibido ao entrar na calculadora.
  * Leitura para qualquer usuário autenticado; gravação só admin do site.
  */
-export const obterAvisoCalculadora = createServerFn({ method: "GET" })
+export const obterAvisoCalculadora = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async () => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");

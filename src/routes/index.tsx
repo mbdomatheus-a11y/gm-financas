@@ -24,6 +24,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { BrandAnimado } from "@/components/ferramentas/BrandAnimado";
@@ -34,6 +35,7 @@ import { LegalDialogs } from "@/components/LegalDialogs";
 import { SiteHeader } from "@/components/SiteHeader";
 import { obterEstatisticaPublica } from "@/lib/estatisticas-site.functions";
 import { obterParceriaHome, registrarCliqueParceria } from "@/lib/parceria.functions";
+import { listarModulosPublicos } from "@/lib/modulos-publicos.functions";
 import { formatBRL } from "@/lib/format";
 
 export const Route = createFileRoute("/")({
@@ -128,6 +130,31 @@ const modulos = [
   },
 ];
 
+const CHAVE_MODULO: Record<string, string> = {
+  "Finanças": "financas",
+  "Notas fiscais e garantias": "notas",
+  "Lista de compras": "lista",
+  "Veículo": "veiculo",
+  "Pet": "pet",
+  "Onde está?": "onde_esta",
+  "Exames": "exames",
+  "Calculadoras gratuitas": "calculadora",
+};
+
+function useModulosLiberados() {
+  const listarFn = useServerFn(listarModulosPublicos);
+  const { data } = useQuery({
+    queryKey: ["modulos-publicos-home"],
+    staleTime: 60_000,
+    queryFn: () => listarFn(),
+  });
+  return (titulo: string) => {
+    const chave = CHAVE_MODULO[titulo];
+    const m = data?.find((x) => x.modulo === chave);
+    return m ? m.habilitado : true;
+  };
+}
+
 const recursos = [
   {
     icon: Sparkles,
@@ -172,6 +199,46 @@ function useParceriaHome() {
 }
 
 /** Anúncio da parceria, separado do conteúdo: abre como janela (uma vez por visita). */
+function ParceriaBloco() {
+  const { data: parceria } = useParceriaHome();
+  const registrarCliqueFn = useServerFn(registrarCliqueParceria);
+  if (!parceria) return null;
+  const previewUrl = parceria.previewImagemPath
+    ? supabase.storage.from("site_assets").getPublicUrl(parceria.previewImagemPath).data.publicUrl
+    : null;
+  const linhas = parceria.slogan ? parceria.slogan.split("\n").filter(Boolean) : [];
+  return (
+    <section aria-label="Parceria patrocinada" className="mx-auto max-w-3xl px-4 py-8">
+      <p className="mb-1.5 text-center text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+        Patrocinado
+      </p>
+      <a
+        href={parceria.url}
+        target="_blank"
+        rel="noopener noreferrer sponsored"
+        onClick={() => {
+          registrarCliqueFn().catch(() => {});
+        }}
+        className="lift group flex items-center gap-4 rounded-2xl border bg-card p-3 shadow-sm"
+      >
+        {previewUrl && (
+          <img src={previewUrl} alt="" className="h-20 w-28 shrink-0 rounded-xl border object-cover" />
+        )}
+        <div className="min-w-0 flex-1">
+          {linhas[0] && (
+            <p className="flex items-center gap-1.5 text-sm font-bold text-amber-700 dark:text-amber-400">
+              <Percent className="size-4 shrink-0" />
+              <span>{linhas[0]}</span>
+            </p>
+          )}
+          {linhas[1] && <p className="mt-0.5 text-xs text-muted-foreground">{linhas[1]}</p>}
+        </div>
+        <ArrowRight className="size-5 shrink-0 text-amber-600 transition-transform group-hover:translate-x-1" />
+      </a>
+    </section>
+  );
+}
+
 function ParceriaPopup() {
   const { data: parceria } = useParceriaHome();
   const registrarCliqueFn = useServerFn(registrarCliqueParceria);
@@ -304,6 +371,7 @@ const jsonLdSoftwareApplication = {
 };
 
 function LandingPage() {
+  const moduloLiberado = useModulosLiberados();
   const navigate = useNavigate();
   const videoUrl = useVideoDemonstracaoUrl();
 
@@ -423,6 +491,8 @@ function LandingPage() {
         </div>
       </section>
 
+      <ParceriaBloco />
+
       {/* Recursos */}
       <section id="recursos" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-16">
         <div className="mb-10 max-w-2xl">
@@ -458,9 +528,16 @@ function LandingPage() {
           </div>
 
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {modulos.map(({ icon: Icon, titulo, texto, detalhes }) => (
-              <Card key={titulo} className="lift flex flex-col">
+            {modulos.map(({ icon: Icon, titulo, texto, detalhes }) => {
+              const liberado = moduloLiberado(titulo);
+              return (
+              <Card key={titulo} className={cn("flex flex-col", liberado ? "lift" : "relative opacity-60 grayscale")}>
                 <CardContent className="flex flex-1 flex-col p-5">
+                  {!liberado && (
+                    <span className="mb-2 inline-flex w-fit items-center rounded-full bg-amber-500/15 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300">
+                      Em breve
+                    </span>
+                  )}
                   <div className="mb-3 flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
                     <Icon className="size-5" />
                   </div>
@@ -474,9 +551,13 @@ function LandingPage() {
                       </li>
                     ))}
                   </ul>
+                  {!liberado && (
+                    <p className="mt-3 text-[11px] italic text-muted-foreground">Lançamento em breve</p>
+                  )}
                 </CardContent>
               </Card>
-            ))}
+              );
+            })}
           </div>
 
           <div className="mt-10 grid items-center gap-8 md:grid-cols-2">

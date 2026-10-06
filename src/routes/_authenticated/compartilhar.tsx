@@ -930,14 +930,10 @@ function ExamesShareCard() {
  * de finanças, lista de compras e veículos — pensado pra mandar de uma vez
  * só pra alguém que quer só o essencial, sem abrir o site. ─── */
 const REVISAO_COMPLETA =
-  "Aja como meu assistente pessoal. Faça uma revisão completa do meu mês em tópicos curtos: " +
-  "1) como estão minhas finanças (receitas, despesas, saldo); " +
-  "2) categorias com gasto acima do normal comparando com a média dos 3 meses anteriores; " +
-  "3) lançamentos em aberto para revisar; " +
-  "4) assinaturas e gastos fixos que vale a pena revisar; " +
-  "5) parcelamentos que terminam em breve; " +
-  "6) itens pendentes da lista de compras e garantias de notas fiscais perto de vencer; " +
-  "7) uma dica prática. Use só os dados informados e diga quando faltar informação.";
+  "Seja meu assistente pessoal e revise meu mês em tópicos curtos: saldo; categorias acima da " +
+  "média dos 3 meses anteriores; lançamentos em aberto; assinaturas e gastos fixos para revisar; " +
+  "parcelas que terminam logo; lista de compras e garantias perto do fim; uma dica. " +
+  "Use só os dados informados.";
 
 const PERGUNTAS_RAPIDAS = [
   "Quais categorias estão acima do normal?",

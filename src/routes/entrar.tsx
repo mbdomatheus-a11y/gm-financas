@@ -436,7 +436,7 @@ function OnboardingWizard({
                 </span>
                 <h2 className="text-xl font-bold tracking-tight">Organize seu dinheiro com clareza</h2>
                 <p className="text-xs text-muted-foreground">
-                  Suas finanças pessoais e notas fiscais inteligentes em um só lugar.
+                  Suas finanças pessoais e notas fiscais em um só lugar.
                 </p>
               </div>
 
@@ -447,7 +447,7 @@ function OnboardingWizard({
                 </p>
                 <p className="flex items-center gap-2">
                   <Check className="size-3.5 text-emerald-600 shrink-0" />
-                  <span><strong>Leitor de Notas Fiscais</strong> via QR Code do SEFAZ com IA</span>
+                  <span><strong>Notas fiscais</strong> pelo QR Code ou chave de acesso</span>
                 </p>
                 <p className="flex items-center gap-2">
                   <Check className="size-3.5 text-emerald-600 shrink-0" />

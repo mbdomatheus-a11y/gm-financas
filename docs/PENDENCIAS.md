@@ -216,3 +216,12 @@ Atualização de estilo global sem mudar funcionalidades: fundo "aurora" suave, 
 - Calendário: visão "Ano (12 meses)" com pontinhos coloridos nos dias com evento, contador por mês; clicar no mês abre o mês, clicar no dia abre o dia.
 - Compartilhar > Resumo inteligente: "Assistente pessoal (IA)" com revisão do mês, perguntas rápidas e campo livre. Contexto novo enviado à IA: média por categoria dos 3 meses anteriores e lançamentos em aberto. Respeita modo de IA e cota diária, dados só do próprio usuário. A IA pode errar.
 - Administração: 10 abas agrupadas em 5 grupos (Visão geral, Pessoas e pedidos, Site e módulos, Armazenamento, Segurança). Conteúdo das abas inalterado.
+
+### Ajustes pós-rodada 3 (2026-10-06)
+- Patrocinado: voltou como bloco visível logo abaixo do topo da home (além do popup, que abre uma vez por visita).
+- Aviso da calculadora: a leitura agora é POST e sem cache e sempre revalida ao abrir a tela. No banco o aviso já estava desligado; se ainda aparecer, o deploy em produção está sem a versão nova (falta push).
+- Resumo inteligente: o pedido de revisão completa passava de 500 caracteres; encurtado (cerca de 330).
+- Sidebar: tagline "Você no controle de tudo" abaixo do nome; botão Sair só na sidebar (e no Menu do celular), removido do cabeçalho.
+- Ocultar valores: agora mascara todo texto com R$, US$ ou € em qualquer página (hook `useMascaraValores`, no AppLayout), persiste no navegador, e o botão fica destacado ("Mostrar valores") enquanto oculto. Campos de digitação não são mascarados. O olho individual por cartão só vale com o global desligado.
+- Criar conta: removido "QR Code do SEFAZ com IA"; texto agora fala em QR Code ou chave de acesso. Mensagem de convite sem "com IA".
+- Home: módulos não habilitados no site (lidos de `modulos_globais`, função pública `listarModulosPublicos`) aparecem esmaecidos com selo "Em breve" e "Lançamento em breve".

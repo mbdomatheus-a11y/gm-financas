@@ -52,6 +52,7 @@ import { BrandMark } from "@/components/BrandMark";
 import { BotaoLancamentoRapido } from "@/components/LancamentoRapido/BotaoLancamentoRapido";
 import { obterUsoOracleDoMeuGrupo } from "@/lib/oracle-admin.functions";
 import { usePrivacidadeValores } from "@/hooks/usePrivacidadeValores";
+import { useMascaraValores } from "@/hooks/useMascaraValores";
 import { Eye, EyeOff } from "lucide-react";
 
 /** Item 16 (backlog 2026-09-27): mostra a cota de armazenamento Oracle do
@@ -359,6 +360,7 @@ export function AppLayout({
   const { can, isSiteAdmin } = usePermissoes();
   const { ocultarValores, toggle: alternarOcultarValores } = usePrivacidadeValores();
   const { habilitado } = useModulosGlobais();
+  useMascaraValores(ocultarValores);
   const navigate = useNavigate();
   const qc = useQueryClient();
   const registrarEncerramento = useServerFn(encerrarSessao);
@@ -509,11 +511,19 @@ export function AppLayout({
         <BrandMark className="size-9 rounded-xl" />
         <div className="min-w-0">
           <p className="truncate text-sm font-bold leading-tight">Control ALL</p>
+          <p className="truncate text-[11px] font-medium text-primary">Você no controle de tudo</p>
           <p className="truncate text-xs text-muted-foreground">{profile?.nome ?? ""}</p>
         </div>
       </Link>
       <OracleQuotaBadge />
       <NavLinks onNavigate={onNavigate} />
+      <Button
+        variant="ghost"
+        className="justify-start gap-3 text-muted-foreground"
+        onClick={signOut}
+      >
+        <LogOut className="size-4.5" /> Sair
+      </Button>
     </div>
   );
 
@@ -536,8 +546,9 @@ export function AppLayout({
             </div>
             <div className="flex shrink-0 items-center gap-2">
               <Button
-                variant="ghost"
-                size="icon"
+                variant={ocultarValores ? "default" : "ghost"}
+                size={ocultarValores ? "sm" : "icon"}
+                className={cn(ocultarValores && "gap-1.5 animate-pulse")}
                 onClick={alternarOcultarValores}
                 aria-label={ocultarValores ? "Mostrar valores em R$" : "Ocultar valores em R$"}
                 title={
@@ -547,6 +558,7 @@ export function AppLayout({
                 }
               >
                 {ocultarValores ? <EyeOff className="size-4.5" /> : <Eye className="size-4.5" />}
+                {ocultarValores && <span className="text-xs font-semibold">Mostrar valores</span>}
               </Button>
               <Button asChild variant="ghost" size="sm" className="gap-1.5 px-2">
                 <Link to="/calendario" aria-label="Abrir calendário" title="Calendário">
@@ -558,15 +570,6 @@ export function AppLayout({
               <ConviteRapidoBotao />
               <AlertsBell />
               {actions}
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={signOut}
-                aria-label="Sair"
-                title="Sair"
-              >
-                <LogOut className="size-4.5" />
-              </Button>
             </div>
           </div>
 

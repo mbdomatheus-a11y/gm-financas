@@ -33,7 +33,7 @@ export const Route = createFileRoute("/_authenticated/ferramentas")({
 
 function FerramentasPage() {
   const obterAviso = useServerFn(obterAvisoCalculadora);
-  const { data: aviso } = useQuery({ queryKey: ["aviso-calculadora"], queryFn: () => obterAviso() });
+  const { data: aviso } = useQuery({ queryKey: ["aviso-calculadora"], queryFn: () => obterAviso(), staleTime: 0, refetchOnMount: "always" });
   const mostrarAviso = aviso?.exibir ?? false;
   return (
     <AppLayout

@@ -127,7 +127,7 @@ export function ConviteAmigosDialog({
   function compartilharWhatsApp(token: string) {
     const link = linkConvite(token);
     const mensagem = encodeURIComponent(
-      `Oi! Estou usando o Control ALL para controlar minhas finanças e notas fiscais com IA. Use meu convite exclusivo para criar sua conta:\n\n${link}`,
+      `Oi! Estou usando o Control ALL para controlar minhas finanças e notas fiscais. Use meu convite exclusivo para criar sua conta:\n\n${link}`,
     );
     window.open(`https://api.whatsapp.com/send?text=${mensagem}`, "_blank");
   }
