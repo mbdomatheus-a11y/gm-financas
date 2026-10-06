@@ -447,7 +447,7 @@ function LandingPage() {
           </div>
 
           {/* Exemplo ilustrativo */}
-          <Card className="rounded-3xl border-primary/20 bg-card/80 shadow-[var(--shadow-soft)] backdrop-blur-md md:rotate-1 md:transition-transform md:hover:rotate-0">
+          <Card className="rounded-3xl border-primary/20 bg-card/80 shadow-[var(--shadow-soft)] backdrop-blur-md">
             <CardContent className="flex h-full flex-col space-y-4 p-6">
               <div className="flex items-center justify-between border-b pb-4">
                 <div>
@@ -484,6 +484,43 @@ function LandingPage() {
                 <div className="flex items-center gap-2 text-cyan-800 dark:text-cyan-300">
                   <CalendarClock className="size-4 shrink-0" />
                   <span>Última parcela de uma compra termina este mês</span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between rounded-xl border border-rose-500/20 bg-rose-500/10 p-3 text-xs">
+                <div className="flex items-center gap-2 text-rose-800 dark:text-rose-300">
+                  <ReceiptText className="size-4 shrink-0" />
+                  <span>Garantia de uma nota fiscal termina em 30 dias</span>
+                </div>
+              </div>
+
+              <div className="space-y-2 border-t pt-4">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Seus módulos
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  {modulos
+                    .filter((m) => m.titulo !== "Calculadoras gratuitas")
+                    .map(({ icon: Icon, titulo }) => {
+                      const ok = moduloLiberado(titulo);
+                      return (
+                        <div
+                          key={titulo}
+                          className={cn(
+                            "flex items-center gap-2 rounded-lg border px-2.5 py-2 text-xs",
+                            ok ? "bg-background" : "bg-muted/40 opacity-60",
+                          )}
+                        >
+                          <Icon className={cn("size-4 shrink-0", ok ? "text-primary" : "text-muted-foreground")} />
+                          <span className="min-w-0 flex-1 truncate font-medium">{titulo}</span>
+                          {!ok && (
+                            <span className="shrink-0 text-[9px] font-bold uppercase text-amber-700 dark:text-amber-300">
+                              Em breve
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
                 </div>
               </div>
             </CardContent>

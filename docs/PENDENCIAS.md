@@ -225,3 +225,4 @@ Atualização de estilo global sem mudar funcionalidades: fundo "aurora" suave, 
 - Ocultar valores: agora mascara todo texto com R$, US$ ou € em qualquer página (hook `useMascaraValores`, no AppLayout), persiste no navegador, e o botão fica destacado ("Mostrar valores") enquanto oculto. Campos de digitação não são mascarados. O olho individual por cartão só vale com o global desligado.
 - Criar conta: removido "QR Code do SEFAZ com IA"; texto agora fala em QR Code ou chave de acesso. Mensagem de convite sem "com IA".
 - Home: módulos não habilitados no site (lidos de `modulos_globais`, função pública `listarModulosPublicos`) aparecem esmaecidos com selo "Em breve" e "Lançamento em breve".
+- Home: cartão 'Exemplo ilustrativo' agora fixo (sem inclinação/movimento), com aviso de garantia e lista 'Seus módulos' (Em breve nos não habilitados).
