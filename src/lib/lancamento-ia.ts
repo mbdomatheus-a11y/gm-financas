@@ -85,6 +85,10 @@ export type ResumoFinanceiroContexto = {
   saldo: number;
   taxaPoupancaPct: number | null; // null quando não há receita no mês
   topCategoriasDespesa: { categoria: string; total: number }[];
+  /** Média mensal por categoria nos 3 meses anteriores, para apontar gasto acima do normal. */
+  mediaCategoriasAnteriores?: { categoria: string; media: number }[];
+  /** Lançamentos do mês ainda não pagos (qtde e total em R$). */
+  lancamentosEmAberto?: { quantidade: number; total: number };
   numLancamentosDespesa: number;
   numLancamentosReceita: number;
   /** Parcelamentos ativos com mês de término para responder perguntas como 'quais contas terminam em novembro?' */

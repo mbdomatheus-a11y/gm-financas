@@ -60,6 +60,33 @@ export function useResumoFinanceiroMes(): {
       porCategoria.set(categoria, (porCategoria.get(categoria) ?? 0) + valorBRL);
     }
 
+    const emAberto = (parcelasDoMes as any[]).filter((p) => !p.paga);
+    const lancamentosEmAberto = {
+      quantidade: emAberto.length,
+      total: emAberto.reduce(
+        (t, p) => t + toBRL(Number(p.valor) || 0, p.moeda ?? p.despesa?.moeda ?? "BRL", cotacao),
+        0,
+      ),
+    };
+
+    // Média dos 3 meses anteriores por categoria (base para "acima do normal").
+    const [anoAtual, mesAtual] = competencia.split("-").map(Number);
+    const anteriores = [1, 2, 3].map((i) => competenciaDe(new Date(anoAtual!, mesAtual! - 1 - i, 1)));
+    const somaAnt = new Map<string, number>();
+    for (const c of anteriores) {
+      for (const p of lancamentosPorCompetencias(despesas as any[], [c]) as any[]) {
+        const cat = (p.despesa?.categoria as string) || "Outros";
+        somaAnt.set(
+          cat,
+          (somaAnt.get(cat) ?? 0) + toBRL(Number(p.valor) || 0, p.moeda ?? "BRL", cotacao),
+        );
+      }
+    }
+    const mediaCategoriasAnteriores = [...somaAnt.entries()].map(([categoria, t]) => ({
+      categoria,
+      media: t / 3,
+    }));
+
     const receitasDoMes = (receitas as any[]).filter(
       (r) => competenciaDe(r.data_recebimento) === competencia,
     );
@@ -127,6 +154,8 @@ export function useResumoFinanceiroMes(): {
       saldo,
       taxaPoupancaPct: totalReceitas > 0 ? (saldo / totalReceitas) * 100 : null,
       topCategoriasDespesa,
+      mediaCategoriasAnteriores,
+      lancamentosEmAberto,
       numLancamentosDespesa: parcelasDoMes.length,
       numLancamentosReceita: receitasDoMes.length,
       parcelamentosFuturos,

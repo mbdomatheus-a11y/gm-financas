@@ -14,6 +14,10 @@ import {
   Wallet,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useServerFn } from "@tanstack/react-start";
+import { Input } from "@/components/ui/input";
+import { resumoFinanceiroIA } from "@/lib/lancamento-ia.functions";
+import { useResumoFinanceiroMes } from "@/hooks/useResumoFinanceiroMes";
 
 import { AppLayout } from "@/components/AppLayout";
 import { ConviteAmigosBanner, useConvitesAmigos } from "@/components/ConviteAmigosBanner";
@@ -925,6 +929,107 @@ function ExamesShareCard() {
 /** ─── Resumo inteligente: um texto único juntando os pontos mais relevantes
  * de finanças, lista de compras e veículos — pensado pra mandar de uma vez
  * só pra alguém que quer só o essencial, sem abrir o site. ─── */
+const REVISAO_COMPLETA =
+  "Aja como meu assistente pessoal. Faça uma revisão completa do meu mês em tópicos curtos: " +
+  "1) como estão minhas finanças (receitas, despesas, saldo); " +
+  "2) categorias com gasto acima do normal comparando com a média dos 3 meses anteriores; " +
+  "3) lançamentos em aberto para revisar; " +
+  "4) assinaturas e gastos fixos que vale a pena revisar; " +
+  "5) parcelamentos que terminam em breve; " +
+  "6) itens pendentes da lista de compras e garantias de notas fiscais perto de vencer; " +
+  "7) uma dica prática. Use só os dados informados e diga quando faltar informação.";
+
+const PERGUNTAS_RAPIDAS = [
+  "Quais categorias estão acima do normal?",
+  "Quais assinaturas devo revisar?",
+  "O que tenho em aberto para pagar este mês?",
+  "Quais garantias estão perto de acabar?",
+];
+
+/** Assistente pessoal (IA): lê o resumo que o site já calcula do PRÓPRIO usuário. */
+function AssistenteIA() {
+  const { resumo, carregando } = useResumoFinanceiroMes();
+  const resumirFn = useServerFn(resumoFinanceiroIA);
+  const [resposta, setResposta] = useState("");
+  const [pergunta, setPergunta] = useState("");
+  const [rodando, setRodando] = useState(false);
+
+  async function perguntar(texto: string) {
+    if (!texto.trim() || rodando) return;
+    setRodando(true);
+    setResposta("");
+    try {
+      const r = await resumirFn({ data: { pergunta: texto, resumo } });
+      if (r.erro) toast.error(r.erro);
+      else setResposta(r.texto);
+    } catch {
+      toast.error("Não consegui falar com o assistente agora. Tente de novo.");
+    } finally {
+      setRodando(false);
+    }
+  }
+
+  return (
+    <Card className="lg:col-span-2">
+      <CardContent className="space-y-3 p-4 sm:p-6">
+        <div className="flex items-center gap-2 text-sm font-semibold">
+          <Sparkles className="size-4 text-primary" /> Assistente pessoal (IA)
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Lê só os seus dados do site (finanças, assinaturas, lista de compras e notas fiscais) e
+          ajuda a revisar. Pode errar: confira os valores antes de decidir. Uso diário limitado.
+        </p>
+        <Button onClick={() => perguntar(REVISAO_COMPLETA)} disabled={rodando || carregando}>
+          <Sparkles className="size-4" /> {rodando ? "Analisando..." : "Revisar meu mês com IA"}
+        </Button>
+        <div className="flex flex-wrap gap-2">
+          {PERGUNTAS_RAPIDAS.map((q) => (
+            <button
+              key={q}
+              type="button"
+              disabled={rodando || carregando}
+              onClick={() => perguntar(q)}
+              className="rounded-full border px-3 py-1 text-xs hover:bg-muted disabled:opacity-50"
+            >
+              {q}
+            </button>
+          ))}
+        </div>
+        <form
+          className="flex gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void perguntar(pergunta);
+          }}
+        >
+          <Input
+            value={pergunta}
+            onChange={(e) => setPergunta(e.target.value)}
+            placeholder="Pergunte algo sobre as suas finanças..."
+            maxLength={500}
+          />
+          <Button type="submit" variant="outline" disabled={rodando || carregando || !pergunta.trim()}>
+            Perguntar
+          </Button>
+        </form>
+        {resposta && (
+          <div className="space-y-2">
+            <pre className="whitespace-pre-wrap rounded-lg bg-muted/50 p-3 font-sans text-sm">{resposta}</pre>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => copiarTexto(resposta)}>
+                Copiar
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => compartilharTexto(resposta, "Revisão do mês")}>
+                <Share2 className="size-4" /> Compartilhar
+              </Button>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 function ResumoInteligenteShareCard() {
   const cotacao = useCotacao();
   const { habilitado } = useModulosGlobais();
@@ -989,6 +1094,7 @@ function ResumoInteligenteShareCard() {
 
   return (
     <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
+      <AssistenteIA />
       <Card>
         <CardContent className="space-y-4 p-4">
           <Button

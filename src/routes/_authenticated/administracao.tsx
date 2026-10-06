@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
@@ -98,6 +99,55 @@ import {
 
 // Item 8: `?aba=` permite que o botão "Tratar solicitação" dos e-mails de
 // notificação abra a Administração já na aba certa (privacidade/central).
+const GRUPOS_ADMIN: {
+  id: string;
+  titulo: string;
+  descricao: string;
+  abas: { id: string; rotulo: string }[];
+}[] = [
+  {
+    id: "visao",
+    titulo: "1. Visão geral",
+    descricao: "Números do site e consulta de dados",
+    abas: [
+      { id: "dados-gerais", rotulo: "Dados Gerais" },
+      { id: "consulta", rotulo: "Consulta" },
+    ],
+  },
+  {
+    id: "pessoas",
+    titulo: "2. Pessoas e pedidos",
+    descricao: "Acesso, solicitações e privacidade",
+    abas: [
+      { id: "acesso", rotulo: "Acesso e Auth" },
+      { id: "central", rotulo: "Central de Solicitações" },
+      { id: "privacidade", rotulo: "Privacidade LGPD" },
+    ],
+  },
+  {
+    id: "site",
+    titulo: "3. Site e módulos",
+    descricao: "O que aparece e como aparece",
+    abas: [
+      { id: "modulos", rotulo: "Módulos" },
+      { id: "personalizacao", rotulo: "Personalização" },
+      { id: "avisos", rotulo: "Avisos" },
+    ],
+  },
+  {
+    id: "infra",
+    titulo: "4. Armazenamento",
+    descricao: "Arquivos e espaço em disco",
+    abas: [{ id: "armazenamento", rotulo: "Armazenamento Oracle" }],
+  },
+  {
+    id: "seguranca",
+    titulo: "5. Segurança",
+    descricao: "Histórico de ações e auditoria",
+    abas: [{ id: "logs", rotulo: "Logs de Auditoria" }],
+  },
+];
+
 export const Route = createFileRoute("/_authenticated/administracao")({
   validateSearch: (search: Record<string, unknown>) => ({
     aba: typeof search["aba"] === "string" ? search["aba"] : undefined,
@@ -862,22 +912,46 @@ function Admin() {
   return (
     <AppLayout title="Administração do site" description="Painel de controle administrativo">
       <Tabs value={abaAtiva} onValueChange={setAbaAtiva} className="space-y-4">
-        <TabsList className="flex flex-wrap h-auto gap-1">
-          <TabsTrigger value="dados-gerais">Dados Gerais</TabsTrigger>
-          <TabsTrigger value="consulta">Consulta</TabsTrigger>
-          <TabsTrigger value="acesso">Acesso e Auth</TabsTrigger>
-          <TabsTrigger value="modulos">Módulos</TabsTrigger>
-          <TabsTrigger value="armazenamento">Armazenamento Oracle</TabsTrigger>
-          <TabsTrigger value="personalizacao">Personalização</TabsTrigger>
-          <TabsTrigger value="avisos">Avisos</TabsTrigger>
-          <TabsTrigger value="privacidade">Privacidade LGPD</TabsTrigger>
-          <TabsTrigger value="central" className="relative">
-            Central de Solicitações
-            {totalPendentes > 0 && (
-              <span className="ml-1 rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] text-white font-bold">{totalPendentes}</span>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="logs">Logs de Auditoria</TabsTrigger>
+        {/* Grupos (2026-10-06): as 10 abas foram agrupadas por assunto. Primeiro
+            escolhe-se o grupo, depois a aba dentro dele. Os valores das abas e
+            seus conteudos nao mudaram (links com ?aba= continuam validos). */}
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5" role="group" aria-label="Grupos da administração">
+          {GRUPOS_ADMIN.map((g) => {
+            const ativo = g.abas.some((a) => a.id === abaAtiva);
+            const pend = g.abas.some((a) => a.id === "central") ? totalPendentes : 0;
+            return (
+              <button
+                key={g.id}
+                type="button"
+                onClick={() => setAbaAtiva(g.abas[0]!.id)}
+                aria-pressed={ativo}
+                className={cn(
+                  "relative rounded-xl border p-3 text-left transition-colors",
+                  ativo ? "border-primary bg-primary/10" : "hover:bg-muted/50",
+                )}
+              >
+                <p className={cn("text-sm font-semibold", ativo && "text-primary")}>{g.titulo}</p>
+                <p className="text-xs text-muted-foreground">{g.descricao}</p>
+                {pend > 0 && (
+                  <span className="absolute right-2 top-2 rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                    {pend}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+        <TabsList className="flex h-auto flex-wrap gap-1">
+          {(GRUPOS_ADMIN.find((g) => g.abas.some((a) => a.id === abaAtiva)) ?? GRUPOS_ADMIN[0]!).abas.map((a) => (
+            <TabsTrigger key={a.id} value={a.id} className="relative">
+              {a.rotulo}
+              {a.id === "central" && totalPendentes > 0 && (
+                <span className="ml-1 rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                  {totalPendentes}
+                </span>
+              )}
+            </TabsTrigger>
+          ))}
         </TabsList>
 
         {/* ─── ABA 1: DADOS GERAIS ─── */}

@@ -304,6 +304,13 @@ function montarPromptResumo(r: ResumoFinanceiroContexto, pergunta: string): stri
     .map((c) => `${c.categoria}: R$ ${c.total.toFixed(2)}`)
     .join("; ");
 
+  const comparativo = (r.mediaCategoriasAnteriores ?? [])
+    .map((m) => {
+      const atual = r.topCategoriasDespesa.find((c) => c.categoria === m.categoria)?.total ?? 0;
+      return `- ${m.categoria}: este mês R$ ${atual.toFixed(2)} | média dos 3 meses anteriores R$ ${m.media.toFixed(2)}`;
+    })
+    .join("\n");
+
   const parcelamentos = (r.parcelamentosFuturos ?? [])
     .map(
       (p) =>
@@ -339,6 +346,10 @@ function montarPromptResumo(r: ResumoFinanceiroContexto, pergunta: string): stri
       ? `Taxa de poupança do mês: ${r.taxaPoupancaPct.toFixed(1)}% da renda.`
       : "Taxa de poupança: não calculável (sem receita cadastrada no mês).",
     categorias ? `Categorias de despesa que mais pesaram: ${categorias}.` : "",
+    comparativo ? `\nCOMPARATIVO POR CATEGORIA (use para apontar gasto acima do normal):\n${comparativo}` : "",
+    r.lancamentosEmAberto
+      ? `Lançamentos do mês ainda não pagos: ${r.lancamentosEmAberto.quantidade} (R$ ${r.lancamentosEmAberto.total.toFixed(2)}).`
+      : "",
     parcelamentos ? `\nPARCELAMENTOS ATIVOS E MÊS DE TÉRMINO:\n${parcelamentos}` : "",
     fixos ? `\nGASTOS FIXOS E ASSINATURAS CADASTRADAS:\n${fixos}` : "",
     comprasPendentes

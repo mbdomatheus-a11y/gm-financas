@@ -44,7 +44,7 @@ import {
 import { useApplyPreferencias, usePreferencias } from "@/hooks/usePreferencias";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { AlertsBell } from "@/components/AlertsBell";
 import { CalculadoraRapida } from "@/components/CalculadoraRapida";
 import { ConviteRapidoBotao } from "@/components/ConviteAmigosBanner";
@@ -288,7 +288,6 @@ const MUNDOS: Record<MundoId, { titulo: string; home: NavTo; items: NavItem[] }>
 
 /** Itens sempre visíveis, independente do mundo atual (ou de estar na Home). */
 const GLOBAL: NavItem[] = [
-  { to: "/calendario", label: "Calendário", short: "Agenda", icon: CalendarDays },
   {
     to: "/compartilhar",
     label: "Compartilhar",
@@ -325,6 +324,13 @@ const GLOBAL: NavItem[] = [
   },
   { to: "/suporte", label: "Suporte", short: "Suporte", icon: Headphones },
 ];
+
+const CALENDARIO: NavItem = {
+  to: "/calendario",
+  label: "Calendário",
+  short: "Agenda",
+  icon: CalendarDays,
+};
 
 const INICIO: NavItem = { to: "/inicio", label: "Início", short: "Início", icon: Home };
 
@@ -397,9 +403,8 @@ export function AppLayout({
       ? mundo.items
       : []
   ).filter(podeVer);
-  const itensGlobais = GLOBAL.filter(podeVer);
-
-  const mobileItems = [INICIO, ...(mundo ? itensDoMundo : itensGlobais).slice(0, 3)];
+  const itensGlobais = GLOBAL.filter(podeVer).filter((i) => !i.adminOnly);
+  const itensAdmin = GLOBAL.filter(podeVer).filter((i) => i.adminOnly);
   const bottomNav = prefs.layout_menu === "bottom";
 
   async function signOut() {
@@ -418,13 +423,17 @@ export function AppLayout({
   }
 
   const NavLink = ({
-    item,
-    onNavigate,
-  }: {
-    item: NavItem;
-    onNavigate?: (() => void) | undefined;
-  }) => {
-    const active = pathname === item.to;
+      item,
+      onNavigate,
+      ativo,
+      recuo,
+    }: {
+      item: NavItem;
+      onNavigate?: (() => void) | undefined;
+      ativo?: boolean | undefined;
+      recuo?: boolean | undefined;
+    }) => {
+    const active = ativo ?? pathname === item.to;
     const Icon = item.icon;
     return (
       <Link
@@ -432,6 +441,7 @@ export function AppLayout({
         onClick={onNavigate}
         className={cn(
           "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
+          recuo && "ml-4 py-2 text-[13px]",
           active
             ? "bg-primary/10 text-primary shadow-[inset_3px_0_0_var(--brand)]"
             : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
@@ -444,19 +454,34 @@ export function AppLayout({
   };
 
   const NavLinks = ({ onNavigate }: { onNavigate?: (() => void) | undefined }) => (
-    <nav className="flex flex-1 flex-col gap-1">
+    <nav className="flex flex-1 flex-col gap-1 overflow-y-auto">
       <NavLink item={INICIO} onNavigate={onNavigate} />
+      <NavLink item={CALENDARIO} onNavigate={onNavigate} />
 
-      {mundo && itensDoMundo.length > 0 && (
-        <>
-          <p className="mt-3 px-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/70">
-            {mundo.titulo}
-          </p>
-          {itensDoMundo.map((item) => (
-            <NavLink key={item.to} item={item} onNavigate={onNavigate} />
-          ))}
-        </>
+      {mundosVisiveis.length > 0 && (
+        <p className="mt-3 px-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/70">
+          Módulos
+        </p>
       )}
+      {mundosVisiveis.map((id) => {
+        const m = MUNDOS[id];
+        const ativo = mundoId === id;
+        const entrada: NavItem = {
+          to: m.home,
+          label: m.titulo,
+          short: m.titulo,
+          icon: m.items[0]!.icon,
+        };
+        return (
+          <div key={id} className="flex flex-col gap-1">
+            <NavLink item={entrada} onNavigate={onNavigate} ativo={ativo && pathname === m.home} />
+            {ativo &&
+              itensDoMundo
+                .filter((i) => i.to !== m.home)
+                .map((item) => <NavLink key={item.to} item={item} onNavigate={onNavigate} recuo />)}
+          </div>
+        );
+      })}
 
       <p className="mt-3 px-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/70">
         Geral
@@ -464,6 +489,17 @@ export function AppLayout({
       {itensGlobais.map((item) => (
         <NavLink key={item.to} item={item} onNavigate={onNavigate} />
       ))}
+
+      {itensAdmin.length > 0 && (
+        <>
+          <p className="mt-3 px-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/70">
+            Administração
+          </p>
+          {itensAdmin.map((item) => (
+            <NavLink key={item.to} item={item} onNavigate={onNavigate} />
+          ))}
+        </>
+      )}
     </nav>
   );
 
@@ -478,13 +514,6 @@ export function AppLayout({
       </Link>
       <OracleQuotaBadge />
       <NavLinks onNavigate={onNavigate} />
-      <Button
-        variant="ghost"
-        className="justify-start gap-3 text-muted-foreground"
-        onClick={signOut}
-      >
-        <LogOut className="size-4.5" /> Sair
-      </Button>
     </div>
   );
 
@@ -499,23 +528,6 @@ export function AppLayout({
       <div className={cn(!bottomNav && "lg:pl-64")}>
         <header className="glass sticky top-0 z-20 border-b border-border/60">
           <div className="flex items-center gap-3 px-4 py-3">
-            <Sheet open={open} onOpenChange={setOpen}>
-              <SheetTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className={cn(!bottomNav && "lg:hidden")}
-                  aria-label="Abrir menu"
-                >
-                  <Menu className="size-5" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="left" className="w-72 bg-sidebar p-0">
-                <SheetTitle className="sr-only">Menu</SheetTitle>
-                <SidebarInner onNavigate={() => setOpen(false)} />
-              </SheetContent>
-            </Sheet>
-
             <div className="min-w-0 flex-1">
               <h1 className="truncate text-base font-semibold leading-tight sm:text-lg">{title}</h1>
               {description && (
@@ -536,6 +548,12 @@ export function AppLayout({
               >
                 {ocultarValores ? <EyeOff className="size-4.5" /> : <Eye className="size-4.5" />}
               </Button>
+              <Button asChild variant="ghost" size="sm" className="gap-1.5 px-2">
+                <Link to="/calendario" aria-label="Abrir calendário" title="Calendário">
+                  <CalendarDays className="size-4.5" />
+                  <span className="hidden text-xs font-medium sm:inline">Calendário</span>
+                </Link>
+              </Button>
               <CalculadoraRapida />
               <ConviteRapidoBotao />
               <AlertsBell />
@@ -552,50 +570,26 @@ export function AppLayout({
             </div>
           </div>
 
-          {/* Alternador de módulos (2026-09-26): antes, ao entrar num módulo
-              (ex.: Finanças), os outros módulos (Lista, Onde está?, Exames…)
-              desapareciam do menu lateral e só voltavam pela Início. Esta
-              barra fica sempre visível no topo, mostra em qual módulo você
-              está (destacado) e deixa pular pra qualquer outro em 1 clique. */}
-          {mundosVisiveis.length > 0 && (
-            <nav
-              aria-label="Módulos"
-              className="flex gap-1.5 overflow-x-auto px-3 pb-2.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-            >
-              {mundosVisiveis.map((id) => {
-                const m = MUNDOS[id];
-                const Icon = m.items[0]!.icon;
-                const ativo = mundoId === id;
-                return (
-                  <Link
-                    key={id}
-                    to={m.home}
-                    className={cn(
-                      "flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
-                      ativo
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "border-transparent bg-muted/60 text-muted-foreground hover:bg-muted",
-                    )}
-                  >
-                    <Icon className="size-3.5" />
-                    {m.titulo}
-                  </Link>
-                );
-              })}
-            </nav>
-          )}
         </header>
 
         <main className="mx-auto w-full max-w-7xl px-4 pb-28 pt-6 lg:px-8 lg:pb-10">{children}</main>
       </div>
 
+      <Sheet open={open} onOpenChange={setOpen}>
+        <SheetContent side="left" className="w-72 bg-sidebar p-0">
+          <SheetTitle className="sr-only">Menu</SheetTitle>
+          <SidebarInner onNavigate={() => setOpen(false)} />
+        </SheetContent>
+      </Sheet>
+
       <nav
+        aria-label="Navegação principal"
         className={cn(
           "glass fixed inset-x-2 bottom-2 z-30 grid grid-cols-4 gap-1 rounded-2xl border border-border/60 px-2 pb-[env(safe-area-inset-bottom)] pt-1 shadow-[var(--shadow-soft)]",
           !bottomNav && "lg:hidden",
         )}
       >
-        {mobileItems.map((item) => {
+        {[INICIO, CALENDARIO].map((item) => {
           const active = pathname === item.to;
           const Icon = item.icon;
           return (
@@ -612,6 +606,31 @@ export function AppLayout({
             </Link>
           );
         })}
+        <Link
+          to={mundo ? mundo.home : "/compartilhar"}
+          className={cn(
+            "flex flex-col items-center gap-1 rounded-lg py-2 text-[11px] font-medium",
+            mundo && pathname === mundo.home ? "text-primary" : "text-muted-foreground",
+          )}
+        >
+          {mundo ? (
+            (() => {
+              const Ic = mundo.items[0]!.icon;
+              return <Ic className="size-5" />;
+            })()
+          ) : (
+            <Share2 className="size-5" />
+          )}
+          {mundo ? mundo.titulo : "Compart."}
+        </Link>
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="flex flex-col items-center gap-1 rounded-lg py-2 text-[11px] font-medium text-muted-foreground"
+        >
+          <Menu className="size-5" />
+          Menu
+        </button>
       </nav>
 
       {/* Lançamento rápido por texto/áudio (IA) — pedido explícito do usuário

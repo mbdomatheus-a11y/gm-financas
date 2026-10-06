@@ -112,6 +112,7 @@ function CalendarioPage() {
     "lista",
   ]);
   const [editando, setEditando] = useState<Evento | null>(null);
+  const [visao, setVisao] = useState<"mes" | "ano">("mes");
 
   const { data: despesas = [] } = useDespesas();
   const { data: faturasMes = [] } = useFaturasMes();
@@ -139,7 +140,7 @@ function CalendarioPage() {
     },
   });
 
-  const eventos = useMemo(() => {
+  const gerarEventos = (mes: string): Evento[] => {
     const out: Evento[] = [];
     // Faturas do mês: soma por cartão, vencendo no dia de vencimento do cartão.
     const lanc = aplicarRegrasFaturaMes(
@@ -211,9 +212,16 @@ function CalendarioPage() {
       });
     }
     return out;
-  }, [despesas, faturasMes, cartoes, notas, listaItens, mes, cotacao]);
+  };
 
-  const visiveis = eventos.filter((e) => ativos.includes(e.tipo));
+  const ano = mes.slice(0, 4);
+  const eventosAno = useMemo(
+    () => Array.from({ length: 12 }, (_, i) => gerarEventos(`${ano}-${String(i + 1).padStart(2, "0")}`)).flat(),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [despesas, faturasMes, cartoes, notas, listaItens, ano, cotacao],
+  );
+
+  const visiveis = eventosAno.filter((e) => ativos.includes(e.tipo));
   const porDia = useMemo(() => {
     const m = new Map<string, Evento[]>();
     for (const e of visiveis) {
@@ -235,7 +243,7 @@ function CalendarioPage() {
 
   const eventosDoDia = porDia.get(diaSel) ?? [];
   const totalFaturasMes = visiveis
-    .filter((e) => e.tipo === "fatura")
+    .filter((e) => e.tipo === "fatura" && e.data.slice(0, 7) === mes)
     .reduce((t, e) => t + (e.valor ?? 0), 0);
 
   function irParaMes(novo: string) {
@@ -253,7 +261,37 @@ function CalendarioPage() {
       title="Calendário"
       description="Faturas, notas fiscais, garantias e lista de compras em um só lugar"
     >
-      <div className="mb-3 flex flex-wrap items-center gap-2">
+      <div className="mb-3 inline-flex rounded-xl border bg-muted/40 p-1" role="group" aria-label="Tipo de visão">
+        {(["mes", "ano"] as const).map((v) => (
+          <button
+            key={v}
+            type="button"
+            onClick={() => setVisao(v)}
+            aria-pressed={visao === v}
+            className={cn(
+              "rounded-lg px-4 py-1.5 text-sm font-medium transition-colors",
+              visao === v ? "bg-background text-primary shadow-sm" : "text-muted-foreground",
+            )}
+          >
+            {v === "mes" ? "Mês" : "Ano (12 meses)"}
+          </button>
+        ))}
+      </div>
+
+      {visao === "ano" && (
+        <div className="mb-3 flex items-center gap-2">
+          <Button variant="outline" size="icon" onClick={() => irParaMes(somarMes(mes, -12))} aria-label="Ano anterior">
+            <ChevronLeft className="size-4" />
+          </Button>
+          <h2 className="min-w-20 text-center text-base font-semibold">{ano}</h2>
+          <Button variant="outline" size="icon" onClick={() => irParaMes(somarMes(mes, 12))} aria-label="Próximo ano">
+            <ChevronRight className="size-4" />
+          </Button>
+          <span className="ml-2 text-xs text-muted-foreground">Toque num mês para abrir, ou num dia para ver o que tem nele.</span>
+        </div>
+      )}
+
+      <div className={cn("mb-3 flex flex-wrap items-center gap-2", visao === "ano" && "hidden")}>
         <Button variant="outline" size="icon" onClick={() => irParaMes(somarMes(mes, -1))} aria-label="Mês anterior">
           <ChevronLeft className="size-4" />
         </Button>
@@ -302,7 +340,77 @@ function CalendarioPage() {
         )}
       </div>
 
-      <Card>
+      {visao === "ano" && (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {Array.from({ length: 12 }, (_, i) => {
+            const chave = `${ano}-${String(i + 1).padStart(2, "0")}`;
+            const [a, m] = chave.split("-").map(Number);
+            const primeiro = new Date(a!, m! - 1, 1).getDay();
+            const dias = ultimoDiaDoMes(chave);
+            const cels: (string | null)[] = Array(primeiro).fill(null);
+            for (let d = 1; d <= dias; d++) cels.push(`${chave}-${String(d).padStart(2, "0")}`);
+            const qtd = visiveis.filter((e) => e.data.slice(0, 7) === chave).length;
+            return (
+              <Card key={chave} className={cn(chave === monthKey(new Date()) && "border-primary")}>
+                <CardContent className="p-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      irParaMes(chave);
+                      setVisao("mes");
+                    }}
+                    className="mb-2 flex w-full items-center justify-between text-left"
+                  >
+                    <span className="text-sm font-semibold capitalize">
+                      {new Date(a!, m! - 1, 1).toLocaleDateString("pt-BR", { month: "long" })}
+                    </span>
+                    {qtd > 0 && (
+                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+                        {qtd} evento{qtd > 1 ? "s" : ""}
+                      </span>
+                    )}
+                  </button>
+                  <div className="grid grid-cols-7 gap-0.5 text-center text-[10px] text-muted-foreground">
+                    {DIAS_SEMANA.map((d) => (
+                      <div key={d}>{d[0]}</div>
+                    ))}
+                    {cels.map((dia, k) => {
+                      if (!dia) return <div key={`v${k}`} />;
+                      const evs = porDia.get(dia) ?? [];
+                      const tipos = Array.from(new Set(evs.map((e) => e.tipo)));
+                      return (
+                        <button
+                          key={dia}
+                          type="button"
+                          onClick={() => {
+                            setMes(chave);
+                            setDiaSel(dia);
+                            setVisao("mes");
+                          }}
+                          className={cn(
+                            "flex h-8 flex-col items-center justify-center rounded text-[11px] hover:bg-muted",
+                            dia === hojeISO && "bg-primary/10 font-bold text-primary",
+                          )}
+                          aria-label={`${formatDate(dia)}${evs.length ? `, ${evs.length} evento(s)` : ""}`}
+                        >
+                          {Number(dia.slice(8, 10))}
+                          <span className="flex h-1.5 gap-px">
+                            {tipos.slice(0, 3).map((t) => (
+                              <span key={t} className={cn("size-1 rounded-full", TIPOS[t].ponto)} />
+                            ))}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      <Card className={cn(visao === "ano" && "hidden")}>
         <CardContent className="p-2 sm:p-3">
           <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-semibold text-muted-foreground">
             {DIAS_SEMANA.map((d) => (
@@ -357,7 +465,7 @@ function CalendarioPage() {
         </CardContent>
       </Card>
 
-      <div className="mt-4">
+      <div className={cn("mt-4", visao === "ano" && "hidden")}>
         <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold">
           <CalendarDays className="size-4" /> {formatDate(diaSel)}
         </h3>
