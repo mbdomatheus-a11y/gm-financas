@@ -1,3 +1,4 @@
+import { useBancos, useCartoes } from "@/hooks/useFinance";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -102,6 +103,8 @@ type NotaForm = {
   categoria: string;
   garantia_meses: string;
   observacoes: string;
+  /** Item 19 (2026-10-05): "cartao:<id>" | "banco:<id>" | "" (cartão/conta usada na compra). */
+  pagamento: string;
   chave_acesso: string;
   url_consulta: string;
   uf: string;
@@ -116,6 +119,7 @@ const FORM_VAZIO: NotaForm = {
   categoria: "outros",
   garantia_meses: "12",
   observacoes: "",
+  pagamento: "",
   chave_acesso: "",
   url_consulta: "",
   uf: "",
@@ -234,6 +238,17 @@ function NotasPage() {
   const [escolha, setEscolha] = useState(false);
   const [leitor, setLeitor] = useState(false);
   const [form, setForm] = useState<NotaForm | null>(null);
+  const { data: cartoesLista = [] } = useCartoes();
+  const { data: bancosLista = [] } = useBancos();
+  const nomePagamento = (tipo: string | null, id: string | null) => {
+    if (!id) return "";
+    if (tipo === "cartao") {
+      const c = (cartoesLista as any[]).find((x) => x.id === id);
+      return c ? `Cartão ${c.apelido || c.bancos?.nome || ""}${c.final ? ` •${c.final}` : ""}`.trim() : "Cartão removido";
+    }
+    const b = (bancosLista as any[]).find((x) => x.id === id);
+    return b ? `Conta ${b.nome}` : "Conta removida";
+  };
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [detalhe, setDetalhe] = useState<string | null>(null);
   const [itensLidos, setItensLidos] = useState<
@@ -360,6 +375,8 @@ function NotasPage() {
         garantia_meses: meses || null,
         garantia_fim: calcularFimGarantia(dados.data_compra, meses),
         observacoes: dados.observacoes || null,
+        pagamento_tipo: dados.pagamento ? dados.pagamento.split(":")[0]! : null,
+        pagamento_id: dados.pagamento ? dados.pagamento.split(":")[1]! : null,
         chave_acesso: dados.chave_acesso || null,
         url_consulta: dados.url_consulta || null,
         uf: dados.uf || null,
@@ -938,6 +955,31 @@ function NotasPage() {
                 />
               </div>
               <div className="space-y-1.5">
+                <Label>Cartão ou conta usada na compra</Label>
+                <Select
+                  value={form.pagamento || "nenhum"}
+                  onValueChange={(v) => setForm({ ...form, pagamento: v === "nenhum" ? "" : v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione (opcional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="nenhum">Não informar</SelectItem>
+                    {(cartoesLista as any[]).map((c) => (
+                      <SelectItem key={c.id} value={`cartao:${c.id}`}>
+                        Cartão: {c.apelido || c.bancos?.nome || "Cartão"}
+                        {c.final ? ` •${c.final}` : ""}
+                      </SelectItem>
+                    ))}
+                    {(bancosLista as any[]).map((b) => (
+                      <SelectItem key={b.id} value={`banco:${b.id}`}>
+                        Conta: {b.nome}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
                 <Label>Observações</Label>
                 <Textarea
                   rows={2}
@@ -1087,6 +1129,11 @@ function NotasPage() {
                   </div>
                 )}
 
+                {(notaDetalhe as any).pagamento_id && (
+                  <p className="text-xs text-muted-foreground">
+                    Paga com: {nomePagamento((notaDetalhe as any).pagamento_tipo, (notaDetalhe as any).pagamento_id)}
+                  </p>
+                )}
                 {notaDetalhe.observacoes && (
                   <p className="text-xs text-muted-foreground">{notaDetalhe.observacoes}</p>
                 )}
@@ -1106,6 +1153,9 @@ function NotasPage() {
                         categoria: notaDetalhe.categoria ?? "outros",
                         garantia_meses: String(notaDetalhe.garantia_meses ?? 0),
                         observacoes: notaDetalhe.observacoes ?? "",
+                        pagamento: (notaDetalhe as any).pagamento_id
+                          ? `${(notaDetalhe as any).pagamento_tipo}:${(notaDetalhe as any).pagamento_id}`
+                          : "",
                         chave_acesso: notaDetalhe.chave_acesso ?? "",
                         url_consulta: notaDetalhe.url_consulta ?? "",
                         uf: notaDetalhe.uf ?? "",

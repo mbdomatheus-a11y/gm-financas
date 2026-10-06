@@ -378,3 +378,19 @@ export const adminListarLogs = createServerFn({ method: "GET" })
     }));
   });
 
+/** Falhas de login detalhadas (identificador digitado sem senha, motivo, IP, local). */
+export const adminListarFalhasLogin = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await admin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data, error } = await (supabaseAdmin as any)
+      .from("login_falhas_log")
+      .select(
+        "id,criado_em,identificador,tipo_identificador,motivo,ip,cidade,regiao,pais,user_agent,tentativas,bloqueou",
+      )
+      .order("criado_em", { ascending: false })
+      .limit(1000);
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  });

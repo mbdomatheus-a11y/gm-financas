@@ -143,3 +143,55 @@ Pendente de teste manual: login com usuário realmente novo no domínio de produ
 - Causa: o gatilho on_auth_user_created (handle_new_user) já cria a linha em profiles quando o usuário de autenticação é criado; src/lib/convites-livres.functions.ts (usado por entrar.tsx) fazia insert puro em profiles. Além disso, os passos 7 e 8 usavam colunas inexistentes (user_roles.grupo_id e aceites_documentos.versao_termos/versao_privacidade) e falhavam em silêncio, deixando o usuário sem papel de admin e sem aceite dos termos.
 - Correção: upsert em profiles (ativo true, senha_temporaria false, cpf nulo se vazio), papel admin via upsert em user_roles, aceites com as colunas documento/versao, limpeza do grupo e do usuário de autenticação se algo falhar, cota explícita de 512 MB no grupo.
 - Resíduo: grupo órfão "Marcus's Group" (0 membros, criado na tentativa que falhou) em produção; pode ser apagado.
+
+---
+
+## Sessão 2026-10-05: lote de 19 melhorias (plano documentado ANTES de executar)
+Pedidos do Matheus (resumo final deve sair como checklist para conferência 1 a 1):
+1. Tela de login: botões Google/Microsoft duplicados (aparecem em "Entrar com" e "Continuar com").
+2. Parcelamentos que terminam (e Despesas): seleção de itens com soma automática.
+3. De-Para de categorias: modelo Excel/TXT para baixar e subir.
+4. Categorias: baixar sugestão completa do site em Excel/TXT, editar e subir.
+5. Log de tentativas de login: registrar toda falha (mesmo 1), com IP, local, dados digitados (sem senha) e motivo (usuário não cadastrado, senha incorreta).
+6. Telas de log: limite visual, agrupar o resto, exportar Excel e TXT.
+7. Botão Lançar com IA só no módulo Finanças.
+8. Áudio para pedir resumo do mês e fazer contas.
+9. Backup e Reset: botão excluir conta no admin, padronizando com a conta do usuário (admin vê tudo do usuário e mais).
+10. Gráficos: lembrar última opção, padrão mês anterior + 5 próximos, destaque do mês atual, valores abreviados nos pontos (21,8K) e valor detalhado no hover.
+11. Educação financeira no site, para todas as idades.
+12. Lista de compras: abrir em tela cheia pedindo as 3 respostas; se pular, salvar e manter como hoje.
+13. Preferência "Destaque do módulo Veículo" só aparece se o módulo estiver ativo; admin vê tudo que o usuário vê.
+14. Após 3 dias de uso: pop-up de convite na abertura e atalho de convidar ao lado do sino.
+15. Botão Sair disponível em todas as telas.
+16. Compartilhar: botão convidar amigos enquanto houver convites; ocultar quando acabarem.
+17. Banner de aviso ao entrar na calculadora, com liga/desliga no admin.
+18. Calculadora simples flutuante em todas as telas, com copiar valor.
+19. Nova nota: vincular cartão de crédito ou conta usada na compra.
+Resolvido: o "alerta da calculadora" pendente é o banner do item 17.
+Ordem: login/sair/segurança (1, 5, 6, 15), finanças (7, 10, 2, 3, 4, 19), onboarding/engajamento (12, 14, 16, 11), admin (9, 13, 17), extras (8, 18).
+
+### Resultado da execução dos 19 itens (2026-10-05)
+
+Tudo abaixo passou no `tsc` sem erros. Colunas e tabela novas já aplicadas em produção (SQL aditivo) e registradas em `supabase/migrations/20261005240000_lote_19_itens.sql`.
+
+1. Login: removido o segundo bloco de botões Google/Microsoft (`EntrarForm.tsx`).
+2. Soma de parcelamentos: caixas de seleção no card "Parcelamentos que terminam" (Dashboard) e botão "Somar itens" em Despesas, soma na hora, nada é salvo.
+3. De-Para: modelos Excel, TXT e CSV para baixar; envio aceita .xlsx, .csv e .txt (`depara.ts`, `de-para.tsx`).
+4. Categorias: baixar lista sugerida completa e as minhas (Excel e TXT) e enviar o arquivo editado; só cria as que não existem (`categorias-planilha.ts`, `categorias.tsx`).
+5. Log de falhas de login: tabela `login_falhas_log` com identificador digitado (sem senha), IP, cidade, região, país, motivo (usuário não cadastrado, senha incorreta, bloqueio etc.); card no admin.
+6. Logs com limite visual: `LogPainel` (15 visíveis, resto agrupado por dia, exportar Excel e TXT) em login, log administrativo e histórico de avisos.
+7. "Lançar com IA" só aparece nas telas do módulo Finanças (`AppLayout.tsx`).
+8. Áudio: botão "Gravar pergunta" na aba de resumo/cálculos do Lançar com IA.
+9. Excluir conta: novo componente `ExcluirContaCard` em Conta e em Backup e Reset (admin do site continua bloqueado de se excluir).
+10. Gráficos: padrão "mês anterior + próximos 5", última escolha salva (localStorage), mês atual destacado, rótulos abreviados (21,8K) e valor completo no mouse.
+11. Educação financeira para todas as idades: card no Início (`EducacaoFinanceira.tsx`).
+12. Lista de compras: tela cheia pedindo as 3 perguntas; "Não responder" grava `profiles.perfil_financeiro_pulado_em` e a tela não volta.
+13. Destaque do Veículo na Conta só aparece com o módulo Veículo ativo.
+14. Convite após 3 dias de uso (popup na abertura, adiável por 7 dias) e botão de convite ao lado do sino.
+15. Botão Sair no cabeçalho de todas as telas (inclusive nova-senha).
+16. Compartilhar: botão "Convidar amigos" enquanto houver convites.
+17. Aviso da calculadora com liga/desliga na Administração (`configuracoes_acesso_site.exibir_aviso_calculadora`).
+18. Calculadora rápida no cabeçalho, sem `eval`, com copiar valor.
+19. Nova nota: campo "Cartão ou conta usada na compra" (`notas_fiscais.pagamento_tipo/pagamento_id`).
+
+Pendências do usuário: dar push dos commits, rodar os dois DROP POLICY no SQL Editor (comprovantes_membro_ativo e parcela_auditoria_membro_ativo), desconectar o Lovable do GitHub, testar com usuário novo.

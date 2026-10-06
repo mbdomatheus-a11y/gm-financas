@@ -16,7 +16,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { usePermissoes, useSession } from "@/hooks/useAuthData";
 import { useCategorias } from "@/hooks/useFinance";
 import { chaveEstabelecimento } from "@/lib/categorizacao";
-import { lerPlanilhaDePara, modeloCsv, type LinhaDePara } from "@/lib/depara";
+import {
+  CABECALHO_DEPARA,
+  EXEMPLOS_DEPARA,
+  lerPlanilhaDePara,
+  modeloCsv,
+  type LinhaDePara,
+} from "@/lib/depara";
+import { baixarTxt, baixarXlsx } from "@/lib/exportar-planilha";
 
 export const Route = createFileRoute("/_authenticated/de-para")({
   head: () => ({
@@ -228,9 +235,17 @@ function DeParaPage() {
       title="De-para de categorias"
       description="Suba a planilha com descrição → categoria. Toda importação passa a usar essas regras."
       actions={
-        <Button variant="outline" onClick={baixarModelo}>
-          <Download className="mr-2 size-4" /> Modelo CSV
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" onClick={() => baixarXlsx("modelo-de-para", CABECALHO_DEPARA, EXEMPLOS_DEPARA)}>
+            <Download className="mr-2 size-4" /> Modelo Excel
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => baixarTxt("modelo-de-para", CABECALHO_DEPARA, EXEMPLOS_DEPARA)}>
+            <Download className="mr-2 size-4" /> Modelo TXT
+          </Button>
+          <Button variant="outline" size="sm" onClick={baixarModelo}>
+            <Download className="mr-2 size-4" /> Modelo CSV
+          </Button>
+        </div>
       }
     >
       <Card>
@@ -251,12 +266,12 @@ function DeParaPage() {
             )}
             <p className="text-sm font-medium">Arraste a planilha ou clique para selecionar</p>
             <p className="text-xs text-muted-foreground">
-              Excel (.xlsx) ou CSV · colunas: descrição, categoria, subcategoria (opcional)
+              Excel (.xlsx), CSV ou TXT · colunas: descrição, categoria, subcategoria (opcional)
             </p>
             <input
               ref={inputRef}
               type="file"
-              accept=".xlsx,.csv,text/csv"
+              accept=".xlsx,.csv,.txt,text/csv,text/plain"
               className="hidden"
               onChange={(e) => void onFile(e.target.files?.[0])}
             />

@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { ExcluirContaCard } from "@/components/ExcluirContaCard";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -394,6 +395,8 @@ function BackupPage() {
             </div>
           </CardContent>
         </Card>
+
+        <ExcluirContaCard className="lg:col-span-2 border-destructive/30" />
       </div>
 
       <Dialog open={reset !== null} onOpenChange={(o) => !o && setReset(null)}>

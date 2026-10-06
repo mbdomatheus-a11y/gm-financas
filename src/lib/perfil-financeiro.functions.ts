@@ -33,3 +33,17 @@ export const salvarPerfilFinanceiro = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true as const };
   });
+
+/** Item 12 (2026-10-05): registra que o usuário escolheu "não responder" na
+ * tela cheia da Lista de compras (grava só no próprio perfil). */
+export const pularPerfilFinanceiro = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await (supabaseAdmin as any)
+      .from("profiles")
+      .update({ perfil_financeiro_pulado_em: new Date().toISOString() })
+      .eq("id", context.userId);
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
+  });

@@ -197,6 +197,9 @@ function DespesasPage() {
   // nunca grava nada no banco. Estado local, puro "e se", reseta ao trocar
   // de aba/mês ou sair da tela.
   const [simulandoCortes, setSimulandoCortes] = useState(false);
+  // Item 2 (2026-10-05): modo "Somar itens" (marcar lançamentos e ver a soma na hora).
+  const [somando, setSomando] = useState(false);
+  const [idsSomados, setIdsSomados] = useState<Set<string>>(new Set());
   const [idsExcluidosSimulacao, setIdsExcluidosSimulacao] = useState<Set<string>>(new Set());
   const [form, setForm] = useState<any>(novoForm("fixa"));
   const [duplicata, setDuplicata] = useState<any | null>(null);
@@ -867,6 +870,36 @@ function DespesasPage() {
         ))}
       </div>
 
+      <div className="mb-3 space-y-2">
+        <Button
+          size="sm"
+          variant={somando ? "secondary" : "outline"}
+          className="h-9 text-xs"
+          onClick={() => {
+            setSomando((v) => !v);
+            setIdsSomados(new Set());
+          }}
+        >
+          <Calculator className="size-3.5" />
+          {somando ? "Sair da soma" : "Somar itens"}
+        </Button>
+        {somando && (
+          <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-muted/20 px-3 py-2 text-xs">
+            <span className="text-muted-foreground">
+              Marque os lançamentos abaixo e veja a soma na hora. Nada é salvo.
+            </span>
+            <span className="font-semibold">
+              {idsSomados.size} selecionado(s):{" "}
+              {formatBRL(
+                (lista as any[])
+                  .filter((d) => idsSomados.has(d.id))
+                  .reduce((t, d) => t + toBRL(valorVisivel(d), d.moeda, cotacao), 0),
+              )}
+            </span>
+          </div>
+        )}
+      </div>
+
       {/* Bloco 6 (plano-mega 2026-09-14): simular corte de despesas fixas —
           desmarcar itens aqui só recalcula o total na hora, nada é gravado
           no banco (estado local, reseta ao trocar de aba/mês ou sair). */}
@@ -1166,6 +1199,22 @@ function DespesasPage() {
                               "opacity-60 line-through bg-muted/20",
                           )}
                         >
+                          {somando && (
+                            <Checkbox
+                              className="shrink-0"
+                              checked={idsSomados.has(d.id)}
+                              onClick={(e) => e.stopPropagation()}
+                              onCheckedChange={(checked) => {
+                                setIdsSomados((prev) => {
+                                  const next = new Set(prev);
+                                  if (checked) next.add(d.id);
+                                  else next.delete(d.id);
+                                  return next;
+                                });
+                              }}
+                              aria-label={`Somar ${d.descricao}`}
+                            />
+                          )}
                           {simulandoCortes && tab === "fixa" && (
                             <Checkbox
                               className="shrink-0"

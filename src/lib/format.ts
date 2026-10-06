@@ -117,3 +117,14 @@ export function identificacaoDespesa(d: {
   }
   return partes.join(" · ");
 }
+
+/** Item 10 (2026-10-05): valor abreviado para rótulos de gráfico (21837 vira 21,8K). */
+export function abreviarValor(v: unknown): string {
+  const n = Number(v);
+  if (!n) return "";
+  const a = Math.abs(n);
+  const f = (x: number) => x.toLocaleString("pt-BR", { maximumFractionDigits: 1 });
+  if (a >= 1_000_000) return `${f(n / 1_000_000)}M`;
+  if (a >= 1_000) return `${f(n / 1_000)}K`;
+  return f(n);
+}

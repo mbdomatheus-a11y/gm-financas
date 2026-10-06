@@ -5,6 +5,7 @@ import {
   Bar,
   BarChart,
   Cell,
+  LabelList,
   Line,
   ComposedChart,
   ResponsiveContainer,
@@ -39,6 +40,7 @@ import {
 } from "@/lib/format";
 import { useCompetenciaVigente } from "@/lib/periodo-vigente";
 import { usePersistedState } from "@/hooks/usePersistedState";
+import { abreviarValor } from "@/lib/format";
 import { lancamentosPorCompetencias } from "@/lib/recorrencia";
 import { opacidadePorPosicao, posicaoTemporalDoMes } from "@/lib/tempo-visual";
 
@@ -165,11 +167,11 @@ export function VisaoGeralHome({ ocultarValores }: { ocultarValores?: boolean } 
     [agrupamento],
   );
 
-  /** 12 meses: 5 anteriores, o atual e 6 à frente (parcelas já comprometidas). */
+  /** 7 meses: o anterior, o atual e 5 à frente (item 10, 2026-10-05). */
   const meses = useMemo(() => {
     const now = new Date();
-    return Array.from({ length: 12 }, (_, i) =>
-      monthKey(new Date(now.getFullYear(), now.getMonth() - 5 + i, 1)),
+    return Array.from({ length: 7 }, (_, i) =>
+      monthKey(new Date(now.getFullYear(), now.getMonth() - 1 + i, 1)),
     );
   }, []);
 
@@ -380,6 +382,7 @@ export function VisaoGeralHome({ ocultarValores }: { ocultarValores?: boolean } 
                       }
                     />
                   ))}
+                  <LabelList dataKey="Despesas" position="top" fontSize={9} formatter={abreviarValor} />
                 </Bar>
                 <Line
                   type="monotone"

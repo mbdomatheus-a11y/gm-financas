@@ -1,12 +1,69 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { createHash, randomBytes, randomInt, timingSafeEqual } from "node:crypto";
+import { getRequest } from "@tanstack/react-start/server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { isValidCpf, onlyDigits } from "@/lib/cpf";
 
 const hash = (valor: string) => createHash("sha256").update(valor).digest("hex");
 const hashIdentificador = (valor: string) => hash(valor.trim().toLowerCase());
 const urlBase = () => process.env["SITE_URL"] || "https://www.controlall.com.br";
+
+type MotivoFalhaLogin =
+  | "usuario_nao_cadastrado"
+  | "senha_incorreta"
+  | "conta_bloqueada"
+  | "conta_inativa"
+  | "cpf_invalido"
+  | "modo_login_nao_permitido"
+  | "outro";
+
+/**
+ * Registra QUALQUER tentativa de login com erro (mesmo a primeira) em
+ * `login_falhas_log`: o que a pessoa digitou (nunca a senha), o motivo, o IP e
+ * a localização aproximada (cabeçalhos da Vercel, sem serviço externo).
+ * Nunca derruba o login: erro de gravação é ignorado.
+ */
+async function registrarFalhaLoginDetalhada(
+  db: any,
+  p: {
+    identificador: string;
+    motivo: MotivoFalhaLogin;
+    userId?: string | null;
+    tentativas?: number | null;
+    bloqueou?: boolean;
+  },
+) {
+  try {
+    const h = getRequest().headers;
+    const ip =
+      h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || null;
+    const decodificar = (v: string | null) => {
+      if (!v) return null;
+      try {
+        return decodeURIComponent(v);
+      } catch {
+        return v;
+      }
+    };
+    const ident = p.identificador.trim().slice(0, 160);
+    await db.from("login_falhas_log").insert({
+      identificador: ident,
+      tipo_identificador: ident.includes("@") ? "email" : /\d/.test(ident) ? "cpf" : "desconhecido",
+      motivo: p.motivo,
+      ip,
+      cidade: decodificar(h.get("x-vercel-ip-city")),
+      regiao: decodificar(h.get("x-vercel-ip-country-region")),
+      pais: h.get("x-vercel-ip-country"),
+      user_agent: h.get("user-agent")?.slice(0, 300) ?? null,
+      user_id: p.userId ?? null,
+      tentativas: p.tentativas ?? null,
+      bloqueou: !!p.bloqueou,
+    });
+  } catch {
+    // Não crítico: o log nunca pode impedir a resposta do login.
+  }
+}
 
 export const iniciarLoginSeguro = createServerFn({ method: "POST" })
   .inputValidator((v: unknown) =>
@@ -30,27 +87,53 @@ export const iniciarLoginSeguro = createServerFn({ method: "POST" })
     if (
       tentativaAtual?.bloqueado_ate &&
       new Date(tentativaAtual.bloqueado_ate).getTime() > Date.now()
-    )
+    ) {
+      await registrarFalhaLoginDetalhada(db, {
+        identificador: data.identificador,
+        motivo: "conta_bloqueada",
+        bloqueou: true,
+      });
       throw new Error("LOGIN_BLOQUEADO");
+    }
     const { data: config } = await db
       .from("configuracoes_acesso_site")
       .select("modo_login,segundo_fator_email,sessao_maxima_minutos")
       .eq("id", true)
       .single();
     const porEmail = data.identificador.includes("@");
-    if (config.modo_login === "cpf" && porEmail) throw new Error("LOGIN_MODO_CPF");
-    if (config.modo_login === "email" && !porEmail) throw new Error("LOGIN_MODO_EMAIL");
+    if (
+      (config.modo_login === "cpf" && porEmail) ||
+      (config.modo_login === "email" && !porEmail)
+    ) {
+      await registrarFalhaLoginDetalhada(db, {
+        identificador: data.identificador,
+        motivo: "modo_login_nao_permitido",
+      });
+      throw new Error(config.modo_login === "cpf" ? "LOGIN_MODO_CPF" : "LOGIN_MODO_EMAIL");
+    }
     let email = data.identificador.toLowerCase();
     if (!porEmail) {
       const cpf = onlyDigits(data.identificador);
-      if (!isValidCpf(cpf)) throw new Error("CPF inválido.");
+      if (!isValidCpf(cpf)) {
+        await registrarFalhaLoginDetalhada(db, {
+          identificador: data.identificador,
+          motivo: "cpf_invalido",
+        });
+        throw new Error("CPF inválido.");
+      }
       const { data: perfil } = await db
         .from("profiles")
         .select("email")
         .eq("cpf", cpf)
         .eq("ativo", true)
         .maybeSingle();
-      if (!perfil?.email) throw new Error("Credenciais incorretas.");
+      if (!perfil?.email) {
+        await registrarFalhaLoginDetalhada(db, {
+          identificador: data.identificador,
+          motivo: "usuario_nao_cadastrado",
+        });
+        throw new Error("Credenciais incorretas.");
+      }
       email = perfil.email.toLowerCase();
     }
     const { createClient } = await import("@supabase/supabase-js");
@@ -71,6 +154,22 @@ export const iniciarLoginSeguro = createServerFn({ method: "POST" })
         p_sucesso: false,
       });
       const retorno = Array.isArray(tentativa) ? tentativa[0] : tentativa;
+      // Distingue "usuário não cadastrado" de "senha incorreta" só no LOG
+      // (a mensagem mostrada à pessoa continua genérica, sem revelar contas).
+      const emailBusca = email.replace(/[\\%_]/g, (c) => `\\${c}`);
+      const { data: existente } = await db
+        .from("profiles")
+        .select("id")
+        .ilike("email", emailBusca)
+        .limit(1)
+        .maybeSingle();
+      await registrarFalhaLoginDetalhada(db, {
+        identificador: data.identificador,
+        motivo: existente ? "senha_incorreta" : "usuario_nao_cadastrado",
+        userId: existente?.id ?? null,
+        tentativas: retorno?.tentativas ?? null,
+        bloqueou: !!retorno?.bloqueado_ate,
+      });
       // Registrar tentativa de login com falha no audit log
       try {
         await db.from("admin_audit_logs").insert({
@@ -92,7 +191,14 @@ export const iniciarLoginSeguro = createServerFn({ method: "POST" })
       .select("ativo,senha_temporaria")
       .eq("id", auth.user.id)
       .maybeSingle();
-    if (!perfil?.ativo) throw new Error("Usuário inativo. Fale com um administrador.");
+    if (!perfil?.ativo) {
+      await registrarFalhaLoginDetalhada(db, {
+        identificador: data.identificador,
+        motivo: "conta_inativa",
+        userId: auth.user.id,
+      });
+      throw new Error("Usuário inativo. Fale com um administrador.");
+    }
     await db.rpc("registrar_tentativa_login", {
       p_hash: identificadorHash,
       p_sucesso: true,

@@ -43,11 +43,11 @@ export async function lerPlanilhaDePara(file: File): Promise<LinhaDePara[]> {
   let matriz: unknown[][];
   if (nome.endsWith(".xlsx")) {
     matriz = await readSheet(file);
-  } else if (nome.endsWith(".csv")) {
+  } else if (nome.endsWith(".csv") || nome.endsWith(".txt")) {
     matriz = lerCsv(await file.text());
   } else {
     throw new Error(
-      "Use um arquivo .xlsx ou .csv. Para .xls, exporte como .xlsx antes de importar.",
+      "Use um arquivo .xlsx, .csv ou .txt. Para .xls, exporte como .xlsx antes de importar.",
     );
   }
   if (matriz.length > 10001) throw new Error("A planilha pode ter no máximo 10 mil linhas.");
@@ -84,8 +84,11 @@ export async function lerPlanilhaDePara(file: File): Promise<LinhaDePara[]> {
 /** Reaproveitado também pelo import de planilha genérica (Etapa E). */
 export function lerCsv(conteudo: string): string[][] {
   const primeiraLinha = conteudo.split(/\r?\n/, 1)[0] ?? "";
-  const separador =
-    (primeiraLinha.match(/;/g)?.length ?? 0) > (primeiraLinha.match(/,/g)?.length ?? 0) ? ";" : ",";
+  const nTab = primeiraLinha.match(/\t/g)?.length ?? 0;
+  const nPv = primeiraLinha.match(/;/g)?.length ?? 0;
+  const nVir = primeiraLinha.match(/,/g)?.length ?? 0;
+  // TXT exportado pelo site usa TAB; CSV brasileiro costuma usar ponto e vírgula.
+  const separador = nTab > nPv && nTab > nVir ? "\t" : nPv > nVir ? ";" : ",";
   const linhas: string[][] = [];
   let linha: string[] = [];
   let campo = "";
@@ -125,3 +128,11 @@ export function modeloCsv(): string {
     "Uber,Transporte,Aplicativos",
   ].join("\n");
 }
+
+/** Cabeçalho e linhas de exemplo do modelo (Excel e TXT) do De-Para. */
+export const CABECALHO_DEPARA = ["descricao", "categoria", "subcategoria"];
+export const EXEMPLOS_DEPARA: string[][] = [
+  ["Netflix", "Assinaturas / Serviços Digitais", "Streaming"],
+  ["ChatGPT", "Assinaturas / Serviços Digitais / IA", "IA"],
+  ["Uber", "Transporte", "Aplicativos"],
+];

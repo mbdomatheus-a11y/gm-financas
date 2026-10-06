@@ -1,6 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { CalendarClock, CalendarPlus, Info, Syringe, Timer } from "lucide-react";
 
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { obterAvisoCalculadora } from "@/lib/aviso-calculadora.functions";
 import { AppLayout } from "@/components/AppLayout";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,12 +32,16 @@ export const Route = createFileRoute("/_authenticated/ferramentas")({
 });
 
 function FerramentasPage() {
+  const obterAviso = useServerFn(obterAvisoCalculadora);
+  const { data: aviso } = useQuery({ queryKey: ["aviso-calculadora"], queryFn: () => obterAviso() });
+  const mostrarAviso = aviso?.exibir ?? false;
   return (
     <AppLayout
       title="Calculadora"
       description="Ferramentas de uso geral — sem relação com seus dados financeiros."
     >
       <div className="space-y-6">
+        {mostrarAviso && (
         <Card className="border-primary/30 bg-primary/5">
           <CardContent className="flex items-start gap-3 p-4">
             <Info className="mt-0.5 size-4.5 shrink-0 text-primary" />
@@ -56,6 +63,7 @@ function FerramentasPage() {
             </div>
           </CardContent>
         </Card>
+        )}
 
         <Card>
           <CardHeader>

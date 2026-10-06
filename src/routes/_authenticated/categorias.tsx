@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Pencil, Plus, Tags, Trash2 } from "lucide-react";
+import { Download, Pencil, Plus, Tags, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -21,6 +21,13 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useCategorias } from "@/hooks/useFinance";
 import { usePermissoes } from "@/hooks/useAuthData";
+import { baixarTxt, baixarXlsx } from "@/lib/exportar-planilha";
+import {
+  CABECALHO_CATEGORIAS,
+  lerPlanilhaCategorias,
+  linhasListaSugerida,
+  linhasMinhasCategorias,
+} from "@/lib/categorias-planilha";
 
 export const Route = createFileRoute("/_authenticated/categorias")({
   head: () => ({
@@ -70,6 +77,38 @@ function CategoriasPage() {
   const [form, setForm] = useState({ nome: "", cor: CORES[0] });
 
   const podeEditar = can("despesas", "editar") || can("receitas", "editar");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  async function importar(file: File | undefined) {
+    if (!file) return;
+    try {
+      const linhas = await lerPlanilhaCategorias(file, tipo);
+      if (linhas.length === 0) {
+        toast.error("Nenhuma categoria encontrada no arquivo.");
+        return;
+      }
+      const { data: existentes, error: e1 } = await supabase.from("categorias").select("nome,tipo");
+      if (e1) throw e1;
+      const ja = new Set(
+        (existentes ?? []).map((c: any) => `${c.tipo}:${String(c.nome).toLowerCase()}`),
+      );
+      const novas = linhas
+        .filter((l) => !ja.has(`${l.tipo}:${l.nome.toLowerCase()}`))
+        .map((l, i) => ({ nome: l.nome, tipo: l.tipo, cor: l.cor ?? CORES[i % CORES.length]! }));
+      if (novas.length === 0) {
+        toast.info("Todas as categorias do arquivo já existem.");
+        return;
+      }
+      const { error } = await supabase.from("categorias").insert(novas);
+      if (error) throw error;
+      qc.invalidateQueries({ queryKey: ["categorias"] });
+      toast.success(`${novas.length} categoria(s) criada(s). ${linhas.length - novas.length} já existiam.`);
+    } catch (e: any) {
+      toast.error(e?.message ?? "Não foi possível importar o arquivo.");
+    } finally {
+      if (inputRef.current) inputRef.current.value = "";
+    }
+  }
 
   function abrirNova() {
     setEditId(null);
@@ -135,6 +174,45 @@ function CategoriasPage() {
           </TabsTrigger>
         </TabsList>
       </Tabs>
+
+      <Card className="mt-4">
+        <CardContent className="space-y-2 p-4">
+          <p className="text-sm font-medium">Baixar, editar e enviar de volta</p>
+          <p className="text-xs text-muted-foreground">
+            Baixe a lista sugerida completa do site (ou as suas categorias), edite no Excel ou no
+            bloco de notas e envie o arquivo. Só as categorias novas são criadas; as que já existem
+            não são alteradas nem duplicadas. A coluna "subcategoria" serve de referência.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={() => baixarXlsx("categorias-sugeridas", CABECALHO_CATEGORIAS, linhasListaSugerida())}>
+              <Download className="size-4" /> Lista sugerida (Excel)
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => baixarTxt("categorias-sugeridas", CABECALHO_CATEGORIAS, linhasListaSugerida())}>
+              <Download className="size-4" /> Lista sugerida (TXT)
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => baixarXlsx(`minhas-categorias-${tipo}`, CABECALHO_CATEGORIAS, linhasMinhasCategorias(categorias as any[], tipo))}>
+              <Download className="size-4" /> Minhas (Excel)
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => baixarTxt(`minhas-categorias-${tipo}`, CABECALHO_CATEGORIAS, linhasMinhasCategorias(categorias as any[], tipo))}>
+              <Download className="size-4" /> Minhas (TXT)
+            </Button>
+            {podeEditar && (
+              <>
+                <Button size="sm" onClick={() => inputRef.current?.click()}>
+                  <Upload className="size-4" /> Enviar arquivo
+                </Button>
+                <input
+                  ref={inputRef}
+                  type="file"
+                  accept=".xlsx,.csv,.txt,text/csv,text/plain"
+                  className="hidden"
+                  onChange={(e) => void importar(e.target.files?.[0])}
+                />
+              </>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="mt-4">
         {categorias.length === 0 ? (

@@ -1,3 +1,4 @@
+import { PerfilFinanceiroTelaCheia } from "@/components/PerfilFinanceiroTelaCheia";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -605,6 +606,7 @@ function ListaComprasPage() {
         </div>
       }
     >
+      <PerfilFinanceiroTelaCheia />
       {/* Gamificação compacta: o card completo (com as perguntas) fica no Início */}
       {!gam.respondido ? (
         <p className="mb-4 rounded-lg border border-dashed p-3 text-xs text-muted-foreground">

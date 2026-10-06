@@ -45,6 +45,8 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { AlertsBell } from "@/components/AlertsBell";
+import { CalculadoraRapida } from "@/components/CalculadoraRapida";
+import { ConviteRapidoBotao } from "@/components/ConviteAmigosBanner";
 import { BrandMark } from "@/components/BrandMark";
 import { BotaoLancamentoRapido } from "@/components/LancamentoRapido/BotaoLancamentoRapido";
 import { obterUsoOracleDoMeuGrupo } from "@/lib/oracle-admin.functions";
@@ -531,8 +533,19 @@ export function AppLayout({
               >
                 {ocultarValores ? <EyeOff className="size-4.5" /> : <Eye className="size-4.5" />}
               </Button>
+              <CalculadoraRapida />
+              <ConviteRapidoBotao />
               <AlertsBell />
               {actions}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={signOut}
+                aria-label="Sair"
+                title="Sair"
+              >
+                <LogOut className="size-4.5" />
+              </Button>
             </div>
           </div>
 
@@ -602,7 +615,7 @@ export function AppLayout({
           (2026-10-01): botão flutuante acessível de qualquer tela
           autenticada, não escondido dentro dos formulários de
           despesas/receitas. Ver claude/plano-lancamento-ia-2026-10-01.md. */}
-      <BotaoLancamentoRapido />
+      {mundoId === "financas" && <BotaoLancamentoRapido />}
     </div>
   );
 }

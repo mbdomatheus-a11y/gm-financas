@@ -19,10 +19,10 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
-import { useProfile, usePermissoes } from "@/hooks/useAuthData";
+import { ExcluirContaCard } from "@/components/ExcluirContaCard";
+import { useProfile, usePermissoes, useModulosGlobais } from "@/hooks/useAuthData";
 import { maskCpf, onlyDigits } from "@/lib/cpf";
 import { useServerFn } from "@tanstack/react-start";
-import { excluirMinhaConta } from "@/lib/conta-exclusao.functions";
 import { alterarMinhaSenha, atualizarMeusDados } from "@/lib/seguranca-conta.functions";
 import { aceitarConviteGrupo, convidarParaMeuGrupo } from "@/lib/grupos.functions";
 import { usePreferencias } from "@/hooks/usePreferencias";
@@ -59,18 +59,17 @@ function ContaPage() {
   const qc = useQueryClient();
   const { data: perfil } = useProfile();
   const { isAdmin, isSiteAdmin } = usePermissoes();
+  // Item 13 (2026-10-05): a opção de destaque do Veículo só existe se o módulo
+  // Veículo estiver ativo para quem está logado (admin vê o mesmo que o usuário).
+  const { habilitado: moduloHabilitado } = useModulosGlobais();
+  const moduloVeiculoAtivo = moduloHabilitado("veiculo");
   const [senhaAtual, setSenhaAtual] = useState("");
   const [senha, setSenha] = useState("");
   const [confirma, setConfirma] = useState("");
-  const excluirConta = useServerFn(excluirMinhaConta);
   const alterarSenha = useServerFn(alterarMinhaSenha);
   const convidarGrupo = useServerFn(convidarParaMeuGrupo);
   const aceitarGrupo = useServerFn(aceitarConviteGrupo);
   const [emailGrupo, setEmailGrupo] = useState("");
-  const [dialogExclusao, setDialogExclusao] = useState(false);
-  const [modoExclusao, setModoExclusao] = useState<"recuperavel" | "definitiva">("recuperavel");
-  const [confirmacao1, setConfirmacao1] = useState("");
-  const [confirmacao2, setConfirmacao2] = useState("");
 
   const atualizarDados = useServerFn(atualizarMeusDados);
   const [editandoDados, setEditandoDados] = useState(false);
@@ -198,24 +197,6 @@ function ContaPage() {
       window.location.assign("/inicio");
     },
     onError: (e) => toast.error(e.message),
-  });
-
-  const excluir = useMutation({
-    mutationFn: () =>
-      excluirConta({
-        data: {
-          modo: modoExclusao,
-          confirmacao1: confirmacao1 as "DELETAR",
-          confirmacao2: confirmacao2 as "Confirmo Delete",
-        },
-      }),
-    onSuccess: async () => {
-      await qc.cancelQueries();
-      qc.clear();
-      await supabase.auth.signOut();
-      navigate({ to: "/entrar", replace: true });
-    },
-    onError: (e: any) => toast.error(e.message ?? "Não foi possível excluir a conta"),
   });
 
   async function sair() {
@@ -478,6 +459,7 @@ function ContaPage() {
           </CardContent>
         </Card>
 
+        {moduloVeiculoAtivo && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-sm">
@@ -497,6 +479,7 @@ function ContaPage() {
             </div>
           </CardContent>
         </Card>
+        )}
 
         <Card>
           <CardHeader>
@@ -542,76 +525,9 @@ function ContaPage() {
         <ConvitesCard />
         {isSiteAdmin && <PermissoesUsuariosCard compact />}
 
-        <Card className="border-destructive/30 lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-sm text-destructive">
-              <Trash2 className="size-4" /> Excluir minha conta
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <p className="text-sm text-muted-foreground">
-              Ao excluir, seu acesso é encerrado e seus dados pessoais ficam disponíveis para
-              recuperação por até 90 dias. Lançamentos compartilhados permanecem para os demais
-              membros do grupo. A administração do site não pode excluir a própria conta.
-            </p>
-            <Button
-              variant="destructive"
-              disabled={isSiteAdmin}
-              title={
-                isSiteAdmin ? "A administração do site não pode excluir a própria conta" : undefined
-              }
-              onClick={() => setDialogExclusao(true)}
-            >
-              Excluir minha conta
-            </Button>
-          </CardContent>
-        </Card>
+        <ExcluirContaCard className="border-destructive/30 lg:col-span-2" />
       </div>
 
-      <Dialog open={dialogExclusao} onOpenChange={setDialogExclusao}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Confirmar exclusão da conta</DialogTitle>
-            <DialogDescription>Esta ação encerra seu acesso imediatamente.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Button
-                variant={modoExclusao === "recuperavel" ? "default" : "outline"}
-                onClick={() => setModoExclusao("recuperavel")}
-              >
-                Guardar por 90 dias
-              </Button>
-              <p className="text-xs text-muted-foreground">
-                A exclusão irreversível ficará disponível após a validação da limpeza de todos os
-                arquivos e vínculos do grupo.
-              </p>
-            </div>
-            <Field label='Digite "DELETAR"'>
-              <Input value={confirmacao1} onChange={(e) => setConfirmacao1(e.target.value)} />
-            </Field>
-            <Field label='Digite "Confirmo Delete"'>
-              <Input value={confirmacao2} onChange={(e) => setConfirmacao2(e.target.value)} />
-            </Field>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogExclusao(false)}>
-              Cancelar
-            </Button>
-            <Button
-              variant="destructive"
-              disabled={
-                confirmacao1 !== "DELETAR" ||
-                confirmacao2 !== "Confirmo Delete" ||
-                excluir.isPending
-              }
-              onClick={() => excluir.mutate()}
-            >
-              Excluir conta
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </AppLayout>
   );
 }

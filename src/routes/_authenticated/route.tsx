@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { InactivityGuard } from "@/components/InactivityGuard";
 import { ComunicadosModal } from "@/components/ComunicadosModal";
+import { ConviteAposTresDias } from "@/components/ConviteAmigosBanner";
 import { TourGuiado } from "@/components/TourGuiado";
 import { useModulosGlobais, type ModuloGlobal } from "@/hooks/useAuthData";
 
@@ -72,6 +73,7 @@ function Protegido() {
     <InactivityGuard>
       <ComunicadosModal onVisibilityChange={setAvisoAberto} />
       <TourGuiado bloqueado={avisoAberto} />
+      <ConviteAposTresDias bloqueado={avisoAberto} />
       <Outlet />
     </InactivityGuard>
   );

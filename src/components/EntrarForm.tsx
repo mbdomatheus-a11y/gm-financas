@@ -313,8 +313,6 @@ export function EntrarForm({
         </Link>
       ) : null}
 
-      <SocialAuthButtons next={next} />
-
       <p className="text-center text-[11px] text-muted-foreground pt-1">
         Conta antiga criada por CPF? Você pode entrar digitando seu CPF ou e-mail normalmente.
       </p>

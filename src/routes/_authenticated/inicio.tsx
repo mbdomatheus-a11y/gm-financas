@@ -23,6 +23,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { VisaoGeralHome } from "@/components/VisaoGeralHome";
 import { GamificacaoFinanceira } from "@/components/GamificacaoFinanceira";
+import { EducacaoFinanceira } from "@/components/EducacaoFinanceira";
 import { useModulosGlobais, usePermissoes } from "@/hooks/useAuthData";
 import { useVeiculos } from "@/hooks/useFinance";
 import { usePreferencias } from "@/hooks/usePreferencias";
@@ -209,6 +210,10 @@ function InicioPage() {
           </div>
         </div>
       )}
+
+      <div className="mt-8">
+        <EducacaoFinanceira />
+      </div>
     </AppLayout>
   );
 }

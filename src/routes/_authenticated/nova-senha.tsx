@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { KeyRound, Loader2 } from "lucide-react";
+import { KeyRound, Loader2, LogOut } from "lucide-react";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -95,6 +95,17 @@ function NovaSenhaPage() {
           Salvar e continuar
         </Button>
       </form>
+      <Button
+        type="button"
+        variant="ghost"
+        className="fixed right-3 top-3 gap-2 text-muted-foreground"
+        onClick={async () => {
+          await supabase.auth.signOut();
+          navigate({ to: "/entrar", replace: true });
+        }}
+      >
+        <LogOut className="size-4" /> Sair
+      </Button>
     </main>
   );
 }

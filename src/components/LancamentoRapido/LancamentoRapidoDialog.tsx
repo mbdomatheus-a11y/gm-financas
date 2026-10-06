@@ -205,6 +205,9 @@ export function LancamentoRapidoDialog({
 
   const [texto, setTexto] = useState("");
   const [gravando, setGravando] = useState(false);
+  // Item 8 (2026-10-05): o mesmo gravador serve a aba "Lançar" e a aba
+  // "Perguntar/Resumir" (resumo mensal e cálculos por voz).
+  const destinoAudioRef = useRef<"lancar" | "resumo">("lancar");
   const [transcrevendo, setTranscrevendo] = useState(false);
   const [interpretando, setInterpretando] = useState(false);
   const [rascunho, setRascunho] = useState<RascunhoIA | null>(null);
@@ -240,7 +243,8 @@ export function LancamentoRapidoDialog({
     onOpenChange(false);
   }
 
-  async function iniciarGravacao() {
+  async function iniciarGravacao(destino: "lancar" | "resumo" = "lancar") {
+    destinoAudioRef.current = destino;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const tipo = ["audio/webm", "audio/mp4", "audio/ogg"].find((t) =>
@@ -297,8 +301,17 @@ export function LancamentoRapidoDialog({
         toast.error(resultado.erro);
         return;
       }
-      setTexto((atual) => (atual ? `${atual} ${resultado.texto}` : resultado.texto));
-      setTextoLiberadoPorAudio(true);
+      if (destinoAudioRef.current === "resumo") {
+        setPerguntaResumo((atual) =>
+          (atual ? `${atual} ${resultado.texto}` : resultado.texto).slice(
+            0,
+            LIMITE_CARACTERES_TEXTO_IA,
+          ),
+        );
+      } else {
+        setTexto((atual) => (atual ? `${atual} ${resultado.texto}` : resultado.texto));
+        setTextoLiberadoPorAudio(true);
+      }
     } catch {
       toast.error("Falha ao transcrever o áudio. Você pode digitar em vez disso.");
     } finally {
@@ -651,7 +664,32 @@ export function LancamentoRapidoDialog({
                 rows={2}
                 disabled={resumindo}
               />
-              <Button type="button" size="sm" onClick={resumir} disabled={resumindo}>
+              <p className="text-xs text-muted-foreground">
+                Dá pra falar em vez de digitar: grave um áudio pedindo o resumo do mês ou um
+                cálculo (ex.: <em>"quanto sobra se eu pagar a fatura do Nubank?"</em>).
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+              {!gravando ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void iniciarGravacao("resumo")}
+                  disabled={transcrevendo || resumindo || !audioPermitido}
+                >
+                  <Mic className="size-4" /> Gravar pergunta
+                </Button>
+              ) : (
+                <Button type="button" variant="destructive" size="sm" onClick={pararGravacao}>
+                  <Square className="size-4" /> Parar gravação
+                </Button>
+              )}
+              {transcrevendo && (
+                <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Loader2 className="size-3.5 animate-spin" /> Transcrevendo áudio…
+                </span>
+              )}
+              <Button type="button" size="sm" onClick={resumir} disabled={resumindo || gravando || transcrevendo}>
                 {resumindo ? (
                   <Loader2 className="size-4 animate-spin" />
                 ) : (
@@ -659,6 +697,7 @@ export function LancamentoRapidoDialog({
                 )}
                 {perguntaResumo.trim() ? "Perguntar à IA" : "Resumir meu mês"}
               </Button>
+              </div>
               {respostaResumo && (
                 <div className="rounded-lg border bg-muted/40 p-3 text-sm whitespace-pre-wrap">
                   {respostaResumo}
@@ -691,7 +730,7 @@ export function LancamentoRapidoDialog({
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={iniciarGravacao}
+                      onClick={() => void iniciarGravacao("lancar")}
                       disabled={transcrevendo}
                     >
                       <Mic className="size-4" /> Gravar áudio

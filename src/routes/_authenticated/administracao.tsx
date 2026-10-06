@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { LogPainel } from "@/components/LogPainel";
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -23,6 +24,7 @@ import {
   adminReenviarComunicado,
   adminListarLayouts,
   adminListarLogs,
+  adminListarFalhasLogin,
   adminMetricas,
   adminObterLayoutUrl,
 } from "@/lib/admin-avancado.functions";
@@ -42,6 +44,7 @@ import {
   adminReenviarTour,
 } from "@/lib/tour.functions";
 import { IaLancamentoModoSiteCard } from "@/components/IaLancamentoModoSiteCard";
+import { AvisoCalculadoraAdminCard } from "@/components/AvisoCalculadoraAdminCard";
 import { TelaInicialPadraoCard } from "@/components/TelaInicialPadraoCard";
 import {
   adminListarSolicitacoesPrivacidade,
@@ -102,6 +105,16 @@ export const Route = createFileRoute("/_authenticated/administracao")({
   component: Admin,
 });
 
+const MOTIVOS_FALHA_LOGIN: Record<string, string> = {
+  usuario_nao_cadastrado: "Usuário não cadastrado",
+  senha_incorreta: "Senha incorreta",
+  conta_bloqueada: "Conta bloqueada (tentativas)",
+  conta_inativa: "Conta inativa",
+  cpf_invalido: "CPF inválido",
+  modo_login_nao_permitido: "Forma de login não permitida",
+  outro: "Outro",
+};
+
 function formatarTamanho(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -157,6 +170,7 @@ function Admin() {
   const layoutsFn = useServerFn(adminListarLayouts);
   const metricsFn = useServerFn(adminMetricas);
   const logsFn = useServerFn(adminListarLogs);
+  const falhasLoginFn = useServerFn(adminListarFalhasLogin);
   const atualizarFn = useServerFn(adminAtualizarLayout);
   const obterLayoutUrl = useServerFn(adminObterLayoutUrl);
   const criarComunicadoFn = useServerFn(adminCriarComunicado);
@@ -298,6 +312,11 @@ function Admin() {
     queryKey: ["admin-logs"],
     enabled: isSiteAdmin,
     queryFn: () => logsFn(),
+  });
+  const { data: falhasLogin = [] } = useQuery({
+    queryKey: ["admin-falhas-login"],
+    enabled: isSiteAdmin,
+    queryFn: () => falhasLoginFn(),
   });
   const { data: config } = useQuery<{ modo_login: "cpf" | "email" | "ambos"; segundo_fator_email: boolean; sessao_maxima_minutos: number; cota_convites: number; google_drive_habilitado: boolean; cadastro_livre_habilitado: boolean } | undefined>({
     queryKey: ["configuracao-acesso-publica"],
@@ -1159,12 +1178,55 @@ function Admin() {
             </Card>
           )}
           <IaLancamentoModoSiteCard />
+          <AvisoCalculadoraAdminCard />
           <TelaInicialPadraoCard />
           <Card>
             <CardHeader><CardTitle className="text-sm">Log de tentativas de login</CardTitle></CardHeader>
-            <CardContent>
-              <p className="text-xs text-muted-foreground mb-3">Identificadores com falhas de acesso registradas pelo sistema.</p>
-              <p className="text-sm text-muted-foreground">Bloqueios automáticos ocorrem após 3 tentativas falhas consecutivas (15 min).</p>
+            <CardContent className="space-y-3">
+              <p className="text-xs text-muted-foreground">
+                Toda tentativa de login com erro é registrada (mesmo a primeira), com o que foi digitado
+                (nunca a senha), o motivo, o IP e a localização aproximada. Bloqueios automáticos ocorrem
+                após 3 tentativas falhas consecutivas (15 min).
+              </p>
+              <LogPainel
+                itens={falhasLogin as any[]}
+                getData={(f: any) => f.criado_em}
+                getChave={(f: any) => f.id}
+                nomeArquivo="falhas-de-login"
+                vazio="Nenhuma tentativa de login com erro registrada."
+                colunas={[
+                  { titulo: "Data/hora", valor: (f: any) => new Date(f.criado_em).toLocaleString("pt-BR") },
+                  { titulo: "Identificador digitado", valor: (f: any) => f.identificador },
+                  { titulo: "Tipo", valor: (f: any) => f.tipo_identificador },
+                  { titulo: "Motivo", valor: (f: any) => MOTIVOS_FALHA_LOGIN[f.motivo] ?? f.motivo },
+                  { titulo: "IP", valor: (f: any) => f.ip },
+                  { titulo: "Cidade", valor: (f: any) => f.cidade },
+                  { titulo: "Região", valor: (f: any) => f.regiao },
+                  { titulo: "País", valor: (f: any) => f.pais },
+                  { titulo: "Tentativas seguidas", valor: (f: any) => f.tentativas },
+                  { titulo: "Bloqueou a conta", valor: (f: any) => (f.bloqueou ? "Sim" : "Não") },
+                  { titulo: "Navegador", valor: (f: any) => f.user_agent },
+                ]}
+                renderItem={(f: any) => (
+                  <div className="rounded-lg border px-3 py-2 text-xs">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="rounded bg-rose-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-rose-600">
+                        {MOTIVOS_FALHA_LOGIN[f.motivo] ?? f.motivo}
+                      </span>
+                      <span className="font-mono">{f.identificador}</span>
+                      {f.bloqueou && (
+                        <span className="rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-amber-600">
+                          Conta bloqueada
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-1 text-muted-foreground">
+                      {new Date(f.criado_em).toLocaleString("pt-BR")} · IP {f.ip ?? "n/d"}
+                      {f.cidade ? ` · ${f.cidade}${f.regiao ? `/${f.regiao}` : ""}${f.pais ? ` (${f.pais})` : ""}` : ""}
+                    </p>
+                  </div>
+                )}
+              />
             </CardContent>
           </Card>
         </TabsContent>
@@ -1710,12 +1772,22 @@ function Admin() {
           {comunicados.filter((c: any) => !c.ativo).length > 0 && (
             <Card>
               <CardHeader><CardTitle className="text-sm">Histórico de avisos</CardTitle></CardHeader>
-              <CardContent className="space-y-2 max-h-60 overflow-auto">
-                {comunicados.filter((c: any) => !c.ativo).map((c: any) => (
-                  <div key={c.id} className="border-b py-2 text-xs text-muted-foreground">
-                    <b className="text-foreground">{c.titulo}</b> · encerrado · {new Date(c.criado_em).toLocaleString("pt-BR")}
-                  </div>
-                ))}
+              <CardContent>
+                <LogPainel
+                  itens={comunicados.filter((c: any) => !c.ativo) as any[]}
+                  getData={(c: any) => c.criado_em}
+                  getChave={(c: any) => c.id}
+                  nomeArquivo="historico-de-avisos"
+                  colunas={[
+                    { titulo: "Título", valor: (c: any) => c.titulo },
+                    { titulo: "Criado em", valor: (c: any) => new Date(c.criado_em).toLocaleString("pt-BR") },
+                  ]}
+                  renderItem={(c: any) => (
+                    <div className="border-b py-2 text-xs text-muted-foreground">
+                      <b className="text-foreground">{c.titulo}</b> · encerrado · {new Date(c.criado_em).toLocaleString("pt-BR")}
+                    </div>
+                  )}
+                />
               </CardContent>
             </Card>
           )}
@@ -1916,12 +1988,23 @@ function Admin() {
                 />
               </div>
             </CardHeader>
-            <CardContent className="max-h-[600px] overflow-auto space-y-1">
-              {logsVisiveis.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Nenhum evento registrado.</p>
-              ) : (
-                logsVisiveis.map((l: any) => (
-                  <details key={l.id} className="group rounded-lg border px-3 py-2 text-xs">
+            <CardContent>
+              <LogPainel
+                itens={logsVisiveis as any[]}
+                getData={(l: any) => l.criado_em}
+                getChave={(l: any) => l.id}
+                nomeArquivo="log-administrativo"
+                vazio="Nenhum evento registrado."
+                colunas={[
+                  { titulo: "Data/hora", valor: (l: any) => new Date(l.criado_em).toLocaleString("pt-BR") },
+                  { titulo: "Ação", valor: (l: any) => String(l.acao).replaceAll("_", " ") },
+                  { titulo: "Usuário", valor: (l: any) => l.profiles?.nome ?? l.profiles?.email ?? "Sistema" },
+                  { titulo: "IP", valor: (l: any) => l.detalhes?.ip },
+                  { titulo: "Cidade", valor: (l: any) => l.detalhes?.cidade },
+                  { titulo: "Detalhes", valor: (l: any) => (l.detalhes ? JSON.stringify(l.detalhes) : "") },
+                ]}
+                renderItem={(l: any) => (
+                  <details className="group rounded-lg border px-3 py-2 text-xs">
                     <summary className="flex cursor-pointer list-none items-start justify-between gap-2">
                       <div className="flex-1">
                         <span className="font-semibold capitalize">{l.acao.replaceAll("_", " ")}</span>
@@ -1945,8 +2028,8 @@ function Admin() {
                       </div>
                     )}
                   </details>
-                ))
-              )}
+                )}
+              />
             </CardContent>
           </Card>
         </TabsContent>

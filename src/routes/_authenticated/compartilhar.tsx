@@ -16,6 +16,7 @@ import {
 import { toast } from "sonner";
 
 import { AppLayout } from "@/components/AppLayout";
+import { ConviteRapidoBotao } from "@/components/ConviteAmigosBanner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -210,6 +211,9 @@ function CompartilharPage() {
 
   return (
     <AppLayout title="Compartilhar" description="Gere um resumo pronto para compartilhar">
+      <div className="mb-3 flex justify-end">
+        <ConviteRapidoBotao comTexto />
+      </div>
       <Tabs defaultValue="financas" className="space-y-4">
         <TabsList className="flex h-auto flex-wrap gap-1">
           <TabsTrigger value="financas" className="gap-1.5 text-xs">

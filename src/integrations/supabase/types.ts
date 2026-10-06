@@ -2342,6 +2342,8 @@ export type Database = {
           grupo_id: string | null;
           id: string;
           observacoes: string | null;
+          pagamento_id: string | null;
+          pagamento_tipo: string | null;
           status_captura: string;
           uf: string | null;
           updated_at: string;
@@ -2363,6 +2365,8 @@ export type Database = {
           grupo_id?: string | null;
           id?: string;
           observacoes?: string | null;
+          pagamento_id?: string | null;
+          pagamento_tipo?: string | null;
           status_captura?: string;
           uf?: string | null;
           updated_at?: string;
@@ -2384,6 +2388,8 @@ export type Database = {
           grupo_id?: string | null;
           id?: string;
           observacoes?: string | null;
+          pagamento_id?: string | null;
+          pagamento_tipo?: string | null;
           status_captura?: string;
           uf?: string | null;
           updated_at?: string;

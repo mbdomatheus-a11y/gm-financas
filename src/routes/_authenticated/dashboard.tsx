@@ -23,6 +23,7 @@ import {
   LineChart,
   Pie,
   PieChart,
+  ReferenceArea,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -100,6 +101,7 @@ const PALETA = [
 ];
 
 const JANELAS = [
+  { value: "m1p5", label: "Mês anterior + próximos 5" },
   { value: "-6", label: "Últimos 6 meses" },
   { value: "-12", label: "Últimos 12 meses" },
   { value: "6", label: "Próximos 6 meses" },
@@ -113,6 +115,12 @@ function monthWindow(janela: string): string[] {
   const n = Number(janela);
   const now = new Date();
   const out: string[] = [];
+  // Item 10 (2026-10-05): padrão do site = mês anterior, o atual e os 5 seguintes.
+  if (janela === "m1p5") {
+    for (let i = -1; i <= 5; i++)
+      out.push(monthKey(new Date(now.getFullYear(), now.getMonth() + i, 1)));
+    return out;
+  }
   if (n < 0) {
     for (let i = -n - 1; i >= 0; i--)
       out.push(monthKey(new Date(now.getFullYear(), now.getMonth() - i, 1)));
@@ -146,12 +154,17 @@ function monthRange(inicio: string, fim: string): string[] {
   return out;
 }
 
-const compact = (v: any) =>
-  Number(v) === 0
-    ? ""
-    : new Intl.NumberFormat("pt-BR", { notation: "compact", maximumFractionDigits: 1 }).format(
-        Number(v),
-      );
+// Item 10 (2026-10-05): rótulos abreviados nos pontos (21837,00 vira 21,8K); o valor
+// completo, com centavos, aparece no tooltip ao passar o mouse.
+const compact = (v: any) => {
+  const n = Number(v);
+  if (!n) return "";
+  const a = Math.abs(n);
+  const f = (x: number) => x.toLocaleString("pt-BR", { maximumFractionDigits: 1 });
+  if (a >= 1_000_000) return `${f(n / 1_000_000)}M`;
+  if (a >= 1_000) return `${f(n / 1_000)}K`;
+  return f(n);
+};
 
 type Agrupamento = "categoria" | "tipo" | "responsavel";
 
@@ -180,9 +193,10 @@ function DashboardPage() {
   // (Receitas/Despesas/Saldo/Parcelas do mês). Sem configuração, comporta-se
   // exatamente como antes (mês calendário normal).
   const mesAtual = useCompetenciaVigente();
-  const [janela, setJanela] = useState("-6");
-  const [mesInicioCustom, setMesInicioCustom] = useState(mesAtual);
-  const [mesFimCustom, setMesFimCustom] = useState(mesAtual);
+  // Item 10 (2026-10-05): a última opção escolhida fica salva neste navegador.
+  const [janela, setJanela] = usePersistedState("dashboard.janela", "m1p5");
+  const [mesInicioCustom, setMesInicioCustom] = usePersistedState("dashboard.mesInicioCustom", mesAtual);
+  const [mesFimCustom, setMesFimCustom] = usePersistedState("dashboard.mesFimCustom", mesAtual);
   // Item 3 (backlog 2026-09-27): preferências de exibição do gráfico
   // (fluxo/tipo) e do agrupamento lembradas por sessão (localStorage) e
   // restauradas quando o usuário volta pro Dashboard.
@@ -203,6 +217,16 @@ function DashboardPage() {
   const [editando, setEditando] = useState<any | null>(null);
   // Pedido 2 (2026-10-03): meses do card de alívio de parcelamentos que podem ser expandidos
   const [alivioExpandido, setAlivioExpandido] = useState<Record<string, boolean>>({});
+  // Item 2 (2026-10-05): itens marcados para somar na hora, sem calculadora externa.
+  const [alivioSel, setAlivioSel] = useState<Set<string>>(new Set());
+  function alternarAlivioSel(id: string) {
+    setAlivioSel((prev) => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+  }
 
   // Item 2 (backlog 2026-09-27): "Dívida total em aberto" nasce projetando
   // até a última parcela variável/parcelada que realmente existe nos dados
@@ -237,7 +261,7 @@ function DashboardPage() {
       const fim = mesInicioCustom <= mesFimCustom ? mesFimCustom : mesInicioCustom;
       return monthRange(inicio, fim);
     }
-    return monthWindow(janela);
+    return monthWindow(JANELAS.some((j) => j.value === janela) ? janela : "m1p5");
   }, [janela, mesInicioCustom, mesFimCustom]);
 
   // Janela usada para calcular parcelas/lançamentos por competência — cobre
@@ -553,6 +577,11 @@ function DashboardPage() {
   }, [receitasProjetadas, despesas, parcelas, cotacao, mesAtual, mesPie, meses, grupoDe]);
 
   // Pedido 3 (2026-10-03): O último mês do gráfico comanda o horizonte padrão da dívida
+  const mesAtualRotulo = useMemo(
+    () => (dados.meses as any[]).find((m) => m.key === mesAtual)?.mes as string | undefined,
+    [dados.meses, mesAtual],
+  );
+
   const mesFimGrafico = useMemo(() => {
     return meses[meses.length - 1] ?? mesAtual;
   }, [meses, mesAtual]);
@@ -832,6 +861,17 @@ function DashboardPage() {
                 <YAxis fontSize={11} tickLine={false} axisLine={false} width={60} />
                 <Tooltip formatter={(v: any, n: any) => [formatBRL(Number(v)), n]} />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
+                {mesAtualRotulo && (
+                  <ReferenceArea
+                    x1={mesAtualRotulo}
+                    x2={mesAtualRotulo}
+                    fill="var(--primary)"
+                    fillOpacity={0.1}
+                    stroke="var(--primary)"
+                    strokeOpacity={0.4}
+                    label={{ value: "atual", position: "insideTop", fontSize: 9, fill: "var(--primary)" }}
+                  />
+                )}
                 {visaoFluxo !== "despesas" && (
                   <Line
                     type="monotone"
@@ -839,7 +879,11 @@ function DashboardPage() {
                     stroke="var(--success)"
                     strokeWidth={3}
                     dot={{ r: 3 }}
-                  />
+                  >
+                    {dados.meses.length <= 12 && (
+                      <LabelList dataKey="Receitas" position="top" fontSize={9} formatter={compact} />
+                    )}
+                  </Line>
                 )}
                 {visaoFluxo !== "receitas" && (
                   <Line
@@ -848,7 +892,11 @@ function DashboardPage() {
                     stroke="var(--destructive)"
                     strokeWidth={3}
                     dot={{ r: 3 }}
-                  />
+                  >
+                    {dados.meses.length <= 12 && (
+                      <LabelList dataKey="Despesas" position="top" fontSize={9} formatter={compact} />
+                    )}
+                  </Line>
                 )}
                 <Line
                   type="monotone"
@@ -858,7 +906,11 @@ function DashboardPage() {
                   strokeWidth={3}
                   strokeDasharray="4 4"
                   dot={{ r: 3 }}
-                />
+                >
+                  {dados.meses.length <= 12 && (
+                    <LabelList dataKey="Saldo" position="bottom" fontSize={9} formatter={compact} />
+                  )}
+                </Line>
               </LineChart>
             ) : (
               <BarChart data={dados.meses} margin={{ top: 18 }}>
@@ -879,6 +931,17 @@ function DashboardPage() {
                   cursor={{ fill: "var(--muted)", opacity: 0.4 }}
                 />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
+                {mesAtualRotulo && (
+                  <ReferenceArea
+                    x1={mesAtualRotulo}
+                    x2={mesAtualRotulo}
+                    fill="var(--primary)"
+                    fillOpacity={0.1}
+                    stroke="var(--primary)"
+                    strokeOpacity={0.4}
+                    label={{ value: "atual", position: "insideTop", fontSize: 9, fill: "var(--primary)" }}
+                  />
+                )}
                 {visaoFluxo !== "despesas" && (
                   <Bar dataKey="Receitas" fill="var(--success)" radius={[6, 6, 0, 0]}>
                     {/* Bloco 3 (plano-mega 2026-09-14): mês além do atual vem com
@@ -956,10 +1019,35 @@ function DashboardPage() {
           <CardHeader className="space-y-0 pb-3">
             <CardTitle className="text-base">Parcelamentos que terminam</CardTitle>
             <p className="text-[11px] text-muted-foreground mt-1">
-              Quanto cada mês libera no orçamento quando parcelas terminam. Clique para ver os detalhes.
+              Quanto cada mês libera no orçamento quando parcelas terminam. Clique para ver os detalhes
+              e marque os itens que quiser para somar.
             </p>
           </CardHeader>
           <CardContent className="space-y-2">
+            {alivioSel.size > 0 && (
+              <div className="flex items-center justify-between gap-2 rounded-lg border border-success/40 bg-success/10 px-3 py-2 text-sm">
+                <span>
+                  {alivioSel.size} selecionado(s):{" "}
+                  <strong className="tabular-nums text-success">
+                    +
+                    {formatBRL(
+                      dados.alivioParcelamentos
+                        .flatMap((g) => g.itens)
+                        .filter((it) => alivioSel.has(it.id))
+                        .reduce((t, it) => t + it.valor, 0),
+                    )}
+                    /mês
+                  </strong>
+                </span>
+                <button
+                  type="button"
+                  className="text-xs underline text-muted-foreground"
+                  onClick={() => setAlivioSel(new Set())}
+                >
+                  Limpar
+                </button>
+              </div>
+            )}
             {dados.alivioParcelamentos.map((g) => {
               const expandido = alivioExpandido[g.mes] ?? false;
               return (
@@ -984,7 +1072,14 @@ function DashboardPage() {
                     <div className="divide-y border-t">
                       {g.itens.map((item) => (
                         <div key={item.id} className="flex items-center justify-between gap-3 px-4 py-2 text-sm">
-                          <div className="min-w-0">
+                          <input
+                            type="checkbox"
+                            className="size-4 shrink-0 accent-[var(--color-primary,#2563eb)]"
+                            checked={alivioSel.has(item.id)}
+                            onChange={() => alternarAlivioSel(item.id)}
+                            aria-label={`Somar ${item.descricao}`}
+                          />
+                          <div className="min-w-0 flex-1">
                             <p className="truncate font-medium">{item.descricao}</p>
                             <p className="truncate text-xs text-muted-foreground">
                               {item.cartao} · parcela {item.numeroParcela} · vence em {formatDate(item.ultimaParcela)}
@@ -1161,6 +1256,17 @@ function DashboardPage() {
                 <XAxis dataKey="mes" fontSize={11} tickLine={false} axisLine={false} />
                 <YAxis fontSize={11} tickLine={false} axisLine={false} width={60} />
                 <Tooltip formatter={(v: any) => formatBRL(Number(v))} />
+                {mesAtualRotulo && (
+                  <ReferenceArea
+                    x1={mesAtualRotulo}
+                    x2={mesAtualRotulo}
+                    fill="var(--primary)"
+                    fillOpacity={0.1}
+                    stroke="var(--primary)"
+                    strokeOpacity={0.4}
+                    label={{ value: "atual", position: "insideTop", fontSize: 9, fill: "var(--primary)" }}
+                  />
+                )}
                 <Line
                   type="monotone"
                   dataKey="Saldo"
