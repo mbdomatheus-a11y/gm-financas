@@ -29,6 +29,7 @@ import {
   MapPin,
   FileHeart,
   ShieldCheck,
+  CalendarDays,
   Headphones,
 } from "lucide-react";
 
@@ -116,6 +117,7 @@ type NavTo =
   | "/onde-esta"
   | "/exames"
   | "/administracao"
+  | "/calendario"
   | "/suporte";
 
 type NavItem = {
@@ -286,6 +288,7 @@ const MUNDOS: Record<MundoId, { titulo: string; home: NavTo; items: NavItem[] }>
 
 /** Itens sempre visíveis, independente do mundo atual (ou de estar na Home). */
 const GLOBAL: NavItem[] = [
+  { to: "/calendario", label: "Calendário", short: "Agenda", icon: CalendarDays },
   {
     to: "/compartilhar",
     label: "Compartilhar",

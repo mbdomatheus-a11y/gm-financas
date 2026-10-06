@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 
 import { AppLayout } from "@/components/AppLayout";
+import { BarraSoma, useSelecaoSoma } from "@/components/BarraSoma";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { IndiceReajusteField } from "@/components/IndiceReajusteField";
 import { MonthPicker } from "@/components/MonthPicker";
@@ -237,6 +238,11 @@ function ReceitasPage() {
   );
 
   const primeiroNome = (nome?: string | null) => nome?.trim().split(/\s+/)[0] || "Titular não informado";
+
+  const soma = useSelecaoSoma();
+  const totalSelecionadoReceitas = (lista as any[])
+    .filter((r) => soma.ids.has(String(r.id)))
+    .reduce((t, r) => t + toBRL(Number(r.valor), r.moeda, cotacao), 0);
 
   const grupos = useMemo(() => {
     const map = new Map<string, any[]>();
@@ -618,6 +624,8 @@ function ReceitasPage() {
         </div>
       )}
 
+      <BarraSoma qtd={soma.ids.size} total={totalSelecionadoReceitas} onLimpar={soma.limpar} />
+
       <div className="space-y-4">
         {lista.length === 0 && (
           <Card>
@@ -631,10 +639,19 @@ function ReceitasPage() {
           const aberto = estaAberto(g.key);
           return (
             <div key={g.key} className="overflow-hidden rounded-xl border bg-card">
+              <div className="flex items-center bg-muted/40 pl-4 hover:bg-muted/60">
+                <input
+                  type="checkbox"
+                  className="size-4 shrink-0 accent-primary"
+                  checked={soma.todosMarcados(g.itens.map((r: any) => String(r.id)))}
+                  onChange={() => soma.alternarVarios(g.itens.map((r: any) => String(r.id)))}
+                  aria-label={`Selecionar todos de ${g.label}`}
+                  title="Selecionar tudo deste grupo para somar"
+                />
               <button
                 type="button"
                 onClick={() => setFechados((f) => ({ ...f, [g.key]: aberto }))}
-                className="flex w-full items-center gap-3 bg-muted/40 px-4 py-2.5 text-left transition-colors hover:bg-muted/60"
+                className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors"
               >
                 <ChevronDown
                   className={`size-4 shrink-0 text-muted-foreground transition-transform ${aberto ? "" : "-rotate-90"}`}
@@ -649,6 +666,7 @@ function ReceitasPage() {
                   {formatar(g.total)}
                 </span>
               </button>
+              </div>
               {aberto && (
                 <div className="divide-y">
                   {g.itens.map((r: any) => (
@@ -660,6 +678,14 @@ function ReceitasPage() {
                         can("receitas", "editar") && "cursor-pointer",
                       )}
                     >
+                      <input
+                        type="checkbox"
+                        className="size-4 shrink-0 accent-primary"
+                        checked={soma.ids.has(String(r.id))}
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={() => soma.alternar(String(r.id))}
+                        aria-label={`Somar ${r.descricao}`}
+                      />
                       <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-success/10">
                         <TrendingUp className="size-4 text-success" />
                       </div>

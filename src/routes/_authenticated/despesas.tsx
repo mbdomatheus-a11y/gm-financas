@@ -25,6 +25,7 @@ import { z } from "zod";
 import { Checkbox } from "@/components/ui/checkbox";
 import { correspondeBuscaComValor } from "@/lib/busca";
 import { AppLayout } from "@/components/AppLayout";
+import { BarraSoma, useSelecaoSoma } from "@/components/BarraSoma";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { usePrivacidadeValores } from "@/hooks/usePrivacidadeValores";
 import { Field } from "@/routes/_authenticated/receitas";
@@ -198,8 +199,7 @@ function DespesasPage() {
   // de aba/mês ou sair da tela.
   const [simulandoCortes, setSimulandoCortes] = useState(false);
   // Item 2 (2026-10-05): modo "Somar itens" (marcar lançamentos e ver a soma na hora).
-  const [somando, setSomando] = useState(false);
-  const [idsSomados, setIdsSomados] = useState<Set<string>>(new Set());
+  const soma = useSelecaoSoma();
   const [idsExcluidosSimulacao, setIdsExcluidosSimulacao] = useState<Set<string>>(new Set());
   const [form, setForm] = useState<any>(novoForm("fixa"));
   const [duplicata, setDuplicata] = useState<any | null>(null);
@@ -870,35 +870,13 @@ function DespesasPage() {
         ))}
       </div>
 
-      <div className="mb-3 space-y-2">
-        <Button
-          size="sm"
-          variant={somando ? "secondary" : "outline"}
-          className="h-9 text-xs"
-          onClick={() => {
-            setSomando((v) => !v);
-            setIdsSomados(new Set());
-          }}
-        >
-          <Calculator className="size-3.5" />
-          {somando ? "Sair da soma" : "Somar itens"}
-        </Button>
-        {somando && (
-          <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-muted/20 px-3 py-2 text-xs">
-            <span className="text-muted-foreground">
-              Marque os lançamentos abaixo e veja a soma na hora. Nada é salvo.
-            </span>
-            <span className="font-semibold">
-              {idsSomados.size} selecionado(s):{" "}
-              {formatBRL(
-                (lista as any[])
-                  .filter((d) => idsSomados.has(d.id))
-                  .reduce((t, d) => t + toBRL(valorVisivel(d), d.moeda, cotacao), 0),
-              )}
-            </span>
-          </div>
-        )}
-      </div>
+      <BarraSoma
+        qtd={soma.ids.size}
+        total={(lista as any[])
+          .filter((d) => soma.ids.has(d.id))
+          .reduce((t, d) => t + toBRL(valorVisivel(d), d.moeda, cotacao), 0)}
+        onLimpar={soma.limpar}
+      />
 
       {/* Bloco 6 (plano-mega 2026-09-14): simular corte de despesas fixas —
           desmarcar itens aqui só recalcula o total na hora, nada é gravado
@@ -1171,6 +1149,14 @@ function DespesasPage() {
               )}
               {(modoLista !== "cartao" || grupoExpandido === grupo.key) && (
                 <div className="divide-y">
+                  <label className="flex cursor-pointer items-center gap-3 bg-muted/20 px-3 py-1.5 text-[11px] text-muted-foreground">
+                    <Checkbox
+                      checked={soma.todosMarcados(grupo.itens.map((d: any) => d.id))}
+                      onCheckedChange={() => soma.alternarVarios(grupo.itens.map((d: any) => d.id))}
+                      aria-label="Selecionar todos para somar"
+                    />
+                    Selecionar todos ({grupo.itens.length}) para somar
+                  </label>
                   {grupo.itens.map((d: any) => {
                     const parcelas = [
                       ...(filtroMes === "todos"
@@ -1199,22 +1185,13 @@ function DespesasPage() {
                               "opacity-60 line-through bg-muted/20",
                           )}
                         >
-                          {somando && (
-                            <Checkbox
-                              className="shrink-0"
-                              checked={idsSomados.has(d.id)}
-                              onClick={(e) => e.stopPropagation()}
-                              onCheckedChange={(checked) => {
-                                setIdsSomados((prev) => {
-                                  const next = new Set(prev);
-                                  if (checked) next.add(d.id);
-                                  else next.delete(d.id);
-                                  return next;
-                                });
-                              }}
-                              aria-label={`Somar ${d.descricao}`}
-                            />
-                          )}
+                          <Checkbox
+                            className="shrink-0"
+                            checked={soma.ids.has(d.id)}
+                            onClick={(e) => e.stopPropagation()}
+                            onCheckedChange={() => soma.alternar(d.id)}
+                            aria-label={`Somar ${d.descricao}`}
+                          />
                           {simulandoCortes && tab === "fixa" && (
                             <Checkbox
                               className="shrink-0"

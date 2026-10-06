@@ -68,7 +68,7 @@ const PRINCIPIOS = [
 
 export function EducacaoFinanceira() {
   return (
-    <Card className="mb-8">
+    <Card>
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2 text-base">
           <GraduationCap className="size-4.5 text-primary" /> Educação financeira para todas as idades

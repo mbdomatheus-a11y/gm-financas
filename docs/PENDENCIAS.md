@@ -195,3 +195,14 @@ Tudo abaixo passou no `tsc` sem erros. Colunas e tabela novas já aplicadas em p
 19. Nova nota: campo "Cartão ou conta usada na compra" (`notas_fiscais.pagamento_tipo/pagamento_id`).
 
 Pendências do usuário: dar push dos commits, rodar os dois DROP POLICY no SQL Editor (comprovantes_membro_ativo e parcela_auditoria_membro_ativo), desconectar o Lovable do GitHub, testar com usuário novo.
+
+### Ajustes pós-teste e Calendário (2026-10-06)
+
+Retorno do usuário sobre os 19 itens e o que foi feito:
+- Item 2: caixa de seleção também no cabeçalho de cada mês (seleciona tudo do mês) em "Parcelamentos que terminam"; Despesas e Receitas agora têm caixas sempre visíveis, "selecionar todos" por grupo e barra fixa com a soma (`BarraSoma.tsx`).
+- Item 3: botões de modelo (Excel, TXT, CSV) movidos para logo abaixo da área de envio do De-Para; campo e colunas renomeados para "Estabelecimento".
+- Item 5: "senha incorreta" era gravada como "usuário não cadastrado" quando o perfil não tinha e-mail; agora consulta também o CPF e o Auth (função `usuario_auth_por_email`, só service role).
+- Item 11: educação financeira saiu da Início logada e foi para a home pública (seção antes de Preços).
+- Item 16: Compartilhar volta a usar o banner verde/ciano de convite, que some quando os convites acabam.
+- Item 19 (novo pedido): página Calendário (`/calendario`, menu e Início) com faturas por cartão no dia de vencimento com total, notas lançadas, fim de garantia e itens aprovados da lista; navegação por mês, filtros por tipo, edição de datas e valor da nota, data prevista da lista e marcar como comprado.
+- Referência de layout (contasonline.com.br): registrada, ainda não aplicada; aguardando definição de qual tela.

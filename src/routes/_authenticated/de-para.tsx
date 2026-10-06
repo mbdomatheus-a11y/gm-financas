@@ -110,7 +110,7 @@ function DeParaPage() {
     try {
       const linhas = await lerPlanilhaDePara(file);
       if (!linhas.length) {
-        toast.error("Não encontrei colunas de descrição e categoria na planilha.");
+        toast.error("Não encontrei colunas de estabelecimento e categoria na planilha.");
         return;
       }
       setPrevia(linhas);
@@ -233,20 +233,7 @@ function DeParaPage() {
   return (
     <AppLayout
       title="De-para de categorias"
-      description="Suba a planilha com descrição → categoria. Toda importação passa a usar essas regras."
-      actions={
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" onClick={() => baixarXlsx("modelo-de-para", CABECALHO_DEPARA, EXEMPLOS_DEPARA)}>
-            <Download className="mr-2 size-4" /> Modelo Excel
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => baixarTxt("modelo-de-para", CABECALHO_DEPARA, EXEMPLOS_DEPARA)}>
-            <Download className="mr-2 size-4" /> Modelo TXT
-          </Button>
-          <Button variant="outline" size="sm" onClick={baixarModelo}>
-            <Download className="mr-2 size-4" /> Modelo CSV
-          </Button>
-        </div>
-      }
+      description="Suba a planilha com estabelecimento → categoria. Toda importação passa a usar essas regras."
     >
       <Card>
         <CardContent className="p-4">
@@ -266,7 +253,7 @@ function DeParaPage() {
             )}
             <p className="text-sm font-medium">Arraste a planilha ou clique para selecionar</p>
             <p className="text-xs text-muted-foreground">
-              Excel (.xlsx), CSV ou TXT · colunas: descrição, categoria, subcategoria (opcional)
+              Excel (.xlsx), CSV ou TXT · colunas: estabelecimento, categoria, subcategoria (opcional)
             </p>
             <input
               ref={inputRef}
@@ -275,6 +262,18 @@ function DeParaPage() {
               className="hidden"
               onChange={(e) => void onFile(e.target.files?.[0])}
             />
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <span className="text-xs text-muted-foreground">Baixar modelo:</span>
+            <Button variant="outline" size="sm" onClick={() => baixarXlsx("modelo-de-para", CABECALHO_DEPARA, EXEMPLOS_DEPARA)}>
+              <Download className="mr-2 size-4" /> Excel
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => baixarTxt("modelo-de-para", CABECALHO_DEPARA, EXEMPLOS_DEPARA)}>
+              <Download className="mr-2 size-4" /> TXT
+            </Button>
+            <Button variant="outline" size="sm" onClick={baixarModelo}>
+              <Download className="mr-2 size-4" /> CSV
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -310,7 +309,7 @@ function DeParaPage() {
               <table className="w-full text-sm">
                 <thead className="sticky top-0 bg-muted/50 text-xs text-muted-foreground">
                   <tr>
-                    <th className="p-2 text-left">Descrição</th>
+                    <th className="p-2 text-left">Estabelecimento</th>
                     <th className="p-2 text-left">Categoria</th>
                     <th className="p-2 text-left">Subcategoria</th>
                     <th className="w-10 p-2"></th>
@@ -398,11 +397,11 @@ function DeParaPage() {
           </div>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_1fr_auto]">
             <div className="space-y-1">
-              <Label className="text-xs">Descrição (uma variação por linha)</Label>
+              <Label className="text-xs">Estabelecimento (uma variação por linha)</Label>
               <Textarea
                 className="min-h-9 py-2 text-sm"
                 rows={1}
-                placeholder={"PERNAMBUCANAS 377\n377\nPERNAMBUCANAS 377 PARC"}
+                placeholder={"Supermercado Exemplo\nSUPERMERCADO EXEMPLO 12\nSUPER EXEMPLO PARC"}
                 value={nova.descricao}
                 onChange={(e) => setNova((n) => ({ ...n, descricao: e.target.value }))}
               />
@@ -469,7 +468,7 @@ function DeParaPage() {
               <table className="w-full text-sm">
                 <thead className="sticky top-0 bg-muted/50 text-xs text-muted-foreground">
                   <tr>
-                    <th className="p-2 text-left">Descrição</th>
+                    <th className="p-2 text-left">Estabelecimento</th>
                     <th className="p-2 text-left">Categoria</th>
                     <th className="p-2 text-left">Subcategoria</th>
                     <th className="p-2 text-left">Origem</th>

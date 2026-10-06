@@ -16,7 +16,7 @@ import {
 import { toast } from "sonner";
 
 import { AppLayout } from "@/components/AppLayout";
-import { ConviteRapidoBotao } from "@/components/ConviteAmigosBanner";
+import { ConviteAmigosBanner, useConvitesAmigos } from "@/components/ConviteAmigosBanner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -206,14 +206,19 @@ function ImageShareActions({
   );
 }
 
+/** Item 16: banner verde de convite; some quando os convites acabam. */
+function ConviteCompartilhar() {
+  const { temConviteDisponivel, isLoading } = useConvitesAmigos();
+  if (isLoading || !temConviteDisponivel) return null;
+  return <ConviteAmigosBanner className="mb-4" />;
+}
+
 function CompartilharPage() {
   const { habilitado } = useModulosGlobais();
 
   return (
     <AppLayout title="Compartilhar" description="Gere um resumo pronto para compartilhar">
-      <div className="mb-3 flex justify-end">
-        <ConviteRapidoBotao comTexto />
-      </div>
+      <ConviteCompartilhar />
       <Tabs defaultValue="financas" className="space-y-4">
         <TabsList className="flex h-auto flex-wrap gap-1">
           <TabsTrigger value="financas" className="gap-1.5 text-xs">

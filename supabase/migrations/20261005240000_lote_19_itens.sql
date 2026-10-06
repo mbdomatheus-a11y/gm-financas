@@ -32,3 +32,10 @@ ALTER TABLE public.notas_fiscais
 -- Item 12: usuário clicou em "não responder" no perfil financeiro.
 ALTER TABLE public.profiles
   ADD COLUMN IF NOT EXISTS perfil_financeiro_pulado_em timestamptz;
+
+-- Log de login: distingue "senha incorreta" de "usuário não cadastrado" consultando o Auth.
+CREATE OR REPLACE FUNCTION public.usuario_auth_por_email(p_email text)
+RETURNS uuid LANGUAGE sql STABLE SECURITY DEFINER SET search_path = auth, public AS $$
+  SELECT id FROM auth.users WHERE lower(email) = lower(p_email) LIMIT 1
+$$;
+REVOKE ALL ON FUNCTION public.usuario_auth_por_email(text) FROM PUBLIC, anon, authenticated;

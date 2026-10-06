@@ -122,7 +122,7 @@ export function lerCsv(conteudo: string): string[][] {
 /** Modelo em CSV para o usuário preencher. */
 export function modeloCsv(): string {
   return [
-    "descricao,categoria,subcategoria",
+    "estabelecimento,categoria,subcategoria",
     "Netflix,Assinaturas / Serviços Digitais,Streaming",
     "ChatGPT,Assinaturas / Serviços Digitais / IA,IA",
     "Uber,Transporte,Aplicativos",
@@ -130,7 +130,7 @@ export function modeloCsv(): string {
 }
 
 /** Cabeçalho e linhas de exemplo do modelo (Excel e TXT) do De-Para. */
-export const CABECALHO_DEPARA = ["descricao", "categoria", "subcategoria"];
+export const CABECALHO_DEPARA = ["estabelecimento", "categoria", "subcategoria"];
 export const EXEMPLOS_DEPARA: string[][] = [
   ["Netflix", "Assinaturas / Serviços Digitais", "Streaming"],
   ["ChatGPT", "Assinaturas / Serviços Digitais / IA", "IA"],

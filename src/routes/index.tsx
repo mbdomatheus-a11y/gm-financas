@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/accordion";
 import { BrandAnimado } from "@/components/ferramentas/BrandAnimado";
 import { BrandMark } from "@/components/BrandMark";
+import { EducacaoFinanceira } from "@/components/EducacaoFinanceira";
 import { LegalDialogs } from "@/components/LegalDialogs";
 import { SiteHeader } from "@/components/SiteHeader";
 import { obterEstatisticaPublica } from "@/lib/estatisticas-site.functions";
@@ -444,6 +445,13 @@ function LandingPage() {
               </p>
             </CardContent>
           </Card>
+        </div>
+      </section>
+
+      {/* Educação financeira para todas as idades (item 11, 2026-10-05) */}
+      <section id="educacao-financeira" className="border-t bg-muted/20">
+        <div className="mx-auto max-w-4xl px-4 py-14">
+          <EducacaoFinanceira />
         </div>
       </section>
 

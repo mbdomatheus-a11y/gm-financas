@@ -40,6 +40,7 @@ import { Route as AuthenticatedOndeEstaRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedPersonalizacaoRouteImport } from './routes/_authenticated/personalizacao'
 import { Route as AuthenticatedPetsRouteImport } from './routes/_authenticated/pets'
 import { Route as AuthenticatedReceitasRouteImport } from './routes/_authenticated/receitas'
+import { Route as AuthenticatedCalendarioRouteImport } from './routes/_authenticated/calendario'
 import { Route as AuthenticatedSuporteRouteImport } from './routes/_authenticated/suporte'
 import { Route as AuthenticatedUsuariosRouteImport } from './routes/_authenticated/usuarios'
 import { Route as AuthenticatedVeiculosRouteImport } from './routes/_authenticated/veiculos'
@@ -214,6 +215,11 @@ const AuthenticatedReceitasRoute = AuthenticatedReceitasRouteImport.update({
   path: '/receitas',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedCalendarioRoute = AuthenticatedCalendarioRouteImport.update({
+  id: '/calendario',
+  path: '/calendario',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedSuporteRoute = AuthenticatedSuporteRouteImport.update({
   id: '/suporte',
   path: '/suporte',
@@ -310,6 +316,7 @@ export interface FileRoutesByFullPath {
   '/personalizacao': typeof AuthenticatedPersonalizacaoRoute
   '/pets': typeof AuthenticatedPetsRoute
   '/receitas': typeof AuthenticatedReceitasRoute
+  '/calendario': typeof AuthenticatedCalendarioRoute
   '/suporte': typeof AuthenticatedSuporteRoute
   '/usuarios': typeof AuthenticatedUsuariosRoute
   '/veiculos': typeof AuthenticatedVeiculosRoute
@@ -354,6 +361,7 @@ export interface FileRoutesByTo {
   '/personalizacao': typeof AuthenticatedPersonalizacaoRoute
   '/pets': typeof AuthenticatedPetsRoute
   '/receitas': typeof AuthenticatedReceitasRoute
+  '/calendario': typeof AuthenticatedCalendarioRoute
   '/suporte': typeof AuthenticatedSuporteRoute
   '/usuarios': typeof AuthenticatedUsuariosRoute
   '/veiculos': typeof AuthenticatedVeiculosRoute
@@ -400,6 +408,7 @@ export interface FileRoutesById {
   '/_authenticated/personalizacao': typeof AuthenticatedPersonalizacaoRoute
   '/_authenticated/pets': typeof AuthenticatedPetsRoute
   '/_authenticated/receitas': typeof AuthenticatedReceitasRoute
+  '/_authenticated/calendario': typeof AuthenticatedCalendarioRoute
   '/_authenticated/suporte': typeof AuthenticatedSuporteRoute
   '/_authenticated/usuarios': typeof AuthenticatedUsuariosRoute
   '/_authenticated/veiculos': typeof AuthenticatedVeiculosRoute
@@ -446,6 +455,7 @@ export interface FileRouteTypes {
     | '/personalizacao'
     | '/pets'
     | '/receitas'
+    | '/calendario'
     | '/suporte'
     | '/usuarios'
     | '/veiculos'
@@ -490,6 +500,7 @@ export interface FileRouteTypes {
     | '/personalizacao'
     | '/pets'
     | '/receitas'
+    | '/calendario'
     | '/suporte'
     | '/usuarios'
     | '/veiculos'
@@ -535,6 +546,7 @@ export interface FileRouteTypes {
     | '/_authenticated/personalizacao'
     | '/_authenticated/pets'
     | '/_authenticated/receitas'
+    | '/_authenticated/calendario'
     | '/_authenticated/suporte'
     | '/_authenticated/usuarios'
     | '/_authenticated/veiculos'
@@ -789,6 +801,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedReceitasRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/calendario': {
+      id: '/_authenticated/calendario'
+      path: '/calendario'
+      fullPath: '/calendario'
+      preLoaderRoute: typeof AuthenticatedCalendarioRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/suporte': {
       id: '/_authenticated/suporte'
       path: '/suporte'
@@ -899,6 +918,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedPersonalizacaoRoute: typeof AuthenticatedPersonalizacaoRoute
   AuthenticatedPetsRoute: typeof AuthenticatedPetsRoute
   AuthenticatedReceitasRoute: typeof AuthenticatedReceitasRoute
+  AuthenticatedCalendarioRoute: typeof AuthenticatedCalendarioRoute
   AuthenticatedSuporteRoute: typeof AuthenticatedSuporteRoute
   AuthenticatedUsuariosRoute: typeof AuthenticatedUsuariosRoute
   AuthenticatedVeiculosRoute: typeof AuthenticatedVeiculosRoute
@@ -927,6 +947,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedPersonalizacaoRoute: AuthenticatedPersonalizacaoRoute,
   AuthenticatedPetsRoute: AuthenticatedPetsRoute,
   AuthenticatedReceitasRoute: AuthenticatedReceitasRoute,
+  AuthenticatedCalendarioRoute: AuthenticatedCalendarioRoute,
   AuthenticatedSuporteRoute: AuthenticatedSuporteRoute,
   AuthenticatedUsuariosRoute: AuthenticatedUsuariosRoute,
   AuthenticatedVeiculosRoute: AuthenticatedVeiculosRoute,

@@ -219,6 +219,17 @@ function DashboardPage() {
   const [alivioExpandido, setAlivioExpandido] = useState<Record<string, boolean>>({});
   // Item 2 (2026-10-05): itens marcados para somar na hora, sem calculadora externa.
   const [alivioSel, setAlivioSel] = useState<Set<string>>(new Set());
+  function alternarAlivioMes(ids: string[]) {
+    setAlivioSel((prev) => {
+      const n = new Set(prev);
+      const todos = ids.every((i) => n.has(i));
+      for (const i of ids) {
+        if (todos) n.delete(i);
+        else n.add(i);
+      }
+      return n;
+    });
+  }
   function alternarAlivioSel(id: string) {
     setAlivioSel((prev) => {
       const n = new Set(prev);
@@ -1052,10 +1063,19 @@ function DashboardPage() {
               const expandido = alivioExpandido[g.mes] ?? false;
               return (
                 <div key={g.mes} className="rounded-lg border overflow-hidden">
+                  <div className="flex items-center pl-4 hover:bg-muted/40">
+                    <input
+                      type="checkbox"
+                      className="size-4 shrink-0 accent-[var(--color-primary,#2563eb)]"
+                      checked={g.itens.length > 0 && g.itens.every((it) => alivioSel.has(it.id))}
+                      onChange={() => alternarAlivioMes(g.itens.map((it) => it.id))}
+                      aria-label={`Selecionar todos de ${monthLabelLong(g.mes)}`}
+                      title="Selecionar tudo deste mês"
+                    />
                   <button
                     type="button"
                     onClick={() => setAlivioExpandido((prev) => ({ ...prev, [g.mes]: !expandido }))}
-                    className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-muted/40"
+                    className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors"
                   >
                     <ChevronDown
                       className={`size-4 shrink-0 text-muted-foreground transition-transform ${expandido ? "" : "-rotate-90"}`}
@@ -1068,6 +1088,7 @@ function DashboardPage() {
                       +{formatBRL(g.total)}/mês
                     </span>
                   </button>
+                  </div>
                   {expandido && (
                     <div className="divide-y border-t">
                       {g.itens.map((item) => (

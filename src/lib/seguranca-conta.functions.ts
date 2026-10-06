@@ -156,13 +156,32 @@ export const iniciarLoginSeguro = createServerFn({ method: "POST" })
       const retorno = Array.isArray(tentativa) ? tentativa[0] : tentativa;
       // Distingue "usuário não cadastrado" de "senha incorreta" só no LOG
       // (a mensagem mostrada à pessoa continua genérica, sem revelar contas).
-      const emailBusca = email.replace(/[\\%_]/g, (c) => `\\${c}`);
-      const { data: existente } = await db
-        .from("profiles")
-        .select("id")
-        .ilike("email", emailBusca)
-        .limit(1)
-        .maybeSingle();
+      // Existe se há perfil por CPF (já achado acima), perfil por e-mail OU conta no Auth
+      // (cobre contas cujo perfil está sem e-mail).
+      let existente: { id: string } | null = null;
+      if (!porEmail) {
+        const { data: porCpf } = await db
+          .from("profiles")
+          .select("id")
+          .eq("cpf", onlyDigits(data.identificador))
+          .limit(1)
+          .maybeSingle();
+        existente = porCpf ?? null;
+      }
+      if (!existente) {
+        const emailBusca = email.replace(/[\\%_]/g, (c) => `\\${c}`);
+        const { data: porPerfil } = await db
+          .from("profiles")
+          .select("id")
+          .ilike("email", emailBusca)
+          .limit(1)
+          .maybeSingle();
+        existente = porPerfil ?? null;
+      }
+      if (!existente) {
+        const { data: idAuth } = await db.rpc("usuario_auth_por_email", { p_email: email });
+        if (idAuth) existente = { id: String(idAuth) };
+      }
       await registrarFalhaLoginDetalhada(db, {
         identificador: data.identificador,
         motivo: existente ? "senha_incorreta" : "usuario_nao_cadastrado",
