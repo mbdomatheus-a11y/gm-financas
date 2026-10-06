@@ -206,3 +206,6 @@ Retorno do usuário sobre os 19 itens e o que foi feito:
 - Item 16: Compartilhar volta a usar o banner verde/ciano de convite, que some quando os convites acabam.
 - Item 19 (novo pedido): página Calendário (`/calendario`, menu e Início) com faturas por cartão no dia de vencimento com total, notas lançadas, fim de garantia e itens aprovados da lista; navegação por mês, filtros por tipo, edição de datas e valor da nota, data prevista da lista e marcar como comprado.
 - Referência de layout (contasonline.com.br): registrada, ainda não aplicada; aguardando definição de qual tela.
+
+### Visual renovado (2026-10-06)
+Atualização de estilo global sem mudar funcionalidades: fundo "aurora" suave, raios maiores, cartões com sombra em camadas, botões com gradiente da cor da marca e foco visível, cabeçalho e barra inferior em vidro, item ativo do menu com marcador lateral, tipografia com números alinhados, hero da home com luzes de fundo e cartão inclinado, efeito de elevação nos cartões de módulos. Refeito a partir de tokens em `styles.css` e dos componentes `card` e `button`, então vale para todas as telas e respeita as paletas da Personalização.

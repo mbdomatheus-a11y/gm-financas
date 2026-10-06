@@ -154,10 +154,10 @@ function InicioPage() {
           const Icon = modulo.icon;
           return (
             <Link key={modulo.to} to={modulo.to}>
-              <Card className="h-full transition-all hover:-translate-y-0.5 hover:shadow-lg">
+              <Card className="lift h-full">
                 <CardContent className="flex h-full min-h-44 flex-col gap-4 p-5">
                   <div className="flex items-center justify-between">
-                    <div className="gradient-brand flex size-12 items-center justify-center rounded-xl">
+                    <div className="gradient-brand flex size-12 items-center justify-center rounded-2xl shadow-[var(--shadow-glow)]">
                       <Icon className="size-6 text-primary-foreground" />
                     </div>
                     <span className="flex items-center gap-1 text-xs font-medium text-primary">

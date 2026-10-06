@@ -433,7 +433,7 @@ export function AppLayout({
         className={cn(
           "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
           active
-            ? "bg-sidebar-accent text-sidebar-accent-foreground"
+            ? "bg-primary/10 text-primary shadow-[inset_3px_0_0_var(--brand)]"
             : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
         )}
       >
@@ -497,7 +497,7 @@ export function AppLayout({
       )}
 
       <div className={cn(!bottomNav && "lg:pl-64")}>
-        <header className="sticky top-0 z-20 border-b bg-background/80 backdrop-blur-md">
+        <header className="glass sticky top-0 z-20 border-b border-border/60">
           <div className="flex items-center gap-3 px-4 py-3">
             <Sheet open={open} onOpenChange={setOpen}>
               <SheetTrigger asChild>
@@ -586,12 +586,12 @@ export function AppLayout({
           )}
         </header>
 
-        <main className="mx-auto w-full max-w-7xl px-4 pb-28 pt-5 lg:pb-10">{children}</main>
+        <main className="mx-auto w-full max-w-7xl px-4 pb-28 pt-6 lg:px-8 lg:pb-10">{children}</main>
       </div>
 
       <nav
         className={cn(
-          "fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 gap-1 border-t bg-background/95 px-2 pb-[env(safe-area-inset-bottom)] pt-1 backdrop-blur-md",
+          "glass fixed inset-x-2 bottom-2 z-30 grid grid-cols-4 gap-1 rounded-2xl border border-border/60 px-2 pb-[env(safe-area-inset-bottom)] pt-1 shadow-[var(--shadow-soft)]",
           !bottomNav && "lg:hidden",
         )}
       >

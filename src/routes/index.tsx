@@ -251,8 +251,10 @@ function LandingPage() {
       <EconomiaTotalBanner />
 
       {/* Hero Section */}
-      <section className="overflow-hidden border-b bg-gradient-to-b from-primary/10 via-background to-background">
-        <div className="mx-auto grid max-w-6xl gap-10 px-4 py-16 md:grid-cols-[1.1fr_.9fr] md:py-24">
+      <section className="relative overflow-hidden border-b">
+        <div className="pointer-events-none absolute -left-24 -top-24 size-96 rounded-full bg-primary/15 blur-3xl" />
+        <div className="pointer-events-none absolute -right-20 top-40 size-80 rounded-full bg-emerald-400/15 blur-3xl" />
+        <div className="relative mx-auto grid max-w-6xl gap-12 px-4 py-16 md:grid-cols-[1.1fr_.9fr] md:py-28">
           <div className="flex flex-col justify-center">
             <BrandAnimado className="mb-5" />
 
@@ -261,8 +263,9 @@ function LandingPage() {
               Módulo de Finanças & Notas Fiscais com IA
             </div>
 
-            <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl lg:text-5xl leading-tight">
-              Seu dinheiro e suas notas fiscais, finalmente sob controle.
+            <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl lg:text-6xl leading-[1.05]">
+              Seu dinheiro e suas notas fiscais, finalmente{" "}
+              <span className="text-gradient-brand">sob controle.</span>
             </h1>
 
             <p className="mt-5 max-w-xl text-base leading-7 text-muted-foreground">
@@ -299,7 +302,7 @@ function LandingPage() {
           </div>
 
           {/* Card Hero Demonstrativo */}
-          <Card className="border-primary/20 bg-card/90 shadow-2xl backdrop-blur-sm">
+          <Card className="rounded-3xl border-primary/20 bg-card/80 shadow-[var(--shadow-soft)] backdrop-blur-md md:rotate-1 md:transition-transform md:hover:rotate-0">
             <CardContent className="flex h-full flex-col space-y-4 p-6">
               <div className="flex items-center justify-between border-b pb-4">
                 <div>
@@ -364,7 +367,7 @@ function LandingPage() {
       <section id="modulos" className="border-b bg-muted/30">
         <div className="mx-auto max-w-6xl px-4 py-16">
           <div className="text-center max-w-2xl mx-auto mb-12">
-            <p className="text-xs font-bold uppercase tracking-wider text-primary">O QUE VOCÊ TEM NO CONTROL ALL</p>
+            <p className="eyebrow">O que você tem no Control ALL</p>
             <h2 className="mt-2 text-3xl font-extrabold tracking-tight sm:text-4xl">
               Foco no que realmente importa para sua tranquilidade.
             </h2>
@@ -376,7 +379,7 @@ function LandingPage() {
 
           <div className="grid gap-6 md:grid-cols-3">
             {modulos.map(({ icon: Icon, titulo, destaque, texto, detalhes }) => (
-              <Card key={titulo} className="flex flex-col overflow-hidden border shadow-sm transition hover:shadow-md">
+              <Card key={titulo} className="lift flex flex-col overflow-hidden">
                 <CardContent className="flex flex-1 flex-col p-6">
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
@@ -408,7 +411,7 @@ function LandingPage() {
       {/* Diferenciais / Por que escolher */}
       <section className="mx-auto max-w-6xl px-4 py-16">
         <div className="mb-10 max-w-2xl">
-          <p className="text-xs font-bold uppercase tracking-wider text-primary">DIFERENCIAIS</p>
+          <p className="eyebrow">Diferenciais</p>
           <h2 className="mt-2 text-3xl font-bold tracking-tight">Feito para a vida financeira real.</h2>
         </div>
 
