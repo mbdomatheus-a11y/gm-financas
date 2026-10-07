@@ -55,9 +55,20 @@ export const solicitarRecuperacaoSenha = createServerFn({ method: "POST" })
       return { ok: true as const };
     }
 
-    const { data: lista, error } = await supabaseAdmin.auth.admin.listUsers();
-    if (error) throw new Error(error.message);
-    const usuario = lista.users.find((u) => u.email?.toLowerCase() === email);
+    // Busca pelo perfil (listUsers() devolve só a primeira página de 50 usuários).
+    const { data: perfil } = await db
+      .from("profiles")
+      .select("id,email")
+      .ilike("email", email)
+      .maybeSingle();
+    let usuario: { id: string; email?: string | undefined } | null = perfil
+      ? { id: perfil.id as string, email: (perfil.email as string | null) ?? email }
+      : null;
+    if (!usuario) {
+      const { data: lista } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+      const achado = lista?.users.find((u) => u.email?.toLowerCase() === email);
+      if (achado) usuario = { id: achado.id, email: achado.email };
+    }
     if (!usuario) return { ok: true as const };
 
     const token = gerarToken();
@@ -70,8 +81,8 @@ export const solicitarRecuperacaoSenha = createServerFn({ method: "POST" })
 
     const link = `${urlBase()}/redefinir-senha?token=${token}`;
     const { enviarEmail } = await import("@/lib/email.server");
-    await enviarEmail({
-      to: usuario.email!,
+    const envio = await enviarEmail({
+      to: usuario.email ?? email,
       subject: "Redefinição de senha — Control ALL",
       html: `
         <p>Recebemos um pedido para redefinir a senha da sua conta no <strong>Control ALL</strong>.</p>
@@ -81,6 +92,17 @@ export const solicitarRecuperacaoSenha = createServerFn({ method: "POST" })
         </p>
       `,
     });
+
+    // A resposta ao usuário continua genérica (não revela se a conta existe), mas a
+    // falha de envio fica registrada para o administrador enxergar.
+    if (!envio.ok) {
+      console.error("[recuperar-senha] e-mail não enviado:", envio.erro);
+      await db.from("admin_audit_logs").insert({
+        ator_id: usuario.id,
+        acao: "email_recuperacao_senha_falhou",
+        detalhes: { erro: envio.erro },
+      });
+    }
 
     return { ok: true as const };
   });

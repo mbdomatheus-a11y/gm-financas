@@ -267,3 +267,8 @@ Pendências manuais: git push origin main; DROP POLICY comprovantes_membro_ativo
 - artfoxbrasil@gmail.com: conta por e-mail sem grupo e sem login (provável teste criado pelo admin); não alterada.
 
 - Navegador embutido (Instagram/Facebook/TikTok): o Google bloqueia login social nesses navegadores; aviso adicionado nos botões sociais para abrir no Chrome/Safari.
+
+### E-mail de redefinição de senha não chega (2026-10-07)
+- Diagnóstico: o token é criado no banco (ex.: terezinha.fbc, 07/10 17:07), então o fluxo roda até o envio; o e-mail não sai pelo Resend. Provável causa: RESEND_FROM_EMAIL ausente na Vercel (cai em onboarding@resend.dev, que só entrega para o dono da conta Resend) ou domínio não verificado no Resend, ou RESEND_API_KEY ausente.
+- Código: a falha de envio antes era ignorada; agora é registrada em admin_audit_logs (acao email_recuperacao_senha_falhou, com o erro) e no log do servidor. Busca do usuário passou a usar profiles (listUsers só olhava 50 usuários).
+- Ação manual: verificar domínio controlall.com.br em Resend > Domains (registros DNS SPF/DKIM) e definir na Vercel RESEND_FROM_EMAIL="Control ALL <avisos@controlall.com.br>", RESEND_API_KEY e SITE_URL; redeploy.
