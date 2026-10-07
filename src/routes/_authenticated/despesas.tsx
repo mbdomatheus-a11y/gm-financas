@@ -101,7 +101,8 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/_authenticated/despesas")({
   validateSearch: (
     s: Record<string, unknown>,
-  ): { cartao?: string; modo?: "lista" | "cartao"; mes?: string; economia?: boolean } => ({
+  ): { cartao?: string; modo?: "lista" | "cartao"; mes?: string; economia?: boolean; novo?: boolean } => ({
+    ...(s["novo"] === true || s["novo"] === "true" || s["novo"] === 1 ? { novo: true } : {}),
     ...(typeof s["cartao"] === "string" && s["cartao"] ? { cartao: s["cartao"] } : {}),
     ...(s["modo"] === "cartao" || s["modo"] === "lista" ? { modo: s["modo"] } : {}),
     ...(typeof s["mes"] === "string" && s["mes"] ? { mes: s["mes"] } : {}),
@@ -310,6 +311,21 @@ function DespesasPage() {
       }) ?? null
     );
   }, [despesas, editId, form.descricao, form.data_compra, form.pagamento, valorNum]);
+
+  useEffect(() => {
+    if (!search.novo) return;
+    setEditId(null);
+    setForm(novoForm(tab === "total" ? "variavel" : tab));
+    setOpen(true);
+    void navigate({
+      search: (p: Record<string, unknown>) => {
+        const { novo: _n, ...resto } = p;
+        return resto as never;
+      },
+      replace: true,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search.novo]);
 
   function abrirNova() {
     setEditId(null);

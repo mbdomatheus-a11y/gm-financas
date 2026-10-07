@@ -130,6 +130,7 @@ type NavItem = {
   icon: typeof LayoutDashboard;
   modulo?: Modulo;
   adminOnly?: boolean;
+  grupoAdmin?: boolean;
   moduloGlobal?: ModuloGlobal;
 };
 
@@ -324,7 +325,7 @@ const GLOBAL: NavItem[] = [
     label: "Backup e Reset",
     short: "Backup",
     icon: DatabaseBackup,
-    adminOnly: true,
+    grupoAdmin: true,
   },
   {
     to: "/configuracoes",
@@ -366,7 +367,7 @@ export function AppLayout({
   useApplyPreferencias();
   const { prefs } = usePreferencias();
   const { data: profile } = useProfile();
-  const { can, isSiteAdmin } = usePermissoes();
+  const { can, isSiteAdmin, isAdmin } = usePermissoes();
   const { ocultarValores, toggle: alternarOcultarValores } = usePrivacidadeValores();
   const { habilitado } = useModulosGlobais();
   useMascaraValores(ocultarValores);
@@ -385,6 +386,7 @@ export function AppLayout({
 
   const podeVer = (i: NavItem) => {
     if (i.adminOnly) return isSiteAdmin;
+    if (i.grupoAdmin) return isAdmin;
     if (i.moduloGlobal && !habilitado(i.moduloGlobal)) return false;
     if (i.modulo) return can(i.modulo, "ver");
     return true;
@@ -553,7 +555,7 @@ export function AppLayout({
                 <p className="truncate text-xs text-muted-foreground">{description}</p>
               )}
             </div>
-            <div className="flex shrink-0 items-center gap-2">
+            <div className="flex shrink-0 items-center gap-0.5 sm:gap-2">
               <Button
                 variant={ocultarValores ? "default" : "ghost"}
                 size={ocultarValores ? "sm" : "icon"}
@@ -569,14 +571,16 @@ export function AppLayout({
                 {ocultarValores ? <EyeOff className="size-4.5" /> : <Eye className="size-4.5" />}
                 {ocultarValores && <span className="text-xs font-semibold">Mostrar valores</span>}
               </Button>
-              <Button asChild variant="ghost" size="sm" className="gap-1.5 px-2">
+              <Button asChild variant="ghost" size="sm" className="hidden gap-1.5 px-2 sm:inline-flex">
                 <Link to="/calendario" aria-label="Abrir calendário" title="Calendário">
                   <CalendarDays className="size-4.5" />
                   <span className="hidden text-xs font-medium sm:inline">Calendário</span>
                 </Link>
               </Button>
               <CalculadoraRapida />
-              <ConviteRapidoBotao />
+              <span className="hidden sm:contents">
+                <ConviteRapidoBotao />
+              </span>
               <AlertsBell />
               {actions}
             </div>

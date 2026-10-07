@@ -33,9 +33,6 @@ export const Route = createFileRoute("/_authenticated/ferramentas")({
 });
 
 function FerramentasPage() {
-  const obterAviso = useServerFn(obterAvisoCalculadora);
-  const { data: aviso } = useQuery({ queryKey: ["aviso-calculadora"], queryFn: () => obterAviso(), staleTime: 0, refetchOnMount: "always" });
-  const mostrarAviso = aviso?.exibir ?? false;
   return (
     <AppLayout
       title="Utilidades"
@@ -55,29 +52,6 @@ function FerramentasPage() {
             </Button>
           </CardContent>
         </Card>
-        {mostrarAviso && (
-        <Card className="border-primary/30 bg-primary/5">
-          <CardContent className="flex items-start gap-3 p-4">
-            <Info className="mt-0.5 size-4.5 shrink-0 text-primary" />
-            <div className="text-sm">
-              <p className="font-medium">Sobre o módulo Control ALL</p>
-              <p className="mt-1 text-muted-foreground">
-                Este é um conjunto de calculadoras e ferramentas de uso geral (datas, horários,
-                diluições e as que forem adicionadas depois) que não dependem de nenhum dado
-                financeiro do casal — funcionam do mesmo jeito pra qualquer pessoa. A ideia é
-                evoluir esse módulo aos poucos até virar um produto independente, que poderá
-                futuramente ser oferecido separadamente deste app. Por enquanto ele mora aqui
-                dentro, mas o que você digita aqui não é salvo em lugar nenhum — cada cálculo é só
-                local, na sua tela. A mesma versão fica disponível publicamente, sem login, na
-                página inicial do site.
-              </p>
-              <Badge variant="outline" className="mt-2 border-primary/40 text-primary">
-                Em construção
-              </Badge>
-            </div>
-          </CardContent>
-        </Card>
-        )}
 
         <Card>
           <CardHeader>

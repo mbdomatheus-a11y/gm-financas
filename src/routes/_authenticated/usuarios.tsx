@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { revogarAcessoMembro } from "@/lib/grupos.functions";
 import {
   Clock3,
   KeyRound,
@@ -69,6 +70,15 @@ export const Route = createFileRoute("/_authenticated/usuarios")({
 
 function UsuariosPage() {
   const qc = useQueryClient();
+  const revogarFn = useServerFn(revogarAcessoMembro);
+  const revogarGrupo = useMutation({
+    mutationFn: (userId: string) => revogarFn({ data: { userId } }),
+    onSuccess: () => {
+      toast.success("Acesso ao grupo revogado.");
+      void qc.invalidateQueries({ queryKey: ["admin-roster"] });
+    },
+    onError: (e: any) => toast.error(e.message ?? "Não foi possível revogar."),
+  });
   const { isSiteAdmin } = usePermissoes();
   const { data: perfis = [] } = useProfilesList();
   const { data: roles = [] } = useRolesList();
@@ -295,6 +305,21 @@ function UsuariosPage() {
                       >
                         {u.role === "admin" ? "Administrador" : "Usuário comum"}
                       </Badge>
+                      {u.grupoId && roster.filter((r: any) => r.grupoId === u.grupoId).length > 1 && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs"
+                          disabled={revogarGrupo.isPending}
+                          title="Tira esta pessoa do grupo compartilhado (o dono do grupo não pode ser removido)"
+                          onClick={() => {
+                            if (window.confirm(`Revogar o acesso de ${u.nome} ao grupo compartilhado?`))
+                              revogarGrupo.mutate(u.id);
+                          }}
+                        >
+                          Revogar do grupo
+                        </Button>
+                      )}
                       <Button
                         size="sm"
                         variant="destructive"

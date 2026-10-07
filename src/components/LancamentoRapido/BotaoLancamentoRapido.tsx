@@ -1,43 +1,85 @@
 import { useState } from "react";
-import { Sparkles } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
+import { Plus, Sparkles, TrendingDown, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { usePermissoes } from "@/hooks/useAuthData";
 import { LancamentoRapidoDialog } from "@/components/LancamentoRapido/LancamentoRapidoDialog";
 
 /**
- * Botão flutuante de "lançar ou resumir com IA" (texto/áudio) — pedido
- * explícito do usuário: acessível de qualquer tela autenticada, não escondido
- * dentro dos formulários de `/despesas`/`/receitas`. Montado dentro de
- * `AppLayout`, que já envolve praticamente toda tela autenticada.
- * Ver `claude/plano-lancamento-ia-2026-10-01.md` e
- * `claude/plano-fase2-lancamento-2026-10-02.md` no projeto Claude.
+ * Botão flutuante "+ Lançar" (acessível de qualquer tela de Finanças). Ao tocar,
+ * pergunta o que a pessoa quer fazer: lançar uma despesa, lançar uma receita ou
+ * usar a IA (texto ou voz). Despesa e receita abrem o formulário pronto na tela
+ * correspondente (`?novo=1`).
+ * Ver `claude/plano-lancamento-ia-2026-10-01.md` no projeto Claude.
  *
- * Com texto visível ao lado do ícone (não só ícone) — pedido explícito do
- * usuário na Frente 1 do plano de 2026-10-02: "botão precisa ser mais claro"
- * pra quem ainda não conhece a funcionalidade.
- *
- * Só aparece pra quem pode editar despesas OU receitas — quem só tem
- * permissão de "ver" não ganha um atalho pra criar lançamento.
+ * Só aparece pra quem pode editar despesas OU receitas.
  */
 export function BotaoLancamentoRapido() {
   const { can } = usePermissoes();
-  const [open, setOpen] = useState(false);
+  const navigate = useNavigate();
+  const [escolha, setEscolha] = useState(false);
+  const [ia, setIa] = useState(false);
 
-  if (!can("despesas", "editar") && !can("receitas", "editar")) return null;
+  const podeDespesa = can("despesas", "editar");
+  const podeReceita = can("receitas", "editar");
+  if (!podeDespesa && !podeReceita) return null;
+
+  function ir(destino: "/despesas" | "/receitas") {
+    setEscolha(false);
+    void navigate({ to: destino, search: { novo: true } as never });
+  }
 
   return (
     <>
       <Button
-        onClick={() => setOpen(true)}
-        className="fixed bottom-20 right-4 z-40 h-12 gap-2 rounded-full px-4 shadow-lg lg:bottom-6"
-        aria-label="Lançar com IA ou ver resumo das finanças"
-        title="Lançar com IA ou ver resumo das finanças"
+        onClick={() => setEscolha(true)}
+        className="fixed bottom-20 right-4 z-40 h-14 gap-2 rounded-full px-5 text-base font-bold shadow-lg lg:bottom-6"
+        aria-label="Lançar uma despesa, uma receita ou usar a IA"
+        title="Lançar"
         data-tour="lancamento-ia"
       >
-        <Sparkles className="size-5" />
-        <span className="hidden sm:inline">Lançar com IA</span>
+        <Plus className="size-6" />
+        Lançar
       </Button>
-      <LancamentoRapidoDialog open={open} onOpenChange={setOpen} />
+
+      <Dialog open={escolha} onOpenChange={setEscolha}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>O que você quer lançar?</DialogTitle>
+            <DialogDescription>Escolha uma opção. Você confere tudo antes de salvar.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-2">
+            {podeDespesa && (
+              <Button variant="outline" className="h-14 justify-start gap-3 text-base" onClick={() => ir("/despesas")}>
+                <TrendingDown className="size-5 text-rose-600" /> Despesa
+              </Button>
+            )}
+            {podeReceita && (
+              <Button variant="outline" className="h-14 justify-start gap-3 text-base" onClick={() => ir("/receitas")}>
+                <TrendingUp className="size-5 text-emerald-600" /> Receita
+              </Button>
+            )}
+            <Button
+              className="h-14 justify-start gap-3 text-base"
+              onClick={() => {
+                setEscolha(false);
+                setIa(true);
+              }}
+            >
+              <Sparkles className="size-5" /> Lançar com IA (texto ou voz)
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <LancamentoRapidoDialog open={ia} onOpenChange={setIa} />
     </>
   );
 }

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Bell } from "lucide-react";
@@ -12,7 +13,7 @@ import {
   limparVersoesSite,
   meuHistoricoAlertas,
   minhasChavesAlertasLidos,
-  marcarAlertaLido,
+  marcarAlertasLidosLote,
   versoesAtivasSite,
 } from "@/lib/comunicados.functions";
 import { useIsSiteAdmin } from "@/hooks/useAuthData";
@@ -38,7 +39,9 @@ const JANELA_PARCELAS_DIAS = 30;
 export function AlertsBell() {
   const historicoFn = useServerFn(meuHistoricoAlertas);
   const chavesFn = useServerFn(minhasChavesAlertasLidos);
-  const marcarFn = useServerFn(marcarAlertaLido);
+  const marcarLoteFn = useServerFn(marcarAlertasLidosLote);
+  const [aberto, setAberto] = useState(false);
+  const [vistos, setVistos] = useState<Aviso[]>([]);
   const versoesFn = useServerFn(versoesAtivasSite);
   const limparFn = useServerFn(limparVersoesSite);
   const { data: isSiteAdminUser } = useIsSiteAdmin();
@@ -177,9 +180,31 @@ export function AlertsBell() {
     })),
   ];
   const naoLidos = avisosComVersao.filter((aviso) => !chavesLidas.includes(aviso.chave));
+  // Ao abrir o sino, os avisos novos ficam visíveis enquanto ele está aberto e
+  // já contam como vistos: ao fechar, somem e vão para o histórico de 7 dias.
+  // Só reaparece algo se chegar um aviso novo.
+  const lista = aberto ? vistos : naoLidos;
+
+  function aoAbrir(valor: boolean) {
+    setAberto(valor);
+    if (valor) {
+      setVistos(naoLidos);
+      if (naoLidos.length > 0) {
+        void marcarLoteFn({
+          data: {
+            itens: naoLidos.slice(0, 60).map((a) => ({
+              chave: a.chave,
+              titulo: a.chave.startsWith("versao:") ? "Atualização do Control ALL" : "Alerta do Control ALL",
+              mensagem: a.texto,
+            })),
+          },
+        }).then(() => refetchLidas());
+      }
+    }
+  }
 
   return (
-    <Popover>
+    <Popover open={aberto} onOpenChange={aoAbrir}>
       <PopoverTrigger asChild>
         <Button
           variant="ghost"
@@ -196,25 +221,17 @@ export function AlertsBell() {
         </Button>
       </PopoverTrigger>
       <PopoverContent align="end" className="max-h-96 w-80 overflow-y-auto p-2">
-        <p className="px-2 py-1 text-sm font-semibold">Alertas ({naoLidos.length})</p>
-        {naoLidos.length === 0 ? (
+        <p className="px-2 py-1 text-sm font-semibold">Alertas novos ({lista.length})</p>
+        {lista.length === 0 ? (
           <p className="px-2 py-3 text-sm text-muted-foreground">Nenhum alerta no momento.</p>
         ) : (
-          naoLidos.map((aviso, indice) =>
+          lista.map((aviso, indice) =>
             aviso.destino ? (
               <Link
                 key={`${aviso.destino}-${indice}`}
                 to={aviso.destino}
+                onClick={() => setAberto(false)}
                 className="block rounded-md px-2 py-2 text-sm hover:bg-accent"
-                onClick={() => {
-                  void marcarFn({
-                    data: {
-                      chave: aviso.chave,
-                      titulo: "Alerta do Control ALL",
-                      mensagem: aviso.texto,
-                    },
-                  }).then(() => refetchLidas());
-                }}
               >
                 {aviso.texto}
               </Link>
@@ -222,15 +239,6 @@ export function AlertsBell() {
               <button
                 key={aviso.chave}
                 className="block w-full rounded-md px-2 py-2 text-left text-sm hover:bg-accent"
-                onClick={() =>
-                  void marcarFn({
-                    data: {
-                      chave: aviso.chave,
-                      titulo: "Atualização do Control ALL",
-                      mensagem: aviso.texto,
-                    },
-                  }).then(() => refetchLidas())
-                }
               >
                 {aviso.texto}
               </button>
@@ -250,7 +258,7 @@ export function AlertsBell() {
         {historico.length > 0 && (
           <>
             <p className="mt-2 border-t px-2 py-2 text-xs font-semibold uppercase text-muted-foreground">
-              Histórico de avisos
+              Histórico (últimos 7 dias)
             </p>
             {historico.slice(0, 8).map((aviso: any) => (
               <div key={aviso.id} className="rounded-md px-2 py-2 text-sm">

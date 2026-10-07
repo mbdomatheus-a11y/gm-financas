@@ -11,6 +11,7 @@ import { InactivityGuard } from "@/components/InactivityGuard";
 import { ComunicadosModal } from "@/components/ComunicadosModal";
 import { ConviteAposTresDias } from "@/components/ConviteAmigosBanner";
 import { TourGuiado } from "@/components/TourGuiado";
+import { BoasVindasExemplos } from "@/components/BoasVindasExemplos";
 import { useModulosGlobais, type ModuloGlobal } from "@/hooks/useAuthData";
 
 export const Route = createFileRoute("/_authenticated")({
@@ -72,6 +73,7 @@ function Protegido() {
   return (
     <InactivityGuard>
       <ComunicadosModal onVisibilityChange={setAvisoAberto} />
+      <BoasVindasExemplos bloqueado={avisoAberto} />
       <TourGuiado bloqueado={avisoAberto} />
       <ConviteAposTresDias bloqueado={avisoAberto} />
       <Outlet />

@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
@@ -82,6 +82,9 @@ import {
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/receitas")({
+  validateSearch: (s: Record<string, unknown>): { novo?: boolean } => ({
+    ...(s["novo"] === true || s["novo"] === "true" || s["novo"] === 1 ? { novo: true } : {}),
+  }),
   head: () => ({
     meta: [
       { title: "Receitas — Control ALL" },
@@ -305,6 +308,18 @@ function ReceitasPage() {
     }
     salvar.mutate();
   }
+
+  const searchRec = Route.useSearch();
+  const navegarRec = Route.useNavigate();
+  useEffect(() => {
+    if (!searchRec.novo) return;
+    setEditId(null);
+    setForm(emptyForm);
+    setDuplicata(null);
+    setOpen(true);
+    void navegarRec({ search: {} as never, replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchRec.novo]);
 
   function abrirNova() {
     setEditId(null);

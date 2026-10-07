@@ -241,3 +241,19 @@ Pedido do usuário (11 itens) e o que foi feito:
 10. Importar fatura: na primeira visita, pergunta "Importar sua primeira fatura?" (uma vez por usuário).
 11. Open Finance: apenas comparativo de alternativas (nada implementado).
 Migração: supabase/migrations/20261006120000_rodada4.sql (aplicada em produção).
+
+### Rodada 5 (2026-10-07)
+1. Login: removida a escrita "ou CPF" (rótulo "E-mail", placeholder, "Lembrar e-mail"). O CPF continua funcionando por trás.
+2. Backup e Reset aparece em Geral para todos os usuários.
+3. Erro `categorias_nome_tipo_key`: a unicidade era GLOBAL (um usuário bloqueava o nome do outro). Agora é por grupo (categorias, cartao_vinculos, notas_fiscais). `fatura_layouts_assinatura_key` segue global (conferir). Guia de categoria filtra nomes já existentes e avisa que dá para adicionar, editar e remover depois.
+4. De-para: aviso na primeira visita explicando que as regras categorizam a importação da fatura; exemplo do campo Estabelecimento reduzido.
+5. Categorias: modelo Excel/TXT também para receitas.
+6. Dados de exemplo para contas NOVAS (criadas a partir de 2026-10-06, grupo totalmente vazio): 9 categorias amplas de despesa, 3 de receita, receitas "Vale dia 15", "Salário dia 30" e "Renda extra", Cartão Exemplo (final 0000), Investimento de teste. Marcados como exemplo; botão "Remover exemplos agora" na mensagem de boas-vindas. Tabela `dados_exemplo_semeados`, função `semearDadosExemplo`, componente `BoasVindasExemplos`. Migração 20261007110000.
+7. Meu grupo compartilhado: aviso de que o convidado vê TODOS os dados da conta principal (só pessoas de confiança). Dono do grupo ou admin do site podem revogar o acesso (cria um grupo novo para a pessoa).
+8. Botão grande "+ Lançar": pergunta Despesa ou Receita, mantém "Lançar com IA".
+9. Aviso da calculadora removido por completo (tela e toggle do admin). Arquivos aviso-calculadora.functions.ts e AvisoCalculadoraAdminCard.tsx ficaram sem uso.
+10. Notificações: histórico de 7 dias; ao abrir o sino as novas viram lidas e somem, só reaparecem se chegar nova.
+11. Botões: hover mais azul-claro e halo amarelo discreto animado (respeita "reduzir movimento").
+12. Mobile: cabeçalho enxuto (Calendário e Convite saem do topo no celular, a Agenda está na barra inferior), botão Lançar acima da barra inferior, campos com 16px (sem zoom no iPhone).
+13. Análise de módulos: apenas relatório enviado, aguardando validação do usuário.
+Pendências manuais: git push origin main; DROP POLICY comprovantes_membro_ativo e parcela_auditoria_membro_ativo; desconectar Lovable do GitHub; testar com usuário novo.

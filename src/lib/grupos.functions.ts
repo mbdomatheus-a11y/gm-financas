@@ -58,3 +58,69 @@ export const aceitarConviteGrupo = createServerFn({ method: "POST" })
     });
     return { ok: true as const };
   });
+
+/** Quem está no meu grupo compartilhado (além de mim) e se eu posso revogar acessos. */
+export const listarMembrosMeuGrupo = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const db = supabaseAdmin as any;
+    const { data: eu } = await db.from("profiles").select("grupo_id").eq("id", context.userId).single();
+    if (!eu?.grupo_id) return { souDono: false, membros: [] as { id: string; nome: string; email: string | null; ehDono: boolean }[] };
+    const { data: grupo } = await db.from("grupos").select("criado_por").eq("id", eu.grupo_id).single();
+    const { data: membros } = await db
+      .from("profiles")
+      .select("id,nome,email")
+      .eq("grupo_id", eu.grupo_id)
+      .eq("ativo", true);
+    return {
+      souDono: grupo?.criado_por === context.userId,
+      membros: ((membros ?? []) as any[])
+        .filter((m) => m.id !== context.userId)
+        .map((m) => ({
+          id: m.id as string,
+          nome: m.nome as string,
+          email: (m.email as string | null) ?? null,
+          ehDono: m.id === grupo?.criado_por,
+        })),
+    };
+  });
+
+/**
+ * Revoga o acesso de um integrante ao grupo: ele volta para um grupo próprio,
+ * novo e vazio, e deixa de ver os dados do grupo. Os dados já lançados
+ * continuam com o grupo original. Pode fazer: o dono do grupo ou o admin do site.
+ */
+export const revogarAcessoMembro = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((v: unknown) => z.object({ userId: z.string().uuid() }).parse(v))
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const db = supabaseAdmin as any;
+    const { data: alvo } = await db
+      .from("profiles")
+      .select("id,nome,grupo_id")
+      .eq("id", data.userId)
+      .single();
+    if (!alvo?.grupo_id) throw new Error("Usuário não encontrado.");
+    const { data: grupo } = await db.from("grupos").select("criado_por").eq("id", alvo.grupo_id).single();
+    if (grupo?.criado_por === alvo.id) throw new Error("O dono do grupo não pode ser removido dele.");
+    const { data: adm } = await db.from("site_admins").select("user_id").eq("user_id", context.userId).maybeSingle();
+    if (!adm && grupo?.criado_por !== context.userId) {
+      throw new Error("Só o dono do grupo ou o administrador do site pode revogar acessos.");
+    }
+    const { data: novo, error: e1 } = await db
+      .from("grupos")
+      .insert({ nome: `Grupo de ${alvo.nome}`.slice(0, 80), criado_por: alvo.id })
+      .select("id")
+      .single();
+    if (e1 || !novo) throw new Error("Não foi possível criar o novo grupo do usuário.");
+    const { error: e2 } = await db.from("profiles").update({ grupo_id: novo.id }).eq("id", alvo.id);
+    if (e2) throw new Error("Não foi possível revogar o acesso.");
+    await db.from("admin_audit_logs").insert({
+      ator_id: context.userId,
+      acao: "acesso_grupo_revogado",
+      detalhes: { usuario_id: alvo.id, grupo_origem: alvo.grupo_id, grupo_novo: novo.id },
+    });
+    return { ok: true as const };
+  });

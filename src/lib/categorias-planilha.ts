@@ -8,7 +8,21 @@ export const CABECALHO_CATEGORIAS = ["tipo", "categoria", "subcategoria", "cor"]
 export type LinhaCategoria = { tipo: "despesa" | "receita"; nome: string; cor: string | null };
 
 /** Lista sugerida completa do site (uma linha por subcategoria). */
-export function linhasListaSugerida(padrao: Record<string, string[]> = CATEGORIAS_PADRAO): string[][] {
+export const RECEITAS_SUGERIDAS = [
+  "Salário",
+  "Vale (alimentação ou refeição)",
+  "Freelance",
+  "Rendimentos",
+  "Reembolso",
+  "Presente",
+  "Outras receitas",
+];
+
+export function linhasListaSugerida(
+  padrao: Record<string, string[]> = CATEGORIAS_PADRAO,
+  tipo: "despesa" | "receita" = "despesa",
+): string[][] {
+  if (tipo === "receita") return RECEITAS_SUGERIDAS.map((nome) => ["receita", nome, "", ""]);
   const out: string[][] = [];
   for (const [cat, subs] of Object.entries(padrao)) {
     if (subs.length === 0) out.push(["despesa", cat, "", ""]);

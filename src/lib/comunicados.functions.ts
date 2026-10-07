@@ -66,10 +66,15 @@ export const meuHistoricoAlertas = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data, error } = await (supabaseAdmin as any)
+    const db = supabaseAdmin as any;
+    // Histórico de avisos guarda só 7 dias: apaga o que passou disso (melhor esforço).
+    const corte = new Date(Date.now() - 7 * 86_400_000).toISOString();
+    await db.from("historico_alertas_usuario").delete().eq("user_id", context.userId).lt("exibido_em", corte);
+    const { data, error } = await db
       .from("historico_alertas_usuario")
       .select("id,tipo,titulo,mensagem,exibido_em,lido_em")
       .eq("user_id", context.userId)
+      .gte("exibido_em", corte)
       .order("exibido_em", { ascending: false })
       .limit(50);
     if (error) throw new Error(error.message);
@@ -113,6 +118,46 @@ export const marcarAlertaLido = createServerFn({ method: "POST" })
       referencia_tipo: "alerta",
       referencia_id: null,
     });
+    return { ok: true as const };
+  });
+
+/** Marca vários alertas como vistos de uma vez (ao abrir o sino): somem da lista de novos e entram no histórico de 7 dias. */
+export const marcarAlertasLidosLote = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((v: unknown) =>
+    z
+      .object({
+        itens: z
+          .array(
+            z.object({
+              chave: z.string().min(3).max(300),
+              titulo: z.string().max(180),
+              mensagem: z.string().max(1000),
+            }),
+          )
+          .max(60),
+      })
+      .parse(v),
+  )
+  .handler(async ({ data, context }) => {
+    if (data.itens.length === 0) return { ok: true as const };
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const db = supabaseAdmin as any;
+    const agora = new Date().toISOString();
+    await db.from("alertas_lidos").upsert(
+      data.itens.map((i) => ({ user_id: context.userId, chave: i.chave, lido_em: agora })),
+    );
+    await db.from("historico_alertas_usuario").insert(
+      data.itens.map((i) => ({
+        user_id: context.userId,
+        tipo: "alerta",
+        titulo: i.titulo,
+        mensagem: i.mensagem,
+        lido_em: agora,
+        referencia_tipo: "alerta",
+        referencia_id: null,
+      })),
+    );
     return { ok: true as const };
   });
 

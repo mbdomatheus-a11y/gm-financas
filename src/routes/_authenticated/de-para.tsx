@@ -5,6 +5,7 @@ import { Download, Loader2, Plus, Save, Search, Trash2, Upload } from "lucide-re
 import { toast } from "sonner";
 
 import { AppLayout } from "@/components/AppLayout";
+import { AvisoPrimeiraVezDePara } from "@/components/AvisoPrimeiraVezDePara";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -235,6 +236,7 @@ function DeParaPage() {
       title="De-para de categorias"
       description="Suba a planilha com estabelecimento → categoria. Toda importação passa a usar essas regras."
     >
+      <AvisoPrimeiraVezDePara />
       <Card>
         <CardContent className="p-4">
           <div
@@ -401,7 +403,7 @@ function DeParaPage() {
               <Textarea
                 className="min-h-9 py-2 text-sm"
                 rows={1}
-                placeholder={"Supermercado Exemplo\nSUPERMERCADO EXEMPLO 12\nSUPER EXEMPLO PARC"}
+                placeholder="Ex.: MERCADO X"
                 value={nova.descricao}
                 onChange={(e) => setNova((n) => ({ ...n, descricao: e.target.value }))}
               />

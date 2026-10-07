@@ -47,7 +47,6 @@ import {
 import { IaLancamentoModoSiteCard } from "@/components/IaLancamentoModoSiteCard";
 import { AcessosSiteAdmin } from "@/components/AcessosSiteAdmin";
 import { PadroesAdmin } from "@/components/PadroesAdmin";
-import { AvisoCalculadoraAdminCard } from "@/components/AvisoCalculadoraAdminCard";
 import { TelaInicialPadraoCard } from "@/components/TelaInicialPadraoCard";
 import {
   adminListarSolicitacoesPrivacidade,
@@ -1264,7 +1263,6 @@ function Admin() {
             </Card>
           )}
           <IaLancamentoModoSiteCard />
-          <AvisoCalculadoraAdminCard />
           <TelaInicialPadraoCard />
           <Card>
             <CardHeader><CardTitle className="text-sm">Log de tentativas de login</CardTitle></CardHeader>

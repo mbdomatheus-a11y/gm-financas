@@ -14,6 +14,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useCategorias } from "@/hooks/useFinance";
 import { useCategoriasPadrao } from "@/hooks/useCategoriasPadrao";
+import { RECEITAS_SUGERIDAS } from "@/lib/categorias-planilha";
 
 const CORES = ["#2563eb", "#0ea5e9", "#14b8a6", "#22c55e", "#f59e0b", "#ef4444", "#a855f7", "#ec4899"];
 
@@ -41,13 +42,25 @@ export function PrimeiraCategoriaGuia({
     mutationFn: async () => {
       const nomes = [...escolhidas, ...(nova.trim() ? [nova.trim()] : [])];
       if (nomes.length === 0) throw new Error("Escolha ao menos uma categoria.");
-      const linhas = nomes.map((nome, i) => ({ nome, tipo, cor: CORES[i % CORES.length]! }));
-      const { error } = await supabase.from("categorias").insert(linhas);
-      if (error) throw error;
-      return nomes.length;
+      // Evita o erro de nome repetido: só cria o que ainda não existe no seu grupo.
+      const { data: existentes } = await supabase.from("categorias").select("nome").eq("tipo", tipo);
+      const ja = new Set((existentes ?? []).map((c: any) => String(c.nome).trim().toLowerCase()));
+      const novos = [...new Set(nomes.map((n) => n.trim()))].filter((n) => !ja.has(n.toLowerCase()));
+      if (novos.length > 0) {
+        const linhas = novos.map((nome, i) => ({ nome, tipo, cor: CORES[i % CORES.length]! }));
+        const { error } = await supabase.from("categorias").insert(linhas);
+        if (error) throw error;
+      }
+      return novos.length;
     },
     onSuccess: (n) => {
-      toast.success(n === 1 ? "Categoria criada." : `${n} categorias criadas.`);
+      toast.success(
+        n === 0
+          ? "Essas categorias já existiam. Pode continuar."
+          : n === 1
+            ? "Categoria criada."
+            : `${n} categorias criadas.`,
+      );
       void qc.invalidateQueries({ queryKey: ["categorias"] });
       setAberto(false);
       setNova("");
@@ -61,7 +74,7 @@ export function PrimeiraCategoriaGuia({
   const sugestoes =
     tipo === "despesa"
       ? lista.map((c) => c.nome).filter((n) => n !== "Categoria a confirmar")
-      : ["Salário", "Freelance", "Rendimentos", "Reembolso", "Presente", "Outros"];
+      : RECEITAS_SUGERIDAS;
 
   return (
     <>
@@ -111,6 +124,9 @@ export function PrimeiraCategoriaGuia({
               );
             })}
           </div>
+          <p className="rounded-lg bg-muted/50 p-2 text-xs text-muted-foreground">
+            Você pode adicionar, editar e remover categorias quando quiser, na tela Categorias.
+          </p>
           <Input
             placeholder="Ou digite uma categoria nova"
             value={nova}

@@ -230,7 +230,7 @@ export function EntrarForm({
     <form onSubmit={handleSubmit} className="space-y-4 rounded-2xl border bg-card p-6 shadow-card">
       <div className="space-y-2">
         <Label htmlFor="identificador">
-          {modo === "cpf" ? "CPF" : modo === "email" ? "E-mail" : "E-mail ou CPF"}
+          E-mail
         </Label>
         <Input
           id="identificador"
@@ -240,7 +240,7 @@ export function EntrarForm({
               ? "000.000.000-00"
               : modo === "email"
                 ? "voce@email.com"
-                : "voce@email.com ou 000.000.000-00"
+                : "voce@email.com"
           }
           value={
             // Só aplica a máscara de CPF quando o que já foi digitado é
@@ -294,7 +294,7 @@ export function EntrarForm({
             }
           }}
         />
-        Lembrar {modo === "cpf" ? "CPF" : modo === "email" ? "e-mail" : "e-mail ou CPF"} neste
+        Lembrar e-mail neste
         dispositivo. A senha nunca é salva pelo site.
       </label>
       <Button type="submit" className="h-11 w-full" disabled={loading}>
@@ -313,9 +313,6 @@ export function EntrarForm({
         </Link>
       ) : null}
 
-      <p className="text-center text-[11px] text-muted-foreground pt-1">
-        Conta antiga criada por CPF? Você pode entrar digitando seu CPF ou e-mail normalmente.
-      </p>
     </form>
   );
 }

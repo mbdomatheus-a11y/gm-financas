@@ -138,7 +138,12 @@ function CategoriasPage() {
       setEditId(null);
       qc.invalidateQueries({ queryKey: ["categorias"] });
     },
-    onError: (e: any) => toast.error(e?.errors?.[0]?.message ?? e.message),
+    onError: (e: any) =>
+      toast.error(
+        String(e?.message ?? "").includes("duplicate key")
+          ? "Você já tem uma categoria com esse nome."
+          : (e?.errors?.[0]?.message ?? e.message),
+      ),
   });
 
   const excluir = useMutation({
@@ -186,11 +191,11 @@ function CategoriasPage() {
             não são alteradas nem duplicadas. A coluna "subcategoria" serve de referência.
           </p>
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" onClick={() => baixarXlsx("categorias-sugeridas", CABECALHO_CATEGORIAS, linhasListaSugerida(padraoMapa))}>
-              <Download className="size-4" /> Lista sugerida (Excel)
+            <Button variant="outline" size="sm" onClick={() => baixarXlsx(`categorias-sugeridas-${tipo}`, CABECALHO_CATEGORIAS, linhasListaSugerida(padraoMapa, tipo))}>
+              <Download className="size-4" /> Modelo de {tipo === "receita" ? "receitas" : "despesas"} (Excel)
             </Button>
-            <Button variant="outline" size="sm" onClick={() => baixarTxt("categorias-sugeridas", CABECALHO_CATEGORIAS, linhasListaSugerida(padraoMapa))}>
-              <Download className="size-4" /> Lista sugerida (TXT)
+            <Button variant="outline" size="sm" onClick={() => baixarTxt(`categorias-sugeridas-${tipo}`, CABECALHO_CATEGORIAS, linhasListaSugerida(padraoMapa, tipo))}>
+              <Download className="size-4" /> Modelo de {tipo === "receita" ? "receitas" : "despesas"} (TXT)
             </Button>
             <Button variant="outline" size="sm" onClick={() => baixarXlsx(`minhas-categorias-${tipo}`, CABECALHO_CATEGORIAS, linhasMinhasCategorias(categorias as any[], tipo))}>
               <Download className="size-4" /> Minhas (Excel)

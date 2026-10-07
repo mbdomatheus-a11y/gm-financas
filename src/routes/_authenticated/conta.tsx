@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { CalendarClock, Car, LogOut, Pencil, ShieldCheck, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "@tanstack/react-router";
@@ -24,7 +24,12 @@ import { useProfile, usePermissoes, useModulosGlobais } from "@/hooks/useAuthDat
 import { maskCpf, onlyDigits } from "@/lib/cpf";
 import { useServerFn } from "@tanstack/react-start";
 import { alterarMinhaSenha, atualizarMeusDados } from "@/lib/seguranca-conta.functions";
-import { aceitarConviteGrupo, convidarParaMeuGrupo } from "@/lib/grupos.functions";
+import {
+  aceitarConviteGrupo,
+  convidarParaMeuGrupo,
+  listarMembrosMeuGrupo,
+  revogarAcessoMembro,
+} from "@/lib/grupos.functions";
 import { usePreferencias } from "@/hooks/usePreferencias";
 import { proximaVirada } from "@/lib/periodo-vigente";
 import {
@@ -237,6 +242,11 @@ function ContaPage() {
               Convide uma pessoa que já possui conta. Ela verá claramente que o workspace passará a
               ser único antes de aceitar.
             </p>
+            <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-2 text-xs text-amber-900 dark:text-amber-200">
+              <strong>Atenção:</strong> quem aceitar o convite passa a ver todos os dados desta conta
+              (lançamentos, notas, cartões e demais módulos) e pode alterá-los. Convide só pessoas da
+              sua confiança. Você pode revogar o acesso a qualquer momento abaixo.
+            </p>
             <Input
               type="email"
               placeholder="email@exemplo.com"
@@ -250,6 +260,7 @@ function ContaPage() {
             >
               Enviar convite para integrar grupo
             </Button>
+            <MembrosGrupo />
           </CardContent>
         </Card>
         <ConciliacaoFaturasCard />
@@ -529,5 +540,48 @@ function ContaPage() {
       </div>
 
     </AppLayout>
+  );
+}
+
+function MembrosGrupo() {
+  const qc = useQueryClient();
+  const listar = useServerFn(listarMembrosMeuGrupo);
+  const revogar = useServerFn(revogarAcessoMembro);
+  const { data } = useQuery({ queryKey: ["membros-meu-grupo"], queryFn: () => listar() });
+  const remover = useMutation({
+    mutationFn: (userId: string) => revogar({ data: { userId } }),
+    onSuccess: () => {
+      toast.success("Acesso revogado. A pessoa não vê mais os dados deste grupo.");
+      void qc.invalidateQueries({ queryKey: ["membros-meu-grupo"] });
+    },
+    onError: (e: any) => toast.error(e.message ?? "Não foi possível revogar."),
+  });
+  if (!data || data.membros.length === 0) return null;
+  return (
+    <div className="space-y-2 border-t pt-3">
+      <p className="text-xs font-semibold">Pessoas com acesso ao seu grupo</p>
+      {data.membros.map((m) => (
+        <div key={m.id} className="flex items-center justify-between gap-2 rounded-lg border p-2 text-xs">
+          <span className="min-w-0 truncate">
+            {m.nome}
+            {m.email ? ` · ${m.email}` : ""}
+            {m.ehDono ? " (dono)" : ""}
+          </span>
+          {data.souDono && !m.ehDono && (
+            <Button
+              size="sm"
+              variant="destructive"
+              className="h-7 text-xs"
+              disabled={remover.isPending}
+              onClick={() => {
+                if (window.confirm(`Revogar o acesso de ${m.nome} aos dados deste grupo?`)) remover.mutate(m.id);
+              }}
+            >
+              Revogar acesso
+            </Button>
+          )}
+        </div>
+      ))}
+    </div>
   );
 }
