@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,6 +16,12 @@ export function SocialAuthButtons({
   next,
 }: SocialAuthButtonsProps) {
   const [loadingProvider, setLoadingProvider] = useState<string | null>(null);
+  // Navegadores embutidos (Instagram, Facebook, TikTok...) são bloqueados pelo Google
+  // no login social. Avisamos para abrir no Chrome ou Safari.
+  const [navegadorEmbutido, setNavegadorEmbutido] = useState(false);
+  useEffect(() => {
+    setNavegadorEmbutido(/Instagram|FBAN|FBAV|FB_IAB|TikTok|Line\/|Snapchat|MicroMessenger/i.test(navigator.userAgent));
+  }, []);
 
   const handleOAuth = async (provider: "google" | "azure") => {
     try {
@@ -58,6 +64,13 @@ export function SocialAuthButtons({
         </div>
       </div>
 
+      {navegadorEmbutido && (
+        <p className="rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900">
+          Você está no navegador de um aplicativo (como o Instagram). O login com Google e Microsoft
+          pode não funcionar aqui. Toque nos três pontinhos e escolha "Abrir no navegador" (Chrome ou
+          Safari), ou crie a conta com e-mail e senha.
+        </p>
+      )}
       <div className="grid gap-2">
         {/* Google */}
         <Button

@@ -265,3 +265,5 @@ Pendências manuais: git push origin main; DROP POLICY comprovantes_membro_ativo
 - Correção: gatilho agora completa contas sociais (grupo, perfil, papel admin, aceite dos termos); garantirPerfilUsuarioOAuth passa a reparar perfil sem grupo; texto de concordância nos botões sociais. Migração 20261007150000.
 - Causa 2 (Microsoft): erro "Unable to exchange external code: 1.AS..." vem do Azure/Supabase (configuração do provedor), não do código. Verificar no Supabase Auth > Providers > Azure: Client ID, Client Secret (usar o VALOR do segredo, não o ID, e checar validade), URL do tenant ("common" para contas pessoais e corporativas) e Redirect URI https://wjapagkdgjlavonbmjdu.supabase.co/auth/v1/callback no app registrado no Azure.
 - artfoxbrasil@gmail.com: conta por e-mail sem grupo e sem login (provável teste criado pelo admin); não alterada.
+
+- Navegador embutido (Instagram/Facebook/TikTok): o Google bloqueia login social nesses navegadores; aviso adicionado nos botões sociais para abrir no Chrome/Safari.
