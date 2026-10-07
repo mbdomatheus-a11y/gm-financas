@@ -422,7 +422,10 @@ export const garantirPerfilUsuarioOAuth = createServerFn({ method: "POST" })
       .eq("id", context.userId)
       .maybeSingle();
 
-    if (perfilExistente) {
+    // O gatilho handle_new_user já cria um perfil "casca" (sem grupo) para todo
+    // usuário novo; só consideramos pronto quem já tem grupo. Antes, esta checagem
+    // só olhava a existência da linha e o reparo nunca rodava no login social.
+    if (perfilExistente?.grupo_id) {
       return { ok: true as const, jaExistia: true };
     }
 
@@ -439,7 +442,7 @@ export const garantirPerfilUsuarioOAuth = createServerFn({ method: "POST" })
     // Cria grupo isolado para o novo usuário OAuth
     const { data: grupoNovo, error: grupoErr } = await db
       .from("grupos")
-      .insert({ nome: `Grupo de ${nome}`, oracle_storage_cota_bytes: 536870912 })
+      .insert({ nome: `Grupo de ${nome}`, criado_por: context.userId, oracle_storage_cota_bytes: 536870912 })
       .select("id")
       .single();
     if (grupoErr) throw new Error(grupoErr.message);

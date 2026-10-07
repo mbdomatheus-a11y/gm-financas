@@ -259,3 +259,9 @@ Migração: supabase/migrations/20261006120000_rodada4.sql (aplicada em produç�
 Pendências manuais: git push origin main; DROP POLICY comprovantes_membro_ativo e parcela_auditoria_membro_ativo; desconectar Lovable do GitHub; testar com usuário novo.
 
 14. Bloco "Em breve: um novo app para você" (App Store e Google Play, sem links) na home pública, acima do rodapé, e no rodapé de toda a área logada (inclui Início). Componente AppEmBreve.
+
+### Correção urgente: cadastro por Google/Microsoft (2026-10-07)
+- Causa 1 (Google): o gatilho handle_new_user criava só um perfil "casca" (nome "Usuário", sem grupo, sem papel, senha_temporaria=true). A função garantirPerfilUsuarioOAuth saía cedo porque o perfil já existia, então o grupo nunca era criado. Resultado: conta sem acesso a nada (RLS por grupo). Afetou 2 contas Google de hoje (reparadas no banco).
+- Correção: gatilho agora completa contas sociais (grupo, perfil, papel admin, aceite dos termos); garantirPerfilUsuarioOAuth passa a reparar perfil sem grupo; texto de concordância nos botões sociais. Migração 20261007150000.
+- Causa 2 (Microsoft): erro "Unable to exchange external code: 1.AS..." vem do Azure/Supabase (configuração do provedor), não do código. Verificar no Supabase Auth > Providers > Azure: Client ID, Client Secret (usar o VALOR do segredo, não o ID, e checar validade), URL do tenant ("common" para contas pessoais e corporativas) e Redirect URI https://wjapagkdgjlavonbmjdu.supabase.co/auth/v1/callback no app registrado no Azure.
+- artfoxbrasil@gmail.com: conta por e-mail sem grupo e sem login (provável teste criado pelo admin); não alterada.

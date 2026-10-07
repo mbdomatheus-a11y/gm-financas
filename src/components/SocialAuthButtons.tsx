@@ -113,6 +113,10 @@ export function SocialAuthButtons({
           <span>{labelPrefix} Microsoft</span>
         </Button>
       </div>
+      <p className="text-center text-[11px] text-muted-foreground">
+        Ao continuar com Google ou Microsoft você concorda com os Termos de Uso e o Aviso de
+        Privacidade.
+      </p>
     </div>
   );
 }

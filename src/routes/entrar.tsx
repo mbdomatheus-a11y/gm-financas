@@ -77,6 +77,18 @@ function LoginPage() {
     queryFn: () => obterConfigInicial(),
   });
 
+  // Falha devolvida pelo provedor social (ex.: "Unable to exchange external code").
+  useEffect(() => {
+    const bruto = window.location.hash.replace(/^#/, "") || window.location.search.replace(/^\?/, "");
+    const p = new URLSearchParams(bruto);
+    if (p.get("error")) {
+      toast.error(
+        "Não foi possível entrar com essa conta social. Tente com Google ou use e-mail e senha.",
+      );
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+  }, []);
+
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data }) => {
       if (data.session) {
