@@ -82,8 +82,13 @@ function LoginPage() {
     const bruto = window.location.hash.replace(/^#/, "") || window.location.search.replace(/^\?/, "");
     const p = new URLSearchParams(bruto);
     if (p.get("error")) {
+      const detalhe = (p.get("error_description") ?? p.get("error") ?? "").replace(/\+/g, " ");
+      console.error("[login social]", detalhe);
       toast.error(
-        "Não foi possível entrar com essa conta social. Tente com Google ou use e-mail e senha.",
+        `Não foi possível entrar com essa conta social. Tente com Google ou use e-mail e senha.${
+          detalhe ? ` Detalhe técnico: ${detalhe.slice(0, 220)}` : ""
+        }`,
+        { duration: 20000 },
       );
       window.history.replaceState(null, "", window.location.pathname);
     }
