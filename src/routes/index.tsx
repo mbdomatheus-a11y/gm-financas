@@ -1,3 +1,4 @@
+import { AppEmBreve } from "@/components/AppEmBreve";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import {
@@ -638,6 +639,9 @@ function LandingPage() {
         </div>
       </section>
 
+      <div className="mx-auto max-w-6xl px-6 pb-8">
+        <AppEmBreve />
+      </div>
       <footer className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 border-t px-6 py-8 text-xs text-muted-foreground sm:flex-row">
         <p>© {new Date().getFullYear()} Control ALL LTDA. Todos os direitos reservados.</p>
         <div className="flex items-center gap-4">

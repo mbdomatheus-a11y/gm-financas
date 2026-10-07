@@ -1,3 +1,4 @@
+import { AppEmBreve } from "@/components/AppEmBreve";
 import { useState, type ReactNode } from "react";
 import { lembrarUrlRetorno, limparUrlRetorno } from "@/lib/return-url";
 import { useServerFn } from "@tanstack/react-start";
@@ -588,7 +589,9 @@ export function AppLayout({
 
         </header>
 
-        <main className="mx-auto w-full max-w-7xl px-4 pb-28 pt-6 lg:px-8 lg:pb-10">{children}</main>
+        <main className="mx-auto w-full max-w-7xl px-4 pb-28 pt-6 lg:px-8 lg:pb-10">{children}
+          <AppEmBreve className="mt-10" />
+        </main>
       </div>
 
       <Sheet open={open} onOpenChange={setOpen}>

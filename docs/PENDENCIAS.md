@@ -257,3 +257,5 @@ Migração: supabase/migrations/20261006120000_rodada4.sql (aplicada em produç�
 12. Mobile: cabeçalho enxuto (Calendário e Convite saem do topo no celular, a Agenda está na barra inferior), botão Lançar acima da barra inferior, campos com 16px (sem zoom no iPhone).
 13. Análise de módulos: apenas relatório enviado, aguardando validação do usuário.
 Pendências manuais: git push origin main; DROP POLICY comprovantes_membro_ativo e parcela_auditoria_membro_ativo; desconectar Lovable do GitHub; testar com usuário novo.
+
+14. Bloco "Em breve: um novo app para você" (App Store e Google Play, sem links) na home pública, acima do rodapé, e no rodapé de toda a área logada (inclui Início). Componente AppEmBreve.
