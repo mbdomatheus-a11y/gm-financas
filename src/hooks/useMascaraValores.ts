@@ -10,6 +10,21 @@ import { useEffect } from "react";
 const RE_TESTE = /(?:R\$|US\$|€)\s*-?\d[\d.,]*/;
 const RE_TROCA = /(?:R\$|US\$|€)\s*-?\d[\d.,]*/g;
 const MASCARA = "R$ ••••••";
+// Gráficos (recharts): eixos e rótulos mostram números sem "R$".
+const RE_NUMERO = /-?\d[\d.,]*\s*[kKmM]?/g;
+const RE_VALOR_FORTE = /-?\d{1,3}(?:\.\d{3})+(?:,\d+)?|-?\d+,\d+|-?\d+\s*[kKmM]\b/g;
+const SEL_TUDO = ".recharts-yAxis, .recharts-label-list";
+const SEL_FORTE = ".recharts-xAxis, .recharts-pie-labels, .recharts-tooltip-wrapper, .recharts-legend-wrapper";
+
+function novoTexto(v: string, el: Element): string {
+  let out = v;
+  if (RE_TESTE.test(out)) out = out.replace(RE_TROCA, MASCARA);
+  if (el.closest(".recharts-wrapper")) {
+    if (el.closest(SEL_TUDO)) out = out.replace(RE_NUMERO, "••••");
+    else if (el.closest(SEL_FORTE)) out = out.replace(RE_VALOR_FORTE, "••••");
+  }
+  return out;
+}
 
 export function useMascaraValores(ativo: boolean) {
   useEffect(() => {
@@ -29,11 +44,11 @@ export function useMascaraValores(ativo: boolean) {
       const v = n.nodeValue ?? "";
       const reg = estado.get(n);
       if (reg && v === reg.mask) return;
-      if (!RE_TESTE.test(v)) {
+      const mask = novoTexto(v, n.parentElement!);
+      if (mask === v) {
         estado.delete(n);
         return;
       }
-      const mask = v.replace(RE_TROCA, MASCARA);
       estado.set(n, { orig: v, mask });
       n.nodeValue = mask;
     };

@@ -24,6 +24,7 @@ import { z } from "zod";
 
 import { Checkbox } from "@/components/ui/checkbox";
 import { correspondeBuscaComValor } from "@/lib/busca";
+import { PrimeiraCategoriaGuia } from "@/components/PrimeiraCategoriaGuia";
 import { AppLayout } from "@/components/AppLayout";
 import { BarraSoma, useSelecaoSoma } from "@/components/BarraSoma";
 import { usePersistedState } from "@/hooks/usePersistedState";
@@ -1433,6 +1434,7 @@ function DespesasPage() {
               {editId ? "Editar despesa" : `Nova despesa ${tab === "fixa" ? "fixa" : "variável"}`}
             </DialogTitle>
           </DialogHeader>
+          {!editId && <PrimeiraCategoriaGuia tipo="despesa" />}
 
           {duplicata && (
             <Alert className="border-warning/40 bg-warning/10">

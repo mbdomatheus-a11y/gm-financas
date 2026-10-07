@@ -217,7 +217,7 @@ export const enviarChamadoSuporte = createServerFn({ method: "POST" })
     z.object({
       assunto: z.string().trim().min(5).max(120),
       descricao: z.string().trim().min(10).max(3000),
-      prioridade: z.enum(["elogio","reclamacao","sugestao"]).optional(),
+      prioridade: z.enum(["elogio","reclamacao","sugestao","duvida"]).optional(),
       anexo: anexoSchema.optional(),
     }).parse(v)
   )
@@ -252,7 +252,7 @@ export const enviarChamadoSuporte = createServerFn({ method: "POST" })
     try {
       const { enviarEmail, obterUrlBaseSite } = await import("@/lib/email.server");
       const base = obterUrlBaseSite();
-      const PRIORIDADE_LABEL: Record<string, string> = { elogio: "Elogio", reclamacao: "Reclamação", sugestao: "Sugestão" };
+      const PRIORIDADE_LABEL: Record<string, string> = { elogio: "Elogio", reclamacao: "Reclamação", sugestao: "Sugestão", duvida: "Dúvida" };
       await enviarEmail({
         to: "privacidade@controlall.com.br",
         subject: `Control ALL: novo chamado de suporte — ${data.assunto}`,

@@ -16,6 +16,7 @@ import {
 import { toast } from "sonner";
 import { z } from "zod";
 
+import { PrimeiraCategoriaGuia } from "@/components/PrimeiraCategoriaGuia";
 import { AppLayout } from "@/components/AppLayout";
 import { BarraSoma, useSelecaoSoma } from "@/components/BarraSoma";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -780,6 +781,7 @@ function ReceitasPage() {
           <DialogHeader>
             <DialogTitle>{editId ? "Editar receita" : "Nova receita"}</DialogTitle>
           </DialogHeader>
+          {!editId && <PrimeiraCategoriaGuia tipo="receita" />}
 
           {duplicata && (
             <Alert className="border-warning/40 bg-warning/10">

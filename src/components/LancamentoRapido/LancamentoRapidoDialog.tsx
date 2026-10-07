@@ -38,6 +38,7 @@ import {
   useProfilesList,
   useReceitas,
 } from "@/hooks/useFinance";
+import { PrimeiraCategoriaGuia } from "@/components/PrimeiraCategoriaGuia";
 import { useResumoFinanceiroMes } from "@/hooks/useResumoFinanceiroMes";
 import { classificar } from "@/lib/categorizacao";
 import { addMonths, dividirParcelas, toISODate } from "@/lib/format";
@@ -706,6 +707,7 @@ export function LancamentoRapidoDialog({
             </TabsContent>
 
             <TabsContent value="lancar" className="space-y-3">
+              <PrimeiraCategoriaGuia tipo="despesa" />
               {modoIa === "somente_audio" && !textoLiberadoPorAudio && (
                 <p className="text-xs text-muted-foreground">
                   O administrador liberou apenas entrada por áudio agora — grave um áudio pra

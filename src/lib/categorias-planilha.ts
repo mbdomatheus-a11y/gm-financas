@@ -8,9 +8,9 @@ export const CABECALHO_CATEGORIAS = ["tipo", "categoria", "subcategoria", "cor"]
 export type LinhaCategoria = { tipo: "despesa" | "receita"; nome: string; cor: string | null };
 
 /** Lista sugerida completa do site (uma linha por subcategoria). */
-export function linhasListaSugerida(): string[][] {
+export function linhasListaSugerida(padrao: Record<string, string[]> = CATEGORIAS_PADRAO): string[][] {
   const out: string[][] = [];
-  for (const [cat, subs] of Object.entries(CATEGORIAS_PADRAO)) {
+  for (const [cat, subs] of Object.entries(padrao)) {
     if (subs.length === 0) out.push(["despesa", cat, "", ""]);
     for (const sub of subs) out.push(["despesa", cat, sub, ""]);
   }

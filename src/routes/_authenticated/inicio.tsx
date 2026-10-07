@@ -16,6 +16,7 @@ import {
   Headphones,
   ShieldCheck,
   CalendarDays,
+  Lock,
 } from "lucide-react";
 
 import { useMemo } from "react";
@@ -66,8 +67,8 @@ const MODULOS = [
   {
     key: "calculadora" as const,
     to: "/ferramentas" as const,
-    titulo: "Calculadora",
-    descricao: "Cálculos de datas, horários e simulações.",
+    titulo: "Utilidades",
+    descricao: "Calculadoras de datas, horários e dose, e link temporário.",
     icon: Calculator,
   },
   {
@@ -150,8 +151,35 @@ function InicioPage() {
     <AppLayout title="Início" description="Escolha o que deseja acessar">
       <GamificacaoFinanceira />
       <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {MODULOS.filter((modulo) => habilitado(modulo.key)).map((modulo) => {
+        {MODULOS.map((modulo) => {
           const Icon = modulo.icon;
+          if (!habilitado(modulo.key)) {
+            return (
+              <Card
+                key={modulo.to}
+                className="relative h-full cursor-not-allowed select-none opacity-60 grayscale"
+                aria-disabled="true"
+              >
+                <CardContent className="flex h-full min-h-44 flex-col gap-4 p-5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex size-12 items-center justify-center rounded-2xl bg-muted">
+                      <Icon className="size-6 text-muted-foreground" />
+                    </div>
+                    <span className="flex items-center gap-1 rounded-full bg-amber-500/15 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300">
+                      <Lock className="size-3" /> Em breve
+                    </span>
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-semibold">{modulo.titulo}</h2>
+                    <p className="mt-1 text-sm text-muted-foreground">{modulo.descricao}</p>
+                    <p className="mt-2 text-xs italic text-muted-foreground">
+                      Liberado em breve pelo administrador.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          }
           return (
             <Link key={modulo.to} to={modulo.to}>
               <Card className="lift h-full">

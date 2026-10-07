@@ -1,4 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { Button } from "@/components/ui/button";
 import { CalendarClock, CalendarPlus, Info, Syringe, Timer } from "lucide-react";
 
 import { useQuery } from "@tanstack/react-query";
@@ -37,10 +38,23 @@ function FerramentasPage() {
   const mostrarAviso = aviso?.exibir ?? false;
   return (
     <AppLayout
-      title="Calculadora"
-      description="Ferramentas de uso geral — sem relação com seus dados financeiros."
+      title="Utilidades"
+      description="Calculadoras e link temporário — sem relação com seus dados financeiros."
     >
       <div className="space-y-6">
+        <Card>
+          <CardContent className="flex flex-wrap items-center gap-3 p-4">
+            <div className="min-w-0 flex-1">
+              <p className="font-medium">Link temporário</p>
+              <p className="text-sm text-muted-foreground">
+                Crie um link que expira para compartilhar algo sem deixar aberto para sempre.
+              </p>
+            </div>
+            <Button asChild variant="outline">
+              <Link to="/links-temporarios">Abrir link temporário</Link>
+            </Button>
+          </CardContent>
+        </Card>
         {mostrarAviso && (
         <Card className="border-primary/30 bg-primary/5">
           <CardContent className="flex items-start gap-3 p-4">

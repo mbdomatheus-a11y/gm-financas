@@ -198,7 +198,7 @@ function useParceriaHome() {
   });
 }
 
-/** Anúncio da parceria, separado do conteúdo: abre como janela (uma vez por visita). */
+/** Anúncio da parceria: bloco fixo e discreto, sem janela por cima do conteúdo. */
 function ParceriaBloco() {
   const { data: parceria } = useParceriaHome();
   const registrarCliqueFn = useServerFn(registrarCliqueParceria);
@@ -236,77 +236,6 @@ function ParceriaBloco() {
         <ArrowRight className="size-5 shrink-0 text-amber-600 transition-transform group-hover:translate-x-1" />
       </a>
     </section>
-  );
-}
-
-function ParceriaPopup() {
-  const { data: parceria } = useParceriaHome();
-  const registrarCliqueFn = useServerFn(registrarCliqueParceria);
-  const [aberto, setAberto] = useState(false);
-
-  useEffect(() => {
-    if (!parceria) return;
-    try {
-      if (sessionStorage.getItem("control-all-parceria-vista")) return;
-    } catch {
-      // sem armazenamento: mostra mesmo assim
-    }
-    const t = setTimeout(() => setAberto(true), 2500);
-    return () => clearTimeout(t);
-  }, [parceria]);
-
-  if (!parceria) return null;
-  const previewUrl = parceria.previewImagemPath
-    ? supabase.storage.from("site_assets").getPublicUrl(parceria.previewImagemPath).data.publicUrl
-    : null;
-  const linhas = parceria.slogan ? parceria.slogan.split("\n").filter(Boolean) : [];
-
-  function fechar(v: boolean) {
-    setAberto(v);
-    if (!v) {
-      try {
-        sessionStorage.setItem("control-all-parceria-vista", "1");
-      } catch {
-        // ignorado
-      }
-    }
-  }
-
-  return (
-    <Dialog open={aberto} onOpenChange={fechar}>
-      <DialogContent className="max-w-sm overflow-hidden p-0">
-        <p className="px-4 pt-4 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-          Patrocinado
-        </p>
-        <DialogTitle className="sr-only">Parceria patrocinada</DialogTitle>
-        <DialogDescription className="sr-only">Anúncio de um parceiro do Control ALL</DialogDescription>
-        <a
-          href={parceria.url}
-          target="_blank"
-          rel="noopener noreferrer sponsored"
-          onClick={() => {
-            registrarCliqueFn().catch(() => {});
-          }}
-          className="group flex flex-col gap-3 p-4 pt-2"
-        >
-          {previewUrl && (
-            <img src={previewUrl} alt="" className="h-44 w-full rounded-xl border object-cover" />
-          )}
-          <div className="flex items-center gap-3">
-            <div className="min-w-0 flex-1">
-              {linhas[0] && (
-                <p className="flex items-center gap-1.5 text-base font-bold text-amber-700 dark:text-amber-400">
-                  <Percent className="size-4 shrink-0" />
-                  <span>{linhas[0]}</span>
-                </p>
-              )}
-              {linhas[1] && <p className="mt-0.5 text-sm text-muted-foreground">{linhas[1]}</p>}
-            </div>
-            <ArrowRight className="size-5 shrink-0 text-amber-600 transition-transform group-hover:translate-x-1" />
-          </div>
-        </a>
-      </DialogContent>
-    </Dialog>
   );
 }
 
@@ -389,7 +318,6 @@ function LandingPage() {
       />
       <SiteHeader home />
       <EconomiaTotalBanner />
-      <ParceriaPopup />
 
       {/* Hero */}
       <section className="relative overflow-hidden border-b">

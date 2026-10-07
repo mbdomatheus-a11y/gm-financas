@@ -75,6 +75,12 @@ function PrivacidadePage() {
               pessoais nem os compartilhamos com terceiros para publicidade.
             </p>
             <p>
+              Ao visitar o site registramos a página aberta, o endereço IP, a localização
+              aproximada (cidade e país), o aparelho e a origem do acesso (por exemplo, o link de uma
+              campanha). Usamos esses dados para segurança e para medir se as ações de divulgação
+              funcionam, e eles ficam disponíveis apenas à administração do site.
+            </p>
+            <p>
               Dados financeiros, documentos, fotos e informações de saúde são tratados como
               conteúdo privado do usuário. Exames são privados por padrão e só podem ser
               compartilhados com familiares por escolha expressa. Arquivos enviados para análise de

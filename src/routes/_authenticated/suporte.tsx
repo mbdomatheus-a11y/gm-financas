@@ -94,7 +94,7 @@ function SuportePage() {
 
   const [assunto, setAssunto] = useState("");
   const [descricao, setDescricao] = useState("");
-  const [prioridade, setPrioridade] = useState<"elogio" | "reclamacao" | "sugestao">("sugestao");
+  const [prioridade, setPrioridade] = useState<"elogio" | "reclamacao" | "sugestao" | "duvida">("duvida");
   const [protocolo, setProtocolo] = useState<string | null>(null);
   const [arquivoNovo, setArquivoNovo] = useState<File | null>(null);
   const arquivoNovoRef = useRef<HTMLInputElement>(null);
@@ -237,6 +237,7 @@ function SuportePage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="duvida">Dúvida</SelectItem>
                       <SelectItem value="elogio">Elogio</SelectItem>
                       <SelectItem value="reclamacao">Reclamação</SelectItem>
                       <SelectItem value="sugestao">Sugestão</SelectItem>

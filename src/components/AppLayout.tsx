@@ -31,6 +31,7 @@ import {
   ShieldCheck,
   CalendarDays,
   Headphones,
+  Link2,
 } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -96,6 +97,7 @@ function OracleQuotaBadge() {
 
 type NavTo =
   | "/inicio"
+  | "/links-temporarios"
   | "/dashboard"
   | "/receitas"
   | "/despesas"
@@ -234,14 +236,21 @@ const MUNDOS: Record<MundoId, { titulo: string; home: NavTo; items: NavItem[] }>
     ],
   },
   calculadora: {
-    titulo: "Calculadora",
+    titulo: "Utilidades",
     home: "/ferramentas",
     items: [
       {
         to: "/ferramentas",
-        label: "Calculadora",
-        short: "Calculadora",
+        label: "Calculadoras",
+        short: "Calculadoras",
         icon: Calculator,
+        moduloGlobal: "calculadora",
+      },
+      {
+        to: "/links-temporarios",
+        label: "Link temporário",
+        short: "Link",
+        icon: Link2,
         moduloGlobal: "calculadora",
       },
     ],

@@ -226,3 +226,18 @@ Atualização de estilo global sem mudar funcionalidades: fundo "aurora" suave, 
 - Criar conta: removido "QR Code do SEFAZ com IA"; texto agora fala em QR Code ou chave de acesso. Mensagem de convite sem "com IA".
 - Home: módulos não habilitados no site (lidos de `modulos_globais`, função pública `listarModulosPublicos`) aparecem esmaecidos com selo "Em breve" e "Lançamento em breve".
 - Home: cartão 'Exemplo ilustrativo' agora fixo (sem inclinação/movimento), com aviso de garantia e lista 'Seus módulos' (Em breve nos não habilitados).
+
+### Rodada 4 (2026-10-06)
+Pedido do usuário (11 itens) e o que foi feito:
+1. Patrocinado: popup removido (aparecia em tela cheia); fica só o bloco discreto na home.
+2. Log de acessos: tabela `acessos_site_log` (IP, cidade/UF/país pelos cabeçalhos da Vercel, origem UTM/referrer, aparelho, sessão), gravada por `RastreadorAcessos` no root; admin > Visão geral > "Acessos ao site" com períodos 7/30/90 dias, ranking de origens, locais, páginas e aparelhos, gráfico por dia e registro detalhado exportável. Aviso de Privacidade atualizado. Dica: divulgue com `?utm_source=...&utm_medium=...&utm_campaign=...`.
+3. Login só e-mail: não reproduzido (config no banco é "ambos" e o formulário mostra "E-mail ou CPF" nesse caso). Pendente de print/ajuste fino.
+4. Ocultar valores em gráficos: máscara agora cobre eixos, rótulos, legendas e tooltips do recharts.
+5. Admin > Site e módulos > "Categorias e De-para": tabelas `categorias_padrao` e `depara_padrao` (admin adiciona/remove). Categorias padrão alimentam a lista sugerida, subcategorias da importação e o guia de primeira categoria; de-para padrão entra na importação com prioridade baixa (regras do usuário vencem).
+6. Primeiro lançamento: aviso "Criar categoria" na própria tela (IA, nova despesa, nova receita, importação) quando o usuário não tem categoria; cria a partir das sugestões ou digitando.
+7. Início do usuário mostra módulos não liberados bloqueados com "Em breve" (admin sempre vê tudo liberado).
+8. Módulo Calculadora virou "Utilidades" (calculadoras + link temporário).
+9. Suporte: nova opção "Dúvida" (constraint do banco atualizada).
+10. Importar fatura: na primeira visita, pergunta "Importar sua primeira fatura?" (uma vez por usuário).
+11. Open Finance: apenas comparativo de alternativas (nada implementado).
+Migração: supabase/migrations/20261006120000_rodada4.sql (aplicada em produção).

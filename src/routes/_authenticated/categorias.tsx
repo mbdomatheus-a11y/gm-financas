@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useCategorias } from "@/hooks/useFinance";
+import { useCategoriasPadrao } from "@/hooks/useCategoriasPadrao";
 import { usePermissoes } from "@/hooks/useAuthData";
 import { baixarTxt, baixarXlsx } from "@/lib/exportar-planilha";
 import {
@@ -69,6 +70,7 @@ const schema = z.object({
 function CategoriasPage() {
   const qc = useQueryClient();
   const { can, exclusaoBloqueada } = usePermissoes();
+  const { mapa: padraoMapa } = useCategoriasPadrao();
   const [tipo, setTipo] = useState<"despesa" | "receita">("despesa");
   const { data: categorias = [] } = useCategorias(tipo);
 
@@ -184,10 +186,10 @@ function CategoriasPage() {
             não são alteradas nem duplicadas. A coluna "subcategoria" serve de referência.
           </p>
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" onClick={() => baixarXlsx("categorias-sugeridas", CABECALHO_CATEGORIAS, linhasListaSugerida())}>
+            <Button variant="outline" size="sm" onClick={() => baixarXlsx("categorias-sugeridas", CABECALHO_CATEGORIAS, linhasListaSugerida(padraoMapa))}>
               <Download className="size-4" /> Lista sugerida (Excel)
             </Button>
-            <Button variant="outline" size="sm" onClick={() => baixarTxt("categorias-sugeridas", CABECALHO_CATEGORIAS, linhasListaSugerida())}>
+            <Button variant="outline" size="sm" onClick={() => baixarTxt("categorias-sugeridas", CABECALHO_CATEGORIAS, linhasListaSugerida(padraoMapa))}>
               <Download className="size-4" /> Lista sugerida (TXT)
             </Button>
             <Button variant="outline" size="sm" onClick={() => baixarXlsx(`minhas-categorias-${tipo}`, CABECALHO_CATEGORIAS, linhasMinhasCategorias(categorias as any[], tipo))}>

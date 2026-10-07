@@ -45,6 +45,8 @@ import {
   adminReenviarTour,
 } from "@/lib/tour.functions";
 import { IaLancamentoModoSiteCard } from "@/components/IaLancamentoModoSiteCard";
+import { AcessosSiteAdmin } from "@/components/AcessosSiteAdmin";
+import { PadroesAdmin } from "@/components/PadroesAdmin";
 import { AvisoCalculadoraAdminCard } from "@/components/AvisoCalculadoraAdminCard";
 import { TelaInicialPadraoCard } from "@/components/TelaInicialPadraoCard";
 import {
@@ -112,6 +114,7 @@ const GRUPOS_ADMIN: {
     abas: [
       { id: "dados-gerais", rotulo: "Dados Gerais" },
       { id: "consulta", rotulo: "Consulta" },
+      { id: "acessos", rotulo: "Acessos ao site" },
     ],
   },
   {
@@ -132,6 +135,7 @@ const GRUPOS_ADMIN: {
       { id: "modulos", rotulo: "Módulos" },
       { id: "personalizacao", rotulo: "Personalização" },
       { id: "avisos", rotulo: "Avisos" },
+      { id: "padroes", rotulo: "Categorias e De-para" },
     ],
   },
   {
@@ -953,6 +957,14 @@ function Admin() {
             </TabsTrigger>
           ))}
         </TabsList>
+
+        <TabsContent value="acessos" className="space-y-4">
+          <AcessosSiteAdmin />
+        </TabsContent>
+
+        <TabsContent value="padroes" className="space-y-4">
+          <PadroesAdmin />
+        </TabsContent>
 
         {/* ─── ABA 1: DADOS GERAIS ─── */}
         <TabsContent value="dados-gerais" className="space-y-4">

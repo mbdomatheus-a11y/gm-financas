@@ -14,6 +14,7 @@ import appCss from "../styles.css?url";
 import { Toaster } from "@/components/ui/sonner";
 import { VersaoBuild } from "@/components/VersaoBuild";
 import { DynamicFavicon } from "@/components/BrandMark";
+import { RastreadorAcessos } from "@/components/RastreadorAcessos";
 
 function NotFoundComponent() {
   return (
@@ -140,6 +141,7 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <VersaoBuild />
       <DynamicFavicon />
+      <RastreadorAcessos />
       <Outlet />
       <Toaster position="top-center" richColors />
     </QueryClientProvider>

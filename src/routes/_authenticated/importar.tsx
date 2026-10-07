@@ -62,9 +62,11 @@ import {
   CONFIANCA_LABEL,
   chaveEstabelecimento,
   classificar,
-  subcategoriasDe,
   type RegraUsuario,
 } from "@/lib/categorizacao";
+import { PrimeiraCategoriaGuia } from "@/components/PrimeiraCategoriaGuia";
+import { PrimeiraFaturaAviso } from "@/components/PrimeiraFaturaAviso";
+import { useCategoriasPadrao } from "@/hooks/useCategoriasPadrao";
 import { interpretarBloco } from "@/lib/lancamento-texto";
 import { lancamentosDeOcr, ocrImagem, hashTexto as hashTextoOcr } from "@/lib/ocr";
 import {
@@ -131,6 +133,7 @@ async function hashTexto(texto: string) {
 }
 
 function ImportarPage() {
+  const { subcategoriasDe: subDaCategoria } = useCategoriasPadrao();
   const qc = useQueryClient();
   const { user } = useSession();
   const { can, canImportar, exclusaoBloqueada } = usePermissoes();
@@ -230,7 +233,21 @@ function ImportarPage() {
     queryFn: async () => {
       const { data, error } = await supabase.from("categoria_regras").select("*");
       if (error) throw error;
-      return (data ?? []) as RegraUsuario[];
+      // De-para padrão do admin entra com prioridade baixa: as regras do usuário vencem.
+      const { data: padrao } = await (supabase as any)
+        .from("depara_padrao")
+        .select("texto,categoria,subcategoria")
+        .eq("ativo", true);
+      const padraoRegras: RegraUsuario[] = ((padrao ?? []) as any[]).map((p) => ({
+        estabelecimento_normalizado: p.texto,
+        padroes: [p.texto],
+        tipo_regra: "de_para",
+        categoria: p.categoria,
+        subcategoria: p.subcategoria ?? null,
+        prioridade: 1,
+        ativo: true,
+      }));
+      return [...((data ?? []) as RegraUsuario[]), ...padraoRegras];
     },
   });
 
@@ -1306,6 +1323,8 @@ function ImportarPage() {
         ) : undefined
       }
     >
+      <PrimeiraFaturaAviso onImportar={() => inputRef.current?.click()} />
+      <PrimeiraCategoriaGuia tipo="despesa" className="mb-3" />
       <Card>
         <CardContent className="p-4">
           <Tabs defaultValue="pdf">
@@ -2269,7 +2288,7 @@ function ImportarPage() {
                                 </SelectTrigger>
                                 <SelectContent>
                                   <SelectItem value="none">—</SelectItem>
-                                  {subcategoriasDe(l.categoria).map((s) => (
+                                  {subDaCategoria(l.categoria).map((s) => (
                                     <SelectItem key={s} value={s}>
                                       {s}
                                     </SelectItem>
