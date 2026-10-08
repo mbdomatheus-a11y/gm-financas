@@ -16,13 +16,32 @@ export const convidarParaMeuGrupo = createServerFn({ method: "POST" })
       .eq("id", context.userId)
       .single();
     if (!perfil?.grupo_id) throw new Error("Seu grupo não foi localizado.");
-    const { data: destino } = await db
+    const emailAlvo = data.email.trim().toLowerCase();
+    // Escapa curingas do ilike (% e _) para casar o e-mail literalmente.
+    const padrao = emailAlvo.replace(/[\\%_]/g, (c) => `\\${c}`);
+    let { data: destino } = await db
       .from("profiles")
       .select("id")
-      .ilike("email", data.email)
+      .ilike("email", padrao)
       .eq("ativo", true)
+      .limit(1)
       .maybeSingle();
+    if (!destino) {
+      // Perfis antigos podem estar sem e-mail preenchido: confere direto na autenticação.
+      const { data: lista } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+      const achado = lista?.users.find((u) => u.email?.toLowerCase() === emailAlvo);
+      if (achado) {
+        const { data: perfilAchado } = await db
+          .from("profiles")
+          .select("id")
+          .eq("id", achado.id)
+          .eq("ativo", true)
+          .maybeSingle();
+        destino = perfilAchado;
+      }
+    }
     if (!destino) throw new Error("O destinatário precisa ter uma conta ativa no Control ALL.");
+    if (destino.id === context.userId) throw new Error("Você não pode convidar a si mesmo.");
     const token = randomBytes(32).toString("hex");
     const { error } = await db.from("convites_grupo").insert({
       grupo_id: perfil.grupo_id,
@@ -38,8 +57,12 @@ export const convidarParaMeuGrupo = createServerFn({ method: "POST" })
       subject: "Convite para compartilhar um workspace no Control ALL",
       html: `<p>${perfil.nome} convidou você para compartilhar o mesmo workspace no Control ALL.</p><p>Ao aceitar, todos do grupo verão o mesmo conjunto de finanças, listas, notas e demais dados compartilhados. Seus dados do grupo individual serão transferidos para o workspace integrado.</p><p><a href="${link}">Revisar e aceitar convite</a></p><p>O convite vale por 7 dias.</p>`,
     });
-    if (!enviado.ok) throw new Error("O convite foi criado, mas o e-mail não pôde ser enviado.");
-    return { ok: true as const };
+    if (!enviado.ok) {
+      // O convite existe; devolve o link ao dono para enviar por outro canal (ex.: WhatsApp).
+      console.error("[convite-grupo] e-mail não enviado:", enviado.erro);
+      return { ok: true as const, emailEnviado: false as const, link };
+    }
+    return { ok: true as const, emailEnviado: true as const, link: null };
   });
 
 export const aceitarConviteGrupo = createServerFn({ method: "POST" })

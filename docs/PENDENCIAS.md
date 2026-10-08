@@ -272,3 +272,8 @@ Pendências manuais: git push origin main; DROP POLICY comprovantes_membro_ativo
 - Diagnóstico: o token é criado no banco (ex.: terezinha.fbc, 07/10 17:07), então o fluxo roda até o envio; o e-mail não sai pelo Resend. Provável causa: RESEND_FROM_EMAIL ausente na Vercel (cai em onboarding@resend.dev, que só entrega para o dono da conta Resend) ou domínio não verificado no Resend, ou RESEND_API_KEY ausente.
 - Código: a falha de envio antes era ignorada; agora é registrada em admin_audit_logs (acao email_recuperacao_senha_falhou, com o erro) e no log do servidor. Busca do usuário passou a usar profiles (listUsers só olhava 50 usuários).
 - Ação manual: verificar domínio controlall.com.br em Resend > Domains (registros DNS SPF/DKIM) e definir na Vercel RESEND_FROM_EMAIL="Control ALL <avisos@controlall.com.br>", RESEND_API_KEY e SITE_URL; redeploy.
+
+### Convite para o grupo compartilhado (2026-10-07)
+- Causa do "o destinatário precisa ter uma conta ativa": 3 perfis antigos estavam com e-mail vazio (mwathews@hotmail.com, guilhermeferres@gmail.com, artfoxbrasil@gmail.com) e a busca do convite olhava só profiles.email. Backfill feito (migração 20261007160000) e a busca agora também confere na autenticação, escapa curingas e bloqueia convidar a si mesmo.
+- Se o e-mail do convite não puder ser enviado (Resend), o convite fica criado e o link é copiado para o dono enviar por outro meio (7 dias de validade). Antes dava erro e o link se perdia.
+- Aceite: o RPC aceitar_convite_grupo exige que o e-mail logado seja o do convite e que o grupo atual de quem aceita não tenha outros integrantes; os dados de quem aceita migram para o grupo de quem convidou.

@@ -188,9 +188,17 @@ function ContaPage() {
   });
   const enviarConviteGrupo = useMutation({
     mutationFn: () => convidarGrupo({ data: { email: emailGrupo } }),
-    onSuccess: () => {
-      toast.success("Convite de workspace enviado.");
+    onSuccess: (r) => {
       setEmailGrupo("");
+      if (r.emailEnviado) {
+        toast.success("Convite de workspace enviado por e-mail.");
+      } else if (r.link) {
+        void navigator.clipboard?.writeText(r.link).catch(() => {});
+        toast.warning(
+          "O e-mail não pôde ser enviado, mas o convite foi criado. O link foi copiado: envie para a pessoa por outro meio (ex.: WhatsApp). Vale por 7 dias.",
+          { duration: 20000 },
+        );
+      }
     },
     onError: (e) => toast.error(e.message),
   });
