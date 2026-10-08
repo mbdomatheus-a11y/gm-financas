@@ -1,4 +1,5 @@
 import { AppEmBreve } from "@/components/AppEmBreve";
+import { ConvitesRecebidosAviso } from "@/components/ConvitesGrupo";
 import { useState, type ReactNode } from "react";
 import { lembrarUrlRetorno, limparUrlRetorno } from "@/lib/return-url";
 import { useServerFn } from "@tanstack/react-start";
@@ -548,6 +549,7 @@ export function AppLayout({
       )}
 
       <div className={cn(!bottomNav && "lg:pl-64")}>
+        <ConvitesRecebidosAviso />
         <header className="glass sticky top-0 z-20 border-b border-border/60">
           <div className="flex items-center gap-3 px-4 py-3">
             <div className="min-w-0 flex-1">
