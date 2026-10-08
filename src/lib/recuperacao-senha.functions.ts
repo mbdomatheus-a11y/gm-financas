@@ -5,7 +5,7 @@ import { CPF_EMAIL_DOMAIN } from "@/lib/cpf";
 import { aplicarLimite, aplicarLimitePorIp } from "@/lib/rate-limit.server";
 
 /** Quanto tempo o link de redefinição vale, depois disso precisa pedir outro. */
-const EXPIRACAO_MINUTOS = 30;
+const EXPIRACAO_MINUTOS = 10;
 
 function gerarToken(): string {
   return crypto.randomBytes(32).toString("hex");
@@ -71,6 +71,12 @@ export const solicitarRecuperacaoSenha = createServerFn({ method: "POST" })
     }
     if (!usuario) return { ok: true as const };
 
+    // Um novo pedido invalida os links anteriores ainda não usados.
+    await supabaseAdmin
+      .from("password_reset_tokens")
+      .update({ usado: true })
+      .eq("user_id", usuario.id)
+      .eq("usado", false);
     const token = gerarToken();
     const { error: insertError } = await supabaseAdmin.from("password_reset_tokens").insert({
       user_id: usuario.id,
@@ -135,7 +141,7 @@ export const redefinirSenhaComToken = createServerFn({ method: "POST" })
       throw new Error("Este link é inválido ou já foi usado. Peça um novo.");
     }
     if (new Date(registro.expira_em).getTime() < Date.now()) {
-      throw new Error("Este link expirou. Peça um novo.");
+      throw new Error("Este link expirou (vale por 10 minutos). Peça um novo.");
     }
 
     const { error: updError } = await supabaseAdmin.auth.admin.updateUserById(registro.user_id, {

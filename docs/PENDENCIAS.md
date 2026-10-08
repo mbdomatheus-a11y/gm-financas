@@ -287,3 +287,6 @@ Pendências manuais: git push origin main; DROP POLICY comprovantes_membro_ativo
 - Histórico de convites (pendente, aceito, recusado, revogado, expirado) em Minha conta, com exclusão definitiva do registro (não altera acesso nem dados). Status `revogado` adicionado.
 - Decisão do backup: ele permanece até o usuário sair do grupo; não há opção de descartar o backup (a validar).
 - Testar de ponta a ponta: convidar conta existente, aceitar, conferir dados, sair do grupo.
+
+## Prazo do link de redefinição de senha (2026-10-08)
+- Prazo reduzido de 30 para 10 minutos; a expiração já era validada no servidor ao usar o link. Novo pedido invalida links anteriores não usados.
