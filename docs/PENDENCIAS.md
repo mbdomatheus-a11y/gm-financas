@@ -277,3 +277,13 @@ Pendências manuais: git push origin main; DROP POLICY comprovantes_membro_ativo
 - Causa do "o destinatário precisa ter uma conta ativa": 3 perfis antigos estavam com e-mail vazio (mwathews@hotmail.com, guilhermeferres@gmail.com, artfoxbrasil@gmail.com) e a busca do convite olhava só profiles.email. Backfill feito (migração 20261007160000) e a busca agora também confere na autenticação, escapa curingas e bloqueia convidar a si mesmo.
 - Se o e-mail do convite não puder ser enviado (Resend), o convite fica criado e o link é copiado para o dono enviar por outro meio (7 dias de validade). Antes dava erro e o link se perdia.
 - Aceite: o RPC aceitar_convite_grupo exige que o e-mail logado seja o do convite e que o grupo atual de quem aceita não tenha outros integrantes; os dados de quem aceita migram para o grupo de quem convidou.
+
+## Convite de grupo com aceite e workspace secundário (2026-10-07)
+- Aceite agora é NÃO destrutivo: nada é movido nem apagado. `profiles.grupo_secundario_id` guarda o workspace original (backup intacto) enquanto `grupo_id` aponta ao grupo de quem convidou.
+- Funções SQL: `aceitar_convite_grupo_id`, `aceitar_convite_grupo(token)`, `recusar_convite_grupo`, `sair_do_grupo`, `revogar_membro_grupo` (service_role). Trigger `proteger_identidade_perfil` agora libera mudança de grupo só via flag `app.mudanca_grupo` e protege `grupo_secundario_id`.
+- Corrigido: o trigger antigo bloqueava a troca de grupo dentro da função de aceite.
+- Notificação in-app: aviso no topo do app com Aceitar/Recusar (`ConvitesRecebidosAviso`), além do e-mail.
+- Sair do grupo ou revogação pelo dono restauram o workspace original (ou criam um novo se não houver backup).
+- Histórico de convites (pendente, aceito, recusado, revogado, expirado) em Minha conta, com exclusão definitiva do registro (não altera acesso nem dados). Status `revogado` adicionado.
+- Decisão do backup: ele permanece até o usuário sair do grupo; não há opção de descartar o backup (a validar).
+- Testar de ponta a ponta: convidar conta existente, aceitar, conferir dados, sair do grupo.

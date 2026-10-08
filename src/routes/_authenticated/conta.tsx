@@ -1,3 +1,4 @@
+import { HistoricoConvitesGrupo, SairDoGrupoCard } from "@/components/ConvitesGrupo";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -231,9 +232,7 @@ function ContaPage() {
             <CardContent className="space-y-3">
               <p className="text-sm text-muted-foreground">
                 Ao aceitar, você passa a fazer parte do mesmo grupo de quem convidou. A visão dos
-                módulos compartilhados será única para todos os integrantes. Seus dados do grupo
-                individual serão transferidos. Se seu grupo atual tiver outras pessoas, a união será
-                bloqueada para protegê-las.
+                módulos compartilhados será única para todos os integrantes. Seu workspace atual fica guardado, sem alterações, e volta se você sair do grupo. Se seu workspace atual tiver outras pessoas, a união será bloqueada para protegê-las.
               </p>
               <Button onClick={() => confirmarGrupo.mutate()} disabled={confirmarGrupo.isPending}>
                 Aceitar e integrar workspace
@@ -268,7 +267,9 @@ function ContaPage() {
             >
               Enviar convite para integrar grupo
             </Button>
+            <SairDoGrupoCard />
             <MembrosGrupo />
+            <HistoricoConvitesGrupo />
           </CardContent>
         </Card>
         <ConciliacaoFaturasCard />

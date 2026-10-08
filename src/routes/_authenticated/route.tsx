@@ -12,6 +12,7 @@ import { ComunicadosModal } from "@/components/ComunicadosModal";
 import { ConviteAposTresDias } from "@/components/ConviteAmigosBanner";
 import { TourGuiado } from "@/components/TourGuiado";
 import { BoasVindasExemplos } from "@/components/BoasVindasExemplos";
+import { ConvitesRecebidosAviso } from "@/components/ConvitesGrupo";
 import { useModulosGlobais, type ModuloGlobal } from "@/hooks/useAuthData";
 
 export const Route = createFileRoute("/_authenticated")({
@@ -76,6 +77,7 @@ function Protegido() {
       <BoasVindasExemplos bloqueado={avisoAberto} />
       <TourGuiado bloqueado={avisoAberto} />
       <ConviteAposTresDias bloqueado={avisoAberto} />
+      <ConvitesRecebidosAviso />
       <Outlet />
     </InactivityGuard>
   );
