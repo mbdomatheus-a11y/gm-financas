@@ -41,7 +41,7 @@ export function BrandAnimado({ className }: { className?: string }) {
   }, [visivel]);
 
   return (
-    <h1
+    <p
       className={cn(
         "select-none text-4xl font-extrabold tracking-tight sm:text-5xl md:text-6xl",
         className,
@@ -57,6 +57,6 @@ export function BrandAnimado({ className }: { className?: string }) {
       >
         {ESTAGIOS[indice]!.texto || " "}
       </span>
-    </h1>
+    </p>
   );
 }
