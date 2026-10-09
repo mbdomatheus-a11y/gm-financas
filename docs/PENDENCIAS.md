@@ -290,3 +290,8 @@ Pendências manuais: git push origin main; DROP POLICY comprovantes_membro_ativo
 
 ## Prazo do link de redefinição de senha (2026-10-08)
 - Prazo reduzido de 30 para 10 minutos; a expiração já era validada no servidor ao usar o link. Novo pedido invalida links anteriores não usados.
+
+## Favicon para o Google (2026-10-08)
+- O Google não executa o JS do `DynamicFavicon`; ele lê o `<link rel="icon">` estático. O `favicon.ico` antigo era a logo velha.
+- Gerados `public/favicon-48.png` e `public/favicon.ico` (16/32/48) a partir da logo atual (identidade_visual_site.logo_path) e declarados no head do `__root.tsx`.
+- Se a logo for trocada de novo pelo admin, os arquivos estáticos precisam ser regerados (o Google só vê o estático). Atualização no Google leva dias a semanas.
