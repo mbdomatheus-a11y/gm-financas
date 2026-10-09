@@ -305,3 +305,12 @@ Pendências manuais: git push origin main; DROP POLICY comprovantes_membro_ativo
 - A ferramenta pública "Link temporário" (`/links-temporarios`) foi mantida como está (decisão do dono).
 - `routeTree.gen.ts` regenerado com o gerador do TanStack (mantido o bloco `Register` no final).
 - Não testado com login real: testar criar, abrir logado e deslogado, expirar, arquivar, excluir, e ligar o módulo para ver a lista como usuário comum.
+
+## Links como "anotações": tela própria, histórico e unificar (2026-10-08)
+- Correção de termo: o que o módulo Links guarda são ANOTAÇÕES com link, não notas. O módulo de notas fiscais não foi alterado.
+- A criação/edição/arquivamento/exclusão saiu da Administração e foi para a tela `/links` (só o admin do site vê o painel). Usuários comuns veem só a lista de leitura quando o módulo estiver ligado.
+- Administração, aba "Links": agora só tem o interruptor "Habilitar para os outros usuários" (`LinksAdminHabilitar`, usa `adminSalvarModulo`).
+- `/links` (admin): abas "Anotações ativas" e "Histórico" (todas, com data, arquivadas e expiradas), botão "Incluir anotação" e "Unificar selecionadas".
+- Unificar (`adminUnificarLinks`): junta 2 a 30 anotações em uma nova permanente, em ordem de criação, cada uma com seu título como "# título", separadas por "---". Limite de 100.000 caracteres. As originais são arquivadas (não apagadas).
+- Card "Links" na Início (admin): atalhos "Incluir" e "Ver histórico". Usuários comuns veem o card normal (quando o módulo estiver ligado).
+- Pendente: testar com login real; avaliar renomear o módulo de "Links" para "Anotações" se preferir.

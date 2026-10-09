@@ -1,7 +1,7 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Archive, ArchiveRestore, Bold, Copy, Italic, Link2, List, Pencil, Trash2, Heading } from "lucide-react";
+import { Archive, ArchiveRestore, Bold, Combine, Copy, Italic, Link2, List, Pencil, Trash2, Heading } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import {
   adminExcluirLink,
   adminListarLinks,
   adminSalvarLink,
+  adminUnificarLinks,
 } from "@/lib/links-admin.functions";
 
 const MAX_CONTEUDO = 100_000;
@@ -31,20 +32,34 @@ export function linkPublico(id: string) {
   return `${window.location.origin}/links/${id}`;
 }
 
-export function LinksAdminPainel() {
+export function LinksAdminPainel({
+  abaInicial = "ativas",
+  novo = false,
+}: {
+  abaInicial?: "ativas" | "historico";
+  novo?: boolean;
+}) {
   const qc = useQueryClient();
   const listar = useServerFn(adminListarLinks);
   const salvar = useServerFn(adminSalvarLink);
   const arquivar = useServerFn(adminArquivarLink);
   const excluir = useServerFn(adminExcluirLink);
+  const unificar = useServerFn(adminUnificarLinks);
   const { data: links = [] } = useQuery({ queryKey: ["admin-links"], queryFn: () => listar() });
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [titulo, setTitulo] = useState("");
   const [conteudo, setConteudo] = useState("");
   const [tipo, setTipo] = useState<"temporario" | "permanente">("permanente");
   const [expira, setExpira] = useState("");
-  const [mostrarArquivados, setMostrarArquivados] = useState(false);
+  const [aba, setAba] = useState<"ativas" | "historico">(abaInicial);
+  const [marcados, setMarcados] = useState<string[]>([]);
+  const [tituloUniao, setTituloUniao] = useState("");
+  const [unindo, setUnindo] = useState(false);
+  const formRef = useRef<HTMLDivElement>(null);
   const area = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    if (novo) formRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [novo]);
 
   function limpar() {
     setEditandoId(null);
@@ -74,6 +89,17 @@ export function LinksAdminPainel() {
     },
     onError: (e: any) => toast.error(e.message),
   });
+  const unificarM = useMutation({
+    mutationFn: () => unificar({ data: { ids: marcados, titulo: tituloUniao } }),
+    onSuccess: () => {
+      toast.success("Anotações unificadas. As originais foram arquivadas e continuam no histórico.");
+      setMarcados([]);
+      setUnindo(false);
+      setTituloUniao("");
+      void qc.invalidateQueries({ queryKey: ["admin-links"] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
   const arquivarM = useMutation({
     mutationFn: (v: { id: string; arquivado: boolean }) => arquivar({ data: v }),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["admin-links"] }),
@@ -82,7 +108,7 @@ export function LinksAdminPainel() {
   const excluirM = useMutation({
     mutationFn: (id: string) => excluir({ data: { id } }),
     onSuccess: () => {
-      toast.success("Link excluído.");
+      toast.success("Anotação excluída.");
       void qc.invalidateQueries({ queryKey: ["admin-links"] });
     },
     onError: (e: any) => toast.error(e.message),
@@ -109,21 +135,44 @@ export function LinksAdminPainel() {
     setConteudo(l.conteudo);
     setTipo(l.tipo);
     setExpira(paraInputLocal(l.expira_em));
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    formRef.current?.scrollIntoView({ behavior: "smooth" });
   }
 
-  const visiveis = links.filter((l) => (mostrarArquivados ? l.arquivado : !l.arquivado));
+  function alternar(id: string) {
+    setMarcados((m) => (m.includes(id) ? m.filter((x) => x !== id) : [...m, id]));
+  }
+
   const agora = Date.now();
+  const visiveis = links.filter((l) => aba === "historico" || (!l.arquivado && !(l.expira_em && new Date(l.expira_em).getTime() < agora)));
 
   return (
     <div className="space-y-4">
+      <div className="flex flex-wrap gap-2">
+        <Button size="sm" variant={aba === "ativas" ? "default" : "outline"} onClick={() => setAba("ativas")}>
+          Anotações ativas
+        </Button>
+        <Button size="sm" variant={aba === "historico" ? "default" : "outline"} onClick={() => setAba("historico")}>
+          Histórico
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => {
+            setAba("ativas");
+            formRef.current?.scrollIntoView({ behavior: "smooth" });
+          }}
+        >
+          Incluir anotação
+        </Button>
+      </div>
+      <div ref={formRef} />
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm">{editandoId ? "Editar link" : "Novo link"}</CardTitle>
+          <CardTitle className="text-sm">{editandoId ? "Editar anotação" : "Nova anotação"}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="text-xs text-muted-foreground">
-            Só quem estiver logado no Control ALL consegue abrir o link gerado.
+            Ao salvar, é gerado um link. Só quem estiver logado no Control ALL consegue abri-lo.
           </p>
           <div className="space-y-1">
             <Label htmlFor="link-titulo">Título</Label>
@@ -212,17 +261,49 @@ export function LinksAdminPainel() {
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
-          <CardTitle className="text-sm">{mostrarArquivados ? "Links arquivados" : "Links ativos"}</CardTitle>
-          <Button size="sm" variant="ghost" onClick={() => setMostrarArquivados((v) => !v)}>
-            {mostrarArquivados ? "Ver ativos" : "Ver arquivados"}
+          <CardTitle className="text-sm">{aba === "historico" ? "Histórico de anotações (todas, com data)" : "Anotações ativas"}</CardTitle>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={marcados.length < 2}
+            onClick={() => {
+              setTituloUniao(`Unificado: ${links.filter((x) => marcados.includes(x.id)).map((x) => x.titulo).join(" + ")}`.slice(0, 120));
+              setUnindo(true);
+            }}
+          >
+            <Combine className="mr-1 size-4" /> Unificar selecionadas ({marcados.length})
           </Button>
         </CardHeader>
         <CardContent className="space-y-2">
-          {visiveis.length === 0 && <p className="text-sm text-muted-foreground">Nenhum link por aqui.</p>}
+          {unindo && (
+            <div className="space-y-2 rounded-lg border border-primary/40 bg-primary/5 p-3 text-sm">
+              <p>
+                As {marcados.length} anotações marcadas viram uma só, em ordem de criação. As originais ficam
+                arquivadas.
+              </p>
+              <Input maxLength={120} value={tituloUniao} onChange={(e) => setTituloUniao(e.target.value)} />
+              <div className="flex gap-2">
+                <Button size="sm" disabled={!tituloUniao.trim() || unificarM.isPending} onClick={() => unificarM.mutate()}>
+                  Confirmar união
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setUnindo(false)}>
+                  Cancelar
+                </Button>
+              </div>
+            </div>
+          )}
+          {visiveis.length === 0 && <p className="text-sm text-muted-foreground">Nenhuma anotação por aqui.</p>}
           {visiveis.map((l) => {
             const expirado = !!l.expira_em && new Date(l.expira_em).getTime() < agora;
             return (
               <div key={l.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3 text-sm">
+                <input
+                  type="checkbox"
+                  className="size-4"
+                  aria-label={`Selecionar ${l.titulo}`}
+                  checked={marcados.includes(l.id)}
+                  onChange={() => alternar(l.id)}
+                />
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium">{l.titulo}</p>
                   <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
@@ -233,6 +314,8 @@ export function LinksAdminPainel() {
                         {new Date(l.expira_em).toLocaleString("pt-BR")}
                       </span>
                     )}
+                    <span>Criada em {new Date(l.criado_em).toLocaleDateString("pt-BR")}</span>
+                    {l.arquivado && <Badge variant="secondary">Arquivada</Badge>}
                     {expirado && <Badge variant="destructive">Expirado</Badge>}
                   </div>
                 </div>

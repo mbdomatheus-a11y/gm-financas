@@ -104,7 +104,7 @@ const MODULOS = [
     key: "links" as const,
     to: "/links" as const,
     titulo: "Links",
-    descricao: "Conteúdos publicados pela administração.",
+    descricao: "Anotações com link, publicadas pela administração.",
     icon: Link2,
   },
 ];
@@ -183,6 +183,34 @@ function InicioPage() {
                     <p className="mt-2 text-xs italic text-muted-foreground">
                       Liberado em breve pelo administrador.
                     </p>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          }
+          if (modulo.key === "links" && isSiteAdmin) {
+            return (
+              <Card key={modulo.to} className="lift h-full">
+                <CardContent className="flex h-full min-h-44 flex-col gap-4 p-5">
+                  <Link to="/links" className="flex items-center justify-between">
+                    <div className="gradient-brand flex size-12 items-center justify-center rounded-2xl shadow-[var(--shadow-glow)]">
+                      <Icon className="size-6 text-primary-foreground" />
+                    </div>
+                    <span className="flex items-center gap-1 text-xs font-medium text-primary">
+                      Entrar <ArrowRight className="size-3.5" />
+                    </span>
+                  </Link>
+                  <div>
+                    <h2 className="text-lg font-semibold">{modulo.titulo}</h2>
+                    <p className="mt-1 text-sm text-muted-foreground">{modulo.descricao}</p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <Link to="/links" search={{ novo: true }} className="rounded-full border px-3 py-1 text-xs font-medium text-primary hover:bg-primary/10">
+                        Incluir
+                      </Link>
+                      <Link to="/links" search={{ aba: "historico" }} className="rounded-full border px-3 py-1 text-xs font-medium text-primary hover:bg-primary/10">
+                        Ver histórico
+                      </Link>
+                    </div>
                   </div>
                 </CardContent>
               </Card>

@@ -179,3 +179,56 @@ export const abrirLinkAdmin = createServerFn({ method: "POST" })
       atualizadoEm: link.atualizado_em as string,
     };
   });
+
+/**
+ * Unifica 2 ou mais anotações em uma nova (permanente). O conteúdo de cada uma
+ * entra em ordem de criação, precedido do seu título. As originais são ARQUIVADAS
+ * (não apagadas), então dá para conferir no histórico e excluir depois.
+ */
+export const adminUnificarLinks = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((v: unknown) =>
+    z
+      .object({
+        ids: z.array(z.string().uuid()).min(2, "Escolha ao menos 2 anotações.").max(30),
+        titulo: z.string().trim().min(1, "Informe o título.").max(120, "Título com até 120 caracteres."),
+      })
+      .parse(v),
+  )
+  .handler(async ({ data, context }) => {
+    await exigirAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const db = supabaseAdmin as any;
+    const { data: itens, error } = await db
+      .from("links_admin")
+      .select("id,titulo,conteudo,criado_em")
+      .in("id", data.ids)
+      .order("criado_em", { ascending: true });
+    if (error || !itens || itens.length !== new Set(data.ids).size) {
+      throw new Error("Não foi possível localizar todas as anotações.");
+    }
+    const conteudo = (itens as { titulo: string; conteudo: string }[])
+      .map((i) => `# ${i.titulo}\n\n${i.conteudo}`)
+      .join("\n\n---\n\n");
+    if (conteudo.length > 100_000) {
+      throw new Error("A união passa de 100.000 caracteres. Escolha menos anotações.");
+    }
+    const { data: novo, error: e1 } = await db
+      .from("links_admin")
+      .insert({
+        titulo: data.titulo,
+        conteudo,
+        tipo: "permanente",
+        expira_em: null,
+        criado_por: context.userId,
+      })
+      .select("id")
+      .single();
+    if (e1 || !novo) throw new Error("Não foi possível unificar.");
+    const { error: e2 } = await db
+      .from("links_admin")
+      .update({ arquivado: true, atualizado_em: new Date().toISOString() })
+      .in("id", data.ids);
+    if (e2) throw new Error("A nova anotação foi criada, mas não foi possível arquivar as originais.");
+    return { id: novo.id as string };
+  });

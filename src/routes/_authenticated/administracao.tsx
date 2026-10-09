@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LinksAdminPainel } from "@/components/LinksAdminPainel";
+import { LinksAdminHabilitar } from "@/components/LinksAdminHabilitar";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { usePermissoes } from "@/hooks/useAuthData";
@@ -1782,7 +1782,7 @@ function Admin() {
 
         {/* ─── ABA 6: AVISOS ─── */}
         <TabsContent value="links" className="space-y-4">
-          <LinksAdminPainel />
+          <LinksAdminHabilitar />
         </TabsContent>
 
         <TabsContent value="avisos" className="space-y-4">
