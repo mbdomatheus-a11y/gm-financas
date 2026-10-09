@@ -295,3 +295,13 @@ Pendências manuais: git push origin main; DROP POLICY comprovantes_membro_ativo
 - O Google não executa o JS do `DynamicFavicon`; ele lê o `<link rel="icon">` estático. O `favicon.ico` antigo era a logo velha.
 - Gerados `public/favicon-48.png` e `public/favicon.ico` (16/32/48) a partir da logo atual (identidade_visual_site.logo_path) e declarados no head do `__root.tsx`.
 - Se a logo for trocada de novo pelo admin, os arquivos estáticos precisam ser regerados (o Google só vê o estático). Atualização no Google leva dias a semanas.
+
+## Links do admin + módulo "Links" (2026-10-08)
+- Nova tabela `links_admin` (título até 120, conteúdo até 100.000, tipo temporário/permanente, expira_em, arquivado). RLS ligada e sem policies: acesso só por funções de servidor (`src/lib/links-admin.functions.ts`).
+- Aba "Links" em Administração (grupo "Site e módulos"): criar (título + conteúdo com formatação básica), tipo permanente ou temporário com data e hora escolhidas, editar, arquivar/desarquivar e excluir. Ao salvar, o link `/links/<id>` é gerado e copiado.
+- Formatação básica sem HTML (`TextoFormatado`): **negrito**, *itálico*, [texto](https://link), "# título", "- lista".
+- Quem abre o link: qualquer usuário LOGADO (se não estiver, o login volta para o link via `next`). Arquivado só o admin vê; temporário expirado mostra "Este link expirou".
+- Módulo `links` em `modulos_globais`, nasce DESLIGADO. Usuários comuns só veem a lista (`/links`) quando o módulo for ligado; só o admin cria/edita/arquiva/exclui. Admin sempre vê o módulo.
+- A ferramenta pública "Link temporário" (`/links-temporarios`) foi mantida como está (decisão do dono).
+- `routeTree.gen.ts` regenerado com o gerador do TanStack (mantido o bloco `Register` no final).
+- Não testado com login real: testar criar, abrir logado e deslogado, expirar, arquivar, excluir, e ligar o módulo para ver a lista como usuário comum.

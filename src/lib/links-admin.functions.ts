@@ -1,0 +1,181 @@
+import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+
+/**
+ * Links do admin (2026-10-08): o admin do site cria um texto (título + conteúdo
+ * com formatação básica) e recebe um link. Só quem está logado abre o link.
+ * Tipo "temporário" tem data/hora de expiração escolhida pelo admin;
+ * "permanente" não expira. Itens podem ser editados, arquivados e excluídos.
+ * A tabela não tem acesso direto pelo navegador: tudo passa por aqui.
+ */
+
+type Ctx = { supabase: any; userId: string };
+
+async function ehAdmin(context: Ctx): Promise<boolean> {
+  const { data } = await context.supabase
+    .from("site_admins")
+    .select("user_id")
+    .eq("user_id", context.userId)
+    .maybeSingle();
+  return !!data;
+}
+
+async function exigirAdmin(context: Ctx) {
+  if (!(await ehAdmin(context))) throw new Error("Acesso restrito à administração do site.");
+}
+
+const COLUNAS = "id,titulo,conteudo,tipo,expira_em,arquivado,criado_em,atualizado_em";
+
+export const adminListarLinks = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await exigirAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data, error } = await (supabaseAdmin as any)
+      .from("links_admin")
+      .select(COLUNAS)
+      .order("criado_em", { ascending: false });
+    if (error) throw new Error("Não foi possível carregar os links.");
+    return (data ?? []) as {
+      id: string;
+      titulo: string;
+      conteudo: string;
+      tipo: "temporario" | "permanente";
+      expira_em: string | null;
+      arquivado: boolean;
+      criado_em: string;
+      atualizado_em: string;
+    }[];
+  });
+
+export const adminSalvarLink = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((v: unknown) =>
+    z
+      .object({
+        id: z.string().uuid().optional(),
+        titulo: z.string().trim().min(1, "Informe o título.").max(120, "Título com até 120 caracteres."),
+        conteudo: z
+          .string()
+          .trim()
+          .min(1, "Informe o conteúdo.")
+          .max(100_000, "Conteúdo com até 100.000 caracteres."),
+        tipo: z.enum(["temporario", "permanente"]),
+        expiraEm: z.string().datetime().nullable().optional(),
+      })
+      .parse(v),
+  )
+  .handler(async ({ data, context }) => {
+    await exigirAdmin(context);
+    let expira: string | null = null;
+    if (data.tipo === "temporario") {
+      if (!data.expiraEm) throw new Error("Informe a data e a hora de expiração.");
+      if (new Date(data.expiraEm).getTime() <= Date.now()) {
+        throw new Error("A data de expiração precisa estar no futuro.");
+      }
+      expira = data.expiraEm;
+    }
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const db = supabaseAdmin as any;
+    const base = {
+      titulo: data.titulo,
+      conteudo: data.conteudo,
+      tipo: data.tipo,
+      expira_em: expira,
+      atualizado_em: new Date().toISOString(),
+    };
+    if (data.id) {
+      const { error } = await db.from("links_admin").update(base).eq("id", data.id);
+      if (error) throw new Error("Não foi possível salvar.");
+      return { id: data.id };
+    }
+    const { data: novo, error } = await db
+      .from("links_admin")
+      .insert({ ...base, criado_por: context.userId })
+      .select("id")
+      .single();
+    if (error || !novo) throw new Error("Não foi possível salvar.");
+    return { id: novo.id as string };
+  });
+
+export const adminArquivarLink = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((v: unknown) =>
+    z.object({ id: z.string().uuid(), arquivado: z.boolean() }).parse(v),
+  )
+  .handler(async ({ data, context }) => {
+    await exigirAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await (supabaseAdmin as any)
+      .from("links_admin")
+      .update({ arquivado: data.arquivado, atualizado_em: new Date().toISOString() })
+      .eq("id", data.id);
+    if (error) throw new Error("Não foi possível arquivar.");
+    return { ok: true as const };
+  });
+
+export const adminExcluirLink = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((v: unknown) => z.object({ id: z.string().uuid() }).parse(v))
+  .handler(async ({ data, context }) => {
+    await exigirAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await (supabaseAdmin as any).from("links_admin").delete().eq("id", data.id);
+    if (error) throw new Error("Não foi possível excluir.");
+    return { ok: true as const };
+  });
+
+/** Módulo "Links" (leitura): lista os links ativos. Admin sempre; demais só com o módulo ligado. */
+export const listarLinksAtivos = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const db = supabaseAdmin as any;
+    const admin = await ehAdmin(context);
+    if (!admin) {
+      const [{ data: global }, { data: individual }] = await Promise.all([
+        db.from("modulos_globais").select("habilitado").eq("modulo", "links").maybeSingle(),
+        db
+          .from("modulos_usuario")
+          .select("habilitado")
+          .eq("user_id", context.userId)
+          .eq("modulo", "links")
+          .maybeSingle(),
+      ]);
+      const ligado = individual ? !!individual.habilitado : !!global?.habilitado;
+      if (!ligado) return [] as { id: string; titulo: string; criado_em: string }[];
+    }
+    const { data, error } = await db
+      .from("links_admin")
+      .select("id,titulo,criado_em,expira_em")
+      .eq("arquivado", false)
+      .or(`expira_em.is.null,expira_em.gt.${new Date().toISOString()}`)
+      .order("criado_em", { ascending: false });
+    if (error) throw new Error("Não foi possível carregar os links.");
+    return (data ?? []) as { id: string; titulo: string; criado_em: string }[];
+  });
+
+/** Abre um link: qualquer pessoa logada. Arquivado só o admin enxerga. */
+export const abrirLinkAdmin = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((v: unknown) => z.object({ id: z.string().uuid() }).parse(v))
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const admin = await ehAdmin(context);
+    const { data: link } = await (supabaseAdmin as any)
+      .from("links_admin")
+      .select("titulo,conteudo,tipo,expira_em,arquivado,atualizado_em")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (!link || (link.arquivado && !admin)) return { status: "nao_encontrado" as const };
+    if (link.expira_em && new Date(link.expira_em).getTime() < Date.now() && !admin) {
+      return { status: "expirado" as const };
+    }
+    return {
+      status: "ok" as const,
+      titulo: link.titulo as string,
+      conteudo: link.conteudo as string,
+      atualizadoEm: link.atualizado_em as string,
+    };
+  });

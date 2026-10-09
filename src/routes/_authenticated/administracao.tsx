@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { LinksAdminPainel } from "@/components/LinksAdminPainel";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { usePermissoes } from "@/hooks/useAuthData";
@@ -134,6 +135,7 @@ const GRUPOS_ADMIN: {
       { id: "modulos", rotulo: "Módulos" },
       { id: "personalizacao", rotulo: "Personalização" },
       { id: "avisos", rotulo: "Avisos" },
+      { id: "links", rotulo: "Links" },
       { id: "padroes", rotulo: "Categorias e De-para" },
     ],
   },
@@ -1779,6 +1781,10 @@ function Admin() {
         </TabsContent>
 
         {/* ─── ABA 6: AVISOS ─── */}
+        <TabsContent value="links" className="space-y-4">
+          <LinksAdminPainel />
+        </TabsContent>
+
         <TabsContent value="avisos" className="space-y-4">
           <Card>
             <CardHeader>

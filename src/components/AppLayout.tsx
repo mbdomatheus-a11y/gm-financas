@@ -108,6 +108,7 @@ type NavTo =
   | "/de-para"
   | "/lista-compras"
   | "/notas"
+  | "/links"
   | "/cartoes"
   | "/investimentos"
   | "/veiculos"
@@ -137,7 +138,7 @@ type NavItem = {
 };
 
 type MundoId =
-  "financas" | "lista" | "notas" | "calculadora" | "pet" | "onde_esta" | "veiculo" | "exames";
+  "financas" | "lista" | "notas" | "calculadora" | "pet" | "onde_esta" | "veiculo" | "exames" | "links";
 
 /**
  * Navegação em "mundos" (2026-09-18, revisado em 2026-09-26): cada módulo
@@ -235,6 +236,19 @@ const MUNDOS: Record<MundoId, { titulo: string; home: NavTo; items: NavItem[] }>
         short: "Notas",
         icon: ReceiptText,
         moduloGlobal: "notas",
+      },
+    ],
+  },
+  links: {
+    titulo: "Links",
+    home: "/links",
+    items: [
+      {
+        to: "/links",
+        label: "Links",
+        short: "Links",
+        icon: Link2,
+        moduloGlobal: "links",
       },
     ],
   },
@@ -405,6 +419,7 @@ export function AppLayout({
     onde_esta: "onde_esta",
     veiculo: "veiculo",
     exames: "exames",
+    links: "links",
   };
   const mundoVisivel = (id: MundoId) => {
     const m = MUNDOS[id];

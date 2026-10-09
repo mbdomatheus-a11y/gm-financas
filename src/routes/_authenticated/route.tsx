@@ -18,7 +18,7 @@ export const Route = createFileRoute("/_authenticated")({
   ssr: false,
   beforeLoad: async ({ location }) => {
     const { data, error } = await supabase.auth.getUser();
-    if (error || !data.user) throw redirect({ to: "/entrar" });
+    if (error || !data.user) throw redirect({ to: "/entrar", search: { next: `${location.pathname}${location.searchStr ?? ""}` } });
 
     const { data: profile } = await supabase
       .from("profiles")
@@ -54,6 +54,7 @@ const MODULO_POR_ROTA: Record<string, ModuloGlobal> = {
   "/onde-esta": "onde_esta",
   "/veiculos": "veiculo",
   "/exames": "exames",
+  "/links": "links",
 };
 function Protegido() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });

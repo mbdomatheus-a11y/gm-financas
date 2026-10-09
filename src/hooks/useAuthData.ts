@@ -7,7 +7,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { listarModulosDisponiveis } from "@/lib/configuracoes-site.functions";
 
 export type ModuloGlobal =
-  "financas" | "lista" | "notas" | "calculadora" | "pet" | "onde_esta" | "veiculo" | "exames";
+  "financas" | "lista" | "notas" | "calculadora" | "pet" | "onde_esta" | "veiculo" | "exames" | "links";
 export function useModulosGlobais() {
   const listar = useServerFn(listarModulosDisponiveis);
   const query = useQuery({ queryKey: ["modulos-disponiveis"], queryFn: () => listar() });

@@ -12,6 +12,7 @@ import {
   PawPrint,
   MapPin,
   FileHeart,
+  Link2,
   Car,
   Headphones,
   ShieldCheck,
@@ -98,6 +99,13 @@ const MODULOS = [
     titulo: "Exames",
     descricao: "Histórico privado de saúde.",
     icon: FileHeart,
+  },
+  {
+    key: "links" as const,
+    to: "/links" as const,
+    titulo: "Links",
+    descricao: "Conteúdos publicados pela administração.",
+    icon: Link2,
   },
 ];
 

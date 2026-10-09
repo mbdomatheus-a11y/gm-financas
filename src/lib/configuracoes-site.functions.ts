@@ -11,6 +11,7 @@ const MODULOS = [
   "onde_esta",
   "veiculo",
   "exames",
+  "links",
 ] as const;
 
 async function exigirAdmin(context: { supabase: any; userId: string }) {

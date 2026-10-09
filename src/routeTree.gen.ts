@@ -20,6 +20,7 @@ import { Route as RedefinirSenhaRouteImport } from './routes/redefinir-senha'
 import { Route as TermosDeUsoRouteImport } from './routes/termos-de-uso'
 import { Route as AuthenticatedAdministracaoRouteImport } from './routes/_authenticated/administracao'
 import { Route as AuthenticatedBackupRouteImport } from './routes/_authenticated/backup'
+import { Route as AuthenticatedCalendarioRouteImport } from './routes/_authenticated/calendario'
 import { Route as AuthenticatedCartoesRouteImport } from './routes/_authenticated/cartoes'
 import { Route as AuthenticatedCategoriasRouteImport } from './routes/_authenticated/categorias'
 import { Route as AuthenticatedCompartilharRouteImport } from './routes/_authenticated/compartilhar'
@@ -40,7 +41,6 @@ import { Route as AuthenticatedOndeEstaRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedPersonalizacaoRouteImport } from './routes/_authenticated/personalizacao'
 import { Route as AuthenticatedPetsRouteImport } from './routes/_authenticated/pets'
 import { Route as AuthenticatedReceitasRouteImport } from './routes/_authenticated/receitas'
-import { Route as AuthenticatedCalendarioRouteImport } from './routes/_authenticated/calendario'
 import { Route as AuthenticatedSuporteRouteImport } from './routes/_authenticated/suporte'
 import { Route as AuthenticatedUsuariosRouteImport } from './routes/_authenticated/usuarios'
 import { Route as AuthenticatedVeiculosRouteImport } from './routes/_authenticated/veiculos'
@@ -51,6 +51,8 @@ import { Route as CalculadorasSomarDiasADataRouteImport } from './routes/calcula
 import { Route as CalculadorasSomarHorariosRouteImport } from './routes/calculadoras/somar-horarios'
 import { Route as LinksTemporariosIndexRouteImport } from './routes/links-temporarios/index'
 import { Route as LinksTemporariosIdRouteImport } from './routes/links-temporarios/$id'
+import { Route as AuthenticatedLinksIndexRouteImport } from './routes/_authenticated/links/index'
+import { Route as AuthenticatedLinksIdRouteImport } from './routes/_authenticated/links/$id'
 import { Route as ApiCronDescarteLayoutsRouteImport } from './routes/api/cron/descarte-layouts'
 import { Route as OauthGoogleDriveReturnRouteImport } from './routes/oauth/google-drive/return'
 
@@ -107,6 +109,11 @@ const AuthenticatedAdministracaoRoute =
 const AuthenticatedBackupRoute = AuthenticatedBackupRouteImport.update({
   id: '/backup',
   path: '/backup',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedCalendarioRoute = AuthenticatedCalendarioRouteImport.update({
+  id: '/calendario',
+  path: '/calendario',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedCartoesRoute = AuthenticatedCartoesRouteImport.update({
@@ -215,11 +222,6 @@ const AuthenticatedReceitasRoute = AuthenticatedReceitasRouteImport.update({
   path: '/receitas',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedCalendarioRoute = AuthenticatedCalendarioRouteImport.update({
-  id: '/calendario',
-  path: '/calendario',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
 const AuthenticatedSuporteRoute = AuthenticatedSuporteRouteImport.update({
   id: '/suporte',
   path: '/suporte',
@@ -274,6 +276,16 @@ const LinksTemporariosIdRoute = LinksTemporariosIdRouteImport.update({
   path: '/links-temporarios/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedLinksIndexRoute = AuthenticatedLinksIndexRouteImport.update({
+  id: '/links/',
+  path: '/links/',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedLinksIdRoute = AuthenticatedLinksIdRouteImport.update({
+  id: '/links/$id',
+  path: '/links/$id',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const ApiCronDescarteLayoutsRoute = ApiCronDescarteLayoutsRouteImport.update({
   id: '/api/cron/descarte-layouts',
   path: '/api/cron/descarte-layouts',
@@ -296,6 +308,7 @@ export interface FileRoutesByFullPath {
   '/termos-de-uso': typeof TermosDeUsoRoute
   '/administracao': typeof AuthenticatedAdministracaoRoute
   '/backup': typeof AuthenticatedBackupRoute
+  '/calendario': typeof AuthenticatedCalendarioRoute
   '/cartoes': typeof AuthenticatedCartoesRoute
   '/categorias': typeof AuthenticatedCategoriasRoute
   '/compartilhar': typeof AuthenticatedCompartilharRoute
@@ -316,7 +329,6 @@ export interface FileRoutesByFullPath {
   '/personalizacao': typeof AuthenticatedPersonalizacaoRoute
   '/pets': typeof AuthenticatedPetsRoute
   '/receitas': typeof AuthenticatedReceitasRoute
-  '/calendario': typeof AuthenticatedCalendarioRoute
   '/suporte': typeof AuthenticatedSuporteRoute
   '/usuarios': typeof AuthenticatedUsuariosRoute
   '/veiculos': typeof AuthenticatedVeiculosRoute
@@ -327,8 +339,10 @@ export interface FileRoutesByFullPath {
   '/links-temporarios/$id': typeof LinksTemporariosIdRoute
   '/calculadoras/': typeof CalculadorasIndexRoute
   '/links-temporarios/': typeof LinksTemporariosIndexRoute
+  '/links/$id': typeof AuthenticatedLinksIdRoute
   '/api/cron/descarte-layouts': typeof ApiCronDescarteLayoutsRoute
   '/oauth/google-drive/return': typeof OauthGoogleDriveReturnRoute
+  '/links/': typeof AuthenticatedLinksIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -341,6 +355,7 @@ export interface FileRoutesByTo {
   '/termos-de-uso': typeof TermosDeUsoRoute
   '/administracao': typeof AuthenticatedAdministracaoRoute
   '/backup': typeof AuthenticatedBackupRoute
+  '/calendario': typeof AuthenticatedCalendarioRoute
   '/cartoes': typeof AuthenticatedCartoesRoute
   '/categorias': typeof AuthenticatedCategoriasRoute
   '/compartilhar': typeof AuthenticatedCompartilharRoute
@@ -361,7 +376,6 @@ export interface FileRoutesByTo {
   '/personalizacao': typeof AuthenticatedPersonalizacaoRoute
   '/pets': typeof AuthenticatedPetsRoute
   '/receitas': typeof AuthenticatedReceitasRoute
-  '/calendario': typeof AuthenticatedCalendarioRoute
   '/suporte': typeof AuthenticatedSuporteRoute
   '/usuarios': typeof AuthenticatedUsuariosRoute
   '/veiculos': typeof AuthenticatedVeiculosRoute
@@ -372,8 +386,10 @@ export interface FileRoutesByTo {
   '/links-temporarios/$id': typeof LinksTemporariosIdRoute
   '/calculadoras': typeof CalculadorasIndexRoute
   '/links-temporarios': typeof LinksTemporariosIndexRoute
+  '/links/$id': typeof AuthenticatedLinksIdRoute
   '/api/cron/descarte-layouts': typeof ApiCronDescarteLayoutsRoute
   '/oauth/google-drive/return': typeof OauthGoogleDriveReturnRoute
+  '/links': typeof AuthenticatedLinksIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -388,6 +404,7 @@ export interface FileRoutesById {
   '/termos-de-uso': typeof TermosDeUsoRoute
   '/_authenticated/administracao': typeof AuthenticatedAdministracaoRoute
   '/_authenticated/backup': typeof AuthenticatedBackupRoute
+  '/_authenticated/calendario': typeof AuthenticatedCalendarioRoute
   '/_authenticated/cartoes': typeof AuthenticatedCartoesRoute
   '/_authenticated/categorias': typeof AuthenticatedCategoriasRoute
   '/_authenticated/compartilhar': typeof AuthenticatedCompartilharRoute
@@ -408,7 +425,6 @@ export interface FileRoutesById {
   '/_authenticated/personalizacao': typeof AuthenticatedPersonalizacaoRoute
   '/_authenticated/pets': typeof AuthenticatedPetsRoute
   '/_authenticated/receitas': typeof AuthenticatedReceitasRoute
-  '/_authenticated/calendario': typeof AuthenticatedCalendarioRoute
   '/_authenticated/suporte': typeof AuthenticatedSuporteRoute
   '/_authenticated/usuarios': typeof AuthenticatedUsuariosRoute
   '/_authenticated/veiculos': typeof AuthenticatedVeiculosRoute
@@ -419,8 +435,10 @@ export interface FileRoutesById {
   '/links-temporarios/$id': typeof LinksTemporariosIdRoute
   '/calculadoras/': typeof CalculadorasIndexRoute
   '/links-temporarios/': typeof LinksTemporariosIndexRoute
+  '/_authenticated/links/$id': typeof AuthenticatedLinksIdRoute
   '/api/cron/descarte-layouts': typeof ApiCronDescarteLayoutsRoute
   '/oauth/google-drive/return': typeof OauthGoogleDriveReturnRoute
+  '/_authenticated/links/': typeof AuthenticatedLinksIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -435,6 +453,7 @@ export interface FileRouteTypes {
     | '/termos-de-uso'
     | '/administracao'
     | '/backup'
+    | '/calendario'
     | '/cartoes'
     | '/categorias'
     | '/compartilhar'
@@ -455,7 +474,6 @@ export interface FileRouteTypes {
     | '/personalizacao'
     | '/pets'
     | '/receitas'
-    | '/calendario'
     | '/suporte'
     | '/usuarios'
     | '/veiculos'
@@ -466,8 +484,10 @@ export interface FileRouteTypes {
     | '/links-temporarios/$id'
     | '/calculadoras/'
     | '/links-temporarios/'
+    | '/links/$id'
     | '/api/cron/descarte-layouts'
     | '/oauth/google-drive/return'
+    | '/links/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -480,6 +500,7 @@ export interface FileRouteTypes {
     | '/termos-de-uso'
     | '/administracao'
     | '/backup'
+    | '/calendario'
     | '/cartoes'
     | '/categorias'
     | '/compartilhar'
@@ -500,7 +521,6 @@ export interface FileRouteTypes {
     | '/personalizacao'
     | '/pets'
     | '/receitas'
-    | '/calendario'
     | '/suporte'
     | '/usuarios'
     | '/veiculos'
@@ -511,8 +531,10 @@ export interface FileRouteTypes {
     | '/links-temporarios/$id'
     | '/calculadoras'
     | '/links-temporarios'
+    | '/links/$id'
     | '/api/cron/descarte-layouts'
     | '/oauth/google-drive/return'
+    | '/links'
   id:
     | '__root__'
     | '/'
@@ -526,6 +548,7 @@ export interface FileRouteTypes {
     | '/termos-de-uso'
     | '/_authenticated/administracao'
     | '/_authenticated/backup'
+    | '/_authenticated/calendario'
     | '/_authenticated/cartoes'
     | '/_authenticated/categorias'
     | '/_authenticated/compartilhar'
@@ -546,7 +569,6 @@ export interface FileRouteTypes {
     | '/_authenticated/personalizacao'
     | '/_authenticated/pets'
     | '/_authenticated/receitas'
-    | '/_authenticated/calendario'
     | '/_authenticated/suporte'
     | '/_authenticated/usuarios'
     | '/_authenticated/veiculos'
@@ -557,8 +579,10 @@ export interface FileRouteTypes {
     | '/links-temporarios/$id'
     | '/calculadoras/'
     | '/links-temporarios/'
+    | '/_authenticated/links/$id'
     | '/api/cron/descarte-layouts'
     | '/oauth/google-drive/return'
+    | '/_authenticated/links/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -659,6 +683,13 @@ declare module '@tanstack/react-router' {
       path: '/backup'
       fullPath: '/backup'
       preLoaderRoute: typeof AuthenticatedBackupRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/calendario': {
+      id: '/_authenticated/calendario'
+      path: '/calendario'
+      fullPath: '/calendario'
+      preLoaderRoute: typeof AuthenticatedCalendarioRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/cartoes': {
@@ -801,13 +832,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedReceitasRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/calendario': {
-      id: '/_authenticated/calendario'
-      path: '/calendario'
-      fullPath: '/calendario'
-      preLoaderRoute: typeof AuthenticatedCalendarioRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/suporte': {
       id: '/_authenticated/suporte'
       path: '/suporte'
@@ -878,6 +902,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LinksTemporariosIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/links/': {
+      id: '/_authenticated/links/'
+      path: '/links'
+      fullPath: '/links/'
+      preLoaderRoute: typeof AuthenticatedLinksIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/links/$id': {
+      id: '/_authenticated/links/$id'
+      path: '/links/$id'
+      fullPath: '/links/$id'
+      preLoaderRoute: typeof AuthenticatedLinksIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/api/cron/descarte-layouts': {
       id: '/api/cron/descarte-layouts'
       path: '/api/cron/descarte-layouts'
@@ -898,6 +936,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdministracaoRoute: typeof AuthenticatedAdministracaoRoute
   AuthenticatedBackupRoute: typeof AuthenticatedBackupRoute
+  AuthenticatedCalendarioRoute: typeof AuthenticatedCalendarioRoute
   AuthenticatedCartoesRoute: typeof AuthenticatedCartoesRoute
   AuthenticatedCategoriasRoute: typeof AuthenticatedCategoriasRoute
   AuthenticatedCompartilharRoute: typeof AuthenticatedCompartilharRoute
@@ -918,15 +957,17 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedPersonalizacaoRoute: typeof AuthenticatedPersonalizacaoRoute
   AuthenticatedPetsRoute: typeof AuthenticatedPetsRoute
   AuthenticatedReceitasRoute: typeof AuthenticatedReceitasRoute
-  AuthenticatedCalendarioRoute: typeof AuthenticatedCalendarioRoute
   AuthenticatedSuporteRoute: typeof AuthenticatedSuporteRoute
   AuthenticatedUsuariosRoute: typeof AuthenticatedUsuariosRoute
   AuthenticatedVeiculosRoute: typeof AuthenticatedVeiculosRoute
+  AuthenticatedLinksIdRoute: typeof AuthenticatedLinksIdRoute
+  AuthenticatedLinksIndexRoute: typeof AuthenticatedLinksIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdministracaoRoute: AuthenticatedAdministracaoRoute,
   AuthenticatedBackupRoute: AuthenticatedBackupRoute,
+  AuthenticatedCalendarioRoute: AuthenticatedCalendarioRoute,
   AuthenticatedCartoesRoute: AuthenticatedCartoesRoute,
   AuthenticatedCategoriasRoute: AuthenticatedCategoriasRoute,
   AuthenticatedCompartilharRoute: AuthenticatedCompartilharRoute,
@@ -947,10 +988,11 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedPersonalizacaoRoute: AuthenticatedPersonalizacaoRoute,
   AuthenticatedPetsRoute: AuthenticatedPetsRoute,
   AuthenticatedReceitasRoute: AuthenticatedReceitasRoute,
-  AuthenticatedCalendarioRoute: AuthenticatedCalendarioRoute,
   AuthenticatedSuporteRoute: AuthenticatedSuporteRoute,
   AuthenticatedUsuariosRoute: AuthenticatedUsuariosRoute,
   AuthenticatedVeiculosRoute: AuthenticatedVeiculosRoute,
+  AuthenticatedLinksIdRoute: AuthenticatedLinksIdRoute,
+  AuthenticatedLinksIndexRoute: AuthenticatedLinksIndexRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
