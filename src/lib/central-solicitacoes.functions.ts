@@ -462,8 +462,9 @@ export const complementarChamadoSuporte = createServerFn({ method: "POST" })
 export const listarMensagensChamado = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((v: unknown) => z.object({ chamadoId: z.string().uuid() }).parse(v))
-  .handler(async ({ data, context }) => {
+  .handler(async ({ data: entrada, context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const data = entrada as { chamadoId: string };
     const db = supabaseAdmin as any;
     const { data: chamado } = await db
       .from("chamados_suporte")

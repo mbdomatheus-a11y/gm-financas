@@ -94,6 +94,9 @@ export const adminListarUsuarios = createServerFn({ method: "GET" })
       .order("created_at", { ascending: true });
     if (error) throw new Error(error.message);
     const { data: roles } = await db.from("user_roles").select("user_id, role");
+    const { data: exclusoes } = await db
+      .from("exclusoes_agendadas")
+      .select("user_id, prevista_em");
     const { ehAdminPrincipal } = await import("@/lib/conta-exclusao.server");
     const solicitanteEhPrincipal = await ehAdminPrincipal(context.userId);
     return (data ?? []).map((p: any) => ({
@@ -110,6 +113,10 @@ export const adminListarUsuarios = createServerFn({ method: "GET" })
       criadoEm: p.created_at as string,
       role: (roles ?? []).find((r: any) => r.user_id === p.id)?.role ?? "comum",
       solicitanteEhPrincipal,
+      exclusaoPrevistaEm:
+        ((exclusoes ?? []).find((x: any) => x.user_id === p.id)?.prevista_em as
+          | string
+          | undefined) ?? null,
     }));
   });
 

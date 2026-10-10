@@ -131,3 +131,112 @@ export async function arquivarEExcluirConta(params: {
     if (signOutError) console.error("[conta] Falha ao revogar sessões:", signOutError.message);
   }
 }
+
+// Tabelas com grupo_id que NÃO apagam em cascata junto com o grupo. Usadas só
+// quando o grupo ficou sem nenhum membro. As demais (pets, exames, convites
+// etc.) caem por cascata ou ficam sem vínculo ao apagar o grupo.
+const TABELAS_DO_GRUPO = [
+  "parcelas",
+  "despesas",
+  "investimento_movimentos",
+  "investimentos",
+  "import_faturas",
+  "import_lotes",
+  "fatura_mes",
+  "fatura_layouts",
+  "fatura_correcoes_usuario",
+  "veiculo_documentos",
+  "veiculos",
+  "notas_fiscais",
+  "lista_compras",
+  "receitas",
+  "cartao_vinculos",
+  "cartoes",
+  "bancos",
+  "categoria_regras",
+  "categorias",
+  "permissoes",
+  "convites",
+  "configuracoes_casal",
+] as const;
+
+async function apagarDadosDoGrupo(grupoId: string): Promise<void> {
+  const db = supabaseAdmin as any;
+  // Repete porque a ordem de dependência entre tabelas varia: uma passada
+  // pode falhar por chave estrangeira e passar na seguinte.
+  for (let passada = 0; passada < 6; passada++) {
+    let pendentes = 0;
+    for (const tabela of TABELAS_DO_GRUPO) {
+      const { error } = await db.from(tabela).delete().eq("grupo_id", grupoId);
+      if (error) pendentes++;
+    }
+    if (pendentes === 0) break;
+  }
+  const { error } = await db.from("grupos").delete().eq("id", grupoId);
+  if (error) throw new Error(`Não foi possível apagar o grupo: ${error.message}`);
+}
+
+/**
+ * Conclui as exclusões cujo prazo de 90 dias terminou: apaga a conta e os
+ * dados pessoais (cascata a partir do usuário) e, se a pessoa era a última do
+ * grupo, também os dados do grupo. Arquivos já enviados ao armazenamento
+ * externo NÃO são removidos aqui (ver docs/PENDENCIAS.md).
+ */
+export async function concluirExclusoesVencidas(): Promise<{ removidas: number; falhas: number }> {
+  const db = supabaseAdmin as any;
+  const { data: vencidas, error } = await db
+    .from("exclusoes_agendadas")
+    .select("user_id")
+    .lte("prevista_em", new Date().toISOString())
+    .limit(20);
+  if (error || !vencidas?.length) return { removidas: 0, falhas: 0 };
+  let removidas = 0;
+  let falhas = 0;
+  for (const { user_id: userId } of vencidas as { user_id: string }[]) {
+    try {
+      if (await ehAdminPrincipal(userId)) {
+        await db.from("exclusoes_agendadas").delete().eq("user_id", userId);
+        continue;
+      }
+      const { data: perfil } = await db
+        .from("profiles")
+        .select("grupo_id,grupo_secundario_id")
+        .eq("id", userId)
+        .maybeSingle();
+      const grupos = [perfil?.grupo_id, perfil?.grupo_secundario_id].filter(Boolean) as string[];
+      const orfaos: string[] = [];
+      for (const g of grupos) {
+        const { data: outros } = await db
+          .from("profiles")
+          .select("id")
+          .neq("id", userId)
+          .or(`grupo_id.eq.${g},grupo_secundario_id.eq.${g}`)
+          .limit(1);
+        if (!outros?.length) orfaos.push(g);
+      }
+      // Dados do grupo primeiro: só quando a pessoa era a última a usá-lo.
+      for (const g of orfaos) {
+        await db.from("profiles").update({ grupo_id: null }).eq("id", userId).eq("grupo_id", g);
+        await db
+          .from("profiles")
+          .update({ grupo_secundario_id: null })
+          .eq("id", userId)
+          .eq("grupo_secundario_id", g);
+        await apagarDadosDoGrupo(g);
+      }
+      const { error: delError } = await supabaseAdmin.auth.admin.deleteUser(userId);
+      if (delError) throw new Error(delError.message);
+      await db.from("exclusoes_agendadas").delete().eq("user_id", userId);
+      await db.from("admin_audit_logs").insert({
+        acao: "conta_excluida_apos_carencia",
+        alvo_id: userId,
+        detalhes: { grupos_apagados: orfaos.length },
+      });
+      removidas++;
+    } catch (e) {
+      falhas++;
+      console.error("[exclusao] falha ao concluir", userId, e instanceof Error ? e.message : e);
+    }
+  }
+  return { removidas, falhas };
+}

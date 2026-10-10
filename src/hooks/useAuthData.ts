@@ -13,7 +13,10 @@ export function useModulosGlobais() {
   const query = useQuery({ queryKey: ["modulos-disponiveis"], queryFn: () => listar() });
   const habilitado = (modulo: ModuloGlobal) =>
     query.data?.find((x: any) => x.modulo === modulo)?.habilitado ?? true;
-  return { ...query, habilitado };
+  // Liberado para todos os usuários (ignora o acesso extra do admin).
+  const liberadoGeral = (modulo: ModuloGlobal) =>
+    query.data?.find((x: any) => x.modulo === modulo)?.liberadoGeral ?? true;
+  return { ...query, habilitado, liberadoGeral };
 }
 
 export function useSession() {

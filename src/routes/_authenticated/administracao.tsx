@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { ADMIN_ONLY_CARD, ADMIN_ONLY_TAG } from "@/lib/areas";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LinksAdminHabilitar } from "@/components/LinksAdminHabilitar";
 import { Badge } from "@/components/ui/badge";
@@ -946,6 +947,10 @@ function Admin() {
             );
           })}
         </div>
+        <p className="flex items-center gap-2 text-xs text-muted-foreground">
+          <span className={ADMIN_ONLY_TAG}>Só admin</span>
+          Itens neste tom roxo claro ainda não estão liberados para os demais usuários.
+        </p>
         <TabsList className="flex h-auto flex-wrap gap-1">
           {(GRUPOS_ADMIN.find((g) => g.abas.some((a) => a.id === abaAtiva)) ?? GRUPOS_ADMIN[0]!).abas.map((a) => (
             <TabsTrigger key={a.id} value={a.id} className="relative">
@@ -1218,8 +1223,8 @@ function Admin() {
             </Card>
           )}
           {config && (
-            <Card>
-              <CardHeader><CardTitle className="text-sm">Notas fiscais — Google Drive</CardTitle></CardHeader>
+            <Card className={cn(!config.google_drive_habilitado && ADMIN_ONLY_CARD)}>
+              <CardHeader><CardTitle className="flex items-center gap-2 text-sm">Notas fiscais — Google Drive{!config.google_drive_habilitado && <span className={ADMIN_ONLY_TAG}>Só admin</span>}</CardTitle></CardHeader>
               <CardContent className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-sm">Mostrar seção de pasta/Google Drive pros usuários comuns</p>
@@ -1237,8 +1242,8 @@ function Admin() {
             </Card>
           )}
           {config && (
-            <Card>
-              <CardHeader><CardTitle className="text-sm">Cadastro sem convite</CardTitle></CardHeader>
+            <Card className={cn(!config.cadastro_livre_habilitado && ADMIN_ONLY_CARD)}>
+              <CardHeader><CardTitle className="flex items-center gap-2 text-sm">Cadastro sem convite{!config.cadastro_livre_habilitado && <span className={ADMIN_ONLY_TAG}>Desligado</span>}</CardTitle></CardHeader>
               <CardContent className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-sm">Permitir criar conta sem código de convite</p>
@@ -1342,10 +1347,11 @@ function Admin() {
                   });
                   const selecionados = selecionadosPorModulo[m.modulo] ?? new Set<string>();
                   return (
-                    <div key={m.modulo} className="rounded-lg border p-3">
+                    <div key={m.modulo} className={cn("rounded-lg border p-3", !m.habilitado && ADMIN_ONLY_CARD)}>
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2">
                           <b className="text-sm">{m.nome}</b>
+                          {!m.habilitado && <span className={ADMIN_ONLY_TAG}>Só admin</span>}
                           {!m.habilitado && (
                             <Badge variant="secondary" className="text-[10px]">
                               {liberados} usuário(s) com exceção liberada
@@ -1451,7 +1457,7 @@ function Admin() {
                   const cotaMbAtual = Math.round(g.cotaBytes / (1024 * 1024));
                   const inputAtual = cotaOracleInput[g.grupoId] ?? String(cotaMbAtual);
                   return (
-                    <div key={g.grupoId} className="rounded-lg border p-3 space-y-2">
+                    <div key={g.grupoId} className={cn("rounded-lg border p-3 space-y-2", !g.habilitado && ADMIN_ONLY_CARD)}>
                       <div className="flex items-center justify-between gap-2">
                         <div>
                           <b className="text-sm">{g.nome}</b>

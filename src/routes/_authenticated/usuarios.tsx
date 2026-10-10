@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+import { diasRestantes } from "@/components/ExclusaoAgendadaModal";
 import { AppLayout } from "@/components/AppLayout";
 import { ConvitesCard } from "@/components/ConvitesCard";
 import { AdminConvitesCard } from "@/components/AdminConvitesCard";
@@ -45,10 +46,13 @@ import { useProfilesList, useRolesList } from "@/hooks/useFinance";
 import { usePermissoes } from "@/hooks/useAuthData";
 import {
   adminCreateUser,
-  adminExcluirUsuario,
   adminListarUsuarios,
   adminResetPassword,
 } from "@/lib/admin.functions";
+import {
+  adminAgendarExclusaoUsuario,
+  adminCancelarExclusaoUsuario,
+} from "@/lib/exclusao-agendada.functions";
 import { maskCpf, onlyDigits, isValidCpf } from "@/lib/cpf";
 import { formatDate } from "@/lib/format";
 import { definirTempoInatividade, obterTempoInatividade } from "@/lib/inatividade.functions";
@@ -86,7 +90,8 @@ function UsuariosPage() {
   const criar = useServerFn(adminCreateUser);
   const resetar = useServerFn(adminResetPassword);
   const listarRoster = useServerFn(adminListarUsuarios);
-  const excluirUsuario = useServerFn(adminExcluirUsuario);
+  const excluirUsuario = useServerFn(adminAgendarExclusaoUsuario);
+  const cancelarExclusao = useServerFn(adminCancelarExclusaoUsuario);
   const obterTempo = useServerFn(obterTempoInatividade);
   const definirTempo = useServerFn(definirTempoInatividade);
   const { data: tempoSessao } = useQuery({
@@ -193,13 +198,13 @@ function UsuariosPage() {
       });
     },
     onSuccess: () => {
-      toast.success("Conta excluída. A cópia para recuperação ficará disponível por 90 dias.");
+      toast.success("Exclusão agendada. A conta será removida em 90 dias, e o usuário pode cancelar ao entrar.");
       setExcluir(null);
       setConfirmacao1("");
       setConfirmacao2("");
       qc.invalidateQueries();
     },
-    onError: (e: any) => toast.error(e.message ?? "Não foi possível excluir a conta"),
+    onError: (e: any) => toast.error(e.message ?? "Não foi possível agendar a exclusão"),
   });
 
   if (!isSiteAdmin) {
@@ -320,6 +325,30 @@ function UsuariosPage() {
                           Revogar do grupo
                         </Button>
                       )}
+                      {u.exclusaoPrevistaEm && (
+                        <Badge variant="destructive" className="text-[10px]">
+                          Exclusão em {diasRestantes(u.exclusaoPrevistaEm)} dias
+                        </Badge>
+                      )}
+                      {u.exclusaoPrevistaEm ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs"
+                          disabled={!u.solicitanteEhPrincipal}
+                          onClick={async () => {
+                            try {
+                              await cancelarExclusao({ data: { userId: u.id } });
+                              toast.success("Exclusão cancelada.");
+                              qc.invalidateQueries();
+                            } catch (e: any) {
+                              toast.error(e.message ?? "Não foi possível cancelar");
+                            }
+                          }}
+                        >
+                          Cancelar exclusão
+                        </Button>
+                      ) : (
                       <Button
                         size="sm"
                         variant="destructive"
@@ -336,6 +365,7 @@ function UsuariosPage() {
                       >
                         <Trash2 className="size-3.5" /> Excluir
                       </Button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -505,10 +535,11 @@ function UsuariosPage() {
       <Dialog open={!!excluir} onOpenChange={(o) => !o && setExcluir(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Excluir a conta de {excluir?.nome}</DialogTitle>
+            <DialogTitle>Agendar exclusão da conta de {excluir?.nome}</DialogTitle>
             <DialogDescription>
-              O acesso será removido e uma cópia recuperável do cadastro ficará guardada por 90
-              dias. Contas administrativas nunca podem ser excluídas por esta tela.
+              A conta e todos os dados serão removidos em 90 dias. Até lá a pessoa continua
+              entrando, vê um aviso com o tempo restante e pode cancelar a exclusão. Contas
+              administrativas nunca podem ser excluídas por esta tela.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -532,7 +563,7 @@ function UsuariosPage() {
               }
               onClick={() => excluirMutation.mutate()}
             >
-              Excluir conta
+              Agendar exclusão
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -329,3 +329,13 @@ Pendências manuais: git push origin main; DROP POLICY comprovantes_membro_ativo
 - Vercel: cada deploy anterior fica guardado; em Deployments, escolher um deploy bom e usar "Promote to Production" (rollback imediato, sem rebuild).
 - Prazo: manter a tag/branch por cerca de 60 dias (até 2026-12-08) e depois apagar (`git push origin :refs/tags/backup/pre-pwa-2026-10-09`). Criar um novo ponto `backup/pre-<mudança>-<data>` antes de cada mudança grande.
 - Banco (Supabase): esta etapa não alterou o banco. Antes de mudanças de esquema, conferir em Supabase > Database > Backups o que o plano atual oferece (não confirmado) e, se não houver backup diário, exportar os dados antes da migration.
+
+## Exclusão de conta com 90 dias, cores do admin e navegação em áreas (2026-10-09)
+
+- Exclusão agendada: tabela `exclusoes_agendadas` (migration `20261009100000`, aplicada em partes porque o `apply_migration` deu timeout; sem FK para auth.users porque criar a FK travou). Admin principal agenda em Usuários e Privilégios (`adminAgendarExclusaoUsuario`), pode cancelar, e a lista mostra "Exclusão em N dias". O usuário continua entrando; a cada acesso vê um aviso bloqueante com os dias restantes: "Sim" cancela (restaura), "Não" encerra a sessão (`ExclusaoAgendadaModal`).
+- Conclusão: o cron diário (`/api/cron/descarte-layouts`) chama `concluirExclusoesVencidas`: apaga o usuário (cascata dos dados pessoais) e, se era o último do grupo, os dados do grupo. Não testado de ponta a ponta; testar com uma conta fictícia ajustando `prevista_em` no banco.
+- Limitação: arquivos já enviados ao armazenamento externo (Oracle/Storage) não são removidos pelo job. Pendente.
+- Sobras no banco: função `public.zz_teste_fn()` de teste (o DROP travou; remover depois). A função SQL `apagar_grupo_orfao` não foi criada (criação de função travou), a limpeza do grupo foi feita em TypeScript.
+- Cores no admin: itens ainda não liberados aos demais usuários ficam em roxo claro com etiqueta "Só admin" (módulos desligados, Google Drive de notas, grupos sem Oracle, menu e Início). Detalhe: `liberadoGeral` em `listarModulosDisponiveis`.
+- Navegação: Início agora mostra 4 áreas (Dinheiro, Casa e vida, Documentos, Ferramentas) com atalhos de um clique, atalhos gerais, bloco Administração (admin) e "Resumo do mês e metas" recolhível (fechado no celular). Novas telas `/casa` e `/documentos`; menu lateral e barra inferior agrupados por área (`src/lib/areas.ts`).
+- Ferramentas do print: shadcn/Tailwind já em uso; Magic MCP, shadcn MCP e Chrome DevTools MCP rodam no Claude Code do PC (não instalados aqui); regras da Vercel (Web Interface Guidelines) usadas como checklist. Pendente: revisar telas antigas contra elas e testar o visual no celular após o deploy.

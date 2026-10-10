@@ -57,6 +57,7 @@ import { obterUsoOracleDoMeuGrupo } from "@/lib/oracle-admin.functions";
 import { usePrivacidadeValores } from "@/hooks/usePrivacidadeValores";
 import { useMascaraValores } from "@/hooks/useMascaraValores";
 import { Eye, EyeOff } from "lucide-react";
+import { ADMIN_ONLY_TAG, AREAS, ORDEM_AREAS, type AreaId } from "@/lib/areas";
 
 /** Item 16 (backlog 2026-09-27): mostra a cota de armazenamento Oracle do
  * PRÓPRIO grupo do usuário (nunca de outro grupo), embaixo do nome do site
@@ -124,6 +125,8 @@ type NavTo =
   | "/exames"
   | "/administracao"
   | "/calendario"
+  | "/casa"
+  | "/documentos"
   | "/suporte";
 
 type NavItem = {
@@ -385,7 +388,7 @@ export function AppLayout({
   const { data: profile } = useProfile();
   const { can, isSiteAdmin, isAdmin } = usePermissoes();
   const { ocultarValores, toggle: alternarOcultarValores } = usePrivacidadeValores();
-  const { habilitado } = useModulosGlobais();
+  const { habilitado, liberadoGeral } = useModulosGlobais();
   useMascaraValores(ocultarValores);
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -428,6 +431,18 @@ export function AppLayout({
     return m.items.filter(podeVer).length > 0;
   };
   const mundosVisiveis = (Object.keys(MUNDOS) as MundoId[]).filter(mundoVisivel);
+  const areasVisiveis = ORDEM_AREAS.filter((a) =>
+    AREAS[a].modulos.some((m) => mundosVisiveis.includes(m as MundoId)),
+  );
+  const areaId: AreaId | null =
+    ORDEM_AREAS.find(
+      (a) =>
+        pathname === AREAS[a].to ||
+        (mundoId !== null && AREAS[a].modulos.includes(mundoId as ModuloGlobal)),
+    ) ?? null;
+  const area = areaId ? AREAS[areaId] : null;
+  const soAdminItem = (i: NavItem) =>
+    isSiteAdmin && !!i.moduloGlobal && !liberadoGeral(i.moduloGlobal);
   const itensDoMundo = (
     mundo && (!mundoId || !mundoGlobal[mundoId] || habilitado(mundoGlobal[mundoId]!))
       ? mundo.items
@@ -457,11 +472,13 @@ export function AppLayout({
       onNavigate,
       ativo,
       recuo,
+      soAdmin,
     }: {
       item: NavItem;
       onNavigate?: (() => void) | undefined;
       ativo?: boolean | undefined;
       recuo?: boolean | undefined;
+      soAdmin?: boolean | undefined;
     }) => {
     const active = ativo ?? pathname === item.to;
     const Icon = item.icon;
@@ -472,6 +489,7 @@ export function AppLayout({
         className={cn(
           "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
           recuo && "ml-4 py-2 text-[13px]",
+          soAdmin && !active && "bg-violet-500/[0.07] text-violet-700 dark:text-violet-300",
           active
             ? "bg-primary/10 text-primary shadow-[inset_3px_0_0_var(--brand)]"
             : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
@@ -479,6 +497,7 @@ export function AppLayout({
       >
         <Icon className={cn("size-4.5 shrink-0", active && "text-primary")} />
         <span className="truncate">{item.label}</span>
+        {soAdmin && <span className={cn(ADMIN_ONLY_TAG, "ml-auto")}>Admin</span>}
       </Link>
     );
   };
@@ -488,27 +507,27 @@ export function AppLayout({
       <NavLink item={INICIO} onNavigate={onNavigate} />
       <NavLink item={CALENDARIO} onNavigate={onNavigate} />
 
-      {mundosVisiveis.length > 0 && (
+      {areasVisiveis.length > 0 && (
         <p className="mt-3 px-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/70">
-          Módulos
+          Áreas
         </p>
       )}
-      {mundosVisiveis.map((id) => {
-        const m = MUNDOS[id];
-        const ativo = mundoId === id;
-        const entrada: NavItem = {
-          to: m.home,
-          label: m.titulo,
-          short: m.titulo,
-          icon: m.items[0]!.icon,
-        };
+      {areasVisiveis.map((id) => {
+        const a = AREAS[id];
+        const ativa = areaId === id;
+        const entrada: NavItem = { to: a.to, label: a.titulo, short: a.titulo, icon: a.icon };
+        const filhos = a.modulos
+          .filter((m) => mundosVisiveis.includes(m as MundoId))
+          .flatMap((m) => MUNDOS[m as MundoId].items)
+          .filter(podeVer)
+          .filter((i) => i.to !== a.to);
         return (
           <div key={id} className="flex flex-col gap-1">
-            <NavLink item={entrada} onNavigate={onNavigate} ativo={ativo && pathname === m.home} />
-            {ativo &&
-              itensDoMundo
-                .filter((i) => i.to !== m.home)
-                .map((item) => <NavLink key={item.to} item={item} onNavigate={onNavigate} recuo />)}
+            <NavLink item={entrada} onNavigate={onNavigate} ativo={ativa && pathname === a.to} />
+            {ativa &&
+              filhos.map((item) => (
+                <NavLink key={item.to} item={item} onNavigate={onNavigate} recuo soAdmin={soAdminItem(item)} />
+              ))}
           </div>
         );
       })}
@@ -526,7 +545,7 @@ export function AppLayout({
             Administração
           </p>
           {itensAdmin.map((item) => (
-            <NavLink key={item.to} item={item} onNavigate={onNavigate} />
+            <NavLink key={item.to} item={item} onNavigate={onNavigate} soAdmin />
           ))}
         </>
       )}
@@ -643,21 +662,21 @@ export function AppLayout({
           );
         })}
         <Link
-          to={mundo ? mundo.home : "/compartilhar"}
+          to={area ? area.to : "/compartilhar"}
           className={cn(
             "flex flex-col items-center gap-1 rounded-lg py-2 text-[11px] font-medium",
-            mundo && pathname === mundo.home ? "text-primary" : "text-muted-foreground",
+            area && pathname === area.to ? "text-primary" : "text-muted-foreground",
           )}
         >
-          {mundo ? (
+          {area ? (
             (() => {
-              const Ic = mundo.items[0]!.icon;
+              const Ic = area.icon;
               return <Ic className="size-5" />;
             })()
           ) : (
             <Share2 className="size-5" />
           )}
-          {mundo ? mundo.titulo : "Compart."}
+          {area ? area.titulo : "Compart."}
         </Link>
         <button
           type="button"

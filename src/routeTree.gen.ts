@@ -22,6 +22,7 @@ import { Route as AuthenticatedAdministracaoRouteImport } from './routes/_authen
 import { Route as AuthenticatedBackupRouteImport } from './routes/_authenticated/backup'
 import { Route as AuthenticatedCalendarioRouteImport } from './routes/_authenticated/calendario'
 import { Route as AuthenticatedCartoesRouteImport } from './routes/_authenticated/cartoes'
+import { Route as AuthenticatedCasaRouteImport } from './routes/_authenticated/casa'
 import { Route as AuthenticatedCategoriasRouteImport } from './routes/_authenticated/categorias'
 import { Route as AuthenticatedCompartilharRouteImport } from './routes/_authenticated/compartilhar'
 import { Route as AuthenticatedConfiguracoesRouteImport } from './routes/_authenticated/configuracoes'
@@ -29,6 +30,7 @@ import { Route as AuthenticatedContaRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedDeParaRouteImport } from './routes/_authenticated/de-para'
 import { Route as AuthenticatedDespesasRouteImport } from './routes/_authenticated/despesas'
+import { Route as AuthenticatedDocumentosRouteImport } from './routes/_authenticated/documentos'
 import { Route as AuthenticatedExamesRouteImport } from './routes/_authenticated/exames'
 import { Route as AuthenticatedFerramentasRouteImport } from './routes/_authenticated/ferramentas'
 import { Route as AuthenticatedImportarRouteImport } from './routes/_authenticated/importar'
@@ -121,6 +123,11 @@ const AuthenticatedCartoesRoute = AuthenticatedCartoesRouteImport.update({
   path: '/cartoes',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedCasaRoute = AuthenticatedCasaRouteImport.update({
+  id: '/casa',
+  path: '/casa',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedCategoriasRoute = AuthenticatedCategoriasRouteImport.update({
   id: '/categorias',
   path: '/categorias',
@@ -156,6 +163,11 @@ const AuthenticatedDeParaRoute = AuthenticatedDeParaRouteImport.update({
 const AuthenticatedDespesasRoute = AuthenticatedDespesasRouteImport.update({
   id: '/despesas',
   path: '/despesas',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedDocumentosRoute = AuthenticatedDocumentosRouteImport.update({
+  id: '/documentos',
+  path: '/documentos',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedExamesRoute = AuthenticatedExamesRouteImport.update({
@@ -310,6 +322,7 @@ export interface FileRoutesByFullPath {
   '/backup': typeof AuthenticatedBackupRoute
   '/calendario': typeof AuthenticatedCalendarioRoute
   '/cartoes': typeof AuthenticatedCartoesRoute
+  '/casa': typeof AuthenticatedCasaRoute
   '/categorias': typeof AuthenticatedCategoriasRoute
   '/compartilhar': typeof AuthenticatedCompartilharRoute
   '/configuracoes': typeof AuthenticatedConfiguracoesRoute
@@ -317,6 +330,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/de-para': typeof AuthenticatedDeParaRoute
   '/despesas': typeof AuthenticatedDespesasRoute
+  '/documentos': typeof AuthenticatedDocumentosRoute
   '/exames': typeof AuthenticatedExamesRoute
   '/ferramentas': typeof AuthenticatedFerramentasRoute
   '/importar': typeof AuthenticatedImportarRoute
@@ -357,6 +371,7 @@ export interface FileRoutesByTo {
   '/backup': typeof AuthenticatedBackupRoute
   '/calendario': typeof AuthenticatedCalendarioRoute
   '/cartoes': typeof AuthenticatedCartoesRoute
+  '/casa': typeof AuthenticatedCasaRoute
   '/categorias': typeof AuthenticatedCategoriasRoute
   '/compartilhar': typeof AuthenticatedCompartilharRoute
   '/configuracoes': typeof AuthenticatedConfiguracoesRoute
@@ -364,6 +379,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/de-para': typeof AuthenticatedDeParaRoute
   '/despesas': typeof AuthenticatedDespesasRoute
+  '/documentos': typeof AuthenticatedDocumentosRoute
   '/exames': typeof AuthenticatedExamesRoute
   '/ferramentas': typeof AuthenticatedFerramentasRoute
   '/importar': typeof AuthenticatedImportarRoute
@@ -406,6 +422,7 @@ export interface FileRoutesById {
   '/_authenticated/backup': typeof AuthenticatedBackupRoute
   '/_authenticated/calendario': typeof AuthenticatedCalendarioRoute
   '/_authenticated/cartoes': typeof AuthenticatedCartoesRoute
+  '/_authenticated/casa': typeof AuthenticatedCasaRoute
   '/_authenticated/categorias': typeof AuthenticatedCategoriasRoute
   '/_authenticated/compartilhar': typeof AuthenticatedCompartilharRoute
   '/_authenticated/configuracoes': typeof AuthenticatedConfiguracoesRoute
@@ -413,6 +430,7 @@ export interface FileRoutesById {
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/de-para': typeof AuthenticatedDeParaRoute
   '/_authenticated/despesas': typeof AuthenticatedDespesasRoute
+  '/_authenticated/documentos': typeof AuthenticatedDocumentosRoute
   '/_authenticated/exames': typeof AuthenticatedExamesRoute
   '/_authenticated/ferramentas': typeof AuthenticatedFerramentasRoute
   '/_authenticated/importar': typeof AuthenticatedImportarRoute
@@ -455,6 +473,7 @@ export interface FileRouteTypes {
     | '/backup'
     | '/calendario'
     | '/cartoes'
+    | '/casa'
     | '/categorias'
     | '/compartilhar'
     | '/configuracoes'
@@ -462,6 +481,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/de-para'
     | '/despesas'
+    | '/documentos'
     | '/exames'
     | '/ferramentas'
     | '/importar'
@@ -502,6 +522,7 @@ export interface FileRouteTypes {
     | '/backup'
     | '/calendario'
     | '/cartoes'
+    | '/casa'
     | '/categorias'
     | '/compartilhar'
     | '/configuracoes'
@@ -509,6 +530,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/de-para'
     | '/despesas'
+    | '/documentos'
     | '/exames'
     | '/ferramentas'
     | '/importar'
@@ -550,6 +572,7 @@ export interface FileRouteTypes {
     | '/_authenticated/backup'
     | '/_authenticated/calendario'
     | '/_authenticated/cartoes'
+    | '/_authenticated/casa'
     | '/_authenticated/categorias'
     | '/_authenticated/compartilhar'
     | '/_authenticated/configuracoes'
@@ -557,6 +580,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard'
     | '/_authenticated/de-para'
     | '/_authenticated/despesas'
+    | '/_authenticated/documentos'
     | '/_authenticated/exames'
     | '/_authenticated/ferramentas'
     | '/_authenticated/importar'
@@ -699,6 +723,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCartoesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/casa': {
+      id: '/_authenticated/casa'
+      path: '/casa'
+      fullPath: '/casa'
+      preLoaderRoute: typeof AuthenticatedCasaRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/categorias': {
       id: '/_authenticated/categorias'
       path: '/categorias'
@@ -746,6 +777,13 @@ declare module '@tanstack/react-router' {
       path: '/despesas'
       fullPath: '/despesas'
       preLoaderRoute: typeof AuthenticatedDespesasRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/documentos': {
+      id: '/_authenticated/documentos'
+      path: '/documentos'
+      fullPath: '/documentos'
+      preLoaderRoute: typeof AuthenticatedDocumentosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/exames': {
@@ -938,6 +976,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedBackupRoute: typeof AuthenticatedBackupRoute
   AuthenticatedCalendarioRoute: typeof AuthenticatedCalendarioRoute
   AuthenticatedCartoesRoute: typeof AuthenticatedCartoesRoute
+  AuthenticatedCasaRoute: typeof AuthenticatedCasaRoute
   AuthenticatedCategoriasRoute: typeof AuthenticatedCategoriasRoute
   AuthenticatedCompartilharRoute: typeof AuthenticatedCompartilharRoute
   AuthenticatedConfiguracoesRoute: typeof AuthenticatedConfiguracoesRoute
@@ -945,6 +984,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDeParaRoute: typeof AuthenticatedDeParaRoute
   AuthenticatedDespesasRoute: typeof AuthenticatedDespesasRoute
+  AuthenticatedDocumentosRoute: typeof AuthenticatedDocumentosRoute
   AuthenticatedExamesRoute: typeof AuthenticatedExamesRoute
   AuthenticatedFerramentasRoute: typeof AuthenticatedFerramentasRoute
   AuthenticatedImportarRoute: typeof AuthenticatedImportarRoute
@@ -969,6 +1009,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedBackupRoute: AuthenticatedBackupRoute,
   AuthenticatedCalendarioRoute: AuthenticatedCalendarioRoute,
   AuthenticatedCartoesRoute: AuthenticatedCartoesRoute,
+  AuthenticatedCasaRoute: AuthenticatedCasaRoute,
   AuthenticatedCategoriasRoute: AuthenticatedCategoriasRoute,
   AuthenticatedCompartilharRoute: AuthenticatedCompartilharRoute,
   AuthenticatedConfiguracoesRoute: AuthenticatedConfiguracoesRoute,
@@ -976,6 +1017,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDeParaRoute: AuthenticatedDeParaRoute,
   AuthenticatedDespesasRoute: AuthenticatedDespesasRoute,
+  AuthenticatedDocumentosRoute: AuthenticatedDocumentosRoute,
   AuthenticatedExamesRoute: AuthenticatedExamesRoute,
   AuthenticatedFerramentasRoute: AuthenticatedFerramentasRoute,
   AuthenticatedImportarRoute: AuthenticatedImportarRoute,
@@ -1023,8 +1065,6 @@ export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
 
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
 declare module '@tanstack/react-start' {
   interface Register {
     ssr: true

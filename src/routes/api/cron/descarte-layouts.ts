@@ -115,8 +115,10 @@ export const Route = createFileRoute("/api/cron/descarte-layouts")({
         // ativado (não retroage sobre dívida que já existia antes disso).
         const conciliadas = await conciliarFaturasAutomaticas(db);
         const rateLimitLimpo = await limparRateLimitAntigo(db);
+        const { concluirExclusoesVencidas } = await import("@/lib/conta-exclusao.server");
+        const exclusoes = await concluirExclusoesVencidas();
 
-        return Response.json({ descartados, conciliadas, rateLimitLimpo });
+        return Response.json({ descartados, conciliadas, rateLimitLimpo, exclusoes });
       },
     },
   },

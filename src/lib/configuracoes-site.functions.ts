@@ -153,6 +153,7 @@ export const listarModulosDisponiveis = createServerFn({ method: "GET" })
     const porModulo = new Map((individuais ?? []).map((x: any) => [x.modulo, x.habilitado]));
     return (globais ?? []).map((x: any) => ({
       ...x,
+      liberadoGeral: !!x.habilitado,
       habilitado: !!admin || (porModulo.has(x.modulo) ? porModulo.get(x.modulo) : x.habilitado),
     }));
   });
