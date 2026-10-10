@@ -12,6 +12,7 @@ import {
   type PerfilLayout,
 } from "@/lib/fatura-layout";
 import { ehLinhaResumoFatura, extrairMetadadosFatura } from "@/lib/fatura-metadados";
+import { extrairCabecalhoFatura, extrairFinaisCartao, extrairPorFluxo } from "@/lib/fatura-fluxo";
 import { extrairLimites, type LimitesFatura } from "@/lib/fatura-limites";
 import { ehValorCredito } from "@/lib/lancamento-direcao";
 import { identificarParcela } from "@/lib/parcela";
@@ -28,13 +29,22 @@ export { corrigirTexto, limparDescricaoComercial, normalizarDescricao, parseValo
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
 
-export type BancoFatura = "itau" | "nubank" | "pernambucanas" | "santander" | "desconhecido";
+export type BancoFatura =
+  | "itau"
+  | "nubank"
+  | "pernambucanas"
+  | "santander"
+  | "xp"
+  | "riachuelo"
+  | "desconhecido";
 
 export const BANCO_LABEL: Record<BancoFatura, string> = {
   itau: "Itaú",
   nubank: "Nubank",
   pernambucanas: "Pernambucanas",
   santander: "Santander",
+  xp: "XP",
+  riachuelo: "Riachuelo / Midway",
   desconhecido: "Não identificado",
 };
 
@@ -75,7 +85,13 @@ export type FaturaExtraida = {
   lancamentos: LancamentoExtraido[];
   texto: string;
   assinatura?: string;
-  leitura?: "perfil" | "posicional" | "linhas" | "ocr";
+  leitura?: "fluxo" | "perfil" | "posicional" | "linhas" | "ocr";
+  /** Titular e adicionais encontrados na fatura, com o final do cartão de cada um (quando impresso). */
+  portadores?: Array<{ nome: string; final: string | null }>;
+  /** Total impresso na fatura ("Total desta fatura", "Valor total devido"...). */
+  total_impresso?: number | null;
+  /** Lançamentos de próximas faturas (parcelas futuras) que foram deixados de fora. */
+  futuros_ignorados?: number;
   colunas?: {
     data?: number | undefined;
     valor?: number | undefined;
@@ -204,6 +220,9 @@ export async function extrairTexto(
 export function detectarBanco(texto: string, nomeArquivo: string): BancoFatura {
   const alvo = `${nomeArquivo} ${texto}`.toLowerCase();
   if (alvo.includes("nubank") || alvo.includes("nu pagamentos")) return "nubank";
+  if (alvo.includes("midway") || alvo.includes("cartão riachuelo") || alvo.includes("cartao riachuelo"))
+    return "riachuelo";
+  if (alvo.includes("banco xp") || alvo.includes("cartão xp") || alvo.includes("app xp")) return "xp";
   if (alvo.includes("pernambucanas")) return "pernambucanas";
   if (alvo.includes("santander")) return "santander";
   if (alvo.includes("itau") || alvo.includes("itaú") || alvo.includes("itaucard")) return "itau";
@@ -319,7 +338,10 @@ export async function processarFatura(
     hashArquivo(file),
   ]);
   const banco = detectarBanco(texto, file.name);
-  const vencimento = extrairVencimento(texto);
+  // Cabeçalho lido na ordem do PDF (rótulo e valor ficam juntos): vencimento,
+  // titular, final do cartão, limites e total impresso.
+  const cab = itens.length ? extrairCabecalhoFatura(itens) : null;
+  const vencimento = cab?.vencimento ?? extrairVencimento(texto);
   // O texto do PDF às vezes traz o total colado a outro campo (ex.: "VALOR
   // TOTAL FATURA PAGAMENTO MÍNIMO ... R$ 705,42") e a extração acaba pegando
   // um valor que não é o total real. Por isso o campo "Total da fatura" não
@@ -329,12 +351,26 @@ export async function processarFatura(
   // leitura não encontrou nenhum lançamento (nada para somar).
   const totalTexto = extrairTotal(texto);
 
+  // 1º) Leitura por fluxo (ordem do PDF, colunas, portadores, parcelas
+  // futuras ignoradas). 2º) Perfil memorizado / leitura posicional antiga,
+  // usada quando o fluxo não encontra nada (ex.: datas "12 MAI" do Nubank)
+  // ou encontra bem menos linhas.
+  const fluxo = perfil || !itens.length ? null : extrairPorFluxo(itens, vencimento);
   const comPerfil = perfil ? extrairPosicional(itens, vencimento, perfil) : null;
   const generico =
     comPerfil && comPerfil.lancamentos.length ? comPerfil : extrairPosicional(itens, vencimento);
   let lancamentos = generico.lancamentos;
   let leitura: FaturaExtraida["leitura"] = comPerfil?.lancamentos.length ? "perfil" : "posicional";
   let colunas = generico.colunas;
+  if (
+    fluxo &&
+    fluxo.lancamentos.length &&
+    fluxo.lancamentos.length * 1.5 + 2 >= generico.lancamentos.length
+  ) {
+    lancamentos = fluxo.lancamentos;
+    leitura = "fluxo";
+    colunas = {};
+  }
 
   if (lancamentos.length === 0) {
     lancamentos = extrairLancamentos(texto, vencimento);
@@ -352,7 +388,14 @@ export async function processarFatura(
   // Sem lançamentos não há o que somar — cai para o valor lido do texto (se
   // houver) só pra não deixar o campo vazio; com lançamentos, o calculado
   // manda, mesmo que dê 0 (fatura só com pagamento, por exemplo).
-  const total_declarado = lancamentos.length ? calcularTotalFatura(lancamentos) : totalTexto;
+  // O total impresso no cabeçalho (lido por rótulo exato) é o que o usuário
+  // compara com a fatura de verdade; sem ele, cai para a soma dos lançamentos.
+  const total_declarado =
+    cab?.total_impresso ?? (lancamentos.length ? calcularTotalFatura(lancamentos) : totalTexto);
+  const limitesTexto = extrairLimites(texto);
+  const finais = Array.from(
+    new Set([...(fluxo?.finais ?? []), ...extrairFinais(texto), ...extrairFinaisCartao(texto)]),
+  );
 
   return {
     banco,
@@ -362,8 +405,10 @@ export async function processarFatura(
     vencimento,
     competencia: vencimento ? vencimento.slice(0, 7) : null,
     total_declarado,
-    ...extrairLimites(texto),
-    finais: extrairFinais(texto),
+    limite_total: cab?.limite_total ?? limitesTexto.limite_total,
+    limite_utilizado: cab?.limite_utilizado ?? limitesTexto.limite_utilizado,
+    limite_disponivel: cab?.limite_disponivel ?? limitesTexto.limite_disponivel,
+    finais,
     lancamentos,
     texto,
     assinatura: assinaturaDocumento(texto),
@@ -372,6 +417,9 @@ export async function processarFatura(
     conferencia: conferirTotal(lancamentos, total_declarado),
     ...extrairMetadadosFatura(texto),
     origem_texto: origem,
+    portadores: leitura === "fluxo" ? (fluxo?.portadores ?? []) : [],
+    total_impresso: cab?.total_impresso ?? null,
+    futuros_ignorados: leitura === "fluxo" ? (fluxo?.ignorados ?? 0) : 0,
   };
 }
 

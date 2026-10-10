@@ -54,7 +54,13 @@ import {
   useDespesas,
   useProfilesList,
 } from "@/hooks/useFinance";
-import { formatBRL } from "@/lib/format";
+import { formatBRL, monthLabelLong } from "@/lib/format";
+import { mesmaPessoa } from "@/lib/fatura-fluxo";
+import {
+  AvisoCorrespondenciaFixa,
+  AvisoDuplicata,
+  type AcaoFixa,
+} from "@/components/AvisosImportacao";
 import { verificarPossivelDuplicata } from "@/lib/duplicidade";
 import { encontrarCorrespondenciaFixa, type FixaCandidata } from "@/lib/correspondencia-fixa";
 import { mesesEntreCompetencias, somarMeses, vencimentoDaCompetencia } from "@/lib/recorrencia";
@@ -104,7 +110,15 @@ export const Route = createFileRoute("/_authenticated/importar")({
   component: ImportarPage,
 });
 
-const BANCOS: BancoFatura[] = ["itau", "nubank", "pernambucanas", "santander", "desconhecido"];
+const BANCOS: BancoFatura[] = [
+  "itau",
+  "nubank",
+  "pernambucanas",
+  "santander",
+  "xp",
+  "riachuelo",
+  "desconhecido",
+];
 
 type FaturaItem = FaturaExtraida & {
   arquivo: File | null;
@@ -113,7 +127,6 @@ type FaturaItem = FaturaExtraida & {
   total_declarado_edicao?: string;
 };
 
-type AcaoFixa = "manter" | "substituir" | "ignorar" | "vincular";
 
 /** Normaliza nomes para comparar "Itaú" com "itau", "Banco Santander" com "santander" etc. */
 function chaveNome(v: string) {
@@ -304,6 +317,14 @@ function ImportarPage() {
     return banco ? `banco:${banco.id}` : "";
   }
 
+  /** Usuários do grupo + nomes de portadores lidos nas faturas (titular/adicionais). */
+  const opcoesResponsavel = useMemo(() => {
+    const nomes = new Set<string>(responsaveis);
+    for (const f of faturas)
+      for (const l of f.lancamentos) if (l.responsavel) nomes.add(l.responsavel);
+    return Array.from(nomes);
+  }, [responsaveis, faturas]);
+
   const totais = useMemo(() => {
     const lanc = faturas.flatMap((f) => f.lancamentos.filter((l) => l.incluir));
     return {
@@ -317,7 +338,11 @@ function ImportarPage() {
   async function processarArquivoUnico(file: File, senha?: string): Promise<FaturaItem> {
     let extraida = await processarFatura(file, undefined, senha);
     // Se já aprendemos o padrão deste emissor, tenta a leitura guiada.
-    if (extraida.assinatura && (!extraida.conferencia?.ok || !extraida.lancamentos.length)) {
+    if (
+      extraida.assinatura &&
+      extraida.leitura !== "fluxo" &&
+      (!extraida.conferencia?.ok || !extraida.lancamentos.length)
+    ) {
       const { data: perfil } = await supabase
         .from("fatura_layouts")
         .select("assinatura, banco, colunas, ancora_inicio, ancora_fim")
@@ -399,7 +424,14 @@ function ImportarPage() {
       .select("id")
       .eq("arquivo_hash", extraida.arquivo_hash)
       .maybeSingle();
-    const categorizados = categorizar(extraida.lancamentos);
+    // Responsável: o nome impresso na fatura (titular/adicional) vira o
+    // usuário do grupo com mesmo primeiro e último nome; sem correspondência,
+    // fica o nome da fatura (aparece como opção na lista).
+    const categorizados = categorizar(extraida.lancamentos).map((l) => {
+      if (!l.responsavel) return l;
+      const casado = responsaveis.find((r) => mesmaPessoa(r, l.responsavel));
+      return casado ? { ...l, responsavel: casado } : l;
+    });
     if (extraida.assinatura) {
       for (const l of categorizados) {
         baseCorrecao.current.set(l.id, {
@@ -889,6 +921,96 @@ function ImportarPage() {
     onError: (e: any) => toast.error(e?.message ?? "Falha ao salvar a regra."),
   });
 
+  /**
+   * "Ajustar a fixa a partir desta competência": encerra a recorrência antiga
+   * no mês anterior e cria a continuação com o novo valor, levando junto as
+   * ocorrências já geradas (e pagas) deste mês em diante. Os meses anteriores
+   * não mudam. Se a competência é o próprio início da fixa, só troca o valor.
+   */
+  async function ajustarFixaAPartirDe(p: {
+    fixaId: string;
+    grupoId: string;
+    competencia: string;
+    valor: number;
+    faturaId: string;
+  }) {
+    const { data: fixa, error } = await supabase
+      .from("despesas")
+      .select("*")
+      .eq("id", p.fixaId)
+      .eq("grupo_id", p.grupoId)
+      .single();
+    if (error || !fixa) throw new Error("A despesa fixa escolhida não está disponível neste grupo.");
+    const f = fixa as any;
+    const inicio: string = f.recorrencia_inicio ?? f.data_primeira_parcela;
+    const decorridos = mesesEntreCompetencias(inicio, p.competencia);
+    const deData = `${p.competencia}-01`;
+    const centavos = Math.round(p.valor * 100);
+    let alvoId: string = f.id;
+    if (decorridos <= 0) {
+      const { error: e1 } = await supabase
+        .from("despesas")
+        .update({ valor_total: p.valor, valor_total_centavos: centavos } as any)
+        .eq("id", f.id);
+      if (e1) throw e1;
+    } else {
+      const restantes = f.recorrencia_sem_prazo
+        ? null
+        : Math.max(1, Number(f.recorrencia_meses ?? decorridos + 1) - decorridos);
+      const { error: e1 } = await supabase
+        .from("despesas")
+        .update({ recorrencia_sem_prazo: false, recorrencia_meses: decorridos } as any)
+        .eq("id", f.id);
+      if (e1) throw e1;
+      const { id: _id, created_at: _c, updated_at: _u, parcelas: _p, ...resto } = f;
+      const inicioNovo = vencimentoDaCompetencia(inicio, p.competencia);
+      const { data: nova, error: e2 } = await supabase
+        .from("despesas")
+        .insert({
+          ...resto,
+          valor_total: p.valor,
+          valor_total_centavos: centavos,
+          data_compra: inicioNovo,
+          data_primeira_parcela: inicioNovo,
+          recorrencia_inicio: inicioNovo,
+          recorrencia_sem_prazo: !!f.recorrencia_sem_prazo,
+          recorrencia_meses: restantes,
+          created_by: user?.id ?? f.created_by ?? null,
+        } as any)
+        .select("id")
+        .single();
+      if (e2 || !nova) throw e2 ?? new Error("Não foi possível criar a continuação da fixa.");
+      alvoId = nova.id;
+      const { error: e3 } = await supabase
+        .from("parcelas")
+        .update({ despesa_id: alvoId } as any)
+        .eq("despesa_id", f.id)
+        .gte("vencimento", deData);
+      if (e3) throw e3;
+    }
+    const { error: e4 } = await supabase
+      .from("parcelas")
+      .update({ valor: p.valor } as any)
+      .eq("despesa_id", alvoId)
+      .gte("vencimento", deData)
+      .eq("paga", false);
+    if (e4) throw e4;
+    const { data: doMes } = await supabase
+      .from("parcelas")
+      .select("id")
+      .eq("despesa_id", alvoId)
+      .gte("vencimento", deData)
+      .lt("vencimento", `${somarMeses(p.competencia, 1)}-01`)
+      .maybeSingle();
+    if (doMes) {
+      const { error: e5 } = await supabase
+        .from("parcelas")
+        .update({ fatura_id: p.faturaId, origem: "importacao_vinculo" } as any)
+        .eq("id", doMes.id);
+      if (e5) throw e5;
+    }
+  }
+
   const confirmar = useMutation({
     mutationFn: async () => {
       if (!user?.id) throw new Error("Entre na sua conta para importar faturas.");
@@ -1030,7 +1152,12 @@ function ImportarPage() {
             ignorados++;
             continue;
           }
-          if (acaoFixa && (acaoFixa.acao === "substituir" || acaoFixa.acao === "vincular")) {
+          if (
+            acaoFixa &&
+            (acaoFixa.acao === "substituir" ||
+              acaoFixa.acao === "vincular" ||
+              acaoFixa.acao === "ajustar")
+          ) {
             const { data: fixa, error: fixaErro } = await supabase
               .from("despesas")
               .select(
@@ -1055,6 +1182,17 @@ function ImportarPage() {
             if (!correspondencia)
               throw new Error("A correspondência com a despesa fixa mudou. Revise esta linha.");
             const competencia = (f.competencia ?? l.data_compra).slice(0, 7);
+            if (acaoFixa.acao === "ajustar") {
+              await ajustarFixaAPartirDe({
+                fixaId: fixa.id,
+                grupoId,
+                competencia,
+                valor: l.valor,
+                faturaId: fatura.id,
+              });
+              inseridos++;
+              continue;
+            }
             const { data: parcelaExistente, error: parcelaErro } = await supabase
               .from("parcelas")
               .select("id, fatura_id")
@@ -1821,7 +1959,7 @@ function ImportarPage() {
                   <SelectContent>
                     <SelectItem value="manter">Aplicar a todos…</SelectItem>
                     <SelectItem value="nenhum">—</SelectItem>
-                    {responsaveis.map((r) => (
+                    {opcoesResponsavel.map((r) => (
                       <SelectItem key={r} value={r}>
                         {r}
                       </SelectItem>
@@ -1830,6 +1968,30 @@ function ImportarPage() {
                 </Select>
               </div>
             </div>
+
+            {(f.portadores?.length || f.futuros_ignorados || f.total_impresso != null) && (
+              <div className="flex flex-wrap items-center gap-1.5 rounded-lg border bg-muted/30 px-3 py-2 text-xs">
+                {f.portadores?.map((p) => (
+                  <Badge key={`${p.nome}-${p.final ?? ""}`} variant="outline" className="gap-1 font-normal">
+                    {p.nome}
+                    <span className="text-muted-foreground">
+                      {p.final ? `· final ${p.final}` : "· final não impresso"}
+                    </span>
+                  </Badge>
+                ))}
+                {f.total_impresso != null && (
+                  <span className="text-muted-foreground">
+                    Total impresso na fatura: <b className="text-foreground">{formatBRL(f.total_impresso)}</b>
+                  </span>
+                )}
+                {!!f.futuros_ignorados && (
+                  <span className="text-muted-foreground">
+                    · {f.futuros_ignorados} parcela(s) de próximas faturas deixada(s) de fora (não são
+                    deste mês)
+                  </span>
+                )}
+              </div>
+            )}
 
             {(() => {
               // Recalculada a cada render (não é mais o snapshot da extração):
@@ -2032,13 +2194,7 @@ function ImportarPage() {
                                   ...outrosImportados,
                                 ]);
                                 return checagem.duplicata ? (
-                                  <Badge
-                                    variant="outline"
-                                    className="mt-1 gap-1 border-amber-500/40 bg-amber-500/10 text-[10px] text-amber-600 dark:text-amber-400"
-                                    title={checagem.motivo ?? undefined}
-                                  >
-                                    <AlertTriangle className="size-3 shrink-0" /> Possível duplicata
-                                  </Badge>
+                                  <AvisoDuplicata motivo={checagem.motivo} />
                                 ) : null;
                               })()}
                               {(() => {
@@ -2130,50 +2286,28 @@ function ImportarPage() {
                                     competencia: f.competencia,
                                   },
                                 );
+                                const chaveAcao = `${f.arquivo_hash}:${l.id}`;
                                 return correspondencia ? (
-                                  <div className="mt-1 space-y-1 text-[10px] font-medium text-amber-600">
-                                    <p>
-                                      {correspondencia.titulo}: "{correspondencia.fixa.descricao}" (
-                                      {formatBRL(Number(correspondencia.fixa.valor_total))}).
-                                    </p>
-                                    <p>Critérios: {correspondencia.motivos.join(", ")}.</p>
-                                    <Select
-                                      value={
-                                        acoesFixas[`${f.arquivo_hash}:${l.id}`]?.acao ?? "manter"
-                                      }
-                                      onValueChange={(valor) => {
-                                        const acao = valor as AcaoFixa;
-                                        setAcoesFixas((atual) => ({
-                                          ...atual,
-                                          [`${f.arquivo_hash}:${l.id}`]: {
-                                            acao,
-                                            fixaId: correspondencia.fixa.id,
-                                          },
-                                        }));
-                                        atualizarLancamento(idx, l.id, {
-                                          incluir: acao !== "ignorar",
-                                        });
-                                      }}
-                                    >
-                                      <SelectTrigger className="h-7 text-[10px] text-foreground">
-                                        <SelectValue />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="manter">
-                                          Manter os dois lançamentos
-                                        </SelectItem>
-                                        <SelectItem value="substituir">
-                                          Substituir só a ocorrência deste mês
-                                        </SelectItem>
-                                        <SelectItem value="ignorar">
-                                          Ignorar o lançamento importado
-                                        </SelectItem>
-                                        <SelectItem value="vincular">
-                                          Vincular à fixa sem trocar o valor
-                                        </SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
+                                  <AvisoCorrespondenciaFixa
+                                    titulo={correspondencia.titulo}
+                                    fixaDescricao={correspondencia.fixa.descricao}
+                                    fixaValor={Number(correspondencia.fixa.valor_total)}
+                                    motivos={correspondencia.motivos}
+                                    valorImportado={l.valor}
+                                    competenciaRotulo={monthLabelLong(
+                                      (f.competencia ?? l.data_compra).slice(0, 7),
+                                    )}
+                                    acao={acoesFixas[chaveAcao]?.acao ?? "manter"}
+                                    onAcao={(acao) => {
+                                      setAcoesFixas((atual) => ({
+                                        ...atual,
+                                        [chaveAcao]: { acao, fixaId: correspondencia.fixa.id },
+                                      }));
+                                      atualizarLancamento(idx, l.id, {
+                                        incluir: acao !== "ignorar",
+                                      });
+                                    }}
+                                  />
                                 ) : null;
                               })()}
                             </td>
@@ -2205,7 +2339,7 @@ function ImportarPage() {
                                 </SelectTrigger>
                                 <SelectContent>
                                   <SelectItem value="none">—</SelectItem>
-                                  {responsaveis.map((r) => (
+                                  {opcoesResponsavel.map((r) => (
                                     <SelectItem key={r} value={r}>
                                       {r}
                                     </SelectItem>

@@ -372,3 +372,22 @@ Pendências manuais: git push origin main; DROP POLICY comprovantes_membro_ativo
    - Antes de abrir para outros usuários: contrato/plano da Pluggy, aviso LGPD de consentimento Open Finance, revogação da conexão pelo usuário e política de retenção.
 4. Pluggy com dados reais: conta de teste só aceita o conector sandbox (Pluggy Bank). Caminho gratuito para a conta pessoal: Meu Pluggy (meu.pluggy.ai); conecta o banco lá, copia o Item ID em Dashboard > aplicação > "Ir para Demo" > menu de três pontos, e cola na tela Bancos (teste), campo "Usar dados reais pelo Meu Pluggy". Observação da documentação de terceiros: a conexão no Meu Pluggy só pode ser criada com o trial da Pluggy ativo; confirmar o prazo e as regras no painel da Pluggy.
 5. `public/llms.txt` (https://www.controlall.com.br/llms.txt): índice em Markdown para assistentes de IA, no formato do llmstxt.org, só com páginas públicas e textos que já existem nas metas do site. Manter em sincronia com `public/sitemap.xml` quando criar página pública nova. Não inclui nada da área logada.
+
+### Rodada 8 (2026-10-10): importação de faturas
+Estudadas 5 faturas reais (Itaú 2026 e 2022 com adicional, Santander com 3 cartões, XP com 2 cartões, Riachuelo/Midway). Os PDFs não foram salvos no repositório (dados pessoais); os testes usam dados fictícios.
+1. Novo leitor `src/lib/fatura-fluxo.ts` (usado primeiro; o leitor posicional antigo fica de reserva, ex.: Nubank com datas "12 MAI"):
+   - Lê na ordem do próprio PDF; os lançamentos aparecem na prévia nessa mesma ordem.
+   - Seção decidida pelo título mais próximo ACIMA na mesma coluna. "Compras parceladas - próximas faturas", "Lançamentos futuros", "Total a vencer", "Obrigações futuras" nunca entram no mês atual (mesmo com o bloco escrito fora de ordem no PDF, como no Itaú 2022).
+   - Parcela separada do nome: "PRE 01/07", "DIFERENCI01/12" (colada), "- Parcela 4/6", coluna própria (Santander) e coluna "Nº parc." (Midway).
+   - Valor certo: Midway usa o "Lançamento do mês" (não o valor original da compra); XP/Santander usam a coluna R$ (não a US$); nota de rodapé "1 29/06" e código de loja "009" removidos.
+   - Portador e final do cartão por lançamento: "NOME - 4258 XXXX XXXX 6975", "@ NOME - ...", "NOME (final 8094)", nome solto acima da tabela (Itaú). Linha de categoria/cidade abaixo do lançamento (Itaú) não entra na descrição.
+   - IOF de compra internacional ("Repasse de IOF") vira um lançamento.
+   - Ano da compra: mês depois do vencimento = ano anterior (parcelas antigas).
+   - Cabeçalho: vencimento, titular, final do cartão, limite total/disponível/utilizado e total impresso.
+   - Conferência nas 5 faturas: soma dos lançamentos bate com o total impresso e com o subtotal de cada cartão/portador.
+2. Bancos novos na lista: XP e Riachuelo / Midway.
+3. Prévia: chips com cada portador e final, total impresso, quantas parcelas de próximas faturas ficaram de fora. Responsável preenchido com o usuário do grupo de mesmo primeiro e último nome; sem correspondência, aparece o nome da fatura como opção.
+4. Duplicidade e despesa fixa: o texto não fica mais dentro da coluna (que deformava a tabela). Agora é um botão compacto que abre um painel fixo com a explicação e as opções em botões grandes: usar o valor só neste mês, ajustar a fixa a partir desta competência (novo), vincular sem mudar o valor, manter os dois, ignorar.
+5. "Ajustar a partir desta competência": encerra a recorrência antiga no mês anterior e cria a continuação com o novo valor, levando as ocorrências deste mês em diante (pagas continuam pagas). Meses anteriores não mudam. Se for o mês de início, só troca o valor.
+Testes: `src/lib/fatura-fluxo.test.ts` (10 testes, `bun test`).
+Pendente: testar no site com as próprias faturas; ensinar padrão (perfil memorizado) continua usando o leitor antigo.
