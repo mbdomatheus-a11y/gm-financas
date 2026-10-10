@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { ResponsiveContainer, Tooltip, Treemap } from "recharts";
 import {
   ArrowDownRight,
@@ -8,6 +10,7 @@ import {
   PiggyBank,
   Repeat,
   Scissors,
+  Tag,
   TrendingDown,
 } from "lucide-react";
 
@@ -27,6 +30,11 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCotacao } from "@/hooks/useCotacao";
 import { useCategorias, useDespesas, useFaturasMes, useReceitas } from "@/hooks/useFinance";
+import { useSession } from "@/hooks/useAuthData";
+import { supabase } from "@/integrations/supabase/client";
+import { lembrarClassificacao } from "@/lib/classificacao-lembrada";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { usePrivacidadeValores } from "@/hooks/usePrivacidadeValores";
 import { criarCorPorCategoria } from "@/lib/categorias-cor";
 import { chaveEstabelecimento } from "@/lib/categorizacao";
@@ -91,11 +99,17 @@ function ParaOndeVaiPage() {
   const { data: faturasMes = [] } = useFaturasMes();
   const { data: categoriasCadastradas = [] } = useCategorias("despesa");
   const { ocultarValores } = usePrivacidadeValores();
+  const { user } = useSession();
+  const qc = useQueryClient();
   const competenciaAtual = useCompetenciaVigente();
   const [janela, setJanela] = useState("12");
   const [mesInicio, setMesInicio] = useState(competenciaAtual);
   const [mesFim, setMesFim] = useState(competenciaAtual);
   const [categoriaAberta, setCategoriaAberta] = useState<string | null>(null);
+  /** Categoria e subcategoria sendo editadas dentro do popup, por estabelecimento. */
+  const [edicao, setEdicao] = useState<
+    Record<string, { categoria: string; subcategoria: string }>
+  >({});
 
   const fmt = (v: number) => (ocultarValores ? "R$ ••••••" : formatBRL(v));
   const corDe = useMemo(
@@ -179,18 +193,37 @@ function ParaOndeVaiPage() {
     () => quadrosPorMes(gastos, competencias),
     [gastos, competencias],
   );
+  /** Subcategorias que já aparecem nos lançamentos, para sugerir na digitação. */
+  const subcategoriasConhecidas = useMemo(() => {
+    const nomes = new Set<string>();
+    for (const d of despesas as { subcategoria?: string | null }[]) {
+      if (d.subcategoria) nomes.add(d.subcategoria);
+    }
+    return [...nomes].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [despesas]);
+
   const totalPeriodo = resumo.reduce((s, r) => s + r.total, 0);
   const economiaDetectada = encerrados.reduce((s, r) => s + r.economiaAcumulada, 0);
   const maiorQuadro = Math.max(1, ...quadros.map((q) => q.total));
 
   const itensDaCategoria = useMemo(() => {
     if (!categoriaAberta) return [];
-    const porChave = new Map<string, { descricao: string; total: number; meses: Set<string> }>();
+    const porChave = new Map<
+      string,
+      { descricao: string; total: number; meses: Set<string>; ids: Set<string> }
+    >();
     for (const g of gastos) {
       if ((g.categoria || "outros") !== categoriaAberta) continue;
-      const atual = porChave.get(g.chave) ?? { descricao: g.descricao, total: 0, meses: new Set() };
+      const atual =
+        porChave.get(g.chave) ?? {
+          descricao: g.descricao,
+          total: 0,
+          meses: new Set<string>(),
+          ids: new Set<string>(),
+        };
       atual.total += g.valor;
       atual.meses.add(g.competencia);
+      if (g.despesaId) atual.ids.add(g.despesaId);
       porChave.set(g.chave, atual);
     }
     return [...porChave.entries()]
@@ -199,10 +232,47 @@ function ParaOndeVaiPage() {
         descricao: v.descricao,
         total: v.total,
         meses: v.meses.size,
+        ids: [...v.ids],
         recorrente: recorrentes.find((r) => r.chave === chave) ?? null,
       }))
       .sort((a, b) => b.total - a.total);
   }, [categoriaAberta, gastos, recorrentes]);
+
+  /** Reclassifica, ali mesmo, todos os lançamentos daquele estabelecimento. */
+  const reclassificar = useMutation({
+    mutationFn: async (p: {
+      ids: string[];
+      descricao: string;
+      categoria: string;
+      subcategoria: string | null;
+    }) => {
+      if (!p.ids.length) return;
+      const { error } = await supabase
+        .from("despesas")
+        .update({
+          categoria: p.categoria,
+          subcategoria: p.subcategoria,
+          categoria_confirmada: true,
+        } as never)
+        .in("id", p.ids);
+      if (error) throw error;
+      // O que você confirma aqui vale para as próximas importações.
+      await lembrarClassificacao({
+        descricao: p.descricao,
+        categoria: p.categoria,
+        subcategoria: p.subcategoria,
+        tipo: "variavel",
+        userId: user?.id ?? null,
+      });
+    },
+    onSuccess: (_r, p) => {
+      toast.success(`${p.ids.length} lançamento(s) de "${p.descricao}" reclassificados.`);
+      void qc.invalidateQueries();
+      setEdicao({});
+    },
+    onError: (e: unknown) =>
+      toast.error(e instanceof Error ? e.message : "Não foi possível reclassificar."),
+  });
 
   const dadosTreemap = resumo.slice(0, 14).map((r) => ({
     name: r.categoria,
@@ -503,33 +573,131 @@ function ParaOndeVaiPage() {
           <DialogHeader>
             <DialogTitle>{categoriaAberta}</DialogTitle>
             <DialogDescription>
-              O que entra nesta categoria no período escolhido, do maior para o menor.
+              O que entra nesta categoria no período escolhido, do maior para o menor. A categoria
+              automática é só uma suspeita: confirme ou troque aqui mesmo.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
-            {itensDaCategoria.map((i) => (
-              <div key={i.chave} className="rounded-lg border p-2 text-sm">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="min-w-0 flex-1 truncate font-medium">{i.descricao}</span>
-                  <span className="shrink-0 font-semibold">{fmt(i.total)}</span>
+            {itensDaCategoria.map((i) => {
+              const edit = edicao[i.chave];
+              return (
+                <div key={i.chave} className="rounded-lg border p-2 text-sm">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="min-w-0 flex-1 truncate font-medium">{i.descricao}</span>
+                    <span className="shrink-0 font-semibold">{fmt(i.total)}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {i.meses} mês(es) · {i.ids.length} lançamento(s)
+                    {i.recorrente
+                      ? i.recorrente.mesesSemAparecer >= 2
+                        ? ` · parou de aparecer, já economizou ${fmt(i.recorrente.economiaAcumulada)}`
+                        : ` · se repete todo mês (${fmt(i.recorrente.valor)}/mês)`
+                      : ""}
+                  </p>
+                  <div className="mt-1.5 flex flex-wrap gap-2">
+                    {i.recorrente && i.recorrente.mesesSemAparecer <= 1 && (
+                      <Button size="sm" variant="outline" className="h-7 text-[11px]" asChild>
+                        <Link to="/despesas" search={{ busca: i.descricao, mes: "todos" } as any}>
+                          <Scissors className="mr-1 size-3.5" aria-hidden="true" /> Quero cancelar
+                        </Link>
+                      </Button>
+                    )}
+                    {!edit && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-[11px]"
+                        onClick={() =>
+                          setEdicao((a) => ({
+                            ...a,
+                            [i.chave]: { categoria: categoriaAberta ?? "", subcategoria: "" },
+                          }))
+                        }
+                      >
+                        <Tag className="mr-1 size-3.5" aria-hidden="true" /> Trocar categoria
+                      </Button>
+                    )}
+                  </div>
+                  {edit && (
+                    <div className="mt-2 space-y-2 rounded-md bg-muted/40 p-2">
+                      <div className="space-y-1">
+                        <Label className="text-[11px]">Categoria</Label>
+                        <Select
+                          value={edit.categoria}
+                          onValueChange={(v) =>
+                            setEdicao((a) => ({ ...a, [i.chave]: { ...edit, categoria: v } }))
+                          }
+                        >
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue placeholder="Escolha a categoria" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(categoriasCadastradas as { id: string; nome: string }[]).map((c) => (
+                              <SelectItem key={c.id} value={c.nome} className="text-xs">
+                                {c.nome}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[11px]">Subcategoria (opcional)</Label>
+                        <Input
+                          className="h-8 text-xs"
+                          list="subcategorias-conhecidas"
+                          placeholder="Ex.: Delivery, Pedágio, Anuidade"
+                          value={edit.subcategoria}
+                          onChange={(e) =>
+                            setEdicao((a) => ({
+                              ...a,
+                              [i.chave]: { ...edit, subcategoria: e.target.value },
+                            }))
+                          }
+                        />
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          size="sm"
+                          className="h-7 text-[11px]"
+                          disabled={!edit.categoria || reclassificar.isPending}
+                          onClick={() =>
+                            reclassificar.mutate({
+                              ids: i.ids,
+                              descricao: i.descricao,
+                              categoria: edit.categoria,
+                              subcategoria: edit.subcategoria.trim() || null,
+                            })
+                          }
+                        >
+                          Aplicar aos {i.ids.length} lançamento(s)
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 text-[11px]"
+                          onClick={() =>
+                            setEdicao((a) => {
+                              const { [i.chave]: _fora, ...resto } = a;
+                              return resto;
+                            })
+                          }
+                        >
+                          Cancelar
+                        </Button>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">
+                        Vale também para as próximas importações deste estabelecimento.
+                      </p>
+                    </div>
+                  )}
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  {i.meses} mês(es)
-                  {i.recorrente
-                    ? i.recorrente.mesesSemAparecer >= 2
-                      ? ` · parou de aparecer, já economizou ${fmt(i.recorrente.economiaAcumulada)}`
-                      : ` · se repete todo mês (${fmt(i.recorrente.valor)}/mês)`
-                    : ""}
-                </p>
-                {i.recorrente && i.recorrente.mesesSemAparecer <= 1 && (
-                  <Button size="sm" variant="outline" className="mt-1 h-7 text-[11px]" asChild>
-                    <Link to="/despesas" search={{ busca: i.descricao, mes: "todos" } as any}>
-                      <Scissors className="mr-1 size-3.5" aria-hidden="true" /> Quero cancelar
-                    </Link>
-                  </Button>
-                )}
-              </div>
-            ))}
+              );
+            })}
+            <datalist id="subcategorias-conhecidas">
+              {subcategoriasConhecidas.map((sub) => (
+                <option key={sub} value={sub} />
+              ))}
+            </datalist>
             {!itensDaCategoria.length && (
               <p className="text-sm text-muted-foreground">Nada lançado nesta categoria.</p>
             )}
@@ -545,12 +713,29 @@ function ParaOndeVaiPage() {
   );
 }
 
-/** Retângulo do mapa de categorias: nome, valor e percentual quando couber. */
+/**
+ * Retângulo do mapa de categorias: nome, valor e percentual quando couber.
+ *
+ * O texto é desenhado em coordenadas inteiras e com um contorno escuro por
+ * baixo (paint-order: stroke): sem isso, o texto branco em cima de cores
+ * claras sai "borrado" na tela, porque fica em meio pixel e sem contraste.
+ */
 function CelulaTreemap(props: any) {
   const { x, y, width, height, name, valor, participacao, fill, fmt, onAbrir } = props;
   if (width == null || height == null) return null;
-  const cabeNome = width > 64 && height > 28;
-  const cabeValor = width > 90 && height > 46;
+  const px = Math.round(x);
+  const py = Math.round(y);
+  const largura = Math.round(width);
+  const altura = Math.round(height);
+  const cabeNome = largura > 64 && altura > 28;
+  const cabeValor = largura > 90 && altura > 46;
+  const estiloTexto = {
+    paintOrder: "stroke" as const,
+    stroke: "rgba(0,0,0,0.55)",
+    strokeWidth: 2.5,
+    strokeLinejoin: "round" as const,
+    textRendering: "geometricPrecision" as const,
+  };
   return (
     <g
       onClick={() => name && onAbrir?.(name)}
@@ -558,14 +743,23 @@ function CelulaTreemap(props: any) {
       role={name ? "button" : undefined}
       aria-label={name ? `Ver ${name}` : undefined}
     >
-      <rect x={x} y={y} width={width} height={height} fill={fill} stroke="var(--background)" strokeWidth={2} rx={6} />
+      <rect
+        x={px}
+        y={py}
+        width={largura}
+        height={altura}
+        fill={fill}
+        stroke="var(--background)"
+        strokeWidth={2}
+        rx={6}
+      />
       {cabeNome && (
-        <text x={x + 8} y={y + 18} fontSize={11} fontWeight={600} fill="#fff">
+        <text x={px + 8} y={py + 18} fontSize={12} fontWeight={700} fill="#fff" style={estiloTexto}>
           {name}
         </text>
       )}
       {cabeValor && (
-        <text x={x + 8} y={y + 34} fontSize={10} fill="#fff" opacity={0.85}>
+        <text x={px + 8} y={py + 34} fontSize={11} fontWeight={600} fill="#fff" style={estiloTexto}>
           {fmt?.(valor ?? 0)} · {Math.round(participacao ?? 0)}%
         </text>
       )}

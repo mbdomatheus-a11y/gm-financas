@@ -72,7 +72,7 @@ import {
   useFaturasMes,
   useProfilesList,
 } from "@/hooks/useFinance";
-import { chaveEstabelecimento } from "@/lib/categorizacao";
+import { lembrarClassificacao } from "@/lib/classificacao-lembrada";
 import { usePermissoes, useSession } from "@/hooks/useAuthData";
 import {
   competenciaDe,
@@ -98,48 +98,6 @@ import {
   toISODate,
 } from "@/lib/format";
 import { cn } from "@/lib/utils";
-
-/**
- * Memoriza categoria e tipo por estabelecimento (tabela
- * `importacao_preferencias`, escopo "classificacao"). A importação lê isso
- * antes de classificar sozinha. Falha aqui nunca derruba o salvamento da
- * despesa: é só uma conveniência para a próxima importação.
- */
-async function lembrarClassificacao(p: {
-  descricao: string;
-  categoria: string;
-  subcategoria: string | null;
-  tipo: string;
-  userId: string | null;
-}) {
-  try {
-    const chave = chaveEstabelecimento(p.descricao);
-    if (!chave || !p.userId) return;
-    const { data: perfil } = await supabase
-      .from("profiles")
-      .select("grupo_id")
-      .eq("id", p.userId)
-      .maybeSingle();
-    if (!perfil?.grupo_id) return;
-    await supabase.from("importacao_preferencias").upsert(
-      {
-        grupo_id: perfil.grupo_id,
-        chave,
-        escopo: "classificacao",
-        acao: JSON.stringify({
-          categoria: p.categoria,
-          subcategoria: p.subcategoria,
-          tipo: p.tipo,
-        }),
-        criado_por: p.userId,
-        atualizado_em: new Date().toISOString(),
-      },
-      { onConflict: "grupo_id,chave,escopo" },
-    );
-  } catch {
-    /* preferência é opcional */
-  }
-}
 
 export const Route = createFileRoute("/_authenticated/despesas")({
   validateSearch: (
@@ -279,18 +237,28 @@ function DespesasPage() {
   const [filtroEconomia, setFiltroEconomia] = useState(search.economia ?? false);
   // `modo=cartao` na URL (ex.: vindo do card "Parcelas mensalizadas" do
   // dashboard) abre a página já na visão "Por cartão".
-  // 2026-10-10: a visão por cartão passou a ser o padrão, e a escolha do
-  // usuário fica guardada (antes voltava para "lista" toda vez que a tela era
-  // aberta). Um `?modo=` vindo de outra tela continua mandando naquela visita.
-  const [modoListaSalvo, setModoListaSalvo] = usePersistedState<"lista" | "cartao">(
+  // 2026-10-10: a visão por cartão é o padrão e a escolha do usuário fica
+  // guardada. O estado é SEMPRE o salvo — um `?modo=` vindo de outra tela só
+  // o ajusta uma vez, ao abrir, e some da URL em seguida. Antes o `?modo=`
+  // ficava mandando o tempo todo: clicar na aba não trocava nada e a
+  // preferência parecia não salvar.
+  const [modoLista, setModoLista] = usePersistedState<"lista" | "cartao">(
     "despesas.modoLista",
     "cartao",
   );
-  const modoLista = search.modo ?? modoListaSalvo;
-  const setModoLista = (v: "lista" | "cartao") => {
-    setModoListaSalvo(v);
-    if (search.modo) void navigate({ search: (s: any) => ({ ...s, modo: undefined }), replace: true });
-  };
+  const modoDaUrl = search.modo;
+  useEffect(() => {
+    if (!modoDaUrl) return;
+    setModoLista(modoDaUrl);
+    void navigate({
+      search: (atual: Record<string, unknown>) => {
+        const { modo: _modo, ...resto } = atual;
+        return resto;
+      },
+      replace: true,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modoDaUrl]);
   const [expandida, setExpandida] = useState<string | null>(null);
   const [grupoExpandido, setGrupoExpandido] = useState<string | null>(null);
 

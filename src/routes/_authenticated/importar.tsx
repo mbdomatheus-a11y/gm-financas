@@ -75,6 +75,7 @@ import {
   CONFIANCA_LABEL,
   chaveEstabelecimento,
   classificar,
+  detectarTipoLancamento,
   type RegraUsuario,
 } from "@/lib/categorizacao";
 import { PrimeiraCategoriaGuia } from "@/components/PrimeiraCategoriaGuia";
@@ -1295,6 +1296,8 @@ function ImportarPage() {
       // Um lançamento já cadastrado só pode ser substituído por UMA linha.
       const alvosUsados = new Set<string>();
       let fechadas = 0;
+      // Parcelas do mês anterior quitadas por causa do pagamento que veio na fatura.
+      let quitadas = 0;
 
       // Etapa D: ponto final e autoritativo de aplicação das permissões de
       // importação — mesmo que algum estado de UI escapasse do bloqueio nos
@@ -1723,6 +1726,58 @@ function ImportarPage() {
             .eq("id", fatura.id);
         }
 
+        // A fatura traz o pagamento do mês anterior ("PAGAMENTO DE FATURA",
+        // "Pagamento via conta"): isso é a prova de que a fatura passada foi
+        // paga. Se as parcelas daquele mês ainda estiverem em aberto, marca
+        // como pagas agora, para o mês anterior parar de aparecer como devendo.
+        const pagouAnterior = f.lancamentos.some(
+          (l) => l.direcao === "credito" && detectarTipoLancamento(l.descricao, -l.valor) === "pagamento",
+        );
+        if (pagouAnterior && comp) {
+          const anterior = somarMeses(comp, -1);
+          const inicio = `${anterior}-01`;
+          const fim = `${somarMeses(anterior, 1)}-01`;
+          const cartoesParaQuitar = cartoesTocados.size
+            ? [...cartoesTocados]
+            : cartaoPrincipal
+              ? [cartaoPrincipal]
+              : [];
+          for (const cartaoId of cartoesParaQuitar) {
+            const { data: despesasDoCartao } = await supabase
+              .from("despesas")
+              .select("id")
+              .eq("grupo_id", grupoId)
+              .eq("cartao_id", cartaoId);
+            const ids = (despesasDoCartao ?? []).map((d: { id: string }) => d.id);
+            if (!ids.length) continue;
+            const { data: emAberto } = await supabase
+              .from("parcelas")
+              .select("id")
+              .in("despesa_id", ids)
+              .eq("paga", false)
+              .gte("vencimento", inicio)
+              .lt("vencimento", fim);
+            if (!emAberto?.length) continue;
+            const { error: erroQuitar } = await supabase
+              .from("parcelas")
+              .update({ paga: true, data_pagamento: inicio } as never)
+              .in(
+                "id",
+                emAberto.map((x: { id: string }) => x.id),
+              );
+            if (erroQuitar) throw erroQuitar;
+            quitadas += emAberto.length;
+          }
+          if (quitadas) {
+            await supabase
+              .from("fatura_mes")
+              .update({ status: "paga" } as never)
+              .eq("grupo_id", grupoId)
+              .eq("competencia", anterior)
+              .in("cartao_id", cartoesParaQuitar);
+          }
+        }
+
         // Memoriza o padrão deste emissor para as próximas faturas iguais.
         if (f.assinatura && f.lancamentos.some((l) => l.incluir)) {
           const { data: perfilAtual } = await supabase
@@ -1765,11 +1820,12 @@ function ImportarPage() {
         inseridos,
         ignorados,
         fechadas,
+        quitadas,
         falhasDePara,
         regrasSalvas: regrasAprendidas.size - falhasDePara,
       };
     },
-    onSuccess: ({ inseridos, ignorados, fechadas, falhasDePara, regrasSalvas }) => {
+    onSuccess: ({ inseridos, ignorados, fechadas, quitadas, falhasDePara, regrasSalvas }) => {
       qc.invalidateQueries({ queryKey: ["despesas"] });
       qc.invalidateQueries({ queryKey: ["parcelas"] });
       qc.invalidateQueries({ queryKey: ["fatura-mes"] });
@@ -1782,6 +1838,11 @@ function ImportarPage() {
         `${inseridos} lançamento(s) importado(s). ${ignorados} duplicado(s) ignorado(s).` +
           (fechadas ? ` ${fechadas} competência(s) fechada(s).` : ""),
       );
+      if (quitadas)
+        toast.success(
+          `A fatura traz o pagamento do mês anterior: ${quitadas} parcela(s) daquele mês foram marcadas como pagas.`,
+          { duration: 8000 },
+        );
       toast.info(
         "O arquivo enviado foi processado e descartado — nada além dos lançamentos foi armazenado.",
       );
