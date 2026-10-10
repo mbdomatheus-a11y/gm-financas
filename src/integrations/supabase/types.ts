@@ -696,7 +696,7 @@ export type Database = {
       contas_excluidas: {
         Row: {
           auth_user_id_original: string;
-          cpf: string;
+          cpf: string | null;
           data_nascimento: string | null;
           email: string | null;
           excluida_definitivamente_em: string | null;
@@ -713,7 +713,7 @@ export type Database = {
         };
         Insert: {
           auth_user_id_original: string;
-          cpf: string;
+          cpf?: string | null;
           data_nascimento?: string | null;
           email?: string | null;
           excluida_definitivamente_em?: string | null;
@@ -730,7 +730,7 @@ export type Database = {
         };
         Update: {
           auth_user_id_original?: string;
-          cpf?: string;
+          cpf?: string | null;
           data_nascimento?: string | null;
           email?: string | null;
           excluida_definitivamente_em?: string | null;

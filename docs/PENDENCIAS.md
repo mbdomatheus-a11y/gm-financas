@@ -398,3 +398,9 @@ Em andamento: vídeo de ~3 min navegando e narrando o site (conta zerada criada 
 
 ### Rodada 9 (2026-10-10): Backup e Reset
 1. Botão "Resetar todos" no bloco "Reset por módulo". Só libera depois de baixar o backup com todos os módulos marcados nesta sessão (mesma regra do reset por módulo). Pede "RESETAR" para confirmar. Apaga os módulos em ordem e repete os que falharem por dependência entre tabelas enquanto houver progresso; se algum não puder ser apagado, avisa qual.
+
+### Rodada 10 (2026-10-10): exclusão de conta criada pelo Google
+1. Erro "null value in column cpf of relation contas_excluidas": contas do Google não têm CPF. Coluna `cpf` agora aceita vazio (aplicado no banco; migração `20261010120000_contas_excluidas_cpf_opcional.sql`).
+2. Conta de teste Marcus Nt (artfoxbrasil@gmail.com) apagada direto no banco pelo SQL Editor, com os 4 grupos criados por ela (nenhum tinha outro membro).
+3. Exclusão definitiva (fim dos 90 dias) corrigida: o perfil sem grupo fazia o site criar um grupo novo, e o grupo criado pela pessoa (`grupos.criado_por`) impedia apagar o login. Agora apaga o perfil direto, apaga os dados de todos os grupos criados pela pessoa que ficaram sem ninguém e passa a autoria para outro membro quando o grupo ainda tem gente. Tabelas `chamados_suporte`, `exames_registros` e `layout_solicitacoes` entraram na limpeza do grupo.
+Pendente: recuperar conta excluída pede CPF; quem entrou pelo Google não consegue recuperar (precisa de opção só por e-mail).

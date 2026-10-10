@@ -158,6 +158,9 @@ const TABELAS_DO_GRUPO = [
   "permissoes",
   "convites",
   "configuracoes_casal",
+  "chamados_suporte",
+  "exames_registros",
+  "layout_solicitacoes",
 ] as const;
 
 async function apagarDadosDoGrupo(grupoId: string): Promise<void> {
@@ -214,16 +217,40 @@ export async function concluirExclusoesVencidas(): Promise<{ removidas: number; 
           .limit(1);
         if (!outros?.length) orfaos.push(g);
       }
-      // Dados do grupo primeiro: só quando a pessoa era a última a usá-lo.
-      for (const g of orfaos) {
-        await db.from("profiles").update({ grupo_id: null }).eq("id", userId).eq("grupo_id", g);
-        await db
+      // Grupos que a própria pessoa criou e que ninguém mais usa (pode haver
+      // vários: o site cria um grupo novo sempre que o perfil fica sem grupo).
+      const { data: criados } = await db.from("grupos").select("id").eq("criado_por", userId);
+      for (const { id: g } of (criados ?? []) as { id: string }[]) {
+        if (grupos.includes(g)) continue;
+        const { data: outros } = await db
           .from("profiles")
-          .update({ grupo_secundario_id: null })
-          .eq("id", userId)
-          .eq("grupo_secundario_id", g);
-        await apagarDadosDoGrupo(g);
+          .select("id")
+          .neq("id", userId)
+          .or(`grupo_id.eq.${g},grupo_secundario_id.eq.${g}`)
+          .limit(1);
+        if (outros?.length) {
+          // Ainda tem gente: passa a autoria para quem ficou (senão o login não pode ser apagado).
+          await db.from("grupos").update({ criado_por: outros[0].id }).eq("id", g);
+        } else {
+          orfaos.push(g);
+        }
       }
+      for (const g of grupos) {
+        if (orfaos.includes(g)) continue;
+        const { data: outro } = await db
+          .from("profiles")
+          .select("id")
+          .neq("id", userId)
+          .or(`grupo_id.eq.${g},grupo_secundario_id.eq.${g}`)
+          .limit(1);
+        if (outro?.length)
+          await db.from("grupos").update({ criado_por: outro[0].id }).eq("id", g).eq("criado_por", userId);
+      }
+      // Apaga o perfil direto (zerar o grupo do perfil faria o site criar um
+      // grupo novo) e depois os dados dos grupos que ficaram sem ninguém.
+      const { error: perfilDelError } = await db.from("profiles").delete().eq("id", userId);
+      if (perfilDelError) throw new Error(perfilDelError.message);
+      for (const g of orfaos) await apagarDadosDoGrupo(g);
       const { error: delError } = await supabaseAdmin.auth.admin.deleteUser(userId);
       if (delError) throw new Error(delError.message);
       await db.from("exclusoes_agendadas").delete().eq("user_id", userId);
