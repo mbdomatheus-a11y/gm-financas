@@ -156,7 +156,8 @@ function BackupPage() {
   );
   const [modulosBackupados, setModulosBackupados] = useState<Set<ModuloKey>>(new Set());
   const [resumo, setResumo] = useState<Record<string, number> | null>(null);
-  const [reset, setReset] = useState<(typeof MODULOS)[number] | null>(null);
+  // Um módulo (botão da linha) ou todos de uma vez (depois de "Baixar backup" com todos marcados).
+  const [reset, setReset] = useState<Array<(typeof MODULOS)[number]> | null>(null);
   const [confirma, setConfirma] = useState("");
 
   function toggle(chave: ModuloKey) {
@@ -227,23 +228,52 @@ function BackupPage() {
     }
   }
 
+  const todosBackupados = MODULOS.every((m) => modulosBackupados.has(m.key));
+
+  async function apagarModulo(m: (typeof MODULOS)[number]) {
+    for (const tabela of m.resetOrder) {
+      const { error } = await supabase
+        .from(tabela as any)
+        .delete()
+        .not("id", "is", null);
+      if (error) throw error;
+    }
+  }
+
   async function executarReset() {
-    if (!reset) return;
+    if (!reset?.length) return;
     if (exclusaoBloqueada) {
       toast.error("Este administrador não possui permissão para excluir dados.");
       return;
     }
     setBusy("reset");
     try {
-      for (const tabela of reset.resetOrder) {
-        const { error } = await supabase
-          .from(tabela as any)
-          .delete()
-          .not("id", "is", null);
-        if (error) throw error;
+      // Vários módulos: um pode depender de outro (ex.: vínculo de nota com
+      // despesa). Tenta em ordem e repete os que falharam enquanto houver progresso.
+      let pendentes = [...reset];
+      let ultimoErro: any = null;
+      while (pendentes.length) {
+        const falharam: typeof pendentes = [];
+        for (const m of pendentes) {
+          try {
+            await apagarModulo(m);
+          } catch (e) {
+            ultimoErro = e;
+            falharam.push(m);
+          }
+        }
+        if (falharam.length === pendentes.length) {
+          await qc.invalidateQueries();
+          throw new Error(
+            `Não foi possível zerar: ${falharam.map((m) => m.label).join(", ")}. ${ultimoErro?.message ?? ""}`,
+          );
+        }
+        pendentes = falharam;
       }
       await qc.invalidateQueries();
-      toast.success(`${reset.label} zerado(a)`);
+      toast.success(
+        reset.length === 1 ? `${reset[0]!.label} zerado(a)` : "Todos os módulos foram zerados",
+      );
       setReset(null);
       setConfirma("");
     } catch (e: any) {
@@ -359,8 +389,31 @@ function BackupPage() {
             <p className="text-sm text-muted-foreground">
               Apaga só os dados do módulo escolhido — dá pra resetar as notas fiscais ou o veículo
               sem mexer no resto. Cada módulo só libera o reset depois que você baixar um backup
-              dele nesta sessão.
+              dele nesta sessão. Se você baixou o backup com todos os módulos marcados, dá para
+              zerar tudo de uma vez.
             </p>
+            <div className="flex flex-wrap items-center gap-2 rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2">
+              <span className="mr-auto text-xs font-medium">Todos os módulos</span>
+              <Button
+                size="sm"
+                variant="destructive"
+                className="h-7 shrink-0 gap-1 text-[11px]"
+                disabled={exclusaoBloqueada || !todosBackupados || busy !== null}
+                title={
+                  exclusaoBloqueada
+                    ? "Este administrador não pode excluir dados"
+                    : todosBackupados
+                      ? undefined
+                      : "Baixe o backup com todos os módulos marcados primeiro"
+                }
+                onClick={() => {
+                  setReset([...MODULOS]);
+                  setConfirma("");
+                }}
+              >
+                <RotateCcw className="size-3.5" /> Resetar todos
+              </Button>
+            </div>
             <div className="grid gap-2 sm:grid-cols-2">
               {MODULOS.map((m) => {
                 const liberado = modulosBackupados.has(m.key);
@@ -383,7 +436,7 @@ function BackupPage() {
                             : "Baixe o backup deste módulo primeiro"
                       }
                       onClick={() => {
-                        setReset(m);
+                        setReset([m]);
                         setConfirma("");
                       }}
                     >
@@ -402,7 +455,11 @@ function BackupPage() {
       <Dialog open={reset !== null} onOpenChange={(o) => !o && setReset(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Confirmar reset de {reset?.label}</DialogTitle>
+            <DialogTitle>
+              {reset && reset.length > 1
+                ? "Confirmar reset de todos os módulos"
+                : `Confirmar reset de ${reset?.[0]?.label ?? ""}`}
+            </DialogTitle>
             <DialogDescription>
               Esta ação é irreversível. Digite <strong>RESETAR</strong> para confirmar.
             </DialogDescription>

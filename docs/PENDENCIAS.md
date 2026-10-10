@@ -391,3 +391,10 @@ Estudadas 5 faturas reais (Itaú 2026 e 2022 com adicional, Santander com 3 cart
 5. "Ajustar a partir desta competência": encerra a recorrência antiga no mês anterior e cria a continuação com o novo valor, levando as ocorrências deste mês em diante (pagas continuam pagas). Meses anteriores não mudam. Se for o mês de início, só troca o valor.
 Testes: `src/lib/fatura-fluxo.test.ts` (10 testes, `bun test`).
 Pendente: testar no site com as próprias faturas; ensinar padrão (perfil memorizado) continua usando o leitor antigo.
+
+
+## Vídeo de demonstração (2026-10-10)
+Em andamento: vídeo de ~3 min navegando e narrando o site (conta zerada criada pelo Matheus, importação da fatura Nubank, narração pt-BR com voz neural). Sem mudança de código.
+
+### Rodada 9 (2026-10-10): Backup e Reset
+1. Botão "Resetar todos" no bloco "Reset por módulo". Só libera depois de baixar o backup com todos os módulos marcados nesta sessão (mesma regra do reset por módulo). Pede "RESETAR" para confirmar. Apaga os módulos em ordem e repete os que falharem por dependência entre tabelas enquanto houver progresso; se algum não puder ser apagado, avisa qual.
