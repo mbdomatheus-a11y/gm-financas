@@ -421,3 +421,11 @@ Pendente: `arquivarEExcluirConta` (ban + e-mail temporário) ainda é usado por 
 4. Ao salvar: "substituir" atualiza o lançamento existente (descrição, valor, data, categoria, cartão, origem `importacao_substituicao`) e refaz as parcelas não pagas; "manter o que já existe" ignora a linha; "criar um novo" recebe chave de deduplicação própria para não colidir. A deduplicação automática por `dedup_key` continua, mas deixa de ignorar a linha quando o usuário decidiu algo no popup.
 5. Categoria herdada: ao importar, se o mesmo estabelecimento já foi classificado antes (ex.: "Plano Nu Cel" 25,00 marcado como despesa fixa), a linha volta com a mesma categoria e o mesmo tipo. O de-para do usuário continua tendo prioridade quando a confiança é alta, e o usuário pode trocar na tabela ou escolher "criar um novo".
 Testes: `src/lib/duplicidade-importacao.test.ts` (9 testes, `bun test`).
+
+### Rodada 12 (2026-10-10): "Para onde vai meu dinheiro"
+Tela nova `/para-onde-vai`, no menu Finanças e como atalho no card Dinheiro da Início.
+1. `src/lib/para-onde-vai.ts` (puro, 12 testes em `para-onde-vai.test.ts`): resumo por categoria no período (total, média, mês atual, variação sobre a média anterior, participação), quadros mês a mês (total e categoria que mais pesou), detecção de cobranças que se repetem e perguntas em texto.
+2. Cobrança recorrente = mesmo estabelecimento em 3+ meses com valores próximos (até 25% de diferença); parcelamento fica de fora. Quando uma recorrente para de aparecer por 2 meses ou mais, vira economia automática: valor por mês x meses sem cobrar. Se voltar, sai da lista sozinha.
+3. Tela: perguntas no topo ("X leva N% de tudo", "subiu N% neste mês", "N cobranças somam R$ Y por mês, em um ano dá Z"), treemap de categorias (clicável), quadros mês a mês com destaque do mês atual, lista de assinaturas ativas com botão "Quero cancelar" (abre /despesas já filtrado) e o card de economia detectada.
+4. `/despesas` aceita `?busca=` para o botão "Quero cancelar" cair direto no lançamento.
+Pendente: a economia detectada aqui é calculada na hora e não grava nada; avaliar se deve somar ao card "Economia conquistada" da Início (hoje só conta o que é marcado à mão na despesa).

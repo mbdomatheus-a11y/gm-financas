@@ -37,6 +37,7 @@ import {
   ArrowLeft,
   ChevronDown,
   Landmark,
+  PieChart,
 } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -135,6 +136,7 @@ type NavTo =
   | "/exames"
   | "/administracao"
   | "/pluggy"
+  | "/para-onde-vai"
   | "/calendario"
   | "/casa"
   | "/documentos"
@@ -191,6 +193,13 @@ const MUNDOS: Record<MundoId, { titulo: string; home: NavTo; items: NavItem[] }>
         label: "Despesas",
         short: "Despesas",
         icon: TrendingDown,
+        modulo: "despesas",
+      },
+      {
+        to: "/para-onde-vai",
+        label: "Para onde vai meu dinheiro",
+        short: "Para onde vai",
+        icon: PieChart,
         modulo: "despesas",
       },
       {

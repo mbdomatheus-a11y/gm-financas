@@ -101,7 +101,14 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/_authenticated/despesas")({
   validateSearch: (
     s: Record<string, unknown>,
-  ): { cartao?: string; modo?: "lista" | "cartao"; mes?: string; economia?: boolean; novo?: boolean } => ({
+  ): {
+    cartao?: string;
+    modo?: "lista" | "cartao";
+    mes?: string;
+    economia?: boolean;
+    novo?: boolean;
+    busca?: string;
+  } => ({
     ...(s["novo"] === true || s["novo"] === "true" || s["novo"] === 1 ? { novo: true } : {}),
     ...(typeof s["cartao"] === "string" && s["cartao"] ? { cartao: s["cartao"] } : {}),
     ...(s["modo"] === "cartao" || s["modo"] === "lista" ? { modo: s["modo"] } : {}),
@@ -109,6 +116,8 @@ export const Route = createFileRoute("/_authenticated/despesas")({
     // Bloco 3 (plano-mega-2026-09-14.md): o card "Economia Conquistada" da
     // Início usa isso pra levar direto aos lançamentos que geraram a economia.
     ...(s["economia"] === true ? { economia: true } : {}),
+    // "Quero cancelar" em /para-onde-vai abre esta tela já filtrando o gasto.
+    ...(typeof s["busca"] === "string" && s["busca"] ? { busca: s["busca"] } : {}),
   }),
   head: () => ({
     meta: [
@@ -205,7 +214,7 @@ function DespesasPage() {
   const [idsExcluidosSimulacao, setIdsExcluidosSimulacao] = useState<Set<string>>(new Set());
   const [form, setForm] = useState<any>(novoForm("fixa"));
   const [duplicata, setDuplicata] = useState<any | null>(null);
-  const [busca, setBusca] = useState("");
+  const [busca, setBusca] = useState(search.busca ?? "");
   // `mes=todos` na URL (ex.: vindo do card "Dívida total em aberto" do
   // dashboard) abre a página já mostrando a dívida completa, não só a do
   // mês atual.

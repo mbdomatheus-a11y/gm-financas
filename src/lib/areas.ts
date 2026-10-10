@@ -95,7 +95,7 @@ export const AREAS: Record<
 > = {
   dinheiro: {
     titulo: "Dinheiro",
-    descricao: "Receitas, despesas, cartões e investimentos.",
+    descricao: "Receitas, despesas, cartões, investimentos e para onde seu dinheiro vai.",
     icon: Wallet,
     to: "/dashboard",
     modulos: ["financas"],

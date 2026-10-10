@@ -40,6 +40,7 @@ import { Route as AuthenticatedListaComprasRouteImport } from './routes/_authent
 import { Route as AuthenticatedNotasRouteImport } from './routes/_authenticated/notas'
 import { Route as AuthenticatedNovaSenhaRouteImport } from './routes/_authenticated/nova-senha'
 import { Route as AuthenticatedOndeEstaRouteImport } from './routes/_authenticated/onde-esta'
+import { Route as AuthenticatedParaOndeVaiRouteImport } from './routes/_authenticated/para-onde-vai'
 import { Route as AuthenticatedPersonalizacaoRouteImport } from './routes/_authenticated/personalizacao'
 import { Route as AuthenticatedPetsRouteImport } from './routes/_authenticated/pets'
 import { Route as AuthenticatedPluggyRouteImport } from './routes/_authenticated/pluggy'
@@ -219,6 +220,12 @@ const AuthenticatedOndeEstaRoute = AuthenticatedOndeEstaRouteImport.update({
   path: '/onde-esta',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedParaOndeVaiRoute =
+  AuthenticatedParaOndeVaiRouteImport.update({
+    id: '/para-onde-vai',
+    path: '/para-onde-vai',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedPersonalizacaoRoute =
   AuthenticatedPersonalizacaoRouteImport.update({
     id: '/personalizacao',
@@ -346,6 +353,7 @@ export interface FileRoutesByFullPath {
   '/notas': typeof AuthenticatedNotasRoute
   '/nova-senha': typeof AuthenticatedNovaSenhaRoute
   '/onde-esta': typeof AuthenticatedOndeEstaRoute
+  '/para-onde-vai': typeof AuthenticatedParaOndeVaiRoute
   '/personalizacao': typeof AuthenticatedPersonalizacaoRoute
   '/pets': typeof AuthenticatedPetsRoute
   '/pluggy': typeof AuthenticatedPluggyRoute
@@ -396,6 +404,7 @@ export interface FileRoutesByTo {
   '/notas': typeof AuthenticatedNotasRoute
   '/nova-senha': typeof AuthenticatedNovaSenhaRoute
   '/onde-esta': typeof AuthenticatedOndeEstaRoute
+  '/para-onde-vai': typeof AuthenticatedParaOndeVaiRoute
   '/personalizacao': typeof AuthenticatedPersonalizacaoRoute
   '/pets': typeof AuthenticatedPetsRoute
   '/pluggy': typeof AuthenticatedPluggyRoute
@@ -448,6 +457,7 @@ export interface FileRoutesById {
   '/_authenticated/notas': typeof AuthenticatedNotasRoute
   '/_authenticated/nova-senha': typeof AuthenticatedNovaSenhaRoute
   '/_authenticated/onde-esta': typeof AuthenticatedOndeEstaRoute
+  '/_authenticated/para-onde-vai': typeof AuthenticatedParaOndeVaiRoute
   '/_authenticated/personalizacao': typeof AuthenticatedPersonalizacaoRoute
   '/_authenticated/pets': typeof AuthenticatedPetsRoute
   '/_authenticated/pluggy': typeof AuthenticatedPluggyRoute
@@ -500,6 +510,7 @@ export interface FileRouteTypes {
     | '/notas'
     | '/nova-senha'
     | '/onde-esta'
+    | '/para-onde-vai'
     | '/personalizacao'
     | '/pets'
     | '/pluggy'
@@ -550,6 +561,7 @@ export interface FileRouteTypes {
     | '/notas'
     | '/nova-senha'
     | '/onde-esta'
+    | '/para-onde-vai'
     | '/personalizacao'
     | '/pets'
     | '/pluggy'
@@ -601,6 +613,7 @@ export interface FileRouteTypes {
     | '/_authenticated/notas'
     | '/_authenticated/nova-senha'
     | '/_authenticated/onde-esta'
+    | '/_authenticated/para-onde-vai'
     | '/_authenticated/personalizacao'
     | '/_authenticated/pets'
     | '/_authenticated/pluggy'
@@ -861,6 +874,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedOndeEstaRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/para-onde-vai': {
+      id: '/_authenticated/para-onde-vai'
+      path: '/para-onde-vai'
+      fullPath: '/para-onde-vai'
+      preLoaderRoute: typeof AuthenticatedParaOndeVaiRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/personalizacao': {
       id: '/_authenticated/personalizacao'
       path: '/personalizacao'
@@ -1013,6 +1033,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedNotasRoute: typeof AuthenticatedNotasRoute
   AuthenticatedNovaSenhaRoute: typeof AuthenticatedNovaSenhaRoute
   AuthenticatedOndeEstaRoute: typeof AuthenticatedOndeEstaRoute
+  AuthenticatedParaOndeVaiRoute: typeof AuthenticatedParaOndeVaiRoute
   AuthenticatedPersonalizacaoRoute: typeof AuthenticatedPersonalizacaoRoute
   AuthenticatedPetsRoute: typeof AuthenticatedPetsRoute
   AuthenticatedPluggyRoute: typeof AuthenticatedPluggyRoute
@@ -1047,6 +1068,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedNotasRoute: AuthenticatedNotasRoute,
   AuthenticatedNovaSenhaRoute: AuthenticatedNovaSenhaRoute,
   AuthenticatedOndeEstaRoute: AuthenticatedOndeEstaRoute,
+  AuthenticatedParaOndeVaiRoute: AuthenticatedParaOndeVaiRoute,
   AuthenticatedPersonalizacaoRoute: AuthenticatedPersonalizacaoRoute,
   AuthenticatedPetsRoute: AuthenticatedPetsRoute,
   AuthenticatedPluggyRoute: AuthenticatedPluggyRoute,
@@ -1085,7 +1107,6 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
 declare module '@tanstack/react-start' {
   interface Register {
     ssr: true

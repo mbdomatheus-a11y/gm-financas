@@ -94,6 +94,7 @@ function AreaCard({ id }: { id: AreaId }) {
       can("despesas", "ver") && { to: "/despesas", label: "Despesas" },
       can("receitas", "ver") && { to: "/receitas", label: "Receitas" },
       can("cartoes", "ver") && { to: "/cartoes", label: "Cartões" },
+      can("despesas", "ver") && { to: "/para-onde-vai", label: "Para onde vai" },
     ].filter(Boolean) as { to: string; label: string }[];
   } else if (id !== "ferramentas") {
     chips = area.modulos
