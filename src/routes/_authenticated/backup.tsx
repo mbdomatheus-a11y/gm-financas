@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useRef, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { contarDadosExemplo, removerDadosExemplo } from "@/lib/dados-exemplo.functions";
 import {
   Download,
   Upload,
@@ -147,6 +149,26 @@ async function baixarModulos(chaves: ModuloKey[]): Promise<Backup> {
 
 function BackupPage() {
   const { isAdmin, exclusaoBloqueada } = usePermissoes();
+  const contarExemplos = useServerFn(contarDadosExemplo);
+  const removerExemplos = useServerFn(removerDadosExemplo);
+  const { data: exemplos, refetch: recontarExemplos } = useQuery({
+    queryKey: ["dados-exemplo-total"],
+    queryFn: () => contarExemplos(),
+  });
+
+  async function apagarExemplos() {
+    setBusy("exemplos");
+    try {
+      const r = await removerExemplos();
+      await qc.invalidateQueries();
+      await recontarExemplos();
+      toast.success(`Dados de exemplo removidos (${r.removidos} item(ns)).`);
+    } catch (e: any) {
+      toast.error(e?.message ?? "Não foi possível remover os dados de exemplo.");
+    } finally {
+      setBusy(null);
+    }
+  }
   const qc = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -392,6 +414,24 @@ function BackupPage() {
               dele nesta sessão. Se você baixou o backup com todos os módulos marcados, dá para
               zerar tudo de uma vez.
             </p>
+            {!!exemplos?.total && (
+              <div className="flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2">
+                <span className="mr-auto text-xs">
+                  <b>Dados de exemplo</b> da conta nova (receitas, cartão final 0000, investimento de
+                  teste e categorias sem uso). Não precisa de backup.
+                </span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 shrink-0 gap-1 text-[11px]"
+                  disabled={busy !== null}
+                  onClick={() => void apagarExemplos()}
+                >
+                  <RotateCcw className="size-3.5" />{" "}
+                  {busy === "exemplos" ? "Removendo..." : "Remover dados de exemplo"}
+                </Button>
+              </div>
+            )}
             <div className="flex flex-wrap items-center gap-2 rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2">
               <span className="mr-auto text-xs font-medium">Todos os módulos</span>
               <Button

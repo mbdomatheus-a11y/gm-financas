@@ -53,10 +53,12 @@ export function BoasVindasExemplos({ bloqueado }: { bloqueado: boolean }) {
     try {
       if (apagar) {
         await remover();
-        toast.success("Dados de exemplo removidos.");
+        toast.success("Dados de exemplo removidos (receitas, cartão, investimento e categorias).");
         void qc.invalidateQueries();
       }
       await visto();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Não foi possível remover os dados de exemplo.");
     } finally {
       setOcupado(false);
       setMostrar(false);

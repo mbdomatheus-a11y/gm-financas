@@ -155,7 +155,13 @@ export const marcarExemplosVistos = createServerFn({ method: "POST" })
     return { ok: true as const };
   });
 
-/** Apaga só o que foi criado como exemplo (identificado pela marca/apelido). */
+/**
+ * Apaga tudo o que foi criado como exemplo: receitas, investimento, cartão e
+ * as categorias de exemplo que não estiverem em uso. Identifica pela marca
+ * (observação "Exemplo fictício"), pelo "(exemplo)" no nome da receita e pelo
+ * "Cartão Exemplo" final 0000. Qualquer falha agora aparece para o usuário
+ * (antes os erros eram ignorados e as receitas podiam ficar).
+ */
 export const removerDadosExemplo = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -166,10 +172,74 @@ export const removerDadosExemplo = createServerFn({ method: "POST" })
       .select("grupo_id")
       .eq("id", context.userId)
       .maybeSingle();
-    const g = perfil?.grupo_id;
-    if (!g) return { ok: true as const };
-    await db.from("receitas").delete().eq("grupo_id", g).eq("observacoes", MARCA);
-    await db.from("investimentos").delete().eq("grupo_id", g).eq("observacoes", MARCA);
-    await db.from("cartoes").delete().eq("grupo_id", g).eq("apelido", "Cartão Exemplo").eq("final", "0000");
-    return { ok: true as const };
+    const g = perfil?.grupo_id as string | undefined;
+    if (!g) return { ok: true as const, removidos: 0 };
+    let removidos = 0;
+    const apagar = async (consulta: any, rotulo: string) => {
+      const { data, error } = await consulta.select("id");
+      if (error) throw new Error(`Não foi possível remover ${rotulo}: ${error.message}`);
+      removidos += (data ?? []).length;
+    };
+    await apagar(db.from("receitas").delete().eq("grupo_id", g).eq("observacoes", MARCA), "as receitas de exemplo");
+    await apagar(
+      db.from("receitas").delete().eq("grupo_id", g).ilike("descricao", "%(exemplo)"),
+      "as receitas de exemplo",
+    );
+    await apagar(db.from("investimentos").delete().eq("grupo_id", g).eq("observacoes", MARCA), "o investimento de teste");
+    await apagar(
+      db.from("investimentos").delete().eq("grupo_id", g).eq("nome", "Investimento de teste"),
+      "o investimento de teste",
+    );
+    await apagar(
+      db.from("cartoes").delete().eq("grupo_id", g).eq("apelido", "Cartão Exemplo").eq("final", "0000"),
+      "o cartão de exemplo",
+    );
+    // Categorias de exemplo: só as que nenhum lançamento usa.
+    const nomes = [...CATEGORIAS_DESPESA, ...CATEGORIAS_RECEITA];
+    const [{ data: usadasD }, { data: usadasR }] = await Promise.all([
+      db.from("despesas").select("categoria").eq("grupo_id", g).in("categoria", nomes),
+      db.from("receitas").select("categoria").eq("grupo_id", g).in("categoria", nomes),
+    ]);
+    const emUso = new Set([...(usadasD ?? []), ...(usadasR ?? [])].map((x: any) => x.categoria));
+    const livres = nomes.filter((n) => !emUso.has(n));
+    if (livres.length) {
+      await apagar(db.from("categorias").delete().eq("grupo_id", g).in("nome", livres), "as categorias de exemplo");
+    }
+    await db
+      .from("dados_exemplo_semeados")
+      .update({ visto_em: new Date().toISOString() })
+      .eq("user_id", context.userId);
+    return { ok: true as const, removidos };
+  });
+
+/** Quantos itens de exemplo ainda existem no grupo (para mostrar o botão de remover). */
+export const contarDadosExemplo = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const db = supabaseAdmin as any;
+    const { data: perfil } = await db
+      .from("profiles")
+      .select("grupo_id")
+      .eq("id", context.userId)
+      .maybeSingle();
+    const g = perfil?.grupo_id as string | undefined;
+    if (!g) return { total: 0 };
+    const contar = async (q: any) => (await q).count ?? 0;
+    const total =
+      (await contar(
+        db.from("receitas").select("id", { count: "exact", head: true }).eq("grupo_id", g).ilike("descricao", "%(exemplo)"),
+      )) +
+      (await contar(
+        db.from("investimentos").select("id", { count: "exact", head: true }).eq("grupo_id", g).eq("observacoes", MARCA),
+      )) +
+      (await contar(
+        db
+          .from("cartoes")
+          .select("id", { count: "exact", head: true })
+          .eq("grupo_id", g)
+          .eq("apelido", "Cartão Exemplo")
+          .eq("final", "0000"),
+      ));
+    return { total };
   });
