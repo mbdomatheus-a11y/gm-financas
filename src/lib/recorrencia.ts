@@ -155,6 +155,10 @@ export function projetarCompetencias(
 /** Lê a recorrência a partir de uma linha de `despesas`. */
 export function recorrenciaDaDespesa(d: any): RecorrenciaFixa | null {
   if ((d?.tipo ?? "") !== "fixa") return null;
+  // 2026-10-10: economia conquistada marca um gasto que deixou de existir.
+  // Ela continua visível para o histórico, mas não se repete todo mês: vale
+  // só na competência em que foi conquistada.
+  if (d?.economia_conquistada) return null;
   const valor = Number(d.valor_total) || 0;
   const inicio = d.recorrencia_inicio ?? d.data_primeira_parcela ?? d.data_compra;
   if (!inicio) return null;

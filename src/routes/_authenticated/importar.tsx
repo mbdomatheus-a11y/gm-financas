@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { prepararEnvioLayout } from "@/lib/layout-fatura.functions";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -236,6 +236,8 @@ function ImportarPage() {
     Record<string, { acao: AcaoDuplicata; alvoId: string | null }>
   >({});
   /** Popup de criar categoria durante a importação. */
+  /** Responsável aplicado a todas as linhas, por fatura (só para mostrar no botão). */
+  const [responsavelDeTodos, setResponsavelDeTodos] = useState<Record<string, string>>({});
   const [novaCategoria, setNovaCategoria] = useState<{
     nome: string;
     faturaIdx: number;
@@ -453,37 +455,49 @@ function ImportarPage() {
   }
 
   /**
-   * Repete, nesta fatura, as escolhas já feitas antes para os mesmos
-   * estabelecimentos (ex.: "substituir o valor da despesa fixa"). O usuário
-   * continua podendo trocar linha a linha.
+   * Repete as escolhas já feitas antes para os mesmos estabelecimentos (ex.:
+   * "ajustar o valor da despesa fixa"). Roda como efeito, e não no momento de
+   * abrir o arquivo: assim vale também quando a lista de preferências termina
+   * de carregar depois da leitura da fatura — era por isso que uma decisão
+   * salva às vezes voltava como "manter os dois". A escolha que o usuário
+   * fizer agora nunca é sobrescrita.
    */
-  function aplicarPreferenciasSalvas(f: FaturaItem) {
+  const avisadas = useRef(new Set<string>());
+  useEffect(() => {
+    if (!faturas.length || !(preferenciasImportacao as any[]).length) return;
     const fixas: Record<string, { acao: AcaoFixa; fixaId: string }> = {};
     const duplicatas: Record<string, { acao: AcaoDuplicata; alvoId: string | null }> = {};
-    for (const l of f.lancamentos) {
-      const salvaFixa = preferenciaDe(l.descricao, "fixa");
-      if (salvaFixa?.despesa_id) {
-        fixas[`${f.arquivo_hash}:${l.id}`] = {
-          acao: salvaFixa.acao as AcaoFixa,
-          fixaId: salvaFixa.despesa_id,
-        };
-      }
-      const salvaDup = preferenciaDe(l.descricao, "duplicata");
-      if (salvaDup) {
-        const c = candidatasDe(f, l);
-        if (c.length)
-          duplicatas[chaveDup(f.arquivo_hash, l.id)] = {
-            acao: salvaDup.acao as AcaoDuplicata,
-            alvoId: c[0]!.despesa.id,
-          };
+    for (const f of faturas) {
+      for (const l of f.lancamentos) {
+        const chaveFixa = `${f.arquivo_hash}:${l.id}`;
+        const salvaFixa = preferenciaDe(l.descricao, "fixa");
+        if (salvaFixa?.despesa_id && !acoesFixas[chaveFixa]) {
+          fixas[chaveFixa] = { acao: salvaFixa.acao as AcaoFixa, fixaId: salvaFixa.despesa_id };
+        }
+        const chaveDupLinha = chaveDup(f.arquivo_hash, l.id);
+        const salvaDup = preferenciaDe(l.descricao, "duplicata");
+        if (salvaDup && !acoesDuplicata[chaveDupLinha]) {
+          const c = candidatasDe(f, l);
+          if (c.length)
+            duplicatas[chaveDupLinha] = {
+              acao: salvaDup.acao as AcaoDuplicata,
+              alvoId: c[0]!.despesa.id,
+            };
+        }
       }
     }
-    if (Object.keys(fixas).length) setAcoesFixas((atual) => ({ ...fixas, ...atual }));
-    if (Object.keys(duplicatas).length)
-      setAcoesDuplicata((atual) => ({ ...duplicatas, ...atual }));
     const total = Object.keys(fixas).length + Object.keys(duplicatas).length;
-    if (total) toast.info(`${total} escolha(s) de importações anteriores foram repetidas.`);
-  }
+    if (!total) return;
+    if (Object.keys(fixas).length) setAcoesFixas((atual) => ({ ...fixas, ...atual }));
+    if (Object.keys(duplicatas).length) setAcoesDuplicata((atual) => ({ ...duplicatas, ...atual }));
+    const chaveAviso = faturas.map((f) => f.arquivo_hash).join("|");
+    if (!avisadas.current.has(chaveAviso)) {
+      avisadas.current.add(chaveAviso);
+      toast.info(`${total} escolha(s) de importações anteriores foram repetidas.`);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [faturas, preferenciasImportacao]);
+
 
   function definirAcaoDuplicata(
     f: FaturaItem,
@@ -724,7 +738,6 @@ function ImportarPage() {
         }
       }
       setFaturas((prev) => [...prev, ...novos]);
-      for (const n of novos) aplicarPreferenciasSalvas(n);
       if (novos.length) toast.success(`${novos.length} fatura(s) lida(s).`);
     } finally {
       setLendo(false);
@@ -742,8 +755,6 @@ function ImportarPage() {
     try {
       const item = await processarArquivoUnico(file, alvo.senha);
       setFaturas((prev) => [...prev, item]);
-    aplicarPreferenciasSalvas(item);
-      aplicarPreferenciasSalvas(item);
       setPdfsComSenha((prev) => prev.filter((p) => p.file !== file));
       toast.success(`${file.name}: fatura lida.`);
     } catch (erro) {
@@ -804,7 +815,6 @@ function ImportarPage() {
       destino: "",
     };
     setFaturas((prev) => [...prev, item]);
-    aplicarPreferenciasSalvas(item);
     setColado("");
     toast.success(`${linhas.length} lançamento(s) interpretado(s).`);
   }
@@ -886,10 +896,7 @@ function ImportarPage() {
           toast.error(`${file.name}: não consegui ler a imagem.`);
         }
       }
-      if (novos.length) {
-        setFaturas((prev) => [...prev, ...novos]);
-        for (const n of novos) aplicarPreferenciasSalvas(n);
-      }
+      if (novos.length) setFaturas((prev) => [...prev, ...novos]);
     } finally {
       setLendoImagens(false);
       if (imgInputRef.current) imgInputRef.current.value = "";
@@ -973,10 +980,7 @@ function ImportarPage() {
           );
         }
       }
-      if (novos.length) {
-        setFaturas((prev) => [...prev, ...novos]);
-        for (const n of novos) aplicarPreferenciasSalvas(n);
-      }
+      if (novos.length) setFaturas((prev) => [...prev, ...novos]);
     } finally {
       setLendoPlanilha(false);
       if (planilhaInputRef.current) planilhaInputRef.current.value = "";
@@ -2405,8 +2409,11 @@ function ImportarPage() {
               <div className="space-y-1 sm:col-span-2">
                 <Label className="text-xs">Responsável de todas as linhas</Label>
                 <Select
-                  value="manter"
-                  onValueChange={(v) =>
+                  value={responsavelDeTodos[f.arquivo_hash] ?? "manter"}
+                  onValueChange={(v) => {
+                    // Mostra no botão quem foi escolhido (antes voltava sempre
+                    // para "Aplicar a todos…" e parecia que não tinha aplicado).
+                    setResponsavelDeTodos((atual) => ({ ...atual, [f.arquivo_hash]: v }));
                     setFaturas((prev) =>
                       prev.map((x, i) =>
                         i === idx
@@ -2414,20 +2421,20 @@ function ImportarPage() {
                               ...x,
                               lancamentos: x.lancamentos.map((l) => ({
                                 ...l,
-                                responsavel: v === "nenhum" ? null : v,
+                                responsavel: v === "manter" ? l.responsavel : v === "nenhum" ? null : v,
                               })),
                             }
                           : x,
                       ),
-                    )
-                  }
+                    );
+                  }}
                 >
                   <SelectTrigger className="h-9">
                     <SelectValue placeholder="Aplicar a todos" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="manter">Aplicar a todos…</SelectItem>
-                    <SelectItem value="nenhum">—</SelectItem>
+                    <SelectItem value="nenhum">Sem responsável</SelectItem>
                     {opcoesResponsavel.map((r) => (
                       <SelectItem key={r} value={r}>
                         {r}

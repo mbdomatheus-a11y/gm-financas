@@ -767,6 +767,10 @@ function DespesasPage() {
     const hoje = toISODate(new Date());
     for (const d of listaVisivel as any[]) {
       if (idsIgnoradosPorTotal.has(d.id)) continue;
+      // Economia conquistada é neutra: continua visível na lista, mas não
+      // soma nos totais do mês nem na conferência com a fatura (ela é o
+      // gasto que deixou de existir, não um gasto a pagar).
+      if (d.economia_conquistada) continue;
       const brl = (v: number) => toBRL(v, d.moeda, cotacao);
       const parcelasVisiveis =
         filtroMes === "todos"
