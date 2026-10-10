@@ -42,6 +42,7 @@ import { Route as AuthenticatedNovaSenhaRouteImport } from './routes/_authentica
 import { Route as AuthenticatedOndeEstaRouteImport } from './routes/_authenticated/onde-esta'
 import { Route as AuthenticatedPersonalizacaoRouteImport } from './routes/_authenticated/personalizacao'
 import { Route as AuthenticatedPetsRouteImport } from './routes/_authenticated/pets'
+import { Route as AuthenticatedPluggyRouteImport } from './routes/_authenticated/pluggy'
 import { Route as AuthenticatedReceitasRouteImport } from './routes/_authenticated/receitas'
 import { Route as AuthenticatedSuporteRouteImport } from './routes/_authenticated/suporte'
 import { Route as AuthenticatedUsuariosRouteImport } from './routes/_authenticated/usuarios'
@@ -229,6 +230,11 @@ const AuthenticatedPetsRoute = AuthenticatedPetsRouteImport.update({
   path: '/pets',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedPluggyRoute = AuthenticatedPluggyRouteImport.update({
+  id: '/pluggy',
+  path: '/pluggy',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedReceitasRoute = AuthenticatedReceitasRouteImport.update({
   id: '/receitas',
   path: '/receitas',
@@ -342,6 +348,7 @@ export interface FileRoutesByFullPath {
   '/onde-esta': typeof AuthenticatedOndeEstaRoute
   '/personalizacao': typeof AuthenticatedPersonalizacaoRoute
   '/pets': typeof AuthenticatedPetsRoute
+  '/pluggy': typeof AuthenticatedPluggyRoute
   '/receitas': typeof AuthenticatedReceitasRoute
   '/suporte': typeof AuthenticatedSuporteRoute
   '/usuarios': typeof AuthenticatedUsuariosRoute
@@ -391,6 +398,7 @@ export interface FileRoutesByTo {
   '/onde-esta': typeof AuthenticatedOndeEstaRoute
   '/personalizacao': typeof AuthenticatedPersonalizacaoRoute
   '/pets': typeof AuthenticatedPetsRoute
+  '/pluggy': typeof AuthenticatedPluggyRoute
   '/receitas': typeof AuthenticatedReceitasRoute
   '/suporte': typeof AuthenticatedSuporteRoute
   '/usuarios': typeof AuthenticatedUsuariosRoute
@@ -442,6 +450,7 @@ export interface FileRoutesById {
   '/_authenticated/onde-esta': typeof AuthenticatedOndeEstaRoute
   '/_authenticated/personalizacao': typeof AuthenticatedPersonalizacaoRoute
   '/_authenticated/pets': typeof AuthenticatedPetsRoute
+  '/_authenticated/pluggy': typeof AuthenticatedPluggyRoute
   '/_authenticated/receitas': typeof AuthenticatedReceitasRoute
   '/_authenticated/suporte': typeof AuthenticatedSuporteRoute
   '/_authenticated/usuarios': typeof AuthenticatedUsuariosRoute
@@ -493,6 +502,7 @@ export interface FileRouteTypes {
     | '/onde-esta'
     | '/personalizacao'
     | '/pets'
+    | '/pluggy'
     | '/receitas'
     | '/suporte'
     | '/usuarios'
@@ -542,6 +552,7 @@ export interface FileRouteTypes {
     | '/onde-esta'
     | '/personalizacao'
     | '/pets'
+    | '/pluggy'
     | '/receitas'
     | '/suporte'
     | '/usuarios'
@@ -592,6 +603,7 @@ export interface FileRouteTypes {
     | '/_authenticated/onde-esta'
     | '/_authenticated/personalizacao'
     | '/_authenticated/pets'
+    | '/_authenticated/pluggy'
     | '/_authenticated/receitas'
     | '/_authenticated/suporte'
     | '/_authenticated/usuarios'
@@ -863,6 +875,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPetsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/pluggy': {
+      id: '/_authenticated/pluggy'
+      path: '/pluggy'
+      fullPath: '/pluggy'
+      preLoaderRoute: typeof AuthenticatedPluggyRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/receitas': {
       id: '/_authenticated/receitas'
       path: '/receitas'
@@ -996,6 +1015,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedOndeEstaRoute: typeof AuthenticatedOndeEstaRoute
   AuthenticatedPersonalizacaoRoute: typeof AuthenticatedPersonalizacaoRoute
   AuthenticatedPetsRoute: typeof AuthenticatedPetsRoute
+  AuthenticatedPluggyRoute: typeof AuthenticatedPluggyRoute
   AuthenticatedReceitasRoute: typeof AuthenticatedReceitasRoute
   AuthenticatedSuporteRoute: typeof AuthenticatedSuporteRoute
   AuthenticatedUsuariosRoute: typeof AuthenticatedUsuariosRoute
@@ -1029,6 +1049,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedOndeEstaRoute: AuthenticatedOndeEstaRoute,
   AuthenticatedPersonalizacaoRoute: AuthenticatedPersonalizacaoRoute,
   AuthenticatedPetsRoute: AuthenticatedPetsRoute,
+  AuthenticatedPluggyRoute: AuthenticatedPluggyRoute,
   AuthenticatedReceitasRoute: AuthenticatedReceitasRoute,
   AuthenticatedSuporteRoute: AuthenticatedSuporteRoute,
   AuthenticatedUsuariosRoute: AuthenticatedUsuariosRoute,

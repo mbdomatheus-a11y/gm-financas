@@ -321,13 +321,14 @@ export function VisaoGeralHome({ ocultarValores }: { ocultarValores?: boolean } 
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart
                 data={serie}
+                margin={{ top: 26, right: 8, left: 8, bottom: 0 }}
                 onClick={(e: any) => {
                   const k = e?.activePayload?.[0]?.payload?.key;
                   if (k) setMes(k);
                 }}
               >
                 <XAxis dataKey="mes" tickLine={false} axisLine={false} fontSize={11} />
-                <YAxis hide />
+                <YAxis hide domain={[0, (max: number) => Math.ceil(max * 1.2)]} />
                 <YAxis yAxisId="pct" hide domain={[0, "dataMax + 20"]} />
                 <Tooltip
                   formatter={(v: any, n: any) =>
@@ -337,7 +338,7 @@ export function VisaoGeralHome({ ocultarValores }: { ocultarValores?: boolean } 
                   }
                   labelFormatter={(l: any) => String(l)}
                 />
-                <Bar dataKey="Despesas" radius={[6, 6, 0, 0]} cursor="pointer">
+                <Bar dataKey="Despesas" radius={[6, 6, 0, 0]} maxBarSize={38} cursor="pointer" isAnimationActive={false}>
                   {serie.map((s) => (
                     <Cell
                       key={s.key}
@@ -362,7 +363,7 @@ export function VisaoGeralHome({ ocultarValores }: { ocultarValores?: boolean } 
                       }
                     />
                   ))}
-                  <LabelList dataKey="Despesas" position="top" fontSize={9} formatter={abreviarValor} />
+                  <LabelList dataKey="Despesas" position="top" fontSize={10} fill="var(--muted-foreground)" formatter={abreviarValor} />
                 </Bar>
                 <Line
                   type="monotone"

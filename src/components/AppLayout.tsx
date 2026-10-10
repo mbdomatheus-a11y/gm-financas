@@ -36,6 +36,7 @@ import {
   Link2,
   ArrowLeft,
   ChevronDown,
+  Landmark,
 } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -133,6 +134,7 @@ type NavTo =
   | "/onde-esta"
   | "/exames"
   | "/administracao"
+  | "/pluggy"
   | "/calendario"
   | "/casa"
   | "/documentos"
@@ -339,6 +341,13 @@ const GLOBAL: NavItem[] = [
     label: "Usuários e Privilégios",
     short: "Usuários",
     icon: Users,
+    adminOnly: true,
+  },
+  {
+    to: "/pluggy",
+    label: "Bancos (teste)",
+    short: "Bancos",
+    icon: Landmark,
     adminOnly: true,
   },
   {

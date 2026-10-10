@@ -359,3 +359,14 @@ Pendências manuais: git push origin main; DROP POLICY comprovantes_membro_ativo
 4. Alerta da calculadora: era o aviso de uso acadêmico do Simulador de dose/diluição. Tinha sido removido na Rodada 5 (item 9). Religado com interruptor em Administração ("Aviso do simulador da calculadora"); desligado esconde o aviso para os usuários logados. Na página pública o aviso fica sempre ligado.
 5. "Widgets": a Home já tem widgets editáveis; aguardando o usuário dizer quais widgets novos quer (ex.: Fluxo de caixa).
 6. Início: dois widgets novos "Gráfico 1" e "Gráfico 2" (componente `GraficoHome`). O usuário escolhe o gráfico no próprio widget (Receitas x despesas em 3 meses, Saldo por mês em 3 meses, Despesas por categoria do mês atual), e o local/tamanho pelo modo Personalizar. Por padrão não aparecem (a Início continua como estava); entram pelo botão "Adicionar widgets" em Personalizar. A escolha fica em `preferencias_usuario.home_widgets` (campo `opcao`).
+
+### Rodada 7 (2026-10-10)
+1. Gráficos: "Linha do tempo, 12 meses" tinha os valores cortados no topo. Margem superior maior e eixo com folga de 20%/15% em todos os gráficos de barras e linhas (Início, Dashboard, widgets de gráfico); barras com largura máxima e sem animação (mais leve e mais limpo).
+2. PWA testado pelo usuário e funcionando.
+3. Pluggy (Open Finance), TESTE só para o admin do site. Adicional, não altera nada existente.
+   - Tela `/pluggy` ("Bancos (teste)", item roxo "Só admin" no menu). Botão "Conectar um banco" abre o widget oficial da Pluggy (pacote `react-pluggy-connect`, `includeSandbox` ligado para testar com o banco fictício: usuário `user-ok`, senha `password-ok`, token `123456`). O site nunca vê a senha do banco.
+   - Servidor (`src/lib/pluggy.functions.ts`): `/auth` para gerar a API key, `/connect_token`, `/accounts` e `/v2/transactions` (últimos 30 dias, paginação por cursor). Todas as funções exigem admin do site. A API key e o segredo ficam só no servidor.
+   - Banco: tabela `pluggy_items` (user_id, item_id, conector, status), RLS ligada sem políticas e sem permissão para anon/authenticated (só service role). Migração `20261010100000_pluggy_items.sql` (já aplicada no Supabase).
+   - Nesta fase os movimentos são só exibidos. NÃO são gravados em despesas/receitas. Próximo passo: mapear transações para despesas/receitas com pré-visualização, de-para de categorias, deduplicação por id da transação e webhook para sincronização automática.
+   - Para funcionar: no Vercel (Environment Variables) criar PLUGGY_CLIENT_ID e PLUGGY_CLIENT_SECRET (painel da Pluggy, aba API Keys) e fazer redeploy. O package-lock.json foi atualizado; o bun.lock não (rodar `bun install` se o Vercel usar bun).
+   - Antes de abrir para outros usuários: contrato/plano da Pluggy, aviso LGPD de consentimento Open Finance, revogação da conexão pelo usuário e política de retenção.

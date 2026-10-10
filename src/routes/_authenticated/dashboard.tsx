@@ -872,10 +872,10 @@ function DashboardPage() {
         <CardContent className="h-[340px]">
           <ResponsiveContainer width="100%" height="100%">
             {tipoGrafico === "linhas" ? (
-              <LineChart data={dados.meses} margin={{ top: 18 }}>
+              <LineChart data={dados.meses} margin={{ top: 28, right: 12 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
                 <XAxis dataKey="mes" fontSize={11} tickLine={false} axisLine={false} />
-                <YAxis fontSize={11} tickLine={false} axisLine={false} width={60} />
+                <YAxis fontSize={11} tickLine={false} axisLine={false} width={60} domain={[(m: number) => Math.min(0, m), (m: number) => Math.ceil(Math.max(0, m) * 1.15)]} />
                 <Tooltip formatter={(v: any, n: any) => [formatBRL(Number(v)), n]} />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
                 {mesAtualRotulo && (
@@ -890,7 +890,7 @@ function DashboardPage() {
                   />
                 )}
                 {visaoFluxo !== "despesas" && (
-                  <Line
+                  <Line isAnimationActive={false}
                     type="monotone"
                     dataKey="Receitas"
                     stroke="var(--success)"
@@ -903,7 +903,7 @@ function DashboardPage() {
                   </Line>
                 )}
                 {visaoFluxo !== "receitas" && (
-                  <Line
+                  <Line isAnimationActive={false}
                     type="monotone"
                     dataKey="Despesas"
                     stroke="var(--destructive)"
@@ -915,7 +915,7 @@ function DashboardPage() {
                     )}
                   </Line>
                 )}
-                <Line
+                <Line isAnimationActive={false}
                   type="monotone"
                   dataKey="Saldo"
                   name="Saldo Líquido (Receita - Despesa)"
@@ -930,7 +930,7 @@ function DashboardPage() {
                 </Line>
               </LineChart>
             ) : (
-              <BarChart data={dados.meses} margin={{ top: 18 }}>
+              <BarChart data={dados.meses} margin={{ top: 28, right: 12 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
                 <XAxis
                   dataKey="mes"
@@ -942,7 +942,7 @@ function DashboardPage() {
                   textAnchor={dados.meses.length > 8 ? "end" : "middle"}
                   height={dados.meses.length > 8 ? 46 : 24}
                 />
-                <YAxis fontSize={11} tickLine={false} axisLine={false} width={60} />
+                <YAxis fontSize={11} tickLine={false} axisLine={false} width={60} domain={[(m: number) => Math.min(0, m), (m: number) => Math.ceil(Math.max(0, m) * 1.15)]} />
                 <Tooltip
                   formatter={(v: any, n: any) => [formatBRL(Number(v)), n]}
                   cursor={{ fill: "var(--muted)", opacity: 0.4 }}
@@ -960,7 +960,7 @@ function DashboardPage() {
                   />
                 )}
                 {visaoFluxo !== "despesas" && (
-                  <Bar dataKey="Receitas" fill="var(--success)" radius={[6, 6, 0, 0]}>
+                  <Bar maxBarSize={44} isAnimationActive={false} dataKey="Receitas" fill="var(--success)" radius={[6, 6, 0, 0]}>
                     {/* Bloco 3 (plano-mega 2026-09-14): mês além do atual vem com
                         opacidade reduzida — ainda é previsão, não aconteceu. */}
                     {dados.meses.map((m: any, i: number) => (
@@ -981,7 +981,7 @@ function DashboardPage() {
                 )}
                 {visaoFluxo !== "receitas" &&
                   (visaoFluxo === "despesas" ? (
-                    <Bar dataKey="Despesas" fill="var(--destructive)" radius={[6, 6, 0, 0]}>
+                    <Bar maxBarSize={44} isAnimationActive={false} dataKey="Despesas" fill="var(--destructive)" radius={[6, 6, 0, 0]}>
                       {dados.meses.map((m: any, i: number) => (
                         <Cell
                           key={m.key}
@@ -1020,7 +1020,7 @@ function DashboardPage() {
                     ))
                   ))}
                 {visaoFluxo === "ambos" && dados.meses.length <= 12 && dados.grupos.length > 0 && (
-                  <Bar dataKey="Despesas" fill="transparent" stackId="rotulo" legendType="none">
+                  <Bar maxBarSize={44} isAnimationActive={false} dataKey="Despesas" fill="transparent" stackId="rotulo" legendType="none">
                     <LabelList dataKey="Despesas" position="top" fontSize={9} formatter={compact} />
                   </Bar>
                 )}
@@ -1278,10 +1278,10 @@ function DashboardPage() {
           </CardHeader>
           <CardContent className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={dados.meses} margin={{ top: 18 }}>
+              <LineChart data={dados.meses} margin={{ top: 28, right: 12 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
                 <XAxis dataKey="mes" fontSize={11} tickLine={false} axisLine={false} />
-                <YAxis fontSize={11} tickLine={false} axisLine={false} width={60} />
+                <YAxis fontSize={11} tickLine={false} axisLine={false} width={60} domain={[(m: number) => Math.min(0, m), (m: number) => Math.ceil(Math.max(0, m) * 1.15)]} />
                 <Tooltip formatter={(v: any) => formatBRL(Number(v))} />
                 {mesAtualRotulo && (
                   <ReferenceArea
@@ -1294,7 +1294,7 @@ function DashboardPage() {
                     label={{ value: "atual", position: "insideTop", fontSize: 9, fill: "var(--primary)" }}
                   />
                 )}
-                <Line
+                <Line isAnimationActive={false}
                   type="monotone"
                   dataKey="Saldo"
                   stroke="var(--primary)"
@@ -1429,7 +1429,7 @@ function DashboardPage() {
                     formatter={(v: any) => formatBRL(Number(v))}
                     cursor={{ fill: "var(--muted)", opacity: 0.4 }}
                   />
-                  <Bar dataKey="valor" radius={[0, 6, 6, 0]}>
+                  <Bar maxBarSize={44} isAnimationActive={false} dataKey="valor" radius={[0, 6, 6, 0]}>
                     {dados.porResponsavel.map((_, i) => (
                       <Cell key={i} fill={PALETA[i % PALETA.length]} />
                     ))}
@@ -1452,7 +1452,7 @@ function DashboardPage() {
               <EmptyChart />
             ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={dados.comparativo} margin={{ top: 18 }}>
+                <BarChart data={dados.comparativo} margin={{ top: 28, right: 12 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
                   <XAxis
                     dataKey="categoria"
@@ -1464,13 +1464,13 @@ function DashboardPage() {
                     textAnchor="end"
                     height={50}
                   />
-                  <YAxis fontSize={11} tickLine={false} axisLine={false} width={60} />
+                  <YAxis fontSize={11} tickLine={false} axisLine={false} width={60} domain={[(m: number) => Math.min(0, m), (m: number) => Math.ceil(Math.max(0, m) * 1.15)]} />
                   <Tooltip
                     formatter={(v: any, n: any) => [formatBRL(Number(v)), n]}
                     cursor={{ fill: "var(--muted)", opacity: 0.4 }}
                   />
                   <Legend wrapperStyle={{ fontSize: 12 }} />
-                  <Bar dataKey="Mês atual" fill="var(--primary)" radius={[6, 6, 0, 0]}>
+                  <Bar maxBarSize={44} isAnimationActive={false} dataKey="Mês atual" fill="var(--primary)" radius={[6, 6, 0, 0]}>
                     <LabelList
                       dataKey="Mês atual"
                       position="top"

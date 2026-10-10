@@ -126,29 +126,29 @@ export function GraficoHome({
                 <XAxis type="number" hide />
                 <YAxis type="category" dataKey="nome" width={90} fontSize={11} tickLine={false} axisLine={false} />
                 <Tooltip formatter={(v: any) => fmt(v)} />
-                <Bar dataKey="valor" name="Despesas" fill="var(--destructive)" radius={[0, 4, 4, 0]} />
+                <Bar maxBarSize={44} isAnimationActive={false} dataKey="valor" name="Despesas" fill="var(--destructive)" radius={[0, 4, 4, 0]} />
               </BarChart>
             ) : opcao === "saldo" ? (
-              <BarChart data={serie} margin={{ top: 10 }}>
+              <BarChart data={serie} margin={{ top: 24, right: 8 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
                 <XAxis dataKey="mes" fontSize={11} tickLine={false} axisLine={false} />
                 <YAxis hide />
                 <Tooltip formatter={(v: any) => fmt(v)} />
-                <Bar dataKey="Saldo" radius={[4, 4, 0, 0]}>
+                <Bar maxBarSize={44} isAnimationActive={false} dataKey="Saldo" radius={[4, 4, 0, 0]}>
                   {serie.map((s, i) => (
                     <Cell key={i} fill={s.Saldo >= 0 ? "var(--success)" : "var(--destructive)"} />
                   ))}
                 </Bar>
               </BarChart>
             ) : (
-              <BarChart data={serie} margin={{ top: 10 }}>
+              <BarChart data={serie} margin={{ top: 24, right: 8 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
                 <XAxis dataKey="mes" fontSize={11} tickLine={false} axisLine={false} />
                 <YAxis hide />
                 <Tooltip formatter={(v: any) => fmt(v)} />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
-                <Bar dataKey="Receitas" fill="var(--success)" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="Despesas" fill="var(--destructive)" radius={[4, 4, 0, 0]} />
+                <Bar maxBarSize={44} isAnimationActive={false} dataKey="Receitas" fill="var(--success)" radius={[4, 4, 0, 0]} />
+                <Bar maxBarSize={44} isAnimationActive={false} dataKey="Despesas" fill="var(--destructive)" radius={[4, 4, 0, 0]} />
               </BarChart>
             )}
           </ResponsiveContainer>
