@@ -72,6 +72,7 @@ import {
   useFaturasMes,
   useProfilesList,
 } from "@/hooks/useFinance";
+import { chaveEstabelecimento } from "@/lib/categorizacao";
 import { usePermissoes, useSession } from "@/hooks/useAuthData";
 import {
   competenciaDe,
@@ -97,6 +98,48 @@ import {
   toISODate,
 } from "@/lib/format";
 import { cn } from "@/lib/utils";
+
+/**
+ * Memoriza categoria e tipo por estabelecimento (tabela
+ * `importacao_preferencias`, escopo "classificacao"). A importação lê isso
+ * antes de classificar sozinha. Falha aqui nunca derruba o salvamento da
+ * despesa: é só uma conveniência para a próxima importação.
+ */
+async function lembrarClassificacao(p: {
+  descricao: string;
+  categoria: string;
+  subcategoria: string | null;
+  tipo: string;
+  userId: string | null;
+}) {
+  try {
+    const chave = chaveEstabelecimento(p.descricao);
+    if (!chave || !p.userId) return;
+    const { data: perfil } = await supabase
+      .from("profiles")
+      .select("grupo_id")
+      .eq("id", p.userId)
+      .maybeSingle();
+    if (!perfil?.grupo_id) return;
+    await supabase.from("importacao_preferencias").upsert(
+      {
+        grupo_id: perfil.grupo_id,
+        chave,
+        escopo: "classificacao",
+        acao: JSON.stringify({
+          categoria: p.categoria,
+          subcategoria: p.subcategoria,
+          tipo: p.tipo,
+        }),
+        criado_por: p.userId,
+        atualizado_em: new Date().toISOString(),
+      },
+      { onConflict: "grupo_id,chave,escopo" },
+    );
+  } catch {
+    /* preferência é opcional */
+  }
+}
 
 export const Route = createFileRoute("/_authenticated/despesas")({
   validateSearch: (
@@ -476,6 +519,16 @@ function DespesasPage() {
           });
       const { error: e2 } = await supabase.from("parcelas").insert(parcelas);
       if (e2) throw e2;
+      // Guarda esta classificação para o mesmo estabelecimento: a próxima
+      // importação (e a reimportação da mesma fatura) já vem com a categoria e
+      // o tipo que você escolheu aqui, sem precisar corrigir de novo.
+      await lembrarClassificacao({
+        descricao: parsed.descricao,
+        categoria: parsed.categoria,
+        subcategoria: (parsed as { subcategoria?: string | null }).subcategoria ?? null,
+        tipo: parsed.tipo,
+        userId: user?.id ?? null,
+      });
     },
     onSuccess: () => {
       toast.success(editId ? "Despesa atualizada" : "Despesa cadastrada com parcelas geradas");

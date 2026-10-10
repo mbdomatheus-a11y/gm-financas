@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
+import { MonthPicker } from "@/components/MonthPicker";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -55,10 +56,33 @@ export const Route = createFileRoute("/_authenticated/para-onde-vai")({
 });
 
 const JANELAS = [
-  { value: "12", label: "Últimos 12 meses" },
-  { value: "6", label: "Últimos 6 meses" },
+  { value: "1", label: "Só o mês atual" },
   { value: "3", label: "Últimos 3 meses" },
+  { value: "6", label: "Últimos 6 meses" },
+  { value: "12", label: "Últimos 12 meses" },
+  { value: "24", label: "Últimos 24 meses" },
+  { value: "custom", label: "Período personalizado" },
 ];
+
+/** Competências de "inicio" até "fim" (ambas "AAAA-MM", inclusive). */
+function intervaloCompetencias(inicio: string, fim: string): string[] {
+  const [ai, mi] = inicio.split("-").map(Number);
+  const [af, mf] = fim.split("-").map(Number);
+  if (!ai || !mi || !af || !mf) return [];
+  const out: string[] = [];
+  let ano = ai;
+  let mes = mi;
+  // Trava de segurança: 30 anos de meses é mais que suficiente.
+  for (let guarda = 0; (ano < af || (ano === af && mes <= mf)) && guarda < 360; guarda++) {
+    out.push(`${ano}-${String(mes).padStart(2, "0")}`);
+    mes++;
+    if (mes > 12) {
+      mes = 1;
+      ano++;
+    }
+  }
+  return out;
+}
 
 function ParaOndeVaiPage() {
   const cotacao = useCotacao();
@@ -69,6 +93,8 @@ function ParaOndeVaiPage() {
   const { ocultarValores } = usePrivacidadeValores();
   const competenciaAtual = useCompetenciaVigente();
   const [janela, setJanela] = useState("12");
+  const [mesInicio, setMesInicio] = useState(competenciaAtual);
+  const [mesFim, setMesFim] = useState(competenciaAtual);
   const [categoriaAberta, setCategoriaAberta] = useState<string | null>(null);
 
   const fmt = (v: number) => (ocultarValores ? "R$ ••••••" : formatBRL(v));
@@ -77,14 +103,27 @@ function ParaOndeVaiPage() {
     [categoriasCadastradas],
   );
 
-  /** Competências do período, da mais antiga até o mês atual. */
+  /** Competências do período, da mais antiga até a mais recente. */
   const competencias = useMemo(() => {
-    const n = Number(janela);
+    if (janela === "custom") {
+      const de = mesInicio <= mesFim ? mesInicio : mesFim;
+      const ate = mesInicio <= mesFim ? mesFim : mesInicio;
+      return intervaloCompetencias(de, ate);
+    }
+    const n = Math.max(1, Number(janela) || 12);
     const [ano, mes] = competenciaAtual.split("-").map(Number);
     return Array.from({ length: n }, (_, i) =>
       monthKey(new Date(ano!, mes! - 1 - (n - 1 - i), 1)),
     );
-  }, [janela, competenciaAtual]);
+  }, [janela, competenciaAtual, mesInicio, mesFim]);
+
+  /**
+   * Mês usado como "atual" nas comparações: num período personalizado que não
+   * inclui o mês de hoje, vale o último mês escolhido.
+   */
+  const mesReferencia = competencias.includes(competenciaAtual)
+    ? competenciaAtual
+    : (competencias[competencias.length - 1] ?? competenciaAtual);
 
   const parcelas = useMemo(
     () =>
@@ -116,18 +155,18 @@ function ParaOndeVaiPage() {
 
   const rendaMensal = useMemo(() => {
     const doMes = (receitas as any[]).filter(
-      (r) => monthKey(r.data_recebimento) === competenciaAtual,
+      (r) => monthKey(r.data_recebimento) === mesReferencia,
     );
     return doMes.reduce((s, r) => s + toBRL(Number(r.valor), r.moeda ?? "BRL", cotacao), 0);
-  }, [receitas, competenciaAtual, cotacao]);
+  }, [receitas, mesReferencia, cotacao]);
 
   const resumo = useMemo(
-    () => resumirPorCategoria(gastos, competenciaAtual),
-    [gastos, competenciaAtual],
+    () => resumirPorCategoria(gastos, mesReferencia),
+    [gastos, mesReferencia],
   );
   const recorrentes = useMemo(
-    () => detectarRecorrentes(gastos, competenciaAtual),
-    [gastos, competenciaAtual],
+    () => detectarRecorrentes(gastos, mesReferencia),
+    [gastos, mesReferencia],
   );
   const ativos = useMemo(() => recorrentesAtivos(recorrentes), [recorrentes]);
   const encerrados = useMemo(() => recorrentesEncerrados(recorrentes), [recorrentes]);
@@ -191,9 +230,22 @@ function ParaOndeVaiPage() {
             ))}
           </SelectContent>
         </Select>
+        {janela === "custom" && (
+          <div className="flex items-center gap-1.5">
+            <MonthPicker value={mesInicio} onChange={setMesInicio} ariaLabel="Mês inicial" />
+            <span className="text-xs text-muted-foreground">até</span>
+            <MonthPicker value={mesFim} onChange={setMesFim} ariaLabel="Mês final" />
+          </div>
+        )}
         <span className="text-xs text-muted-foreground">
           {totalPeriodo > 0
-            ? `${fmt(totalPeriodo)} no período, em ${resumo.length} categoria(s).`
+            ? `${fmt(totalPeriodo)} em ${
+                competencias.length === 1
+                  ? monthLabelLong(competencias[0]!)
+                  : `${competencias.length} meses (${monthLabel(competencias[0]!)} a ${monthLabel(
+                      competencias[competencias.length - 1]!,
+                    )})`
+              }, em ${resumo.length} categoria(s).`
             : "Ainda não há gastos lançados neste período."}
         </span>
       </div>
@@ -288,7 +340,7 @@ function ParaOndeVaiPage() {
             <CardContent>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
                 {quadros.map((q) => {
-                  const atual = q.competencia === competenciaAtual;
+                  const atual = q.competencia === mesReferencia;
                   const intensidade = q.total / maiorQuadro;
                   return (
                     <button

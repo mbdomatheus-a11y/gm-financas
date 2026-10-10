@@ -326,6 +326,37 @@ function ImportarPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["importacao-preferencias"] }),
   });
 
+  /**
+   * Categoria e tipo que o usuário corrigiu à mão para este estabelecimento
+   * (gravado ao salvar a despesa em /despesas). Vale mais que a classificação
+   * automática, inclusive numa reimportação da mesma fatura.
+   */
+  function classificacaoCorrigida(
+    descricao: string,
+  ): { categoria: string; subcategoria: string | null; tipo: "fixa" | "variavel" } | null {
+    const chave = chaveEstabelecimento(descricao);
+    if (!chave) return null;
+    const salva = (preferenciasImportacao as any[]).find(
+      (p) => p.chave === chave && p.escopo === "classificacao",
+    );
+    if (!salva?.acao) return null;
+    try {
+      const v = JSON.parse(salva.acao) as {
+        categoria?: string;
+        subcategoria?: string | null;
+        tipo?: string;
+      };
+      if (!v.categoria) return null;
+      return {
+        categoria: v.categoria,
+        subcategoria: v.subcategoria ?? null,
+        tipo: v.tipo === "fixa" ? "fixa" : "variavel",
+      };
+    } catch {
+      return null;
+    }
+  }
+
   /** Preferência salva para o estabelecimento desta linha. */
   function preferenciaDe(descricao: string, escopo: "fixa" | "duplicata") {
     const chave = chaveEstabelecimento(descricao);
@@ -353,15 +384,20 @@ function ImportarPage() {
       // Repete a classificação que este mesmo estabelecimento já recebeu antes
       // (ex.: "Plano Nu Cel 25,00" marcado como despesa fixa no mês passado).
       // O de-para do usuário continua mandando quando tem confiança alta.
+      // 1º) o que o usuário corrigiu à mão para este estabelecimento (salvo ao
+      // editar a despesa); 2º) como ele já estava classificado antes; 3º) o
+      // de-para e as palavras-chave.
+      const corrigida = classificacaoCorrigida(l.descricao);
       const anterior = classificacaoAnterior(l, despesasTodas as DespesaExistente[]);
-      const usarAnterior = !!anterior && c.confianca !== "alta";
+      const usarAnterior = !corrigida && !!anterior && c.confianca !== "alta";
       return {
         ...l,
-        categoria: usarAnterior ? anterior!.categoria : c.categoria,
-        subcategoria: usarAnterior ? anterior!.subcategoria : c.subcategoria,
+        categoria: corrigida?.categoria ?? (usarAnterior ? anterior!.categoria : c.categoria),
+        subcategoria:
+          corrigida?.subcategoria ?? (usarAnterior ? anterior!.subcategoria : c.subcategoria),
         categoria_sugerida: c.categoria,
-        confianca_categoria: usarAnterior ? "alta" : c.confianca,
-        tipo: l.tipo ?? anterior?.tipo ?? "variavel",
+        confianca_categoria: corrigida || usarAnterior ? "alta" : c.confianca,
+        tipo: l.tipo ?? corrigida?.tipo ?? anterior?.tipo ?? "variavel",
       };
     });
   }
