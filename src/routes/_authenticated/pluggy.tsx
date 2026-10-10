@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { AppLayout } from "@/components/AppLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useIsSiteAdmin } from "@/hooks/useAuthData";
 import { formatBRL } from "@/lib/format";
@@ -39,6 +40,8 @@ function PluggyPage() {
   const [token, setToken] = useState<string | null>(null);
   const [Widget, setWidget] = useState<any>(null);
   const [aberto, setAberto] = useState<string | null>(null);
+  const [itemManual, setItemManual] = useState("");
+  const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
   const { data: st } = useQuery({ queryKey: ["pluggy-status"], queryFn: () => status(), enabled: !!ehAdmin, retry: false });
   const { data: itens = { itens: [] } } = useQuery({
@@ -61,6 +64,7 @@ function PluggyPage() {
     onSuccess: () => {
       toast.success("Banco conectado.");
       setToken(null);
+      setItemManual("");
       qc.invalidateQueries({ queryKey: ["pluggy-itens"] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -117,6 +121,33 @@ function PluggyPage() {
               <Link2 className="mr-1.5 size-4" aria-hidden="true" />
               {conectar.isPending ? "Preparando…" : "Conectar um banco"}
             </Button>
+          </CardContent>
+        </Card>
+
+        <Card className={cn(ADMIN_ONLY_CARD)}>
+          <CardHeader>
+            <CardTitle className="text-base">Usar dados reais pelo Meu Pluggy (gratuito)</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm">
+            <p className="text-muted-foreground">
+              Conecte seu banco real em meu.pluggy.ai (serviço gratuito da Pluggy para desenvolvedores). No painel da
+              Pluggy, abra sua aplicação, clique em "Ir para Demo" e, no menu de três pontos, copie o Item ID. Cole aqui:
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Input
+                className="min-w-0 flex-1"
+                placeholder="Item ID (formato xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)"
+                value={itemManual}
+                onChange={(e) => setItemManual(e.target.value.trim())}
+                aria-label="Item ID da Pluggy"
+              />
+              <Button
+                disabled={!st?.configurado || !UUID.test(itemManual) || guardar.isPending}
+                onClick={() => guardar.mutate({ itemId: itemManual, conector: "Meu Pluggy" })}
+              >
+                Adicionar
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
