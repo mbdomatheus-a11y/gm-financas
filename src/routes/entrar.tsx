@@ -84,10 +84,16 @@ function LoginPage() {
     if (p.get("error")) {
       const detalhe = (p.get("error_description") ?? p.get("error") ?? "").replace(/\+/g, " ");
       console.error("[login social]", detalhe);
+      // Conta excluída pelo fluxo antigo (bloqueio imediato no provedor de
+      // acesso). Hoje a exclusão só marca a conta e mantém o acesso por 90
+      // dias, mas quem foi excluído antes ainda recebe esse erro.
+      const banida = /banned/i.test(detalhe);
       toast.error(
-        `Não foi possível entrar com essa conta social. Tente com Google ou use e-mail e senha.${
-          detalhe ? ` Detalhe técnico: ${detalhe.slice(0, 220)}` : ""
-        }`,
+        banida
+          ? "Essa conta foi excluída e o acesso está bloqueado. Fale com a administração do site para recuperá-la ou para liberar o e-mail para uma conta nova."
+          : `Não foi possível entrar com essa conta social. Tente com Google ou use e-mail e senha.${
+              detalhe ? ` Detalhe técnico: ${detalhe.slice(0, 220)}` : ""
+            }`,
         { duration: 20000 },
       );
       window.history.replaceState(null, "", window.location.pathname);

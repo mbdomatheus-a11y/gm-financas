@@ -62,9 +62,11 @@ export function ExcluirContaCard({ className }: { className?: string }) {
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            Ao excluir, seu acesso é encerrado e seus dados pessoais ficam disponíveis para
-            recuperação por até 90 dias. Lançamentos compartilhados permanecem para os demais
-            membros do grupo. A administração do site não pode excluir a própria conta.
+            Ao excluir, sua sessão é encerrada e a conta fica marcada para exclusão em 90 dias.
+            Se você entrar de novo nesse período, perguntamos se quer cancelar e manter tudo.
+            Passados os 90 dias, a conta e os dados pessoais são apagados de vez. Lançamentos
+            compartilhados permanecem para os demais membros do grupo. A administração do site não
+            pode excluir a própria conta.
           </p>
           <Button
             variant="destructive"

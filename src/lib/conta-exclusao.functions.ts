@@ -86,15 +86,40 @@ export const excluirMinhaConta = createServerFn({ method: "POST" })
     }
 
     if (data.modo === "recuperavel") {
-      const { arquivarEExcluirConta } = await import("@/lib/conta-exclusao.server");
+      // 2026-10-10: antes a conta era banida e o e-mail trocado por um
+      // temporário. Quem entrava pelo Google voltava a cair nesse mesmo
+      // usuário banido e recebia "User is banned", sem conseguir nem entrar
+      // nem criar conta nova com o mesmo e-mail. Agora a exclusão do próprio
+      // usuário usa a mesma carência de 90 dias da exclusão feita pelo
+      // administrador: o acesso continua, e a cada login o aviso pergunta se
+      // ele quer cancelar (ExclusaoAgendadaModal). Passados os 90 dias, o
+      // cron diário apaga a conta de verdade.
+      const { DIAS_CARENCIA_EXCLUSAO } = await import("@/lib/exclusao-agendada.functions");
+      const agora = new Date();
+      const prevista = new Date(agora.getTime() + DIAS_CARENCIA_EXCLUSAO * 86400000);
+      const { error } = await db.from("exclusoes_agendadas").upsert(
+        {
+          user_id: context.userId,
+          agendada_em: agora.toISOString(),
+          prevista_em: prevista.toISOString(),
+          agendada_por: context.userId,
+        },
+        { onConflict: "user_id" },
+      );
+      if (error) throw new Error("Não foi possível agendar a exclusão da conta.");
+      await db.from("admin_audit_logs").insert({
+        acao: "exclusao_conta_agendada_pelo_usuario",
+        alvo_id: context.userId,
+        detalhes: { prevista_em: prevista.toISOString() },
+      });
       const accessToken = getRequest()
         .headers.get("authorization")
         ?.replace(/^Bearer\s+/i, "");
-      await arquivarEExcluirConta({
-        userId: context.userId,
-        excluidaPor: context.userId,
-        accessToken,
-      });
+      if (accessToken) {
+        const { error: sairErro } = await supabaseAdmin.auth.admin.signOut(accessToken, "global");
+        if (sairErro) console.error("[conta] Falha ao encerrar sessões:", sairErro.message);
+      }
+      return { ok: true as const, previstaEm: prevista.toISOString() };
     } else {
       throw new Error(
         "A exclusão definitiva exige uma limpeza completa de arquivos e dados do grupo. Use a opção recuperável por enquanto.",
