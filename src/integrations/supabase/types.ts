@@ -2805,6 +2805,7 @@ export type Database = {
           dia_virada: number | null;
           fonte: string;
           home_widgets: Json | null;
+          idioma: string | null;
           layout_menu: string;
           paleta: string;
           tema: string;
@@ -2816,6 +2817,7 @@ export type Database = {
           dia_virada?: number | null;
           fonte?: string;
           home_widgets?: Json | null;
+          idioma?: string | null;
           layout_menu?: string;
           paleta?: string;
           tema?: string;
@@ -2827,6 +2829,7 @@ export type Database = {
           dia_virada?: number | null;
           fonte?: string;
           home_widgets?: Json | null;
+          idioma?: string | null;
           layout_menu?: string;
           paleta?: string;
           tema?: string;

@@ -11,6 +11,7 @@ import { InactivityGuard } from "@/components/InactivityGuard";
 import { ComunicadosModal } from "@/components/ComunicadosModal";
 import { ConviteAposTresDias } from "@/components/ConviteAmigosBanner";
 import { TourGuiado } from "@/components/TourGuiado";
+import { IdiomaProvider } from "@/hooks/useIdioma";
 import { ExclusaoAgendadaModal } from "@/components/ExclusaoAgendadaModal";
 import { BoasVindasExemplos } from "@/components/BoasVindasExemplos";
 import { useModulosGlobais, type ModuloGlobal } from "@/hooks/useAuthData";
@@ -74,12 +75,14 @@ function Protegido() {
   }, [pathname, isLoading, habilitado, navigate]);
   return (
     <InactivityGuard>
+      <IdiomaProvider>
       <ExclusaoAgendadaModal />
       <ComunicadosModal onVisibilityChange={setAvisoAberto} />
       <BoasVindasExemplos bloqueado={avisoAberto} />
       <TourGuiado bloqueado={avisoAberto} />
       <ConviteAposTresDias bloqueado={avisoAberto} />
       <Outlet />
+      </IdiomaProvider>
     </InactivityGuard>
   );
 }

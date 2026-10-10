@@ -40,6 +40,9 @@ import {
   PieChart,
 } from "lucide-react";
 
+import { SeletorIdioma } from "@/components/SeletorIdioma";
+import { useIdioma } from "@/hooks/useIdioma";
+import type { ChaveTraducao } from "@/lib/i18n/traducoes";
 import { supabase } from "@/integrations/supabase/client";
 import {
   useModulosGlobais,
@@ -169,6 +172,27 @@ type MundoId =
  * Personalização, Conta) ficam numa seção global, visível o tempo todo,
  * independente do mundo atual.
  */
+/** Rotas com rótulo já traduzido; as demais seguem em português por enquanto. */
+const CHAVE_NAV: Partial<Record<NavTo, ChaveTraducao>> = {
+  "/inicio": "nav.inicio",
+  "/dashboard": "nav.dashboard",
+  "/receitas": "nav.receitas",
+  "/despesas": "nav.despesas",
+  "/cartoes": "nav.cartoes",
+  "/investimentos": "nav.investimentos",
+  "/importar": "nav.importar",
+  "/para-onde-vai": "nav.paraOndeVai",
+  "/lista-compras": "nav.lista",
+  "/veiculos": "nav.veiculo",
+  "/pets": "nav.pet",
+  "/exames": "nav.exames",
+  "/notas": "nav.notas",
+  "/links": "nav.anotacoes",
+  "/ferramentas": "nav.calculadora",
+  "/configuracoes": "nav.configuracoes",
+  "/conta": "nav.conta",
+};
+
 const MUNDOS: Record<MundoId, { titulo: string; home: NavTo; items: NavItem[] }> = {
   financas: {
     titulo: "Finanças",
@@ -414,6 +438,12 @@ export function AppLayout({
   const { prefs } = usePreferencias();
   const { data: profile } = useProfile();
   const { can, isSiteAdmin, isAdmin } = usePermissoes();
+  const { t } = useIdioma();
+  /** Rótulo do item no idioma escolhido; sem tradução ainda, mantém o original. */
+  const rotuloNav = (item: NavItem) => {
+    const chave = CHAVE_NAV[item.to];
+    return chave ? t(chave) : item.label;
+  };
   const { ocultarValores, toggle: alternarOcultarValores } = usePrivacidadeValores();
   const { habilitado, liberadoGeral } = useModulosGlobais();
   useMascaraValores(ocultarValores);
@@ -535,7 +565,7 @@ export function AppLayout({
         )}
       >
         <Icon className={cn("size-4.5 shrink-0", active && "text-primary")} />
-        <span className="truncate">{item.label}</span>
+        <span className="truncate">{rotuloNav(item)}</span>
         {soAdmin && <span className={cn(ADMIN_ONLY_TAG, "ml-auto")}>Admin</span>}
         {aberto !== undefined && (
           <ChevronDown
@@ -650,7 +680,7 @@ export function AppLayout({
         const Icon = item.icon;
         return (
           <Link key={item.to} to={item.to} className={linkTopo(pathname === item.to)}>
-            <Icon className="size-4" aria-hidden="true" /> {item.label}
+            <Icon className="size-4" aria-hidden="true" /> {rotuloNav(item)}
           </Link>
         );
       })}
@@ -686,7 +716,7 @@ export function AppLayout({
                 return (
                   <DropdownMenuItem key={item.to} asChild>
                     <Link to={item.to} className="flex items-center gap-2">
-                      <IconeItem className="size-4" aria-hidden="true" /> {item.label}
+                      <IconeItem className="size-4" aria-hidden="true" /> {rotuloNav(item)}
                       {soAdminItem(item) && <span className={cn(ADMIN_ONLY_TAG, "ml-auto")}>Admin</span>}
                     </Link>
                   </DropdownMenuItem>
@@ -707,7 +737,7 @@ export function AppLayout({
               return (
                 <DropdownMenuItem key={item.to} asChild>
                   <Link to={item.to} className="flex items-center gap-2">
-                    <IconeItem className="size-4" aria-hidden="true" /> {item.label}
+                    <IconeItem className="size-4" aria-hidden="true" /> {rotuloNav(item)}
                   </Link>
                 </DropdownMenuItem>
               );
@@ -718,7 +748,7 @@ export function AppLayout({
               return (
                 <DropdownMenuItem key={item.to} asChild className="bg-violet-500/[0.07]">
                   <Link to={item.to} className="flex items-center gap-2">
-                    <IconeItem className="size-4" aria-hidden="true" /> {item.label}
+                    <IconeItem className="size-4" aria-hidden="true" /> {rotuloNav(item)}
                     <span className={cn(ADMIN_ONLY_TAG, "ml-auto")}>Admin</span>
                   </Link>
                 </DropdownMenuItem>
@@ -796,6 +826,7 @@ export function AppLayout({
                   <span className="hidden text-xs font-medium sm:inline">Calendário</span>
                 </Link>
               </Button>
+              <SeletorIdioma />
               <CalculadoraRapida />
               <span className="hidden sm:contents">
                 <ConviteRapidoBotao />

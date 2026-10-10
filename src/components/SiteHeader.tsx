@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { SeletorIdioma } from "@/components/SeletorIdioma";
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, Menu } from "lucide-react";
 import { BrandMark } from "@/components/BrandMark";
@@ -63,6 +64,7 @@ export function SiteHeader({ home = false }: { home?: boolean }) {
           {itens()}
         </nav>
         <div className="flex items-center gap-2">
+          <SeletorIdioma />
           <Button asChild size="sm">
             <Link to="/entrar">
               Entrar <ArrowRight className="size-4" />

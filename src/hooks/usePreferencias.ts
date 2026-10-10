@@ -15,6 +15,8 @@ export type Preferencias = {
   destacar_veiculo_inicio: boolean;
   /** Widgets da tela Início (ordem, tamanho). null = layout automático. */
   home_widgets: { id: string; tamanho: "p" | "m" | "g" }[] | null;
+  /** Idioma escolhido pelo usuário. null = segue o país/navegador. */
+  idioma: string | null;
 };
 
 export const DEFAULT_PREFS: Omit<Preferencias, "user_id"> = {
@@ -25,6 +27,7 @@ export const DEFAULT_PREFS: Omit<Preferencias, "user_id"> = {
   dia_virada: null,
   destacar_veiculo_inicio: false,
   home_widgets: null,
+  idioma: null,
 };
 
 export function usePreferencias() {
