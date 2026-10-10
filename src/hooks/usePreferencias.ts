@@ -13,6 +13,8 @@ export type Preferencias = {
   dia_virada: number | null;
   /** Bloco 7 (plano-mega-2026-09-14.md): destaca a soma do módulo Veículo no card "Veículo" da Início. */
   destacar_veiculo_inicio: boolean;
+  /** Widgets da tela Início (ordem, tamanho). null = layout automático. */
+  home_widgets: { id: string; tamanho: "p" | "m" | "g" }[] | null;
 };
 
 export const DEFAULT_PREFS: Omit<Preferencias, "user_id"> = {
@@ -22,6 +24,7 @@ export const DEFAULT_PREFS: Omit<Preferencias, "user_id"> = {
   layout_menu: "lateral",
   dia_virada: null,
   destacar_veiculo_inicio: false,
+  home_widgets: null,
 };
 
 export function usePreferencias() {

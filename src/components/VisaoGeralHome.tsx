@@ -251,56 +251,36 @@ export function VisaoGeralHome({ ocultarValores }: { ocultarValores?: boolean } 
 
   return (
     <>
-      <div className="mb-4 grid gap-3 sm:grid-cols-2">
-        <Card className="bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent border-emerald-500/20 transition-colors hover:bg-emerald-500/5">
+      <div className="mb-3 grid grid-cols-2 gap-2">
+        <Card className="border-emerald-500/20 bg-emerald-500/5 transition-colors hover:bg-emerald-500/10">
           <Link
             to="/despesas"
             search={{ economia: true, mes: "todos" }}
             className="block focus-visible:outline-none"
+            title="Economizado em tarifas, anuidades e cobranças renegociadas"
           >
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
+            <CardContent className="px-3 py-2">
               <div className="flex items-center gap-1">
-                <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wide">
-                  Economia Conquistada
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
+                  Economia conquistada
                 </p>
                 {!ocultarValores && (
-                  <BotaoOlhoItem
-                    oculto={ocultoEconomia}
-                    onClick={economiaPrivacidade.toggleItem}
-                  />
+                  <BotaoOlhoItem oculto={ocultoEconomia} onClick={economiaPrivacidade.toggleItem} />
                 )}
               </div>
-              <h3 className="text-xl font-bold tabular-nums text-emerald-700 dark:text-emerald-300">
+              <h3 className="text-base font-bold tabular-nums text-emerald-700 dark:text-emerald-300">
                 {valorFmtItem(economiaTotal, ocultoEconomia)}
               </h3>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
-                Economizado em tarifas, anuidades e cobranças renegociadas
-              </p>
-            </div>
-            <div className="h-10 w-10 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 font-bold text-lg">
-              💰
-            </div>
-          </CardContent>
+            </CardContent>
           </Link>
         </Card>
 
-        <Card className="bg-gradient-to-br from-blue-500/10 via-blue-500/5 to-transparent border-blue-500/20">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wide">
-                Comunidade Control ALL
-              </p>
-              <h3 className="text-xl font-bold text-blue-700 dark:text-blue-300">
-                Organização Financeira Ativa
-              </h3>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
-                Gestão colaborativa de receitas e despesas familiares
-              </p>
-            </div>
-            <div className="h-10 w-10 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold text-lg">
-              👥
-            </div>
+        <Card className="border-blue-500/20 bg-blue-500/5">
+          <CardContent className="px-3 py-2">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-blue-600 dark:text-blue-400">
+              Comunidade Control ALL
+            </p>
+            <h3 className="text-base font-bold text-blue-700 dark:text-blue-300">Organização ativa</h3>
           </CardContent>
         </Card>
       </div>

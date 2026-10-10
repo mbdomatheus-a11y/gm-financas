@@ -18,3 +18,5 @@ REVOKE INSERT, UPDATE, DELETE ON public.exclusoes_agendadas FROM authenticated;
 REVOKE TRUNCATE, TRIGGER, REFERENCES ON public.exclusoes_agendadas FROM authenticated;
 -- Anotações (links_admin): marcar como analisada sem apagar.
 ALTER TABLE public.links_admin ADD COLUMN IF NOT EXISTS concluida_em timestamptz;
+-- Início em widgets: ordem e tamanho escolhidos pelo usuário (null = automático).
+ALTER TABLE public.preferencias_usuario ADD COLUMN IF NOT EXISTS home_widgets jsonb;

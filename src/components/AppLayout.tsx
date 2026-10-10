@@ -1,10 +1,10 @@
 import { AppEmBreve } from "@/components/AppEmBreve";
 import { ConvitesRecebidosAviso } from "@/components/ConvitesGrupo";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type MouseEvent, type ReactNode } from "react";
 import { lembrarUrlRetorno, limparUrlRetorno } from "@/lib/return-url";
 import { useServerFn } from "@tanstack/react-start";
 import { encerrarSessao } from "@/lib/login-protecao.functions";
-import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
+import { Link, useNavigate, useRouter, useRouterState } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   LayoutDashboard,
@@ -34,6 +34,8 @@ import {
   CalendarDays,
   Headphones,
   Link2,
+  ArrowLeft,
+  ChevronDown,
 } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -47,6 +49,13 @@ import {
 import { useApplyPreferencias, usePreferencias } from "@/hooks/usePreferencias";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { AlertsBell } from "@/components/AlertsBell";
 import { CalculadoraRapida } from "@/components/CalculadoraRapida";
@@ -391,6 +400,7 @@ export function AppLayout({
   const { habilitado, liberadoGeral } = useModulosGlobais();
   useMascaraValores(ocultarValores);
   const navigate = useNavigate();
+  const router = useRouter();
   const qc = useQueryClient();
   const registrarEncerramento = useServerFn(encerrarSessao);
   const [open, setOpen] = useState(false);
@@ -450,7 +460,10 @@ export function AppLayout({
   ).filter(podeVer);
   const itensGlobais = GLOBAL.filter(podeVer).filter((i) => !i.adminOnly);
   const itensAdmin = GLOBAL.filter(podeVer).filter((i) => i.adminOnly);
-  const bottomNav = prefs.layout_menu === "bottom";
+  // "superior": menu horizontal no desktop. Padrão ("lateral"): barra lateral.
+  const topMenu = prefs.layout_menu === "superior";
+  const [abertas, setAbertas] = useState<Record<string, boolean>>({});
+  useEffect(() => setAbertas({}), [areaId]);
 
   async function signOut() {
     try {
@@ -473,19 +486,27 @@ export function AppLayout({
       ativo,
       recuo,
       soAdmin,
+      aoClicar,
+      aberto,
     }: {
       item: NavItem;
       onNavigate?: (() => void) | undefined;
       ativo?: boolean | undefined;
       recuo?: boolean | undefined;
       soAdmin?: boolean | undefined;
+      aoClicar?: ((e: MouseEvent) => void) | undefined;
+      aberto?: boolean | undefined;
     }) => {
     const active = ativo ?? pathname === item.to;
     const Icon = item.icon;
     return (
       <Link
         to={item.to}
-        onClick={onNavigate}
+        onClick={(e: MouseEvent<HTMLAnchorElement>) => {
+          aoClicar?.(e);
+          if (!e.defaultPrevented) onNavigate?.();
+        }}
+        aria-expanded={aberto}
         className={cn(
           "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
           recuo && "ml-4 py-2 text-[13px]",
@@ -498,6 +519,12 @@ export function AppLayout({
         <Icon className={cn("size-4.5 shrink-0", active && "text-primary")} />
         <span className="truncate">{item.label}</span>
         {soAdmin && <span className={cn(ADMIN_ONLY_TAG, "ml-auto")}>Admin</span>}
+        {aberto !== undefined && (
+          <ChevronDown
+            aria-hidden="true"
+            className={cn("ml-auto size-4 shrink-0 transition-transform", aberto && "rotate-180")}
+          />
+        )}
       </Link>
     );
   };
@@ -515,6 +542,7 @@ export function AppLayout({
       {areasVisiveis.map((id) => {
         const a = AREAS[id];
         const ativa = areaId === id;
+        const aberta = abertas[id] ?? ativa;
         const entrada: NavItem = { to: a.to, label: a.titulo, short: a.titulo, icon: a.icon };
         const filhos = a.modulos
           .filter((m) => mundosVisiveis.includes(m as MundoId))
@@ -523,8 +551,22 @@ export function AppLayout({
           .filter((i) => i.to !== a.to);
         return (
           <div key={id} className="flex flex-col gap-1">
-            <NavLink item={entrada} onNavigate={onNavigate} ativo={ativa && pathname === a.to} />
-            {ativa &&
+            <NavLink
+              item={entrada}
+              onNavigate={onNavigate}
+              ativo={ativa && pathname === a.to}
+              aberto={filhos.length > 0 ? aberta : undefined}
+              aoClicar={(e) => {
+                // Segundo clique na área já aberta recolhe as opções.
+                if (aberta && pathname === a.to) {
+                  e.preventDefault();
+                  setAbertas((s) => ({ ...s, [id]: false }));
+                } else {
+                  setAbertas((s) => ({ ...s, [id]: true }));
+                }
+              }}
+            />
+            {aberta &&
               filhos.map((item) => (
                 <NavLink key={item.to} item={item} onNavigate={onNavigate} recuo soAdmin={soAdminItem(item)} />
               ))}
@@ -574,18 +616,140 @@ export function AppLayout({
     </div>
   );
 
+  const linkTopo = (active: boolean) =>
+    cn(
+      "inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+      active ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground",
+    );
+
+  const TopMenuBar = () => (
+    <div className="sticky top-0 z-30 hidden h-14 items-center gap-1 border-b bg-sidebar px-4 lg:flex">
+      <Link to="/dashboard" className="mr-3 flex items-center gap-2">
+        <BrandMark className="size-8 rounded-lg" />
+        <span className="text-sm font-bold">Control ALL</span>
+      </Link>
+      {[INICIO, CALENDARIO].map((item) => {
+        const Icon = item.icon;
+        return (
+          <Link key={item.to} to={item.to} className={linkTopo(pathname === item.to)}>
+            <Icon className="size-4" aria-hidden="true" /> {item.label}
+          </Link>
+        );
+      })}
+      {areasVisiveis.map((id) => {
+        const a = AREAS[id];
+        const Icon = a.icon;
+        const filhos = a.modulos
+          .filter((m) => mundosVisiveis.includes(m as MundoId))
+          .flatMap((m) => MUNDOS[m as MundoId].items)
+          .filter(podeVer)
+          .filter((i) => i.to !== a.to);
+        const ativa = areaId === id;
+        if (filhos.length === 0) {
+          return (
+            <Link key={id} to={a.to} className={linkTopo(ativa)}>
+              <Icon className="size-4" aria-hidden="true" /> {a.titulo}
+            </Link>
+          );
+        }
+        return (
+          <DropdownMenu key={id}>
+            <DropdownMenuTrigger className={linkTopo(ativa)}>
+              <Icon className="size-4" aria-hidden="true" /> {a.titulo}
+              <ChevronDown className="size-3.5" aria-hidden="true" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="min-w-52">
+              <DropdownMenuItem asChild>
+                <Link to={a.to}>Visão geral</Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              {filhos.map((item) => {
+                const IconeItem = item.icon;
+                return (
+                  <DropdownMenuItem key={item.to} asChild>
+                    <Link to={item.to} className="flex items-center gap-2">
+                      <IconeItem className="size-4" aria-hidden="true" /> {item.label}
+                      {soAdminItem(item) && <span className={cn(ADMIN_ONLY_TAG, "ml-auto")}>Admin</span>}
+                    </Link>
+                  </DropdownMenuItem>
+                );
+              })}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        );
+      })}
+      <div className="ml-auto flex items-center gap-1">
+        <DropdownMenu>
+          <DropdownMenuTrigger className={linkTopo(false)}>
+            {profile?.nome ?? "Conta"} <ChevronDown className="size-3.5" aria-hidden="true" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="min-w-56">
+            {itensGlobais.map((item) => {
+              const IconeItem = item.icon;
+              return (
+                <DropdownMenuItem key={item.to} asChild>
+                  <Link to={item.to} className="flex items-center gap-2">
+                    <IconeItem className="size-4" aria-hidden="true" /> {item.label}
+                  </Link>
+                </DropdownMenuItem>
+              );
+            })}
+            {itensAdmin.length > 0 && <DropdownMenuSeparator />}
+            {itensAdmin.map((item) => {
+              const IconeItem = item.icon;
+              return (
+                <DropdownMenuItem key={item.to} asChild className="bg-violet-500/[0.07]">
+                  <Link to={item.to} className="flex items-center gap-2">
+                    <IconeItem className="size-4" aria-hidden="true" /> {item.label}
+                    <span className={cn(ADMIN_ONLY_TAG, "ml-auto")}>Admin</span>
+                  </Link>
+                </DropdownMenuItem>
+              );
+            })}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={() => void signOut()}>
+              <LogOut className="size-4" aria-hidden="true" /> Sair
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-background">
-      {!bottomNav && (
+      {!topMenu && (
         <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 border-r bg-sidebar lg:block">
           <SidebarInner />
         </aside>
       )}
 
-      <div className={cn(!bottomNav && "lg:pl-64")}>
+      <div className={cn(!topMenu && "lg:pl-64")}>
+        {topMenu && <TopMenuBar />}
         <ConvitesRecebidosAviso />
-        <header className="glass sticky top-0 z-20 border-b border-border/60">
+        <header
+          className={cn(
+            "glass sticky top-0 z-20 border-b border-border/60",
+            topMenu && "lg:top-14",
+          )}
+        >
           <div className="flex items-center gap-3 px-4 py-3">
+            {pathname !== "/inicio" && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="shrink-0 gap-1.5 px-2"
+                aria-label="Voltar"
+                title="Voltar para a tela anterior"
+                onClick={() => {
+                  if (typeof window !== "undefined" && window.history.length > 1) router.history.back();
+                  else void navigate({ to: "/inicio" });
+                }}
+              >
+                <ArrowLeft className="size-4.5" aria-hidden="true" />
+                <span className="hidden text-xs font-medium sm:inline">Voltar</span>
+              </Button>
+            )}
             <div className="min-w-0 flex-1">
               <h1 className="truncate text-base font-semibold leading-tight sm:text-lg">{title}</h1>
               {description && (
@@ -641,7 +805,7 @@ export function AppLayout({
         aria-label="Navegação principal"
         className={cn(
           "glass fixed inset-x-2 bottom-2 z-30 grid grid-cols-4 gap-1 rounded-2xl border border-border/60 px-2 pb-[env(safe-area-inset-bottom)] pt-1 shadow-[var(--shadow-soft)]",
-          !bottomNav && "lg:hidden",
+          "lg:hidden",
         )}
       >
         {[INICIO, CALENDARIO].map((item) => {

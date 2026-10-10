@@ -343,3 +343,11 @@ Pendências manuais: git push origin main; DROP POLICY comprovantes_membro_ativo
 ## Anotações: visualizar e concluir (2026-10-09)
 
 - Em Links (admin), cada anotação ganhou o botão Visualizar (abre a anotação) e Concluir, que marca como analisada sem apagar (coluna `links_admin.concluida_em`, aplicada no banco e no arquivo de migration). Concluídas saem de "Anotações ativas" e aparecem na aba "Analisadas" com a data; Reabrir desfaz. Histórico continua mostrando tudo. Só o admin conclui; as demais pessoas não veem o estado.
+
+## Início em widgets, voltar, menu superior (2026-10-09)
+
+- Início em widgets (`HomeWidgets.tsx`, `lib/home-widgets.ts`): Personalizar permite remover, readicionar, mover (setas) e escolher tamanho Pequeno/Médio/Grande, com tamanho mínimo por widget; "Organizar automático" volta ao padrão. Salvo na conta em `preferencias_usuario.home_widgets` (coluna jsonb criada). Sem arrastar com o mouse por enquanto (usa setas, funciona no celular e no teclado).
+- Cartões "Economia conquistada" e "Comunidade" no Resumo ficaram compactos (sem subtexto e emoji).
+- Botão Voltar no cabeçalho de todas as telas (menos Início): volta ao histórico do navegador; se não houver histórico (app aberto direto), vai ao Início.
+- Menu lateral: clicar de novo na área aberta recolhe as opções (seta indica aberto/fechado).
+- Layout do menu: a opção "Menu superior" não funcionava (o código procurava o valor "bottom"). Agora o menu superior existe no desktop (áreas com lista, conta, admin e Sair). No celular continua a barra inferior.

@@ -2804,6 +2804,7 @@ export type Database = {
           destacar_veiculo_inicio: boolean;
           dia_virada: number | null;
           fonte: string;
+          home_widgets: Json | null;
           layout_menu: string;
           paleta: string;
           tema: string;
@@ -2814,6 +2815,7 @@ export type Database = {
           destacar_veiculo_inicio?: boolean;
           dia_virada?: number | null;
           fonte?: string;
+          home_widgets?: Json | null;
           layout_menu?: string;
           paleta?: string;
           tema?: string;
@@ -2824,6 +2826,7 @@ export type Database = {
           destacar_veiculo_inicio?: boolean;
           dia_virada?: number | null;
           fonte?: string;
+          home_widgets?: Json | null;
           layout_menu?: string;
           paleta?: string;
           tema?: string;
