@@ -1,3 +1,4 @@
+import { GraficoHome, opcaoGraficoValida } from "@/components/GraficoHome";
 import { Link } from "@tanstack/react-router";
 import {
   ArrowDown,
@@ -214,12 +215,22 @@ function usePodeMostrar(): (id: WidgetId) => boolean {
   const financas = habilitado("financas") && can("despesas", "ver");
   return (id) => {
     if (id === "admin") return isAdmin || isSiteAdmin;
-    if (id === "resumo" || id === "conquistas") return financas;
+    if (id === "resumo" || id === "conquistas" || id === "grafico1" || id === "grafico2") return financas;
     return true;
   };
 }
 
-function Corpo({ id }: { id: WidgetId }) {
+function Corpo({
+  id,
+  opcao,
+  onOpcao,
+}: {
+  id: WidgetId;
+  opcao?: string | undefined;
+  onOpcao: (o: string) => void;
+}) {
+  if (id === "grafico1" || id === "grafico2")
+    return <GraficoHome opcao={opcaoGraficoValida(opcao)} onOpcao={onOpcao} />;
   if (id === "dinheiro" || id === "casa" || id === "documentos" || id === "ferramentas")
     return <AreaCard id={id} />;
   if (id === "atalhos") return <Atalhos />;
@@ -338,7 +349,11 @@ export function HomeWidgets() {
                   </Button>
                 </div>
               )}
-              <Corpo id={item.id} />
+              <Corpo
+                id={item.id}
+                opcao={item.opcao}
+                onOpcao={(o) => aplicar(itens.map((x) => (x.id === item.id ? { ...x, opcao: o } : x)))}
+              />
             </section>
           );
         })}
@@ -347,7 +362,7 @@ export function HomeWidgets() {
       {editando && ausentes.length > 0 && (
         <Card className="mt-4">
           <CardContent className="space-y-2 p-4">
-            <h2 className="text-sm font-semibold">Widgets que você removeu</h2>
+            <h2 className="text-sm font-semibold">Adicionar widgets (gráficos e outros)</h2>
             <div className="flex flex-wrap gap-2">
               {ausentes.map((id) => (
                 <Button

@@ -6,12 +6,14 @@ export type WidgetId =
   | "atalhos"
   | "admin"
   | "conquistas"
-  | "resumo";
+  | "resumo"
+  | "grafico1"
+  | "grafico2";
 
 /** p = 1 coluna, m = 2 colunas, g = linha inteira (em telas grandes). */
 export type TamanhoWidget = "p" | "m" | "g";
 
-export type ItemWidget = { id: WidgetId; tamanho: TamanhoWidget };
+export type ItemWidget = { id: WidgetId; tamanho: TamanhoWidget; opcao?: string };
 
 const ORDEM_TAMANHO: TamanhoWidget[] = ["p", "m", "g"];
 
@@ -27,6 +29,8 @@ export const WIDGETS: Record<
   admin: { titulo: "Administração", minimo: "m", padrao: "g", soAdmin: true },
   conquistas: { titulo: "Metas e conquistas", minimo: "m", padrao: "g" },
   resumo: { titulo: "Resumo do mês", minimo: "g", padrao: "g" },
+  grafico1: { titulo: "Gráfico 1", minimo: "m", padrao: "m" },
+  grafico2: { titulo: "Gráfico 2", minimo: "m", padrao: "m" },
 };
 
 export const ORDEM_PADRAO: WidgetId[] = [
@@ -58,7 +62,11 @@ export function normalizarLayout(bruto: unknown): ItemWidget[] {
     if (!(id in WIDGETS) || vistos.has(id)) continue;
     vistos.add(id);
     const t: TamanhoWidget = ["p", "m", "g"].includes(x?.tamanho) ? x.tamanho : WIDGETS[id].padrao;
-    saida.push({ id, tamanho: tamanhoPermitido(id, t) ? t : WIDGETS[id].minimo });
+    saida.push({
+      id,
+      tamanho: tamanhoPermitido(id, t) ? t : WIDGETS[id].minimo,
+      ...(typeof x?.opcao === "string" ? { opcao: x.opcao } : {}),
+    });
   }
   return saida;
 }
