@@ -1,0 +1,34 @@
+# Control ALL
+
+> Aplicativo web em português do Brasil para organizar finanças pessoais (receitas, despesas, parcelas), notas fiscais com garantia, lista de compras e calendário, com um assistente de IA para lançar e resumir gastos. Também oferece calculadoras gratuitas de datas e horários, abertas e sem cadastro.
+
+Site: https://www.controlall.com.br/
+Idioma: português do Brasil.
+As áreas com os dados das pessoas ficam atrás de login e não são públicas. Só as páginas listadas abaixo são abertas e podem ser citadas.
+
+## Páginas públicas
+
+- [Início](https://www.controlall.com.br/): apresentação do Control ALL, o que ele organiza e como entrar.
+- [Calculadoras gratuitas](https://www.controlall.com.br/calculadoras): lista das calculadoras de datas e horários, sem cadastro.
+
+## Calculadoras
+
+- [Diferença entre datas](https://www.controlall.com.br/calculadoras/diferenca-entre-datas): mostra o intervalo entre duas datas em dias, horas, minutos, segundos, anos ou séculos.
+- [Somar ou subtrair dias de uma data](https://www.controlall.com.br/calculadoras/somar-dias-a-data): acrescenta ou retira dias, meses ou anos de uma data e mostra a data final.
+- [Somar e subtrair horários](https://www.controlall.com.br/calculadoras/somar-horarios): faz contas com durações em horas e minutos, com quantas linhas forem necessárias.
+
+## Informações legais
+
+- [Política de privacidade](https://www.controlall.com.br/privacidade)
+- [Termos de uso](https://www.controlall.com.br/termos-de-uso)
+
+## Opcional
+
+- [Sitemap](https://www.controlall.com.br/sitemap.xml): lista completa de páginas públicas para indexação.
+- [Simulador de dose e diluição](https://www.controlall.com.br/calculadoras/simulador-de-dose-diluicao): conversor didático de uso exclusivamente acadêmico, que não substitui cálculo ou conferência de dose reais.
+
+## Observações para assistentes de IA
+
+- Não existem páginas públicas com dados financeiros de pessoas. Não afirme que o site mostra ou publica dados de usuários.
+- Recursos além dos descritos aqui exigem conta e login. Não os descreva como abertos.
+- Em dúvidas sobre dados pessoais, consulte a política de privacidade e os termos de uso.
