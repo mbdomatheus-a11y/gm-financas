@@ -394,7 +394,12 @@ Pendente: testar no site com as próprias faturas; ensinar padrão (perfil memor
 
 
 ## Vídeo de demonstração (2026-10-10)
-Em andamento: vídeo de ~3 min navegando e narrando o site (conta zerada criada pelo Matheus, importação da fatura Nubank, narração pt-BR com voz neural). Sem mudança de código.
+Concluído: Desktop\Finanças\video\Control_ALL_video_demo.mp4 (3min20s). Sem mudança de código.
+Bugs achados na gravação (pendentes):
+- Resumo com IA: inclui compra à vista como parcela e mostra ** de markdown na resposta.
+- Fatura importada sem cartão vinculado: avisos mostram \"venceu há 2d\" e Calendário fica vazio.
+- Tela de horas de trabalho: campo de horas vem com 160 como valor (não placeholder); digitar gera 160160.
+- Lista de compras: item digitado se perde quando abre a tela das 3 perguntas.
 
 ### Rodada 9 (2026-10-10): Backup e Reset
 1. Botão "Resetar todos" no bloco "Reset por módulo". Só libera depois de baixar o backup com todos os módulos marcados nesta sessão (mesma regra do reset por módulo). Pede "RESETAR" para confirmar. Apaga os módulos em ordem e repete os que falharem por dependência entre tabelas enquanto houver progresso; se algum não puder ser apagado, avisa qual.
@@ -408,3 +413,11 @@ Pendente: recuperar conta excluída pede CPF; quem entrou pelo Google não conse
 5. "User is banned" ao entrar com Google depois de excluir a própria conta: o fluxo antigo de "Excluir minha conta" bania o usuário e trocava o e-mail por um temporário. O login do Google continua caindo nesse mesmo usuário (a identidade social permanece), então a pessoa não conseguia nem entrar nem criar conta nova com o mesmo e-mail. Agora "Excluir minha conta" usa a mesma carência de 90 dias da exclusão feita pelo admin: grava em `exclusoes_agendadas`, encerra as sessões e mantém o acesso; ao entrar de novo, o aviso pergunta se quer cancelar. Passados os 90 dias o cron apaga de vez. Texto do card atualizado e, na tela de entrar, erro "banned" agora explica em português (vale para contas banidas pelo fluxo antigo).
 6. Conta de teste artfoxbrasil@gmail.com (criada de novo em 10/10) estava banida por esse fluxo antigo: desbanida no banco, e-mail e perfil restaurados a partir do `perfil_snapshot` e a linha de `contas_excluidas` marcada como restaurada.
 Pendente: `arquivarEExcluirConta` (ban + e-mail temporário) ainda é usado por `adminExcluirUsuario`, que hoje não é chamado pela interface. Decidir se remove ou se passa a desvincular as identidades sociais antes de banir.
+
+### Rodada 11 (2026-10-10): duplicidade na importação
+1. `src/lib/duplicidade-importacao.ts`: acha TODOS os lançamentos já salvos parecidos com a linha da fatura (valor igual ou até 2%, mais estabelecimento igual, data próxima ou mesmo final de cartão), compara também com o valor total do parcelamento e ordena do mais parecido para o menos. `rotuloOrigem` traduz a origem: digitado à mão, importado de fatura, despesa fixa, lançado com a IA, total da fatura.
+2. Popup `src/components/DuplicidadeDialog.tsx`: mostra a linha da fatura, a lista de parecidos com origem, data, valor, categoria, cartão e responsável de cada um, por que cada um apareceu, e as opções: substituir pelo da fatura, manter o que já existe ou criar um novo (gastos iguais de verdade). Na tabela, a badge virou botão que abre esse popup e mostra a escolha feita.
+3. Botão "Substituir todos pela importação" no topo de cada fatura, com a contagem de quantas linhas têm parecido e quantas ainda não foram decididas.
+4. Ao salvar: "substituir" atualiza o lançamento existente (descrição, valor, data, categoria, cartão, origem `importacao_substituicao`) e refaz as parcelas não pagas; "manter o que já existe" ignora a linha; "criar um novo" recebe chave de deduplicação própria para não colidir. A deduplicação automática por `dedup_key` continua, mas deixa de ignorar a linha quando o usuário decidiu algo no popup.
+5. Categoria herdada: ao importar, se o mesmo estabelecimento já foi classificado antes (ex.: "Plano Nu Cel" 25,00 marcado como despesa fixa), a linha volta com a mesma categoria e o mesmo tipo. O de-para do usuário continua tendo prioridade quando a confiança é alta, e o usuário pode trocar na tabela ou escolher "criar um novo".
+Testes: `src/lib/duplicidade-importacao.test.ts` (9 testes, `bun test`).

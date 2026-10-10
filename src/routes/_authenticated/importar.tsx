@@ -58,10 +58,17 @@ import { formatBRL, monthLabelLong } from "@/lib/format";
 import { mesmaPessoa } from "@/lib/fatura-fluxo";
 import {
   AvisoCorrespondenciaFixa,
-  AvisoDuplicata,
   type AcaoFixa,
 } from "@/components/AvisosImportacao";
-import { verificarPossivelDuplicata } from "@/lib/duplicidade";
+import { DuplicidadeDialog } from "@/components/DuplicidadeDialog";
+import {
+  classificacaoAnterior,
+  encontrarCandidatas,
+  type AcaoDuplicata,
+  type Candidata,
+  type DespesaExistente,
+} from "@/lib/duplicidade-importacao";
+import { cn } from "@/lib/utils";
 import { encontrarCorrespondenciaFixa, type FixaCandidata } from "@/lib/correspondencia-fixa";
 import { mesesEntreCompetencias, somarMeses, vencimentoDaCompetencia } from "@/lib/recorrencia";
 import {
@@ -222,6 +229,13 @@ function ImportarPage() {
   const [lendoImagens, setLendoImagens] = useState(false);
   const [lendoPlanilha, setLendoPlanilha] = useState(false);
   const [faturas, setFaturas] = useState<FaturaItem[]>([]);
+  const [acoesDuplicata, setAcoesDuplicata] = useState<
+    Record<string, { acao: AcaoDuplicata; alvoId: string | null }>
+  >({});
+  const [duplicataAberta, setDuplicataAberta] = useState<{
+    faturaIdx: number;
+    lancamentoId: string;
+  } | null>(null);
   const [acoesFixas, setAcoesFixas] = useState<Record<string, { acao: AcaoFixa; fixaId: string }>>(
     {},
   );
@@ -279,15 +293,60 @@ function ImportarPage() {
   function categorizar(lancamentos: LancamentoExtraido[]): LancamentoExtraido[] {
     return lancamentos.map((l) => {
       const c = classificar(l.descricao, { regras, valor: l.valor });
+      // Repete a classificação que este mesmo estabelecimento já recebeu antes
+      // (ex.: "Plano Nu Cel 25,00" marcado como despesa fixa no mês passado).
+      // O de-para do usuário continua mandando quando tem confiança alta.
+      const anterior = classificacaoAnterior(l, despesasTodas as DespesaExistente[]);
+      const usarAnterior = !!anterior && c.confianca !== "alta";
       return {
         ...l,
-        categoria: c.categoria,
-        subcategoria: c.subcategoria,
+        categoria: usarAnterior ? anterior!.categoria : c.categoria,
+        subcategoria: usarAnterior ? anterior!.subcategoria : c.subcategoria,
         categoria_sugerida: c.categoria,
-        confianca_categoria: c.confianca,
-        tipo: l.tipo ?? "variavel",
+        confianca_categoria: usarAnterior ? "alta" : c.confianca,
+        tipo: l.tipo ?? anterior?.tipo ?? "variavel",
       };
     });
+  }
+
+  const chaveDup = (hash: string, lancamentoId: string) => `${hash}:${lancamentoId}`;
+
+  /** Lançamentos já salvos que podem ser o mesmo gasto desta linha da fatura. */
+  function candidatasDe(f: FaturaItem, l: LancamentoExtraido): Candidata[] {
+    return encontrarCandidatas(l, despesasTodas as DespesaExistente[]);
+  }
+
+  function acaoDuplicataDe(f: FaturaItem, l: LancamentoExtraido): AcaoDuplicata {
+    return acoesDuplicata[chaveDup(f.arquivo_hash, l.id)]?.acao ?? "decidir";
+  }
+
+  function definirAcaoDuplicata(
+    f: FaturaItem,
+    l: LancamentoExtraido,
+    acao: AcaoDuplicata,
+    alvoId: string | null,
+  ) {
+    setAcoesDuplicata((atual) => ({ ...atual, [chaveDup(f.arquivo_hash, l.id)]: { acao, alvoId } }));
+    const idx = faturas.findIndex((x) => x.arquivo_hash === f.arquivo_hash);
+    if (idx >= 0) atualizarLancamento(idx, l.id, { incluir: acao !== "manter_existente" });
+  }
+
+  /** Marca todas as linhas com duplicata para substituir o lançamento já cadastrado. */
+  function substituirTodasDuplicatas(f: FaturaItem) {
+    const novas: Record<string, { acao: AcaoDuplicata; alvoId: string | null }> = {};
+    let total = 0;
+    for (const l of f.lancamentos) {
+      const c = candidatasDe(f, l);
+      if (!c.length) continue;
+      novas[chaveDup(f.arquivo_hash, l.id)] = { acao: "substituir", alvoId: c[0]!.despesa.id };
+      total++;
+    }
+    if (!total) {
+      toast.info("Nenhum lançamento desta fatura tem parecido já cadastrado.");
+      return;
+    }
+    setAcoesDuplicata((atual) => ({ ...atual, ...novas }));
+    toast.success(`${total} lançamento(s) vão substituir o que já estava cadastrado.`);
   }
 
   /** Cartão cadastrado com o final informado (preferindo o mesmo banco da fatura). */
@@ -1122,16 +1181,25 @@ function ImportarPage() {
         if (fatErr) throw fatErr;
 
         for (const l of f.lancamentos.filter(permitido)) {
-          const chave = dedupKey(l);
+          const dup = acoesDuplicata[chaveDup(f.arquivo_hash, l.id)];
+          // "Criar um novo" ganha uma chave própria: são dois gastos iguais de
+          // verdade, então não podem colidir na chave de deduplicação.
+          const chave =
+            dup?.acao === "novo" ? `${dedupKey(l)}#novo-${Date.now()}-${l.id}` : dedupKey(l);
           const { data: existente } = await supabase
             .from("despesas")
             .select("id")
             .eq("grupo_id", grupoId)
             .eq("dedup_key", chave)
             .maybeSingle();
-          if (existente) {
+          // Linha idêntica já importada antes: pula, a não ser que o usuário
+          // tenha escolhido no popup o que fazer com ela.
+          if (existente && !dup) {
             ignorados++;
             continue;
+          }
+          if (existente && dup?.acao === "substituir" && !dup.alvoId) {
+            dup.alvoId = existente.id;
           }
 
           const venc = f.vencimento ?? l.data_compra;
@@ -1146,6 +1214,77 @@ function ImportarPage() {
           const cartaoDestino = cartaoId
             ? ((cartoes as any[]).find((c) => c.id === cartaoId) ?? null)
             : null;
+
+          // Escolha feita no popup de duplicidade (ver DuplicidadeDialog).
+          if (dup?.acao === "manter_existente") {
+            ignorados++;
+            continue;
+          }
+          if (dup?.acao === "substituir" && dup.alvoId) {
+            const { error: subErro } = await supabase
+              .from("despesas")
+              .update({
+                descricao: l.descricao,
+                descricao_normalizada: l.descricao_normalizada,
+                valor_total: Number((l.valor * l.parcela_total).toFixed(2)),
+                moeda: l.moeda,
+                categoria: l.categoria,
+                subcategoria: l.subcategoria ?? null,
+                categoria_confirmada: true,
+                estabelecimento_normalizado: chaveEstabelecimento(l.descricao),
+                tipo: l.tipo ?? "variavel",
+                data_compra: l.data_compra,
+                total_parcelas: l.parcela_total,
+                data_primeira_parcela: primeira,
+                responsavel: l.responsavel,
+                cartao_id: cartaoId,
+                banco_id: bancoId,
+                cartao_final: l.cartao_final ?? cartaoDestino?.final ?? null,
+                direcao: l.direcao,
+                origem: "importacao_substituicao",
+                fatura_id: fatura.id,
+                dedup_key: chave,
+              } as any)
+              .eq("id", dup.alvoId)
+              .eq("grupo_id", grupoId);
+            if (subErro) throw subErro;
+            // Refaz as parcelas desse lançamento com os dados da fatura.
+            const { error: delParc } = await supabase
+              .from("parcelas")
+              .delete()
+              .eq("despesa_id", dup.alvoId)
+              .eq("paga", false);
+            if (delParc) throw delParc;
+            const { data: pagas } = await supabase
+              .from("parcelas")
+              .select("numero")
+              .eq("despesa_id", dup.alvoId);
+            const jaPagas = new Set((pagas ?? []).map((x: any) => x.numero));
+            const novas = Array.from({ length: l.parcela_total }, (_, i) => i + 1)
+              .filter((numero) => !jaPagas.has(numero))
+              .map((numero) => ({
+                despesa_id: dup.alvoId,
+                numero,
+                total: l.parcela_total,
+                valor: l.valor,
+                moeda: l.moeda,
+                vencimento: vencimentoParcela(venc, l.parcela_numero, numero),
+                paga: numero < l.parcela_numero,
+                origem: "importacao_substituicao",
+                valor_estimado: numero !== l.parcela_numero,
+                confianca_data: l.confianca_data,
+                fatura_id: fatura.id,
+                dedup_key: `${chave}#${numero}`,
+                grupo_id: grupoId,
+              }));
+            if (novas.length) {
+              const { error: insParc } = await supabase.from("parcelas").insert(novas as any);
+              if (insParc) throw insParc;
+            }
+            if (cartaoId) cartoesTocados.add(cartaoId);
+            inseridos++;
+            continue;
+          }
 
           const acaoFixa = acoesFixas[`${f.arquivo_hash}:${l.id}`];
           if (acaoFixa?.acao === "ignorar") {
@@ -1969,6 +2108,34 @@ function ImportarPage() {
               </div>
             </div>
 
+            {(() => {
+              const comDuplicata = f.lancamentos.filter((l) => candidatasDe(f, l).length);
+              if (!comDuplicata.length) return null;
+              const pendentes = comDuplicata.filter(
+                (l) => acaoDuplicataDe(f, l) === "decidir",
+              ).length;
+              return (
+                <div className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs">
+                  <span className="mr-auto">
+                    <b>{comDuplicata.length} lançamento(s)</b> desta fatura já têm algo parecido
+                    cadastrado
+                    {pendentes ? `, ${pendentes} sem decisão` : " e já estão resolvidos"}. Clique no
+                    aviso de cada linha para ver a origem e escolher.
+                  </span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-7 shrink-0 text-[11px]"
+                    onClick={() => substituirTodasDuplicatas(f)}
+                  >
+                    <ClipboardPaste className="mr-1 size-3.5" aria-hidden="true" /> Substituir todos
+                    pela importação
+                  </Button>
+                </div>
+              );
+            })()}
+
             {(f.portadores?.length || f.futuros_ignorados || f.total_impresso != null) && (
               <div className="flex flex-wrap items-center gap-1.5 rounded-lg border bg-muted/30 px-3 py-2 text-xs">
                 {f.portadores?.map((p) => (
@@ -2188,14 +2355,32 @@ function ImportarPage() {
                                 }}
                               />
                               {(() => {
-                                const outrosImportados = faturas.flatMap((x) => x.lancamentos);
-                                const checagem = verificarPossivelDuplicata(l, [
-                                  ...(despesasTodas as any[]),
-                                  ...outrosImportados,
-                                ]);
-                                return checagem.duplicata ? (
-                                  <AvisoDuplicata motivo={checagem.motivo} />
-                                ) : null;
+                                const candidatas = candidatasDe(f, l);
+                                if (!candidatas.length) return null;
+                                const acao = acaoDuplicataDe(f, l);
+                                const rotulos: Record<AcaoDuplicata, string> = {
+                                  decidir: `${candidatas.length} parecido(s): resolver`,
+                                  substituir: "Vai substituir o existente",
+                                  manter_existente: "Mantém o que já existe",
+                                  novo: "Vai criar um novo",
+                                };
+                                return (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setDuplicataAberta({ faturaIdx: idx, lancamentoId: l.id })
+                                    }
+                                    className={cn(
+                                      "mt-1 inline-flex max-w-full items-center gap-1 rounded-md border px-2 py-1 text-left text-[10px] font-semibold",
+                                      acao === "decidir"
+                                        ? "border-amber-500/50 bg-amber-500/15 text-amber-800 hover:bg-amber-500/25 dark:text-amber-300"
+                                        : "border-primary/40 bg-primary/10 text-primary hover:bg-primary/20",
+                                    )}
+                                  >
+                                    <AlertTriangle className="size-3 shrink-0" aria-hidden="true" />
+                                    <span className="truncate">{rotulos[acao]}</span>
+                                  </button>
+                                );
                               })()}
                               {(() => {
                                 // Etapa F: "Ensinar" só aparece quando esta fatura tem layout
@@ -2610,6 +2795,23 @@ function ImportarPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {(() => {
+        const f = duplicataAberta ? faturas[duplicataAberta.faturaIdx] : null;
+        const l = f?.lancamentos.find((x) => x.id === duplicataAberta?.lancamentoId) ?? null;
+        const chave = f && l ? chaveDup(f.arquivo_hash, l.id) : "";
+        return (
+          <DuplicidadeDialog
+            aberto={!!f && !!l}
+            onAberto={(v) => !v && setDuplicataAberta(null)}
+            lancamento={l}
+            candidatas={f && l ? candidatasDe(f, l) : []}
+            acao={acoesDuplicata[chave]?.acao ?? "decidir"}
+            alvoId={acoesDuplicata[chave]?.alvoId ?? null}
+            onEscolher={(acao, alvoId) => f && l && definirAcaoDuplicata(f, l, acao, alvoId)}
+          />
+        );
+      })()}
     </AppLayout>
   );
 }
