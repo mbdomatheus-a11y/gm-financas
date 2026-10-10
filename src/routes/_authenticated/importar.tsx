@@ -33,6 +33,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -61,6 +62,7 @@ import {
   type AcaoFixa,
 } from "@/components/AvisosImportacao";
 import { DuplicidadeDialog } from "@/components/DuplicidadeDialog";
+import { SelectBusca } from "@/components/SelectBusca";
 import {
   classificacaoAnterior,
   encontrarCandidatas,
@@ -233,6 +235,12 @@ function ImportarPage() {
   const [acoesDuplicata, setAcoesDuplicata] = useState<
     Record<string, { acao: AcaoDuplicata; alvoId: string | null }>
   >({});
+  /** Popup de criar categoria durante a importação. */
+  const [novaCategoria, setNovaCategoria] = useState<{
+    nome: string;
+    faturaIdx: number;
+    lancamentoId: string;
+  } | null>(null);
   const [duplicataAberta, setDuplicataAberta] = useState<{
     faturaIdx: number;
     lancamentoId: string;
@@ -293,6 +301,33 @@ function ImportarPage() {
       if (error) throw error;
       return data ?? [];
     },
+  });
+
+  /** Cria a categoria na hora, sem sair da importação, e já aplica na linha. */
+  const criarCategoria = useMutation({
+    mutationFn: async (p: { nome: string; faturaIdx: number; lancamentoId: string }) => {
+      const nome = p.nome.trim();
+      if (!nome) throw new Error("Informe o nome da categoria.");
+      const { data: existente } = await supabase
+        .from("categorias")
+        .select("id, nome")
+        .eq("tipo", "despesa")
+        .ilike("nome", nome)
+        .limit(1)
+        .maybeSingle();
+      if (!existente) {
+        const { error } = await supabase.from("categorias").insert({ nome, tipo: "despesa" });
+        if (error) throw error;
+      }
+      return { ...p, nome: existente?.nome ?? nome };
+    },
+    onSuccess: (r) => {
+      atualizarLancamento(r.faturaIdx, r.lancamentoId, { categoria: r.nome, subcategoria: null });
+      void qc.invalidateQueries({ queryKey: ["categorias", "despesa"] });
+      setNovaCategoria(null);
+      toast.success(`Categoria "${r.nome}" pronta para uso.`);
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Não foi possível criar a categoria."),
   });
 
   const salvarPreferenciaImportacao = useMutation({
@@ -2836,26 +2871,37 @@ function ImportarPage() {
                             </td>
                             <td className="p-1">
                               <div className="flex items-center gap-1">
-                                <Select
-                                  value={l.categoria}
-                                  onValueChange={(v) =>
-                                    atualizarLancamento(idx, l.id, {
-                                      categoria: v,
-                                      subcategoria: null,
+                                <SelectBusca
+                                  className="h-7 min-w-0 px-1 text-[11px]"
+                                  ariaLabel="Categoria do lançamento"
+                                  placeholder="Categoria"
+                                  valor={l.categoria}
+                                  opcoes={listaCategorias.map((c) => ({ valor: c, rotulo: c }))}
+                                  onEscolher={(v) =>
+                                    atualizarLancamento(idx, l.id, { categoria: v, subcategoria: null })
+                                  }
+                                  onCriar={(texto) =>
+                                    setNovaCategoria({
+                                      nome: texto,
+                                      faturaIdx: idx,
+                                      lancamentoId: l.id,
                                     })
                                   }
+                                  rotuloCriar="Criar categoria"
+                                />
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="icon"
+                                  className="size-7 shrink-0"
+                                  title="Criar uma categoria nova"
+                                  aria-label="Criar uma categoria nova"
+                                  onClick={() =>
+                                    setNovaCategoria({ nome: "", faturaIdx: idx, lancamentoId: l.id })
+                                  }
                                 >
-                                  <SelectTrigger className="h-7 w-full min-w-0 px-1 text-[11px]">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {listaCategorias.map((c) => (
-                                      <SelectItem key={c} value={c}>
-                                        {c}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
+                                  <Plus className="size-4" aria-hidden="true" />
+                                </Button>
                                 {(() => {
                                   const adicionada = regras.some(
                                     (r) =>
@@ -3094,6 +3140,44 @@ function ImportarPage() {
           </div>
           <DialogFooter>
             <Button onClick={() => setModalAnaliseOpen(false)}>Fechar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!novaCategoria} onOpenChange={(o) => !o && setNovaCategoria(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Nova categoria</DialogTitle>
+            <DialogDescription>
+              A categoria é criada agora e já fica selecionada nesta linha. Ela passa a aparecer em
+              todas as listas de categoria do site.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-1">
+            <Label className="text-xs">Nome</Label>
+            <Input
+              autoFocus
+              value={novaCategoria?.nome ?? ""}
+              placeholder="Ex.: Assinaturas, Pet, Educação"
+              onChange={(e) =>
+                setNovaCategoria((a) => (a ? { ...a, nome: e.target.value } : a))
+              }
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && novaCategoria?.nome.trim())
+                  criarCategoria.mutate(novaCategoria);
+              }}
+            />
+          </div>
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button variant="outline" onClick={() => setNovaCategoria(null)}>
+              Cancelar
+            </Button>
+            <Button
+              disabled={!novaCategoria?.nome.trim() || criarCategoria.isPending}
+              onClick={() => novaCategoria && criarCategoria.mutate(novaCategoria)}
+            >
+              Criar e usar
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -34,6 +34,7 @@ import { useSession } from "@/hooks/useAuthData";
 import { supabase } from "@/integrations/supabase/client";
 import { lembrarClassificacao } from "@/lib/classificacao-lembrada";
 import { Input } from "@/components/ui/input";
+import { SelectBusca } from "@/components/SelectBusca";
 import { Label } from "@/components/ui/label";
 import { usePrivacidadeValores } from "@/hooks/usePrivacidadeValores";
 import { criarCorPorCategoria } from "@/lib/categorias-cor";
@@ -622,23 +623,18 @@ function ParaOndeVaiPage() {
                     <div className="mt-2 space-y-2 rounded-md bg-muted/40 p-2">
                       <div className="space-y-1">
                         <Label className="text-[11px]">Categoria</Label>
-                        <Select
-                          value={edit.categoria}
-                          onValueChange={(v) =>
+                        <SelectBusca
+                          className="h-8 text-xs"
+                          ariaLabel="Escolher categoria"
+                          placeholder="Escolha a categoria"
+                          valor={edit.categoria}
+                          opcoes={(categoriasCadastradas as { id: string; nome: string }[]).map(
+                            (c) => ({ valor: c.nome, rotulo: c.nome }),
+                          )}
+                          onEscolher={(v) =>
                             setEdicao((a) => ({ ...a, [i.chave]: { ...edit, categoria: v } }))
                           }
-                        >
-                          <SelectTrigger className="h-8 text-xs">
-                            <SelectValue placeholder="Escolha a categoria" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {(categoriasCadastradas as { id: string; nome: string }[]).map((c) => (
-                              <SelectItem key={c.id} value={c.nome} className="text-xs">
-                                {c.nome}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        />
                       </div>
                       <div className="space-y-1">
                         <Label className="text-[11px]">Subcategoria (opcional)</Label>

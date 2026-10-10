@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { SelectBusca } from "@/components/SelectBusca";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -593,19 +594,17 @@ function ReceitasPage() {
               className="h-11"
             />
           )}
-          <Select value={filtroCat} onValueChange={setFiltroCat}>
-            <SelectTrigger className="h-11 text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todas">Todas as categorias</SelectItem>
-              {categorias.map((c: any) => (
-                <SelectItem key={c.id} value={c.nome}>
-                  {c.nome}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <SelectBusca
+            className="h-11 text-xs"
+            ariaLabel="Filtrar por categoria"
+            placeholder="Categoria"
+            valor={filtroCat}
+            opcoes={[
+              { valor: "todas", rotulo: "Todas as categorias" },
+              ...categorias.map((c: any) => ({ valor: c.nome as string, rotulo: c.nome as string })),
+            ]}
+            onEscolher={setFiltroCat}
+          />
           <Select value={filtroResp} onValueChange={setFiltroResp}>
             <SelectTrigger className="h-11 text-xs">
               <SelectValue />
@@ -838,21 +837,16 @@ function ReceitasPage() {
               </Select>
             </Field>
             <Field label="Categoria">
-              <Select
-                value={form.categoria}
-                onValueChange={(v) => setForm({ ...form, categoria: v })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categorias.map((c: any) => (
-                    <SelectItem key={c.id} value={c.nome}>
-                      {c.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SelectBusca
+                ariaLabel="Categoria da receita"
+                placeholder="Selecione"
+                valor={form.categoria}
+                opcoes={categorias.map((c: any) => ({
+                  valor: c.nome as string,
+                  rotulo: c.nome as string,
+                }))}
+                onEscolher={(v) => setForm({ ...form, categoria: v })}
+              />
             </Field>
             <Field label="Data de recebimento">
               <Input

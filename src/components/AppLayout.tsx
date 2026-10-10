@@ -645,17 +645,14 @@ export function AppLayout({
 
   const SidebarInner = ({ onNavigate }: { onNavigate?: (() => void) | undefined }) => (
     <div className="flex h-full flex-col gap-4 p-4">
-      <div className="flex items-center gap-3 px-2 py-1">
-        <Link to="/dashboard" onClick={onNavigate} className="flex min-w-0 flex-1 items-center gap-3">
-          <BrandMark className="size-9 rounded-xl" />
-          <div className="min-w-0">
-            <p className="truncate text-sm font-bold leading-tight">Control ALL</p>
-            <p className="truncate text-[11px] font-medium text-primary">Você no controle de tudo</p>
-            <p className="truncate text-xs text-muted-foreground">{profile?.nome ?? ""}</p>
-          </div>
-        </Link>
-        <AvatarPerfil />
-      </div>
+      <Link to="/dashboard" onClick={onNavigate} className="flex items-center gap-3 px-2 py-1">
+        <BrandMark className="size-9 rounded-xl" />
+        <div className="min-w-0">
+          <p className="truncate text-sm font-bold leading-tight">Control ALL</p>
+          <p className="truncate text-[11px] font-medium text-primary">Você no controle de tudo</p>
+          <p className="truncate text-xs text-muted-foreground">{profile?.nome ?? ""}</p>
+        </div>
+      </Link>
       <OracleQuotaBadge />
       <NavLinks onNavigate={onNavigate} />
       <Button
@@ -832,7 +829,7 @@ export function AppLayout({
               </Button>
               <SeletorIdioma />
               <CalculadoraRapida />
-              <AvatarPerfil tamanho="size-8" permitirTroca={false} className="ml-0.5" />
+              <AvatarPerfil tamanho="size-8" className="ml-1" />
               <span className="hidden sm:contents">
                 <ConviteRapidoBotao />
               </span>

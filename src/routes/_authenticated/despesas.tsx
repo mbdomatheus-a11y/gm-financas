@@ -73,6 +73,7 @@ import {
   useProfilesList,
 } from "@/hooks/useFinance";
 import { lembrarClassificacao } from "@/lib/classificacao-lembrada";
+import { SelectBusca } from "@/components/SelectBusca";
 import { usePermissoes, useSession } from "@/hooks/useAuthData";
 import {
   competenciaDe,
@@ -1038,19 +1039,17 @@ function DespesasPage() {
               ))}
             </SelectContent>
           </Select>
-          <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
-            <SelectTrigger className="h-11 text-xs">
-              <SelectValue placeholder="Categoria" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todas as categorias</SelectItem>
-              {categorias.map((c: any) => (
-                <SelectItem key={c.id} value={c.nome}>
-                  {c.nome}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <SelectBusca
+            className="h-11 text-xs"
+            ariaLabel="Filtrar por categoria"
+            placeholder="Categoria"
+            valor={filtroCategoria}
+            opcoes={[
+              { valor: "todos", rotulo: "Todas as categorias" },
+              ...categorias.map((c: any) => ({ valor: c.nome as string, rotulo: c.nome as string })),
+            ]}
+            onEscolher={setFiltroCategoria}
+          />
           <Select value={filtroResponsavel} onValueChange={setFiltroResponsavel}>
             <SelectTrigger className="h-11 text-xs">
               <SelectValue placeholder="Responsável" />
@@ -1572,21 +1571,16 @@ function DespesasPage() {
               </Select>
             </Field>
             <Field label="Categoria">
-              <Select
-                value={form.categoria}
-                onValueChange={(v) => setForm({ ...form, categoria: v })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categorias.map((c: any) => (
-                    <SelectItem key={c.id} value={c.nome}>
-                      {c.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SelectBusca
+                ariaLabel="Categoria da despesa"
+                placeholder="Selecione"
+                valor={form.categoria}
+                opcoes={categorias.map((c: any) => ({
+                  valor: c.nome as string,
+                  rotulo: c.nome as string,
+                }))}
+                onEscolher={(v) => setForm({ ...form, categoria: v })}
+              />
             </Field>
             <Field label="Tipo">
               <Select value={form.tipo} onValueChange={(v) => setForm({ ...form, tipo: v })}>
