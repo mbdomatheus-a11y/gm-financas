@@ -183,7 +183,7 @@ export const abrirLinkAdmin = createServerFn({ method: "POST" })
     const admin = await ehAdmin(context);
     const { data: link } = await (supabaseAdmin as any)
       .from("links_admin")
-      .select("titulo,conteudo,tipo,expira_em,arquivado,atualizado_em")
+      .select("titulo,conteudo,tipo,expira_em,arquivado,atualizado_em,concluida_em")
       .eq("id", data.id)
       .maybeSingle();
     if (!link || (link.arquivado && !admin)) return { status: "nao_encontrado" as const };
@@ -195,6 +195,7 @@ export const abrirLinkAdmin = createServerFn({ method: "POST" })
       titulo: link.titulo as string,
       conteudo: link.conteudo as string,
       atualizadoEm: link.atualizado_em as string,
+      concluidaEm: (link.concluida_em ?? null) as string | null,
     };
   });
 

@@ -1,10 +1,7 @@
-import { AppEmBreve } from "@/components/AppEmBreve";
-import { ConvitesRecebidosAviso } from "@/components/ConvitesGrupo";
-import { useEffect, useState, type MouseEvent, type ReactNode } from "react";
-import { lembrarUrlRetorno, limparUrlRetorno } from "@/lib/return-url";
+import { useState, type ReactNode } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { encerrarSessao } from "@/lib/login-protecao.functions";
-import { Link, useNavigate, useRouter, useRouterState } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   LayoutDashboard,
@@ -14,6 +11,7 @@ import {
   PiggyBank,
   Share2,
   Users,
+  Palette,
   Settings,
   LogOut,
   Menu,
@@ -31,11 +29,7 @@ import {
   MapPin,
   FileHeart,
   ShieldCheck,
-  CalendarDays,
   Headphones,
-  Link2,
-  ArrowLeft,
-  ChevronDown,
 } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -49,24 +43,13 @@ import {
 import { useApplyPreferencias, usePreferencias } from "@/hooks/usePreferencias";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { AlertsBell } from "@/components/AlertsBell";
-import { CalculadoraRapida } from "@/components/CalculadoraRapida";
-import { ConviteRapidoBotao } from "@/components/ConviteAmigosBanner";
 import { BrandMark } from "@/components/BrandMark";
 import { BotaoLancamentoRapido } from "@/components/LancamentoRapido/BotaoLancamentoRapido";
 import { obterUsoOracleDoMeuGrupo } from "@/lib/oracle-admin.functions";
 import { usePrivacidadeValores } from "@/hooks/usePrivacidadeValores";
-import { useMascaraValores } from "@/hooks/useMascaraValores";
 import { Eye, EyeOff } from "lucide-react";
-import { ADMIN_ONLY_TAG, AREAS, ORDEM_AREAS, type AreaId } from "@/lib/areas";
 
 /** Item 16 (backlog 2026-09-27): mostra a cota de armazenamento Oracle do
  * PRÓPRIO grupo do usuário (nunca de outro grupo), embaixo do nome do site
@@ -90,10 +73,7 @@ function OracleQuotaBadge() {
   const formatarMb = (bytes: number) => `${(bytes / (1024 * 1024)).toFixed(0)} MB`;
 
   return (
-    <div
-      className="mt-1.5 px-2"
-      title={`${formatarMb(data.usadoBytes)} de ${formatarMb(data.cotaBytes)} usados`}
-    >
+    <div className="mt-1.5 px-2" title={`${formatarMb(data.usadoBytes)} de ${formatarMb(data.cotaBytes)} usados`}>
       <div className="flex items-center justify-between gap-2">
         <span className="text-[10px] text-muted-foreground">Armazenamento</span>
         <span className={`text-[10px] font-semibold tabular-nums ${corTexto}`}>
@@ -109,7 +89,6 @@ function OracleQuotaBadge() {
 
 type NavTo =
   | "/inicio"
-  | "/links-temporarios"
   | "/dashboard"
   | "/receitas"
   | "/despesas"
@@ -118,7 +97,6 @@ type NavTo =
   | "/de-para"
   | "/lista-compras"
   | "/notas"
-  | "/links"
   | "/cartoes"
   | "/investimentos"
   | "/veiculos"
@@ -128,14 +106,10 @@ type NavTo =
   | "/backup"
   | "/personalizacao"
   | "/conta"
-  | "/configuracoes"
   | "/pets"
   | "/onde-esta"
   | "/exames"
   | "/administracao"
-  | "/calendario"
-  | "/casa"
-  | "/documentos"
   | "/suporte";
 
 type NavItem = {
@@ -145,12 +119,18 @@ type NavItem = {
   icon: typeof LayoutDashboard;
   modulo?: Modulo;
   adminOnly?: boolean;
-  grupoAdmin?: boolean;
   moduloGlobal?: ModuloGlobal;
 };
 
 type MundoId =
-  "financas" | "lista" | "notas" | "calculadora" | "pet" | "onde_esta" | "veiculo" | "exames" | "links";
+  | "financas"
+  | "lista"
+  | "notas"
+  | "calculadora"
+  | "pet"
+  | "onde_esta"
+  | "veiculo"
+  | "exames";
 
 /**
  * Navegação em "mundos" (2026-09-18, revisado em 2026-09-26): cada módulo
@@ -196,10 +176,7 @@ const MUNDOS: Record<MundoId, { titulo: string; home: NavTo; items: NavItem[] }>
         label: "Importar Faturas",
         short: "Faturas",
         icon: FileUp,
-        // Etapa D (plano-importacao-v2.md): módulo próprio em vez de
-        // reaproveitar "despesas" — permite ao admin bloquear o acesso à
-        // importação sem afetar a visualização normal de despesas.
-        modulo: "importar",
+        modulo: "despesas",
       },
       { to: "/categorias", label: "Categorias", short: "Categ.", icon: Tags },
       {
@@ -251,35 +228,15 @@ const MUNDOS: Record<MundoId, { titulo: string; home: NavTo; items: NavItem[] }>
       },
     ],
   },
-  links: {
-    titulo: "Links",
-    home: "/links",
-    items: [
-      {
-        to: "/links",
-        label: "Links",
-        short: "Links",
-        icon: Link2,
-        moduloGlobal: "links",
-      },
-    ],
-  },
   calculadora: {
-    titulo: "Utilidades",
+    titulo: "Calculadora",
     home: "/ferramentas",
     items: [
       {
         to: "/ferramentas",
-        label: "Calculadoras",
-        short: "Calculadoras",
+        label: "Calculadora",
+        short: "Calculadora",
         icon: Calculator,
-        moduloGlobal: "calculadora",
-      },
-      {
-        to: "/links-temporarios",
-        label: "Link temporário",
-        short: "Link",
-        icon: Link2,
         moduloGlobal: "calculadora",
       },
     ],
@@ -353,23 +310,18 @@ const GLOBAL: NavItem[] = [
     label: "Backup e Reset",
     short: "Backup",
     icon: DatabaseBackup,
-    grupoAdmin: true,
+    adminOnly: true,
   },
   {
-    to: "/configuracoes",
-    label: "Configurações",
-    short: "Config.",
-    icon: Settings,
+    to: "/personalizacao",
+    label: "Personalização",
+    short: "Tema",
+    icon: Palette,
+    modulo: "personalizacao",
   },
+  { to: "/conta", label: "Configurações da conta", short: "Conta", icon: Settings },
   { to: "/suporte", label: "Suporte", short: "Suporte", icon: Headphones },
 ];
-
-const CALENDARIO: NavItem = {
-  to: "/calendario",
-  label: "Calendário",
-  short: "Agenda",
-  icon: CalendarDays,
-};
 
 const INICIO: NavItem = { to: "/inicio", label: "Início", short: "Início", icon: Home };
 
@@ -395,12 +347,10 @@ export function AppLayout({
   useApplyPreferencias();
   const { prefs } = usePreferencias();
   const { data: profile } = useProfile();
-  const { can, isSiteAdmin, isAdmin } = usePermissoes();
+  const { can, isSiteAdmin } = usePermissoes();
   const { ocultarValores, toggle: alternarOcultarValores } = usePrivacidadeValores();
-  const { habilitado, liberadoGeral } = useModulosGlobais();
-  useMascaraValores(ocultarValores);
+  const { habilitado } = useModulosGlobais();
   const navigate = useNavigate();
-  const router = useRouter();
   const qc = useQueryClient();
   const registrarEncerramento = useServerFn(encerrarSessao);
   const [open, setOpen] = useState(false);
@@ -410,12 +360,11 @@ export function AppLayout({
   // Preserva o caminho atual e parâmetros para recuperar se a sessão for reconectada
   if (typeof window !== "undefined" && pathname && pathname !== "/entrar" && pathname !== "/") {
     const currentFullUrl = `${location.pathname}${location.searchStr ?? ""}`;
-    lembrarUrlRetorno(currentFullUrl);
+    sessionStorage.setItem("control-all-return-url", currentFullUrl);
   }
 
   const podeVer = (i: NavItem) => {
     if (i.adminOnly) return isSiteAdmin;
-    if (i.grupoAdmin) return isAdmin;
     if (i.moduloGlobal && !habilitado(i.moduloGlobal)) return false;
     if (i.modulo) return can(i.modulo, "ver");
     return true;
@@ -432,7 +381,6 @@ export function AppLayout({
     onde_esta: "onde_esta",
     veiculo: "veiculo",
     exames: "exames",
-    links: "links",
   };
   const mundoVisivel = (id: MundoId) => {
     const m = MUNDOS[id];
@@ -441,29 +389,15 @@ export function AppLayout({
     return m.items.filter(podeVer).length > 0;
   };
   const mundosVisiveis = (Object.keys(MUNDOS) as MundoId[]).filter(mundoVisivel);
-  const areasVisiveis = ORDEM_AREAS.filter((a) =>
-    AREAS[a].modulos.some((m) => mundosVisiveis.includes(m as MundoId)),
-  );
-  const areaId: AreaId | null =
-    ORDEM_AREAS.find(
-      (a) =>
-        pathname === AREAS[a].to ||
-        (mundoId !== null && AREAS[a].modulos.includes(mundoId as ModuloGlobal)),
-    ) ?? null;
-  const area = areaId ? AREAS[areaId] : null;
-  const soAdminItem = (i: NavItem) =>
-    isSiteAdmin && !!i.moduloGlobal && !liberadoGeral(i.moduloGlobal);
   const itensDoMundo = (
     mundo && (!mundoId || !mundoGlobal[mundoId] || habilitado(mundoGlobal[mundoId]!))
       ? mundo.items
       : []
   ).filter(podeVer);
-  const itensGlobais = GLOBAL.filter(podeVer).filter((i) => !i.adminOnly);
-  const itensAdmin = GLOBAL.filter(podeVer).filter((i) => i.adminOnly);
-  // "superior": menu horizontal no desktop. Padrão ("lateral"): barra lateral.
-  const topMenu = prefs.layout_menu === "superior";
-  const [abertas, setAbertas] = useState<Record<string, boolean>>({});
-  useEffect(() => setAbertas({}), [areaId]);
+  const itensGlobais = GLOBAL.filter(podeVer);
+
+  const mobileItems = [INICIO, ...(mundo ? itensDoMundo : itensGlobais).slice(0, 3)];
+  const bottomNav = prefs.layout_menu === "bottom";
 
   async function signOut() {
     try {
@@ -476,103 +410,49 @@ export function AppLayout({
     await supabase.auth.signOut();
     sessionStorage.removeItem("control-all-sessao-iniciada");
     sessionStorage.removeItem("control-all-sessao-max-min");
-    limparUrlRetorno();
     navigate({ to: "/entrar", replace: true });
   }
 
   const NavLink = ({
-      item,
-      onNavigate,
-      ativo,
-      recuo,
-      soAdmin,
-      aoClicar,
-      aberto,
-    }: {
-      item: NavItem;
-      onNavigate?: (() => void) | undefined;
-      ativo?: boolean | undefined;
-      recuo?: boolean | undefined;
-      soAdmin?: boolean | undefined;
-      aoClicar?: ((e: MouseEvent) => void) | undefined;
-      aberto?: boolean | undefined;
-    }) => {
-    const active = ativo ?? pathname === item.to;
+    item,
+    onNavigate,
+  }: {
+    item: NavItem;
+    onNavigate?: (() => void) | undefined;
+  }) => {
+    const active = pathname === item.to;
     const Icon = item.icon;
     return (
       <Link
         to={item.to}
-        onClick={(e: MouseEvent<HTMLAnchorElement>) => {
-          aoClicar?.(e);
-          if (!e.defaultPrevented) onNavigate?.();
-        }}
-        aria-expanded={aberto}
+        onClick={onNavigate}
         className={cn(
           "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
-          recuo && "ml-4 py-2 text-[13px]",
-          soAdmin && !active && "bg-violet-500/[0.07] text-violet-700 dark:text-violet-300",
           active
-            ? "bg-primary/10 text-primary shadow-[inset_3px_0_0_var(--brand)]"
+            ? "bg-sidebar-accent text-sidebar-accent-foreground"
             : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
         )}
       >
         <Icon className={cn("size-4.5 shrink-0", active && "text-primary")} />
         <span className="truncate">{item.label}</span>
-        {soAdmin && <span className={cn(ADMIN_ONLY_TAG, "ml-auto")}>Admin</span>}
-        {aberto !== undefined && (
-          <ChevronDown
-            aria-hidden="true"
-            className={cn("ml-auto size-4 shrink-0 transition-transform", aberto && "rotate-180")}
-          />
-        )}
       </Link>
     );
   };
 
   const NavLinks = ({ onNavigate }: { onNavigate?: (() => void) | undefined }) => (
-    <nav className="flex flex-1 flex-col gap-1 overflow-y-auto">
+    <nav className="flex flex-1 flex-col gap-1">
       <NavLink item={INICIO} onNavigate={onNavigate} />
-      <NavLink item={CALENDARIO} onNavigate={onNavigate} />
 
-      {areasVisiveis.length > 0 && (
-        <p className="mt-3 px-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/70">
-          Áreas
-        </p>
+      {mundo && itensDoMundo.length > 0 && (
+        <>
+          <p className="mt-3 px-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/70">
+            {mundo.titulo}
+          </p>
+          {itensDoMundo.map((item) => (
+            <NavLink key={item.to} item={item} onNavigate={onNavigate} />
+          ))}
+        </>
       )}
-      {areasVisiveis.map((id) => {
-        const a = AREAS[id];
-        const ativa = areaId === id;
-        const aberta = abertas[id] ?? ativa;
-        const entrada: NavItem = { to: a.to, label: a.titulo, short: a.titulo, icon: a.icon };
-        const filhos = a.modulos
-          .filter((m) => mundosVisiveis.includes(m as MundoId))
-          .flatMap((m) => MUNDOS[m as MundoId].items)
-          .filter(podeVer)
-          .filter((i) => i.to !== a.to);
-        return (
-          <div key={id} className="flex flex-col gap-1">
-            <NavLink
-              item={entrada}
-              onNavigate={onNavigate}
-              ativo={ativa && pathname === a.to}
-              aberto={filhos.length > 0 ? aberta : undefined}
-              aoClicar={(e) => {
-                // Segundo clique na área já aberta recolhe as opções.
-                if (aberta && pathname === a.to) {
-                  e.preventDefault();
-                  setAbertas((s) => ({ ...s, [id]: false }));
-                } else {
-                  setAbertas((s) => ({ ...s, [id]: true }));
-                }
-              }}
-            />
-            {aberta &&
-              filhos.map((item) => (
-                <NavLink key={item.to} item={item} onNavigate={onNavigate} recuo soAdmin={soAdminItem(item)} />
-              ))}
-          </div>
-        );
-      })}
 
       <p className="mt-3 px-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/70">
         Geral
@@ -580,17 +460,6 @@ export function AppLayout({
       {itensGlobais.map((item) => (
         <NavLink key={item.to} item={item} onNavigate={onNavigate} />
       ))}
-
-      {itensAdmin.length > 0 && (
-        <>
-          <p className="mt-3 px-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/70">
-            Administração
-          </p>
-          {itensAdmin.map((item) => (
-            <NavLink key={item.to} item={item} onNavigate={onNavigate} soAdmin />
-          ))}
-        </>
-      )}
     </nav>
   );
 
@@ -600,7 +469,6 @@ export function AppLayout({
         <BrandMark className="size-9 rounded-xl" />
         <div className="min-w-0">
           <p className="truncate text-sm font-bold leading-tight">Control ALL</p>
-          <p className="truncate text-[11px] font-medium text-primary">Você no controle de tudo</p>
           <p className="truncate text-xs text-muted-foreground">{profile?.nome ?? ""}</p>
         </div>
       </Link>
@@ -616,151 +484,44 @@ export function AppLayout({
     </div>
   );
 
-  const linkTopo = (active: boolean) =>
-    cn(
-      "inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-      active ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground",
-    );
-
-  const TopMenuBar = () => (
-    <div className="sticky top-0 z-30 hidden h-14 items-center gap-1 border-b bg-sidebar px-4 lg:flex">
-      <Link to="/dashboard" className="mr-3 flex items-center gap-2">
-        <BrandMark className="size-8 rounded-lg" />
-        <span className="text-sm font-bold">Control ALL</span>
-      </Link>
-      {[INICIO, CALENDARIO].map((item) => {
-        const Icon = item.icon;
-        return (
-          <Link key={item.to} to={item.to} className={linkTopo(pathname === item.to)}>
-            <Icon className="size-4" aria-hidden="true" /> {item.label}
-          </Link>
-        );
-      })}
-      {areasVisiveis.map((id) => {
-        const a = AREAS[id];
-        const Icon = a.icon;
-        const filhos = a.modulos
-          .filter((m) => mundosVisiveis.includes(m as MundoId))
-          .flatMap((m) => MUNDOS[m as MundoId].items)
-          .filter(podeVer)
-          .filter((i) => i.to !== a.to);
-        const ativa = areaId === id;
-        if (filhos.length === 0) {
-          return (
-            <Link key={id} to={a.to} className={linkTopo(ativa)}>
-              <Icon className="size-4" aria-hidden="true" /> {a.titulo}
-            </Link>
-          );
-        }
-        return (
-          <DropdownMenu key={id}>
-            <DropdownMenuTrigger className={linkTopo(ativa)}>
-              <Icon className="size-4" aria-hidden="true" /> {a.titulo}
-              <ChevronDown className="size-3.5" aria-hidden="true" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="min-w-52">
-              <DropdownMenuItem asChild>
-                <Link to={a.to}>Visão geral</Link>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              {filhos.map((item) => {
-                const IconeItem = item.icon;
-                return (
-                  <DropdownMenuItem key={item.to} asChild>
-                    <Link to={item.to} className="flex items-center gap-2">
-                      <IconeItem className="size-4" aria-hidden="true" /> {item.label}
-                      {soAdminItem(item) && <span className={cn(ADMIN_ONLY_TAG, "ml-auto")}>Admin</span>}
-                    </Link>
-                  </DropdownMenuItem>
-                );
-              })}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        );
-      })}
-      <div className="ml-auto flex items-center gap-1">
-        <DropdownMenu>
-          <DropdownMenuTrigger className={linkTopo(false)}>
-            {profile?.nome ?? "Conta"} <ChevronDown className="size-3.5" aria-hidden="true" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="min-w-56">
-            {itensGlobais.map((item) => {
-              const IconeItem = item.icon;
-              return (
-                <DropdownMenuItem key={item.to} asChild>
-                  <Link to={item.to} className="flex items-center gap-2">
-                    <IconeItem className="size-4" aria-hidden="true" /> {item.label}
-                  </Link>
-                </DropdownMenuItem>
-              );
-            })}
-            {itensAdmin.length > 0 && <DropdownMenuSeparator />}
-            {itensAdmin.map((item) => {
-              const IconeItem = item.icon;
-              return (
-                <DropdownMenuItem key={item.to} asChild className="bg-violet-500/[0.07]">
-                  <Link to={item.to} className="flex items-center gap-2">
-                    <IconeItem className="size-4" aria-hidden="true" /> {item.label}
-                    <span className={cn(ADMIN_ONLY_TAG, "ml-auto")}>Admin</span>
-                  </Link>
-                </DropdownMenuItem>
-              );
-            })}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={() => void signOut()}>
-              <LogOut className="size-4" aria-hidden="true" /> Sair
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-    </div>
-  );
-
   return (
     <div className="min-h-screen bg-background">
-      {!topMenu && (
+      {!bottomNav && (
         <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 border-r bg-sidebar lg:block">
           <SidebarInner />
         </aside>
       )}
 
-      <div className={cn(!topMenu && "lg:pl-64")}>
-        {topMenu && <TopMenuBar />}
-        <ConvitesRecebidosAviso />
-        <header
-          className={cn(
-            "glass sticky top-0 z-20 border-b border-border/60",
-            topMenu && "lg:top-14",
-          )}
-        >
+      <div className={cn(!bottomNav && "lg:pl-64")}>
+        <header className="sticky top-0 z-20 border-b bg-background/80 backdrop-blur-md">
           <div className="flex items-center gap-3 px-4 py-3">
-            {pathname !== "/inicio" && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="shrink-0 gap-1.5 px-2"
-                aria-label="Voltar"
-                title="Voltar para a tela anterior"
-                onClick={() => {
-                  if (typeof window !== "undefined" && window.history.length > 1) router.history.back();
-                  else void navigate({ to: "/inicio" });
-                }}
-              >
-                <ArrowLeft className="size-4.5" aria-hidden="true" />
-                <span className="hidden text-xs font-medium sm:inline">Voltar</span>
-              </Button>
-            )}
+            <Sheet open={open} onOpenChange={setOpen}>
+              <SheetTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn(!bottomNav && "lg:hidden")}
+                  aria-label="Abrir menu"
+                >
+                  <Menu className="size-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-72 bg-sidebar p-0">
+                <SheetTitle className="sr-only">Menu</SheetTitle>
+                <SidebarInner onNavigate={() => setOpen(false)} />
+              </SheetContent>
+            </Sheet>
+
             <div className="min-w-0 flex-1">
               <h1 className="truncate text-base font-semibold leading-tight sm:text-lg">{title}</h1>
               {description && (
                 <p className="truncate text-xs text-muted-foreground">{description}</p>
               )}
             </div>
-            <div className="flex shrink-0 items-center gap-0.5 sm:gap-2">
+            <div className="flex shrink-0 items-center gap-2">
               <Button
-                variant={ocultarValores ? "default" : "ghost"}
-                size={ocultarValores ? "sm" : "icon"}
-                className={cn(ocultarValores && "gap-1.5 animate-pulse")}
+                variant="ghost"
+                size="icon"
                 onClick={alternarOcultarValores}
                 aria-label={ocultarValores ? "Mostrar valores em R$" : "Ocultar valores em R$"}
                 title={
@@ -770,45 +531,56 @@ export function AppLayout({
                 }
               >
                 {ocultarValores ? <EyeOff className="size-4.5" /> : <Eye className="size-4.5" />}
-                {ocultarValores && <span className="text-xs font-semibold">Mostrar valores</span>}
               </Button>
-              <Button asChild variant="ghost" size="sm" className="hidden gap-1.5 px-2 sm:inline-flex">
-                <Link to="/calendario" aria-label="Abrir calendário" title="Calendário">
-                  <CalendarDays className="size-4.5" />
-                  <span className="hidden text-xs font-medium sm:inline">Calendário</span>
-                </Link>
-              </Button>
-              <CalculadoraRapida />
-              <span className="hidden sm:contents">
-                <ConviteRapidoBotao />
-              </span>
               <AlertsBell />
               {actions}
             </div>
           </div>
 
+          {/* Alternador de módulos (2026-09-26): antes, ao entrar num módulo
+              (ex.: Finanças), os outros módulos (Lista, Onde está?, Exames…)
+              desapareciam do menu lateral e só voltavam pela Início. Esta
+              barra fica sempre visível no topo, mostra em qual módulo você
+              está (destacado) e deixa pular pra qualquer outro em 1 clique. */}
+          {mundosVisiveis.length > 0 && (
+            <nav
+              aria-label="Módulos"
+              className="flex gap-1.5 overflow-x-auto px-3 pb-2.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            >
+              {mundosVisiveis.map((id) => {
+                const m = MUNDOS[id];
+                const Icon = m.items[0]!.icon;
+                const ativo = mundoId === id;
+                return (
+                  <Link
+                    key={id}
+                    to={m.home}
+                    className={cn(
+                      "flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                      ativo
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-transparent bg-muted/60 text-muted-foreground hover:bg-muted",
+                    )}
+                  >
+                    <Icon className="size-3.5" />
+                    {m.titulo}
+                  </Link>
+                );
+              })}
+            </nav>
+          )}
         </header>
 
-        <main className="mx-auto w-full max-w-7xl px-4 pb-28 pt-6 lg:px-8 lg:pb-10">{children}
-          <AppEmBreve className="mt-10" />
-        </main>
+        <main className="mx-auto w-full max-w-7xl px-4 pb-28 pt-5 lg:pb-10">{children}</main>
       </div>
 
-      <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent side="left" className="w-72 bg-sidebar p-0">
-          <SheetTitle className="sr-only">Menu</SheetTitle>
-          <SidebarInner onNavigate={() => setOpen(false)} />
-        </SheetContent>
-      </Sheet>
-
       <nav
-        aria-label="Navegação principal"
         className={cn(
-          "glass fixed inset-x-2 bottom-2 z-30 grid grid-cols-4 gap-1 rounded-2xl border border-border/60 px-2 pb-[env(safe-area-inset-bottom)] pt-1 shadow-[var(--shadow-soft)]",
-          "lg:hidden",
+          "fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 gap-1 border-t bg-background/95 px-2 pb-[env(safe-area-inset-bottom)] pt-1 backdrop-blur-md",
+          !bottomNav && "lg:hidden",
         )}
       >
-        {[INICIO, CALENDARIO].map((item) => {
+        {mobileItems.map((item) => {
           const active = pathname === item.to;
           const Icon = item.icon;
           return (
@@ -825,38 +597,13 @@ export function AppLayout({
             </Link>
           );
         })}
-        <Link
-          to={area ? area.to : "/compartilhar"}
-          className={cn(
-            "flex flex-col items-center gap-1 rounded-lg py-2 text-[11px] font-medium",
-            area && pathname === area.to ? "text-primary" : "text-muted-foreground",
-          )}
-        >
-          {area ? (
-            (() => {
-              const Ic = area.icon;
-              return <Ic className="size-5" />;
-            })()
-          ) : (
-            <Share2 className="size-5" />
-          )}
-          {area ? area.titulo : "Compart."}
-        </Link>
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          className="flex flex-col items-center gap-1 rounded-lg py-2 text-[11px] font-medium text-muted-foreground"
-        >
-          <Menu className="size-5" />
-          Menu
-        </button>
       </nav>
 
       {/* Lançamento rápido por texto/áudio (IA) — pedido explícito do usuário
           (2026-10-01): botão flutuante acessível de qualquer tela
           autenticada, não escondido dentro dos formulários de
           despesas/receitas. Ver claude/plano-lancamento-ia-2026-10-01.md. */}
-      {mundoId === "financas" && <BotaoLancamentoRapido />}
+      <BotaoLancamentoRapido />
     </div>
   );
 }

@@ -1,4 +1,7 @@
 import { useMemo, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { obterAvisoCalculadora } from "@/lib/aviso-calculadora.functions";
 import { AlertTriangle, Syringe } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -83,6 +86,10 @@ function paraNumero(v: string): number {
  */
 export function SimuladorInterativo() {
   const [aceito, setAceito] = useState(false);
+  const obterAviso = useServerFn(obterAvisoCalculadora);
+  const { data: avisoCfg, isPending: avisoCarregando } = useQuery({ queryKey: ["aviso-calculadora"], queryFn: () => obterAviso(), retry: false });
+  // Visitante sem login (página pública) não consegue ler a configuração: nesse caso o aviso fica sempre ligado.
+  const avisoLigado = avisoCarregando ? false : (avisoCfg?.exibir ?? true);
 
   const [frascoMg, setFrascoMg] = useState("15");
   const [frascoMl, setFrascoMl] = useState("0.5");
@@ -217,7 +224,7 @@ export function SimuladorInterativo() {
       <div className="pointer-events-none absolute -right-1 -top-5 z-10 -rotate-12 select-none rounded-sm border border-warning/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-warning/50">
         Uso somente acadêmico
       </div>
-      {!aceito && (
+      {avisoLigado && !aceito && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
           <div className="w-full max-w-md rounded-2xl bg-card p-6 text-center shadow-2xl">
             <AlertTriangle className="mx-auto size-10 text-destructive" />

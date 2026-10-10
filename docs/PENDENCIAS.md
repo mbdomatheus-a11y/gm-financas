@@ -351,3 +351,10 @@ Pendências manuais: git push origin main; DROP POLICY comprovantes_membro_ativo
 - Botão Voltar no cabeçalho de todas as telas (menos Início): volta ao histórico do navegador; se não houver histórico (app aberto direto), vai ao Início.
 - Menu lateral: clicar de novo na área aberta recolhe as opções (seta indica aberto/fechado).
 - Layout do menu: a opção "Menu superior" não funcionava (o código procurava o valor "bottom"). Agora o menu superior existe no desktop (áreas com lista, conta, admin e Sair). No celular continua a barra inferior.
+
+### Rodada 6 (2026-10-09)
+1. Visualizar nota (`/links/$id`): botão "Copiar nota toda" (título no topo do texto + conteúdo) e, para admin, "Concluir nota" / "Reabrir nota" dentro da própria tela.
+2. Fluxo de caixa mês a mês: novo padrão "3 meses (anterior, atual e próximo)"; o seletor de período continua com 6, 12, 24 meses e período personalizado. Preferência salva em nova chave, então todos voltam ao padrão de 3 meses uma vez.
+3. Exclusão de contas: só o admin principal agenda/exclui (já valia no servidor). Os demais administradores só podem revogar/desvincular do grupo (`revogarAcessoMembro`), sem excluir.
+4. Alerta da calculadora: era o aviso de uso acadêmico do Simulador de dose/diluição. Tinha sido removido na Rodada 5 (item 9). Religado com interruptor em Administração ("Aviso do simulador da calculadora"); desligado esconde o aviso para os usuários logados. Na página pública o aviso fica sempre ligado.
+5. "Widgets": a Home já tem widgets editáveis; aguardando o usuário dizer quais widgets novos quer (ex.: Fluxo de caixa).

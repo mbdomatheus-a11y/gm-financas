@@ -101,6 +101,7 @@ const PALETA = [
 ];
 
 const JANELAS = [
+  { value: "m1p1", label: "3 meses (anterior, atual e próximo)" },
   { value: "m1p5", label: "Mês anterior + próximos 5" },
   { value: "-6", label: "Últimos 6 meses" },
   { value: "-12", label: "Últimos 12 meses" },
@@ -116,6 +117,11 @@ function monthWindow(janela: string): string[] {
   const now = new Date();
   const out: string[] = [];
   // Item 10 (2026-10-05): padrão do site = mês anterior, o atual e os 5 seguintes.
+  if (janela === "m1p1") {
+    for (let i = -1; i <= 1; i++)
+      out.push(monthKey(new Date(now.getFullYear(), now.getMonth() + i, 1)));
+    return out;
+  }
   if (janela === "m1p5") {
     for (let i = -1; i <= 5; i++)
       out.push(monthKey(new Date(now.getFullYear(), now.getMonth() + i, 1)));
@@ -194,7 +200,7 @@ function DashboardPage() {
   // exatamente como antes (mês calendário normal).
   const mesAtual = useCompetenciaVigente();
   // Item 10 (2026-10-05): a última opção escolhida fica salva neste navegador.
-  const [janela, setJanela] = usePersistedState("dashboard.janela", "m1p5");
+  const [janela, setJanela] = usePersistedState("dashboard.janela2", "m1p1");
   const [mesInicioCustom, setMesInicioCustom] = usePersistedState("dashboard.mesInicioCustom", mesAtual);
   const [mesFimCustom, setMesFimCustom] = usePersistedState("dashboard.mesFimCustom", mesAtual);
   // Item 3 (backlog 2026-09-27): preferências de exibição do gráfico
@@ -272,7 +278,7 @@ function DashboardPage() {
       const fim = mesInicioCustom <= mesFimCustom ? mesFimCustom : mesInicioCustom;
       return monthRange(inicio, fim);
     }
-    return monthWindow(JANELAS.some((j) => j.value === janela) ? janela : "m1p5");
+    return monthWindow(JANELAS.some((j) => j.value === janela) ? janela : "m1p1");
   }, [janela, mesInicioCustom, mesFimCustom]);
 
   // Janela usada para calcular parcelas/lançamentos por competência — cobre
@@ -829,7 +835,7 @@ function DashboardPage() {
               </SelectContent>
             </Select>
             <Select value={janela} onValueChange={setJanela}>
-              <SelectTrigger className="h-8 w-[170px] text-xs">
+              <SelectTrigger className="h-8 w-[230px] text-xs" aria-label="Quantos meses ver">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

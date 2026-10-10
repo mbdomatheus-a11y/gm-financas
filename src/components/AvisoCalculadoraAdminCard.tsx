@@ -25,13 +25,13 @@ export function AvisoCalculadoraAdminCard() {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-sm">
-          <Info className="size-4" /> Aviso ao entrar na calculadora
+          <Info className="size-4" /> Aviso do simulador da calculadora
         </CardTitle>
       </CardHeader>
       <CardContent className="flex items-center justify-between gap-3">
         <p className="text-xs text-muted-foreground">
-          Mostra ou esconde, para todos os usuários, o aviso "Sobre o módulo Control ALL" que
-          aparece no topo da tela Calculadora.
+          Mostra ou esconde, para todos os usuários, o aviso de uso acadêmico que
+          aparece ao abrir o Simulador de dose/diluição (Ferramentas).
         </p>
         <Switch
           checked={data?.exibir ?? true}

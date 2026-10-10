@@ -1,6 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { LogPainel } from "@/components/LogPainel";
-import { AvisoCalculadoraAdminCard } from "@/components/AvisoCalculadoraAdminCard";
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -11,10 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils";
-import { ADMIN_ONLY_CARD, ADMIN_ONLY_TAG } from "@/lib/areas";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LinksAdminHabilitar } from "@/components/LinksAdminHabilitar";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { usePermissoes } from "@/hooks/useAuthData";
@@ -28,7 +23,6 @@ import {
   adminReenviarComunicado,
   adminListarLayouts,
   adminListarLogs,
-  adminListarFalhasLogin,
   adminMetricas,
   adminObterLayoutUrl,
 } from "@/lib/admin-avancado.functions";
@@ -38,9 +32,6 @@ import {
   adminSalvarConfiguracaoAcesso,
   adminSalvarModulo,
   obterConfiguracaoAcesso,
-  obterProtecaoAdmin,
-  salvarProtecaoAdmin,
-  verificarPinAdmin,
 } from "@/lib/configuracoes-site.functions";
 import {
   adminAlternarTour,
@@ -48,9 +39,6 @@ import {
   adminReenviarTour,
 } from "@/lib/tour.functions";
 import { IaLancamentoModoSiteCard } from "@/components/IaLancamentoModoSiteCard";
-import { AcessosSiteAdmin } from "@/components/AcessosSiteAdmin";
-import { PadroesAdmin } from "@/components/PadroesAdmin";
-import { TelaInicialPadraoCard } from "@/components/TelaInicialPadraoCard";
 import {
   adminListarSolicitacoesPrivacidade,
   adminTratarSolicitacaoPrivacidade,
@@ -103,74 +91,12 @@ import {
 
 // Item 8: `?aba=` permite que o botão "Tratar solicitação" dos e-mails de
 // notificação abra a Administração já na aba certa (privacidade/central).
-const GRUPOS_ADMIN: {
-  id: string;
-  titulo: string;
-  descricao: string;
-  abas: { id: string; rotulo: string }[];
-}[] = [
-  {
-    id: "visao",
-    titulo: "1. Visão geral",
-    descricao: "Números do site e consulta de dados",
-    abas: [
-      { id: "dados-gerais", rotulo: "Dados Gerais" },
-      { id: "consulta", rotulo: "Consulta" },
-      { id: "acessos", rotulo: "Acessos ao site" },
-    ],
-  },
-  {
-    id: "pessoas",
-    titulo: "2. Pessoas e pedidos",
-    descricao: "Acesso, solicitações e privacidade",
-    abas: [
-      { id: "acesso", rotulo: "Acesso e Auth" },
-      { id: "central", rotulo: "Central de Solicitações" },
-      { id: "privacidade", rotulo: "Privacidade LGPD" },
-    ],
-  },
-  {
-    id: "site",
-    titulo: "3. Site e módulos",
-    descricao: "O que aparece e como aparece",
-    abas: [
-      { id: "modulos", rotulo: "Módulos" },
-      { id: "personalizacao", rotulo: "Personalização" },
-      { id: "avisos", rotulo: "Avisos" },
-      { id: "links", rotulo: "Links" },
-      { id: "padroes", rotulo: "Categorias e De-para" },
-    ],
-  },
-  {
-    id: "infra",
-    titulo: "4. Armazenamento",
-    descricao: "Arquivos e espaço em disco",
-    abas: [{ id: "armazenamento", rotulo: "Armazenamento Oracle" }],
-  },
-  {
-    id: "seguranca",
-    titulo: "5. Segurança",
-    descricao: "Histórico de ações e auditoria",
-    abas: [{ id: "logs", rotulo: "Logs de Auditoria" }],
-  },
-];
-
 export const Route = createFileRoute("/_authenticated/administracao")({
   validateSearch: (search: Record<string, unknown>) => ({
-    aba: typeof search["aba"] === "string" ? search["aba"] : undefined,
+    aba: typeof search.aba === "string" ? search.aba : undefined,
   }),
   component: Admin,
 });
-
-const MOTIVOS_FALHA_LOGIN: Record<string, string> = {
-  usuario_nao_cadastrado: "Usuário não cadastrado",
-  senha_incorreta: "Senha incorreta",
-  conta_bloqueada: "Conta bloqueada (tentativas)",
-  conta_inativa: "Conta inativa",
-  cpf_invalido: "CPF inválido",
-  modo_login_nao_permitido: "Forma de login não permitida",
-  outro: "Outro",
-};
 
 function formatarTamanho(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -227,7 +153,6 @@ function Admin() {
   const layoutsFn = useServerFn(adminListarLayouts);
   const metricsFn = useServerFn(adminMetricas);
   const logsFn = useServerFn(adminListarLogs);
-  const falhasLoginFn = useServerFn(adminListarFalhasLogin);
   const atualizarFn = useServerFn(adminAtualizarLayout);
   const obterLayoutUrl = useServerFn(adminObterLayoutUrl);
   const criarComunicadoFn = useServerFn(adminCriarComunicado);
@@ -286,55 +211,6 @@ function Admin() {
   const [consultaDesbloqueada, setConsultaDesbloqueada] = useState(false);
   const [senhaConsulta, setSenhaConsulta] = useState("");
   const [erroSenhaConsulta, setErroSenhaConsulta] = useState("");
-  const [pinConsulta, setPinConsulta] = useState("");
-  const [preferirSenhaConta, setPreferirSenhaConta] = useState(false);
-  const [novoPinInput, setNovoPinInput] = useState("");
-  const [tipoProtecaoInput, setTipoProtecaoInput] = useState<"nenhuma" | "senha" | "pin">("senha");
-
-  const { data: protecaoAdmin } = useQuery({
-    queryKey: ["admin-protecao"],
-    enabled: isSiteAdmin,
-    queryFn: () => obterProtecaoAdmin(),
-  });
-
-  useEffect(() => {
-    if (protecaoAdmin?.tipo) {
-      setTipoProtecaoInput(protecaoAdmin.tipo);
-      if (protecaoAdmin.tipo === "nenhuma") {
-        setConsultaDesbloqueada(true);
-      }
-    }
-  }, [protecaoAdmin?.tipo]);
-
-  const salvarProtecaoMut = useMutation({
-    mutationFn: (dados: { tipo: "nenhuma" | "senha" | "pin"; pin?: string }) =>
-      salvarProtecaoAdmin({ data: dados }),
-    onSuccess: () => {
-      toast.success("Proteção de acesso à administração atualizada.");
-      qc.invalidateQueries({ queryKey: ["admin-protecao"] });
-      setNovoPinInput("");
-    },
-    onError: (e: any) => toast.error(e.message || "Erro ao salvar proteção."),
-  });
-
-  const verificarPinMut = useMutation({
-    mutationFn: (pin: string) => verificarPinAdmin({ data: { pin } }),
-    onSuccess: (res) => {
-      if (res.valido) {
-        setConsultaDesbloqueada(true);
-        setPinConsulta("");
-        setErroSenhaConsulta("");
-      } else {
-        setErroSenhaConsulta(
-          res.semPinConfigurado
-            ? "Nenhum PIN configurado ainda. Acesse com sua senha."
-            : "PIN incorreto.",
-        );
-      }
-    },
-    onError: (e: any) => toast.error(e.message || "Erro ao validar PIN."),
-  });
-
   const [economiaExibidaInput, setEconomiaExibidaInput] = useState("");
   const [cotaOracleInput, setCotaOracleInput] = useState<Record<string, string>>({});
   // Bloco de parceria/patrocínio da home (2026-09-27): URL e slogan ficam em
@@ -369,11 +245,6 @@ function Admin() {
     queryKey: ["admin-logs"],
     enabled: isSiteAdmin,
     queryFn: () => logsFn(),
-  });
-  const { data: falhasLogin = [] } = useQuery({
-    queryKey: ["admin-falhas-login"],
-    enabled: isSiteAdmin,
-    queryFn: () => falhasLoginFn(),
   });
   const { data: config } = useQuery<{ modo_login: "cpf" | "email" | "ambos"; segundo_fator_email: boolean; sessao_maxima_minutos: number; cota_convites: number; google_drive_habilitado: boolean; cadastro_livre_habilitado: boolean } | undefined>({
     queryKey: ["configuracao-acesso-publica"],
@@ -775,14 +646,9 @@ function Admin() {
       </AppLayout>
     );
 
-  // A proteção configurada protege a ENTRADA da tela inteira:
-  // - "nenhuma": entra direto sem bloqueio
-  // - "pin": exige o PIN de 4 dígitos
-  // - "senha": exige a senha da conta
-  const tipoProtecao = protecaoAdmin?.tipo ?? "senha";
-  const emModoPin = tipoProtecao === "pin" && !preferirSenhaConta;
-
-  if (!consultaDesbloqueada && tipoProtecao !== "nenhuma")
+  // A senha extra (re-autenticação) agora protege a ENTRADA da tela inteira,
+  // não só a aba "Consulta" — pede a senha uma vez e libera todas as abas.
+  if (!consultaDesbloqueada)
     return (
       <AppLayout title="Administração do site" description="Painel de controle administrativo">
         <Card>
@@ -794,104 +660,37 @@ function Admin() {
                 </div>
               </div>
               <p className="font-semibold">Área protegida</p>
-              <p className="text-xs text-muted-foreground">
-                {emModoPin
-                  ? "Digite seu PIN de 4 dígitos para acessar a administração."
-                  : "Confirme sua senha de acesso para entrar na administração."}
-              </p>
+              <p className="text-xs text-muted-foreground">Confirme sua senha para acessar o painel de administração.</p>
             </div>
-
-            {emModoPin ? (
-              <div className="space-y-3">
-                <Input
-                  type="password"
-                  inputMode="numeric"
-                  maxLength={4}
-                  placeholder="PIN de 4 dígitos"
-                  className="text-center text-xl tracking-widest font-mono"
-                  value={pinConsulta}
-                  onChange={(e) => {
-                    const v = e.target.value.replace(/\D/g, "").slice(0, 4);
-                    setPinConsulta(v);
-                    setErroSenhaConsulta("");
-                    if (v.length === 4) {
-                      verificarPinMut.mutate(v);
-                    }
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && pinConsulta.length === 4) {
-                      verificarPinMut.mutate(pinConsulta);
-                    }
-                  }}
-                />
-                {erroSenhaConsulta && <p className="text-xs text-rose-600 text-center">{erroSenhaConsulta}</p>}
-                <Button
-                  className="w-full"
-                  disabled={pinConsulta.length !== 4 || verificarPinMut.isPending}
-                  onClick={() => verificarPinMut.mutate(pinConsulta)}
-                >
-                  {verificarPinMut.isPending ? "Verificando…" : "Confirmar PIN"}
-                </Button>
-                <div className="text-center pt-1">
-                  <button
-                    type="button"
-                    className="text-xs text-muted-foreground underline hover:text-foreground"
-                    onClick={() => {
-                      setPreferirSenhaConta(true);
-                      setErroSenhaConsulta("");
-                    }}
-                  >
-                    Entrar com a senha da conta
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <Input
-                  type="password"
-                  placeholder="Sua senha de acesso"
-                  value={senhaConsulta}
-                  onChange={(e) => { setSenhaConsulta(e.target.value); setErroSenhaConsulta(""); }}
-                  onKeyDown={async (e) => {
-                    if (e.key !== "Enter") return;
-                    const { error } = await supabase.auth.signInWithPassword({
-                      email: (await supabase.auth.getUser()).data.user?.email ?? "",
-                      password: senhaConsulta,
-                    });
-                    if (error) { setErroSenhaConsulta("Senha incorreta."); } else { setConsultaDesbloqueada(true); setSenhaConsulta(""); }
-                  }}
-                />
-                {erroSenhaConsulta && <p className="text-xs text-rose-600 text-center">{erroSenhaConsulta}</p>}
-                <Button
-                  className="w-full"
-                  disabled={!senhaConsulta}
-                  onClick={async () => {
-                    const { data: userResult } = await supabase.auth.getUser();
-                    const { error } = await supabase.auth.signInWithPassword({
-                      email: userResult.user?.email ?? "",
-                      password: senhaConsulta,
-                    });
-                    if (error) { setErroSenhaConsulta("Senha incorreta."); } else { setConsultaDesbloqueada(true); setSenhaConsulta(""); }
-                  }}
-                >
-                  Confirmar e acessar
-                </Button>
-                {protecaoAdmin?.temPin && (
-                  <div className="text-center pt-1">
-                    <button
-                      type="button"
-                      className="text-xs text-muted-foreground underline hover:text-foreground"
-                      onClick={() => {
-                        setPreferirSenhaConta(false);
-                        setErroSenhaConsulta("");
-                      }}
-                    >
-                      Entrar com PIN de 4 dígitos
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
+            <Input
+              type="password"
+              placeholder="Sua senha de acesso"
+              value={senhaConsulta}
+              onChange={(e) => { setSenhaConsulta(e.target.value); setErroSenhaConsulta(""); }}
+              onKeyDown={async (e) => {
+                if (e.key !== "Enter") return;
+                const { error } = await supabase.auth.signInWithPassword({
+                  email: (await supabase.auth.getUser()).data.user?.email ?? "",
+                  password: senhaConsulta,
+                });
+                if (error) { setErroSenhaConsulta("Senha incorreta."); } else { setConsultaDesbloqueada(true); setSenhaConsulta(""); }
+              }}
+            />
+            {erroSenhaConsulta && <p className="text-xs text-rose-600">{erroSenhaConsulta}</p>}
+            <Button
+              className="w-full"
+              disabled={!senhaConsulta}
+              onClick={async () => {
+                const { data: userResult } = await supabase.auth.getUser();
+                const { error } = await supabase.auth.signInWithPassword({
+                  email: userResult.user?.email ?? "",
+                  password: senhaConsulta,
+                });
+                if (error) { setErroSenhaConsulta("Senha incorreta."); } else { setConsultaDesbloqueada(true); setSenhaConsulta(""); }
+              }}
+            >
+              Confirmar e acessar
+            </Button>
           </CardContent>
         </Card>
       </AppLayout>
@@ -919,59 +718,23 @@ function Admin() {
   return (
     <AppLayout title="Administração do site" description="Painel de controle administrativo">
       <Tabs value={abaAtiva} onValueChange={setAbaAtiva} className="space-y-4">
-        {/* Grupos (2026-10-06): as 10 abas foram agrupadas por assunto. Primeiro
-            escolhe-se o grupo, depois a aba dentro dele. Os valores das abas e
-            seus conteudos nao mudaram (links com ?aba= continuam validos). */}
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5" role="group" aria-label="Grupos da administração">
-          {GRUPOS_ADMIN.map((g) => {
-            const ativo = g.abas.some((a) => a.id === abaAtiva);
-            const pend = g.abas.some((a) => a.id === "central") ? totalPendentes : 0;
-            return (
-              <button
-                key={g.id}
-                type="button"
-                onClick={() => setAbaAtiva(g.abas[0]!.id)}
-                aria-pressed={ativo}
-                className={cn(
-                  "relative rounded-xl border p-3 text-left transition-colors",
-                  ativo ? "border-primary bg-primary/10" : "hover:bg-muted/50",
-                )}
-              >
-                <p className={cn("text-sm font-semibold", ativo && "text-primary")}>{g.titulo}</p>
-                <p className="text-xs text-muted-foreground">{g.descricao}</p>
-                {pend > 0 && (
-                  <span className="absolute right-2 top-2 rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
-                    {pend}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-        <p className="flex items-center gap-2 text-xs text-muted-foreground">
-          <span className={ADMIN_ONLY_TAG}>Só admin</span>
-          Itens neste tom roxo claro ainda não estão liberados para os demais usuários.
-        </p>
-        <TabsList className="flex h-auto flex-wrap gap-1">
-          {(GRUPOS_ADMIN.find((g) => g.abas.some((a) => a.id === abaAtiva)) ?? GRUPOS_ADMIN[0]!).abas.map((a) => (
-            <TabsTrigger key={a.id} value={a.id} className="relative">
-              {a.rotulo}
-              {a.id === "central" && totalPendentes > 0 && (
-                <span className="ml-1 rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
-                  {totalPendentes}
-                </span>
-              )}
-            </TabsTrigger>
-          ))}
+        <TabsList className="flex flex-wrap h-auto gap-1">
+          <TabsTrigger value="dados-gerais">Dados Gerais</TabsTrigger>
+          <TabsTrigger value="consulta">Consulta</TabsTrigger>
+          <TabsTrigger value="acesso">Acesso e Auth</TabsTrigger>
+          <TabsTrigger value="modulos">Módulos</TabsTrigger>
+          <TabsTrigger value="armazenamento">Armazenamento Oracle</TabsTrigger>
+          <TabsTrigger value="personalizacao">Personalização</TabsTrigger>
+          <TabsTrigger value="avisos">Avisos</TabsTrigger>
+          <TabsTrigger value="privacidade">Privacidade LGPD</TabsTrigger>
+          <TabsTrigger value="central" className="relative">
+            Central de Solicitações
+            {totalPendentes > 0 && (
+              <span className="ml-1 rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] text-white font-bold">{totalPendentes}</span>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="logs">Logs de Auditoria</TabsTrigger>
         </TabsList>
-
-        <TabsContent value="acessos" className="space-y-4">
-          <AcessosSiteAdmin />
-        </TabsContent>
-
-        <TabsContent value="padroes" className="space-y-4">
-          <PadroesAdmin />
-        </TabsContent>
 
         {/* ─── ABA 1: DADOS GERAIS ─── */}
         <TabsContent value="dados-gerais" className="space-y-4">
@@ -1093,72 +856,6 @@ function Admin() {
 
         {/* ─── ABA 3: ACESSO E AUTENTICAÇÃO ─── */}
         <TabsContent value="acesso" className="space-y-4">
-          {/* Card Proteção de Entrada na Administração (Pedido 7) */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm">Proteção de entrada na Administração</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-xs text-muted-foreground">
-                Defina se e como a entrada no painel administrativo deve ser protegida.
-              </p>
-              <div className="grid gap-4 sm:grid-cols-3 items-end">
-                <div className="space-y-1.5">
-                  <p className="text-xs font-medium">Tipo de bloqueio</p>
-                  <Select
-                    value={tipoProtecaoInput}
-                    onValueChange={(v: any) => {
-                      setTipoProtecaoInput(v);
-                      if (v !== "pin") {
-                        salvarProtecaoMut.mutate({ tipo: v });
-                      }
-                    }}
-                  >
-                    <SelectTrigger className="h-10">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="senha">Senha da conta (padrão)</SelectItem>
-                      <SelectItem value="pin">PIN numérico de 4 dígitos</SelectItem>
-                      <SelectItem value="nenhuma">Sem senha (acesso direto)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {tipoProtecaoInput === "pin" && (
-                  <div className="space-y-1.5 sm:col-span-2">
-                    <p className="text-xs font-medium">
-                      {protecaoAdmin?.temPin ? "Alterar PIN de 4 dígitos" : "Criar PIN de 4 dígitos"}
-                    </p>
-                    <div className="flex gap-2">
-                      <Input
-                        type="password"
-                        inputMode="numeric"
-                        maxLength={4}
-                        placeholder="Ex.: 1234"
-                        className="h-10 text-center font-mono tracking-widest max-w-[140px]"
-                        value={novoPinInput}
-                        onChange={(e) => setNovoPinInput(e.target.value.replace(/\D/g, "").slice(0, 4))}
-                      />
-                      <Button
-                        className="h-10"
-                        disabled={novoPinInput.length !== 4 || salvarProtecaoMut.isPending}
-                        onClick={() => salvarProtecaoMut.mutate({ tipo: "pin", pin: novoPinInput })}
-                      >
-                        {salvarProtecaoMut.isPending ? "Salvando…" : "Salvar PIN"}
-                      </Button>
-                    </div>
-                    {protecaoAdmin?.temPin && (
-                      <p className="text-[11px] text-muted-foreground">
-                        PIN atual configurado e ativo. Digite 4 novos números acima caso queira alterar.
-                      </p>
-                    )}
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
           {config && (
             <Card>
               <CardHeader><CardTitle className="text-sm">Configurações de acesso e autenticação</CardTitle></CardHeader>
@@ -1223,10 +920,9 @@ function Admin() {
               </CardContent>
             </Card>
           )}
-          <AvisoCalculadoraAdminCard />
           {config && (
-            <Card className={cn(!config.google_drive_habilitado && ADMIN_ONLY_CARD)}>
-              <CardHeader><CardTitle className="flex items-center gap-2 text-sm">Notas fiscais — Google Drive{!config.google_drive_habilitado && <span className={ADMIN_ONLY_TAG}>Só admin</span>}</CardTitle></CardHeader>
+            <Card>
+              <CardHeader><CardTitle className="text-sm">Notas fiscais — Google Drive</CardTitle></CardHeader>
               <CardContent className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-sm">Mostrar seção de pasta/Google Drive pros usuários comuns</p>
@@ -1244,8 +940,8 @@ function Admin() {
             </Card>
           )}
           {config && (
-            <Card className={cn(!config.cadastro_livre_habilitado && ADMIN_ONLY_CARD)}>
-              <CardHeader><CardTitle className="flex items-center gap-2 text-sm">Cadastro sem convite{!config.cadastro_livre_habilitado && <span className={ADMIN_ONLY_TAG}>Desligado</span>}</CardTitle></CardHeader>
+            <Card>
+              <CardHeader><CardTitle className="text-sm">Cadastro sem convite</CardTitle></CardHeader>
               <CardContent className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-sm">Permitir criar conta sem código de convite</p>
@@ -1272,54 +968,11 @@ function Admin() {
             </Card>
           )}
           <IaLancamentoModoSiteCard />
-          <TelaInicialPadraoCard />
           <Card>
             <CardHeader><CardTitle className="text-sm">Log de tentativas de login</CardTitle></CardHeader>
-            <CardContent className="space-y-3">
-              <p className="text-xs text-muted-foreground">
-                Toda tentativa de login com erro é registrada (mesmo a primeira), com o que foi digitado
-                (nunca a senha), o motivo, o IP e a localização aproximada. Bloqueios automáticos ocorrem
-                após 3 tentativas falhas consecutivas (15 min).
-              </p>
-              <LogPainel
-                itens={falhasLogin as any[]}
-                getData={(f: any) => f.criado_em}
-                getChave={(f: any) => f.id}
-                nomeArquivo="falhas-de-login"
-                vazio="Nenhuma tentativa de login com erro registrada."
-                colunas={[
-                  { titulo: "Data/hora", valor: (f: any) => new Date(f.criado_em).toLocaleString("pt-BR") },
-                  { titulo: "Identificador digitado", valor: (f: any) => f.identificador },
-                  { titulo: "Tipo", valor: (f: any) => f.tipo_identificador },
-                  { titulo: "Motivo", valor: (f: any) => MOTIVOS_FALHA_LOGIN[f.motivo] ?? f.motivo },
-                  { titulo: "IP", valor: (f: any) => f.ip },
-                  { titulo: "Cidade", valor: (f: any) => f.cidade },
-                  { titulo: "Região", valor: (f: any) => f.regiao },
-                  { titulo: "País", valor: (f: any) => f.pais },
-                  { titulo: "Tentativas seguidas", valor: (f: any) => f.tentativas },
-                  { titulo: "Bloqueou a conta", valor: (f: any) => (f.bloqueou ? "Sim" : "Não") },
-                  { titulo: "Navegador", valor: (f: any) => f.user_agent },
-                ]}
-                renderItem={(f: any) => (
-                  <div className="rounded-lg border px-3 py-2 text-xs">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded bg-rose-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-rose-600">
-                        {MOTIVOS_FALHA_LOGIN[f.motivo] ?? f.motivo}
-                      </span>
-                      <span className="font-mono">{f.identificador}</span>
-                      {f.bloqueou && (
-                        <span className="rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-amber-600">
-                          Conta bloqueada
-                        </span>
-                      )}
-                    </div>
-                    <p className="mt-1 text-muted-foreground">
-                      {new Date(f.criado_em).toLocaleString("pt-BR")} · IP {f.ip ?? "n/d"}
-                      {f.cidade ? ` · ${f.cidade}${f.regiao ? `/${f.regiao}` : ""}${f.pais ? ` (${f.pais})` : ""}` : ""}
-                    </p>
-                  </div>
-                )}
-              />
+            <CardContent>
+              <p className="text-xs text-muted-foreground mb-3">Identificadores com falhas de acesso registradas pelo sistema.</p>
+              <p className="text-sm text-muted-foreground">Bloqueios automáticos ocorrem após 3 tentativas falhas consecutivas (15 min).</p>
             </CardContent>
           </Card>
         </TabsContent>
@@ -1349,11 +1002,10 @@ function Admin() {
                   });
                   const selecionados = selecionadosPorModulo[m.modulo] ?? new Set<string>();
                   return (
-                    <div key={m.modulo} className={cn("rounded-lg border p-3", !m.habilitado && ADMIN_ONLY_CARD)}>
+                    <div key={m.modulo} className="rounded-lg border p-3">
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2">
                           <b className="text-sm">{m.nome}</b>
-                          {!m.habilitado && <span className={ADMIN_ONLY_TAG}>Só admin</span>}
                           {!m.habilitado && (
                             <Badge variant="secondary" className="text-[10px]">
                               {liberados} usuário(s) com exceção liberada
@@ -1459,7 +1111,7 @@ function Admin() {
                   const cotaMbAtual = Math.round(g.cotaBytes / (1024 * 1024));
                   const inputAtual = cotaOracleInput[g.grupoId] ?? String(cotaMbAtual);
                   return (
-                    <div key={g.grupoId} className={cn("rounded-lg border p-3 space-y-2", !g.habilitado && ADMIN_ONLY_CARD)}>
+                    <div key={g.grupoId} className="rounded-lg border p-3 space-y-2">
                       <div className="flex items-center justify-between gap-2">
                         <div>
                           <b className="text-sm">{g.nome}</b>
@@ -1789,10 +1441,6 @@ function Admin() {
         </TabsContent>
 
         {/* ─── ABA 6: AVISOS ─── */}
-        <TabsContent value="links" className="space-y-4">
-          <LinksAdminHabilitar />
-        </TabsContent>
-
         <TabsContent value="avisos" className="space-y-4">
           <Card>
             <CardHeader>
@@ -1870,22 +1518,12 @@ function Admin() {
           {comunicados.filter((c: any) => !c.ativo).length > 0 && (
             <Card>
               <CardHeader><CardTitle className="text-sm">Histórico de avisos</CardTitle></CardHeader>
-              <CardContent>
-                <LogPainel
-                  itens={comunicados.filter((c: any) => !c.ativo) as any[]}
-                  getData={(c: any) => c.criado_em}
-                  getChave={(c: any) => c.id}
-                  nomeArquivo="historico-de-avisos"
-                  colunas={[
-                    { titulo: "Título", valor: (c: any) => c.titulo },
-                    { titulo: "Criado em", valor: (c: any) => new Date(c.criado_em).toLocaleString("pt-BR") },
-                  ]}
-                  renderItem={(c: any) => (
-                    <div className="border-b py-2 text-xs text-muted-foreground">
-                      <b className="text-foreground">{c.titulo}</b> · encerrado · {new Date(c.criado_em).toLocaleString("pt-BR")}
-                    </div>
-                  )}
-                />
+              <CardContent className="space-y-2 max-h-60 overflow-auto">
+                {comunicados.filter((c: any) => !c.ativo).map((c: any) => (
+                  <div key={c.id} className="border-b py-2 text-xs text-muted-foreground">
+                    <b className="text-foreground">{c.titulo}</b> · encerrado · {new Date(c.criado_em).toLocaleString("pt-BR")}
+                  </div>
+                ))}
               </CardContent>
             </Card>
           )}
@@ -2086,23 +1724,12 @@ function Admin() {
                 />
               </div>
             </CardHeader>
-            <CardContent>
-              <LogPainel
-                itens={logsVisiveis as any[]}
-                getData={(l: any) => l.criado_em}
-                getChave={(l: any) => l.id}
-                nomeArquivo="log-administrativo"
-                vazio="Nenhum evento registrado."
-                colunas={[
-                  { titulo: "Data/hora", valor: (l: any) => new Date(l.criado_em).toLocaleString("pt-BR") },
-                  { titulo: "Ação", valor: (l: any) => String(l.acao).replaceAll("_", " ") },
-                  { titulo: "Usuário", valor: (l: any) => l.profiles?.nome ?? l.profiles?.email ?? "Sistema" },
-                  { titulo: "IP", valor: (l: any) => l.detalhes?.ip },
-                  { titulo: "Cidade", valor: (l: any) => l.detalhes?.cidade },
-                  { titulo: "Detalhes", valor: (l: any) => (l.detalhes ? JSON.stringify(l.detalhes) : "") },
-                ]}
-                renderItem={(l: any) => (
-                  <details className="group rounded-lg border px-3 py-2 text-xs">
+            <CardContent className="max-h-[600px] overflow-auto space-y-1">
+              {logsVisiveis.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Nenhum evento registrado.</p>
+              ) : (
+                logsVisiveis.map((l: any) => (
+                  <details key={l.id} className="group rounded-lg border px-3 py-2 text-xs">
                     <summary className="flex cursor-pointer list-none items-start justify-between gap-2">
                       <div className="flex-1">
                         <span className="font-semibold capitalize">{l.acao.replaceAll("_", " ")}</span>
@@ -2126,8 +1753,8 @@ function Admin() {
                       </div>
                     )}
                   </details>
-                )}
-              />
+                ))
+              )}
             </CardContent>
           </Card>
         </TabsContent>
