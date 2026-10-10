@@ -314,3 +314,18 @@ Pendências manuais: git push origin main; DROP POLICY comprovantes_membro_ativo
 - Unificar (`adminUnificarLinks`): junta 2 a 30 anotações em uma nova permanente, em ordem de criação, cada uma com seu título como "# título", separadas por "---". Limite de 100.000 caracteres. As originais são arquivadas (não apagadas).
 - Card "Links" na Início (admin): atalhos "Incluir" e "Ver histórico". Usuários comuns veem o card normal (quando o módulo estiver ligado).
 - Pendente: testar com login real; avaliar renomear o módulo de "Links" para "Anotações" se preferir.
+
+## PWA instalável + ponto de restauração (2026-10-09)
+
+- Criados `public/manifest.webmanifest` (nome Control ALL, abre em /inicio, modo standalone, cores da marca) e ícones em `public/icons/` (192, 512 e apple-touch-icon 180) gerados da logo atual com margem de segurança para ícone adaptável do Android.
+- `src/routes/__root.tsx`: link do manifest, apple-touch-icon e metas (theme-color, apple-mobile-web-app-*).
+- Sem service worker de propósito: o app é autenticado e tem dados privados, então não há cache offline. A instalação funciona sem ele (Android Chrome instala como app; iPhone via Safari > Compartilhar > Adicionar à Tela de Início).
+- Pendente de teste no celular real: instalar no Android e no iPhone, conferir login Google/Microsoft dentro do app instalado, e olhar Chrome DevTools > Application > Manifest.
+- Se a logo mudar, regerar os 3 PNGs de `public/icons/`.
+
+### Backup / restauração (mesmo projeto Vercel gm-financas-ohdi)
+
+- Código: tag e branch `backup/pre-pwa-2026-10-09` apontam para o commit 918075d (antes do PWA). Restaurar: `git checkout main && git reset --hard backup/pre-pwa-2026-10-09` seguido de `git push --force-with-lease origin main` (só se necessário), ou criar branch a partir da tag.
+- Vercel: cada deploy anterior fica guardado; em Deployments, escolher um deploy bom e usar "Promote to Production" (rollback imediato, sem rebuild).
+- Prazo: manter a tag/branch por cerca de 60 dias (até 2026-12-08) e depois apagar (`git push origin :refs/tags/backup/pre-pwa-2026-10-09`). Criar um novo ponto `backup/pre-<mudança>-<data>` antes de cada mudança grande.
+- Banco (Supabase): esta etapa não alterou o banco. Antes de mudanças de esquema, conferir em Supabase > Database > Backups o que o plano atual oferece (não confirmado) e, se não houver backup diário, exportar os dados antes da migration.
