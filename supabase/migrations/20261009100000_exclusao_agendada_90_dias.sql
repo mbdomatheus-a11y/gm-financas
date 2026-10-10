@@ -16,3 +16,5 @@ CREATE POLICY exclusoes_agendadas_select_proprio ON public.exclusoes_agendadas
 REVOKE ALL ON public.exclusoes_agendadas FROM anon;
 REVOKE INSERT, UPDATE, DELETE ON public.exclusoes_agendadas FROM authenticated;
 REVOKE TRUNCATE, TRIGGER, REFERENCES ON public.exclusoes_agendadas FROM authenticated;
+-- Anotações (links_admin): marcar como analisada sem apagar.
+ALTER TABLE public.links_admin ADD COLUMN IF NOT EXISTS concluida_em timestamptz;

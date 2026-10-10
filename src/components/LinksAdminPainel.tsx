@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Archive, ArchiveRestore, Bold, Combine, Copy, Italic, Link2, List, Pencil, Trash2, Heading } from "lucide-react";
+import { Archive, ArchiveRestore, Bold, CheckCheck, Eye, Undo2, Combine, Copy, Italic, Link2, List, Pencil, Trash2, Heading } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { TextoFormatado } from "@/components/TextoFormatado";
 import {
   adminArquivarLink,
+  adminConcluirLink,
   adminExcluirLink,
   adminListarLinks,
   adminSalvarLink,
@@ -36,7 +38,7 @@ export function LinksAdminPainel({
   abaInicial = "ativas",
   novo = false,
 }: {
-  abaInicial?: "ativas" | "historico";
+  abaInicial?: "ativas" | "concluidas" | "historico";
   novo?: boolean;
 }) {
   const qc = useQueryClient();
@@ -44,6 +46,7 @@ export function LinksAdminPainel({
   const salvar = useServerFn(adminSalvarLink);
   const arquivar = useServerFn(adminArquivarLink);
   const excluir = useServerFn(adminExcluirLink);
+  const concluir = useServerFn(adminConcluirLink);
   const unificar = useServerFn(adminUnificarLinks);
   const { data: links = [] } = useQuery({ queryKey: ["admin-links"], queryFn: () => listar() });
   const [editandoId, setEditandoId] = useState<string | null>(null);
@@ -51,7 +54,7 @@ export function LinksAdminPainel({
   const [conteudo, setConteudo] = useState("");
   const [tipo, setTipo] = useState<"temporario" | "permanente">("permanente");
   const [expira, setExpira] = useState("");
-  const [aba, setAba] = useState<"ativas" | "historico">(abaInicial);
+  const [aba, setAba] = useState<"ativas" | "concluidas" | "historico">(abaInicial);
   const [marcados, setMarcados] = useState<string[]>([]);
   const [tituloUniao, setTituloUniao] = useState("");
   const [unindo, setUnindo] = useState(false);
@@ -105,6 +108,14 @@ export function LinksAdminPainel({
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["admin-links"] }),
     onError: (e: any) => toast.error(e.message),
   });
+  const concluirM = useMutation({
+    mutationFn: (v: { id: string; concluida: boolean }) => concluir({ data: v }),
+    onSuccess: (_r, v) => {
+      toast.success(v.concluida ? "Anotação marcada como analisada." : "Anotação reaberta.");
+      void qc.invalidateQueries({ queryKey: ["admin-links"] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
   const excluirM = useMutation({
     mutationFn: (id: string) => excluir({ data: { id } }),
     onSuccess: () => {
@@ -143,13 +154,21 @@ export function LinksAdminPainel({
   }
 
   const agora = Date.now();
-  const visiveis = links.filter((l) => aba === "historico" || (!l.arquivado && !(l.expira_em && new Date(l.expira_em).getTime() < agora)));
+  const visiveis = links.filter((l) => {
+    if (aba === "historico") return true;
+    if (l.arquivado) return false;
+    if (aba === "concluidas") return !!l.concluida_em;
+    return !l.concluida_em && !(l.expira_em && new Date(l.expira_em).getTime() < agora);
+  });
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2">
         <Button size="sm" variant={aba === "ativas" ? "default" : "outline"} onClick={() => setAba("ativas")}>
           Anotações ativas
+        </Button>
+        <Button size="sm" variant={aba === "concluidas" ? "default" : "outline"} onClick={() => setAba("concluidas")}>
+          Analisadas
         </Button>
         <Button size="sm" variant={aba === "historico" ? "default" : "outline"} onClick={() => setAba("historico")}>
           Histórico
@@ -316,10 +335,29 @@ export function LinksAdminPainel({
                     )}
                     <span>Criada em {new Date(l.criado_em).toLocaleDateString("pt-BR")}</span>
                     {l.arquivado && <Badge variant="secondary">Arquivada</Badge>}
+                    {l.concluida_em && (
+                      <Badge variant="secondary">
+                        Analisada em {new Date(l.concluida_em).toLocaleDateString("pt-BR")}
+                      </Badge>
+                    )}
                     {expirado && <Badge variant="destructive">Expirado</Badge>}
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-1">
+                  <Button asChild size="sm" variant="outline">
+                    <Link to="/links/$id" params={{ id: l.id }}>
+                      <Eye className="mr-1 size-4" /> Visualizar
+                    </Link>
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={l.concluida_em ? "outline" : "default"}
+                    disabled={concluirM.isPending}
+                    onClick={() => concluirM.mutate({ id: l.id, concluida: !l.concluida_em })}
+                  >
+                    {l.concluida_em ? <Undo2 className="mr-1 size-4" /> : <CheckCheck className="mr-1 size-4" />}
+                    {l.concluida_em ? "Reabrir" : "Concluir"}
+                  </Button>
                   <Button
                     size="sm"
                     variant="outline"

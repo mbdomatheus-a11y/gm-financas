@@ -339,3 +339,7 @@ Pendências manuais: git push origin main; DROP POLICY comprovantes_membro_ativo
 - Cores no admin: itens ainda não liberados aos demais usuários ficam em roxo claro com etiqueta "Só admin" (módulos desligados, Google Drive de notas, grupos sem Oracle, menu e Início). Detalhe: `liberadoGeral` em `listarModulosDisponiveis`.
 - Navegação: Início agora mostra 4 áreas (Dinheiro, Casa e vida, Documentos, Ferramentas) com atalhos de um clique, atalhos gerais, bloco Administração (admin) e "Resumo do mês e metas" recolhível (fechado no celular). Novas telas `/casa` e `/documentos`; menu lateral e barra inferior agrupados por área (`src/lib/areas.ts`).
 - Ferramentas do print: shadcn/Tailwind já em uso; Magic MCP, shadcn MCP e Chrome DevTools MCP rodam no Claude Code do PC (não instalados aqui); regras da Vercel (Web Interface Guidelines) usadas como checklist. Pendente: revisar telas antigas contra elas e testar o visual no celular após o deploy.
+
+## Anotações: visualizar e concluir (2026-10-09)
+
+- Em Links (admin), cada anotação ganhou o botão Visualizar (abre a anotação) e Concluir, que marca como analisada sem apagar (coluna `links_admin.concluida_em`, aplicada no banco e no arquivo de migration). Concluídas saem de "Anotações ativas" e aparecem na aba "Analisadas" com a data; Reabrir desfaz. Histórico continua mostrando tudo. Só o admin conclui; as demais pessoas não veem o estado.

@@ -25,7 +25,7 @@ async function exigirAdmin(context: Ctx) {
   if (!(await ehAdmin(context))) throw new Error("Acesso restrito à administração do site.");
 }
 
-const COLUNAS = "id,titulo,conteudo,tipo,expira_em,arquivado,criado_em,atualizado_em";
+const COLUNAS = "id,titulo,conteudo,tipo,expira_em,arquivado,concluida_em,criado_em,atualizado_em";
 
 export const adminListarLinks = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -44,6 +44,7 @@ export const adminListarLinks = createServerFn({ method: "GET" })
       tipo: "temporario" | "permanente";
       expira_em: string | null;
       arquivado: boolean;
+      concluida_em: string | null;
       criado_em: string;
       atualizado_em: string;
     }[];
@@ -112,6 +113,23 @@ export const adminArquivarLink = createServerFn({ method: "POST" })
       .update({ arquivado: data.arquivado, atualizado_em: new Date().toISOString() })
       .eq("id", data.id);
     if (error) throw new Error("Não foi possível arquivar.");
+    return { ok: true as const };
+  });
+
+/** Marca a anotação como analisada (ou reabre). Não apaga nada. */
+export const adminConcluirLink = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((v: unknown) =>
+    z.object({ id: z.string().uuid(), concluida: z.boolean() }).parse(v),
+  )
+  .handler(async ({ data, context }) => {
+    await exigirAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await (supabaseAdmin as any)
+      .from("links_admin")
+      .update({ concluida_em: data.concluida ? new Date().toISOString() : null })
+      .eq("id", data.id);
+    if (error) throw new Error("Não foi possível atualizar a anotação.");
     return { ok: true as const };
   });
 
