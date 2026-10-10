@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Archive, ArchiveRestore, Bold, CheckCheck, Eye, Undo2, Combine, Copy, Italic, Link2, List, Pencil, Trash2, Heading } from "lucide-react";
+import { Archive, ArchiveRestore, Bold, CheckCheck, Eye, Undo2, Combine, Copy, Italic, Link2, Link2Off, List, Pencil, Share2, Trash2, Heading } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { TextoFormatado } from "@/components/TextoFormatado";
 import {
   adminArquivarLink,
+  adminAlternarLinkPublico,
   adminConcluirLink,
   adminExcluirLink,
   adminListarLinks,
@@ -30,8 +31,14 @@ function paraInputLocal(iso: string | null): string {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
+/** Link que exige conta (só quem está logado abre). */
 export function linkPublico(id: string) {
   return `${window.location.origin}/links/${id}`;
+}
+
+/** Link aberto: funciona sem conta, enquanto o compartilhamento estiver ligado. */
+export function linkCompartilhavel(token: string) {
+  return `${window.location.origin}/nota/${token}`;
 }
 
 export function LinksAdminPainel({
@@ -47,6 +54,7 @@ export function LinksAdminPainel({
   const arquivar = useServerFn(adminArquivarLink);
   const excluir = useServerFn(adminExcluirLink);
   const concluir = useServerFn(adminConcluirLink);
+  const alternarPublico = useServerFn(adminAlternarLinkPublico);
   const unificar = useServerFn(adminUnificarLinks);
   const { data: links = [] } = useQuery({ queryKey: ["admin-links"], queryFn: () => listar() });
   const [editandoId, setEditandoId] = useState<string | null>(null);
@@ -92,6 +100,21 @@ export function LinksAdminPainel({
     },
     onError: (e: any) => toast.error(e.message),
   });
+  const publicoM = useMutation({
+    mutationFn: (v: { id: string; publico: boolean }) => alternarPublico({ data: v }),
+    onSuccess: (r: any, v) => {
+      if (v.publico && r?.token) {
+        const url = linkCompartilhavel(r.token);
+        void navigator.clipboard?.writeText(url).catch(() => {});
+        toast.success("Link aberto criado e copiado: " + url, { duration: 8000 });
+      } else {
+        toast.success("Compartilhamento encerrado. O endereço anterior não abre mais.");
+      }
+      void qc.invalidateQueries({ queryKey: ["admin-links"] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
   const unificarM = useMutation({
     mutationFn: () => unificar({ data: { ids: marcados, titulo: tituloUniao } }),
     onSuccess: () => {
@@ -363,11 +386,46 @@ export function LinksAdminPainel({
                     variant="outline"
                     onClick={() => {
                       void navigator.clipboard?.writeText(linkPublico(l.id)).catch(() => {});
-                      toast.success("Link copiado.");
+                      toast.success("Link copiado (só abre com conta).");
                     }}
                   >
                     <Copy className="mr-1 size-4" /> Copiar link
                   </Button>
+                  {l.publico && l.token_publico ? (
+                    <>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          void navigator.clipboard
+                            ?.writeText(linkCompartilhavel(l.token_publico!))
+                            .catch(() => {});
+                          toast.success("Link aberto copiado. Funciona sem entrar na conta.");
+                        }}
+                      >
+                        <Share2 className="mr-1 size-4" /> Copiar link aberto
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={publicoM.isPending}
+                        onClick={() => publicoM.mutate({ id: l.id, publico: false })}
+                        title="O endereço atual para de funcionar na hora"
+                      >
+                        <Link2Off className="mr-1 size-4" /> Parar de compartilhar
+                      </Button>
+                    </>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={publicoM.isPending}
+                      onClick={() => publicoM.mutate({ id: l.id, publico: true })}
+                      title="Gera um endereço que qualquer pessoa abre, sem conta"
+                    >
+                      <Share2 className="mr-1 size-4" /> Gerar link aberto
+                    </Button>
+                  )}
                   <Button size="sm" variant="outline" onClick={() => editar(l)}>
                     <Pencil className="mr-1 size-4" /> Editar
                   </Button>

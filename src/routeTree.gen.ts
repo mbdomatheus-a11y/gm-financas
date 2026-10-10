@@ -55,6 +55,7 @@ import { Route as CalculadorasSomarDiasADataRouteImport } from './routes/calcula
 import { Route as CalculadorasSomarHorariosRouteImport } from './routes/calculadoras/somar-horarios'
 import { Route as LinksTemporariosIndexRouteImport } from './routes/links-temporarios/index'
 import { Route as LinksTemporariosIdRouteImport } from './routes/links-temporarios/$id'
+import { Route as NotaTokenRouteImport } from './routes/nota/$token'
 import { Route as AuthenticatedLinksIndexRouteImport } from './routes/_authenticated/links/index'
 import { Route as AuthenticatedLinksIdRouteImport } from './routes/_authenticated/links/$id'
 import { Route as ApiCronDescarteLayoutsRouteImport } from './routes/api/cron/descarte-layouts'
@@ -301,6 +302,11 @@ const LinksTemporariosIdRoute = LinksTemporariosIdRouteImport.update({
   path: '/links-temporarios/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const NotaTokenRoute = NotaTokenRouteImport.update({
+  id: '/nota/$token',
+  path: '/nota/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedLinksIndexRoute = AuthenticatedLinksIndexRouteImport.update({
   id: '/links/',
   path: '/links/',
@@ -366,6 +372,7 @@ export interface FileRoutesByFullPath {
   '/calculadoras/somar-dias-a-data': typeof CalculadorasSomarDiasADataRoute
   '/calculadoras/somar-horarios': typeof CalculadorasSomarHorariosRoute
   '/links-temporarios/$id': typeof LinksTemporariosIdRoute
+  '/nota/$token': typeof NotaTokenRoute
   '/calculadoras/': typeof CalculadorasIndexRoute
   '/links-temporarios/': typeof LinksTemporariosIndexRoute
   '/links/$id': typeof AuthenticatedLinksIdRoute
@@ -417,6 +424,7 @@ export interface FileRoutesByTo {
   '/calculadoras/somar-dias-a-data': typeof CalculadorasSomarDiasADataRoute
   '/calculadoras/somar-horarios': typeof CalculadorasSomarHorariosRoute
   '/links-temporarios/$id': typeof LinksTemporariosIdRoute
+  '/nota/$token': typeof NotaTokenRoute
   '/calculadoras': typeof CalculadorasIndexRoute
   '/links-temporarios': typeof LinksTemporariosIndexRoute
   '/links/$id': typeof AuthenticatedLinksIdRoute
@@ -470,6 +478,7 @@ export interface FileRoutesById {
   '/calculadoras/somar-dias-a-data': typeof CalculadorasSomarDiasADataRoute
   '/calculadoras/somar-horarios': typeof CalculadorasSomarHorariosRoute
   '/links-temporarios/$id': typeof LinksTemporariosIdRoute
+  '/nota/$token': typeof NotaTokenRoute
   '/calculadoras/': typeof CalculadorasIndexRoute
   '/links-temporarios/': typeof LinksTemporariosIndexRoute
   '/_authenticated/links/$id': typeof AuthenticatedLinksIdRoute
@@ -523,6 +532,7 @@ export interface FileRouteTypes {
     | '/calculadoras/somar-dias-a-data'
     | '/calculadoras/somar-horarios'
     | '/links-temporarios/$id'
+    | '/nota/$token'
     | '/calculadoras/'
     | '/links-temporarios/'
     | '/links/$id'
@@ -574,6 +584,7 @@ export interface FileRouteTypes {
     | '/calculadoras/somar-dias-a-data'
     | '/calculadoras/somar-horarios'
     | '/links-temporarios/$id'
+    | '/nota/$token'
     | '/calculadoras'
     | '/links-temporarios'
     | '/links/$id'
@@ -626,6 +637,7 @@ export interface FileRouteTypes {
     | '/calculadoras/somar-dias-a-data'
     | '/calculadoras/somar-horarios'
     | '/links-temporarios/$id'
+    | '/nota/$token'
     | '/calculadoras/'
     | '/links-temporarios/'
     | '/_authenticated/links/$id'
@@ -649,6 +661,7 @@ export interface RootRouteChildren {
   CalculadorasSomarDiasADataRoute: typeof CalculadorasSomarDiasADataRoute
   CalculadorasSomarHorariosRoute: typeof CalculadorasSomarHorariosRoute
   LinksTemporariosIdRoute: typeof LinksTemporariosIdRoute
+  NotaTokenRoute: typeof NotaTokenRoute
   CalculadorasIndexRoute: typeof CalculadorasIndexRoute
   LinksTemporariosIndexRoute: typeof LinksTemporariosIndexRoute
   ApiCronDescarteLayoutsRoute: typeof ApiCronDescarteLayoutsRoute
@@ -979,6 +992,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LinksTemporariosIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/nota/$token': {
+      id: '/nota/$token'
+      path: '/nota/$token'
+      fullPath: '/nota/$token'
+      preLoaderRoute: typeof NotaTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/links/': {
       id: '/_authenticated/links/'
       path: '/links'
@@ -1099,6 +1119,7 @@ const rootRouteChildren: RootRouteChildren = {
   CalculadorasSomarDiasADataRoute: CalculadorasSomarDiasADataRoute,
   CalculadorasSomarHorariosRoute: CalculadorasSomarHorariosRoute,
   LinksTemporariosIdRoute: LinksTemporariosIdRoute,
+  NotaTokenRoute: NotaTokenRoute,
   CalculadorasIndexRoute: CalculadorasIndexRoute,
   LinksTemporariosIndexRoute: LinksTemporariosIndexRoute,
   ApiCronDescarteLayoutsRoute: ApiCronDescarteLayoutsRoute,

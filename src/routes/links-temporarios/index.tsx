@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { ArrowRight, Copy, Lock, ShieldCheck, Timer } from "lucide-react";
 import { toast } from "sonner";
 
-import { SiteHeader } from "@/components/SiteHeader";
+import { PaginaPublica } from "@/components/PaginaPublica";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -98,10 +98,11 @@ function LinksTemporariosPage() {
   }
 
   return (
-    <main className="min-h-screen bg-background text-foreground">
-      <SiteHeader />
-
-      <div className="mx-auto max-w-3xl px-4 py-12">
+    <PaginaPublica
+      titulo="Link temporário"
+      descricao="Gere um link que se apaga depois de ser aberto."
+    >
+      <div>
         <p className="flex items-center gap-2 text-sm font-semibold text-primary">
           <Lock className="size-4" /> FERRAMENTA GRATUITA
         </p>
@@ -211,6 +212,6 @@ function LinksTemporariosPage() {
           </p>
         </section>
       </div>
-    </main>
+    </PaginaPublica>
   );
 }

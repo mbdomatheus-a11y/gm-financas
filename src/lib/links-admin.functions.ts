@@ -25,7 +25,8 @@ async function exigirAdmin(context: Ctx) {
   if (!(await ehAdmin(context))) throw new Error("Acesso restrito à administração do site.");
 }
 
-const COLUNAS = "id,titulo,conteudo,tipo,expira_em,arquivado,concluida_em,criado_em,atualizado_em";
+const COLUNAS =
+  "id,titulo,conteudo,tipo,expira_em,arquivado,concluida_em,criado_em,atualizado_em,publico,token_publico";
 
 export const adminListarLinks = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -47,7 +48,54 @@ export const adminListarLinks = createServerFn({ method: "GET" })
       concluida_em: string | null;
       criado_em: string;
       atualizado_em: string;
+      publico: boolean;
+      token_publico: string | null;
     }[];
+  });
+
+/**
+ * Liga ou desliga o link público da anotação (2026-10-10). Ligado, qualquer
+ * pessoa com o endereço lê sem entrar na conta; desligado, o endereço para de
+ * funcionar na hora. Ligar de novo gera um endereço novo, então o antigo que
+ * alguém guardou não volta a abrir.
+ */
+export const adminAlternarLinkPublico = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((v: unknown) =>
+    z.object({ id: z.string().uuid(), publico: z.boolean() }).parse(v),
+  )
+  .handler(async ({ data, context }) => {
+    await exigirAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const token = data.publico ? crypto.randomUUID().replace(/-/g, "") : null;
+    const { error } = await (supabaseAdmin as any)
+      .from("links_admin")
+      .update({ publico: data.publico, token_publico: token })
+      .eq("id", data.id);
+    if (error) throw new Error("Não foi possível alterar o compartilhamento.");
+    return { ok: true as const, token };
+  });
+
+/** Leitura pública pelo token: não exige conta nem sessão. */
+export const abrirNotaPublica = createServerFn({ method: "POST" })
+  .inputValidator((v: unknown) => z.object({ token: z.string().min(16).max(64) }).parse(v))
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: nota } = await (supabaseAdmin as any)
+      .from("links_admin")
+      .select("titulo,conteudo,expira_em,arquivado,publico,atualizado_em")
+      .eq("token_publico", data.token)
+      .maybeSingle();
+    if (!nota || !nota.publico || nota.arquivado) return { status: "nao_encontrado" as const };
+    if (nota.expira_em && new Date(nota.expira_em).getTime() < Date.now()) {
+      return { status: "expirado" as const };
+    }
+    return {
+      status: "ok" as const,
+      titulo: nota.titulo as string,
+      conteudo: nota.conteudo as string,
+      atualizadoEm: nota.atualizado_em as string,
+    };
   });
 
 export const adminSalvarLink = createServerFn({ method: "POST" })

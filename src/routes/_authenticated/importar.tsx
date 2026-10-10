@@ -1552,6 +1552,65 @@ function ImportarPage() {
             continue;
           }
 
+          // Importar faturas de meses anteriores (histórico): a MESMA compra
+          // parcelada aparece em várias faturas, só mudando o número da
+          // parcela (3/12, 4/12...). Como a chave de deduplicação inclui esse
+          // número, sem este passo cada fatura criaria um parcelamento novo e a
+          // dívida apareceria dobrada. Aqui o parcelamento é reconhecido pela
+          // compra em si (estabelecimento + data da compra + total de parcelas
+          // + cartão) e só a parcela daquele mês é completada.
+          if (l.parcela_total > 1) {
+            const { data: mesmoParcelamento } = await supabase
+              .from("despesas")
+              .select("id, valor_total")
+              .eq("grupo_id", grupoId)
+              .eq("estabelecimento_normalizado", chaveEstabelecimento(l.descricao))
+              .eq("data_compra", l.data_compra)
+              .eq("total_parcelas", l.parcela_total)
+              .limit(1)
+              .maybeSingle();
+            if (mesmoParcelamento) {
+              const vencimentoDaParcela = vencimentoParcela(venc, l.parcela_numero, l.parcela_numero);
+              const { data: parcelaExistente } = await supabase
+                .from("parcelas")
+                .select("id")
+                .eq("despesa_id", mesmoParcelamento.id)
+                .eq("numero", l.parcela_numero)
+                .maybeSingle();
+              if (parcelaExistente) {
+                const { error: eAtual } = await supabase
+                  .from("parcelas")
+                  .update({
+                    valor: l.valor,
+                    valor_estimado: false,
+                    vencimento: vencimentoDaParcela,
+                    fatura_id: fatura.id,
+                  } as any)
+                  .eq("id", parcelaExistente.id);
+                if (eAtual) throw eAtual;
+              } else {
+                const { error: eNova } = await supabase.from("parcelas").insert({
+                  despesa_id: mesmoParcelamento.id,
+                  numero: l.parcela_numero,
+                  total: l.parcela_total,
+                  valor: l.valor,
+                  moeda: l.moeda,
+                  vencimento: vencimentoDaParcela,
+                  paga: false,
+                  origem: "importacao",
+                  valor_estimado: false,
+                  confianca_data: l.confianca_data,
+                  fatura_id: fatura.id,
+                  grupo_id: grupoId,
+                } as any);
+                if (eNova) throw eNova;
+              }
+              if (cartaoId) cartoesTocados.add(cartaoId);
+              inseridos++;
+              continue;
+            }
+          }
+
           const { data: despesa, error: despErr } = await supabase
             .from("despesas")
             .insert({

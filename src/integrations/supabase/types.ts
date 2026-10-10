@@ -2880,6 +2880,7 @@ export type Database = {
           created_at: string;
           data_nascimento: string | null;
           email: string | null;
+          foto_url: string | null;
           grupo_id: string | null;
           id: string;
           nome: string;
@@ -2894,6 +2895,7 @@ export type Database = {
           created_at?: string;
           data_nascimento?: string | null;
           email?: string | null;
+          foto_url?: string | null;
           grupo_id?: string | null;
           id: string;
           nome: string;
@@ -2908,6 +2910,7 @@ export type Database = {
           created_at?: string;
           data_nascimento?: string | null;
           email?: string | null;
+          foto_url?: string | null;
           grupo_id?: string | null;
           id?: string;
           nome?: string;

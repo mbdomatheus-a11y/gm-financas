@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { AlertTriangle, Eye, EyeOff, Lock, ShieldCheck, ShieldOff } from "lucide-react";
 import { toast } from "sonner";
 
-import { BrandMark } from "@/components/BrandMark";
+import { PaginaPublica } from "@/components/PaginaPublica";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -111,20 +111,17 @@ function LinkTemporarioViewerPage() {
   }
 
   return (
-    <main className="min-h-screen bg-background text-foreground">
-      <header className="border-b">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4">
-          <Link to="/" className="flex items-center gap-2 font-bold">
-            <BrandMark className="size-8" />
-            Control ALL
-          </Link>
+    <PaginaPublica
+      titulo="Mensagem temporária"
+      descricao="Link de leitura única, criado em Ferramentas."
+      largura="max-w-2xl"
+    >
+      <div className="mx-auto max-w-2xl">
+        <div className="mb-4 text-right">
           <Link to="/links-temporarios" className="text-sm font-medium text-primary">
             Criar outro link
           </Link>
         </div>
-      </header>
-
-      <div className="mx-auto max-w-2xl px-4 py-12">
         {estado.fase === "inicial" && (
           <Card>
             <CardContent className="space-y-4 p-6 text-center">
@@ -237,7 +234,7 @@ function LinkTemporarioViewerPage() {
           </Card>
         )}
       </div>
-    </main>
+    </PaginaPublica>
   );
 }
 

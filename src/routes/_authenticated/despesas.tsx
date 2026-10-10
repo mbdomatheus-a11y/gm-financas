@@ -279,7 +279,18 @@ function DespesasPage() {
   const [filtroEconomia, setFiltroEconomia] = useState(search.economia ?? false);
   // `modo=cartao` na URL (ex.: vindo do card "Parcelas mensalizadas" do
   // dashboard) abre a página já na visão "Por cartão".
-  const [modoLista, setModoLista] = useState<"lista" | "cartao">(search.modo ?? "lista");
+  // 2026-10-10: a visão por cartão passou a ser o padrão, e a escolha do
+  // usuário fica guardada (antes voltava para "lista" toda vez que a tela era
+  // aberta). Um `?modo=` vindo de outra tela continua mandando naquela visita.
+  const [modoListaSalvo, setModoListaSalvo] = usePersistedState<"lista" | "cartao">(
+    "despesas.modoLista",
+    "cartao",
+  );
+  const modoLista = search.modo ?? modoListaSalvo;
+  const setModoLista = (v: "lista" | "cartao") => {
+    setModoListaSalvo(v);
+    if (search.modo) void navigate({ search: (s: any) => ({ ...s, modo: undefined }), replace: true });
+  };
   const [expandida, setExpandida] = useState<string | null>(null);
   const [grupoExpandido, setGrupoExpandido] = useState<string | null>(null);
 
