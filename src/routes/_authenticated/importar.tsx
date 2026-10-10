@@ -278,6 +278,63 @@ function ImportarPage() {
     },
   });
 
+  /**
+   * Escolhas que o usuário já fez para cada estabelecimento em importações
+   * anteriores (ex.: "esta linha substitui o valor daquela despesa fixa").
+   * São aplicadas sozinhas na próxima fatura.
+   */
+  const { data: preferenciasImportacao = [] } = useQuery({
+    queryKey: ["importacao-preferencias"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("importacao_preferencias")
+        .select("chave, escopo, acao, despesa_id");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const salvarPreferenciaImportacao = useMutation({
+    mutationFn: async (p: {
+      descricao: string;
+      escopo: "fixa" | "duplicata";
+      acao: string;
+      despesaId: string | null;
+    }) => {
+      const chave = chaveEstabelecimento(p.descricao);
+      if (!chave || !user?.id) return;
+      const { data: perfil } = await supabase
+        .from("profiles")
+        .select("grupo_id")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (!perfil?.grupo_id) return;
+      const { error } = await supabase.from("importacao_preferencias").upsert(
+        {
+          grupo_id: perfil.grupo_id,
+          chave,
+          escopo: p.escopo,
+          acao: p.acao,
+          despesa_id: p.despesaId,
+          criado_por: user.id,
+          atualizado_em: new Date().toISOString(),
+        },
+        { onConflict: "grupo_id,chave,escopo" },
+      );
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["importacao-preferencias"] }),
+  });
+
+  /** Preferência salva para o estabelecimento desta linha. */
+  function preferenciaDe(descricao: string, escopo: "fixa" | "duplicata") {
+    const chave = chaveEstabelecimento(descricao);
+    if (!chave) return null;
+    return (
+      (preferenciasImportacao as any[]).find((p) => p.chave === chave && p.escopo === escopo) ?? null
+    );
+  }
+
   const responsaveis = useMemo(
     () => [...(profiles as any[]).map((p) => p.nome as string), RESPONSAVEIS_EXTRA],
     [profiles],
@@ -317,7 +374,43 @@ function ImportarPage() {
   }
 
   function acaoDuplicataDe(f: FaturaItem, l: LancamentoExtraido): AcaoDuplicata {
-    return acoesDuplicata[chaveDup(f.arquivo_hash, l.id)]?.acao ?? "decidir";
+    const escolhida = acoesDuplicata[chaveDup(f.arquivo_hash, l.id)]?.acao;
+    if (escolhida) return escolhida;
+    const salva = preferenciaDe(l.descricao, "duplicata");
+    return (salva?.acao as AcaoDuplicata) ?? "decidir";
+  }
+
+  /**
+   * Repete, nesta fatura, as escolhas já feitas antes para os mesmos
+   * estabelecimentos (ex.: "substituir o valor da despesa fixa"). O usuário
+   * continua podendo trocar linha a linha.
+   */
+  function aplicarPreferenciasSalvas(f: FaturaItem) {
+    const fixas: Record<string, { acao: AcaoFixa; fixaId: string }> = {};
+    const duplicatas: Record<string, { acao: AcaoDuplicata; alvoId: string | null }> = {};
+    for (const l of f.lancamentos) {
+      const salvaFixa = preferenciaDe(l.descricao, "fixa");
+      if (salvaFixa?.despesa_id) {
+        fixas[`${f.arquivo_hash}:${l.id}`] = {
+          acao: salvaFixa.acao as AcaoFixa,
+          fixaId: salvaFixa.despesa_id,
+        };
+      }
+      const salvaDup = preferenciaDe(l.descricao, "duplicata");
+      if (salvaDup) {
+        const c = candidatasDe(f, l);
+        if (c.length)
+          duplicatas[chaveDup(f.arquivo_hash, l.id)] = {
+            acao: salvaDup.acao as AcaoDuplicata,
+            alvoId: c[0]!.despesa.id,
+          };
+      }
+    }
+    if (Object.keys(fixas).length) setAcoesFixas((atual) => ({ ...fixas, ...atual }));
+    if (Object.keys(duplicatas).length)
+      setAcoesDuplicata((atual) => ({ ...duplicatas, ...atual }));
+    const total = Object.keys(fixas).length + Object.keys(duplicatas).length;
+    if (total) toast.info(`${total} escolha(s) de importações anteriores foram repetidas.`);
   }
 
   function definirAcaoDuplicata(
@@ -327,17 +420,41 @@ function ImportarPage() {
     alvoId: string | null,
   ) {
     setAcoesDuplicata((atual) => ({ ...atual, [chaveDup(f.arquivo_hash, l.id)]: { acao, alvoId } }));
+    // Repete esta escolha na próxima fatura do mesmo estabelecimento.
+    if (acao !== "decidir")
+      salvarPreferenciaImportacao.mutate({
+        descricao: l.descricao,
+        escopo: "duplicata",
+        acao,
+        despesaId: null,
+      });
     const idx = faturas.findIndex((x) => x.arquivo_hash === f.arquivo_hash);
     if (idx >= 0) atualizarLancamento(idx, l.id, { incluir: acao !== "manter_existente" });
   }
 
-  /** Marca todas as linhas com duplicata para substituir o lançamento já cadastrado. */
+  /**
+   * Marca todas as linhas com duplicata para substituir o lançamento já
+   * cadastrado. Cada lançamento existente só pode ser usado por UMA linha: duas
+   * compras iguais na mesma fatura (ex.: "Sem Parar 150,00" em dois dias) não
+   * podem substituir o mesmo registro, senão uma delas se perde.
+   */
   function substituirTodasDuplicatas(f: FaturaItem) {
     const novas: Record<string, { acao: AcaoDuplicata; alvoId: string | null }> = {};
+    const usados = new Set<string>();
     let total = 0;
+    let semAlvo = 0;
     for (const l of f.lancamentos) {
-      const c = candidatasDe(f, l);
-      if (!c.length) continue;
+      const c = candidatasDe(f, l).filter((x) => !usados.has(x.despesa.id));
+      if (!c.length) {
+        // Já existia parecido, mas o único candidato foi usado por outra linha:
+        // esta entra como lançamento novo, para não sumir da importação.
+        if (candidatasDe(f, l).length) {
+          novas[chaveDup(f.arquivo_hash, l.id)] = { acao: "novo", alvoId: null };
+          semAlvo++;
+        }
+        continue;
+      }
+      usados.add(c[0]!.despesa.id);
       novas[chaveDup(f.arquivo_hash, l.id)] = { acao: "substituir", alvoId: c[0]!.despesa.id };
       total++;
     }
@@ -346,7 +463,10 @@ function ImportarPage() {
       return;
     }
     setAcoesDuplicata((atual) => ({ ...atual, ...novas }));
-    toast.success(`${total} lançamento(s) vão substituir o que já estava cadastrado.`);
+    toast.success(
+      `${total} lançamento(s) vão substituir o que já estava cadastrado.` +
+        (semAlvo ? ` ${semAlvo} entram como lançamento novo (o parecido já foi usado).` : ""),
+    );
   }
 
   /** Cartão cadastrado com o final informado (preferindo o mesmo banco da fatura). */
@@ -532,6 +652,7 @@ function ImportarPage() {
         }
       }
       setFaturas((prev) => [...prev, ...novos]);
+      for (const n of novos) aplicarPreferenciasSalvas(n);
       if (novos.length) toast.success(`${novos.length} fatura(s) lida(s).`);
     } finally {
       setLendo(false);
@@ -549,6 +670,8 @@ function ImportarPage() {
     try {
       const item = await processarArquivoUnico(file, alvo.senha);
       setFaturas((prev) => [...prev, item]);
+    aplicarPreferenciasSalvas(item);
+      aplicarPreferenciasSalvas(item);
       setPdfsComSenha((prev) => prev.filter((p) => p.file !== file));
       toast.success(`${file.name}: fatura lida.`);
     } catch (erro) {
@@ -609,6 +732,7 @@ function ImportarPage() {
       destino: "",
     };
     setFaturas((prev) => [...prev, item]);
+    aplicarPreferenciasSalvas(item);
     setColado("");
     toast.success(`${linhas.length} lançamento(s) interpretado(s).`);
   }
@@ -690,7 +814,10 @@ function ImportarPage() {
           toast.error(`${file.name}: não consegui ler a imagem.`);
         }
       }
-      if (novos.length) setFaturas((prev) => [...prev, ...novos]);
+      if (novos.length) {
+        setFaturas((prev) => [...prev, ...novos]);
+        for (const n of novos) aplicarPreferenciasSalvas(n);
+      }
     } finally {
       setLendoImagens(false);
       if (imgInputRef.current) imgInputRef.current.value = "";
@@ -774,7 +901,10 @@ function ImportarPage() {
           );
         }
       }
-      if (novos.length) setFaturas((prev) => [...prev, ...novos]);
+      if (novos.length) {
+        setFaturas((prev) => [...prev, ...novos]);
+        for (const n of novos) aplicarPreferenciasSalvas(n);
+      }
     } finally {
       setLendoPlanilha(false);
       if (planilhaInputRef.current) planilhaInputRef.current.value = "";
@@ -1126,6 +1256,8 @@ function ImportarPage() {
 
       let inseridos = 0;
       let ignorados = 0;
+      // Um lançamento já cadastrado só pode ser substituído por UMA linha.
+      const alvosUsados = new Set<string>();
       let fechadas = 0;
 
       // Etapa D: ponto final e autoritativo de aplicação das permissões de
@@ -1220,7 +1352,8 @@ function ImportarPage() {
             ignorados++;
             continue;
           }
-          if (dup?.acao === "substituir" && dup.alvoId) {
+          if (dup?.acao === "substituir" && dup.alvoId && !alvosUsados.has(dup.alvoId)) {
+            alvosUsados.add(dup.alvoId);
             const { error: subErro } = await supabase
               .from("despesas")
               .update({
@@ -1248,39 +1381,45 @@ function ImportarPage() {
               .eq("id", dup.alvoId)
               .eq("grupo_id", grupoId);
             if (subErro) throw subErro;
-            // Refaz as parcelas desse lançamento com os dados da fatura.
+            // Refaz TODAS as parcelas com os dados da fatura, guardando o que
+            // já estava pago. Antes só as não pagas eram refeitas, e a parcela
+            // paga ficava com o vencimento antigo — o lançamento sumia do mês
+            // da fatura e a soma da tela de Despesas não batia com a fatura.
+            const { data: antigas } = await supabase
+              .from("parcelas")
+              .select("numero, paga, data_pagamento")
+              .eq("despesa_id", dup.alvoId);
+            const pagamentoPorNumero = new Map<number, string | null>(
+              (antigas ?? [])
+                .filter((x: any) => x.paga)
+                .map((x: any) => [Number(x.numero), x.data_pagamento ?? null]),
+            );
             const { error: delParc } = await supabase
               .from("parcelas")
               .delete()
-              .eq("despesa_id", dup.alvoId)
-              .eq("paga", false);
-            if (delParc) throw delParc;
-            const { data: pagas } = await supabase
-              .from("parcelas")
-              .select("numero")
               .eq("despesa_id", dup.alvoId);
-            const jaPagas = new Set((pagas ?? []).map((x: any) => x.numero));
-            const novas = Array.from({ length: l.parcela_total }, (_, i) => i + 1)
-              .filter((numero) => !jaPagas.has(numero))
-              .map((numero) => ({
+            if (delParc) throw delParc;
+            const novas = Array.from({ length: l.parcela_total }, (_, i) => i + 1).map((numero) => {
+              const paga = pagamentoPorNumero.has(numero) || numero < l.parcela_numero;
+              return {
                 despesa_id: dup.alvoId,
                 numero,
                 total: l.parcela_total,
                 valor: l.valor,
                 moeda: l.moeda,
                 vencimento: vencimentoParcela(venc, l.parcela_numero, numero),
-                paga: numero < l.parcela_numero,
+                paga,
+                data_pagamento: pagamentoPorNumero.get(numero) ?? null,
                 origem: "importacao_substituicao",
                 valor_estimado: numero !== l.parcela_numero,
                 confianca_data: l.confianca_data,
                 fatura_id: fatura.id,
                 dedup_key: `${chave}#${numero}`,
                 grupo_id: grupoId,
-              }));
-            if (novas.length) {
-              const { error: insParc } = await supabase.from("parcelas").insert(novas as any);
-              if (insParc) throw insParc;
-            }
+              };
+            });
+            const { error: insParc } = await supabase.from("parcelas").insert(novas as any);
+            if (insParc) throw insParc;
             if (cartaoId) cartoesTocados.add(cartaoId);
             inseridos++;
             continue;
@@ -2490,6 +2629,13 @@ function ImportarPage() {
                                       }));
                                       atualizarLancamento(idx, l.id, {
                                         incluir: acao !== "ignorar",
+                                      });
+                                      // Guarda a escolha para repetir na próxima fatura.
+                                      salvarPreferenciaImportacao.mutate({
+                                        descricao: l.descricao,
+                                        escopo: "fixa",
+                                        acao,
+                                        despesaId: correspondencia.fixa.id,
                                       });
                                     }}
                                   />

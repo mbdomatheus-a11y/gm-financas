@@ -1515,6 +1515,39 @@ export type Database = {
         };
         Relationships: [];
       };
+      importacao_preferencias: {
+        Row: {
+          acao: string;
+          atualizado_em: string;
+          chave: string;
+          criado_por: string | null;
+          despesa_id: string | null;
+          escopo: string;
+          grupo_id: string;
+          id: string;
+        };
+        Insert: {
+          acao: string;
+          atualizado_em?: string;
+          chave: string;
+          criado_por?: string | null;
+          despesa_id?: string | null;
+          escopo?: string;
+          grupo_id: string;
+          id?: string;
+        };
+        Update: {
+          acao?: string;
+          atualizado_em?: string;
+          chave?: string;
+          criado_por?: string | null;
+          despesa_id?: string | null;
+          escopo?: string;
+          grupo_id?: string;
+          id?: string;
+        };
+        Relationships: [];
+      };
       import_faturas: {
         Row: {
           arquivo_excluido_em: string | null;
