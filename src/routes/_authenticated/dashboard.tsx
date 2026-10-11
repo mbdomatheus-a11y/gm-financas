@@ -48,6 +48,7 @@ import {
 import { useCotacao } from "@/hooks/useCotacao";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { useCategorias, useDespesas, useFaturasMes, useReceitas } from "@/hooks/useFinance";
+import { useEstruturaCategorias } from "@/hooks/useEstruturaCategorias";
 import { criarCorPorCategoria, nomeBaseDoGrupo } from "@/lib/categorias-cor";
 import { aplicarRegrasFaturaMes } from "@/lib/fatura-mes";
 import { opacidadePorPosicao, posicaoTemporalDoMes } from "@/lib/tempo-visual";
@@ -188,6 +189,7 @@ function DashboardPage() {
   // Bloco 3 (plano-mega 2026-09-14): cor por categoria vem sempre do
   // cadastro em /categorias, não mais sorteada por posição no gráfico.
   const { data: categoriasDespesa = [] } = useCategorias("despesa");
+  const { macroDe: macroDeCategoria } = useEstruturaCategorias("despesa");
   const corPorCategoria = useMemo(
     () => criarCorPorCategoria(categoriasDespesa as any[]),
     [categoriasDespesa],
@@ -311,13 +313,13 @@ function DashboardPage() {
   const grupoDe = useMemo(
     () => (p: any) =>
       agrupamento === "categoria"
-        ? (p.despesa.categoria ?? "outros")
+        ? macroDeCategoria(p.despesa.categoria)
         : agrupamento === "tipo"
           ? p.despesa.tipo === "fixa"
             ? "Fixa"
             : "Variável"
           : (p.despesa.responsavel ?? "Sem responsável"),
-    [agrupamento],
+    [agrupamento, macroDeCategoria],
   );
 
   const dados = useMemo(() => {
@@ -354,7 +356,7 @@ function DashboardPage() {
 
     const porCategoria = new Map<string, number>();
     for (const p of parcelas.filter((p: any) => monthKey(p.vencimento) === mesPie)) {
-      const key = `${p.despesa.categoria} (${p.despesa.tipo === "fixa" ? "fixa" : "variável"})`;
+      const key = `${macroDeCategoria(p.despesa.categoria)} (${p.despesa.tipo === "fixa" ? "fixa" : "variável"})`;
       porCategoria.set(
         key,
         (porCategoria.get(key) ?? 0) + toBRL(Number(p.valor), p.despesa.moeda, cotacao),
@@ -472,7 +474,7 @@ function DashboardPage() {
     const mediaCat = new Map<string, number>();
     for (const p of parcelas) {
       const mk = monthKey(p.vencimento);
-      const cat = p.despesa.categoria ?? "outros";
+      const cat = macroDeCategoria(p.despesa.categoria);
       const v = toBRL(Number(p.valor), p.despesa.moeda, cotacao);
       if (mk === mesAtual) atualCat.set(cat, (atualCat.get(cat) ?? 0) + v);
       else if (tresMeses.includes(mk)) mediaCat.set(cat, (mediaCat.get(cat) ?? 0) + v / 3);
@@ -591,7 +593,7 @@ function DashboardPage() {
       top5,
       alivioParcelamentos,
     };
-  }, [receitasProjetadas, despesas, parcelas, cotacao, mesAtual, mesPie, meses, grupoDe]);
+  }, [receitasProjetadas, despesas, parcelas, cotacao, mesAtual, mesPie, meses, grupoDe, macroDeCategoria]);
 
   // Pedido 3 (2026-10-03): O último mês do gráfico comanda o horizonte padrão da dívida
   const mesAtualRotulo = useMemo(

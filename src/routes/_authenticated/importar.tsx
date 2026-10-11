@@ -62,7 +62,6 @@ import {
   type AcaoFixa,
 } from "@/components/AvisosImportacao";
 import { DuplicidadeDialog } from "@/components/DuplicidadeDialog";
-import { SelectBusca } from "@/components/SelectBusca";
 import {
   classificacaoAnterior,
   encontrarCandidatas,
@@ -74,6 +73,7 @@ import { cn } from "@/lib/utils";
 import { encontrarCorrespondenciaFixa, type FixaCandidata } from "@/lib/correspondencia-fixa";
 import { mesesEntreCompetencias, somarMeses, vencimentoDaCompetencia } from "@/lib/recorrencia";
 import {
+  CATEGORIA_A_CONFIRMAR,
   CONFIANCA_LABEL,
   chaveEstabelecimento,
   classificar,
@@ -82,7 +82,9 @@ import {
 } from "@/lib/categorizacao";
 import { PrimeiraCategoriaGuia } from "@/components/PrimeiraCategoriaGuia";
 import { PrimeiraFaturaAviso } from "@/components/PrimeiraFaturaAviso";
-import { useCategoriasPadrao } from "@/hooks/useCategoriasPadrao";
+import { useEstruturaCategorias } from "@/hooks/useEstruturaCategorias";
+import { lembrarClassificacoes } from "@/lib/classificacao-lembrada";
+import { SeletorCategoria } from "@/components/SeletorCategoria";
 import { interpretarBloco } from "@/lib/lancamento-texto";
 import { lancamentosDeOcr, ocrImagem, hashTexto as hashTextoOcr } from "@/lib/ocr";
 import {
@@ -156,7 +158,7 @@ async function hashTexto(texto: string) {
 }
 
 function ImportarPage() {
-  const { subcategoriasDe: subDaCategoria } = useCategoriasPadrao();
+  const { estrutura, criarSubcategoria } = useEstruturaCategorias("despesa");
   const qc = useQueryClient();
   const { user } = useSession();
   const { can, canImportar, exclusaoBloqueada } = usePermissoes();
@@ -409,11 +411,6 @@ function ImportarPage() {
     [profiles],
   );
 
-  const listaCategorias = useMemo(() => {
-    const nomes = new Set<string>((categorias as any[]).map((c) => c.nome as string));
-    faturas.forEach((f) => f.lancamentos.forEach((l) => l.categoria && nomes.add(l.categoria)));
-    return Array.from(nomes).sort((a, b) => a.localeCompare(b, "pt-BR"));
-  }, [categorias, faturas]);
 
   /** Aplica o de-para e as palavras-chave em cada lançamento lido. */
   function categorizar(lancamentos: LancamentoExtraido[]): LancamentoExtraido[] {
@@ -1288,6 +1285,46 @@ function ImportarPage() {
       if (!perfil.grupo_id) throw new Error("Não foi possível identificar o seu grupo.");
       const grupoId = perfil.grupo_id;
       const totaisPendentes: string[] = [];
+
+      // Cria na hora a macro e a subcategoria que ainda não existem, e grava o
+      // aprendizado do grupo: o próximo lançamento deste estabelecimento já vem
+      // classificado (ex.: LANCHONETE DA MARIA sempre em Restaurante).
+      const incluidas = faturas.flatMap((f) => f.lancamentos.filter((l) => l.incluir));
+      const macrosUsadas = new Set(incluidas.map((l) => l.categoria).filter(Boolean));
+      const { data: catsExistentes } = await supabase
+        .from("categorias")
+        .select("nome")
+        .eq("tipo", "despesa");
+      const nomesCats = new Set((catsExistentes ?? []).map((c: any) => String(c.nome).toLowerCase()));
+      for (const nome of macrosUsadas) {
+        if (nomesCats.has(nome.toLowerCase())) continue;
+        const { error } = await supabase.from("categorias").insert({ nome, tipo: "despesa" });
+        if (error && !String(error.message).includes("duplicate")) throw error;
+        nomesCats.add(nome.toLowerCase());
+      }
+      const subsNovas = new Map<string, { categoria: string; nome: string }>();
+      for (const l of incluidas) {
+        if (!l.subcategoria) continue;
+        const jaExiste = estrutura.find((e) => e.macro === l.categoria)?.subcategorias ?? [];
+        if (jaExiste.includes(l.subcategoria)) continue;
+        subsNovas.set(`${l.categoria}|${l.subcategoria}`, { categoria: l.categoria, nome: l.subcategoria });
+      }
+      for (const sub of subsNovas.values()) {
+        const { error } = await (supabase as any)
+          .from("subcategorias")
+          .insert({ categoria: sub.categoria, nome: sub.nome, tipo: "despesa" });
+        if (error && !String(error.message).includes("duplicate")) throw error;
+      }
+      await lembrarClassificacoes(
+        grupoId,
+        user.id,
+        incluidas.map((l) => ({
+          descricao: l.descricao,
+          categoria: l.categoria,
+          subcategoria: l.subcategoria ?? null,
+          tipo: l.tipo ?? "variavel",
+        })),
+      );
       for (const f of faturas) {
         const [tipoDestino, idDestino] = String(f.destino ?? "").split(":");
         const ids = new Set<string>();
@@ -1990,7 +2027,7 @@ function ImportarPage() {
                 />
               </div>
               <div
-                className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed p-8 text-center transition-colors hover:bg-muted/50"
+                className="flex cursor-pointer flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-dashed px-4 py-2.5 text-left transition-colors hover:bg-muted/50"
                 onClick={() => inputRef.current?.click()}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={(e) => {
@@ -2093,7 +2130,7 @@ function ImportarPage() {
 
             <TabsContent value="prints" className="space-y-3">
               <div
-                className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed p-8 text-center transition-colors hover:bg-muted/50"
+                className="flex cursor-pointer flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-dashed px-4 py-2.5 text-left transition-colors hover:bg-muted/50"
                 onClick={() => imgInputRef.current?.click()}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={(e) => {
@@ -2128,7 +2165,7 @@ function ImportarPage() {
 
             <TabsContent value="planilha" className="space-y-3">
               <div
-                className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed p-8 text-center transition-colors hover:bg-muted/50"
+                className="flex cursor-pointer flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-dashed px-4 py-2.5 text-left transition-colors hover:bg-muted/50"
                 onClick={() => planilhaInputRef.current?.click()}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={(e) => {
@@ -2630,8 +2667,8 @@ function ImportarPage() {
                         <th className="w-[112px] p-1 text-left">Parcela</th>
                         <th className="w-[9%] p-1 text-left">Tipo</th>
                         <th className="w-[7%] p-1 text-left">Final</th>
-                        <th className="w-[12%] p-1 text-left">Responsável</th>
-                        <th className="w-[13%] p-1 text-left">Categoria</th>
+                        <th className="w-[9%] p-1 text-left">Responsável</th>
+                        <th className="w-[16%] p-1 text-left">Categoria</th>
                         <th className="w-[11%] p-1 text-left">Subcategoria</th>
                         <th className="w-[12%] p-1 text-right">Valor</th>
                       </tr>
@@ -2646,7 +2683,13 @@ function ImportarPage() {
                           ? podeImportarParcelamentos
                           : podeImportarLancamentos;
                         return (
-                          <tr key={l.id} className="border-t align-top">
+                          <tr
+                            key={l.id}
+                            className={cn(
+                              "border-t align-top",
+                              l.categoria === CATEGORIA_A_CONFIRMAR && "bg-violet-500/10",
+                            )}
+                          >
                             <td className="p-1">
                               <Checkbox
                                 checked={l.incluir && permitidoPorTipo}
@@ -2878,37 +2921,24 @@ function ImportarPage() {
                             </td>
                             <td className="p-1">
                               <div className="flex items-center gap-1">
-                                <SelectBusca
+                                <SeletorCategoria
+                                  campo="categoria"
                                   className="h-7 min-w-0 px-1 text-[11px]"
                                   ariaLabel="Categoria do lançamento"
                                   placeholder="Categoria"
                                   valor={l.categoria}
-                                  opcoes={listaCategorias.map((c) => ({ valor: c, rotulo: c }))}
-                                  onEscolher={(v) =>
-                                    atualizarLancamento(idx, l.id, { categoria: v, subcategoria: null })
+                                  estrutura={estrutura}
+                                  onEscolher={(cat, sub) =>
+                                    atualizarLancamento(idx, l.id, { categoria: cat, subcategoria: sub })
                                   }
-                                  onCriar={(texto) =>
+                                  onCriarMacro={(texto) =>
                                     setNovaCategoria({
                                       nome: texto,
                                       faturaIdx: idx,
                                       lancamentoId: l.id,
                                     })
                                   }
-                                  rotuloCriar="Criar categoria"
                                 />
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="icon"
-                                  className="size-7 shrink-0"
-                                  title="Criar uma categoria nova"
-                                  aria-label="Criar uma categoria nova"
-                                  onClick={() =>
-                                    setNovaCategoria({ nome: "", faturaIdx: idx, lancamentoId: l.id })
-                                  }
-                                >
-                                  <Plus className="size-4" aria-hidden="true" />
-                                </Button>
                                 {(() => {
                                   const adicionada = regras.some(
                                     (r) =>
@@ -2949,26 +2979,25 @@ function ImportarPage() {
                               )}
                             </td>
                             <td className="p-1">
-                              <Select
-                                value={l.subcategoria ?? "none"}
-                                onValueChange={(v) =>
-                                  atualizarLancamento(idx, l.id, {
-                                    subcategoria: v === "none" ? null : v,
-                                  })
+                              <SeletorCategoria
+                                campo="subcategoria"
+                                className="h-7 w-full min-w-0 px-1 text-[11px]"
+                                ariaLabel="Subcategoria do lançamento"
+                                placeholder="—"
+                                valor={l.subcategoria ?? null}
+                                categoriaAtual={l.categoria}
+                                estrutura={estrutura}
+                                onEscolher={(_cat, sub) => atualizarLancamento(idx, l.id, { subcategoria: sub })}
+                                onCriarSub={(macro, nome) =>
+                                  criarSubcategoria.mutate(
+                                    { categoria: macro, nome },
+                                    {
+                                      onSuccess: () =>
+                                        atualizarLancamento(idx, l.id, { subcategoria: nome.trim() }),
+                                    },
+                                  )
                                 }
-                              >
-                                <SelectTrigger className="h-7 w-full min-w-0 px-1 text-[11px]">
-                                  <SelectValue placeholder="—" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="none">—</SelectItem>
-                                  {subDaCategoria(l.categoria).map((s) => (
-                                    <SelectItem key={s} value={s}>
-                                      {s}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                              />
                             </td>
                             <td className="p-1 text-right">
                               <Input

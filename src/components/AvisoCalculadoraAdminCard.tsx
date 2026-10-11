@@ -34,7 +34,7 @@ export function AvisoCalculadoraAdminCard() {
           aparece ao abrir o Simulador de dose/diluição (Ferramentas).
         </p>
         <Switch
-          checked={data?.exibir ?? true}
+          checked={data?.exibir ?? false}
           disabled={mudar.isPending || !data}
           onCheckedChange={(v) => mudar.mutate(v)}
           aria-label="Exibir aviso da calculadora"

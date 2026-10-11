@@ -16,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCotacao } from "@/hooks/useCotacao";
 import { useDespesas, useFaturasMes, useReceitas } from "@/hooks/useFinance";
+import { useEstruturaCategorias } from "@/hooks/useEstruturaCategorias";
 import { usePrivacidadeValores } from "@/hooks/usePrivacidadeValores";
 import { aplicarRegrasFaturaMes } from "@/lib/fatura-mes";
 import { formatBRL, monthKey, monthLabel, toBRL } from "@/lib/format";
@@ -79,18 +80,19 @@ export function GraficoHome({
     [meses, parcelas, receitas, cotacao],
   );
 
+  const { macroDe: macroDeCategoria } = useEstruturaCategorias("despesa");
   const categorias = useMemo(() => {
     const mapa = new Map<string, number>();
     for (const p of parcelas) {
       if (monthKey(p.vencimento) !== vigente) continue;
-      const cat = (p.despesa as any).categoria ?? "outros";
+      const cat = macroDeCategoria((p.despesa as any).categoria);
       mapa.set(cat, (mapa.get(cat) ?? 0) + toBRL(Number(p.valor), p.despesa.moeda, cotacao));
     }
     return [...mapa]
       .map(([nome, valor]) => ({ nome, valor: Number(valor.toFixed(2)) }))
       .sort((a, b) => b.valor - a.valor)
       .slice(0, 6);
-  }, [parcelas, vigente, cotacao]);
+  }, [parcelas, vigente, cotacao, macroDeCategoria]);
 
   const fmt = (v: unknown) => (ocultarValores ? "R$ ••••••" : formatBRL(Number(v)));
   const vazio =

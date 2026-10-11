@@ -778,7 +778,7 @@ export function AppLayout({
         <ConvitesRecebidosAviso />
         <header
           className={cn(
-            "glass sticky top-0 z-20 border-b border-border/60",
+            "sticky top-0 z-20 border-b border-border bg-background shadow-sm",
             topMenu && "lg:top-14",
           )}
         >

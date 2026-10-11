@@ -7,6 +7,17 @@ import { toast } from "sonner";
 import { AppLayout } from "@/components/AppLayout";
 import { AvisoPrimeiraVezDePara } from "@/components/AvisoPrimeiraVezDePara";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -16,7 +27,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { usePermissoes, useSession } from "@/hooks/useAuthData";
 import { useCategorias } from "@/hooks/useFinance";
-import { chaveEstabelecimento } from "@/lib/categorizacao";
+import { chaveEstabelecimento, regrasBaseDoSistema } from "@/lib/categorizacao";
 import {
   CABECALHO_DEPARA,
   EXEMPLOS_DEPARA,
@@ -59,6 +70,8 @@ function DeParaPage() {
   const [lendo, setLendo] = useState(false);
   const [busca, setBusca] = useState("");
   const [nova, setNova] = useState({ descricao: "", categoria: "", subcategoria: "" });
+  const [sel, setSel] = useState<Set<string>>(new Set());
+  const [confirmar, setConfirmar] = useState<null | "selecionadas" | "todas">(null);
 
   const { data: regras = [], isLoading } = useQuery({
     queryKey: ["categoria-regras"],
@@ -221,6 +234,50 @@ function DeParaPage() {
     },
   });
 
+  const excluirVarias = useMutation({
+    mutationFn: async (ids: string[]) => {
+      if (exclusaoBloqueada) throw new Error("Seu perfil não possui permissão para excluir dados.");
+      if (ids.length === 0) return;
+      const { error } = await supabase.from("categoria_regras").delete().in("id", ids);
+      if (error) throw error;
+    },
+    onSuccess: (_r, ids) => {
+      qc.invalidateQueries({ queryKey: ["categoria-regras"] });
+      setSel(new Set());
+      setConfirmar(null);
+      toast.success(`${ids.length} regra(s) removida(s).`);
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  /** Exportação: regras do sistema e as suas, com a coluna "origem". */
+  function baixarDeParaCompleto(incluirSistema: boolean) {
+    const linhas: string[][] = [];
+    if (incluirSistema)
+      for (const r of regrasBaseDoSistema())
+        linhas.push([r.estabelecimento, r.categoria, r.subcategoria ?? "", "sistema"]);
+    for (const r of regras as any[])
+      linhas.push([
+        String(r.texto_original ?? r.estabelecimento_normalizado),
+        String(r.categoria ?? ""),
+        String(r.subcategoria ?? ""),
+        "usuario",
+      ]);
+    baixarTxt(incluirSistema ? "de-para-completo" : "backup-de-para", [...CABECALHO_DEPARA, "origem"], linhas);
+  }
+
+  const idsRegras = (regras as any[]).map((r) => r.id as string);
+  const todasMarcadas = idsRegras.length > 0 && idsRegras.every((id) => sel.has(id));
+
+  function alternarSel(id: string) {
+    setSel((a) => {
+      const n = new Set(a);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+  }
+
   function baixarModelo() {
     const blob = new Blob([modeloCsv()], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
@@ -240,7 +297,7 @@ function DeParaPage() {
       <Card>
         <CardContent className="p-4">
           <div
-            className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed p-8 text-center transition-colors hover:bg-muted/50"
+            className="flex cursor-pointer flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-dashed px-4 py-2.5 text-left transition-colors hover:bg-muted/50"
             onClick={() => inputRef.current?.click()}
             onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => {
@@ -270,7 +327,7 @@ function DeParaPage() {
             <Button variant="outline" size="sm" onClick={() => baixarXlsx("modelo-de-para", CABECALHO_DEPARA, EXEMPLOS_DEPARA)}>
               <Download className="mr-2 size-4" /> Excel
             </Button>
-            <Button variant="outline" size="sm" onClick={() => baixarTxt("modelo-de-para", CABECALHO_DEPARA, EXEMPLOS_DEPARA)}>
+            <Button variant="outline" size="sm" onClick={() => baixarDeParaCompleto(true)}>
               <Download className="mr-2 size-4" /> TXT
             </Button>
             <Button variant="outline" size="sm" onClick={baixarModelo}>
@@ -301,6 +358,43 @@ function DeParaPage() {
             </div>
           </CardHeader>
           <CardContent className="p-0">
+            {idsRegras.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2 border-b px-4 py-2">
+                <label className="flex items-center gap-2 text-xs">
+                  <Checkbox
+                    checked={todasMarcadas}
+                    onCheckedChange={(v) => setSel(v ? new Set(idsRegras) : new Set())}
+                    aria-label="Selecionar todas as regras"
+                  />
+                  Selecionar todas
+                </label>
+                <div className="ml-auto flex flex-wrap items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={() => baixarDeParaCompleto(false)}>
+                    <Download className="mr-2 size-4" /> Backup das minhas
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => baixarDeParaCompleto(true)}>
+                    <Download className="mr-2 size-4" /> Baixar tudo (sistema + minhas)
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={sel.size === 0 || exclusaoBloqueada}
+                    onClick={() => setConfirmar("selecionadas")}
+                  >
+                    <Trash2 className="mr-2 size-4" /> Excluir selecionadas ({sel.size})
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-destructive"
+                    disabled={exclusaoBloqueada}
+                    onClick={() => setConfirmar("todas")}
+                  >
+                    Excluir todas
+                  </Button>
+                </div>
+              </div>
+            )}
             {categoriasNovas.length > 0 && (
               <p className="px-6 pb-3 text-xs text-muted-foreground">
                 Serão criadas {categoriasNovas.length} categoria(s) nova(s):{" "}
@@ -470,6 +564,7 @@ function DeParaPage() {
               <table className="w-full text-sm">
                 <thead className="sticky top-0 bg-muted/50 text-xs text-muted-foreground">
                   <tr>
+                    <th className="w-8 p-2"></th>
                     <th className="p-2 text-left">Estabelecimento</th>
                     <th className="p-2 text-left">Categoria</th>
                     <th className="p-2 text-left">Subcategoria</th>
@@ -481,6 +576,13 @@ function DeParaPage() {
                 <tbody>
                   {filtradas.map((r) => (
                     <tr key={r.id} className="border-t">
+                      <td className="p-2">
+                        <Checkbox
+                          checked={sel.has(r.id)}
+                          onCheckedChange={() => alternarSel(r.id)}
+                          aria-label={`Selecionar regra ${r.texto_original ?? r.estabelecimento_normalizado}`}
+                        />
+                      </td>
                       <td className="p-2">
                         <p className="font-medium">
                           {r.texto_original ?? r.estabelecimento_normalizado}
@@ -565,6 +667,37 @@ function DeParaPage() {
           )}
         </CardContent>
       </Card>
+      <AlertDialog open={confirmar !== null} onOpenChange={(o) => !o && setConfirmar(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {confirmar === "todas" ? "Excluir todas as regras de de-para?" : `Excluir ${sel.size} regra(s)?`}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmar === "todas"
+                ? `Serão removidas ${idsRegras.length} regra(s) suas. As regras do sistema não são afetadas.`
+                : `Serão removidas ${sel.size} regra(s) selecionada(s).`}{" "}
+              Lançamentos já categorizados não mudam. Esta ação não pode ser desfeita. Antes de excluir, baixe um backup.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col gap-2 sm:flex-row">
+            <Button variant="outline" onClick={() => baixarDeParaCompleto(false)}>
+              <Download className="mr-2 size-4" /> Baixar backup
+            </Button>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={excluirVarias.isPending}
+              onClick={(ev) => {
+                ev.preventDefault();
+                excluirVarias.mutate(confirmar === "todas" ? idsRegras : [...sel]);
+              }}
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   );
 }

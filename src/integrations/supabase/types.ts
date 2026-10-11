@@ -2836,6 +2836,7 @@ export type Database = {
         Row: {
           destacar_veiculo_inicio: boolean;
           dia_virada: number | null;
+          exibicao_categoria: string;
           fonte: string;
           home_widgets: Json | null;
           idioma: string | null;
@@ -2848,6 +2849,7 @@ export type Database = {
         Insert: {
           destacar_veiculo_inicio?: boolean;
           dia_virada?: number | null;
+          exibicao_categoria?: string;
           fonte?: string;
           home_widgets?: Json | null;
           idioma?: string | null;
@@ -2860,6 +2862,7 @@ export type Database = {
         Update: {
           destacar_veiculo_inicio?: boolean;
           dia_virada?: number | null;
+          exibicao_categoria?: string;
           fonte?: string;
           home_widgets?: Json | null;
           idioma?: string | null;

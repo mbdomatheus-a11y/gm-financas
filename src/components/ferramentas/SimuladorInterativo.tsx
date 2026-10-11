@@ -225,29 +225,34 @@ export function SimuladorInterativo() {
         Uso somente acadêmico
       </div>
       {avisoLigado && !aceito && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
-          <div className="w-full max-w-md rounded-2xl bg-card p-6 text-center shadow-2xl">
-            <AlertTriangle className="mx-auto size-10 text-destructive" />
-            <h3 className="mt-3 text-lg font-bold text-destructive">Aviso de uso acadêmico</h3>
-            <p className="mt-3 text-left text-sm text-muted-foreground">
-              Este <strong>Simulador Interativo</strong> é só um exercício didático, pensado pra
-              ajudar a entender leitura de escala de seringa e cálculo de diluição em sala de aula.
-              Não é uma ferramenta clínica e não substitui nenhum protocolo, cálculo ou conferência
-              de dose reais.
-            </p>
-            <p className="mt-3 rounded-lg bg-destructive/10 p-3 text-left text-sm font-semibold text-destructive">
-              Um erro real de dose ou diluição pode ser fatal e levar o paciente a óbito. Nunca use
-              os resultados daqui pra decidir ou conferir uma dose de verdade — isso é ato exclusivo
-              de profissional de saúde legalmente habilitado.
-            </p>
-            <Button className="mt-5 w-full" onClick={() => setAceito(true)}>
-              Entendi, é só um exercício acadêmico
-            </Button>
+        <div
+          role="alert"
+          className="mb-4 rounded-xl border border-destructive/40 bg-card p-4 shadow-sm"
+        >
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="mt-0.5 size-5 shrink-0 text-destructive" />
+            <div className="min-w-0 flex-1 space-y-2">
+              <p className="text-sm font-bold text-destructive">Aviso de uso acadêmico</p>
+              <p className="text-sm text-muted-foreground">
+                Este <strong>Simulador Interativo</strong> é só um exercício didático, pensado pra
+                ajudar a entender leitura de escala de seringa e cálculo de diluição em sala de aula.
+                Não é uma ferramenta clínica e não substitui nenhum protocolo, cálculo ou conferência
+                de dose reais.
+              </p>
+              <p className="rounded-lg bg-destructive/10 p-2 text-sm font-semibold text-destructive">
+                Um erro real de dose ou diluição pode ser fatal. Nunca use os resultados daqui pra
+                decidir ou conferir uma dose de verdade: isso é ato exclusivo de profissional de saúde
+                legalmente habilitado.
+              </p>
+              <Button size="sm" variant="outline" onClick={() => setAceito(true)}>
+                Entendi, ocultar aviso
+              </Button>
+            </div>
           </div>
         </div>
       )}
 
-      <div className={cn("relative overflow-hidden", !aceito && "pointer-events-none blur-[2px]")}>
+      <div className="relative overflow-hidden">
         <div className="space-y-5">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-3 rounded-lg border border-warning/30 bg-warning/5 p-4">

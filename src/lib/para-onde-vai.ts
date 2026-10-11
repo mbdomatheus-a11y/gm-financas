@@ -18,6 +18,12 @@ export type GastoMes = {
   valor: number;
   despesaId: string;
   tipo?: string | null;
+  /** Subcategoria salva no lançamento, quando houver. */
+  subcategoria?: string | null;
+  /** Cartão ou banco usado, para filtrar o gráfico: "c:<id>", "b:<id>" ou "sem". */
+  conta?: string | null;
+  /** Nome exibido no gráfico, conforme a escolha do usuário. */
+  rotulo?: string;
   /** true quando o lançamento é parte de um parcelamento (não é assinatura). */
   parcelado?: boolean;
 };

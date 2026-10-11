@@ -318,6 +318,15 @@ const BASE_MARCAS: Record<string, Sugestao> = {
   Azul: { categoria: "Viagens", subcategoria: "Passagens", confianca: "alta" },
 };
 
+/** Regras de estabelecimento que já vêm com o sistema (para o De-para baixar tudo). */
+export function regrasBaseDoSistema(): { estabelecimento: string; categoria: string; subcategoria: string | null }[] {
+  return Object.entries(BASE_MARCAS).map(([estabelecimento, v]) => ({
+    estabelecimento,
+    categoria: v.categoria,
+    subcategoria: v.subcategoria,
+  }));
+}
+
 type RegraChave = { re: RegExp } & Sugestao;
 
 const REGRAS_PALAVRA: RegraChave[] = [

@@ -15,7 +15,7 @@ export const obterAvisoCalculadora = createServerFn({ method: "POST" })
       .select("exibir_aviso_calculadora")
       .eq("id", true)
       .maybeSingle();
-    return { exibir: (data?.exibir_aviso_calculadora ?? true) as boolean };
+    return { exibir: (data?.exibir_aviso_calculadora ?? false) as boolean };
   });
 
 export const adminSalvarAvisoCalculadora = createServerFn({ method: "POST" })

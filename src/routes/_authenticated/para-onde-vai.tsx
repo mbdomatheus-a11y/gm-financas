@@ -29,7 +29,17 @@ import {
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCotacao } from "@/hooks/useCotacao";
-import { useCategorias, useDespesas, useFaturasMes, useReceitas } from "@/hooks/useFinance";
+import {
+  useBancos,
+  useCartoes,
+  useCategorias,
+  useDespesas,
+  useFaturasMes,
+  useReceitas,
+} from "@/hooks/useFinance";
+import { usePreferencias, type ExibicaoCategoria } from "@/hooks/usePreferencias";
+import { useEstruturaCategorias } from "@/hooks/useEstruturaCategorias";
+import { macroDe, rotuloExibicao, subDe } from "@/lib/macro-categorias";
 import { useSession } from "@/hooks/useAuthData";
 import { supabase } from "@/integrations/supabase/client";
 import { lembrarClassificacao } from "@/lib/classificacao-lembrada";
@@ -107,6 +117,14 @@ function ParaOndeVaiPage() {
   const [mesInicio, setMesInicio] = useState(competenciaAtual);
   const [mesFim, setMesFim] = useState(competenciaAtual);
   const [categoriaAberta, setCategoriaAberta] = useState<string | null>(null);
+  /** Filtros do retângulo: null = todos. */
+  const [catSel, setCatSel] = useState<Set<string> | null>(null);
+  const [contaSel, setContaSel] = useState<Set<string> | null>(null);
+  const { prefs, save: salvarPrefs } = usePreferencias();
+  const modoNome = (prefs.exibicao_categoria ?? "categoria") as ExibicaoCategoria;
+  const { data: cartoes = [] } = useCartoes();
+  const { data: bancos = [] } = useBancos();
+  const { macros } = useEstruturaCategorias("despesa");
   /** Categoria e subcategoria sendo editadas dentro do popup, por estabelecimento. */
   const [edicao, setEdicao] = useState<
     Record<string, { categoria: string; subcategoria: string }>
@@ -149,23 +167,80 @@ function ParaOndeVaiPage() {
     [despesas, competencias, faturasMes],
   );
 
+  const nomesContas = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const c of cartoes as any[]) m.set(`c:${c.id}`, `${c.apelido ?? "Cartão"}${c.final ? ` ·${c.final}` : ""}`);
+    for (const b of bancos as any[]) m.set(`b:${b.id}`, String(b.nome ?? "Banco"));
+    return m;
+  }, [cartoes, bancos]);
+
+  const contaDe = (d: any): string => {
+    if (d?.cartao_id) return `c:${d.cartao_id}`;
+    if (d?.banco_id) return `b:${d.banco_id}`;
+    return "sem";
+  };
+
   const gastos: GastoMes[] = useMemo(
     () =>
       parcelas
         .filter((p: any) => p.despesa?.direcao !== "credito" && !p.despesa?.economia_conquistada)
-        .map((p: any) => ({
-          competencia: monthKey(p.vencimento),
-          categoria: p.despesa?.categoria || "outros",
-          descricao: p.despesa?.descricao ?? "Sem descrição",
-          chave: chaveEstabelecimento(
-            p.despesa?.estabelecimento_normalizado || p.despesa?.descricao || "",
-          ),
-          valor: toBRL(Number(p.valor), p.despesa?.moeda ?? "BRL", cotacao),
-          despesaId: String(p.despesa?.id ?? p.despesa_id ?? ""),
-          tipo: p.despesa?.tipo ?? null,
-          parcelado: Number(p.total ?? 1) > 1,
-        })),
-    [parcelas, cotacao],
+        .map((p: any) => {
+          const categoria = p.despesa?.categoria || "outros";
+          const macro = macroDe(categoria, macros);
+          const sub = p.despesa?.subcategoria || subDe(categoria, macro);
+          return {
+            competencia: monthKey(p.vencimento),
+            categoria,
+            descricao: p.despesa?.descricao ?? "Sem descrição",
+            chave: chaveEstabelecimento(
+              p.despesa?.estabelecimento_normalizado || p.despesa?.descricao || "",
+            ),
+            valor: toBRL(Number(p.valor), p.despesa?.moeda ?? "BRL", cotacao),
+            despesaId: String(p.despesa?.id ?? p.despesa_id ?? ""),
+            tipo: p.despesa?.tipo ?? null,
+            parcelado: Number(p.total ?? 1) > 1,
+            subcategoria: sub ?? null,
+            conta: contaDe(p.despesa),
+            rotulo: rotuloExibicao(macro, sub ?? null, modoNome),
+          };
+        }),
+    [parcelas, cotacao, macros, modoNome],
+  );
+
+  /** Contas (cartões e bancos) presentes no período, na ordem de aparição. */
+  const contasDisponiveis = useMemo(() => {
+    const ids = Array.from(new Set(gastos.map((g) => g.conta ?? "sem")));
+    return ids.map((id) => ({
+      id,
+      nome: id === "sem" ? "Sem cartão ou banco" : (nomesContas.get(id) ?? "Conta"),
+    }));
+  }, [gastos, nomesContas]);
+
+  const contaOk = (g: GastoMes) => !contaSel || contaSel.has(g.conta ?? "sem");
+
+  /** Categorias (já no formato escolhido) que aparecem nas contas selecionadas. */
+  const rotulosDisponiveis = useMemo(
+    () =>
+      Array.from(new Set(gastos.filter(contaOk).map((g) => g.rotulo ?? g.categoria))).sort(
+        (a, b) => a.localeCompare(b, "pt-BR"),
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [gastos, contaSel],
+  );
+
+  /** Lançamentos que alimentam o retângulo: contas e categorias escolhidas. */
+  const gastosRetangulo: GastoMes[] = useMemo(
+    () =>
+      gastos
+        .filter((g) => contaOk(g) && (!catSel || catSel.has(g.rotulo ?? g.categoria)))
+        .map((g) => ({ ...g, categoria: g.rotulo ?? g.categoria })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [gastos, contaSel, catSel],
+  );
+
+  const resumoRetangulo = useMemo(
+    () => resumirPorCategoria(gastosRetangulo, mesReferencia),
+    [gastosRetangulo, mesReferencia],
   );
 
   const rendaMensal = useMemo(() => {
@@ -176,8 +251,12 @@ function ParaOndeVaiPage() {
   }, [receitas, mesReferencia, cotacao]);
 
   const resumo = useMemo(
-    () => resumirPorCategoria(gastos, mesReferencia),
-    [gastos, mesReferencia],
+    () =>
+      resumirPorCategoria(
+        gastos.map((g) => ({ ...g, categoria: macroDe(g.categoria, macros) })),
+        mesReferencia,
+      ),
+    [gastos, mesReferencia, macros],
   );
   const recorrentes = useMemo(
     () => detectarRecorrentes(gastos, mesReferencia),
@@ -275,7 +354,7 @@ function ParaOndeVaiPage() {
       toast.error(e instanceof Error ? e.message : "Não foi possível reclassificar."),
   });
 
-  const dadosTreemap = resumo.slice(0, 14).map((r) => ({
+  const dadosTreemap = resumoRetangulo.slice(0, 14).map((r) => ({
     name: r.categoria,
     size: Math.max(r.total, 0.01),
     valor: r.total,
@@ -289,6 +368,19 @@ function ParaOndeVaiPage() {
       description="Seus gastos por categoria, as cobranças que se repetem e o que já deixou de sair da sua conta."
     >
       <div className="mb-4 flex flex-wrap items-center gap-2">
+        <Select
+          value={modoNome}
+          onValueChange={(v) => salvarPrefs.mutate({ exibicao_categoria: v as ExibicaoCategoria })}
+        >
+          <SelectTrigger className="h-8 w-[220px] text-xs" aria-label="Como nomear categorias">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="categoria" className="text-xs">Só a categoria (ex.: Pets)</SelectItem>
+            <SelectItem value="subcategoria" className="text-xs">Só a subcategoria (ex.: Veterinário)</SelectItem>
+            <SelectItem value="completo" className="text-xs">Nome completo (Pets › Veterinário)</SelectItem>
+          </SelectContent>
+        </Select>
         <Select value={janela} onValueChange={setJanela}>
           <SelectTrigger className="h-8 w-[200px] text-xs" aria-label="Período analisado">
             <SelectValue />
@@ -380,7 +472,64 @@ function ParaOndeVaiPage() {
                 o que entra nela.
               </p>
             </CardHeader>
-            <CardContent className="h-[320px]">
+            <CardContent className="space-y-3">
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="mr-1 text-[11px] font-medium text-muted-foreground">Contas</span>
+                  <Button size="sm" variant="ghost" className="h-6 px-2 text-[11px]" onClick={() => setContaSel(null)}>
+                    Todas
+                  </Button>
+                  {contasDisponiveis.map((c) => {
+                    const ligada = !contaSel || contaSel.has(c.id);
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        aria-pressed={ligada}
+                        onClick={() => {
+                          const base = new Set(contaSel ?? contasDisponiveis.map((x) => x.id));
+                          if (base.has(c.id)) base.delete(c.id);
+                          else base.add(c.id);
+                          setContaSel(base.size === contasDisponiveis.length ? null : base);
+                        }}
+                        className={`rounded-full border px-2.5 py-0.5 text-[11px] transition-colors ${
+                          ligada ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground line-through"
+                        }`}
+                      >
+                        {c.nome}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="mr-1 text-[11px] font-medium text-muted-foreground">Categorias</span>
+                  <Button size="sm" variant="ghost" className="h-6 px-2 text-[11px]" onClick={() => setCatSel(null)}>
+                    Todas
+                  </Button>
+                  {rotulosDisponiveis.map((r) => {
+                    const ligada = !catSel || catSel.has(r);
+                    return (
+                      <button
+                        key={r}
+                        type="button"
+                        aria-pressed={ligada}
+                        onClick={() => {
+                          const base = new Set(catSel ?? rotulosDisponiveis);
+                          if (base.has(r)) base.delete(r);
+                          else base.add(r);
+                          setCatSel(base.size === rotulosDisponiveis.length ? null : base);
+                        }}
+                        className={`rounded-full border px-2.5 py-0.5 text-[11px] transition-colors ${
+                          ligada ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground line-through"
+                        }`}
+                      >
+                        {r}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="h-[280px]">
               <ResponsiveContainer width="100%" height="100%">
                 <Treemap
                   data={dadosTreemap}
@@ -398,6 +547,7 @@ function ParaOndeVaiPage() {
                   />
                 </Treemap>
               </ResponsiveContainer>
+              </div>
             </CardContent>
           </Card>
 

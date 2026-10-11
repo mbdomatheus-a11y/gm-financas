@@ -17,7 +17,11 @@ export type Preferencias = {
   home_widgets: { id: string; tamanho: "p" | "m" | "g" }[] | null;
   /** Idioma escolhido pelo usuário. null = segue o país/navegador. */
   idioma: string | null;
+  /** Como nomear categorias em gráficos: só a macro, só a subcategoria ou o nome completo. */
+  exibicao_categoria: ExibicaoCategoria;
 };
+
+export type ExibicaoCategoria = "categoria" | "subcategoria" | "completo";
 
 export const DEFAULT_PREFS: Omit<Preferencias, "user_id"> = {
   tema: "claro",
@@ -28,6 +32,7 @@ export const DEFAULT_PREFS: Omit<Preferencias, "user_id"> = {
   destacar_veiculo_inicio: false,
   home_widgets: null,
   idioma: null,
+  exibicao_categoria: "categoria",
 };
 
 export function usePreferencias() {

@@ -470,3 +470,20 @@ Observação: a importação da fatura Santander de 10/10 ficou com R$ 300 a men
 2. "Responsável de todas as linhas": o botão agora mostra quem foi escolhido (antes voltava sempre para "Aplicar a todos…" e parecia não ter aplicado). "—" virou "Sem responsável".
 3. Preferência da despesa fixa: a aplicação das escolhas salvas virou efeito, em vez de rodar só no momento de abrir o arquivo. Antes, se a lista de preferências terminasse de carregar depois da leitura da fatura, a decisão salva não era aplicada e a linha voltava como "manter os dois". O aviso de quantas escolhas foram repetidas sai uma vez por conjunto de faturas.
 Pendente: parcela mostrada como 9/10 numa fatura de outubro. O número exibido é o que está impresso no PDF e é ele que define em que mês cada parcela cai, então não dá para "só ajustar o visual" sem mudar os dados. O usuário pediu para não mexer agora; quando quiser, precisa enviar a fatura para achar a causa na leitura.
+
+### Rodada 20 (2026-10-11)
+1. Ferramentas: o aviso do Simulador não bloqueia mais a tela (sem blur nem overlay). Vira uma faixa que some ao clicar em "Entendi". A chave em Administração continua valendo; o padrão agora é desligado (migração `20261011090000_aviso_calculadora_desligado.sql`, ainda não aplicada).
+2. Importação: coluna Categoria mais larga (16%), Responsável mais estreita (9%). Linhas com "Categoria a confirmar" ficam destacadas em lilás. Botão + de criar categoria removido; a busca cria pelo texto digitado.
+3. Macro categorias: nova tabela `subcategorias` (migração `20261011100000_subcategorias.sql`, ainda não aplicada). O seletor da importação mostra macros em negrito; ao escolher uma, abrem as subcategorias. Digitar "veterinário" leva a Pets › Veterinário e preenche as duas colunas.
+4. Nomes antigos "Macro - Sub" (ex.: "Pets - Veterinário") são lidos como subcategoria da macro, sem migrar os dados (`src/lib/macro-categorias.ts`).
+5. Despesas por categoria (dashboard e gráfico da home) agrupam pela macro. "Para onde vai" ainda agrupa pelo nome completo.
+6. Categorias: lista por macro com subcategorias (padrão, cadastrada e sua), criação e remoção das suas. Seleção múltipla, "Excluir selecionadas" e "Excluir todas" com confirmação e backup.
+7. De-para: "Baixar tudo" e o modelo TXT trazem regras do sistema e suas (coluna origem). Seleção múltipla e exclusão em massa com confirmação e backup.
+8. Cabeçalhos fixos sólidos, sem transparência ao rolar.
+Pendente: campo "inteligente" da importação ainda sem definição; revisão visual geral de telas grandes feita só nos blocos de upload.
+### Rodada 21 (2026-10-11)
+1. Aviso da calculadora desligado no banco (aplicado no projeto control+all). Só o admin master (site_admins) liga de novo em Administração.
+2. Aprendizado: a classificação confirmada na importação fica salva para o grupo (não entre grupos). Na próxima fatura, o mesmo estabelecimento já vem classificado e a macro/subcategoria são criadas se faltarem. Transferências e PIX não são lembrados (dado pessoal de terceiros).
+3. Preferência "Como nomear categorias" (só categoria, só subcategoria ou completo), salva na conta (preferencias_usuario.exibicao_categoria).
+4. Para onde vai: retângulo com filtros clicáveis de contas (cartões/bancos) e categorias; percentuais recalculados sobre o que está selecionado.
+
