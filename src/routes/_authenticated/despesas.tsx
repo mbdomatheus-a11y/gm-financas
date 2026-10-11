@@ -263,6 +263,7 @@ function DespesasPage() {
   }, [modoDaUrl]);
   const [expandida, setExpandida] = useState<string | null>(null);
   const [grupoExpandido, setGrupoExpandido] = useState<string | null>(null);
+  const [filtroResumo, setFiltroResumo] = useState<null | "pago" | "aberto" | "proximo">(null);
 
   const filtroCartao = search.cartao ?? "todos";
   const setFiltroCartao = (v: string) =>
@@ -790,11 +791,34 @@ function DespesasPage() {
     return { total, pago, aberto, proximo };
   }, [listaVisivel, cotacao, filtroMes, lancamentosDoFiltro, lancamentoPorDespesa, idsIgnoradosPorTotal]);
 
+  // Lançamentos (parcelas) que compõem cada indicador do topo; ao clicar num indicador a lista mostra só eles.
+  const lancamentosDoResumo = useMemo(() => {
+    const itens: { despesa: any; parcela: any; valor: number }[] = [];
+    if (!filtroResumo) return itens;
+    for (const d of listaVisivel as any[]) {
+      if (idsIgnoradosPorTotal.has(d.id) || d.economia_conquistada) continue;
+      const parcelasVisiveis =
+        filtroMes === "todos"
+          ? (d.parcelas ?? [])
+          : lancamentosDoFiltro.filter((p) => p.despesa_id === d.id);
+      for (const p of parcelasVisiveis) {
+        const casa = filtroResumo === "pago" ? !!p.paga : !p.paga;
+        if (!casa) continue;
+        if (filtroResumo === "proximo" && (!resumo.proximo || p.vencimento !== resumo.proximo.data))
+          continue;
+        itens.push({ despesa: d, parcela: p, valor: toBRL(Number(p.valor), d.moeda, cotacao) });
+      }
+    }
+    return itens.sort((a, b) => String(a.parcela.vencimento).localeCompare(String(b.parcela.vencimento)));
+  }, [filtroResumo, listaVisivel, idsIgnoradosPorTotal, filtroMes, lancamentosDoFiltro, resumo.proximo, cotacao]);
+  const somaDoResumo = lancamentosDoResumo.reduce((s, i) => s + i.valor, 0);
+
   // Bloco 6: sai da simulação sozinho ao trocar de aba/mês — os ids
   // excluídos de uma simulação não fazem sentido mais depois disso.
   useEffect(() => {
     setSimulandoCortes(false);
     setIdsExcluidosSimulacao(new Set());
+    setFiltroResumo(null);
   }, [tab, filtroMes]);
 
   const simulacao = useMemo(() => {
@@ -911,27 +935,45 @@ function DespesasPage() {
     >
       <div className="mb-3 grid grid-cols-2 gap-2 lg:grid-cols-4">
         {[
-          { label: "Total", valor: formatar(resumo.total), cor: "text-foreground", hint: "" },
-          { label: "Pago", valor: formatar(resumo.pago), cor: "text-success", hint: "" },
+          { filtro: "total" as const, label: "Total", valor: formatar(resumo.total), cor: "text-foreground", hint: "" },
+          { filtro: "pago" as const, label: "Pago", valor: formatar(resumo.pago), cor: "text-success", hint: "" },
           {
+            filtro: "aberto" as const,
             label: "Em aberto",
             valor: formatar(resumo.aberto),
             cor: "text-destructive",
             hint: "",
           },
           {
+            filtro: "proximo" as const,
             label: "Próximo vencimento",
             valor: resumo.proximo ? formatar(resumo.proximo.valor) : "—",
             cor: "text-warning",
             hint: resumo.proximo ? formatDate(resumo.proximo.data) : "sem parcelas futuras",
           },
-        ].map((k) => (
-          <div key={k.label} className="rounded-xl border bg-card px-3 py-2">
-            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{k.label}</p>
-            <p className={cn("text-sm font-bold tabular-nums", k.cor)}>{k.valor}</p>
-            {k.hint && <p className="text-[10px] text-muted-foreground">{k.hint}</p>}
-          </div>
-        ))}
+        ].map((k) => {
+          const ativo = filtroResumo === k.filtro;
+          return (
+            <button
+              key={k.label}
+              type="button"
+              aria-pressed={ativo}
+              onClick={() =>
+                setFiltroResumo(
+                  k.filtro === "total" || ativo ? null : (k.filtro as "pago" | "aberto" | "proximo"),
+                )
+              }
+              className={cn(
+                "rounded-xl border bg-card px-3 py-2 text-left transition-colors hover:bg-muted/50",
+                ativo && "ring-2 ring-primary",
+              )}
+            >
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{k.label}</p>
+              <p className={cn("text-sm font-bold tabular-nums", k.cor)}>{k.valor}</p>
+              {k.hint && <p className="text-[10px] text-muted-foreground">{k.hint}</p>}
+            </button>
+          );
+        })}
       </div>
 
       <BarraSoma
@@ -1142,7 +1184,51 @@ function DespesasPage() {
           </div>
         )}
 
-      {lista.length === 0 ? (
+      {filtroResumo ? (
+        <Card>
+          <CardContent className="p-0">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b px-3 py-2">
+              <p className="text-xs text-muted-foreground">
+                {({ pago: "Pagos", aberto: "Em aberto", proximo: "Próximo vencimento" } as const)[filtroResumo]}
+                {" · "}
+                {lancamentosDoResumo.length} lançamento(s) · <span className="font-semibold text-foreground">{formatar(somaDoResumo)}</span>
+              </p>
+              <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setFiltroResumo(null)}>
+                Limpar filtro
+              </Button>
+            </div>
+            {lancamentosDoResumo.length === 0 ? (
+              <p className="p-6 text-center text-sm text-muted-foreground">Nenhum lançamento neste filtro.</p>
+            ) : (
+              <div className="divide-y">
+                {lancamentosDoResumo.map(({ despesa: d, parcela: p, valor }) => (
+                  <button
+                    key={`${d.id}-${p.id ?? p.numero}`}
+                    type="button"
+                    onClick={() => abrirEdicao(d)}
+                    className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-muted/40"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">{d.descricao}</p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {formatDate(p.vencimento)} ·{" "}
+                        {d.cartoes
+                          ? `${d.cartoes.apelido || d.cartoes.bandeira || "Cartão"} •${d.cartoes.final ?? ""}`
+                          : "Sem cartão"}
+                        {d.total_parcelas > 1 ? ` · parcela ${p.numero}/${d.total_parcelas}` : ""}
+                      </p>
+                    </div>
+                    <Badge variant={p.paga ? "secondary" : "outline"} className="text-[10px]">
+                      {p.paga ? "Paga" : "Em aberto"}
+                    </Badge>
+                    <span className="shrink-0 text-sm font-semibold tabular-nums">{formatar(valor)}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      ) : lista.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center gap-2 py-12 text-center">
             <TrendingDown className="size-8 text-muted-foreground" />
