@@ -6,7 +6,19 @@
  */
 import { addMonths, toISODate } from "@/lib/format";
 
-export type UnidadeTempo = "segundos" | "minutos" | "horas" | "dias" | "anos" | "seculos";
+export type UnidadeTempo =
+  | "segundos"
+  | "minutos"
+  | "horas"
+  | "dias"
+  | "semanas"
+  | "quinzenas"
+  | "meses"
+  | "bimestres"
+  | "trimestres"
+  | "semestres"
+  | "anos"
+  | "seculos";
 export type UnidadeIntervalo = "dias" | "meses" | "anos" | "seculos";
 
 // Ano trópico médio do calendário gregoriano (365 dias + 1/4 - 1/100 +
@@ -28,6 +40,21 @@ function arredondar2(n: number): number {
 }
 
 /**
+ * Meses de calendário entre duas datas, com a fração do mês que sobra
+ * (ex.: 15/01 a 30/03 = 2,5 meses). Usa o calendário real, não 30 dias.
+ */
+function mesesCalendario(d1: Date, d2: Date): number {
+  const [a, b] = d1 <= d2 ? [d1, d2] : [d2, d1];
+  let meses = (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth());
+  if (meses > 0 && addMonths(a, meses) > b) meses -= 1;
+  const base = addMonths(a, meses);
+  const proximo = addMonths(a, meses + 1);
+  const diasDoMes = (proximo.getTime() - base.getTime()) / 86_400_000;
+  const restoDias = (b.getTime() - base.getTime()) / 86_400_000;
+  return meses + (diasDoMes > 0 ? restoDias / diasDoMes : 0);
+}
+
+/**
  * Diferença entre duas datas (yyyy-mm-dd), na unidade escolhida. Sempre
  * devolve um número não negativo — quem chama decide como mostrar qual data
  * é anterior à outra. Dias/horas/minutos/segundos vêm arredondados pro
@@ -39,11 +66,25 @@ export function diferencaEntreDatas(
   dataFim: string,
   unidade: UnidadeTempo,
 ): number {
-  const ms = Math.abs(paraData(dataFim).getTime() - paraData(dataInicio).getTime());
+  const d1 = paraData(dataInicio);
+  const d2 = paraData(dataFim);
+  const ms = Math.abs(d2.getTime() - d1.getTime());
   const dias = ms / 86_400_000;
   switch (unidade) {
     case "dias":
       return Math.round(dias);
+    case "semanas":
+      return arredondar2(dias / 7);
+    case "quinzenas":
+      return arredondar2(dias / 15);
+    case "meses":
+      return arredondar2(mesesCalendario(d1, d2));
+    case "bimestres":
+      return arredondar2(mesesCalendario(d1, d2) / 2);
+    case "trimestres":
+      return arredondar2(mesesCalendario(d1, d2) / 3);
+    case "semestres":
+      return arredondar2(mesesCalendario(d1, d2) / 6);
     case "horas":
       return Math.round(dias * 24);
     case "minutos":

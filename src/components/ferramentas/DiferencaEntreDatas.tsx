@@ -17,6 +17,12 @@ const UNIDADES_TEMPO: { id: UnidadeTempo; label: string }[] = [
   { id: "minutos", label: "minutos" },
   { id: "horas", label: "horas" },
   { id: "dias", label: "dias" },
+  { id: "semanas", label: "semanas" },
+  { id: "quinzenas", label: "quinzenas" },
+  { id: "meses", label: "meses" },
+  { id: "bimestres", label: "bimestres" },
+  { id: "trimestres", label: "trimestres" },
+  { id: "semestres", label: "semestres" },
   { id: "anos", label: "anos" },
   { id: "seculos", label: "séculos" },
 ];

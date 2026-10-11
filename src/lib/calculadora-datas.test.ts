@@ -27,6 +27,23 @@ describe("diferencaEntreDatas", () => {
     expect(diferencaEntreDatas("2026-05-05", "2026-05-05", "horas")).toBe(0);
   });
 
+  test("converte para semanas e quinzenas", () => {
+    expect(diferencaEntreDatas("2026-01-01", "2026-01-15", "semanas")).toBe(2);
+    expect(diferencaEntreDatas("2026-01-01", "2026-01-31", "quinzenas")).toBe(2);
+  });
+
+  test("meses seguem o calendário, com fração do mês que sobra", () => {
+    expect(diferencaEntreDatas("2026-01-15", "2026-03-15", "meses")).toBe(2);
+    expect(diferencaEntreDatas("2026-01-15", "2026-02-22", "meses")).toBe(1.25);
+    expect(diferencaEntreDatas("2026-01-31", "2026-02-28", "meses")).toBe(1);
+  });
+
+  test("bimestres, trimestres e semestres", () => {
+    expect(diferencaEntreDatas("2026-01-01", "2026-07-01", "bimestres")).toBe(3);
+    expect(diferencaEntreDatas("2026-01-01", "2026-07-01", "trimestres")).toBe(2);
+    expect(diferencaEntreDatas("2026-01-01", "2027-01-01", "semestres")).toBe(2);
+  });
+
   test("converte para segundos", () => {
     expect(diferencaEntreDatas("2026-01-01", "2026-01-02", "segundos")).toBe(86_400);
   });

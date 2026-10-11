@@ -546,7 +546,8 @@ function NotasPage() {
       if (filtro === "expirada" && st !== "expirada") return false;
       if (filtro === "expirando" && st !== "critica" && st !== "atencao") return false;
       if (!termo) return true;
-      return [n.estabelecimento, n.descricao, n.chave_acesso]
+      // Busca também nos itens da nota (ex.: "ventilador" acha a nota da Riachuelo).
+      return [n.estabelecimento, n.descricao, n.chave_acesso, ...(n.nota_itens ?? []).map((i) => i.descricao)]
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(termo));
     });
@@ -713,7 +714,7 @@ function NotasPage() {
           <Input
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
-            placeholder="Buscar por loja, descrição ou chave"
+            placeholder="Buscar por loja, item, descrição ou chave"
             className="h-9 max-w-xs"
           />
           {(

@@ -12,6 +12,7 @@ import {
   Gamepad2,
   HelpCircle,
   MoreVertical,
+  Pencil,
   Plus,
   Repeat,
   ShieldCheck,
@@ -29,6 +30,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -105,6 +113,8 @@ function ListaComprasPage() {
   const [filtroHorizonte, setFiltroHorizonte] = useState<"todos" | "imediato" | "longo_prazo">("todos");
   const [nome, setNome] = useState("");
   const [categoria, setCategoria] = useState<CategoriaId>("alimentacao");
+  const [editando, setEditando] = useState<any | null>(null);
+  const [edicao, setEdicao] = useState({ nome: "", quantidade: "1", valor: "", observacao: "" });
   const [quantidade, setQuantidade] = useState("1");
   const [valorEstimadoInput, setValorEstimadoInput] = useState("");
   const [horizonte, setHorizonte] = useState<"imediato" | "longo_prazo">("imediato");
@@ -270,6 +280,34 @@ function ListaComprasPage() {
     onError: (e: any) => toast.error(e.message),
   });
 
+  /** Edita um item. Se ele já tinha aprovações, elas são zeradas e ele fica pendente de nova autorização. */
+  const editar = useMutation({
+    mutationFn: async () => {
+      if (!editando || !user?.id) throw new Error("Sessão inválida");
+      const aprovadores: string[] = editando.aprovado_por ?? [];
+      const precisaNova = aprovadores.length > 0 || !!editando.precisa_reaprovacao;
+      const { error } = await (appSupabase.from("lista_compras") as any)
+        .update({
+          nome: edicao.nome.trim(),
+          quantidade: Math.max(1, Number(edicao.quantidade) || 1),
+          valor_estimado: edicao.valor.trim() ? Number(edicao.valor.replace(",", ".")) : null,
+          observacao: edicao.observacao.trim() || null,
+          editado_em: new Date().toISOString(),
+          editado_por: user.id,
+          aprovado_por: [],
+          precisa_reaprovacao: precisaNova,
+        })
+        .eq("id", editando.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Item editado");
+      setEditando(null);
+      qc.invalidateQueries({ queryKey: ["lista-compras"] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
   // Qualquer pessoa com acesso pode aprovar, exceto quem criou o item —
   // aprovar de novo remove a própria aprovação (alternância).
   const aprovar = useMutation({
@@ -280,7 +318,14 @@ function ListaComprasPage() {
       const novaLista = jaAprovou ? atuais.filter((id) => id !== user.id) : [...atuais, user.id];
       const { error } = await appSupabase
         .from("lista_compras")
-        .update({ aprovado_por: novaLista })
+        .update({
+          aprovado_por: novaLista,
+          // Com as aprovações necessárias de volta, o item deixa de precisar de nova autorização.
+          precisa_reaprovacao:
+            novaLista.length >= (item.aprovacoes_necessarias ?? 0) && novaLista.length > 0
+              ? false
+              : !!item.precisa_reaprovacao,
+        } as any)
         .eq("id", item.id);
       if (error) throw error;
     },
@@ -391,6 +436,16 @@ function ListaComprasPage() {
     URL.revokeObjectURL(url);
   }
 
+  function abrirEdicao(item: any) {
+    setEdicao({
+      nome: item.nome ?? "",
+      quantidade: String(item.quantidade ?? 1),
+      valor: item.valor_estimado != null ? String(item.valor_estimado) : "",
+      observacao: item.observacao ?? "",
+    });
+    setEditando(item);
+  }
+
   const Linha = ({ item }: { item: any }) => {
     const alerta = item.alerta_em && item.alerta_em <= hoje;
     const necessarias: number = item.aprovacoes_necessarias ?? 0;
@@ -403,9 +458,14 @@ function ListaComprasPage() {
     const valorTotalItem = (Number(item.valor_estimado) || 0) * (item.quantidade || 1);
     const impacto = valorTotalItem > 0 ? calcularImpacto(valorTotalItem) : null;
     const isLongoPrazo = (item.horizonte ?? "imediato") === "longo_prazo";
+    const precisaNova = !!item.precisa_reaprovacao;
+    const editorNome =
+      (profiles as any[]).find((p) => p.id === item.editado_por)?.nome ?? "outra pessoa";
 
     return (
-      <div className="flex items-start gap-3 px-3 py-3">
+      <div
+        className={`flex items-start gap-3 px-3 py-3 ${precisaNova ? "border-l-4 border-red-500 bg-red-500/10" : ""}`}
+      >
         <Checkbox
           checked={item.comprado}
           onCheckedChange={() => alternar.mutate(item)}
@@ -425,6 +485,14 @@ function ListaComprasPage() {
               )}
             </p>
 
+            {precisaNova && (
+              <Badge variant="outline" className="border-red-500 bg-red-500/10 text-[10px] text-red-600">
+                Editado por {editorNome}: precisa de nova autorização
+              </Badge>
+            )}
+            {!precisaNova && item.editado_em && (
+              <span className="text-[10px] text-muted-foreground">Editado por {editorNome}</span>
+            )}
             {valorTotalItem > 0 && (
               <Badge variant="outline" className="font-semibold text-xs text-foreground">
                 {formatBRL(valorTotalItem)}
@@ -566,6 +634,9 @@ function ListaComprasPage() {
               onClick={() => alternar.mutate(item)}
             >
               {item.comprado ? "Reabrir item" : "Marcar como concluído"}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => abrirEdicao(item)}>
+              <Pencil className="size-4" /> Editar
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => repetir.mutate(item)}>
               <Repeat className="size-4" /> Repetir no próximo mês
@@ -895,6 +966,62 @@ function ListaComprasPage() {
           </>
         )}
       </div>
+      <Dialog open={!!editando} onOpenChange={(o) => !o && setEditando(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar item</DialogTitle>
+          </DialogHeader>
+          {(editando?.aprovado_por ?? []).length > 0 && (
+            <p className="rounded-md border border-red-500/40 bg-red-500/10 p-2 text-xs text-red-600">
+              Este item já tem aprovações. Ao salvar, as aprovações são zeradas e ele precisa de nova
+              autorização.
+            </p>
+          )}
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label>Nome</Label>
+              <Input
+                value={edicao.nome}
+                onChange={(e) => setEdicao((p) => ({ ...p, nome: e.target.value }))}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Quantidade</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={edicao.quantidade}
+                  onChange={(e) => setEdicao((p) => ({ ...p, quantidade: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Valor estimado (R$)</Label>
+                <Input
+                  inputMode="decimal"
+                  value={edicao.valor}
+                  onChange={(e) => setEdicao((p) => ({ ...p, valor: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Observação</Label>
+              <Input
+                value={edicao.observacao}
+                onChange={(e) => setEdicao((p) => ({ ...p, observacao: e.target.value }))}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditando(null)}>
+              Cancelar
+            </Button>
+            <Button disabled={!edicao.nome.trim() || editar.isPending} onClick={() => editar.mutate()}>
+              Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }
