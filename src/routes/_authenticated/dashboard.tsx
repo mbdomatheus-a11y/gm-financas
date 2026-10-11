@@ -356,7 +356,8 @@ function DashboardPage() {
 
     const porCategoria = new Map<string, number>();
     for (const p of parcelas.filter((p: any) => monthKey(p.vencimento) === mesPie)) {
-      const key = `${macroDeCategoria(p.despesa.categoria)} (${p.despesa.tipo === "fixa" ? "fixa" : "variável"})`;
+      // Uma fatia por categoria mãe (fixa e variável somadas).
+      const key = macroDeCategoria(p.despesa.categoria);
       porCategoria.set(
         key,
         (porCategoria.get(key) ?? 0) + toBRL(Number(p.valor), p.despesa.moeda, cotacao),

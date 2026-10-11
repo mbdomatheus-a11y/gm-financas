@@ -616,6 +616,52 @@ function ImportarPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chaveFaturas]);
 
+  // Aprendizado global: linhas sem categoria recebem a categoria mãe que mais grupos escolheram
+  // para o mesmo estabelecimento. Nunca sobrescreve o que o usuário já editou nesta importação.
+  const chavesSemCategoria = [
+    ...new Set(
+      faturas
+        .flatMap((f) =>
+          f.lancamentos
+            .filter((l) => l.categoria === CATEGORIA_A_CONFIRMAR)
+            .map((l) => chaveEstabelecimento(l.descricao)),
+        )
+        .filter(Boolean),
+    ),
+  ].sort();
+  const chaveSemCategoria = chavesSemCategoria.join("|");
+  useEffect(() => {
+    if (!chavesSemCategoria.length) return;
+    let cancelado = false;
+    (async () => {
+      const { data, error } = await (supabase as any).rpc("sugerir_classificacao", {
+        p_chaves: chavesSemCategoria,
+      });
+      if (error || !Array.isArray(data) || cancelado) return;
+      const mapa = new Map<string, string>(
+        (data as { chave: string; categoria: string }[]).map((r) => [r.chave, r.categoria]),
+      );
+      if (!mapa.size) return;
+      setFaturas((prev) =>
+        prev.map((f) => ({
+          ...f,
+          lancamentos: f.lancamentos.map((l) => {
+            if (l.categoria !== CATEGORIA_A_CONFIRMAR) return l;
+            if (classificacoesEditadas.current.has(`${f.arquivo_hash}:${l.id}`)) return l;
+            const sugerida = mapa.get(chaveEstabelecimento(l.descricao));
+            return sugerida ? { ...l, categoria: sugerida } : l;
+          }),
+        })),
+      );
+    })().catch(() => {
+      /* sugestão é auxiliar: sem ela a linha segue como "a confirmar" */
+    });
+    return () => {
+      cancelado = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chaveSemCategoria]);
+
   /** Confirmação: exige as decisões, checa parecidos e grava. */
   async function prepararImportacao() {
     if (!faturas.length || preparando) return;
@@ -1644,6 +1690,24 @@ function ImportarPage() {
           .from("subcategorias")
           .insert({ categoria: sub.categoria, nome: sub.nome, tipo: "despesa" });
         if (error && !String(error.message).includes("duplicate")) throw error;
+      }
+      // Aprendizado global: um voto por estabelecimento para o grupo (o banco aceita só categorias padrão).
+      try {
+        const votos = new Map<string, string>();
+        faturas.forEach((f) =>
+          f.lancamentos.forEach((l) => {
+            if (!l.incluir || !l.categoria || l.categoria === CATEGORIA_A_CONFIRMAR) return;
+            const chave = chaveEstabelecimento(l.descricao);
+            if (chave && !votos.has(chave)) votos.set(chave, l.categoria);
+          }),
+        );
+        if (votos.size) {
+          await (supabase as any).rpc("registrar_votos_classificacao", {
+            p_votos: [...votos].map(([chave, categoria]) => ({ chave, categoria })),
+          });
+        }
+      } catch {
+        /* o aprendizado global não pode impedir a importação */
       }
       await lembrarClassificacoes(
         grupoId,

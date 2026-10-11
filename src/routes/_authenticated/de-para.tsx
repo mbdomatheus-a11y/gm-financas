@@ -234,6 +234,46 @@ function DeParaPage() {
     },
   });
 
+  const { data: aprendidas = [], isLoading: carregandoAprendidas } = useQuery({
+    queryKey: ["classificacoes-aprendidas"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("importacao_preferencias")
+        .select("id,chave,acao,atualizado_em")
+        .eq("escopo", "classificacao")
+        .order("chave");
+      if (error) throw error;
+      return (data ?? []).map((r: any) => {
+        let acao: any = {};
+        try {
+          acao = JSON.parse(r.acao ?? "{}");
+        } catch {
+          /* linha antiga ou inválida: aparece sem categoria */
+        }
+        return {
+          id: r.id as string,
+          chave: r.chave as string,
+          categoria: (acao.categoria as string) ?? "",
+          subcategoria: (acao.subcategoria as string | null) ?? null,
+          atualizado_em: (r.atualizado_em as string | null) ?? null,
+        };
+      });
+    },
+  });
+
+  const esquecer = useMutation({
+    mutationFn: async (chave: string) => {
+      if (exclusaoBloqueada) throw new Error("Seu perfil não possui permissão para excluir dados.");
+      const { error } = await (supabase as any).rpc("esquecer_classificacao", { p_chave: chave });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["classificacoes-aprendidas"] });
+      toast.success("Classificação esquecida.");
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Não foi possível esquecer a classificação."),
+  });
+
   const excluirVarias = useMutation({
     mutationFn: async (ids: string[]) => {
       if (exclusaoBloqueada) throw new Error("Seu perfil não possui permissão para excluir dados.");
@@ -657,6 +697,54 @@ function DeParaPage() {
                       <td className="p-2">
                         <Button variant="ghost" size="icon" onClick={() => remover.mutate(r.id)}>
                           <Trash2 className="size-4" />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+      <Card className="mt-4">
+        <CardHeader>
+          <CardTitle className="text-base">Classificações aprendidas</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Estabelecimentos que a importação lembra para o seu grupo. Ao esquecer, a próxima importação
+            volta a perguntar ou usar o aprendizado geral. Nenhum lançamento já salvo muda.
+          </p>
+        </CardHeader>
+        <CardContent className="p-0">
+          {carregandoAprendidas ? (
+            <p className="p-4 text-sm text-muted-foreground">Carregando…</p>
+          ) : aprendidas.length === 0 ? (
+            <p className="p-4 text-sm text-muted-foreground">Nenhuma classificação aprendida ainda.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50 text-left text-xs uppercase text-muted-foreground">
+                  <tr>
+                    <th className="px-4 py-2">Estabelecimento</th>
+                    <th className="px-4 py-2">Categoria</th>
+                    <th className="px-4 py-2">Subcategoria</th>
+                    <th className="px-4 py-2 text-right">Ação</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(aprendidas as any[]).map((a) => (
+                    <tr key={a.id} className="border-t">
+                      <td className="px-4 py-2 font-medium">{a.chave}</td>
+                      <td className="px-4 py-2">{a.categoria || "—"}</td>
+                      <td className="px-4 py-2">{a.subcategoria || "—"}</td>
+                      <td className="px-4 py-2 text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={esquecer.isPending}
+                          onClick={() => esquecer.mutate(a.chave)}
+                        >
+                          <Trash2 className="mr-1 size-4" /> Esquecer
                         </Button>
                       </td>
                     </tr>
