@@ -70,6 +70,29 @@ import {
   type Candidata,
   type DespesaExistente,
 } from "@/lib/duplicidade-importacao";
+import {
+  despesasFaltantes,
+  type DecisaoFatura,
+  type DecisaoFaltantes,
+} from "@/lib/substituicao-fatura";
+
+/** Fatura anterior do mesmo cartão e mês que a importação pode substituir. */
+type ConflitoSubst = {
+  arquivo_hash: string;
+  arquivo_nome: string;
+  cartao_id: string;
+  competencia: string;
+  faturas_antigas: string[];
+  escopo_despesa_ids: string[];
+  rotulo: string;
+};
+
+/** Compras da fatura anterior que a fatura nova não traz, à espera de decisão. */
+type FaltantesPendentes = {
+  arquivo_hash: string;
+  rotulo: string;
+  itens: { id: string; descricao: string; valor: number; data: string }[];
+};
 import { cn } from "@/lib/utils";
 import { encontrarCorrespondenciaFixa, type FixaCandidata } from "@/lib/correspondencia-fixa";
 import { mesesEntreCompetencias, somarMeses, vencimentoDaCompetencia } from "@/lib/recorrencia";
@@ -250,6 +273,12 @@ function ImportarPage() {
     faturaIdx: number;
     lancamentoId: string;
   } | null>(null);
+  const [decisaoFatura, setDecisaoFatura] = useState<Record<string, DecisaoFatura>>({});
+  const [decisaoFaltantes, setDecisaoFaltantes] = useState<Record<string, DecisaoFaltantes>>({});
+  const [conflitosPorFatura, setConflitosPorFatura] = useState<Record<string, ConflitoSubst>>({});
+  const [faltantesPendentes, setFaltantesPendentes] = useState<FaltantesPendentes[]>([]);
+  const [dialogoSubst, setDialogoSubst] = useState<"modo" | "faltantes" | null>(null);
+  const [preparando, setPreparando] = useState(false);
   const [acoesFixas, setAcoesFixas] = useState<Record<string, { acao: AcaoFixa; fixaId: string }>>(
     {},
   );
@@ -441,8 +470,143 @@ function ImportarPage() {
   const chaveDup = (hash: string, lancamentoId: string) => `${hash}:${lancamentoId}`;
 
   /** Lançamentos já salvos que podem ser o mesmo gasto desta linha da fatura. */
-  function candidatasDe(f: FaturaItem, l: LancamentoExtraido): Candidata[] {
-    return encontrarCandidatas(l, despesasTodas as DespesaExistente[]);
+  function candidatasDe(
+    f: FaturaItem,
+    l: LancamentoExtraido,
+    conflitos: Record<string, ConflitoSubst> = conflitosPorFatura,
+  ): Candidata[] {
+    const todas = encontrarCandidatas(l, despesasTodas as DespesaExistente[]);
+    const conflito = conflitos[f.arquivo_hash];
+    if (!conflito || decisaoFatura[f.arquivo_hash] !== "fechada") return todas;
+    // Compras da fatura anterior saem na substituição: não são parecidas, são a mesma coisa.
+    const saem = new Set(conflito.escopo_despesa_ids);
+    return todas.filter((c) => !saem.has(c.despesa.id));
+  }
+
+  function cartaoDaFatura(f: FaturaItem): string | null {
+    const [tipo, id] = String(f.destino ?? "").split(":");
+    if (tipo === "cartao" && id) return id;
+    return f.lancamentos.map((l) => acharCartao(f.banco, l.cartao_final)?.id).find(Boolean) ?? null;
+  }
+
+  function competenciaDaFatura(f: FaturaItem): string | null {
+    return f.competencia ?? f.vencimento?.slice(0, 7) ?? null;
+  }
+
+  function rotuloCartao(id: string): string {
+    const c = (cartoes as any[]).find((x) => x.id === id);
+    if (!c) return "Cartão";
+    return `${c.bancos?.nome ? `${c.bancos.nome} ` : ""}${c.apelido || `Cartão •${c.final}`}`;
+  }
+
+  /**
+   * Antes de gravar: descobre fatura anterior do mesmo cartão e mês, pede a
+   * decisão (fechada ou parcial) e o que fazer com o que a nova não traz, e só
+   * então confirma. Parecidos sem decisão bloqueiam a importação.
+   */
+  async function prepararImportacao() {
+    if (!faturas.length || preparando) return;
+    setPreparando(true);
+    try {
+      const conflitos: Record<string, ConflitoSubst> = {};
+      for (const f of faturas) {
+        const cartaoId = cartaoDaFatura(f);
+        const comp = competenciaDaFatura(f);
+        if (!cartaoId || !comp) continue;
+        const { data: antigas, error } = await supabase
+          .from("import_faturas")
+          .select("id")
+          .eq("cartao_id", cartaoId)
+          .eq("competencia", comp)
+          .neq("arquivo_hash", f.arquivo_hash);
+        if (error) throw error;
+        if (!antigas?.length) continue;
+        const ids = antigas.map((x) => x.id);
+        const { data: parc, error: pErr } = await supabase
+          .from("parcelas")
+          .select("despesa_id")
+          .in("fatura_id", ids);
+        if (pErr) throw pErr;
+        const { data: desp, error: dErr } = await supabase
+          .from("despesas")
+          .select("id")
+          .in("fatura_id", ids);
+        if (dErr) throw dErr;
+        const escopo = [
+          ...new Set([...(parc ?? []).map((p) => p.despesa_id), ...(desp ?? []).map((d) => d.id)]),
+        ];
+        conflitos[f.arquivo_hash] = {
+          arquivo_hash: f.arquivo_hash,
+          arquivo_nome: f.arquivo_nome,
+          cartao_id: cartaoId,
+          competencia: comp,
+          faturas_antigas: ids,
+          escopo_despesa_ids: escopo,
+          rotulo: `${rotuloCartao(cartaoId)} · ${monthLabelLong(comp)}`,
+        };
+      }
+      setConflitosPorFatura(conflitos);
+
+      if (Object.values(conflitos).some((c) => !decisaoFatura[c.arquivo_hash])) {
+        setDialogoSubst("modo");
+        return;
+      }
+
+      const pendentes: FaltantesPendentes[] = [];
+      for (const c of Object.values(conflitos)) {
+        if (decisaoFatura[c.arquivo_hash] !== "fechada" || decisaoFaltantes[c.arquivo_hash]) continue;
+        const f = faturas.find((x) => x.arquivo_hash === c.arquivo_hash);
+        if (!f || !c.escopo_despesa_ids.length) continue;
+        const { data: antigas, error } = await supabase
+          .from("despesas")
+          .select("*")
+          .in("id", c.escopo_despesa_ids);
+        if (error) throw error;
+        const faltam = despesasFaltantes(
+          (antigas ?? []) as any[],
+          f.lancamentos.filter((l) => l.incluir) as any[],
+        );
+        if (faltam.length)
+          pendentes.push({
+            arquivo_hash: c.arquivo_hash,
+            rotulo: c.rotulo,
+            itens: faltam.map((d) => ({
+              id: d.id,
+              descricao: d.descricao,
+              valor: Number(d.valor_total),
+              data: d.data_compra,
+            })),
+          });
+      }
+      if (pendentes.length) {
+        setFaltantesPendentes(pendentes);
+        setDialogoSubst("faltantes");
+        return;
+      }
+
+      const bloqueios = faturas.reduce(
+        (n, f) =>
+          n +
+          f.lancamentos.filter(
+            (l) =>
+              l.incluir &&
+              candidatasDe(f, l, conflitos).length > 0 &&
+              acaoDuplicataDe(f, l) === "decidir",
+          ).length,
+        0,
+      );
+      if (bloqueios) {
+        toast.error(
+          `${bloqueios} lançamento(s) parecido(s) sem decisão. Resolva antes de importar: clique no aviso de cada linha.`,
+        );
+        return;
+      }
+      confirmar.mutate(conflitos);
+    } catch (e: any) {
+      toast.error(e?.message ?? "Não foi possível preparar a importação.");
+    } finally {
+      setPreparando(false);
+    }
   }
 
   function acaoDuplicataDe(f: FaturaItem, l: LancamentoExtraido): AcaoDuplicata {
@@ -1274,8 +1438,109 @@ function ImportarPage() {
     }
   }
 
+  const backupsRecentes = useQuery({
+    queryKey: ["importacao-backups"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("importacao_backups")
+        .select("id,cartao_id,competencia,criado_em")
+        .eq("status", "ativo")
+        .order("criado_em", { ascending: false })
+        .limit(5);
+      if (error) throw error;
+      return (data ?? []) as { id: string; cartao_id: string; competencia: string; criado_em: string }[];
+    },
+  });
+
+  const desfazerSubstituicao = useMutation({
+    mutationFn: async (backupId: string) => {
+      const { data: bk, error: bkErr } = await (supabase as any)
+        .from("importacao_backups")
+        .select("*")
+        .eq("id", backupId)
+        .single();
+      if (bkErr) throw bkErr;
+      const novasFaturas: string[] = bk.faturas_novas ?? [];
+      if (novasFaturas.length) {
+        // 1. Apaga o que a importação substituta gravou.
+        const { data: pNovas, error: pErr } = await supabase
+          .from("parcelas")
+          .select("id,despesa_id")
+          .in("fatura_id", novasFaturas);
+        if (pErr) throw pErr;
+        const idsParcNovas = (pNovas ?? []).map((p) => p.id);
+        if (idsParcNovas.length) {
+          const { error } = await supabase.from("parcelas").delete().in("id", idsParcNovas);
+          if (error) throw error;
+        }
+        const { data: dPorFatura, error: dErr } = await supabase
+          .from("despesas")
+          .select("id")
+          .in("fatura_id", novasFaturas);
+        if (dErr) throw dErr;
+        const candidatos = [
+          ...new Set([
+            ...(pNovas ?? []).map((p) => p.despesa_id),
+            ...(dPorFatura ?? []).map((d) => d.id),
+          ]),
+        ];
+        if (candidatos.length) {
+          // Só compras criadas depois do backup; as antigas que continuam em outra fatura ficam.
+          const { data: criadas, error: cErr } = await supabase
+            .from("despesas")
+            .select("id,created_at")
+            .in("id", candidatos);
+          if (cErr) throw cErr;
+          const corte = new Date(bk.criado_em).getTime();
+          const novas = (criadas ?? [])
+            .filter((d) => new Date(d.created_at).getTime() >= corte)
+            .map((d) => d.id);
+          if (novas.length) {
+            const { data: restantes, error: rErr } = await supabase
+              .from("parcelas")
+              .select("despesa_id")
+              .in("despesa_id", novas);
+            if (rErr) throw rErr;
+            const comParcela = new Set((restantes ?? []).map((p) => p.despesa_id));
+            const apagar = novas.filter((id) => !comParcela.has(id));
+            if (apagar.length) {
+              const { error } = await supabase.from("despesas").delete().in("id", apagar);
+              if (error) throw error;
+            }
+          }
+        }
+        const { error: impErr } = await supabase.from("import_faturas").delete().in("id", novasFaturas);
+        if (impErr) throw impErr;
+      }
+      // 2. Restaura a fatura anterior como estava no backup.
+      const dados = (bk.dados ?? {}) as { despesas?: any[]; parcelas?: any[] };
+      if (dados.despesas?.length) {
+        const { error } = await supabase.from("despesas").upsert(dados.despesas as any, { onConflict: "id" });
+        if (error) throw error;
+      }
+      if (dados.parcelas?.length) {
+        const { error } = await supabase.from("parcelas").upsert(dados.parcelas as any, { onConflict: "id" });
+        if (error) throw error;
+      }
+      const { error: stErr } = await (supabase as any)
+        .from("importacao_backups")
+        .update({ status: "desfeito", desfeito_em: new Date().toISOString() })
+        .eq("id", backupId);
+      if (stErr) throw stErr;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["despesas"] });
+      qc.invalidateQueries({ queryKey: ["parcelas"] });
+      qc.invalidateQueries({ queryKey: ["fatura-mes"] });
+      qc.invalidateQueries({ queryKey: ["import-faturas"] });
+      qc.invalidateQueries({ queryKey: ["importacao-backups"] });
+      toast.success("Substituição desfeita. A fatura anterior voltou como estava.");
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Não foi possível desfazer a substituição."),
+  });
+
   const confirmar = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (conflitos: Record<string, ConflitoSubst>) => {
       if (!user?.id) throw new Error("Entre na sua conta para importar faturas.");
       const { data: perfil, error: perfilErr } = await supabase
         .from("profiles")
@@ -1368,6 +1633,81 @@ function ImportarPage() {
         .single();
       if (loteErr) throw loteErr;
 
+      // Fatura fechada: guarda o backup da fatura anterior (mesmo cartão e mês) e a
+      // retira do banco antes de gravar a nova. "Desfazer" restaura esse backup.
+      const backupPorHash = new Map<string, string>();
+      const novasFaturas = new Map<string, string>();
+      for (const f of faturas) {
+        const conflito = conflitos[f.arquivo_hash];
+        if (!conflito || decisaoFatura[f.arquivo_hash] !== "fechada") continue;
+        const { data: pAnt, error: pErr } = await supabase
+          .from("parcelas")
+          .select("*")
+          .in("fatura_id", conflito.faturas_antigas);
+        if (pErr) throw pErr;
+        const idsDesp = conflito.escopo_despesa_ids;
+        let despesasAntigas: any[] = [];
+        if (idsDesp.length) {
+          const { data: dAnt, error: dErr } = await supabase
+            .from("despesas")
+            .select("*")
+            .in("id", idsDesp);
+          if (dErr) throw dErr;
+          despesasAntigas = dAnt ?? [];
+        }
+        const faltantes = despesasFaltantes(
+          despesasAntigas,
+          f.lancamentos.filter((l) => l.incluir) as any[],
+        );
+        const decisao = decisaoFaltantes[f.arquivo_hash] ?? "nova";
+        const { error: substErr } = await (supabase as any)
+          .from("importacao_backups")
+          .update({ status: "substituido" })
+          .eq("cartao_id", conflito.cartao_id)
+          .eq("competencia", conflito.competencia)
+          .eq("status", "ativo");
+        if (substErr) throw substErr;
+        const { data: backup, error: bkErr } = await (supabase as any)
+          .from("importacao_backups")
+          .insert({
+            created_by: user.id,
+            grupo_id: grupoId,
+            cartao_id: conflito.cartao_id,
+            competencia: conflito.competencia,
+            lote_id: lote.id,
+            faturas_antigas: conflito.faturas_antigas,
+            dados: {
+              despesas: despesasAntigas,
+              parcelas: pAnt ?? [],
+              faltantes_ids: faltantes.map((d) => d.id),
+              decisao,
+            },
+          })
+          .select("id")
+          .single();
+        if (bkErr) throw bkErr;
+        backupPorHash.set(f.arquivo_hash, backup.id);
+
+        const idsParc = (pAnt ?? []).map((p) => p.id);
+        if (idsParc.length) {
+          const { error } = await supabase.from("parcelas").delete().in("id", idsParc);
+          if (error) throw error;
+        }
+        if (idsDesp.length) {
+          const { data: restantes, error: rErr } = await supabase
+            .from("parcelas")
+            .select("despesa_id")
+            .in("despesa_id", idsDesp);
+          if (rErr) throw rErr;
+          const comParcela = new Set((restantes ?? []).map((p) => p.despesa_id));
+          const orfas = idsDesp.filter((id) => !comParcela.has(id));
+          if (orfas.length) {
+            const { error } = await supabase.from("despesas").delete().in("id", orfas);
+            if (error) throw error;
+          }
+        }
+      }
+
       let inseridos = 0;
       let ignorados = 0;
       // Um lançamento já cadastrado só pode ser substituído por UMA linha.
@@ -1427,6 +1767,7 @@ function ImportarPage() {
           .select("id")
           .single();
         if (fatErr) throw fatErr;
+        novasFaturas.set(f.arquivo_hash, fatura.id);
 
         for (const l of f.lancamentos.filter(permitido)) {
           const dup = acoesDuplicata[chaveDup(f.arquivo_hash, l.id)];
@@ -1885,6 +2226,50 @@ function ImportarPage() {
         }
       }
 
+      // Depois da gravação: restaura o que a decisão pede (mesclar ou ambas) e
+      // anota a fatura nova no backup, para o "Desfazer" saber o que apagar.
+      for (const [hash, backupId] of backupPorHash) {
+        const decisao = decisaoFaltantes[hash] ?? "nova";
+        const { data: bk, error: bkErr } = await (supabase as any)
+          .from("importacao_backups")
+          .select("dados")
+          .eq("id", backupId)
+          .single();
+        if (bkErr) throw bkErr;
+        const dados = (bk?.dados ?? {}) as { despesas: any[]; parcelas: any[]; faltantes_ids: string[] };
+        const faltam = new Set(dados.faltantes_ids ?? []);
+        const despesasRestaurar =
+          decisao === "ambas"
+            ? dados.despesas
+            : decisao === "mesclar"
+              ? dados.despesas.filter((d) => faltam.has(d.id))
+              : [];
+        const parcelasRestaurar =
+          decisao === "ambas"
+            ? dados.parcelas
+            : decisao === "mesclar"
+              ? dados.parcelas.filter((p) => faltam.has(p.despesa_id))
+              : [];
+        if (despesasRestaurar.length) {
+          const { error } = await supabase
+            .from("despesas")
+            .upsert(despesasRestaurar as any, { onConflict: "id" });
+          if (error) throw error;
+        }
+        if (parcelasRestaurar.length) {
+          const { error } = await supabase
+            .from("parcelas")
+            .upsert(parcelasRestaurar as any, { onConflict: "id" });
+          if (error) throw error;
+        }
+        const nova = novasFaturas.get(hash);
+        const { error: upErr } = await (supabase as any)
+          .from("importacao_backups")
+          .update({ faturas_novas: nova ? [nova] : [], lote_id: lote.id })
+          .eq("id", backupId);
+        if (upErr) throw upErr;
+      }
+
       let falhasDePara = 0;
       for (const regra of regrasAprendidas.values()) {
         try {
@@ -1910,6 +2295,10 @@ function ImportarPage() {
       qc.invalidateQueries({ queryKey: ["categoria-regras"] });
       setFaturas([]);
       setAcoesFixas({});
+      setDecisaoFatura({});
+      setDecisaoFaltantes({});
+      setConflitosPorFatura({});
+      qc.invalidateQueries({ queryKey: ["importacao-backups"] });
       classificacoesEditadas.current.clear();
       toast.success(
         `${inseridos} lançamento(s) importado(s). ${ignorados} duplicado(s) ignorado(s).` +
@@ -1961,8 +2350,8 @@ function ImportarPage() {
       description="Envie PDFs de fatura, planilha ou cole os lançamentos, revise linha a linha e confirme."
       actions={
         faturas.length > 0 ? (
-          <Button onClick={() => confirmar.mutate()} disabled={confirmar.isPending}>
-            {confirmar.isPending ? (
+          <Button onClick={() => void prepararImportacao()} disabled={confirmar.isPending || preparando}>
+            {confirmar.isPending || preparando ? (
               <Loader2 className="mr-2 size-4 animate-spin" />
             ) : (
               <CheckCircle2 className="mr-2 size-4" />
@@ -1972,6 +2361,38 @@ function ImportarPage() {
         ) : undefined
       }
     >
+      {(backupsRecentes.data ?? []).length > 0 && (
+        <Card className="mb-4">
+          <CardContent className="space-y-2 py-3 text-sm">
+            <p className="font-medium">Substituições de fatura fechada</p>
+            {(backupsRecentes.data ?? []).map((b) => (
+              <div key={b.id} className="flex flex-wrap items-center gap-2 text-xs">
+                <span className="mr-auto">
+                  {rotuloCartao(b.cartao_id)} · {monthLabelLong(b.competencia)} · substituída em{" "}
+                  {new Date(b.criado_em).toLocaleString("pt-BR")}
+                </span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-[11px]"
+                  disabled={desfazerSubstituicao.isPending}
+                  onClick={() => {
+                    if (
+                      window.confirm(
+                        "Desfazer a substituição? Os lançamentos desta importação saem e a fatura anterior volta como estava.",
+                      )
+                    )
+                      desfazerSubstituicao.mutate(b.id);
+                  }}
+                >
+                  Desfazer
+                </Button>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
       <PrimeiraFaturaAviso onImportar={() => inputRef.current?.click()} />
       <PrimeiraCategoriaGuia tipo="despesa" className="mb-3" />
       <Card>
@@ -3125,6 +3546,131 @@ function ImportarPage() {
               onClick={() => cadastrarDestino.mutate()}
             >
               {cadastrarDestino.isPending ? "Salvando..." : "Salvar e continuar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={dialogoSubst === "modo"} onOpenChange={(o) => !o && setDialogoSubst(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Este cartão já tem fatura neste mês</DialogTitle>
+            <DialogDescription>
+              A fatura que você enviou é fechada ou parcial? Fechada substitui o que está cadastrado
+              deste cartão no mês, com backup para desfazer. Parcial só adiciona e pergunta sobre os
+              parecidos.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            {Object.values(conflitosPorFatura)
+              .filter((c) => !decisaoFatura[c.arquivo_hash])
+              .map((c) => (
+                <div key={c.arquivo_hash} className="space-y-2 rounded-lg border p-3">
+                  <p className="text-sm font-medium">{c.rotulo}</p>
+                  <p className="text-xs text-muted-foreground">{c.arquivo_nome}</p>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-auto flex-col items-start gap-0.5 whitespace-normal py-2 text-left"
+                      onClick={() => setDecisaoFatura((p) => ({ ...p, [c.arquivo_hash]: "fechada" }))}
+                    >
+                      <span className="text-xs font-semibold">Fatura fechada</span>
+                      <span className="text-[11px] font-normal opacity-80">
+                        Substitui o que está cadastrado deste cartão no mês.
+                      </span>
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-auto flex-col items-start gap-0.5 whitespace-normal py-2 text-left"
+                      onClick={() => setDecisaoFatura((p) => ({ ...p, [c.arquivo_hash]: "parcial" }))}
+                    >
+                      <span className="text-xs font-semibold">Fatura parcial</span>
+                      <span className="text-[11px] font-normal opacity-80">
+                        Só adiciona. Pergunta sobre os parecidos.
+                      </span>
+                    </Button>
+                  </div>
+                </div>
+              ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogoSubst(null)}>
+              Cancelar
+            </Button>
+            <Button
+              disabled={Object.values(conflitosPorFatura).some((c) => !decisaoFatura[c.arquivo_hash])}
+              onClick={() => {
+                setDialogoSubst(null);
+                void prepararImportacao();
+              }}
+            >
+              Continuar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={dialogoSubst === "faltantes"} onOpenChange={(o) => !o && setDialogoSubst(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>A fatura anterior tinha lançamentos que a nova não traz</DialogTitle>
+            <DialogDescription>
+              Escolha o que fazer com eles em cada cartão. Nada é restaurado sem a sua escolha.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-[55vh] space-y-3 overflow-y-auto">
+            {faltantesPendentes.map((p) => (
+              <div key={p.arquivo_hash} className="space-y-2 rounded-lg border p-3">
+                <p className="text-sm font-medium">
+                  {p.rotulo} · {p.itens.length} lançamento(s) só na fatura anterior
+                </p>
+                <div className="max-h-32 space-y-0.5 overflow-y-auto text-xs text-muted-foreground">
+                  {p.itens.map((i) => (
+                    <div key={i.id} className="flex justify-between gap-2">
+                      <span className="truncate">{i.descricao}</span>
+                      <span className="shrink-0">{formatBRL(i.valor)}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="grid gap-2 sm:grid-cols-3">
+                  {(
+                    [
+                      ["nova", "Manter só a nova", "Os que faltam saem do mês."],
+                      ["mesclar", "Mesclar", "Nova mais os que faltam na nova."],
+                      ["ambas", "Manter as duas", "Restaura todos da anterior. Pode duplicar."],
+                    ] as const
+                  ).map(([valor, titulo, texto]) => (
+                    <Button
+                      key={valor}
+                      type="button"
+                      variant={decisaoFaltantes[p.arquivo_hash] === valor ? "default" : "outline"}
+                      className="h-auto flex-col items-start gap-0.5 whitespace-normal py-2 text-left"
+                      onClick={() =>
+                        setDecisaoFaltantes((d) => ({ ...d, [p.arquivo_hash]: valor }))
+                      }
+                    >
+                      <span className="text-xs font-semibold">{titulo}</span>
+                      <span className="text-[11px] font-normal opacity-80">{texto}</span>
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogoSubst(null)}>
+              Cancelar
+            </Button>
+            <Button
+              disabled={faltantesPendentes.some((p) => !decisaoFaltantes[p.arquivo_hash])}
+              onClick={() => {
+                setDialogoSubst(null);
+                void prepararImportacao();
+              }}
+            >
+              Continuar
             </Button>
           </DialogFooter>
         </DialogContent>
