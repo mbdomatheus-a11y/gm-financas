@@ -171,6 +171,8 @@ function semRepetidas(linhas: LinhaPdf[]): LinhaPdf[] {
     cont.get(k)!.add(l.page);
   }
   return linhas.filter((l) => {
+    // Linha com valor ou data é lançamento, mesmo que o texto se repita (ex.: duas linhas de telefone).
+    if (/\d+,\d{2}\b|\d{2}\/\d{2}/.test(l.texto)) return true;
     const k = semAcento(l.texto).replace(/\d+/g, "#");
     const repeticoes = cont.get(k)?.size ?? 0;
     return repeticoes < Math.max(2, paginas - 1);

@@ -1661,6 +1661,7 @@ function ImportarPage() {
       if (!perfil.grupo_id) throw new Error("Não foi possível identificar o seu grupo.");
       const grupoId = perfil.grupo_id;
       const totaisPendentes: string[] = [];
+      const fechamentosManuais: string[] = [];
 
       // Cria na hora a macro e a subcategoria que ainda não existem, e grava o
       // aprendizado do grupo: o próximo lançamento deste estabelecimento já vem
@@ -1736,7 +1737,10 @@ function ImportarPage() {
           .eq("competencia", comp)
           .eq("modo_calculo", "somente_total")
           .eq("status", "aberta");
-        if (data?.length) totaisPendentes.push(`${f.arquivo_nome} (${comp})`);
+        if (data?.length) {
+          totaisPendentes.push(`${f.arquivo_nome} (${comp})`);
+          fechamentosManuais.push(...data.map((r: any) => String(r.id)));
+        }
       }
       if (
         totaisPendentes.length &&
@@ -1748,7 +1752,14 @@ function ImportarPage() {
       const regrasAprendidas = new Map<string, LancamentoExtraido>();
       faturas.forEach((f) =>
         f.lancamentos.forEach((l) => {
-          if (l.incluir && classificacoesEditadas.current.has(`${f.arquivo_hash}:${l.id}`)) {
+          // Ao confirmar a fatura, toda categoria já definida vira regra do de-para (sem clicar em salvar).
+          // Transferências e pagamentos a pessoas não viram regra: o nome do favorecido não é guardado.
+          if (
+            l.incluir &&
+            l.categoria &&
+            l.categoria !== CATEGORIA_A_CONFIRMAR &&
+            !/\b(PIX|TED|DOC|TRANSF|TRANSFERENCIA|SAQUE|BOLETO)\b/i.test(l.descricao)
+          ) {
             regrasAprendidas.set(chaveEstabelecimento(l.descricao), l);
           }
         }),
@@ -1884,12 +1895,21 @@ function ImportarPage() {
         if (fatErr) throw fatErr;
         novasFaturas.set(f.arquivo_hash, fatura.id);
 
+        // Linhas idênticas na mesma fatura (ex.: duas linhas de telefone de mesmo valor) são gastos
+        // distintos: a segunda ocorrência ganha chave própria em vez de ser tomada como já importada.
+        const ocorrenciasNaFatura = new Map<string, number>();
         for (const l of f.lancamentos.filter(permitido)) {
           const dup = acoesDuplicata[chaveDup(f.arquivo_hash, l.id)];
           // "Criar um novo" ganha uma chave própria: são dois gastos iguais de
           // verdade, então não podem colidir na chave de deduplicação.
+          const chaveBase = dedupKey(l);
+          const ocorrencia = (ocorrenciasNaFatura.get(chaveBase) ?? 0) + 1;
+          ocorrenciasNaFatura.set(chaveBase, ocorrencia);
+          const chaveSequencial = ocorrencia > 1 ? `${chaveBase}#seq${ocorrencia}` : chaveBase;
           const chave =
-            dup?.acao === "novo" ? `${dedupKey(l)}#novo-${Date.now()}-${l.id}` : dedupKey(l);
+            dup?.acao === "novo"
+              ? `${chaveSequencial}#novo-${Date.now()}-${l.id}`
+              : chaveSequencial;
           const { data: existente } = await supabase
             .from("despesas")
             .select("id")
@@ -2410,6 +2430,14 @@ function ImportarPage() {
             if (error) throw error;
           }
         }
+      }
+
+      if (fechamentosManuais.length) {
+        const { error: fechErr } = await (supabase as any)
+          .from("fatura_mes")
+          .update({ status: "concluida" })
+          .in("id", fechamentosManuais);
+        if (fechErr) throw fechErr;
       }
 
       let falhasDePara = 0;

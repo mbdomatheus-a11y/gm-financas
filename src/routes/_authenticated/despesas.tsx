@@ -16,6 +16,7 @@ import {
   TrendingDown,
   X,
   Receipt,
+  RotateCcw,
 } from "lucide-react";
 import { FaturaMesDialog } from "@/components/FaturaMesDialog";
 import { IndiceReajusteField } from "@/components/IndiceReajusteField";
@@ -1183,7 +1184,9 @@ function DespesasPage() {
                       {resumo.total > 0 ? ((grupo.total / resumo.total) * 100).toFixed(0) : 0}%
                     </p>
                   </div>
-                  {can("despesas", "editar") && filtroMes !== "todos" && (
+                  {can("despesas", "editar") &&
+                    filtroMes !== "todos" &&
+                    idsDoLote(grupo.itens, "abertas").length > 0 && (
                     <Button
                       size="sm"
                       variant="outline"
@@ -1200,6 +1203,24 @@ function DespesasPage() {
                       <CheckCircle2 className="size-3.5" /> Marcar fatura paga
                     </Button>
                   )}
+                  {can("despesas", "editar") &&
+                    filtroMes !== "todos" &&
+                    idsDoLote(grupo.itens, "abertas").length === 0 &&
+                    idsDoLote(grupo.itens, "pagas").length > 0 && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-9 shrink-0 text-xs"
+                        disabled={marcarLote.isPending}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          marcarLote.mutate({ ids: idsDoLote(grupo.itens, "pagas"), paga: false });
+                        }}
+                        aria-label="Marcar fatura como não paga"
+                      >
+                        <RotateCcw className="size-3.5" /> Marcar como não paga
+                      </Button>
+                    )}
                   <ChevronDown
                     className={cn(
                       "size-4 transition-transform",
