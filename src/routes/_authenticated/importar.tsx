@@ -1924,6 +1924,17 @@ function ImportarPage() {
             ignorados++;
             continue;
           }
+          // A compra escolhida para substituir pode ter sido apagada por uma importação anterior
+          // (a escolha ficou na tela). Sem ela no banco, grava como lançamento novo, sem FK quebrada.
+          if (dup?.acao === "substituir" && dup.alvoId) {
+            const { data: alvoAinda } = await supabase
+              .from("despesas")
+              .select("id")
+              .eq("id", dup.alvoId)
+              .eq("grupo_id", grupoId)
+              .maybeSingle();
+            if (!alvoAinda) dup.alvoId = null;
+          }
           if (dup?.acao === "substituir" && dup.alvoId && !alvosUsados.has(dup.alvoId)) {
             alvosUsados.add(dup.alvoId);
             const { error: subErro } = await supabase
@@ -2429,6 +2440,7 @@ function ImportarPage() {
       setDecisaoFatura({});
       setDecisaoFaltantes({});
       setConflitosPorFatura({});
+      setAcoesDuplicata({});
       qc.invalidateQueries({ queryKey: ["importacao-backups"] });
       classificacoesEditadas.current.clear();
       toast.success(
