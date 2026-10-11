@@ -26,6 +26,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -1992,65 +1993,70 @@ function ImportarPage() {
             </TabsList>
 
             <TabsContent value="pdf">
-              <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-dashed bg-muted/30 p-3 text-xs text-muted-foreground">
-                <span>
-                  Seu banco não foi reconhecido? Envie uma cópia para modelagem. Os dados não serão
-                  usados e o arquivo será descartado em até 30 dias.
-                </span>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={enviandoLayout}
-                    onClick={() => layoutRef.current?.click()}
-                  >
-                    {enviandoLayout ? "Enviando…" : "Enviar para análise"}
-                  </Button>
-                  {solicitacoesAnalise.length > 0 && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="text-xs"
-                      onClick={() => setModalAnaliseOpen(true)}
-                    >
-                      <FileText className="mr-1 size-3.5" /> Faturas enviadas (
-                      {solicitacoesAnalise.length})
-                    </Button>
+              <div className="mb-3 flex items-stretch gap-2">
+                <div
+                  className="flex flex-1 cursor-pointer flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-dashed px-4 py-2.5 text-left transition-colors hover:bg-muted/50"
+                  onClick={() => inputRef.current?.click()}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    void onFiles(e.dataTransfer.files);
+                  }}
+                >
+                  {lendo ? (
+                    <Loader2 className="size-6 animate-spin text-muted-foreground" />
+                  ) : (
+                    <Upload className="size-6 text-muted-foreground" />
                   )}
+                  <p className="text-sm font-medium">Arraste os PDFs ou clique para selecionar</p>
+                  <p className="text-xs text-muted-foreground">
+                    Itaú, Nubank, Pernambucanas e Santander · vários arquivos por vez
+                  </p>
+                  <input
+                    ref={inputRef}
+                    type="file"
+                    accept="application/pdf"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => void onFiles(e.target.files)}
+                  />
                 </div>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button size="sm" variant="outline" className="h-auto shrink-0 gap-1.5 text-xs">
+                      Banco não reconhecido?
+                      {solicitacoesAnalise.length > 0 && (
+                        <span className="text-muted-foreground">· {solicitacoesAnalise.length} enviada(s)</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent align="end" className="w-80 space-y-3 p-3 text-xs">
+                    <p className="text-muted-foreground">
+                      Envie uma cópia para modelagem. Os dados não serão usados e o arquivo será descartado em até 30 dias.
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={enviandoLayout}
+                        onClick={() => layoutRef.current?.click()}
+                      >
+                        {enviandoLayout ? "Enviando…" : "Enviar para análise"}
+                      </Button>
+                      {solicitacoesAnalise.length > 0 && (
+                        <Button size="sm" variant="ghost" className="text-xs" onClick={() => setModalAnaliseOpen(true)}>
+                          <FileText className="mr-1 size-3.5" /> Faturas enviadas ({solicitacoesAnalise.length})
+                        </Button>
+                      )}
+                    </div>
+                  </PopoverContent>
+                </Popover>
                 <input
                   ref={layoutRef}
                   className="hidden"
                   type="file"
                   accept="application/pdf,image/jpeg,image/png"
                   onChange={(e) => void enviarParaModelagem(e.target.files)}
-                />
-              </div>
-              <div
-                className="flex cursor-pointer flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-dashed px-4 py-2.5 text-left transition-colors hover:bg-muted/50"
-                onClick={() => inputRef.current?.click()}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  void onFiles(e.dataTransfer.files);
-                }}
-              >
-                {lendo ? (
-                  <Loader2 className="size-6 animate-spin text-muted-foreground" />
-                ) : (
-                  <Upload className="size-6 text-muted-foreground" />
-                )}
-                <p className="text-sm font-medium">Arraste os PDFs ou clique para selecionar</p>
-                <p className="text-xs text-muted-foreground">
-                  Itaú, Nubank, Pernambucanas e Santander · vários arquivos por vez
-                </p>
-                <input
-                  ref={inputRef}
-                  type="file"
-                  accept="application/pdf"
-                  multiple
-                  className="hidden"
-                  onChange={(e) => void onFiles(e.target.files)}
                 />
               </div>
 

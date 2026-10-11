@@ -27,6 +27,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { FiltroMultiplo } from "@/components/FiltroMultiplo";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCotacao } from "@/hooks/useCotacao";
 import {
@@ -473,61 +474,19 @@ function ParaOndeVaiPage() {
               </p>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="space-y-2">
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="mr-1 text-[11px] font-medium text-muted-foreground">Contas</span>
-                  <Button size="sm" variant="ghost" className="h-6 px-2 text-[11px]" onClick={() => setContaSel(null)}>
-                    Todas
-                  </Button>
-                  {contasDisponiveis.map((c) => {
-                    const ligada = !contaSel || contaSel.has(c.id);
-                    return (
-                      <button
-                        key={c.id}
-                        type="button"
-                        aria-pressed={ligada}
-                        onClick={() => {
-                          const base = new Set(contaSel ?? contasDisponiveis.map((x) => x.id));
-                          if (base.has(c.id)) base.delete(c.id);
-                          else base.add(c.id);
-                          setContaSel(base.size === contasDisponiveis.length ? null : base);
-                        }}
-                        className={`rounded-full border px-2.5 py-0.5 text-[11px] transition-colors ${
-                          ligada ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground line-through"
-                        }`}
-                      >
-                        {c.nome}
-                      </button>
-                    );
-                  })}
-                </div>
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="mr-1 text-[11px] font-medium text-muted-foreground">Categorias</span>
-                  <Button size="sm" variant="ghost" className="h-6 px-2 text-[11px]" onClick={() => setCatSel(null)}>
-                    Todas
-                  </Button>
-                  {rotulosDisponiveis.map((r) => {
-                    const ligada = !catSel || catSel.has(r);
-                    return (
-                      <button
-                        key={r}
-                        type="button"
-                        aria-pressed={ligada}
-                        onClick={() => {
-                          const base = new Set(catSel ?? rotulosDisponiveis);
-                          if (base.has(r)) base.delete(r);
-                          else base.add(r);
-                          setCatSel(base.size === rotulosDisponiveis.length ? null : base);
-                        }}
-                        className={`rounded-full border px-2.5 py-0.5 text-[11px] transition-colors ${
-                          ligada ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground line-through"
-                        }`}
-                      >
-                        {r}
-                      </button>
-                    );
-                  })}
-                </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <FiltroMultiplo
+                  titulo="Contas"
+                  opcoes={contasDisponiveis.map((c) => ({ valor: c.id, rotulo: c.nome }))}
+                  selecionados={contaSel}
+                  onChange={setContaSel}
+                />
+                <FiltroMultiplo
+                  titulo="Categorias"
+                  opcoes={rotulosDisponiveis.map((r) => ({ valor: r, rotulo: r }))}
+                  selecionados={catSel}
+                  onChange={setCatSel}
+                />
               </div>
               <div className="h-[280px]">
               <ResponsiveContainer width="100%" height="100%">
