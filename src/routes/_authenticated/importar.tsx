@@ -156,9 +156,13 @@ const BANCOS: BancoFatura[] = [
   "desconhecido",
 ];
 
+/** Fatura já importada do mesmo cartão (ou banco, sem cartão) no mesmo mês. */
+type ConflitoMes = { id: string; arquivo_nome: string; created_at: string };
+
 type FaturaItem = FaturaExtraida & {
   arquivo: File | null;
   duplicada?: boolean;
+  conflitoMes?: ConflitoMes | null;
   destino?: string;
   total_declarado_edicao?: string;
 };
@@ -512,13 +516,13 @@ function ImportarPage() {
       for (const f of faturas) {
         const cartaoId = cartaoDaFatura(f);
         const comp = competenciaDaFatura(f);
+        // Sem cartão conhecido não há como substituir com segurança: só o aviso aparece.
         if (!cartaoId || !comp) continue;
         const { data: antigas, error } = await supabase
           .from("import_faturas")
           .select("id")
           .eq("cartao_id", cartaoId)
-          .eq("competencia", comp)
-          .neq("arquivo_hash", f.arquivo_hash);
+          .eq("competencia", comp);
         if (error) throw error;
         if (!antigas?.length) continue;
         const ids = antigas.map((x) => x.id);
@@ -873,8 +877,26 @@ function ImportarPage() {
       lancamentos: categorizados,
       arquivo: file,
       duplicada: !!jaExiste,
+      conflitoMes: await conflitoDoMes(extraida, destinoPadrao(extraida)),
       destino: destinoPadrao(extraida),
     };
+  }
+
+  /** Fatura já importada do mesmo cartão (ou do banco, se o cartão não é conhecido) no mesmo mês. */
+  async function conflitoDoMes(
+    f: { banco: string; competencia?: string | null; vencimento?: string | null },
+    destino: string,
+  ): Promise<ConflitoMes | null> {
+    const comp = f.competencia ?? f.vencimento?.slice(0, 7) ?? null;
+    if (!comp) return null;
+    const [tipo, id] = String(destino ?? "").split(":");
+    const cartaoId = tipo === "cartao" && id ? id : null;
+    const base = supabase.from("import_faturas").select("id,arquivo_nome,created_at").eq("competencia", comp);
+    const { data, error } = await (cartaoId ? base.eq("cartao_id", cartaoId) : base.eq("banco", f.banco))
+      .order("created_at", { ascending: false })
+      .limit(1);
+    if (error) return null;
+    return (data?.[0] as ConflitoMes | undefined) ?? null;
   }
 
   async function onFiles(files: FileList | null) {
@@ -1046,6 +1068,7 @@ function ImportarPage() {
             ...extraida,
             arquivo: null,
             duplicada: !!jaExiste,
+            conflitoMes: await conflitoDoMes(extraida, destinoPadrao(extraida)),
             destino: destinoPadrao(extraida),
           });
           if (lancamentos.length)
@@ -1131,6 +1154,7 @@ function ImportarPage() {
             ...extraida,
             arquivo: null,
             duplicada: !!jaExiste,
+            conflitoMes: await conflitoDoMes(extraida, destinoPadrao(extraida)),
             destino: destinoPadrao(extraida),
           });
           toast.success(`${file.name}: ${linhas.length} lançamento(s) interpretado(s).`);
@@ -1509,8 +1533,11 @@ function ImportarPage() {
             }
           }
         }
-        const { error: impErr } = await supabase.from("import_faturas").delete().in("id", novasFaturas);
-        if (impErr) throw impErr;
+        const apagarFaturas = novasFaturas.filter((id) => !(bk.faturas_antigas ?? []).includes(id));
+        if (apagarFaturas.length) {
+          const { error: impErr } = await supabase.from("import_faturas").delete().in("id", apagarFaturas);
+          if (impErr) throw impErr;
+        }
       }
       // 2. Restaura a fatura anterior como estava no backup.
       const dados = (bk.dados ?? {}) as { despesas?: any[]; parcelas?: any[] };
@@ -2668,6 +2695,13 @@ function ImportarPage() {
                 {f.duplicada && (
                   <Badge variant="destructive" className="gap-1">
                     <AlertTriangle className="size-3" /> Arquivo já importado
+                  </Badge>
+                )}
+                {f.conflitoMes && (
+                  <Badge variant="outline" className="gap-1 border-amber-500 text-amber-700 dark:text-amber-300">
+                    <AlertTriangle className="size-3" /> Já existe fatura deste cartão neste mês (
+                    {f.conflitoMes.arquivo_nome}, importada em{" "}
+                    {new Date(f.conflitoMes.created_at).toLocaleDateString("pt-BR")})
                   </Badge>
                 )}
                 <Button
