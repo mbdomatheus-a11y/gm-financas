@@ -264,10 +264,22 @@ export function extrairFinais(texto: string): string[] {
 }
 
 export function extrairVencimento(texto: string): string | null {
+  // Formato numérico: "Vencimento 15/10/2026".
   const m = texto.match(/vencimento[^\d]{0,20}(\d{2}\/\d{2}\/\d{4})/i);
-  if (!m) return null;
-  const [d, mo, y] = m[1]!.split("/");
-  return `${y}-${mo}-${d}`;
+  if (m) {
+    const [d, mo, y] = m[1]!.split("/");
+    return `${y}-${mo}-${d}`;
+  }
+  // Formato com mês por extenso ou abreviado (ex.: Nubank "15 OUT 2026", "15/OUT/2026", "15 de outubro de 2026").
+  const txt = texto.match(
+    /vencimento[^\d]{0,20}(\d{1,2})[\s/.-]*(?:de\s+)?([a-zçA-Zç]{3,9})\.?[\s/.-]*(?:de\s+)?(\d{4})/i,
+  );
+  if (txt) {
+    const chave = txt[2]!.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().slice(0, 3);
+    const mes = MESES[chave];
+    if (mes) return `${txt[3]}-${String(mes).padStart(2, "0")}-${txt[1]!.padStart(2, "0")}`;
+  }
+  return null;
 }
 
 export function extrairTotal(texto: string): number | null {
