@@ -8,6 +8,7 @@ import {
   BookmarkMinus,
   BookmarkPlus,
   CheckCircle2,
+  ArrowLeftRight,
   ClipboardPaste,
   FileSpreadsheet,
   FileText,
@@ -3645,6 +3646,19 @@ function ImportarPage() {
                                 {l.direcao === "credito" ? "crédito" : "débito"} ·{" "}
                                 {formatBRL(l.valor * l.parcela_total)}
                               </p>
+                              <button
+                                type="button"
+                                title="Inverter o sinal: débito vira crédito e vice-versa"
+                                aria-label="Inverter o sinal deste lançamento"
+                                className="mt-0.5 inline-flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground"
+                                onClick={() =>
+                                  atualizarLancamento(idx, l.id, {
+                                    direcao: l.direcao === "credito" ? "debito" : "credito",
+                                  })
+                                }
+                              >
+                                <ArrowLeftRight className="size-3" aria-hidden="true" /> inverter sinal
+                              </button>
                             </td>
                           </tr>
                         );
