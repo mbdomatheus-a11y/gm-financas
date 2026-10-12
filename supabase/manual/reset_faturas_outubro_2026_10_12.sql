@@ -10,6 +10,9 @@ CREATE TABLE IF NOT EXISTS public.backup_20261012b_despesas AS
 CREATE TABLE IF NOT EXISTS public.backup_20261012b_parcelas AS
   SELECT p.* FROM public.parcelas p JOIN public.despesas d ON d.id = p.despesa_id
   WHERE d.grupo_id = '00000000-0000-0000-0000-000000000001';
+ALTER TABLE public.backup_20261012b_despesas ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.backup_20261012b_parcelas ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.backup_20261012b_despesas, public.backup_20261012b_parcelas FROM anon, authenticated;
 
 -- 1. Lançamentos (não fixos) gravados pelas 6 faturas importadas.
 DELETE FROM public.despesas d
