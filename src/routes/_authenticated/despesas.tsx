@@ -70,6 +70,7 @@ import {
   useCartoes,
   useCategorias,
   useDespesas,
+  useReceitas,
   useFaturasMes,
   useProfilesList,
 } from "@/hooks/useFinance";
@@ -188,6 +189,7 @@ function DespesasPage() {
   const { user } = useSession();
   const { can } = usePermissoes();
   const { data: despesas = [] } = useDespesas();
+  const { data: receitas = [] } = useReceitas();
   const { data: faturasMes = [] } = useFaturasMes();
   const { data: categorias = [] } = useCategorias("despesa");
   const { data: cartoes = [] } = useCartoes();
@@ -813,6 +815,26 @@ function DespesasPage() {
   }, [filtroResumo, listaVisivel, idsIgnoradosPorTotal, filtroMes, lancamentosDoFiltro, resumo.proximo, cotacao]);
   const somaDoResumo = lancamentosDoResumo.reduce((s, i) => s + i.valor, 0);
 
+  // Receitas do período, do mesmo jeito que a Home: pela data de recebimento e convertidas para BRL.
+  const receitaDoFiltro = useMemo(
+    () =>
+      (receitas as any[])
+        .filter((r) => filtroMes === "todos" || String(r.data_recebimento ?? "").slice(0, 7) === filtroMes)
+        .reduce((s, r) => s + toBRL(Number(r.valor) || 0, r.moeda ?? "BRL", cotacao), 0),
+    [receitas, filtroMes, cotacao],
+  );
+  // O saldo só faz sentido com a lista completa do período; com filtros, a despesa mostrada é parcial.
+  const semFiltrosDeLista =
+    tab === "total" &&
+    filtroCartao === "todos" &&
+    filtroBanco === "todos" &&
+    filtroCategoria === "todos" &&
+    filtroResponsavel === "todos" &&
+    filtroOrigem === "todos" &&
+    !filtroEconomia &&
+    !busca;
+  const saldoDoFiltro = receitaDoFiltro - resumo.total;
+
   // Bloco 6: sai da simulação sozinho ao trocar de aba/mês — os ids
   // excluídos de uma simulação não fazem sentido mais depois disso.
   useEffect(() => {
@@ -933,9 +955,17 @@ function DespesasPage() {
         )
       }
     >
-      <div className="mb-3 grid grid-cols-2 gap-2 lg:grid-cols-4">
+      <div className="mb-3 grid grid-cols-2 gap-2 lg:grid-cols-3">
         {[
-          { filtro: "total" as const, label: "Total", valor: formatar(resumo.total), cor: "text-foreground", hint: "" },
+          { filtro: "total" as const, label: "Total despesas", valor: formatar(resumo.total), cor: "text-foreground", hint: "" },
+          { filtro: null, label: "Receitas", valor: formatar(receitaDoFiltro), cor: "text-success", hint: "" },
+          {
+            filtro: null,
+            label: "Saldo",
+            valor: semFiltrosDeLista ? formatar(saldoDoFiltro) : "—",
+            cor: saldoDoFiltro >= 0 ? "text-success" : "text-destructive",
+            hint: semFiltrosDeLista ? "receitas − despesas" : "tire os filtros para ver o saldo",
+          },
           { filtro: "pago" as const, label: "Pago", valor: formatar(resumo.pago), cor: "text-success", hint: "" },
           {
             filtro: "aberto" as const,
@@ -952,6 +982,19 @@ function DespesasPage() {
             hint: resumo.proximo ? formatDate(resumo.proximo.data) : "sem parcelas futuras",
           },
         ].map((k) => {
+          const conteudo = (
+            <>
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{k.label}</p>
+              <p className={cn("text-sm font-bold tabular-nums", k.cor)}>{k.valor}</p>
+              {k.hint && <p className="text-[10px] text-muted-foreground">{k.hint}</p>}
+            </>
+          );
+          if (!k.filtro)
+            return (
+              <div key={k.label} className="rounded-xl border bg-card px-3 py-2">
+                {conteudo}
+              </div>
+            );
           const ativo = filtroResumo === k.filtro;
           return (
             <button
@@ -968,9 +1011,7 @@ function DespesasPage() {
                 ativo && "ring-2 ring-primary",
               )}
             >
-              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{k.label}</p>
-              <p className={cn("text-sm font-bold tabular-nums", k.cor)}>{k.valor}</p>
-              {k.hint && <p className="text-[10px] text-muted-foreground">{k.hint}</p>}
+              {conteudo}
             </button>
           );
         })}
