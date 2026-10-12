@@ -42,11 +42,11 @@ import { formatBRL } from "@/lib/format";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Control ALL | Finanças, notas fiscais e um assistente para o seu dia a dia" },
+      { title: "Control ALL (ControlALL) | App de controle financeiro, despesas e notas fiscais" },
       {
         name: "description",
         content:
-          "Organize receitas, despesas, parcelas e notas fiscais em um só lugar, com um assistente de IA para lançar e resumir seus gastos. Gratuito.",
+          "Control ALL é um app gratuito de controle financeiro: organize receitas, despesas, faturas de cartão, parcelas e notas fiscais em um só lugar, com assistente de IA.",
       },
       {
         property: "og:title",
@@ -276,6 +276,28 @@ function EconomiaTotalBanner() {
   );
 }
 
+// Marca para buscadores: nome oficial e as variações que as pessoas digitam
+// ("control all", "controlall", "control+all"), ligadas ao mesmo site.
+const jsonLdMarca = [
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: "Control ALL",
+    alternateName: ["ControlALL", "Control All", "Control+All", "controlall", "Control ALL Finanças"],
+    url: "https://www.controlall.com.br/",
+    inLanguage: "pt-BR",
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: "Control ALL",
+    alternateName: ["ControlALL", "Control All", "controlall"],
+    url: "https://www.controlall.com.br/",
+    logo: "https://www.controlall.com.br/brand/og-cover.png",
+    email: "contato@controlall.com.br",
+  },
+];
+
 const jsonLdSoftwareApplication = {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
@@ -316,6 +338,10 @@ function LandingPage() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdSoftwareApplication) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdMarca) }}
       />
       <SiteHeader home />
       <EconomiaTotalBanner />
