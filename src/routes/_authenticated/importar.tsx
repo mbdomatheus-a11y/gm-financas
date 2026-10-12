@@ -977,7 +977,10 @@ function ImportarPage() {
     });
     if (extraida.assinatura) {
       for (const l of categorizados) {
-        baseCorrecao.current.set(l.id, {
+        // Chave com o arquivo: o id da linha (l0, l1...) recomeça em cada PDF. Com a chave só
+        // pelo id, a base de uma fatura era comparada com a linha de outra e o sistema
+        // "aprendia" trocas falsas (ex.: Netflix virava Supermercado, 11,00 virava 123,00).
+        baseCorrecao.current.set(`${extraida.arquivo_hash}:${l.id}`, {
           data_compra: l.data_compra,
           descricao: l.descricao,
           valor: l.valor,
@@ -1403,14 +1406,16 @@ function ImportarPage() {
   const ensinarCorrecao = useMutation({
     mutationFn: async ({
       assinatura,
+      hash,
       l,
       somenteDescricao = false,
     }: {
       assinatura: string;
+      hash: string;
       l: LancamentoExtraido;
       somenteDescricao?: boolean;
     }) => {
-      const base = baseCorrecao.current.get(l.id);
+      const base = baseCorrecao.current.get(`${hash}:${l.id}`);
       if (!base) return 0;
       const diffs: {
         campo: "data_compra" | "descricao" | "valor";
@@ -1444,7 +1449,7 @@ function ImportarPage() {
         );
         if (error) throw error;
       }
-      baseCorrecao.current.set(l.id, {
+      baseCorrecao.current.set(`${hash}:${l.id}`, {
         data_compra: l.data_compra,
         descricao: l.descricao,
         valor: l.valor,
@@ -2601,8 +2606,13 @@ function ImportarPage() {
       const paraEnsinar = faturas.flatMap((fat) =>
         fat.assinatura
           ? fat.lancamentos
-              .filter((lanc) => baseCorrecao.current.has(lanc.id))
-              .map((lanc) => ({ assinatura: fat.assinatura!, l: lanc, somenteDescricao: true }))
+              .filter((lanc) => baseCorrecao.current.has(`${fat.arquivo_hash}:${lanc.id}`))
+              .map((lanc) => ({
+                assinatura: fat.assinatura!,
+                hash: fat.arquivo_hash,
+                l: lanc,
+                somenteDescricao: true,
+              }))
           : [],
       );
       void Promise.all(paraEnsinar.map((p) => ensinarCorrecao.mutateAsync(p).catch(() => 0)));
