@@ -2051,39 +2051,27 @@ function ImportarPage() {
             ignorados++;
             continue;
           }
-          if (
+          // Regra: depois que o usuário confirma, a importação segue a escolha dele. Nada de
+          // conferência que trave aqui (a gravação não é transacional: travar no meio deixava
+          // parte das linhas gravadas e gerava cópias a cada nova tentativa).
+          const fixaEscolhida =
             acaoFixa &&
             (acaoFixa.acao === "substituir" ||
               acaoFixa.acao === "vincular" ||
               acaoFixa.acao === "ajustar")
-          ) {
-            const { data: fixa, error: fixaErro } = await supabase
-              .from("despesas")
-              .select(
-                "id, descricao, valor_total, tipo, direcao, cartao_id, cartao_final, banco_id, recorrencia_inicio, recorrencia_meses, data_primeira_parcela, total_parcelas",
-              )
-              .eq("id", acaoFixa.fixaId)
-              .eq("grupo_id", grupoId)
-              .single();
-            if (fixaErro || !fixa)
-              throw new Error("A despesa fixa escolhida não está disponível neste grupo.");
-            // A escolha da fixa já foi feita pelo usuário na prévia. Aqui só confere que a linha
-            // ainda é do mesmo estabelecimento. Valor, cartão virtual e final do cartão podem
-            // mudar de um mês para outro (ex.: assinatura em dólar, final 3310 x 0674), e
-            // "ajustar"/"substituir" existem justamente para valor diferente; antes esta
-            // conferência repetia a busca completa e travava a importação nesses casos.
-            const mesmaLinha =
-              chaveEstabelecimento(fixa.descricao) === chaveEstabelecimento(l.descricao);
-            if (!mesmaLinha) {
-              const erro = new Error(
-                `A despesa fixa "${fixa.descricao}" não corresponde mais à linha "${l.descricao}" (${l.data_compra
-                  .split("-")
-                  .reverse()
-                  .join("/")}, ${formatBRL(l.valor)}), na fatura ${f.arquivo_nome}. A linha está destacada em vermelho: revise valor, data ou a escolha da fixa.`,
-              ) as Error & { linhaId?: string };
-              erro.linhaId = l.id;
-              throw erro;
-            }
+              ? (
+                  await supabase
+                    .from("despesas")
+                    .select(
+                      "id, descricao, valor_total, tipo, direcao, cartao_id, cartao_final, banco_id, recorrencia_inicio, recorrencia_meses, data_primeira_parcela, total_parcelas",
+                    )
+                    .eq("id", acaoFixa.fixaId)
+                    .eq("grupo_id", grupoId)
+                    .maybeSingle()
+                ).data
+              : null;
+          if (acaoFixa && fixaEscolhida) {
+            const fixa = fixaEscolhida;
             const competencia = (f.competencia ?? l.data_compra).slice(0, 7);
             if (acaoFixa.acao === "ajustar") {
               await ajustarFixaAPartirDe({
@@ -2104,11 +2092,8 @@ function ImportarPage() {
               .lt("vencimento", `${somarMeses(competencia, 1)}-01`)
               .maybeSingle();
             if (parcelaErro) throw parcelaErro;
-            if (parcelaExistente?.fatura_id && parcelaExistente.fatura_id !== fatura.id) {
-              throw new Error(
-                "Esta ocorrência já está vinculada a outra fatura. Revise antes de substituir.",
-              );
-            }
+            // Se a ocorrência deste mês já estava ligada a outra fatura (ex.: importação anterior
+            // do mesmo mês), ela passa a apontar para esta fatura, como o usuário escolheu.
             const inicio = fixa.recorrencia_inicio ?? fixa.data_primeira_parcela;
             const numero = mesesEntreCompetencias(inicio, competencia) + 1;
             const valores = {
