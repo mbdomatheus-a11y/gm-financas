@@ -1415,8 +1415,7 @@ function ImportarPage() {
       return diffs.length;
     },
     onSuccess: (n: number) => {
-      if (n > 0)
-        toast.success("Correção ensinada — as próximas faturas deste layout já virão certas.");
+      void n;
     },
     onError: (e: any) => toast.error(e?.message ?? "Não foi possível salvar a correção."),
   });
@@ -1653,6 +1652,14 @@ function ImportarPage() {
   const confirmar = useMutation({
     mutationFn: async (conflitos: Record<string, ConflitoSubst>) => {
       if (!user?.id) throw new Error("Entre na sua conta para importar faturas.");
+      // Modo automático: correções feitas na prévia viram aprendizado do layout sem botão.
+      for (const fat of faturas) {
+        if (!fat.assinatura) continue;
+        for (const lanc of fat.lancamentos) {
+          if (!baseCorrecao.current.has(lanc.id)) continue;
+          await ensinarCorrecao.mutateAsync({ assinatura: fat.assinatura, l: lanc }).catch(() => 0);
+        }
+      }
       const { data: perfil, error: perfilErr } = await supabase
         .from("profiles")
         .select("grupo_id")
@@ -3309,10 +3316,10 @@ function ImportarPage() {
                   <table className="w-full min-w-[920px] table-fixed text-xs">
                     <thead className="bg-muted/50 text-[10px] uppercase tracking-wide text-muted-foreground">
                       <tr>
-                        <th className="w-7 p-1"></th>
-                        <th className="w-[108px] p-1 text-left">Data</th>
+                        <th className="w-6 p-0.5"></th>
+                        <th className="w-[96px] p-0.5 text-left">Data</th>
                         <th className="w-[22%] p-1 text-left">Descrição</th>
-                        <th className="w-[112px] p-1 text-left">Parcela</th>
+                        <th className="w-[72px] p-0.5 text-left">Parcela</th>
                         <th className="w-[9%] p-1 text-left">Tipo</th>
                         <th className="w-[7%] p-1 text-left">Final</th>
                         <th className="w-[9%] p-1 text-left">Responsável</th>
@@ -3338,7 +3345,7 @@ function ImportarPage() {
                               l.categoria === CATEGORIA_A_CONFIRMAR && "bg-violet-500/10",
                             )}
                           >
-                            <td className="p-1">
+                            <td className="p-0.5">
                               <Checkbox
                                 checked={l.incluir && permitidoPorTipo}
                                 disabled={!permitidoPorTipo}
@@ -3356,17 +3363,17 @@ function ImportarPage() {
                                 }
                               />
                             </td>
-                            <td className="p-1">
+                            <td className="p-0.5">
                               <Input
                                 type="date"
-                                className="h-7 w-full min-w-0 px-1 text-[11px]"
+                                className="h-6 w-full min-w-0 px-1 text-[11px]"
                                 value={l.data_compra}
                                 onChange={(e) =>
                                   atualizarLancamento(idx, l.id, { data_compra: e.target.value })
                                 }
                               />
                             </td>
-                            <td className="p-1">
+                            <td className="p-0.5">
                               <Textarea
                                 className="min-h-7 w-full min-w-0 resize-none overflow-hidden rounded-md px-1.5 py-1 text-[11px] leading-tight"
                                 rows={1}
@@ -3410,40 +3417,13 @@ function ImportarPage() {
                                   </button>
                                 );
                               })()}
-                              {(() => {
-                                // Etapa F: "Ensinar" só aparece quando esta fatura tem layout
-                                // identificado (PDF reconhecido) e o usuário editou
-                                // data/descrição/valor em relação ao que foi extraído.
-                                if (!f.assinatura) return null;
-                                const base = baseCorrecao.current.get(l.id);
-                                if (!base) return null;
-                                const divergente =
-                                  base.data_compra !== l.data_compra ||
-                                  base.descricao !== l.descricao ||
-                                  base.valor !== l.valor;
-                                if (!divergente) return null;
-                                return (
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="mt-1 h-6 gap-1 px-1.5 text-[10px]"
-                                    disabled={ensinarCorrecao.isPending}
-                                    title="Lembrar esta correção para as próximas faturas deste mesmo layout"
-                                    onClick={() =>
-                                      ensinarCorrecao.mutate({ assinatura: f.assinatura!, l })
-                                    }
-                                  >
-                                    <GraduationCap className="size-3 shrink-0" /> Ensinar correção
-                                  </Button>
-                                );
-                              })()}
                             </td>
-                            <td className="p-1">
-                              <div className="flex items-center gap-1">
+                            <td className="p-0.5">
+                              <div className="flex items-center gap-0.5">
                                 <Input
                                   type="number"
                                   min={1}
-                                  className="h-7 w-12 min-w-0 px-1 text-center text-[11px] [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                  className="h-6 w-9 min-w-0 px-0.5 text-center text-[11px] [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                                   value={l.parcela_numero}
                                   onChange={(e) =>
                                     atualizarLancamento(idx, l.id, {
@@ -3455,7 +3435,7 @@ function ImportarPage() {
                                 <Input
                                   type="number"
                                   min={1}
-                                  className="h-7 w-12 min-w-0 px-1 text-center text-[11px] [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                  className="h-6 w-9 min-w-0 px-0.5 text-center text-[11px] [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                                   value={l.parcela_total}
                                   onChange={(e) =>
                                     atualizarLancamento(idx, l.id, {
@@ -3465,14 +3445,14 @@ function ImportarPage() {
                                 />
                               </div>
                             </td>
-                            <td className="p-1">
+                            <td className="p-0.5">
                               <Select
                                 value={l.tipo ?? "variavel"}
                                 onValueChange={(v) =>
                                   atualizarLancamento(idx, l.id, { tipo: v as "fixa" | "variavel" })
                                 }
                               >
-                                <SelectTrigger className="h-7 w-full min-w-0 px-1 text-[11px]">
+                                <SelectTrigger className="h-6 w-full min-w-0 px-1 text-[11px]">
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -3531,9 +3511,9 @@ function ImportarPage() {
                                 ) : null;
                               })()}
                             </td>
-                            <td className="p-1">
+                            <td className="p-0.5">
                               <Input
-                                className="h-7 w-full min-w-0 px-1 text-[11px]"
+                                className="h-6 w-full min-w-0 px-1 text-[11px]"
                                 placeholder="0000"
                                 maxLength={4}
                                 value={l.cartao_final ?? ""}
@@ -3545,7 +3525,7 @@ function ImportarPage() {
                                 }
                               />
                             </td>
-                            <td className="p-1">
+                            <td className="p-0.5">
                               <Select
                                 value={l.responsavel ?? "none"}
                                 onValueChange={(v) =>
@@ -3554,7 +3534,7 @@ function ImportarPage() {
                                   })
                                 }
                               >
-                                <SelectTrigger className="h-7 w-full min-w-0 px-1 text-[11px]">
+                                <SelectTrigger className="h-6 w-full min-w-0 px-1 text-[11px]">
                                   <SelectValue placeholder="—" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -3567,7 +3547,7 @@ function ImportarPage() {
                                 </SelectContent>
                               </Select>
                             </td>
-                            <td className="p-1">
+                            <td className="p-0.5">
                               <div className="flex items-center gap-1">
                                 <SeletorCategoria
                                   campo="categoria"
@@ -3587,38 +3567,6 @@ function ImportarPage() {
                                     })
                                   }
                                 />
-                                {(() => {
-                                  const adicionada = regras.some(
-                                    (r) =>
-                                      r.tipo_regra === "de_para" &&
-                                      r.estabelecimento_normalizado ===
-                                        chaveEstabelecimento(l.descricao) &&
-                                      r.categoria === l.categoria &&
-                                      (r.subcategoria ?? null) === (l.subcategoria ?? null),
-                                  );
-                                  return (
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="size-7 shrink-0"
-                                      title={
-                                        adicionada
-                                          ? "Remover regra de de-para"
-                                          : "Salvar como regra de de-para"
-                                      }
-                                      disabled={
-                                        salvarRegra.isPending || (adicionada && exclusaoBloqueada)
-                                      }
-                                      onClick={() => salvarRegra.mutate(l)}
-                                    >
-                                      {adicionada ? (
-                                        <BookmarkMinus className="size-4 text-emerald-600" />
-                                      ) : (
-                                        <BookmarkPlus className="size-4 text-muted-foreground hover:text-primary" />
-                                      )}
-                                    </Button>
-                                  );
-                                })()}
                               </div>
                               {l.confianca_categoria && (
                                 <p className="mt-1 text-[10px] text-muted-foreground">
@@ -3626,10 +3574,10 @@ function ImportarPage() {
                                 </p>
                               )}
                             </td>
-                            <td className="p-1">
+                            <td className="p-0.5">
                               <SeletorCategoria
                                 campo="subcategoria"
-                                className="h-7 w-full min-w-0 px-1 text-[11px]"
+                                className="h-6 w-full min-w-0 px-1 text-[11px]"
                                 ariaLabel="Subcategoria do lançamento"
                                 placeholder="—"
                                 valor={l.subcategoria ?? null}
@@ -3647,7 +3595,7 @@ function ImportarPage() {
                                 }
                               />
                             </td>
-                            <td className="p-1 text-right">
+                            <td className="p-0.5 text-right">
                               <Input
                                 type="number"
                                 step="0.01"
