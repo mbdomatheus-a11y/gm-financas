@@ -2869,6 +2869,29 @@ function ImportarPage() {
                   </Badge>
                 )}
                 <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 gap-1 text-xs"
+                  title="Troca o sinal de todos os lançamentos desta fatura (débito vira crédito e vice-versa)"
+                  onClick={() =>
+                    setFaturas((prev) =>
+                      prev.map((x, i) =>
+                        i === idx
+                          ? {
+                              ...x,
+                              lancamentos: x.lancamentos.map((l) => ({
+                                ...l,
+                                direcao: l.direcao === "credito" ? "debito" : "credito",
+                              })),
+                            }
+                          : x,
+                      ),
+                    )
+                  }
+                >
+                  <ArrowLeftRight className="size-3.5" aria-hidden="true" /> Inverter sinal da fatura
+                </Button>
+                <Button
                   variant="ghost"
                   size="icon"
                   onClick={() => setFaturas((prev) => prev.filter((_, i) => i !== idx))}
