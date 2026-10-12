@@ -1973,6 +1973,8 @@ function ImportarPage() {
           }
           if (dup?.acao === "substituir" && dup.alvoId && !alvosUsados.has(dup.alvoId)) {
             alvosUsados.add(dup.alvoId);
+            const chaveAlvo =
+              existente && existente.id !== dup.alvoId ? `${chave}#sub-${dup.alvoId}` : chave;
             const { error: subErro } = await supabase
               .from("despesas")
               .update({
@@ -1995,7 +1997,7 @@ function ImportarPage() {
                 direcao: l.direcao,
                 origem: "importacao_substituicao",
                 fatura_id: fatura.id,
-                dedup_key: chave,
+                dedup_key: chaveAlvo,
               } as any)
               .eq("id", dup.alvoId)
               .eq("grupo_id", grupoId);
@@ -2033,7 +2035,7 @@ function ImportarPage() {
                 valor_estimado: numero !== l.parcela_numero,
                 confianca_data: l.confianca_data,
                 fatura_id: fatura.id,
-                dedup_key: `${chave}#${numero}`,
+                dedup_key: `${chaveAlvo}#${numero}`,
                 grupo_id: grupoId,
               };
             });
@@ -2202,6 +2204,12 @@ function ImportarPage() {
             }
           }
 
+          // Chegou aqui com a linha já gravada (ex.: a substituição escolhida não se aplicou):
+          // gravar de novo duplicaria o gasto e o banco recusa a chave repetida.
+          if (existente) {
+            ignorados++;
+            continue;
+          }
           const { data: despesa, error: despErr } = await supabase
             .from("despesas")
             .insert({
