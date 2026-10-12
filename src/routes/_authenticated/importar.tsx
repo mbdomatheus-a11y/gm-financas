@@ -260,6 +260,12 @@ function ImportarPage() {
   const [lendoImagens, setLendoImagens] = useState(false);
   const [lendoPlanilha, setLendoPlanilha] = useState(false);
   const [faturas, setFaturas] = useState<FaturaItem[]>([]);
+  // Linha que travou a confirmação (destacada em vermelho na tabela de revisão).
+  const [linhaComErro, setLinhaComErro] = useState<string | null>(null);
+  // Andamento da gravação, para a barra percentual durante a confirmação.
+  const [progresso, setProgresso] = useState<{ feitos: number; total: number; etapa: string } | null>(
+    null,
+  );
   const [acoesDuplicata, setAcoesDuplicata] = useState<
     Record<string, { acao: AcaoDuplicata; alvoId: string | null }>
   >({});
@@ -661,8 +667,33 @@ function ImportarPage() {
   }, [chaveSemCategoria]);
 
   /** Confirmação: exige as decisões, checa parecidos e grava. */
+  /** Competência (AAAA-MM) anterior ao mês corrente: a fatura é de um ciclo passado. */
+  function competenciaAnterior(f: FaturaItem): string | null {
+    const comp = competenciaDaFatura(f);
+    if (!comp) return null;
+    const hoje = new Date();
+    const atual = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}`;
+    return comp < atual ? comp : null;
+  }
+
+  function rotuloCompetencia(comp: string): string {
+    const [ano, mes] = comp.split("-").map(Number);
+    return new Date(ano!, mes! - 1, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+  }
+
   async function prepararImportacao() {
     if (!faturas.length || preparando) return;
+    const passadas = faturas
+      .map((f) => competenciaAnterior(f))
+      .filter((c): c is string => !!c);
+    if (passadas.length) {
+      toast.info(
+        `Atenção: ${passadas.length === 1 ? "a fatura é" : "há faturas"} de competência anterior ao mês atual (${[
+          ...new Set(passadas.map(rotuloCompetencia)),
+        ].join(", ")}). A importação segue normalmente.`,
+        { duration: 10000 },
+      );
+    }
     setPreparando(true);
     try {
       const conflitos = await decidirSubstituicoes(true);
@@ -1311,6 +1342,7 @@ function ImportarPage() {
   });
 
   function atualizarLancamento(idx: number, id: string, patch: Partial<LancamentoExtraido>) {
+    setLinhaComErro((atual) => (atual === id ? null : atual));
     if ("categoria" in patch || "subcategoria" in patch) {
       classificacoesEditadas.current.add(`${faturas[idx]?.arquivo_hash}:${id}`);
     }
@@ -1623,6 +1655,13 @@ function ImportarPage() {
   const confirmar = useMutation({
     mutationFn: async (conflitos: Record<string, ConflitoSubst>) => {
       if (!user?.id) throw new Error("Entre na sua conta para importar faturas.");
+      setLinhaComErro(null);
+      const totalLinhas = Math.max(
+        1,
+        faturas.reduce((s, fat) => s + fat.lancamentos.filter((x) => x.incluir).length, 0),
+      );
+      let linhasFeitas = 0;
+      setProgresso({ feitos: 0, total: totalLinhas, etapa: "Preparando a gravação" });
       const { data: perfil, error: perfilErr } = await supabase
         .from("profiles")
         .select("grupo_id")
@@ -1870,6 +1909,12 @@ function ImportarPage() {
         // distintos: a segunda ocorrência ganha chave própria em vez de ser tomada como já importada.
         const ocorrenciasNaFatura = new Map<string, number>();
         for (const l of f.lancamentos.filter(permitido)) {
+          linhasFeitas++;
+          setProgresso({
+            feitos: Math.min(linhasFeitas, totalLinhas),
+            total: totalLinhas,
+            etapa: `Gravando ${f.arquivo_nome}`,
+          });
           const dup = acoesDuplicata[chaveDup(f.arquivo_hash, l.id)];
           // "Criar um novo" ganha uma chave própria: são dois gastos iguais de
           // verdade, então não podem colidir na chave de deduplicação.
@@ -2031,8 +2076,16 @@ function ImportarPage() {
               banco_id: bancoId,
               competencia: f.competencia,
             });
-            if (!correspondencia)
-              throw new Error("A correspondência com a despesa fixa mudou. Revise esta linha.");
+            if (!correspondencia) {
+              const erro = new Error(
+                `A despesa fixa "${fixa.descricao}" não corresponde mais à linha "${l.descricao}" (${l.data_compra
+                  .split("-")
+                  .reverse()
+                  .join("/")}, ${formatBRL(l.valor)}), na fatura ${f.arquivo_nome}. A linha está destacada em vermelho: revise valor, data ou a escolha da fixa.`,
+              ) as Error & { linhaId?: string };
+              erro.linhaId = l.id;
+              throw erro;
+            }
             const competencia = (f.competencia ?? l.data_compra).slice(0, 7);
             if (acaoFixa.acao === "ajustar") {
               await ajustarFixaAPartirDe({
@@ -2492,7 +2545,20 @@ function ImportarPage() {
       if (falhasDePara)
         toast.warning(`${falhasDePara} regra(s) de de-para não puderam ser salvas.`);
     },
-    onError: (e: any) => toast.error(e?.message ?? "Falha ao importar."),
+    onError: (e: any) => {
+      if (e?.linhaId) {
+        setLinhaComErro(e.linhaId);
+        window.setTimeout(
+          () =>
+            document
+              .getElementById(`linha-${e.linhaId}`)
+              ?.scrollIntoView({ behavior: "smooth", block: "center" }),
+          60,
+        );
+      }
+      toast.error(e?.message ?? "Falha ao importar.", { duration: 15000 });
+    },
+    onSettled: () => setProgresso(null),
   });
 
   // Etapa D (plano-importacao-v2.md): permissão granular de importação por
@@ -2536,6 +2602,41 @@ function ImportarPage() {
         ) : undefined
       }
     >
+      {(confirmar.isPending || preparando) && (
+        <div
+          className="sticky top-2 z-30 mb-3 rounded-lg border bg-background/95 p-3 shadow-sm backdrop-blur"
+          role="status"
+          aria-live="polite"
+        >
+          {confirmar.isPending && progresso ? (
+            (() => {
+              const pct = Math.min(99, Math.round((progresso.feitos / progresso.total) * 100));
+              return (
+                <>
+                  <div className="mb-1 flex items-center justify-between gap-2 text-xs">
+                    <span className="truncate">{progresso.etapa}</span>
+                    <span className="font-semibold tabular-nums">{pct}%</span>
+                  </div>
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full bg-primary transition-[width] duration-300"
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    {progresso.feitos} de {progresso.total} lançamentos gravados
+                  </p>
+                </>
+              );
+            })()
+          ) : (
+            <p className="flex items-center gap-2 text-xs">
+              <Loader2 className="size-3.5 animate-spin" aria-hidden="true" /> Conferindo duplicidades
+              e faturas do mesmo mês antes de gravar...
+            </p>
+          )}
+        </div>
+      )}
       {(backupsRecentes.data ?? []).length > 0 && (
         <Card className="mb-4">
           <CardContent className="space-y-2 py-3 text-sm">
@@ -2843,6 +2944,12 @@ function ImportarPage() {
                 {f.duplicada && (
                   <Badge variant="destructive" className="gap-1">
                     <AlertTriangle className="size-3" /> Arquivo já importado
+                  </Badge>
+                )}
+                {competenciaAnterior(f) && (
+                  <Badge variant="outline" className="gap-1 border-sky-500 text-sky-700 dark:text-sky-300">
+                    <AlertTriangle className="size-3" /> Competência {rotuloCompetencia(competenciaAnterior(f)!)},
+                    anterior ao mês atual. Pode importar normalmente.
                   </Badge>
                 )}
                 {f.conflitoMes && (
@@ -3317,9 +3424,12 @@ function ImportarPage() {
                         return (
                           <tr
                             key={l.id}
+                            id={`linha-${l.id}`}
                             className={cn(
                               "border-t align-top",
                               l.categoria === CATEGORIA_A_CONFIRMAR && "bg-violet-500/10",
+                              linhaComErro === l.id &&
+                                "bg-destructive/10 outline outline-2 -outline-offset-2 outline-destructive",
                             )}
                           >
                             <td className="p-0.5">

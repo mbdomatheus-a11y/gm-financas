@@ -51,15 +51,10 @@ export function InactivityGuard({ children }: { children: ReactNode }) {
     };
     const eventos = ["pointerdown", "keydown", "touchstart", "scroll"] as const;
     eventos.forEach((evento) => window.addEventListener(evento, aoInteragir, { passive: true }));
+    // A sessão só termina por inatividade (tempo sem uso definido na administração).
+    // Antes havia também um limite fixo contado desde o login, que derrubava o usuário
+    // a cada 60 minutos mesmo em uso.
     const timer = window.setInterval(() => {
-      const maxMin = Math.max(
-        15,
-        Math.min(480, Number(sessionStorage.getItem("control-all-sessao-max-min")) || 60),
-      );
-      if (Date.now() - inicioSessao.current >= maxMin * 60_000) {
-        void sair("inatividade");
-        return;
-      }
       const restante = Math.max(0, limiteMs - (Date.now() - ultimoUso.current));
       setRestanteMs(restante);
       if (restante === 0) void sair();
