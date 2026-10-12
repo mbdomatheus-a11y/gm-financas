@@ -2003,7 +2003,7 @@ function ImportarPage() {
               .eq("despesa_id", dup.alvoId);
             if (delParc) throw delParc;
             const novas = Array.from({ length: l.parcela_total }, (_, i) => i + 1).map((numero) => {
-              const paga = pagamentoPorNumero.has(numero) || numero < l.parcela_numero;
+              const paga = pagamentoPorNumero.has(numero);
               return {
                 despesa_id: dup.alvoId,
                 numero,
@@ -2230,9 +2230,9 @@ function ImportarPage() {
               valor: l.valor,
               moeda: l.moeda,
               vencimento: vencimentoParcela(venc, l.parcela_numero, numero),
-              // Só as parcelas anteriores à da fatura estão quitadas. A parcela desta fatura
-              // ainda não foi paga, então fica em aberto até o pagamento.
-              paga: numero < l.parcela_numero,
+              // Parcelas nascem em aberto. Só ficam pagas quando o usuário marca, ou quando a
+              // fatura seguinte mostra o valor desta fatura como pago (ver pagouAnterior).
+              paga: false,
               situacao_temporal:
                 numero < l.parcela_numero
                   ? "passada"
@@ -2296,11 +2296,28 @@ function ImportarPage() {
         // "Pagamento via conta"): isso é a prova de que a fatura passada foi
         // paga. Se as parcelas daquele mês ainda estiverem em aberto, marca
         // como pagas agora, para o mês anterior parar de aparecer como devendo.
-        const pagouAnterior = f.lancamentos.some(
-          (l) => l.direcao === "credito" && detectarTipoLancamento(l.descricao, -l.valor) === "pagamento",
-        );
-        if (pagouAnterior && comp) {
-          const anterior = somarMeses(comp, -1);
+        const pagosNaFatura = f.lancamentos
+          .filter((l) => l.direcao === "credito" && detectarTipoLancamento(l.descricao, -l.valor) === "pagamento")
+          .reduce((s, l) => s + Math.abs(l.valor), 0);
+        const anterior = comp ? somarMeses(comp, -1) : null;
+        let totalAnterior: number | null = null;
+        if (comp && anterior && pagosNaFatura > 0) {
+          const { data: fatAnterior } = await supabase
+            .from("import_faturas")
+            .select("total_declarado, total_extraido")
+            .eq("grupo_id", grupoId)
+            .eq("competencia", anterior)
+            .match({ cartao_id: cartaoPrincipal || null } as any)
+            .order("created_at", { ascending: false })
+            .limit(1);
+          const ant: any = fatAnterior?.[0];
+          const valorAnt = ant?.total_declarado ?? ant?.total_extraido ?? null;
+          totalAnterior = valorAnt == null ? null : Number(valorAnt);
+        }
+        // Regra: a fatura anterior só vira paga quando a nova traz o mesmo valor como pagamento.
+        const pagouAnterior =
+          totalAnterior != null && Math.abs(pagosNaFatura - totalAnterior) <= 0.01;
+        if (pagouAnterior && comp && anterior) {
           const inicio = `${anterior}-01`;
           const fim = `${somarMeses(anterior, 1)}-01`;
           const cartoesParaQuitar = cartoesTocados.size
