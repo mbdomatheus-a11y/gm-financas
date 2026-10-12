@@ -5,14 +5,11 @@ import { prepararEnvioLayout } from "@/lib/layout-fatura.functions";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
-  BookmarkMinus,
-  BookmarkPlus,
   CheckCircle2,
   ArrowLeftRight,
   ClipboardPaste,
   FileSpreadsheet,
   FileText,
-  GraduationCap,
   Image as ImageIcon,
   Loader2,
   Plus,
@@ -190,7 +187,7 @@ function ImportarPage() {
   const { estrutura, criarSubcategoria } = useEstruturaCategorias("despesa");
   const qc = useQueryClient();
   const { user } = useSession();
-  const { can, canImportar, exclusaoBloqueada } = usePermissoes();
+  const { can, canImportar } = usePermissoes();
   const { data: profiles = [] } = useProfilesList();
   const { data: categorias = [] } = useCategorias("despesa");
   const { data: cartoes = [] } = useCartoes();
@@ -1372,7 +1369,15 @@ function ImportarPage() {
    * assinatura de layout — e passa a ser a nova linha de base, pra não
    * reoferecer "Ensinar" de novo sem uma edição nova. */
   const ensinarCorrecao = useMutation({
-    mutationFn: async ({ assinatura, l }: { assinatura: string; l: LancamentoExtraido }) => {
+    mutationFn: async ({
+      assinatura,
+      l,
+      somenteDescricao = false,
+    }: {
+      assinatura: string;
+      l: LancamentoExtraido;
+      somenteDescricao?: boolean;
+    }) => {
       const base = baseCorrecao.current.get(l.id);
       if (!base) return 0;
       const diffs: {
@@ -1380,13 +1385,13 @@ function ImportarPage() {
         original: string;
         corrigido: string;
       }[] = [];
-      if (base.data_compra !== l.data_compra) {
+      if (!somenteDescricao && base.data_compra !== l.data_compra) {
         diffs.push({ campo: "data_compra", original: base.data_compra, corrigido: l.data_compra });
       }
       if (base.descricao !== l.descricao) {
         diffs.push({ campo: "descricao", original: base.descricao, corrigido: l.descricao });
       }
-      if (base.valor !== l.valor) {
+      if (!somenteDescricao && base.valor !== l.valor) {
         diffs.push({
           campo: "valor",
           original: base.valor.toFixed(2),
@@ -1420,40 +1425,6 @@ function ImportarPage() {
     onError: (e: any) => toast.error(e?.message ?? "Não foi possível salvar a correção."),
   });
 
-  const salvarRegra = useMutation({
-    mutationFn: async (l: LancamentoExtraido) => {
-      const chave = chaveEstabelecimento(l.descricao);
-      const { data: existente, error } = await supabase
-        .from("categoria_regras")
-        .select("id, categoria, subcategoria")
-        .eq("estabelecimento_normalizado", chave)
-        .eq("tipo_regra", "de_para")
-        .maybeSingle();
-      if (error) throw error;
-      if (
-        existente &&
-        existente.categoria === l.categoria &&
-        (existente.subcategoria ?? null) === (l.subcategoria ?? null)
-      ) {
-        if (exclusaoBloqueada)
-          throw new Error("Seu perfil não possui permissão para remover regras.");
-        const { error: removerErro } = await supabase
-          .from("categoria_regras")
-          .delete()
-          .eq("id", existente.id);
-        if (removerErro) throw removerErro;
-        return "removida" as const;
-      }
-      await gravarRegra(l);
-      return "salva" as const;
-    },
-    onSuccess: (acao) => {
-      qc.invalidateQueries({ queryKey: ["categoria-regras"] });
-      qc.invalidateQueries({ queryKey: ["categorias", "despesa"] });
-      toast.success(acao === "removida" ? "Regra de de-para removida." : "Regra de de-para salva.");
-    },
-    onError: (e: any) => toast.error(e?.message ?? "Falha ao salvar a regra."),
-  });
 
   /**
    * "Ajustar a fixa a partir desta competência": encerra a recorrência antiga
@@ -1652,14 +1623,6 @@ function ImportarPage() {
   const confirmar = useMutation({
     mutationFn: async (conflitos: Record<string, ConflitoSubst>) => {
       if (!user?.id) throw new Error("Entre na sua conta para importar faturas.");
-      // Modo automático: correções feitas na prévia viram aprendizado do layout sem botão.
-      for (const fat of faturas) {
-        if (!fat.assinatura) continue;
-        for (const lanc of fat.lancamentos) {
-          if (!baseCorrecao.current.has(lanc.id)) continue;
-          await ensinarCorrecao.mutateAsync({ assinatura: fat.assinatura, l: lanc }).catch(() => 0);
-        }
-      }
       const { data: perfil, error: perfilErr } = await supabase
         .from("profiles")
         .select("grupo_id")
@@ -2310,12 +2273,15 @@ function ImportarPage() {
         const anterior = comp ? somarMeses(comp, -1) : null;
         let totalAnterior: number | null = null;
         if (comp && anterior && pagosNaFatura > 0) {
-          const { data: fatAnterior } = await supabase
+          const consultaAnterior = supabase
             .from("import_faturas")
             .select("total_declarado, total_extraido")
             .eq("grupo_id", grupoId)
-            .eq("competencia", anterior)
-            .match({ cartao_id: cartaoPrincipal || null } as any)
+            .eq("competencia", anterior);
+          const { data: fatAnterior } = await (cartaoPrincipal
+            ? consultaAnterior.eq("cartao_id", cartaoPrincipal)
+            : consultaAnterior.is("cartao_id", null)
+          )
             .order("created_at", { ascending: false })
             .limit(1);
           const ant: any = fatAnterior?.[0];
@@ -2490,6 +2456,17 @@ function ImportarPage() {
       qc.invalidateQueries({ queryKey: ["fatura-mes"] });
       qc.invalidateQueries({ queryKey: ["import-faturas"] });
       qc.invalidateQueries({ queryKey: ["categoria-regras"] });
+      // Modo automático (sem botão "Ensinar"): só a descrição corrigida vira aprendizado do layout.
+      // Data e valor não são aprendidos sozinhos, porque a regra valeria para toda linha com a
+      // mesma data ou o mesmo valor nas próximas faturas desse layout.
+      const paraEnsinar = faturas.flatMap((fat) =>
+        fat.assinatura
+          ? fat.lancamentos
+              .filter((lanc) => baseCorrecao.current.has(lanc.id))
+              .map((lanc) => ({ assinatura: fat.assinatura!, l: lanc, somenteDescricao: true }))
+          : [],
+      );
+      void Promise.all(paraEnsinar.map((p) => ensinarCorrecao.mutateAsync(p).catch(() => 0)));
       setFaturas([]);
       setAcoesFixas({});
       setDecisaoFatura({});

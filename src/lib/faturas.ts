@@ -279,6 +279,10 @@ export function extrairVencimento(texto: string): string | null {
     const mes = MESES[chave];
     if (mes) return `${txt[3]}-${String(mes).padStart(2, "0")}-${txt[1]!.padStart(2, "0")}`;
   }
+  // Layout em colunas (Santander, RCL): o rótulo "Vencimento" fica no cabeçalho e a data
+  // aparece logo abaixo, depois de outros rótulos. Pega a primeira data completa em seguida.
+  const col = texto.match(/vencimento[\s\S]{0,300}?(\d{2})\/(\d{2})\/(\d{4})/i);
+  if (col) return `${col[3]}-${col[2]}-${col[1]}`;
   return null;
 }
 
