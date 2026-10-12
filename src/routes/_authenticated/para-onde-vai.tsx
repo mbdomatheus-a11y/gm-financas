@@ -114,7 +114,7 @@ function ParaOndeVaiPage() {
   const { user } = useSession();
   const qc = useQueryClient();
   const competenciaAtual = useCompetenciaVigente();
-  const [janela, setJanela] = useState("12");
+  const [janela, setJanela] = useState("1");
   const [mesInicio, setMesInicio] = useState(competenciaAtual);
   const [mesFim, setMesFim] = useState(competenciaAtual);
   const [categoriaAberta, setCategoriaAberta] = useState<string | null>(null);
