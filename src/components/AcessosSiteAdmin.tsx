@@ -25,13 +25,27 @@ function origemDe(a: AcessoSite): string {
   return "direto / sem origem";
 }
 
+/** Sistema do aparelho, pelo user agent. iPad recente se apresenta como Mac no navegador. */
+function sistemaDe(a: AcessoSite): string {
+  const ua = a.user_agent ?? "";
+  if (!ua) return "desconhecido";
+  if (/ipad/i.test(ua)) return "iPadOS (iPad)";
+  if (/iphone|ipod/i.test(ua)) return "iOS (iPhone)";
+  if (/android/i.test(ua)) return /mobile/i.test(ua) ? "Android (celular)" : "Android (tablet)";
+  if (/cros/i.test(ua)) return "ChromeOS";
+  if (/windows/i.test(ua)) return "Windows";
+  if (/mac os x|macintosh/i.test(ua)) return "macOS";
+  if (/linux/i.test(ua)) return "Linux";
+  return "outro";
+}
+
 function Ranking({ titulo, linhas }: { titulo: string; linhas: [string, number][] }) {
   const max = linhas[0]?.[1] ?? 1;
   return (
     <div className="space-y-1.5">
       <p className="text-xs font-semibold text-muted-foreground">{titulo}</p>
       {linhas.length === 0 && <p className="text-xs text-muted-foreground">Sem dados.</p>}
-      {linhas.slice(0, 6).map(([nome, qtd]) => (
+      {linhas.slice(0, 10).map(([nome, qtd]) => (
         <div key={nome} className="space-y-0.5">
           <div className="flex justify-between text-xs">
             <span className="truncate">{nome}</span>
@@ -70,6 +84,7 @@ export function AcessosSiteAdmin() {
       ),
       paginas: contar(acessos, (a) => a.caminho),
       dispositivos: contar(acessos, (a) => a.dispositivo ?? "desconhecido"),
+      sistemas: contar(acessos, sistemaDe),
     };
   }, [acessos]);
   const maxDia = Math.max(1, ...resumo.porDia.map((d) => d[1]));
@@ -136,6 +151,7 @@ export function AcessosSiteAdmin() {
           <Ranking titulo="Locais" linhas={resumo.locais} />
           <Ranking titulo="Páginas mais vistas" linhas={resumo.paginas} />
           <Ranking titulo="Aparelhos" linhas={resumo.dispositivos} />
+          <Ranking titulo="Sistemas (iOS, Android, iPad...)" linhas={resumo.sistemas} />
         </div>
 
         <div>
@@ -158,6 +174,7 @@ export function AcessosSiteAdmin() {
               { titulo: "Origem", valor: (a) => origemDe(a) },
               { titulo: "Campanha", valor: (a) => a.utm_campaign },
               { titulo: "Aparelho", valor: (a) => a.dispositivo },
+              { titulo: "Sistema", valor: (a) => sistemaDe(a) },
             ]}
             renderItem={(a) => (
               <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs">
@@ -170,6 +187,7 @@ export function AcessosSiteAdmin() {
                   {[a.cidade, a.regiao, a.pais].filter(Boolean).join(", ") || "local n/d"}
                 </span>
                 <span className="text-muted-foreground">{origemDe(a)}</span>
+                <span className="text-muted-foreground">{sistemaDe(a)}</span>
               </div>
             )}
           />

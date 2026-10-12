@@ -767,7 +767,9 @@ function DespesasPage() {
     let total = 0;
     let pago = 0;
     let aberto = 0;
-    let proximo: { data: string; valor: number } | null = null;
+    let proximo: { data: string; valor: number; fixas: number; parcelados: number; outros: number } | null =
+      null;
+    const futuras: { data: string; valor: number; tipo: "fixa" | "parcelado" | "outro" }[] = [];
     const hoje = toISODate(new Date());
     for (const d of listaVisivel as any[]) {
       if (idsIgnoradosPorTotal.has(d.id)) continue;
@@ -785,10 +787,37 @@ function DespesasPage() {
         if (p.paga) pago += brl(Number(p.valor));
         else {
           aberto += brl(Number(p.valor));
-          if (p.vencimento >= hoje && (!proximo || p.vencimento < proximo.data))
-            proximo = { data: p.vencimento, valor: brl(Number(p.valor)) };
+          if (p.vencimento >= hoje)
+            futuras.push({
+              data: p.vencimento,
+              valor: brl(Number(p.valor)),
+              tipo:
+                d.tipo === "fixa"
+                  ? "fixa"
+                  : Number(d.total_parcelas ?? p.total ?? 1) > 1
+                    ? "parcelado"
+                    : "outro",
+            });
         }
       }
+    }
+    // Próximo vencimento: soma de TUDO que vence na próxima data (antes mostrava só uma
+    // parcela), separando despesas fixas e compras parceladas no cartão.
+    const dataProxima = futuras.reduce<string | null>(
+      (min, f) => (!min || f.data < min ? f.data : min),
+      null,
+    );
+    if (dataProxima) {
+      const doDia = futuras.filter((f) => f.data === dataProxima);
+      const somaTipo = (tipo: string) =>
+        doDia.filter((f) => f.tipo === tipo).reduce((s, f) => s + f.valor, 0);
+      proximo = {
+        data: dataProxima,
+        valor: doDia.reduce((s, f) => s + f.valor, 0),
+        fixas: somaTipo("fixa"),
+        parcelados: somaTipo("parcelado"),
+        outros: somaTipo("outro"),
+      };
     }
     return { total, pago, aberto, proximo };
   }, [listaVisivel, cotacao, filtroMes, lancamentosDoFiltro, lancamentoPorDespesa, idsIgnoradosPorTotal]);
@@ -957,12 +986,14 @@ function DespesasPage() {
     >
       <div className="mb-3 grid grid-cols-2 gap-2 lg:grid-cols-3">
         {[
-          { filtro: "total" as const, label: "Total despesas", valor: formatar(resumo.total), cor: "text-foreground", hint: "" },
+          { filtro: "total" as const, label: "Total despesas", valor: formatar(resumo.total), cor: "text-destructive", hint: "" },
           { filtro: null, label: "Receitas", valor: formatar(receitaDoFiltro), cor: "text-success", hint: "" },
           {
             filtro: null,
             label: "Saldo",
-            valor: semFiltrosDeLista ? formatar(saldoDoFiltro) : "—",
+            valor: semFiltrosDeLista
+              ? `${saldoDoFiltro >= 0 ? "+" : "-"} ${formatar(Math.abs(saldoDoFiltro))}`
+              : "—",
             cor: saldoDoFiltro >= 0 ? "text-success" : "text-destructive",
             hint: semFiltrosDeLista ? "receitas − despesas" : "tire os filtros para ver o saldo",
           },
@@ -979,7 +1010,9 @@ function DespesasPage() {
             label: "Próximo vencimento",
             valor: resumo.proximo ? formatar(resumo.proximo.valor) : "—",
             cor: "text-warning",
-            hint: resumo.proximo ? formatDate(resumo.proximo.data) : "sem parcelas futuras",
+            hint: resumo.proximo
+              ? `${formatDate(resumo.proximo.data)} · fixas ${formatar(resumo.proximo.fixas)} · parcelados no cartão ${formatar(resumo.proximo.parcelados)}${resumo.proximo.outros > 0.004 ? ` · outros ${formatar(resumo.proximo.outros)}` : ""}`
+              : "sem parcelas futuras",
           },
         ].map((k) => {
           const conteudo = (

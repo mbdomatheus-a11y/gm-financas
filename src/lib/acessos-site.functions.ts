@@ -82,6 +82,7 @@ export type AcessoSite = {
   dispositivo: string | null;
   sessao: string | null;
   user_id: string | null;
+  user_agent: string | null;
 };
 
 export const adminListarAcessos = createServerFn({ method: "POST" })
@@ -97,14 +98,21 @@ export const adminListarAcessos = createServerFn({ method: "POST" })
       .maybeSingle();
     if (!adm) throw new Error("Acesso restrito à administração do site.");
     const desde = new Date(Date.now() - data.dias * 86_400_000).toISOString();
-    const { data: rows, error } = await db
-      .from("acessos_site_log")
-      .select(
-        "id,criado_em,caminho,referrer,utm_source,utm_medium,utm_campaign,ip,cidade,regiao,pais,dispositivo,sessao,user_id",
-      )
-      .gte("criado_em", desde)
-      .order("criado_em", { ascending: false })
-      .limit(5000);
-    if (error) throw new Error("Não foi possível carregar os acessos.");
-    return (rows ?? []) as AcessoSite[];
+    // O Supabase devolve no máximo 1.000 linhas por consulta: antes o painel mostrava
+    // "1000 páginas vistas" fixo. Agora busca em páginas de 1.000 até acabar.
+    const todos: AcessoSite[] = [];
+    for (let de = 0; de < 100_000; de += 1000) {
+      const { data: rows, error } = await db
+        .from("acessos_site_log")
+        .select(
+          "id,criado_em,caminho,referrer,utm_source,utm_medium,utm_campaign,ip,cidade,regiao,pais,dispositivo,sessao,user_id,user_agent",
+        )
+        .gte("criado_em", desde)
+        .order("criado_em", { ascending: false })
+        .range(de, de + 999);
+      if (error) throw new Error("Não foi possível carregar os acessos.");
+      todos.push(...((rows ?? []) as AcessoSite[]));
+      if (!rows || rows.length < 1000) break;
+    }
+    return todos;
   });
