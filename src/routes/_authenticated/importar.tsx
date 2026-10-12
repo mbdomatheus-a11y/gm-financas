@@ -691,7 +691,7 @@ function ImportarPage() {
         `Atenção: ${passadas.length === 1 ? "a fatura é" : "há faturas"} de competência anterior ao mês atual (${[
           ...new Set(passadas.map(rotuloCompetencia)),
         ].join(", ")}). A importação segue normalmente.`,
-        { duration: 10000 },
+        { id: "aviso-competencia-anterior", duration: 4000, closeButton: true },
       );
     }
     setPreparando(true);
@@ -2067,18 +2067,14 @@ function ImportarPage() {
               .single();
             if (fixaErro || !fixa)
               throw new Error("A despesa fixa escolhida não está disponível neste grupo.");
-            const correspondencia = encontrarCorrespondenciaFixa([fixa], {
-              descricao: l.descricao,
-              valor: l.valor,
-              direcao: l.direcao,
-              data_compra: l.data_compra,
-              parcela_total: l.parcela_total,
-              cartao_final: l.cartao_final,
-              cartao_id: cartaoId,
-              banco_id: bancoId,
-              competencia: f.competencia,
-            });
-            if (!correspondencia) {
+            // A escolha da fixa já foi feita pelo usuário na prévia. Aqui só confere que a linha
+            // ainda é do mesmo estabelecimento. Valor, cartão virtual e final do cartão podem
+            // mudar de um mês para outro (ex.: assinatura em dólar, final 3310 x 0674), e
+            // "ajustar"/"substituir" existem justamente para valor diferente; antes esta
+            // conferência repetia a busca completa e travava a importação nesses casos.
+            const mesmaLinha =
+              chaveEstabelecimento(fixa.descricao) === chaveEstabelecimento(l.descricao);
+            if (!mesmaLinha) {
               const erro = new Error(
                 `A despesa fixa "${fixa.descricao}" não corresponde mais à linha "${l.descricao}" (${l.data_compra
                   .split("-")
