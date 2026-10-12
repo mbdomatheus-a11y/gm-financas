@@ -1922,10 +1922,10 @@ function ImportarPage() {
           const ocorrencia = (ocorrenciasNaFatura.get(chaveBase) ?? 0) + 1;
           ocorrenciasNaFatura.set(chaveBase, ocorrencia);
           const chaveSequencial = ocorrencia > 1 ? `${chaveBase}#seq${ocorrencia}` : chaveBase;
-          const chave =
-            dup?.acao === "novo"
-              ? `${chaveSequencial}#novo-${Date.now()}-${l.id}`
-              : chaveSequencial;
+          // "Criar um novo" usa chave fixa por linha (sem horário): se a confirmação falhar no meio
+          // e o usuário tentar de novo, a cópia já criada é reconhecida e não é gravada outra vez.
+          // Antes a chave levava Date.now() e cada nova tentativa duplicava a linha.
+          const chave = dup?.acao === "novo" ? `${chaveSequencial}#novo-${l.id}` : chaveSequencial;
           const { data: existente } = await supabase
             .from("despesas")
             .select("id")
@@ -1934,7 +1934,7 @@ function ImportarPage() {
             .maybeSingle();
           // Linha idêntica já importada antes: pula, a não ser que o usuário
           // tenha escolhido no popup o que fazer com ela.
-          if (existente && !dup) {
+          if (existente && (!dup || dup.acao === "novo")) {
             ignorados++;
             continue;
           }
