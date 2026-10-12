@@ -1994,7 +1994,7 @@ function ImportarPage() {
               .eq("despesa_id", dup.alvoId);
             const pagamentoPorNumero = new Map<number, string | null>(
               (antigas ?? [])
-                .filter((x: any) => x.paga)
+                .filter((x: any) => x.paga && x.data_pagamento)
                 .map((x: any) => [Number(x.numero), x.data_pagamento ?? null]),
             );
             const { error: delParc } = await supabase
@@ -2230,7 +2230,9 @@ function ImportarPage() {
               valor: l.valor,
               moeda: l.moeda,
               vencimento: vencimentoParcela(venc, l.parcela_numero, numero),
-              paga: numero <= l.parcela_numero,
+              // Só as parcelas anteriores à da fatura estão quitadas. A parcela desta fatura
+              // ainda não foi paga, então fica em aberto até o pagamento.
+              paga: numero < l.parcela_numero,
               situacao_temporal:
                 numero < l.parcela_numero
                   ? "passada"
