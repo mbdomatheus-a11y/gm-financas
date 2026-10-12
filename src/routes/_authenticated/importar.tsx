@@ -1935,7 +1935,59 @@ function ImportarPage() {
           // Linha idêntica já importada antes: pula, a não ser que o usuário
           // tenha escolhido no popup o que fazer com ela.
           if (existente && (!dup || dup.acao === "novo")) {
-            ignorados++;
+            // A linha já existe. Mas, se esta fatura substitui a anterior do mesmo mês, as
+            // parcelas ligadas à fatura antiga foram apagadas antes deste laço; sem refazê-las
+            // a compra ficava sem parcela e era apagada no fim como órfã (Petz, Porto Seguro e
+            // Spa sumiram assim). Aqui o calendário é completado e reancorado nesta fatura.
+            const vencBase = f.vencimento ?? l.data_compra;
+            const { data: atuaisExistente } = await supabase
+              .from("parcelas")
+              .select("id, numero")
+              .eq("despesa_id", existente.id);
+            const numerosExistentes = new Map<number, string>(
+              ((atuaisExistente ?? []) as { id: string; numero: number }[]).map((x) => [
+                Number(x.numero),
+                x.id,
+              ]),
+            );
+            let refeitas = 0;
+            // Despesa fixa tem calendário próprio (recorrência); não é refeita por aqui.
+            const totalRefazer = l.tipo === "fixa" ? 0 : Math.max(1, l.parcela_total);
+            for (let numero = 1; numero <= totalRefazer; numero++) {
+              const vencimento = vencimentoParcela(vencBase, l.parcela_numero, numero);
+              const daFatura = numero === l.parcela_numero;
+              const idParcela = numerosExistentes.get(numero);
+              if (idParcela) {
+                if (daFatura) {
+                  await supabase
+                    .from("parcelas")
+                    .update({ vencimento, fatura_id: fatura.id } as any)
+                    .eq("id", idParcela);
+                }
+                continue;
+              }
+              const { error: eRefaz } = await supabase.from("parcelas").insert({
+                despesa_id: existente.id,
+                grupo_id: grupoId,
+                numero,
+                total: Math.max(1, l.parcela_total),
+                valor: l.valor,
+                moeda: l.moeda,
+                vencimento,
+                paga: false,
+                origem: "importacao",
+                valor_estimado: !daFatura,
+                fatura_id: daFatura ? fatura.id : null,
+              } as any);
+              if (eRefaz) throw eRefaz;
+              refeitas++;
+            }
+            await supabase
+              .from("despesas")
+              .update({ fatura_id: fatura.id } as any)
+              .eq("id", existente.id);
+            if (refeitas) inseridos++;
+            else ignorados++;
             continue;
           }
           if (existente && dup?.acao === "substituir" && !dup.alvoId) {
@@ -2128,57 +2180,102 @@ function ImportarPage() {
 
           // Importar faturas de meses anteriores (histórico): a MESMA compra
           // parcelada aparece em várias faturas, só mudando o número da
-          // parcela (3/12, 4/12...). Como a chave de deduplicação inclui esse
-          // número, sem este passo cada fatura criaria um parcelamento novo e a
-          // dívida apareceria dobrada. Aqui o parcelamento é reconhecido pela
-          // compra em si (estabelecimento + data da compra + total de parcelas
-          // + cartão) e só a parcela daquele mês é completada.
+          // parcela (3/12, 4/12...). O reconhecimento NÃO usa a data da compra: o Nubank,
+          // por exemplo, mostra em cada fatura a data de lançamento da parcela (08 AGO na
+          // fatura de setembro, 08 SET na de outubro), o que antes criava um parcelamento
+          // novo a cada fatura (Wilca e Vetnasa em dobro). A compra é a mesma quando batem
+          // estabelecimento, número de parcelas, valor total, cartão e o mês da 1ª parcela
+          // calculado pela fatura (vencimento menos as parcelas já passadas).
+          // Regra 4: a fatura nova é a verdade, então o calendário inteiro é reancorado nela.
           if (l.parcela_total > 1) {
-            const { data: mesmoParcelamento } = await supabase
+            const valorTotalLinha = Number((l.valor * l.parcela_total).toFixed(2));
+            const finalLinha = l.cartao_final ?? cartaoDestino?.final ?? null;
+            const primeiraLinha = vencimentoParcela(venc, l.parcela_numero, 1).slice(0, 7);
+            const { data: candidatos } = await supabase
               .from("despesas")
-              .select("id, valor_total")
+              .select("id, valor_total, cartao_final, data_compra, created_at")
               .eq("grupo_id", grupoId)
               .eq("estabelecimento_normalizado", chaveEstabelecimento(l.descricao))
-              .eq("data_compra", l.data_compra)
               .eq("total_parcelas", l.parcela_total)
-              .limit(1)
-              .maybeSingle();
-            if (mesmoParcelamento) {
-              const vencimentoDaParcela = vencimentoParcela(venc, l.parcela_numero, l.parcela_numero);
-              const { data: parcelaExistente } = await supabase
-                .from("parcelas")
-                .select("id")
-                .eq("despesa_id", mesmoParcelamento.id)
-                .eq("numero", l.parcela_numero)
-                .maybeSingle();
-              if (parcelaExistente) {
-                const { error: eAtual } = await supabase
-                  .from("parcelas")
-                  .update({
-                    valor: l.valor,
-                    valor_estimado: false,
-                    vencimento: vencimentoDaParcela,
-                    fatura_id: fatura.id,
-                  } as any)
-                  .eq("id", parcelaExistente.id);
-                if (eAtual) throw eAtual;
-              } else {
-                const { error: eNova } = await supabase.from("parcelas").insert({
-                  despesa_id: mesmoParcelamento.id,
-                  numero: l.parcela_numero,
-                  total: l.parcela_total,
-                  valor: l.valor,
-                  moeda: l.moeda,
-                  vencimento: vencimentoDaParcela,
-                  paga: false,
-                  origem: "importacao",
-                  valor_estimado: false,
-                  confianca_data: l.confianca_data,
-                  fatura_id: fatura.id,
-                  grupo_id: grupoId,
-                } as any);
-                if (eNova) throw eNova;
+              .neq("tipo", "fixa")
+              .order("created_at", { ascending: false });
+            let mesmoParcelamento: { id: string } | null = null;
+            for (const c of (candidatos ?? []) as any[]) {
+              const valorOk =
+                Math.abs(Number(c.valor_total) - valorTotalLinha) <=
+                Math.max(0.05, valorTotalLinha * 0.01);
+              const cartaoOk = !finalLinha || !c.cartao_final || c.cartao_final === finalLinha;
+              if (!valorOk || !cartaoOk) continue;
+              if (c.data_compra === l.data_compra) {
+                mesmoParcelamento = c;
+                break;
               }
+              const { data: p1 } = await supabase
+                .from("parcelas")
+                .select("vencimento")
+                .eq("despesa_id", c.id)
+                .eq("numero", 1)
+                .maybeSingle();
+              if (p1?.vencimento && String(p1.vencimento).slice(0, 7) === primeiraLinha) {
+                mesmoParcelamento = c;
+                break;
+              }
+            }
+            if (mesmoParcelamento) {
+              const { data: atuais } = await supabase
+                .from("parcelas")
+                .select("id, numero")
+                .eq("despesa_id", mesmoParcelamento.id);
+              const porNumero = new Map<number, string>(
+                ((atuais ?? []) as { id: string; numero: number }[]).map((x) => [
+                  Number(x.numero),
+                  x.id,
+                ]),
+              );
+              for (let numero = 1; numero <= l.parcela_total; numero++) {
+                const vencimento = vencimentoParcela(venc, l.parcela_numero, numero);
+                const daFatura = numero === l.parcela_numero;
+                const idExistente = porNumero.get(numero);
+                if (idExistente) {
+                  const { error: eAtual } = await supabase
+                    .from("parcelas")
+                    .update({
+                      vencimento,
+                      ...(daFatura
+                        ? { valor: l.valor, valor_estimado: false, fatura_id: fatura.id }
+                        : {}),
+                    } as any)
+                    .eq("id", idExistente);
+                  if (eAtual) throw eAtual;
+                } else {
+                  const { error: eNova } = await supabase.from("parcelas").insert({
+                    despesa_id: mesmoParcelamento.id,
+                    numero,
+                    total: l.parcela_total,
+                    valor: l.valor,
+                    moeda: l.moeda,
+                    vencimento,
+                    paga: false,
+                    origem: "importacao",
+                    valor_estimado: !daFatura,
+                    confianca_data: l.confianca_data,
+                    fatura_id: daFatura ? fatura.id : null,
+                    grupo_id: grupoId,
+                  } as any);
+                  if (eNova) throw eNova;
+                }
+              }
+              // Parcelas além do total (de um calendário antigo errado) saem.
+              const sobrando = [...porNumero.entries()]
+                .filter(([n]) => n > l.parcela_total)
+                .map(([, id]) => id);
+              if (sobrando.length) {
+                await supabase.from("parcelas").delete().in("id", sobrando);
+              }
+              await supabase
+                .from("despesas")
+                .update({ data_primeira_parcela: vencimentoParcela(venc, l.parcela_numero, 1) } as any)
+                .eq("id", mesmoParcelamento.id);
               if (cartaoId) cartoesTocados.add(cartaoId);
               inseridos++;
               continue;
