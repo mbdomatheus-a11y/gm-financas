@@ -42,7 +42,7 @@ import { formatBRL } from "@/lib/format";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Control ALL (ControlALL) | App de controle financeiro, despesas e notas fiscais" },
+      { title: "Control ALL | App de controle financeiro e notas fiscais" },
       {
         name: "description",
         content:

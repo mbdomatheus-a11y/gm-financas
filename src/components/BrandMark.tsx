@@ -60,8 +60,8 @@ export function BrandMark({
 }) {
   const src = useBrandLogoUrl();
   return (
-    <span className={cn("brand-mark", className)} aria-label={alt}>
-      <img src={src} alt="" className="brand-mark-image" />
+    <span className={cn("brand-mark", className)}>
+      <img src={src} alt={alt ? `Logo ${alt}` : "Logo Control ALL"} className="brand-mark-image" />
       <span aria-hidden="true" className="brand-mark-flow" />
     </span>
   );
