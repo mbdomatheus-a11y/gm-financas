@@ -9,6 +9,7 @@ import {
   type Idioma,
 } from "@/lib/i18n/idiomas";
 import { traduzir, type ChaveTraducao } from "@/lib/i18n/traducoes";
+import { aplicarIdioma } from "@/lib/i18n/runtime";
 
 const CHAVE_LOCAL = "control-all.idioma";
 
@@ -59,6 +60,9 @@ export function IdiomaProvider({ children }: { children: React.ReactNode }) {
     if (typeof document === "undefined") return;
     document.documentElement.lang = idioma;
     document.documentElement.dir = direcaoDoIdioma(idioma);
+    // Toda a interface (textos traduzidos no build) passa a valer neste idioma; se a página
+    // foi montada em outro, o dicionário é baixado e ela recarrega uma vez.
+    void aplicarIdioma(idioma);
   }, [idioma]);
 
   const definir = useCallback(
@@ -69,7 +73,11 @@ export function IdiomaProvider({ children }: { children: React.ReactNode }) {
       } catch {
         /* segue só nesta sessão */
       }
-      if (prefs.user_id) save.mutate({ idioma: novo } as never);
+      if (prefs.user_id) {
+        save.mutate({ idioma: novo } as never, { onSettled: () => void aplicarIdioma(novo) });
+      } else {
+        void aplicarIdioma(novo);
+      }
     },
     [prefs.user_id, save],
   );
@@ -101,7 +109,7 @@ export function useIdioma(): Contexto {
         } catch {
           /* ignora */
         }
-        if (typeof location !== "undefined") location.reload();
+        void aplicarIdioma(novo);
       },
       t: (chave: ChaveTraducao) => traduzir(chave, i),
     };
