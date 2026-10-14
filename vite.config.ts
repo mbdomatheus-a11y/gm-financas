@@ -6,10 +6,10 @@ import { nitro } from "nitro/vite";
 import { defineConfig } from "vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 import type { Plugin } from "vite";
-import { transformarCodigo } from "./scripts/i18n/transform.ts";
+import { arquivoTraduzivel, transformarCodigo } from "./scripts/i18n/transform.ts";
 
 /**
- * Tradução da interface (2026-10-13): troca os textos de tela dos .tsx por __t("..."),
+ * Tradução da interface (2026-10-13): troca os textos de tela dos .tsx (e dos .ts com textos de tela) por __t("..."),
  * que devolve o texto no idioma escolhido pelo usuário. Ver scripts/i18n/transform.ts.
  * Para desligar num build de emergência: I18N_DESATIVADO=1.
  */
@@ -20,8 +20,7 @@ function traducaoInterface(): Plugin {
     transform(codigo, id) {
       if (process.env["I18N_DESATIVADO"] === "1") return null;
       const arquivo = id.split("?")[0]!.replace(/\\/g, "/");
-      if (!arquivo.endsWith(".tsx") || !arquivo.includes("/src/")) return null;
-      if (/routeTree\.gen|\.test\.|\/integrations\//.test(arquivo)) return null;
+      if (!arquivoTraduzivel(arquivo)) return null;
       const r = transformarCodigo(codigo, arquivo);
       return r ? { code: r.codigo, map: null } : null;
     },

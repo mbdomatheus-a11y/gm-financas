@@ -14,7 +14,7 @@ import ts from "typescript";
 
 const ATTR_OK = new Set([
   "placeholder", "title", "aria-label", "alt", "label", "description", "tooltip", "emptyMessage",
-  "vazio", "titulo", "subtitulo", "hint", "rotulo", "ajuda", "dica", "aria-description",
+  "vazio", "titulo", "subtitulo", "hint", "rotulo", "ajuda", "dica", "aria-description", "display",
 ]);
 const PROP_OK = /^(label|titulo|title|description|hint|rotulo|placeholder|ajuda|subtitulo|vazio|dica|tooltip|emptyMessage|mensagemVazia)$/;
 const CALL_OK = /^(toast(\.\w+)?|alert|confirm|window\.confirm|window\.alert)$/;
@@ -70,7 +70,14 @@ function emContextoUI(n: ts.Node, src: ts.SourceFile): boolean {
     if (ts.isJsxAttribute(pp)) return ATTR_OK.has(pp.name.getText(src));
     return ts.isJsxElement(pp) || ts.isJsxFragment(pp);
   }
-  if (ts.isPropertyAssignment(p)) return p.initializer === n && PROP_OK.test(p.name.getText(src));
+  if (ts.isPropertyAssignment(p)) {
+    if (p.initializer !== n) return false;
+    const nome = p.name.getText(src);
+    if (PROP_OK.test(nome)) return true;
+    // "descricao" só quando é texto de cartão (tem "titulo" ao lado); em lançamentos é dado gravado.
+    return nome === "descricao" && ts.isObjectLiteralExpression(p.parent) &&
+      p.parent.properties.some((q) => q.name?.getText(src) === "titulo");
+  }
   if (ts.isCallExpression(p)) return p.arguments[0] === n && CALL_OK.test(p.expression.getText(src));
   if (ts.isNewExpression(p)) return /^Error$/.test(p.expression.getText(src)) && p.arguments?.[0] === n;
   if (ts.isConditionalExpression(p)) return p.condition !== n && emContextoUI(p, src);
@@ -87,11 +94,65 @@ function emContextoUI(n: ts.Node, src: ts.SourceFile): boolean {
   return false;
 }
 
-/** Encontra os textos de interface de um arquivo .tsx e as trocas por __t(). */
-export function encontrarTextos(codigo: string, arquivo: string): Edicao[] {
-  const src = ts.createSourceFile(arquivo, codigo, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+/**
+ * Arquivos que passam pela tradução: todo .tsx de src e os .ts de src que guardam textos de
+ * tela (ex.: src/lib/areas.ts com títulos e descrições dos cartões da Início). Ficam de fora
+ * os .ts que rodam só no servidor (*.functions.ts, *.server.ts), o próprio i18n e testes.
+ */
+export function arquivoTraduzivel(caminho: string): boolean {
+  const a = caminho.replace(/\\/g, "/");
+  if (!a.includes("/src/")) return false;
+  if (/routeTree\.gen|\.test\.|\.spec\.|\/integrations\/|\/lib\/i18n\/|\.d\.ts$|\/src\/server(\/|\.ts$)/.test(a)) return false;
+  if (a.endsWith(".tsx")) return true;
+  return a.endsWith(".ts") && !/\.(functions|server)\.ts$/.test(a);
+}
+
+/** Encontra os textos de interface de um arquivo .tsx/.ts e as trocas por __t(). */
+export function encontrarTextos(
+  codigo: string,
+  arquivo: string,
+  raizBusca?: ts.Node,
+  srcPronto?: ts.SourceFile,
+): Edicao[] {
+  const tipo = arquivo.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
+  const src = srcPronto ?? ts.createSourceFile(arquivo, codigo, ts.ScriptTarget.Latest, true, tipo);
   const edicoes: Edicao[] = [];
   const visitar = (n: ts.Node) => {
+    // Datas no idioma da interface: toLocaleDateString("pt-BR") vira toLocaleDateString(__locale()).
+    // Números e moeda continuam em pt-BR (os valores são em reais).
+    if (ts.isCallExpression(n) && ehFormatoDeData(n, src)) {
+      const a = n.arguments[0]!;
+      edicoes.push({ inicio: a.getStart(src), fim: a.end, novo: "__locale()", chave: "" });
+    }
+    // Texto misturado com valores no mesmo elemento (ex.: <Badge>{n} parcela{s}</Badge>,
+    // +{valor}/mês): vira uma frase só com marcadores, __tj("{0} parcela{1}", [n, s]),
+    // para a tradução ter o contexto inteiro e poder mudar a ordem das partes.
+    if ((ts.isJsxElement(n) || ts.isJsxFragment(n)) && textoMisturado(n, src)) {
+      const filhos = n.children.filter((c) => !(ts.isJsxExpression(c) && !c.expression));
+      let modelo = "";
+      const args: string[] = [];
+      for (const c of filhos) {
+        if (ts.isJsxText(c)) modelo += limparTextoJsx(c.text);
+        else if (ts.isJsxExpression(c) && c.expression) {
+          const interno = encontrarEm(c.expression, codigo, arquivo, src);
+          modelo += `{${args.length}}`;
+          args.push(aplicar(c.expression.getText(src), c.expression.getStart(src), interno));
+        }
+      }
+      const antes = modelo.match(/^\s*/)?.[0] ?? "";
+      const depois = modelo.match(/\s*$/)?.[0] ?? "";
+      const chave = chaveDe(modelo);
+      const tag = ts.isJsxElement(n) ? n.openingElement.tagName.getText(src) : "";
+      const funcao = /^(option|title|textarea)$/.test(tag) ? "__t" : "__tj";
+      const partes: string[] = [];
+      if (antes) partes.push(`{${JSON.stringify(antes)}}`);
+      partes.push(`{${funcao}(${JSON.stringify(chave)}, [${args.join(", ")}])}`);
+      if (depois) partes.push(`{${JSON.stringify(depois)}}`);
+      const primeiro = n.children[0]!;
+      const ultimo = n.children[n.children.length - 1]!;
+      edicoes.push({ inicio: primeiro.pos, fim: ultimo.end, novo: partes.join(""), chave });
+      return;
+    }
     if (ts.isJsxText(n)) {
       const limpo = limparTextoJsx(n.text);
       if (limpo && pareceUI(limpo)) {
@@ -133,8 +194,52 @@ export function encontrarTextos(codigo: string, arquivo: string): Edicao[] {
     }
     ts.forEachChild(n, visitar);
   };
-  visitar(src);
+  visitar(raizBusca ?? src);
   return edicoes;
+}
+
+/** Textos de interface dentro de um trecho (usado nos valores de uma frase misturada). */
+function encontrarEm(no: ts.Node, codigo: string, arquivo: string, src: ts.SourceFile): Edicao[] {
+  return encontrarTextos(codigo, arquivo, no, src);
+}
+
+/** Aplica trocas (posições absolutas no arquivo) a um trecho que começa em `base`. */
+function aplicar(texto: string, base: number, edicoes: Edicao[]): string {
+  let out = texto;
+  for (const e of [...edicoes].sort((a, b) => b.inicio - a.inicio)) {
+    out = out.slice(0, e.inicio - base) + e.novo + out.slice(e.fim - base);
+  }
+  return out;
+}
+
+function ehFormatoDeData(n: ts.CallExpression, src: ts.SourceFile): boolean {
+  const a = n.arguments[0];
+  if (!a || !ts.isStringLiteral(a) || a.text !== "pt-BR") return false;
+  if (!ts.isPropertyAccessExpression(n.expression)) return false;
+  const nome = n.expression.name.getText(src);
+  if (nome === "toLocaleDateString" || nome === "toLocaleTimeString") return true;
+  if (nome !== "toLocaleString") return false;
+  let alvo: ts.Expression = n.expression.expression;
+  while (ts.isParenthesizedExpression(alvo)) alvo = alvo.expression;
+  return ts.isNewExpression(alvo) && alvo.expression.getText(src) === "Date";
+}
+
+/** Elemento só com texto e valores ({...}), sem outras tags dentro, e com palavra para traduzir. */
+function textoMisturado(n: ts.JsxElement | ts.JsxFragment, src: ts.SourceFile): boolean {
+  let temValor = false;
+  let texto = "";
+  for (const c of n.children) {
+    if (ts.isJsxText(c)) texto += " " + limparTextoJsx(c.text);
+    else if (ts.isJsxExpression(c)) {
+      if (c.expression) temValor = true;
+    } else return false;
+  }
+  if (!temValor) return false;
+  const t = chaveDe(texto);
+  if (!/[A-Za-zÀ-ú]{2,}/.test(t)) return false;
+  if (/&[a-z#0-9]+;/i.test(t) || /must be used within/.test(t)) return false;
+  void src;
+  return true;
 }
 
 /** Aplica as trocas e garante o import do __t. */
@@ -145,6 +250,6 @@ export function transformarCodigo(codigo: string, arquivo: string): { codigo: st
   for (const e of [...edicoes].sort((a, b) => b.inicio - a.inicio)) {
     out = out.slice(0, e.inicio) + e.novo + out.slice(e.fim);
   }
-  out = `import { __t } from "@/lib/i18n/runtime";\n` + out;
+  out = `import { __t, __tj, __locale } from "@/lib/i18n/runtime";\n` + out;
   return { codigo: out, total: edicoes.length };
 }

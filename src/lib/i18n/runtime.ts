@@ -10,6 +10,8 @@
  * inclusive para textos definidos fora dos componentes. No servidor fica tudo em português.
  * O que o usuário digita (descrições, nomes, valores) nunca passa por aqui.
  */
+import { createElement, Fragment, type ReactNode } from "react";
+
 import { IDIOMA_PADRAO, idiomaDoNavegador, idiomaValido, type Idioma } from "./idiomas";
 
 declare const __APP_VERSION__: string;
@@ -78,6 +80,35 @@ function preencher(modelo: string, args?: unknown[]): string {
 export function __t(texto: string, args?: unknown[]): string {
   const traduzido = dicionario?.[texto];
   return preencher(traduzido || texto, args);
+}
+
+/**
+ * Frase com valores no meio (ex.: "{0} parcela{1}"): devolve os pedaços já traduzidos
+ * intercalados com os valores originais, que podem ser números, textos ou elementos.
+ */
+export function __tj(modelo: string, args: ReactNode[]): ReactNode {
+  const texto = dicionario?.[modelo] || modelo;
+  const partes: ReactNode[] = [];
+  let ultimo = 0;
+  for (const m of texto.matchAll(/\{(\d+)\}/g)) {
+    const pos = m.index ?? 0;
+    if (pos > ultimo) partes.push(texto.slice(ultimo, pos));
+    const i = Number(m[1]);
+    partes.push(i < args.length ? args[i] : m[0]);
+    ultimo = pos + m[0].length;
+  }
+  if (ultimo < texto.length) partes.push(texto.slice(ultimo));
+  return createElement(Fragment, null, ...partes);
+}
+
+const LOCALE_DATAS: Record<string, string> = {
+  "pt-BR": "pt-BR", en: "en-GB", es: "es-ES", hi: "hi-IN", fr: "fr-FR",
+  de: "de-DE", it: "it-IT", zh: "zh-CN", ar: "ar-u-nu-latn",
+};
+
+/** Locale das datas (nomes de mês e dia) no idioma da interface. Moeda segue em pt-BR. */
+export function __locale(): string {
+  return LOCALE_DATAS[idiomaDaInterface()] ?? "pt-BR";
 }
 
 /** Baixa e guarda o dicionário de um idioma. Devolve false se não deu para guardar. */

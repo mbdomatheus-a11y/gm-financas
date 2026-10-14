@@ -6,7 +6,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import ts from "typescript";
-import { encontrarTextos, transformarCodigo } from "./transform.ts";
+import { arquivoTraduzivel, encontrarTextos, transformarCodigo } from "./transform.ts";
 
 const raiz = process.cwd();
 const arquivos: string[] = [];
@@ -15,7 +15,7 @@ const arquivos: string[] = [];
     const p = path.join(d, n);
     if (fs.statSync(p).isDirectory()) {
       if (!/node_modules|integrations/.test(p)) andar(p);
-    } else if (n.endsWith(".tsx") && !/\.test\.|routeTree\.gen/.test(n)) arquivos.push(p);
+    } else if (arquivoTraduzivel(p)) arquivos.push(p);
   }
 })(path.join(raiz, "src"));
 
@@ -24,7 +24,7 @@ let trocas = 0;
 const erros: string[] = [];
 for (const arq of arquivos) {
   const codigo = fs.readFileSync(arq, "utf8");
-  for (const e of encontrarTextos(codigo, arq)) chaves.add(e.chave);
+  for (const e of encontrarTextos(codigo, arq)) if (e.chave) chaves.add(e.chave);
   const r = transformarCodigo(codigo, arq);
   if (!r) continue;
   trocas += r.total;
