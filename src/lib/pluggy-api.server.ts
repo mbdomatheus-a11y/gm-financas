@@ -12,12 +12,21 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 const BASE = "https://api.pluggy.ai";
-const JANELA_DIAS = 90;
+const JANELA_DIAS = 365;
 const ORIGENS_MANUAIS = ["manual", "fatura_rapida", "fatura_total_manual"];
 /** Pagamento de fatura vindo da conta corrente: já aparece nas compras do cartão, não pode duplicar. */
 const PAGAMENTO_FATURA = /pagament[oa].{0,20}fatura|pgto.{0,10}fatura|pagto.{0,10}cart/i;
 
-type Conta = { id: string; type?: string; subtype?: string; name?: string; number?: string; balance?: number; currencyCode?: string };
+type Conta = {
+  id: string;
+  type?: string;
+  subtype?: string;
+  name?: string;
+  number?: string;
+  balance?: number;
+  currencyCode?: string;
+  creditData?: { creditLimit?: number; availableCreditLimit?: number; balanceDueDate?: string; minimumPayment?: number };
+};
 type Transacao = {
   id: string;
   date: string;
@@ -171,6 +180,11 @@ export async function sincronizarItem(itemId: string): Promise<{ ignorado: boole
         tipo: conta.type ?? "BANK",
         nome: conta.name ?? null,
         cartao_final: cartaoFinal,
+        limite: conta.creditData?.creditLimit ?? null,
+        limite_disponivel: conta.creditData?.availableCreditLimit ?? null,
+        fatura_valor: conta.type === "CREDIT" ? (conta.balance ?? null) : null,
+        fatura_vencimento: conta.creditData?.balanceDueDate ? conta.creditData.balanceDueDate.slice(0, 10) : null,
+        saldo: conta.type !== "CREDIT" ? (conta.balance ?? null) : null,
         ativo: true,
         atualizado_em: new Date().toISOString(),
       },

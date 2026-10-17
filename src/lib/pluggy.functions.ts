@@ -125,6 +125,32 @@ export const pluggyRemoverItem = createServerFn({ method: "POST" })
     return { ok: true as const };
   });
 
+/** Sincroniza agora uma conexão (todo o histórico da janela), a pedido do administrador. */
+export const pluggySincronizarAgora = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((v: unknown) => z.object({ itemId: z.string().uuid() }).parse(v))
+  .handler(async ({ data, context }) => {
+    await exigirPrincipal(context.userId);
+    const { sincronizarItem } = await import("@/lib/pluggy-api.server");
+    const r = await sincronizarItem(data.itemId);
+    return { ok: true as const, transacoes: r.transacoes };
+  });
+
+/** Contas e cartões conectados, com limite, fatura e saldo. */
+export const pluggyListarContas = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await exigirPrincipal(context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data } = await (supabaseAdmin as any)
+      .from("pluggy_contas")
+      .select("id,nome,tipo,cartao_final,limite,limite_disponivel,fatura_valor,fatura_vencimento,saldo,atualizado_em")
+      .eq("user_id", context.userId)
+      .eq("ativo", true)
+      .order("tipo", { ascending: true });
+    return { contas: (data ?? []) as any[] };
+  });
+
 /** Lançamentos importados automaticamente (aprovados por padrão), para o usuário revisar e rejeitar. */
 export const pluggyListarImportados = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

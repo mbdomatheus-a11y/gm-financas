@@ -15,10 +15,12 @@ import { formatBRL } from "@/lib/format";
 import {
   pluggyBuscarMovimentos,
   pluggyCriarConnectToken,
+  pluggyListarContas,
   pluggyListarImportados,
   pluggyListarItens,
   pluggyRegistrarItem,
   pluggyRejeitarLancamento,
+  pluggySincronizarAgora,
   pluggyRemoverItem,
   pluggyStatus,
 } from "@/lib/pluggy.functions";
@@ -41,6 +43,8 @@ function PluggyPage() {
   const buscar = useServerFn(pluggyBuscarMovimentos);
   const listarImportados = useServerFn(pluggyListarImportados);
   const rejeitar = useServerFn(pluggyRejeitarLancamento);
+  const listarContas = useServerFn(pluggyListarContas);
+  const sincronizar = useServerFn(pluggySincronizarAgora);
   const [token, setToken] = useState<string | null>(null);
   const [Widget, setWidget] = useState<any>(null);
   const [aberto, setAberto] = useState<string | null>(null);
@@ -86,6 +90,22 @@ function PluggyPage() {
     queryFn: () => listarImportados(),
     enabled: !!ehAdmin,
     retry: false,
+  });
+  const { data: contas } = useQuery({
+    queryKey: ["pluggy-contas"],
+    queryFn: () => listarContas(),
+    enabled: !!ehAdmin,
+    retry: false,
+  });
+  const sincronizarItem = useMutation({
+    mutationFn: (itemId: string) => sincronizar({ data: { itemId } }),
+    onSuccess: (r) => {
+      toast.success(`Sincronizado: ${r.transacoes} lançamentos lidos.`);
+      qc.invalidateQueries({ queryKey: ["pluggy-contas"] });
+      qc.invalidateQueries({ queryKey: ["pluggy-importados"] });
+      qc.invalidateQueries({ queryKey: ["despesas"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
   const recusar = useMutation({
     mutationFn: (transactionId: string) => rejeitar({ data: { transactionId } }),
@@ -183,6 +203,42 @@ function PluggyPage() {
 
         <Card>
           <CardHeader>
+            <CardTitle className="text-base">Contas e cartões</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {(contas?.contas.length ?? 0) === 0 && (
+              <p className="text-sm text-muted-foreground">Nenhuma conta sincronizada ainda.</p>
+            )}
+            <div className="grid gap-2 sm:grid-cols-2">
+              {contas?.contas.map((c: any) => (
+                <div key={c.id} className="rounded-lg border p-3 text-sm">
+                  <p className="font-medium">
+                    {c.nome ?? (c.tipo === "CREDIT" ? "Cartão" : "Conta")}
+                    {c.cartao_final && <span className="text-xs text-muted-foreground"> · final {c.cartao_final}</span>}
+                  </p>
+                  {c.tipo === "CREDIT" ? (
+                    <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
+                      <li>Limite: {c.limite != null ? formatBRL(c.limite) : "não informado"}</li>
+                      <li>Disponível: {c.limite_disponivel != null ? formatBRL(c.limite_disponivel) : "não informado"}</li>
+                      <li>Fatura atual: {c.fatura_valor != null ? formatBRL(c.fatura_valor) : "não informado"}</li>
+                      <li>
+                        Vencimento:{" "}
+                        {c.fatura_vencimento
+                          ? new Date(`${c.fatura_vencimento}T12:00:00`).toLocaleDateString("pt-BR")
+                          : "não informado"}
+                      </li>
+                    </ul>
+                  ) : (
+                    <p className="mt-1 text-xs text-muted-foreground">Saldo: {c.saldo != null ? formatBRL(c.saldo) : "não informado"}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
             <CardTitle className="text-base">Importadas automaticamente ({importados?.itens.length ?? 0})</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
@@ -224,6 +280,14 @@ function PluggyPage() {
                 <div className="flex flex-wrap items-center gap-2">
                   <b className="mr-auto text-sm">{i.conector ?? "Banco"}</b>
                   {i.status && <Badge variant="outline">{i.status}</Badge>}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={sincronizarItem.isPending}
+                    onClick={() => sincronizarItem.mutate(i.item_id)}
+                  >
+                    {sincronizarItem.isPending ? "Sincronizando…" : "Sincronizar agora"}
+                  </Button>
                   <Button size="sm" variant="outline" onClick={() => setAberto(aberto === i.item_id ? null : i.item_id)}>
                     <RefreshCw className="mr-1 size-3.5" aria-hidden="true" />
                     {aberto === i.item_id ? "Fechar" : "Ver últimos 30 dias"}
