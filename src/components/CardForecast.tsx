@@ -5,15 +5,18 @@ import {
   Calendar,
   CheckCircle2,
   HelpCircle,
+  Info,
   Sparkles,
   TrendingDown,
   TrendingUp,
+  Wallet,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { usePrivacidadeValores } from "@/hooks/usePrivacidadeValores";
 import { monthLabelLong } from "@/lib/format";
+import { useCicloVigente } from "@/lib/periodo-vigente";
 
 interface CardForecastProps {
   mesAtual: string; // "YYYY-MM"
@@ -27,19 +30,17 @@ interface CardForecastProps {
 export function CardForecast({
   mesAtual,
   totalReceitas,
-  totalDespesas,
   fixas,
   variaveis,
-  saldoAtual,
 }: CardForecastProps) {
   const { formatar } = usePrivacidadeValores();
+  const ciclo = useCicloVigente();
 
   const forecast = useMemo(() => {
     const hoje = new Date();
     const [anoStr, mesStr] = mesAtual.split("-");
     const ano = Number(anoStr) || hoje.getFullYear();
     const mes = Number(mesStr) || hoje.getMonth() + 1;
-    const totalDiasMes = new Date(ano, mes, 0).getDate();
 
     const ehMesVigente = hoje.getFullYear() === ano && hoje.getMonth() + 1 === mes;
     const mesPassado =
@@ -48,78 +49,91 @@ export function CardForecast({
         (hoje.getFullYear() === ano && hoje.getMonth() + 1 > mes));
     const mesFuturo = !ehMesVigente && !mesPassado;
 
-    const diaAtual = ehMesVigente
-      ? hoje.getDate()
-      : mesPassado
-        ? totalDiasMes
-        : 1;
+    // Se estivermos na competência vigente, usamos os dias precisos do ciclo do admin
+    const diasTotais = ehMesVigente ? ciclo.diasTotais : new Date(ano, mes, 0).getDate();
+    const diasCorridos = ehMesVigente ? ciclo.diasCorridos : (mesPassado ? diasTotais : 1);
+    const diasRestantes = ehMesVigente ? ciclo.diasRestantes : (mesPassado ? 0 : diasTotais);
+    const diaAtualNoCiclo = ehMesVigente ? ciclo.diaAtualNoCiclo : (mesPassado ? diasTotais : 1);
 
-    const diasCorridos = Math.max(1, diaAtual);
-    const diasRestantes = ehMesVigente
-      ? Math.max(0, totalDiasMes - diaAtual)
-      : mesPassado
-        ? 0
-        : totalDiasMes;
+    // 1. Orçamento disponível para o variável: Receita total menos compromissos fixos/parcelas contratuais
+    const orcamentoVariavel = Math.max(0, totalReceitas - fixas);
 
-    const pctMesDecorrido = Math.min(100, Math.round((diasCorridos / totalDiasMes) * 100));
-    const pctReceitaGasta =
-      totalReceitas > 0 ? Math.min(100, Math.round((totalDespesas / totalReceitas) * 100)) : 0;
+    // 2. Variáveis já realizadas até o momento
+    const variaveisRealizadas = Math.max(0, variaveis);
 
-    // Ritmo diário atual de gastos variáveis
-    const ritmoDiarioVariavel = variaveis / diasCorridos;
-    const ritmoDiarioTotal = totalDespesas / diasCorridos;
+    // 3. Saldo variável livre restante no ciclo
+    const saldoVariavelRestante = orcamentoVariavel - variaveisRealizadas;
 
-    // Projeção ao final do mês
-    const estimativaVariaveisRestantes =
-      ehMesVigente && diasRestantes > 0 ? ritmoDiarioVariavel * diasRestantes : 0;
-    const despesasProjetadasFinal = ehMesVigente
-      ? totalDespesas + estimativaVariaveisRestantes
-      : totalDespesas;
-    const saldoProjetadoFinal = totalReceitas - despesasProjetadasFinal;
+    // 4. Ritmo diário atual de gastos variáveis
+    const ritmoDiarioVariavel = variaveisRealizadas / diasCorridos;
 
-    // Teto diário seguro restante para não estourar o orçamento
+    // 5. Teto diário seguro exclusivo para o variável
     const tetoDiarioSeguro =
-      diasRestantes > 0 && saldoAtual > 0 ? saldoAtual / diasRestantes : 0;
+      diasRestantes > 0 && saldoVariavelRestante > 0
+        ? saldoVariavelRestante / diasRestantes
+        : 0;
 
-    // Status / Semáforo
+    // 6. Projeção de despesas variáveis ao final do ciclo
+    const projecaoVariavelFinal = ehMesVigente
+      ? variaveisRealizadas + (diasRestantes > 0 ? ritmoDiarioVariavel * diasRestantes : 0)
+      : variaveisRealizadas;
+
+    // 7. Sobra livre projetada após cobrir fixas e variáveis estimadas
+    const sobraLivreProjetada = orcamentoVariavel - projecaoVariavelFinal;
+
+    // Porcentagens
+    const pctCicloDecorrido = Math.min(100, Math.round((diasCorridos / diasTotais) * 100));
+    const pctOrcamentoVariavelGasto =
+      orcamentoVariavel > 0
+        ? Math.min(100, Math.round((variaveisRealizadas / orcamentoVariavel) * 100))
+        : 100;
+
+    // Status e diagnóstico financeiro inteligente
     let status: "seguro" | "atencao" | "alerta" | "neutro" = "seguro";
-    let statusTexto = "No ritmo ideal para fechar o mês no azul.";
+    let statusTexto = "";
     let tomBadge: "default" | "secondary" | "destructive" = "secondary";
 
     if (totalReceitas <= 0) {
       status = "neutro";
-      statusTexto = "Cadastre as receitas previstas deste mês para calibrar a projeção.";
+      statusTexto = "Cadastre as receitas previstas desta competência para calibrar o forecast.";
       tomBadge = "secondary";
-    } else if (saldoAtual < 0) {
+    } else if (orcamentoVariavel <= 0) {
       status = "alerta";
-      statusTexto = "Orçamento já superado. Evite novos gastos variáveis.";
+      statusTexto = `Os compromissos fixos e parcelas (${formatar(fixas)}) já consomem 100% das receitas. Qualquer gasto variável gera déficit.`;
       tomBadge = "destructive";
-    } else if (ehMesVigente && saldoProjetadoFinal < 0) {
+    } else if (saldoVariavelRestante < 0) {
       status = "alerta";
-      statusTexto = `Ritmo diário de gastos (${formatar(ritmoDiarioVariavel)}/dia) projeta déficit ao fim do mês. Reduza gastos.`;
+      statusTexto = `O orçamento variável de ${formatar(orcamentoVariavel)} foi estourado em ${formatar(Math.abs(saldoVariavelRestante))}. Evite novos gastos variáveis.`;
       tomBadge = "destructive";
-    } else if (ehMesVigente && saldoProjetadoFinal < totalReceitas * 0.08) {
+    } else if (ehMesVigente && sobraLivreProjetada < 0) {
+      const excessoDiario = ritmoDiarioVariavel - tetoDiarioSeguro;
+      status = "alerta";
+      statusTexto = `Atenção: o ritmo diário variável (${formatar(ritmoDiarioVariavel)}/dia) supera o teto seguro de ${formatar(tetoDiarioSeguro)}/dia. Reduza cerca de ${formatar(excessoDiario)}/dia para não fechar no negativo.`;
+      tomBadge = "destructive";
+    } else if (ehMesVigente && sobraLivreProjetada < orcamentoVariavel * 0.1) {
       status = "atencao";
-      statusTexto = "Margem de folga apertada. Mantenha os gastos dentro do teto seguro diário.";
+      statusTexto = `Margem de sobra livre apertada: projeção de sobra de ${formatar(sobraLivreProjetada)}. Mantenha seus gastos diários abaixo de ${formatar(tetoDiarioSeguro)}/dia.`;
       tomBadge = "secondary";
     } else {
       status = "seguro";
-      statusTexto = `Mantendo esse ritmo, você fecha com sobra estimada de ${formatar(saldoProjetadoFinal)}.`;
+      statusTexto = `No ritmo ideal! Gastando em média ${formatar(ritmoDiarioVariavel)}/dia (abaixo do teto de ${formatar(tetoDiarioSeguro)}/dia), a sobra livre projetada é de ${formatar(sobraLivreProjetada)}.`;
       tomBadge = "default";
     }
 
     return {
-      totalDiasMes,
-      diaAtual,
+      diasTotais,
       diasCorridos,
       diasRestantes,
-      pctMesDecorrido,
-      pctReceitaGasta,
-      ritmoDiarioVariavel,
-      ritmoDiarioTotal,
-      despesasProjetadasFinal,
-      saldoProjetadoFinal,
+      diaAtualNoCiclo,
+      orcamentoVariavel,
+      variaveisRealizadas,
+      saldoVariavelRestante,
       tetoDiarioSeguro,
+      ritmoDiarioVariavel,
+      projecaoVariavelFinal,
+      sobraLivreProjetada,
+      pctCicloDecorrido,
+      pctOrcamentoVariavelGasto,
       ehMesVigente,
       mesPassado,
       mesFuturo,
@@ -127,7 +141,7 @@ export function CardForecast({
       statusTexto,
       tomBadge,
     };
-  }, [mesAtual, totalReceitas, totalDespesas, fixas, variaveis, saldoAtual, formatar]);
+  }, [mesAtual, totalReceitas, fixas, variaveis, ciclo, formatar]);
 
   return (
     <Card className="mt-4 overflow-hidden border-primary/20 bg-gradient-to-b from-card via-card to-muted/20 shadow-sm">
@@ -141,7 +155,7 @@ export function CardForecast({
               Forecast & Previsão de Fechamento
             </CardTitle>
             <p className="text-xs text-muted-foreground">
-              {monthLabelLong(mesAtual)} · {forecast.ehMesVigente ? `Dia ${forecast.diaAtual} de ${forecast.totalDiasMes} (${forecast.diasRestantes} dias restantes)` : "Competência fechada ou futura"}
+              {monthLabelLong(mesAtual)} · {forecast.ehMesVigente ? `Ciclo ${ciclo.rotuloPeriodo} (dia ${forecast.diaAtualNoCiclo} de ${forecast.diasTotais} · ${forecast.diasRestantes} dias restantes)` : "Competência de referência"}
             </p>
           </div>
         </div>
@@ -168,17 +182,31 @@ export function CardForecast({
               ? "Atenção ao ritmo"
               : forecast.status === "alerta"
                 ? "Risco de déficit"
-                : "Sem receita informada"}
+                : "Sem receita cadastrada"}
         </Badge>
       </CardHeader>
 
       <CardContent className="space-y-4 pt-1">
-        {/* Grid com indicadores principais */}
+        {/* Faixa explicativa do isolamento das fixas */}
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+          <div className="flex items-center gap-2">
+            <Info className="size-3.5 text-primary" />
+            <span>
+              Compromissos fixos e faturas contratadas (<strong>{formatar(fixas)}</strong>) já estão garantidos e isolados do forecast.
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5 font-medium text-foreground">
+            <span>Orçamento livre para variáveis:</span>
+            <span className="text-primary font-bold">{formatar(forecast.orcamentoVariavel)}</span>
+          </div>
+        </div>
+
+        {/* Grid com indicadores principais focados no variável */}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {/* Card 1: Teto Diário Seguro */}
+          {/* Card 1: Teto Diário Seguro Variável */}
           <div className="rounded-xl border bg-card/60 p-3 space-y-1">
             <div className="flex items-center justify-between text-muted-foreground">
-              <span className="text-xs font-medium">Teto diário seguro</span>
+              <span className="text-xs font-medium">Teto diário seguro (variável)</span>
               <Calendar className="size-3.5 text-primary" />
             </div>
             <p className="text-lg font-bold tracking-tight text-primary">
@@ -187,15 +215,15 @@ export function CardForecast({
             </p>
             <p className="text-[11px] text-muted-foreground">
               {forecast.diasRestantes > 0
-                ? `Para não estourar em ${forecast.diasRestantes} dias restantes`
-                : "Mês encerrado para novos limites"}
+                ? `Para ${forecast.diasRestantes} dias restantes (${formatar(forecast.saldoVariavelRestante)} livres)`
+                : "Ciclo encerrado para novos gastos"}
             </p>
           </div>
 
-          {/* Card 2: Ritmo Diário Atual */}
+          {/* Card 2: Ritmo Diário Atual de Variáveis */}
           <div className="rounded-xl border bg-card/60 p-3 space-y-1">
             <div className="flex items-center justify-between text-muted-foreground">
-              <span className="text-xs font-medium">Ritmo diário atual</span>
+              <span className="text-xs font-medium">Ritmo diário atual (variável)</span>
               <TrendingUp className="size-3.5 text-muted-foreground" />
             </div>
             <p className="text-lg font-bold tracking-tight">
@@ -203,50 +231,50 @@ export function CardForecast({
               <span className="text-xs font-normal text-muted-foreground">/dia</span>
             </p>
             <p className="text-[11px] text-muted-foreground">
-              Média de variáveis nos primeiros {forecast.diasCorridos} dias
+              Média realizada nos primeiros {forecast.diasCorridos} dias do ciclo
             </p>
           </div>
 
-          {/* Card 3: Projeção de Fechamento */}
+          {/* Card 3: Sobra Livre Projetada ao Final do Ciclo */}
           <div className="rounded-xl border bg-card/60 p-3 space-y-1">
             <div className="flex items-center justify-between text-muted-foreground">
-              <span className="text-xs font-medium">Sobra projetada no fim</span>
-              <ArrowDownRight className="size-3.5 text-muted-foreground" />
+              <span className="text-xs font-medium">Sobra livre estimada</span>
+              <Wallet className="size-3.5 text-muted-foreground" />
             </div>
             <p
               className={`text-lg font-bold tracking-tight ${
-                forecast.saldoProjetadoFinal >= 0
+                forecast.sobraLivreProjetada >= 0
                   ? "text-emerald-600 dark:text-emerald-400"
                   : "text-destructive"
               }`}
             >
-              {formatar(forecast.saldoProjetadoFinal)}
+              {formatar(forecast.sobraLivreProjetada)}
             </p>
             <p className="text-[11px] text-muted-foreground">
-              Despesas estimadas: {formatar(forecast.despesasProjetadasFinal)}
+              Variáveis estimadas ao fim: {formatar(forecast.projecaoVariavelFinal)}
             </p>
           </div>
 
-          {/* Card 4: Ritmo de Consumo */}
+          {/* Card 4: Consumo do Orçamento Variável */}
           <div className="rounded-xl border bg-card/60 p-3 space-y-1.5">
             <div className="flex items-center justify-between text-muted-foreground">
-              <span className="text-xs font-medium">Consumo do orçamento</span>
+              <span className="text-xs font-medium">Consumo do variável</span>
               <span className="text-xs font-semibold tabular-nums text-foreground">
-                {forecast.pctReceitaGasta}%
+                {forecast.pctOrcamentoVariavelGasto}%
               </span>
             </div>
-            <Progress value={forecast.pctReceitaGasta} className="h-2" />
+            <Progress value={forecast.pctOrcamentoVariavelGasto} className="h-2" />
             <div className="flex justify-between text-[10px] text-muted-foreground">
-              <span>{forecast.pctMesDecorrido}% do mês transcorrido</span>
-              <span>{formatar(totalDespesas)} gastos</span>
+              <span>{forecast.pctCicloDecorrido}% do ciclo transcorrido</span>
+              <span>{formatar(forecast.variaveisRealizadas)} gastos</span>
             </div>
           </div>
         </div>
 
-        {/* Linha explicativa amigável */}
-        <div className="flex items-center gap-2 rounded-lg bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-          <Sparkles className="size-4 shrink-0 text-primary" />
-          <p className="flex-1">{forecast.statusTexto}</p>
+        {/* Resumo inteligente e recomendação prática */}
+        <div className="flex items-start gap-2 rounded-lg bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+          <Sparkles className="mt-0.5 size-4 shrink-0 text-primary" />
+          <p className="flex-1 leading-relaxed text-foreground">{forecast.statusTexto}</p>
         </div>
       </CardContent>
     </Card>
