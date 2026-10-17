@@ -96,6 +96,8 @@ export function rotuloOrigem(d: DespesaExistente): string {
       return "Lançado com a IA";
     case "manual":
       return "Digitado à mão";
+    case "pluggy":
+      return "Open Finance (conta conectada)";
     default:
       return d.origem ? `Origem: ${d.origem}` : "Origem não informada";
   }

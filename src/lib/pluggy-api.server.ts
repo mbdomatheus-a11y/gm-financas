@@ -19,7 +19,16 @@ const DIAS_HISTORICO_INICIAL = 3650;
 const DIAS_JANELA_NORMAL = 365;
 const ORIGENS_MANUAIS = ["manual", "fatura_rapida", "fatura_total_manual"];
 /** Categorias do Pluggy que não são despesa: pagamento de fatura e transferência entre contas próprias. */
-const CATEGORIAS_NAO_DESPESA = new Set(["credit card payment", "transfer - internal", "same person transfer"]);
+const CATEGORIAS_NAO_DESPESA = new Set([
+  "credit card payment",
+  "transfer - internal",
+  "same person transfer",
+  "investments",
+]);
+/** Aplicação e resgate em investimento: movimenta o patrimônio, não é gasto. */
+const DESCRICAO_NAO_DESPESA = /valor transferido para investimentos|aplica[cç][aã]o|resgate/i;
+/** Parcela na descrição, ex.: "VETNASA 4/6", "DIAUTO 01/04", "AMAZONMKTPLC*AMGGR01/03". */
+const PADRAO_PARCELA = /(?:^|[^0-9])(\d{1,2})\/(\d{1,2})(?![0-9])/;
 /** Pagamento de fatura vindo da conta corrente quando a categoria não vem preenchida. */
 const PAGAMENTO_FATURA = /pagament[oa].{0,20}fatura|pgto.{0,10}fatura|pagto.{0,10}cart/i;
 
@@ -102,6 +111,104 @@ async function cartaoPeloFinal(db: any, final: string, grupoId: string | null): 
   return data?.id ?? null;
 }
 
+/** Número da parcela e total, se a descrição trouxer "n/t" (ex.: 4/6). Ignora datas de período de fatura. */
+function parcelaDe(descricao: string): { n: number; t: number } | null {
+  if (/PERIODO/i.test(descricao)) return null;
+  const m = PADRAO_PARCELA.exec(descricao);
+  if (!m) return null;
+  const n = Number(m[1]);
+  const t = Number(m[2]);
+  if (t < 2 || t > 60 || n < 1 || n > t) return null;
+  return { n, t };
+}
+
+const isoData = (d: Date) => d.toISOString().slice(0, 10);
+function somarMeses(iso: string, meses: number): string {
+  const d = new Date(`${iso}T12:00:00Z`);
+  d.setUTCMonth(d.getUTCMonth() + meses);
+  return isoData(d);
+}
+
+/**
+ * Compra parcelada: cria a despesa com o total e projeta todas as parcelas até o fim.
+ * As parcelas já cobradas (até n) ficam pagas; as seguintes ficam em aberto.
+ * O grupo impede repetir o parcelamento quando as próximas parcelas aparecem no extrato.
+ */
+async function importarParcelado(
+  db: any,
+  p: { userId: string; t: Transacao; cartaoId: string | null; cartaoFinal: string | null; banco: string | null; congelada: boolean },
+  { n, t }: { n: number; t: number },
+): Promise<boolean> {
+  const valorParcela = Math.abs(p.t.amount);
+  const nucleo = (p.t.description ?? "").replace(PADRAO_PARCELA, " ").replace(/\s+/g, " ").trim().toUpperCase();
+  const primeira = somarMeses(p.t.date, -(n - 1));
+  const grupo = `${p.cartaoFinal ?? p.banco ?? "x"}|${nucleo}|${t}|${valorParcela.toFixed(2)}|${primeira}`;
+
+  const { data: jaGrupo } = await db.from("despesas").select("id").eq("pluggy_grupo", grupo).maybeSingle();
+  if (jaGrupo) return false;
+
+  if (p.cartaoId) {
+    const { data: manual } = await db
+      .from("despesas")
+      .select("id")
+      .eq("cartao_id", p.cartaoId)
+      .in("origem", ORIGENS_MANUAIS)
+      .is("pluggy_grupo", null)
+      .eq("total_parcelas", t)
+      .gte("data_primeira_parcela", somarMeses(primeira, 0).replace(/-(\d{2})$/, "-01"))
+      .lte("data_primeira_parcela", somarMeses(primeira, 0).replace(/-(\d{2})$/, "-31"))
+      .gte("valor_total", valorParcela * t - 1)
+      .lte("valor_total", valorParcela * t + 1)
+      .limit(1)
+      .maybeSingle();
+    if (manual) {
+      await db
+        .from("despesas")
+        .update({ origem: "pluggy", pluggy_transaction_id: p.t.id, pluggy_grupo: grupo, importada_em: new Date().toISOString(), congelada: p.congelada })
+        .eq("id", manual.id);
+      await db.from("pluggy_transacoes").update({ substituiu_manual: true }).eq("transaction_id", p.t.id);
+      return true;
+    }
+  }
+
+  const { data: nova, error } = await db
+    .from("despesas")
+    .insert({
+      descricao: nucleo || p.t.description,
+      valor_total: valorParcela * t,
+      moeda: "BRL",
+      categoria: "Categoria a confirmar",
+      tipo: "variavel",
+      data_compra: primeira,
+      total_parcelas: t,
+      data_primeira_parcela: primeira,
+      cartao_id: p.cartaoId,
+      cartao_final: p.cartaoFinal,
+      banco_nome: p.banco,
+      origem: "pluggy",
+      pluggy_transaction_id: p.t.id,
+      pluggy_grupo: grupo,
+      importada_em: new Date().toISOString(),
+      congelada: p.congelada,
+      created_by: p.userId,
+    })
+    .select("id")
+    .single();
+  if (error) throw new Error("Falha ao criar a compra parcelada importada.");
+  const parcelas = Array.from({ length: t }, (_, i) => ({
+    despesa_id: nova.id,
+    numero: i + 1,
+    total: t,
+    valor: valorParcela,
+    moeda: "BRL",
+    vencimento: somarMeses(primeira, i),
+    paga: i + 1 <= n,
+  }));
+  const { error: e2 } = await db.from("parcelas").insert(parcelas);
+  if (e2) throw new Error("Falha ao criar as parcelas da compra importada.");
+  return true;
+}
+
 /**
  * Cria a despesa importada, ou troca o lançamento manual igual por ela.
  * Pula lançamentos já importados e os rejeitados pelo usuário.
@@ -116,6 +223,9 @@ async function importarDespesa(
   if (rej?.rejeitada) return false;
   const { data: ja } = await db.from("despesas").select("id").eq("pluggy_transaction_id", p.t.id).maybeSingle();
   if (ja) return false;
+
+  const parc = parcelaDe(p.t.description ?? "");
+  if (parc) return importarParcelado(db, p, parc);
 
   if (p.cartaoId) {
     const { data: manual } = await db
@@ -350,6 +460,7 @@ async function executarSincronizacao(
       for (const t of lista) {
         if (t.type !== "DEBIT" || t.status === "PENDING") continue;
         if (CATEGORIAS_NAO_DESPESA.has((t.category ?? "").trim().toLowerCase())) continue;
+        if (DESCRICAO_NAO_DESPESA.test(t.description ?? "")) continue;
         if (conta.type === "BANK" && PAGAMENTO_FATURA.test(t.description ?? "")) continue;
         if (await importarDespesa(db, { userId: meu.user_id, t, cartaoId, cartaoFinal, banco, congelada: primeira })) criadas++;
       }

@@ -1505,7 +1505,15 @@ function DespesasPage() {
                                   Total manual concluído
                                 </Badge>
                               )}
-                              {d.origem && d.origem !== "manual" && (
+                              {d.origem === "pluggy" && (
+                                <Badge
+                                  variant="outline"
+                                  className="border-emerald-500/30 text-[10px] text-emerald-600 dark:text-emerald-400"
+                                >
+                                  Open Finance
+                                </Badge>
+                              )}
+                              {d.origem && d.origem !== "manual" && d.origem !== "pluggy" && (
                                 <Badge
                                   variant="outline"
                                   className="border-sky-500/30 text-[10px] text-sky-600 dark:text-sky-400"

@@ -182,7 +182,7 @@ export const pluggyListarPatrimonio = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const db = supabaseAdmin as any;
     const [inv, emp] = await Promise.all([
-      db.from("pluggy_investimentos").select("id,nome,tipo,instituicao,saldo,valor_aplicado,rentabilidade_anual,vencimento").eq("user_id", context.userId).order("saldo", { ascending: false }),
+      db.from("pluggy_investimentos").select("id,nome,tipo,instituicao,saldo,valor_aplicado,rentabilidade_anual,vencimento").eq("user_id", context.userId).gt("saldo", 0).order("saldo", { ascending: false }),
       db.from("pluggy_emprestimos").select("id,tipo,instituicao,valor_contratado,saldo_devedor,taxa_anual,indexador,vencimento").eq("user_id", context.userId),
     ]);
     return { investimentos: (inv.data ?? []) as any[], emprestimos: (emp.data ?? []) as any[] };
