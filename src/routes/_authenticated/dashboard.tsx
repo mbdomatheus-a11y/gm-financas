@@ -33,6 +33,7 @@ import {
 import { AppLayout } from "@/components/AppLayout";
 import { MonthPicker } from "@/components/MonthPicker";
 import { CardForecast } from "@/components/CardForecast";
+import { FluxoDespesas } from "@/components/FluxoDespesas";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
@@ -815,6 +816,7 @@ function DashboardPage() {
           href="#parcelamentos-terminando"
         />
       </div>
+      <FluxoDespesas />
       <CardForecast
         mesAtual={mesAtual}
         totalReceitas={dados.totalReceitas}
@@ -893,7 +895,7 @@ function DashboardPage() {
           </div>
         </CardHeader>
         {dados.meses.some((m: any) => posicaoTemporalDoMes(m.key, mesAtual) === "futuro") && (
-          <p className="px-6 pb-1 text-[11px] text-muted-foreground">
+          <p className="px-6 pb-1 text-xs text-muted-foreground">
             Meses além do atual aparecem com opacidade reduzida — são previstos, ainda não
             aconteceram.
           </p>
@@ -1064,7 +1066,7 @@ function DashboardPage() {
         <Card id="parcelamentos-terminando" className="mt-4">
           <CardHeader className="space-y-0 pb-3">
             <CardTitle className="text-base">Parcelamentos que terminam</CardTitle>
-            <p className="text-[11px] text-muted-foreground mt-1">
+            <p className="text-xs text-muted-foreground mt-1">
               Quanto cada mês libera no orçamento quando parcelas terminam. Clique para ver os detalhes
               e marque os itens que quiser para somar.
             </p>
@@ -1116,7 +1118,7 @@ function DashboardPage() {
                       className={`size-4 shrink-0 text-muted-foreground transition-transform ${expandido ? "" : "-rotate-90"}`}
                     />
                     <span className="flex-1 text-sm font-semibold">{monthLabelLong(g.mes)}</span>
-                    <Badge variant="secondary" className="text-[10px]">
+                    <Badge variant="secondary" className="text-xs">
                       {g.itens.length} parcela{g.itens.length > 1 ? "s" : ""}
                     </Badge>
                     <span className="shrink-0 text-sm font-bold tabular-nums text-success">
@@ -1200,7 +1202,7 @@ function DashboardPage() {
                       <span className="shrink-0 font-semibold tabular-nums">{formatBRL(g.total)}</span>
                     </div>
                     <Progress value={pct} className="mt-1.5 h-1.5" />
-                    <p className="mt-1 text-[11px] text-muted-foreground">
+                    <p className="mt-1 text-xs text-muted-foreground">
                       {g.itens} lançamento(s) · {pct.toFixed(1)}% do mês
                     </p>
                   </button>
@@ -1402,7 +1404,7 @@ function DashboardPage() {
                     </span>
                   </div>
                   <Progress value={pct} className="h-1.5" />
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-xs text-muted-foreground">
                     {pct.toFixed(0)}% das despesas do mês
                   </p>
                 </div>
@@ -1663,7 +1665,7 @@ function CardDividaTotal({
         <div className="mt-2 flex flex-wrap items-baseline gap-2">
           <p className="text-xl font-bold tracking-tight">{formatar(valorExibido)}</p>
         </div>
-        <p className="mt-1 text-[11px] text-muted-foreground">
+        <p className="mt-1 text-xs text-muted-foreground">
           {rotuloVisao} · Fixas {formatar(info.fixa)} · Variáveis {formatar(info.variavel)}
         </p>
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
@@ -1673,7 +1675,7 @@ function CardDividaTotal({
               type="button"
               size="sm"
               variant="ghost"
-              className="h-7 text-[11px]"
+              className="h-7 text-xs"
               onClick={onRestaurarPadrao}
               title={`Restaurar data do mês em aberto (${monthLabel(mesPadrao)})`}
             >
@@ -1681,7 +1683,7 @@ function CardDividaTotal({
             </Button>
           )}
         </div>
-        <p className="mt-1 text-[10px] text-muted-foreground">
+        <p className="mt-1 text-xs text-muted-foreground">
           {temOverride
             ? `Personalizado até ${monthLabelLong(mesLimite)} (padrão: ${monthLabel(mesPadrao)}).`
             : info.alemDaUltimaParcela
@@ -1739,7 +1741,7 @@ function StatCard({
         <p className="text-xl font-bold tracking-tight">{display ?? formatar(value)}</p>
         {delta != null && Number.isFinite(delta) && (
           <span
-            className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
+            className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-xs font-semibold ${
               delta >= 0 === !!deltaGoodUp
                 ? "bg-success/10 text-success"
                 : "bg-destructive/10 text-destructive"
@@ -1755,11 +1757,11 @@ function StatCard({
         )}
       </div>
       {!!usd && !!cotacao && (
-        <p className="mt-0.5 text-[11px] text-muted-foreground">
+        <p className="mt-0.5 text-xs text-muted-foreground">
           inclui {formatUSD(usd)} na cotação do dia
         </p>
       )}
-      {hint && <p className="mt-1 text-[11px] text-muted-foreground">{hint}</p>}
+      {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
     </>
   );
 

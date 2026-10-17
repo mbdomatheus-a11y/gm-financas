@@ -241,7 +241,7 @@ export function CardForecast({
               {formatar(forecast.tetoDiarioSeguro)}
               <span className="text-xs font-normal text-muted-foreground">/dia</span>
             </p>
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               {forecast.diasRestantes > 0
                 ? `Para ${forecast.diasRestantes} dias restantes (${formatar(forecast.saldoVariavelRestante)} livres)`
                 : "Ciclo encerrado para novos gastos"}
@@ -258,7 +258,7 @@ export function CardForecast({
               {formatar(forecast.ritmoDiarioVariavel)}
               <span className="text-xs font-normal text-muted-foreground">/dia</span>
             </p>
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               Média realizada nos primeiros {forecast.diasCorridos} dias do ciclo
             </p>
           </div>
@@ -278,7 +278,7 @@ export function CardForecast({
             >
               {formatar(forecast.sobraLivreProjetada)}
             </p>
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               Variáveis estimadas ao fim: {formatar(forecast.projecaoVariavelFinal)}
             </p>
           </div>
@@ -292,7 +292,7 @@ export function CardForecast({
               </span>
             </div>
             <Progress value={forecast.pctOrcamentoVariavelGasto} className="h-2" />
-            <div className="flex justify-between text-[10px] text-muted-foreground">
+            <div className="flex justify-between text-xs text-muted-foreground">
               <span>{forecast.pctCicloDecorrido}% do ciclo transcorrido</span>
               <span>{formatar(forecast.variaveisRealizadas)} gastos</span>
             </div>

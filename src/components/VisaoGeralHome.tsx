@@ -80,14 +80,14 @@ function variacao(atual: number, anterior: number): number | null {
 function Delta({ valor }: { valor: number | null }) {
   if (valor == null)
     return (
-      <span className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground">
+      <span className="inline-flex items-center gap-0.5 text-xs text-muted-foreground">
         <Minus className="size-3" /> novo
       </span>
     );
   const sobe = valor >= 0;
   return (
     <span
-      className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
+      className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-xs font-semibold ${
         sobe ? "bg-destructive/10 text-destructive" : "bg-success/10 text-success"
       }`}
     >
@@ -261,7 +261,7 @@ export function VisaoGeralHome({ ocultarValores }: { ocultarValores?: boolean } 
           >
             <CardContent className="px-3 py-2">
               <div className="flex items-center gap-1">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
+                <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
                   Economia conquistada
                 </p>
                 {!ocultarValores && (
@@ -277,7 +277,7 @@ export function VisaoGeralHome({ ocultarValores }: { ocultarValores?: boolean } 
 
         <Card className="border-blue-500/20 bg-blue-500/5">
           <CardContent className="px-3 py-2">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-blue-600 dark:text-blue-400">
+            <p className="text-xs font-semibold uppercase tracking-wide text-blue-600 dark:text-blue-400">
               Comunidade Control ALL
             </p>
             <h3 className="text-base font-bold text-blue-700 dark:text-blue-300">Organização ativa</h3>
@@ -386,7 +386,7 @@ export function VisaoGeralHome({ ocultarValores }: { ocultarValores?: boolean } 
               </ComposedChart>
             </ResponsiveContainer>
           </div>
-          <p className="mt-1 text-center text-[11px] text-muted-foreground">
+          <p className="mt-1 text-center text-xs text-muted-foreground">
             Toque em um mês para ver os agrupamentos abaixo. Linha tracejada: % da renda do mês
             comprometida com despesas.
           </p>
@@ -462,7 +462,7 @@ export function VisaoGeralHome({ ocultarValores }: { ocultarValores?: boolean } 
                           style={{ width: `${pct}%` }}
                         />
                       </div>
-                      <span className="w-10 shrink-0 text-right text-[11px] text-muted-foreground tabular-nums">
+                      <span className="w-10 shrink-0 text-right text-xs text-muted-foreground tabular-nums">
                         {pct.toFixed(0)}%
                       </span>
                       <Delta valor={g.delta} />
@@ -480,7 +480,7 @@ export function VisaoGeralHome({ ocultarValores }: { ocultarValores?: boolean } 
                       >
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm">{p.despesa.descricao}</p>
-                          <p className="truncate text-[11px] text-muted-foreground">
+                          <p className="truncate text-xs text-muted-foreground">
                             {formatDate(p.vencimento)}
                             {p.despesa.tipo === "fixa"
                               ? " · competência mensal"
