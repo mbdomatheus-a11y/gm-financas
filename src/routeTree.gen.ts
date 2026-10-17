@@ -60,8 +60,10 @@ import { Route as NotaTokenRouteImport } from './routes/nota/$token'
 import { Route as AuthenticatedLinksIndexRouteImport } from './routes/_authenticated/links/index'
 import { Route as AuthenticatedLinksIdRouteImport } from './routes/_authenticated/links/$id'
 import { Route as ApiCronDescarteLayoutsRouteImport } from './routes/api/cron/descarte-layouts'
+import { Route as ApiCronPluggySincronizarRouteImport } from './routes/api/cron/pluggy-sincronizar'
 import { Route as ApiEmailPararRouteImport } from './routes/api/email/parar'
 import { Route as OauthGoogleDriveReturnRouteImport } from './routes/oauth/google-drive/return'
+import { Route as ApiPluggyWebhookTokenRouteImport } from './routes/api/pluggy/webhook.$token'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -329,6 +331,12 @@ const ApiCronDescarteLayoutsRoute = ApiCronDescarteLayoutsRouteImport.update({
   path: '/api/cron/descarte-layouts',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiCronPluggySincronizarRoute =
+  ApiCronPluggySincronizarRouteImport.update({
+    id: '/api/cron/pluggy-sincronizar',
+    path: '/api/cron/pluggy-sincronizar',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiEmailPararRoute = ApiEmailPararRouteImport.update({
   id: '/api/email/parar',
   path: '/api/email/parar',
@@ -337,6 +345,11 @@ const ApiEmailPararRoute = ApiEmailPararRouteImport.update({
 const OauthGoogleDriveReturnRoute = OauthGoogleDriveReturnRouteImport.update({
   id: '/oauth/google-drive/return',
   path: '/oauth/google-drive/return',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPluggyWebhookTokenRoute = ApiPluggyWebhookTokenRouteImport.update({
+  id: '/api/pluggy/webhook/$token',
+  path: '/api/pluggy/webhook/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -390,9 +403,11 @@ export interface FileRoutesByFullPath {
   '/links-temporarios/': typeof LinksTemporariosIndexRoute
   '/links/$id': typeof AuthenticatedLinksIdRoute
   '/api/cron/descarte-layouts': typeof ApiCronDescarteLayoutsRoute
+  '/api/cron/pluggy-sincronizar': typeof ApiCronPluggySincronizarRoute
   '/api/email/parar': typeof ApiEmailPararRoute
   '/oauth/google-drive/return': typeof OauthGoogleDriveReturnRoute
   '/links/': typeof AuthenticatedLinksIndexRoute
+  '/api/pluggy/webhook/$token': typeof ApiPluggyWebhookTokenRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -444,9 +459,11 @@ export interface FileRoutesByTo {
   '/links-temporarios': typeof LinksTemporariosIndexRoute
   '/links/$id': typeof AuthenticatedLinksIdRoute
   '/api/cron/descarte-layouts': typeof ApiCronDescarteLayoutsRoute
+  '/api/cron/pluggy-sincronizar': typeof ApiCronPluggySincronizarRoute
   '/api/email/parar': typeof ApiEmailPararRoute
   '/oauth/google-drive/return': typeof OauthGoogleDriveReturnRoute
   '/links': typeof AuthenticatedLinksIndexRoute
+  '/api/pluggy/webhook/$token': typeof ApiPluggyWebhookTokenRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -500,9 +517,11 @@ export interface FileRoutesById {
   '/links-temporarios/': typeof LinksTemporariosIndexRoute
   '/_authenticated/links/$id': typeof AuthenticatedLinksIdRoute
   '/api/cron/descarte-layouts': typeof ApiCronDescarteLayoutsRoute
+  '/api/cron/pluggy-sincronizar': typeof ApiCronPluggySincronizarRoute
   '/api/email/parar': typeof ApiEmailPararRoute
   '/oauth/google-drive/return': typeof OauthGoogleDriveReturnRoute
   '/_authenticated/links/': typeof AuthenticatedLinksIndexRoute
+  '/api/pluggy/webhook/$token': typeof ApiPluggyWebhookTokenRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -556,9 +575,11 @@ export interface FileRouteTypes {
     | '/links-temporarios/'
     | '/links/$id'
     | '/api/cron/descarte-layouts'
+    | '/api/cron/pluggy-sincronizar'
     | '/api/email/parar'
     | '/oauth/google-drive/return'
     | '/links/'
+    | '/api/pluggy/webhook/$token'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -610,9 +631,11 @@ export interface FileRouteTypes {
     | '/links-temporarios'
     | '/links/$id'
     | '/api/cron/descarte-layouts'
+    | '/api/cron/pluggy-sincronizar'
     | '/api/email/parar'
     | '/oauth/google-drive/return'
     | '/links'
+    | '/api/pluggy/webhook/$token'
   id:
     | '__root__'
     | '/'
@@ -665,9 +688,11 @@ export interface FileRouteTypes {
     | '/links-temporarios/'
     | '/_authenticated/links/$id'
     | '/api/cron/descarte-layouts'
+    | '/api/cron/pluggy-sincronizar'
     | '/api/email/parar'
     | '/oauth/google-drive/return'
     | '/_authenticated/links/'
+    | '/api/pluggy/webhook/$token'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -690,8 +715,10 @@ export interface RootRouteChildren {
   CalculadorasIndexRoute: typeof CalculadorasIndexRoute
   LinksTemporariosIndexRoute: typeof LinksTemporariosIndexRoute
   ApiCronDescarteLayoutsRoute: typeof ApiCronDescarteLayoutsRoute
+  ApiCronPluggySincronizarRoute: typeof ApiCronPluggySincronizarRoute
   ApiEmailPararRoute: typeof ApiEmailPararRoute
   OauthGoogleDriveReturnRoute: typeof OauthGoogleDriveReturnRoute
+  ApiPluggyWebhookTokenRoute: typeof ApiPluggyWebhookTokenRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1053,6 +1080,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiCronDescarteLayoutsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/cron/pluggy-sincronizar': {
+      id: '/api/cron/pluggy-sincronizar'
+      path: '/api/cron/pluggy-sincronizar'
+      fullPath: '/api/cron/pluggy-sincronizar'
+      preLoaderRoute: typeof ApiCronPluggySincronizarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/email/parar': {
       id: '/api/email/parar'
       path: '/api/email/parar'
@@ -1065,6 +1099,13 @@ declare module '@tanstack/react-router' {
       path: '/oauth/google-drive/return'
       fullPath: '/oauth/google-drive/return'
       preLoaderRoute: typeof OauthGoogleDriveReturnRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/pluggy/webhook/$token': {
+      id: '/api/pluggy/webhook/$token'
+      path: '/api/pluggy/webhook/$token'
+      fullPath: '/api/pluggy/webhook/$token'
+      preLoaderRoute: typeof ApiPluggyWebhookTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -1164,8 +1205,10 @@ const rootRouteChildren: RootRouteChildren = {
   CalculadorasIndexRoute: CalculadorasIndexRoute,
   LinksTemporariosIndexRoute: LinksTemporariosIndexRoute,
   ApiCronDescarteLayoutsRoute: ApiCronDescarteLayoutsRoute,
+  ApiCronPluggySincronizarRoute: ApiCronPluggySincronizarRoute,
   ApiEmailPararRoute: ApiEmailPararRoute,
   OauthGoogleDriveReturnRoute: OauthGoogleDriveReturnRoute,
+  ApiPluggyWebhookTokenRoute: ApiPluggyWebhookTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
