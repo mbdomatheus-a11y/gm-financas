@@ -32,6 +32,7 @@ import {
 
 import { AppLayout } from "@/components/AppLayout";
 import { MonthPicker } from "@/components/MonthPicker";
+import { CardForecast } from "@/components/CardForecast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
@@ -798,6 +799,14 @@ function DashboardPage() {
           href="#parcelamentos-terminando"
         />
       </div>
+      <CardForecast
+        mesAtual={mesAtual}
+        totalReceitas={dados.totalReceitas}
+        totalDespesas={dados.totalDespesas}
+        fixas={dados.fixas}
+        variaveis={dados.variaveis}
+        saldoAtual={dados.saldo}
+      />
 
       <Card id="fluxo-caixa" className="mt-4">
         <CardHeader className="flex flex-col gap-2 space-y-0 sm:flex-row sm:items-center sm:justify-between">
