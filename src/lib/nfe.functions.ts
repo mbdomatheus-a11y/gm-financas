@@ -1,11 +1,16 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { classificarItemNota } from "@/lib/nota-itens-classificacao";
 
 export type NotaItemLido = {
   descricao: string;
   quantidade: number;
   valor_unitario: number;
   valor_total: number;
+  categoria?: string | null;
+  subcategoria?: string | null;
+  deprecia?: boolean | null;
+  meses_depreciacao?: number | null;
 };
 
 export type ConsultaNotaResultado = {
@@ -180,11 +185,16 @@ export const consultarNota = createServerFn({ method: "POST" })
         ? numeroBR(totalItemMatch[1])
         : Number((unit * quantidade).toFixed(2));
 
+      const classif = classificarItemNota(descricao);
       itens.push({
         descricao,
         quantidade,
         valor_unitario: unit,
         valor_total: totalItem,
+        categoria: classif.categoria,
+        subcategoria: classif.subcategoria,
+        deprecia: !!classif.sugestaoDepreciacao,
+        meses_depreciacao: classif.sugestaoDepreciacao?.meses ?? null,
       });
     }
 
@@ -198,11 +208,16 @@ export const consultarNota = createServerFn({ method: "POST" })
         if (!descricao) continue;
         const quantidade = numeroBR(m[2] ?? "1") || 1;
         const unit = numeroBR(m[3] ?? "0");
+        const classif = classificarItemNota(descricao);
         itens.push({
           descricao,
           quantidade,
           valor_unitario: unit,
           valor_total: numeroBR(m[4] ?? "0") || Number((unit * quantidade).toFixed(2)),
+          categoria: classif.categoria,
+          subcategoria: classif.subcategoria,
+          deprecia: !!classif.sugestaoDepreciacao,
+          meses_depreciacao: classif.sugestaoDepreciacao?.meses ?? null,
         });
       }
     }

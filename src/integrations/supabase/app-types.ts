@@ -120,7 +120,16 @@ type VeiculoEventoTable = TableDefinition<
   ]
 >;
 
-type AppTables = Omit<Database["public"]["Tables"], "investimentos" | "lista_compras"> & {
+type NotaItemTable = Database["public"]["Tables"]["nota_itens"];
+
+type NotaItemFields = {
+  categoria: string | null;
+  subcategoria: string | null;
+  deprecia: boolean | null;
+  meses_depreciacao: number | null;
+};
+
+type AppTables = Omit<Database["public"]["Tables"], "investimentos" | "lista_compras" | "nota_itens"> & {
   investimentos: {
     Row: InvestimentoTable["Row"] & InvestimentoFields;
     Insert: InvestimentoTable["Insert"] & Partial<InvestimentoFields>;
@@ -132,6 +141,12 @@ type AppTables = Omit<Database["public"]["Tables"], "investimentos" | "lista_com
     Insert: ListaComprasTable["Insert"] & Partial<ListaComprasFields>;
     Update: ListaComprasTable["Update"] & Partial<ListaComprasFields>;
     Relationships: ListaComprasTable["Relationships"];
+  };
+  nota_itens: {
+    Row: NotaItemTable["Row"] & NotaItemFields;
+    Insert: NotaItemTable["Insert"] & Partial<NotaItemFields>;
+    Update: NotaItemTable["Update"] & Partial<NotaItemFields>;
+    Relationships: NotaItemTable["Relationships"];
   };
   veiculo_eventos: VeiculoEventoTable;
   veiculo_documentos: VeiculoDocumentoTable;
