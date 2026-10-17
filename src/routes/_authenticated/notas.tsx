@@ -27,6 +27,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { classificarItemNota, calcularDepreciacao } from "@/lib/nota-itens-classificacao";
+import { DepreciacaoItem, PresetsVidaUtil } from "@/components/notas/DepreciacaoItem";
 import { LISTA_CATEGORIAS } from "@/lib/categorizacao";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -1251,6 +1252,17 @@ function NotasPage() {
                             )}
                           </div>
                         )}
+                        {item.deprecia && (
+                          <PresetsVidaUtil
+                            valor={item.meses_depreciacao}
+                            sugerido={classificarItemNota(item.descricao).sugestaoDepreciacao?.meses}
+                            onEscolher={(m) =>
+                              setItensLidos((prev) =>
+                                prev.map((it, i) => (i === idx ? { ...it, meses_depreciacao: m } : it)),
+                              )
+                            }
+                          />
+                        )}
                       </div>
                     ))}
                   </div>
@@ -1402,6 +1414,7 @@ function NotasPage() {
                                   : `Residual: ${formatBRL(dep.valorResidual)} · ${dep.percentualDepreciado.toFixed(0)}% depreciado`}
                               </p>
                             )}
+                            <DepreciacaoItem item={i as any} />
                           </div>
                         );
                       })}

@@ -2648,5 +2648,18 @@
  "Fixas e parcelas (": "الثوابت والأقساط (",
  ") estão garantidas e fora da projeção. Só o variável é projetado.": ") مضمونة ومستبعدة من التوقع. يتم توقع المتغير فقط.",
  "{0} de {1} pagas · restam {2}": "تم دفع {0} من {1} · المتبقي {2}",
- "Mês atual": "الشهر الحالي"
+ "Mês atual": "الشهر الحالي",
+ "1 ano": "سنة واحدة",
+ "10 anos": "10 سنوات",
+ "2 anos": "سنتان",
+ "3 anos": "3 سنوات",
+ "5 anos": "5 سنوات",
+ "Depreciação atualizada": "تم تحديث الإهلاك",
+ "Depreciando em {0}": "إهلاك على مدى {0}",
+ "Depreciar": "إهلاك",
+ "Meses": "أشهر",
+ "Remover depreciação": "إزالة الإهلاك",
+ "Sem depreciação": "بدون إهلاك",
+ "Vida útil do bem": "العمر الإنتاجي للأصل",
+ "Vida útil do bem (sugestão: {0})": "العمر الإنتاجي للأصل (المقترح: {0})"
 }

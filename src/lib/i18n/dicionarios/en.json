@@ -2648,5 +2648,18 @@
  "Fixas e parcelas (": "Fixed costs and installments (",
  ") estão garantidas e fora da projeção. Só o variável é projetado.": ") are secured and left out of the projection. Only variable spending is projected.",
  "{0} de {1} pagas · restam {2}": "{0} of {1} paid · {2} left",
- "Mês atual": "Current month"
+ "Mês atual": "Current month",
+ "1 ano": "1 year",
+ "10 anos": "10 years",
+ "2 anos": "2 years",
+ "3 anos": "3 years",
+ "5 anos": "5 years",
+ "Depreciação atualizada": "Depreciation updated",
+ "Depreciando em {0}": "Depreciating over {0}",
+ "Depreciar": "Depreciate",
+ "Meses": "Months",
+ "Remover depreciação": "Remove depreciation",
+ "Sem depreciação": "No depreciation",
+ "Vida útil do bem": "Useful life",
+ "Vida útil do bem (sugestão: {0})": "Useful life (suggested: {0})"
 }

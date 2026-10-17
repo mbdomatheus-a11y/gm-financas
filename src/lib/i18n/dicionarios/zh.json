@@ -2648,5 +2648,18 @@
  "Fixas e parcelas (": "固定支出和分期付款 (",
  ") estão garantidas e fora da projeção. Só o variável é projetado.": ") 已有保障,不计入预测。仅预测可变支出。",
  "{0} de {1} pagas · restam {2}": "已付 {0}/{1} · 剩余 {2}",
- "Mês atual": "当前月份"
+ "Mês atual": "当前月份",
+ "1 ano": "1 年",
+ "10 anos": "10 年",
+ "2 anos": "2 年",
+ "3 anos": "3 年",
+ "5 anos": "5 年",
+ "Depreciação atualizada": "折旧已更新",
+ "Depreciando em {0}": "按 {0} 折旧",
+ "Depreciar": "计提折旧",
+ "Meses": "月",
+ "Remover depreciação": "取消折旧",
+ "Sem depreciação": "不折旧",
+ "Vida útil do bem": "资产使用年限",
+ "Vida útil do bem (sugestão: {0})": "资产使用年限(建议:{0})"
 }

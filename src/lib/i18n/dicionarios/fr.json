@@ -2648,5 +2648,18 @@
  "Fixas e parcelas (": "Frais fixes et échéances (",
  ") estão garantidas e fora da projeção. Só o variável é projetado.": ") sont garantis et exclus de la projection. Seul le variable est projeté.",
  "{0} de {1} pagas · restam {2}": "{0} sur {1} payées · reste {2}",
- "Mês atual": "Mois en cours"
+ "Mês atual": "Mois en cours",
+ "1 ano": "1 an",
+ "10 anos": "10 ans",
+ "2 anos": "2 ans",
+ "3 anos": "3 ans",
+ "5 anos": "5 ans",
+ "Depreciação atualizada": "Amortissement mis à jour",
+ "Depreciando em {0}": "Amorti sur {0}",
+ "Depreciar": "Amortir",
+ "Meses": "Mois",
+ "Remover depreciação": "Retirer l'amortissement",
+ "Sem depreciação": "Sans amortissement",
+ "Vida útil do bem": "Durée de vie du bien",
+ "Vida útil do bem (sugestão: {0})": "Durée de vie du bien (suggérée : {0})"
 }

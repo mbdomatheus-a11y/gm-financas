@@ -2648,5 +2648,18 @@
  "Fixas e parcelas (": "Fixkosten und Raten (",
  ") estão garantidas e fora da projeção. Só o variável é projetado.": ") sind gesichert und aus der Prognose ausgenommen. Nur das Variable wird prognostiziert.",
  "{0} de {1} pagas · restam {2}": "{0} von {1} bezahlt · {2} offen",
- "Mês atual": "Aktueller Monat"
+ "Mês atual": "Aktueller Monat",
+ "1 ano": "1 Jahr",
+ "10 anos": "10 Jahre",
+ "2 anos": "2 Jahre",
+ "3 anos": "3 Jahre",
+ "5 anos": "5 Jahre",
+ "Depreciação atualizada": "Abschreibung aktualisiert",
+ "Depreciando em {0}": "Abschreibung über {0}",
+ "Depreciar": "Abschreiben",
+ "Meses": "Monate",
+ "Remover depreciação": "Abschreibung entfernen",
+ "Sem depreciação": "Keine Abschreibung",
+ "Vida útil do bem": "Nutzungsdauer",
+ "Vida útil do bem (sugestão: {0})": "Nutzungsdauer (Vorschlag: {0})"
 }

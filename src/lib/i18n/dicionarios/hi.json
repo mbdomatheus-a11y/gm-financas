@@ -2648,5 +2648,18 @@
  "Fixas e parcelas (": "निश्चित खर्च और किस्तें (",
  ") estão garantidas e fora da projeção. Só o variável é projetado.": ") सुरक्षित हैं और अनुमान से बाहर हैं। केवल परिवर्तनशील खर्च का अनुमान लगाया जाता है।",
  "{0} de {1} pagas · restam {2}": "{1} में से {0} चुकाई गईं · {2} बाकी",
- "Mês atual": "वर्तमान माह"
+ "Mês atual": "वर्तमान माह",
+ "1 ano": "1 वर्ष",
+ "10 anos": "10 वर्ष",
+ "2 anos": "2 वर्ष",
+ "3 anos": "3 वर्ष",
+ "5 anos": "5 वर्ष",
+ "Depreciação atualizada": "मूल्यह्रास अपडेट किया गया",
+ "Depreciando em {0}": "{0} में मूल्यह्रास",
+ "Depreciar": "मूल्यह्रास करें",
+ "Meses": "महीने",
+ "Remover depreciação": "मूल्यह्रास हटाएं",
+ "Sem depreciação": "कोई मूल्यह्रास नहीं",
+ "Vida útil do bem": "संपत्ति की उपयोगी आयु",
+ "Vida útil do bem (sugestão: {0})": "संपत्ति की उपयोगी आयु (सुझाव: {0})"
 }

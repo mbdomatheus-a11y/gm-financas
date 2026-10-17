@@ -2648,5 +2648,18 @@
  "Fixas e parcelas (": "Fijos y cuotas (",
  ") estão garantidas e fora da projeção. Só o variável é projetado.": ") están garantizados y fuera de la proyección. Solo se proyecta lo variable.",
  "{0} de {1} pagas · restam {2}": "{0} de {1} pagadas · quedan {2}",
- "Mês atual": "Mes actual"
+ "Mês atual": "Mes actual",
+ "1 ano": "1 año",
+ "10 anos": "10 años",
+ "2 anos": "2 años",
+ "3 anos": "3 años",
+ "5 anos": "5 años",
+ "Depreciação atualizada": "Depreciación actualizada",
+ "Depreciando em {0}": "Depreciando en {0}",
+ "Depreciar": "Depreciar",
+ "Meses": "Meses",
+ "Remover depreciação": "Quitar depreciación",
+ "Sem depreciação": "Sin depreciación",
+ "Vida útil do bem": "Vida útil del bien",
+ "Vida útil do bem (sugestão: {0})": "Vida útil del bien (sugerida: {0})"
 }
