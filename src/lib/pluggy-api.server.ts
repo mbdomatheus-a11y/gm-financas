@@ -109,13 +109,13 @@ async function cartaoPeloFinal(db: any, final: string, grupoId: string | null): 
 async function importarDespesa(
   db: any,
   p: { userId: string; t: Transacao; cartaoId: string | null; cartaoFinal: string | null; banco: string | null; congelada: boolean },
-) {
+): Promise<boolean> {
   const valor = Math.abs(p.t.amount);
   const agora = new Date().toISOString();
   const { data: rej } = await db.from("pluggy_transacoes").select("rejeitada").eq("transaction_id", p.t.id).maybeSingle();
-  if (rej?.rejeitada) return;
+  if (rej?.rejeitada) return false;
   const { data: ja } = await db.from("despesas").select("id").eq("pluggy_transaction_id", p.t.id).maybeSingle();
-  if (ja) return;
+  if (ja) return false;
 
   if (p.cartaoId) {
     const { data: manual } = await db
@@ -134,7 +134,7 @@ async function importarDespesa(
         .update({ origem: "pluggy", pluggy_transaction_id: p.t.id, importada_em: agora, congelada: p.congelada })
         .eq("id", manual.id);
       await db.from("pluggy_transacoes").update({ substituiu_manual: true }).eq("transaction_id", p.t.id);
-      return;
+      return true;
     }
   }
 
@@ -171,6 +171,7 @@ async function importarDespesa(
     paga: false,
   });
   if (e2) throw new Error("Falha ao criar a parcela da despesa importada.");
+  return true;
 }
 
 /** Investimentos da conexão: guarda o retorno da Pluggy (saldo, aplicado, taxa, vencimento). */
@@ -237,7 +238,7 @@ async function sincronizarEmprestimos(db: any, key: string, itemId: string, user
  * Na primeira importação, lê todo o histórico e congela tudo. Idempotente: upsert pelos IDs da Pluggy.
  * Só processa itens que já estão em pluggy_items (qualquer outro ID é ignorado).
  */
-export async function sincronizarItem(itemId: string): Promise<{ ignorado: boolean; transacoes: number; primeira: boolean }> {
+export async function sincronizarItem(itemId: string): Promise<{ ignorado: boolean; transacoes: number; primeira: boolean; criadas: number }> {
   const db = supabaseAdmin as any;
   const { data: meu, error: erroItem } = await db
     .from("pluggy_items")
@@ -245,9 +246,37 @@ export async function sincronizarItem(itemId: string): Promise<{ ignorado: boole
     .eq("item_id", itemId)
     .maybeSingle();
   if (erroItem) throw new Error("Falha ao consultar a conexão.");
-  if (!meu) return { ignorado: true, transacoes: 0, primeira: false };
+  if (!meu) return { ignorado: true, transacoes: 0, primeira: false, criadas: 0 };
 
   const primeira = !meu.sincronizado_em;
+  const { data: log } = await db
+    .from("pluggy_sincronizacoes")
+    .insert({ user_id: meu.user_id, item_id: itemId, primeira })
+    .select("id")
+    .single();
+  try {
+    const r = await executarSincronizacao(db, itemId, meu, primeira);
+    await db
+      .from("pluggy_sincronizacoes")
+      .update({ status: "ok", terminado_em: new Date().toISOString(), transacoes_lidas: r.transacoes, despesas_criadas: r.criadas })
+      .eq("id", log?.id);
+    return r;
+  } catch (e) {
+    const msg = e instanceof Error ? e.message.slice(0, 300) : "Erro desconhecido";
+    await db
+      .from("pluggy_sincronizacoes")
+      .update({ status: "erro", terminado_em: new Date().toISOString(), mensagem: msg })
+      .eq("id", log?.id);
+    throw e;
+  }
+}
+
+async function executarSincronizacao(
+  db: any,
+  itemId: string,
+  meu: { user_id: string; conector: string | null },
+  primeira: boolean,
+): Promise<{ ignorado: boolean; transacoes: number; primeira: boolean; criadas: number }> {
   const dias = primeira ? DIAS_HISTORICO_INICIAL : DIAS_JANELA_NORMAL;
   const { data: perfil } = await db.from("profiles").select("grupo_id").eq("id", meu.user_id).maybeSingle();
   const grupoId: string | null = perfil?.grupo_id ?? null;
@@ -262,6 +291,7 @@ export async function sincronizarItem(itemId: string): Promise<{ ignorado: boole
   const contas = await pluggy<{ results: Conta[] }>(key, `/accounts?itemId=${encodeURIComponent(itemId)}`);
   const de = new Date(Date.now() - dias * 86400000).toISOString().slice(0, 10);
   let total = 0;
+  let criadas = 0;
 
   for (const conta of contas.results ?? []) {
     const cartaoFinal = conta.type === "CREDIT" ? ultimos4(conta.number) : null;
@@ -321,7 +351,7 @@ export async function sincronizarItem(itemId: string): Promise<{ ignorado: boole
         if (t.type !== "DEBIT" || t.status === "PENDING") continue;
         if (CATEGORIAS_NAO_DESPESA.has((t.category ?? "").trim().toLowerCase())) continue;
         if (conta.type === "BANK" && PAGAMENTO_FATURA.test(t.description ?? "")) continue;
-        await importarDespesa(db, { userId: meu.user_id, t, cartaoId, cartaoFinal, banco, congelada: primeira });
+        if (await importarDespesa(db, { userId: meu.user_id, t, cartaoId, cartaoFinal, banco, congelada: primeira })) criadas++;
       }
       if (!r.next) break;
       const m = /after=([^&]+)/.exec(r.next);
@@ -333,5 +363,5 @@ export async function sincronizarItem(itemId: string): Promise<{ ignorado: boole
   await sincronizarInvestimentos(db, key, itemId, meu.user_id);
   await sincronizarEmprestimos(db, key, itemId, meu.user_id);
   await db.from("pluggy_items").update({ sincronizado_em: new Date().toISOString() }).eq("item_id", itemId);
-  return { ignorado: false, transacoes: total, primeira };
+  return { ignorado: false, transacoes: total, primeira, criadas };
 }

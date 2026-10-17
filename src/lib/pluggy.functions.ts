@@ -159,6 +159,21 @@ export const pluggySincronizarTodos = createServerFn({ method: "POST" })
     return { ok, falhas, lancamentos };
   });
 
+/** Histórico das sincronizações (automáticas e manuais), mais recentes primeiro. */
+export const pluggyListarSincronizacoes = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await exigirPrincipal(context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data } = await (supabaseAdmin as any)
+      .from("pluggy_sincronizacoes")
+      .select("id,item_id,iniciado_em,terminado_em,status,primeira,transacoes_lidas,despesas_criadas,mensagem")
+      .eq("user_id", context.userId)
+      .order("iniciado_em", { ascending: false })
+      .limit(40);
+    return { historico: (data ?? []) as any[] };
+  });
+
 /** Investimentos e empréstimos das conexões ativas. */
 export const pluggyListarPatrimonio = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

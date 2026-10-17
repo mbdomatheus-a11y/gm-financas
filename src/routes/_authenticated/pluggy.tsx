@@ -23,6 +23,7 @@ import {
   pluggyRejeitarLancamento,
   pluggySincronizarAgora,
   pluggySincronizarTodos,
+  pluggyListarSincronizacoes,
   pluggyRemoverItem,
   pluggyStatus,
 } from "@/lib/pluggy.functions";
@@ -55,6 +56,7 @@ function PluggyPage() {
   const listarContas = useServerFn(pluggyListarContas);
   const sincronizar = useServerFn(pluggySincronizarAgora);
   const sincronizarTodos = useServerFn(pluggySincronizarTodos);
+  const listarHistorico = useServerFn(pluggyListarSincronizacoes);
   const listarPatrimonio = useServerFn(pluggyListarPatrimonio);
   const [token, setToken] = useState<string | null>(null);
   const [Widget, setWidget] = useState<any>(null);
@@ -108,6 +110,13 @@ function PluggyPage() {
     enabled: !!ehAdmin,
     retry: false,
   });
+  const { data: historico } = useQuery({
+    queryKey: ["pluggy-historico"],
+    queryFn: () => listarHistorico(),
+    enabled: !!ehAdmin,
+    retry: false,
+  });
+  const ultimaDaConexao = (itemId: string) => historico?.historico.find((h: any) => h.item_id === itemId);
   const { data: patrimonio } = useQuery({
     queryKey: ["pluggy-patrimonio"],
     queryFn: () => listarPatrimonio(),
@@ -123,6 +132,7 @@ function PluggyPage() {
       qc.invalidateQueries({ queryKey: ["pluggy-contas"] });
       qc.invalidateQueries({ queryKey: ["pluggy-importados"] });
       qc.invalidateQueries({ queryKey: ["pluggy-patrimonio"] });
+      qc.invalidateQueries({ queryKey: ["pluggy-historico"] });
       qc.invalidateQueries({ queryKey: ["despesas"] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -276,6 +286,31 @@ function PluggyPage() {
 
         <Card>
           <CardHeader>
+            <CardTitle className="text-base">Histórico de sincronizações</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {(historico?.historico.length ?? 0) === 0 && (
+              <p className="text-sm text-muted-foreground">Nenhuma sincronização registrada ainda.</p>
+            )}
+            <ul className="divide-y text-xs">
+              {historico?.historico.map((h: any) => (
+                <li key={h.id} className="flex flex-wrap items-center gap-2 py-2">
+                  <span className="tabular-nums">{new Date(h.iniciado_em).toLocaleString("pt-BR")}</span>
+                  <Badge variant="outline">{h.primeira ? "primeira" : "automática/manual"}</Badge>
+                  <span className={h.status === "ok" ? "text-success" : "text-destructive"}>
+                    {h.status === "ok" ? "ok" : "falhou"}
+                  </span>
+                  <span className="text-muted-foreground">
+                    {h.status === "ok" ? `${h.transacoes_lidas} lidos, ${h.despesas_criadas} novos` : h.mensagem}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
             <CardTitle className="text-base">Investimentos ({patrimonio?.investimentos.length ?? 0})</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
@@ -386,6 +421,16 @@ function PluggyPage() {
                 <div className="flex flex-wrap items-center gap-2">
                   <b className="mr-auto text-sm">{i.conector ?? "Banco"}</b>
                   {i.status && <Badge variant="outline">{i.status}</Badge>}
+                  <span className="w-full text-xs text-muted-foreground">
+                    {(() => {
+                      const u = ultimaDaConexao(i.item_id);
+                      if (!u) return "Nunca sincronizado.";
+                      const quando = new Date(u.iniciado_em).toLocaleString("pt-BR");
+                      return u.status === "ok"
+                        ? `Última sincronização: ${quando} · ${u.transacoes_lidas} lidos · ${u.despesas_criadas} novos`
+                        : `Última sincronização: ${quando} · falhou: ${u.mensagem ?? ""}`;
+                    })()}
+                  </span>
                   <Button
                     size="sm"
                     variant="outline"
