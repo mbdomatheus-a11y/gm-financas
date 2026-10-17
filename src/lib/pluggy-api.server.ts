@@ -143,7 +143,7 @@ function somarMeses(iso: string, meses: number): string {
  */
 async function importarParcelado(
   db: any,
-  p: { userId: string; t: Transacao; cartaoId: string | null; cartaoFinal: string | null; banco: string | null; congelada: boolean },
+  p: { userId: string; grupoId: string | null; t: Transacao; cartaoId: string | null; cartaoFinal: string | null; banco: string | null; congelada: boolean },
   { n, t }: { n: number; t: number },
 ): Promise<boolean> {
   const valorParcela = Math.abs(p.t.amount);
@@ -198,6 +198,7 @@ async function importarParcelado(
       importada_em: new Date().toISOString(),
       congelada: p.congelada,
       created_by: p.userId,
+      grupo_id: p.grupoId,
     })
     .select("id")
     .single();
@@ -210,6 +211,7 @@ async function importarParcelado(
     moeda: "BRL",
     vencimento: somarMeses(primeira, i),
     paga: i + 1 <= n,
+    grupo_id: p.grupoId,
   }));
   const { error: e2 } = await db.from("parcelas").insert(parcelas);
   if (e2) throw new Error("Falha ao criar as parcelas da compra importada.");
@@ -222,7 +224,7 @@ async function importarParcelado(
  */
 async function importarDespesa(
   db: any,
-  p: { userId: string; t: Transacao; cartaoId: string | null; cartaoFinal: string | null; banco: string | null; congelada: boolean },
+  p: { userId: string; grupoId: string | null; t: Transacao; cartaoId: string | null; cartaoFinal: string | null; banco: string | null; congelada: boolean },
 ): Promise<boolean> {
   p = { ...p, t: { ...p.t, date: dataIso(p.t.date) } };
   const valor = Math.abs(p.t.amount);
@@ -275,6 +277,7 @@ async function importarDespesa(
       importada_em: agora,
       congelada: p.congelada,
       created_by: p.userId,
+      grupo_id: p.grupoId,
     })
     .select("id")
     .single();
@@ -287,6 +290,7 @@ async function importarDespesa(
     moeda: "BRL",
     vencimento: p.t.date,
     paga: false,
+    grupo_id: p.grupoId,
   });
   if (e2) throw new Error("Falha ao criar a parcela da despesa importada.");
   return true;
@@ -470,7 +474,7 @@ async function executarSincronizacao(
         if (CATEGORIAS_NAO_DESPESA.has((t.category ?? "").trim().toLowerCase())) continue;
         if (DESCRICAO_NAO_DESPESA.test(t.description ?? "")) continue;
         if (conta.type === "BANK" && PAGAMENTO_FATURA.test(t.description ?? "")) continue;
-        if (await importarDespesa(db, { userId: meu.user_id, t, cartaoId, cartaoFinal, banco, congelada: primeira })) criadas++;
+        if (await importarDespesa(db, { userId: meu.user_id, grupoId, t, cartaoId, cartaoFinal, banco, congelada: primeira })) criadas++;
       }
       if (!r.next) break;
       const m = /after=([^&]+)/.exec(r.next);
