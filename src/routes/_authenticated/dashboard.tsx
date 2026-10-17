@@ -364,7 +364,7 @@ function DashboardPage() {
     const porCategoria = new Map<string, number>();
     for (const p of parcelas.filter((p: any) => monthKey(p.vencimento) === mesPie)) {
       // Uma fatia por categoria mãe (fixa e variável somadas).
-      const key = macroDeCategoria(p.despesa.categoria);
+      const key = soMacro(macroDeCategoria(p.despesa.categoria));
       porCategoria.set(
         key,
         (porCategoria.get(key) ?? 0) + toBRL(Number(p.valor), p.despesa.moeda, cotacao),
@@ -490,7 +490,7 @@ function DashboardPage() {
     const mediaCat = new Map<string, number>();
     for (const p of parcelas) {
       const mk = monthKey(p.vencimento);
-      const cat = macroDeCategoria(p.despesa.categoria);
+      const cat = soMacro(macroDeCategoria(p.despesa.categoria));
       const v = toBRL(Number(p.valor), p.despesa.moeda, cotacao);
       if (mk === mesAtual) atualCat.set(cat, (atualCat.get(cat) ?? 0) + v);
       else if (tresMeses.includes(mk)) mediaCat.set(cat, (mediaCat.get(cat) ?? 0) + v / 3);
@@ -1270,33 +1270,15 @@ function DashboardPage() {
               </SelectContent>
             </Select>
           </CardHeader>
-          <CardContent className="h-[300px]">
+          <CardContent className="min-h-[300px]">
             {dados.pie.length === 0 ? (
               <EmptyChart />
             ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={dados.pie}
-                    dataKey="value"
-                    nameKey="name"
-                    innerRadius={55}
-                    outerRadius={90}
-                    paddingAngle={2}
-                    label={(e: any) => formatBRL(Number(e.value))}
-                    labelLine={false}
-                    fontSize={11}
-                    className="cursor-pointer"
-                    onClick={() => setDrill({ mes: mesPie })}
-                  >
-                    {dados.pie.map((fatia, i) => (
-                      <Cell key={i} fill={corPorCategoria(nomeBaseDoGrupo(fatia.name))} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(v: any) => formatBRL(Number(v))} />
-                  <Legend wrapperStyle={{ fontSize: 12 }} />
-                </PieChart>
-              </ResponsiveContainer>
+              <RankingCategorias
+                itens={dados.pie}
+                cor={(n) => corPorCategoria(nomeBaseDoGrupo(n))}
+                onAbrir={() => setDrill({ mes: mesPie })}
+              />
             )}
           </CardContent>
         </Card>
@@ -1487,7 +1469,7 @@ function DashboardPage() {
               <EmptyChart />
             ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={dados.comparativo} margin={{ top: 28, right: 12 }}>
+                <BarChart data={dados.comparativo} margin={{ top: 8, right: 12 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
                   <XAxis
                     dataKey="categoria"
@@ -1497,14 +1479,15 @@ function DashboardPage() {
                     interval={0}
                     angle={-20}
                     textAnchor="end"
-                    height={50}
+                    height={56}
+                    tickFormatter={(v: any) => (String(v).length > 13 ? `${String(v).slice(0, 12)}…` : String(v))}
                   />
                   <YAxis fontSize={11} tickLine={false} axisLine={false} width={60} domain={[(m: number) => Math.min(0, m), (m: number) => Math.ceil(Math.max(0, m) * 1.15)]} />
                   <Tooltip
                     formatter={(v: any, n: any) => [formatBRL(Number(v)), n]}
                     cursor={{ fill: "var(--muted)", opacity: 0.4 }}
                   />
-                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                  <Legend verticalAlign="top" height={32} wrapperStyle={{ fontSize: 12 }} />
                   <Bar maxBarSize={44} isAnimationActive={false} dataKey="Mês atual" fill="var(--primary)" radius={[6, 6, 0, 0]}>
                     <LabelList
                       dataKey="Mês atual"
@@ -1555,6 +1538,62 @@ function DashboardPage() {
 
       <EditarDespesaDialog despesa={editando} onClose={() => setEditando(null)} />
     </AppLayout>
+  );
+}
+
+/** Só a categoria mãe: "Pets - Pet Shop" e "Compras / Varejo" viram "Pets" e "Compras". */
+function soMacro(nome: string): string {
+  const base = String(nome ?? "").split(/\s+[-/]\s+/)[0]?.trim();
+  return base || String(nome ?? "");
+}
+
+/** Ranking didático das despesas por categoria mãe: top 7 mais "Outras" com barra e percentual. */
+function RankingCategorias({
+  itens,
+  cor,
+  onAbrir,
+}: {
+  itens: { name: string; value: number }[];
+  cor: (nome: string) => string;
+  onAbrir: () => void;
+}) {
+  const ordenado = [...itens].sort((a, b) => b.value - a.value);
+  const topo = ordenado.slice(0, 7);
+  const resto = ordenado.slice(7).reduce((s, i) => s + i.value, 0);
+  const linhas = resto > 0 ? [...topo, { name: "Outras categorias", value: resto }] : topo;
+  const total = ordenado.reduce((s, i) => s + i.value, 0) || 1;
+  const maior = Math.max(...linhas.map((l) => l.value), 1);
+  return (
+    <div className="space-y-2.5">
+      {linhas.map((l) => {
+        const pct = (l.value / total) * 100;
+        return (
+          <button
+            key={l.name}
+            type="button"
+            onClick={onAbrir}
+            className="block w-full rounded-lg p-1 text-left hover:bg-muted/50"
+          >
+            <div className="flex items-baseline justify-between gap-2 text-sm">
+              <span className="min-w-0 truncate font-medium">{l.name}</span>
+              <span className="shrink-0 tabular-nums">
+                <strong>{formatBRL(l.value)}</strong>
+                <span className="ml-1.5 text-xs text-muted-foreground">{pct.toFixed(0)}%</span>
+              </span>
+            </div>
+            <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full rounded-full"
+                style={{
+                  width: `${(l.value / maior) * 100}%`,
+                  backgroundColor: l.name === "Outras categorias" ? "var(--muted-foreground)" : cor(l.name),
+                }}
+              />
+            </div>
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
