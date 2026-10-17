@@ -70,10 +70,24 @@ const schema = z.object({
   percentual_rendimento: z.number().nullable(),
 });
 
+/** Agrupa os investimentos por tipo, com o total de cada grupo (maior primeiro). */
+function agruparPorTipo(lista: any[]) {
+  const mapa = new Map<string, { tipo: string; itens: any[]; total: number }>();
+  for (const i of lista) {
+    const tipo = i.tipo || "Outro";
+    const g = mapa.get(tipo) ?? { tipo, itens: [] as any[], total: 0 };
+    g.itens.push(i);
+    g.total += Number(i.valor_atual) || 0;
+    mapa.set(tipo, g);
+  }
+  return [...mapa.values()].sort((a, b) => b.total - a.total);
+}
+
 function InvestimentosPage() {
   const qc = useQueryClient();
   const { can } = usePermissoes();
   const { data: investimentos = [] } = useInvestimentos();
+  const grupos = agruparPorTipo(investimentos as any[]);
   const { data: perfis = [] } = useProfilesList();
 
   const [open, setOpen] = useState(false);
@@ -288,7 +302,15 @@ function InvestimentosPage() {
             </CardContent>
           </Card>
         )}
-        {investimentos.map((i: any) => {
+        {grupos.map((g) => (
+          <section key={g.tipo} className="space-y-2">
+            <header className="flex items-center justify-between gap-2 px-1 pt-3 text-xs">
+              <span className="font-semibold uppercase tracking-wide text-muted-foreground">
+                {g.tipo} ({g.itens.length})
+              </span>
+              <span className="font-semibold tabular-nums">{formatBRL(g.total)}</span>
+            </header>
+            {g.itens.map((i: any) => {
           const lucro = Number(i.valor_atual) - Number(i.valor_investido);
           const pct = Number(i.valor_investido) ? (lucro / Number(i.valor_investido)) * 100 : 0;
           return (
@@ -377,7 +399,9 @@ function InvestimentosPage() {
               </CardContent>
             </Card>
           );
-        })}
+            })}
+          </section>
+        ))}
       </div>
 
       <Dialog

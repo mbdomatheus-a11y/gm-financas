@@ -252,13 +252,17 @@ function PluggyPage() {
               </Button>
             </div>
           </CardHeader>
-          <CardContent className="space-y-2 text-sm">
+          <CardContent className="grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-3">
             {itens.itens.length === 0 && <p className="text-muted-foreground">Nenhum banco conectado ainda.</p>}
             {itens.itens.map((i) => {
               const u = ultimaDaConexao(i.item_id);
               const emAndamento = sincronizarItem.isPending && sincronizarItem.variables === i.item_id;
               return (
-                <div key={i.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md border px-3 py-2">
+                <div key={i.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border bg-card p-4 shadow-sm">
+                  <span
+                    className={cn("size-2 rounded-full", u?.status === "ok" ? "bg-success" : u ? "bg-destructive" : "bg-muted-foreground")}
+                    aria-hidden="true"
+                  />
                   <span className="font-medium">{i.conector ?? "Banco"}</span>
                   {i.status && <Badge variant="outline">{i.status}</Badge>}
                   <span className={cn("min-w-0 flex-1 text-xs", u && u.status !== "ok" ? "text-destructive" : "text-muted-foreground")}>

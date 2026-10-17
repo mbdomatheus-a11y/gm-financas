@@ -1,6 +1,8 @@
 import { useMemo } from "react";
 import { BarChart3 } from "lucide-react";
 import {
+  Area,
+  AreaChart,
   Bar,
   BarChart,
   CartesianGrid,
@@ -131,17 +133,27 @@ export function GraficoHome({
                 <Bar maxBarSize={44} isAnimationActive={false} dataKey="valor" name="Despesas" fill="var(--destructive)" radius={[0, 4, 4, 0]} />
               </BarChart>
             ) : opcao === "saldo" ? (
-              <BarChart data={serie} margin={{ top: 24, right: 8 }}>
+              <AreaChart data={serie} margin={{ top: 24, right: 8, left: 8 }}>
+                <defs>
+                  <linearGradient id="gradSaldoHome" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" style={{ stopColor: "var(--primary)", stopOpacity: 0.35 }} />
+                    <stop offset="100%" style={{ stopColor: "var(--primary)", stopOpacity: 0 }} />
+                  </linearGradient>
+                </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
                 <XAxis dataKey="mes" fontSize={11} tickLine={false} axisLine={false} />
                 <YAxis hide />
                 <Tooltip formatter={(v: any) => fmt(v)} />
-                <Bar maxBarSize={44} isAnimationActive={false} dataKey="Saldo" radius={[4, 4, 0, 0]}>
-                  {serie.map((s, i) => (
-                    <Cell key={i} fill={s.Saldo >= 0 ? "var(--success)" : "var(--destructive)"} />
-                  ))}
-                </Bar>
-              </BarChart>
+                <Area
+                  type="monotone"
+                  dataKey="Saldo"
+                  stroke="var(--primary)"
+                  strokeWidth={2.5}
+                  fill="url(#gradSaldoHome)"
+                  dot={{ r: 4, strokeWidth: 2 }}
+                  isAnimationActive={false}
+                />
+              </AreaChart>
             ) : (
               <BarChart data={serie} margin={{ top: 24, right: 8 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />

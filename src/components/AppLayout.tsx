@@ -1,5 +1,6 @@
 import { AppEmBreve } from "@/components/AppEmBreve";
 import { ConvitesRecebidosAviso } from "@/components/ConvitesGrupo";
+import { AvisoSincronizacaoPluggy } from "@/components/AvisoSincronizacaoPluggy";
 import { useEffect, useState, type MouseEvent, type ReactNode } from "react";
 import { lembrarUrlRetorno, limparUrlRetorno } from "@/lib/return-url";
 import { useServerFn } from "@tanstack/react-start";
@@ -776,6 +777,7 @@ export function AppLayout({
       <div className={cn(!topMenu && "lg:pl-64")}>
         {topMenu && <TopMenuBar />}
         <ConvitesRecebidosAviso />
+        <AvisoSincronizacaoPluggy />
         <header
           className={cn(
             "sticky top-0 z-20 border-b border-border bg-background shadow-sm",
