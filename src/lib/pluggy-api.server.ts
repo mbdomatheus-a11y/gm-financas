@@ -3,23 +3,24 @@
  * As credenciais vêm de PLUGGY_CLIENT_ID e PLUGGY_CLIENT_SECRET e nunca vão ao navegador.
  * Nenhuma senha bancária passa por aqui: a conexão é feita no widget da Pluggy.
  *
- * Regras da importação automática:
- *  - lançamento de saída (DEBIT) vira despesa já aprovada, origem "pluggy";
- *  - se já existe lançamento manual igual (mesmo cartão, data e valor), o da API substitui o manual;
+ * Regras:
+ *  - primeira importação de cada conexão: todo o histórico disponível, e tudo entra congelado;
+ *  - importações seguintes: últimos 365 dias; lançamento novo congela 30 dias depois;
+ *  - saída (DEBIT) vira despesa aprovada, origem "pluggy"; pagamento de fatura e transferência
+ *    entre contas próprias não entram;
+ *  - lançamento manual igual (mesmo cartão, data e valor) é substituído pelo da API;
  *  - lançamento rejeitado pelo usuário nunca volta;
- *  - conta conectada bloqueia lançamento manual no mesmo cartão (trava no banco de dados).
+ *  - investimentos, empréstimos e dados da conta são guardados como vieram da Pluggy.
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 const BASE = "https://api.pluggy.ai";
-const JANELA_DIAS = 365;
+const DIAS_HISTORICO_INICIAL = 3650;
+const DIAS_JANELA_NORMAL = 365;
 const ORIGENS_MANUAIS = ["manual", "fatura_rapida", "fatura_total_manual"];
-/**
- * Categorias do Pluggy que não são despesa: pagamento de fatura e transferências entre contas
- * próprias já aparecem nas compras do cartão ou não saem do patrimônio. Não podem duplicar.
- */
+/** Categorias do Pluggy que não são despesa: pagamento de fatura e transferência entre contas próprias. */
 const CATEGORIAS_NAO_DESPESA = new Set(["credit card payment", "transfer - internal", "same person transfer"]);
-/** Pagamento de fatura vindo da conta corrente (quando a categoria não vem preenchida). */
+/** Pagamento de fatura vindo da conta corrente quando a categoria não vem preenchida. */
 const PAGAMENTO_FATURA = /pagament[oa].{0,20}fatura|pgto.{0,10}fatura|pagto.{0,10}cart/i;
 
 type Conta = {
@@ -28,6 +29,7 @@ type Conta = {
   subtype?: string;
   name?: string;
   number?: string;
+  owner?: string;
   balance?: number;
   currencyCode?: string;
   creditData?: { creditLimit?: number; availableCreditLimit?: number; balanceDueDate?: string; minimumPayment?: number };
@@ -41,6 +43,27 @@ type Transacao = {
   category?: string | null;
   status?: string;
   accountId?: string;
+};
+type Investimento = {
+  id: string;
+  name?: string;
+  type?: string;
+  issuer?: string;
+  balance?: number;
+  amount?: number;
+  amountOriginal?: number;
+  annualRate?: number;
+  dueDate?: string;
+};
+type Emprestimo = {
+  id: string;
+  type?: string;
+  creditorName?: string;
+  amount?: number;
+  balanceOutstandingAmount?: number;
+  annualEffectiveCostRate?: number;
+  dueDate?: string;
+  [chave: string]: unknown;
 };
 
 export async function chaveApi(): Promise<string> {
@@ -69,6 +92,8 @@ function ultimos4(numero?: string): string | null {
   return d.length >= 4 ? d.slice(-4) : null;
 }
 
+const data10 = (v?: string | null) => (v ? v.slice(0, 10) : null);
+
 /** Acha o cartão cadastrado no Control ALL pelos 4 últimos dígitos, dentro do mesmo grupo. */
 async function cartaoPeloFinal(db: any, final: string, grupoId: string | null): Promise<string | null> {
   let q = db.from("cartoes").select("id").eq("final", final);
@@ -83,9 +108,10 @@ async function cartaoPeloFinal(db: any, final: string, grupoId: string | null): 
  */
 async function importarDespesa(
   db: any,
-  p: { userId: string; t: Transacao; cartaoId: string | null; cartaoFinal: string | null; banco: string | null },
+  p: { userId: string; t: Transacao; cartaoId: string | null; cartaoFinal: string | null; banco: string | null; congelada: boolean },
 ) {
   const valor = Math.abs(p.t.amount);
+  const agora = new Date().toISOString();
   const { data: rej } = await db.from("pluggy_transacoes").select("rejeitada").eq("transaction_id", p.t.id).maybeSingle();
   if (rej?.rejeitada) return;
   const { data: ja } = await db.from("despesas").select("id").eq("pluggy_transaction_id", p.t.id).maybeSingle();
@@ -103,7 +129,10 @@ async function importarDespesa(
       .limit(1)
       .maybeSingle();
     if (manual) {
-      await db.from("despesas").update({ origem: "pluggy", pluggy_transaction_id: p.t.id, importada_em: new Date().toISOString() }).eq("id", manual.id);
+      await db
+        .from("despesas")
+        .update({ origem: "pluggy", pluggy_transaction_id: p.t.id, importada_em: agora, congelada: p.congelada })
+        .eq("id", manual.id);
       await db.from("pluggy_transacoes").update({ substituiu_manual: true }).eq("transaction_id", p.t.id);
       return;
     }
@@ -125,7 +154,8 @@ async function importarDespesa(
       banco_nome: p.banco,
       origem: "pluggy",
       pluggy_transaction_id: p.t.id,
-      importada_em: new Date().toISOString(),
+      importada_em: agora,
+      congelada: p.congelada,
       created_by: p.userId,
     })
     .select("id")
@@ -143,21 +173,82 @@ async function importarDespesa(
   if (e2) throw new Error("Falha ao criar a parcela da despesa importada.");
 }
 
+/** Investimentos da conexão: guarda o retorno da Pluggy (saldo, aplicado, taxa, vencimento). */
+async function sincronizarInvestimentos(db: any, key: string, itemId: string, userId: string) {
+  let r: { results?: Investimento[] };
+  try {
+    r = await pluggy(key, `/investments?itemId=${encodeURIComponent(itemId)}`);
+  } catch {
+    return; // conexão sem investimentos ou sem permissão: não derruba a sincronização
+  }
+  for (const i of r.results ?? []) {
+    await db.from("pluggy_investimentos").upsert(
+      {
+        id: i.id,
+        user_id: userId,
+        item_id: itemId,
+        nome: i.name ?? null,
+        tipo: i.type ?? null,
+        instituicao: i.issuer ?? null,
+        saldo: i.balance ?? null,
+        valor_aplicado: i.amountOriginal ?? i.amount ?? null,
+        rentabilidade_anual: i.annualRate ?? null,
+        vencimento: data10(i.dueDate),
+        dados: i,
+        atualizado_em: new Date().toISOString(),
+      },
+      { onConflict: "id" },
+    );
+  }
+}
+
+/** Empréstimos e financiamentos: saldo devedor, taxa e indexador, como a Pluggy informar. */
+async function sincronizarEmprestimos(db: any, key: string, itemId: string, userId: string) {
+  let r: { results?: Emprestimo[] };
+  try {
+    r = await pluggy(key, `/loans?itemId=${encodeURIComponent(itemId)}`);
+  } catch {
+    return;
+  }
+  for (const e of r.results ?? []) {
+    const indice = (e as any).index ?? (e as any).indexer ?? null;
+    await db.from("pluggy_emprestimos").upsert(
+      {
+        id: e.id,
+        user_id: userId,
+        item_id: itemId,
+        tipo: e.type ?? null,
+        instituicao: e.creditorName ?? null,
+        valor_contratado: e.amount ?? null,
+        saldo_devedor: e.balanceOutstandingAmount ?? null,
+        taxa_anual: e.annualEffectiveCostRate ?? null,
+        indexador: typeof indice === "string" ? indice : null,
+        vencimento: data10(e.dueDate),
+        dados: e,
+        atualizado_em: new Date().toISOString(),
+      },
+      { onConflict: "id" },
+    );
+  }
+}
+
 /**
- * Atualiza um item: status, contas, lançamentos dos últimos 90 dias e as despesas correspondentes.
- * Idempotente: grava com upsert pelo ID da transação da Pluggy, então rodar de novo não duplica.
+ * Atualiza um item: status, contas (com dados da conta), lançamentos, investimentos e empréstimos.
+ * Na primeira importação, lê todo o histórico e congela tudo. Idempotente: upsert pelos IDs da Pluggy.
  * Só processa itens que já estão em pluggy_items (qualquer outro ID é ignorado).
  */
-export async function sincronizarItem(itemId: string): Promise<{ ignorado: boolean; transacoes: number }> {
+export async function sincronizarItem(itemId: string): Promise<{ ignorado: boolean; transacoes: number; primeira: boolean }> {
   const db = supabaseAdmin as any;
   const { data: meu, error: erroItem } = await db
     .from("pluggy_items")
-    .select("user_id, conector")
+    .select("user_id, conector, sincronizado_em")
     .eq("item_id", itemId)
     .maybeSingle();
   if (erroItem) throw new Error("Falha ao consultar a conexão.");
-  if (!meu) return { ignorado: true, transacoes: 0 };
+  if (!meu) return { ignorado: true, transacoes: 0, primeira: false };
 
+  const primeira = !meu.sincronizado_em;
+  const dias = primeira ? DIAS_HISTORICO_INICIAL : DIAS_JANELA_NORMAL;
   const { data: perfil } = await db.from("profiles").select("grupo_id").eq("id", meu.user_id).maybeSingle();
   const grupoId: string | null = perfil?.grupo_id ?? null;
 
@@ -169,7 +260,7 @@ export async function sincronizarItem(itemId: string): Promise<{ ignorado: boole
     .eq("item_id", itemId);
 
   const contas = await pluggy<{ results: Conta[] }>(key, `/accounts?itemId=${encodeURIComponent(itemId)}`);
-  const de = new Date(Date.now() - JANELA_DIAS * 86400000).toISOString().slice(0, 10);
+  const de = new Date(Date.now() - dias * 86400000).toISOString().slice(0, 10);
   let total = 0;
 
   for (const conta of contas.results ?? []) {
@@ -186,10 +277,13 @@ export async function sincronizarItem(itemId: string): Promise<{ ignorado: boole
         tipo: conta.type ?? "BANK",
         nome: conta.name ?? null,
         cartao_final: cartaoFinal,
+        numero_conta: conta.number ?? null,
+        titular: conta.owner ?? null,
+        dados: conta,
         limite: conta.creditData?.creditLimit ?? null,
         limite_disponivel: conta.creditData?.availableCreditLimit ?? null,
         fatura_valor: conta.type === "CREDIT" ? (conta.balance ?? null) : null,
-        fatura_vencimento: conta.creditData?.balanceDueDate ? conta.creditData.balanceDueDate.slice(0, 10) : null,
+        fatura_vencimento: data10(conta.creditData?.balanceDueDate),
         saldo: conta.type !== "CREDIT" ? (conta.balance ?? null) : null,
         ativo: true,
         atualizado_em: new Date().toISOString(),
@@ -199,7 +293,7 @@ export async function sincronizarItem(itemId: string): Promise<{ ignorado: boole
     if (erroConta) throw new Error("Falha ao guardar a conta.");
 
     let depois: string | null = null;
-    for (let pagina = 0; pagina < 20; pagina++) {
+    for (let pagina = 0; pagina < 200; pagina++) {
       const qs = new URLSearchParams({ accountId: conta.id, dateFrom: de });
       if (depois) qs.set("after", depois);
       const r: { results: Transacao[]; next: string | null } = await pluggy(key, `/v2/transactions?${qs.toString()}`);
@@ -227,7 +321,7 @@ export async function sincronizarItem(itemId: string): Promise<{ ignorado: boole
         if (t.type !== "DEBIT" || t.status === "PENDING") continue;
         if (CATEGORIAS_NAO_DESPESA.has((t.category ?? "").trim().toLowerCase())) continue;
         if (conta.type === "BANK" && PAGAMENTO_FATURA.test(t.description ?? "")) continue;
-        await importarDespesa(db, { userId: meu.user_id, t, cartaoId, cartaoFinal, banco });
+        await importarDespesa(db, { userId: meu.user_id, t, cartaoId, cartaoFinal, banco, congelada: primeira });
       }
       if (!r.next) break;
       const m = /after=([^&]+)/.exec(r.next);
@@ -235,5 +329,9 @@ export async function sincronizarItem(itemId: string): Promise<{ ignorado: boole
       if (!depois) break;
     }
   }
-  return { ignorado: false, transacoes: total };
+
+  await sincronizarInvestimentos(db, key, itemId, meu.user_id);
+  await sincronizarEmprestimos(db, key, itemId, meu.user_id);
+  await db.from("pluggy_items").update({ sincronizado_em: new Date().toISOString() }).eq("item_id", itemId);
+  return { ignorado: false, transacoes: total, primeira };
 }

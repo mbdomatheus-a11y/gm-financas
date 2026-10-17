@@ -17,6 +17,7 @@ import {
   pluggyCriarConnectToken,
   pluggyListarContas,
   pluggyListarImportados,
+  pluggyListarPatrimonio,
   pluggyListarItens,
   pluggyRegistrarItem,
   pluggyRejeitarLancamento,
@@ -27,10 +28,11 @@ import {
 import { ADMIN_ONLY_CARD, ADMIN_ONLY_TAG } from "@/lib/areas";
 import { cn } from "@/lib/utils";
 
-/** Depois de 30 dias da importação o lançamento fica congelado (a trava está também no banco). */
-function congelado(importadaEm: string | null): boolean {
-  if (!importadaEm) return false;
-  return Date.now() - new Date(importadaEm).getTime() > 30 * 86400000;
+/** Congelado: primeira importação, ou mais de 30 dias depois da importação (a trava está também no banco). */
+function congelado(d: { importada_em: string | null; congelada: boolean }): boolean {
+  if (d.congelada) return true;
+  if (!d.importada_em) return false;
+  return Date.now() - new Date(d.importada_em).getTime() > 30 * 86400000;
 }
 
 export const Route = createFileRoute("/_authenticated/pluggy")({
@@ -51,6 +53,7 @@ function PluggyPage() {
   const rejeitar = useServerFn(pluggyRejeitarLancamento);
   const listarContas = useServerFn(pluggyListarContas);
   const sincronizar = useServerFn(pluggySincronizarAgora);
+  const listarPatrimonio = useServerFn(pluggyListarPatrimonio);
   const [token, setToken] = useState<string | null>(null);
   const [Widget, setWidget] = useState<any>(null);
   const [aberto, setAberto] = useState<string | null>(null);
@@ -100,6 +103,12 @@ function PluggyPage() {
   const { data: contas } = useQuery({
     queryKey: ["pluggy-contas"],
     queryFn: () => listarContas(),
+    enabled: !!ehAdmin,
+    retry: false,
+  });
+  const { data: patrimonio } = useQuery({
+    queryKey: ["pluggy-patrimonio"],
+    queryFn: () => listarPatrimonio(),
     enabled: !!ehAdmin,
     retry: false,
   });
@@ -222,6 +231,13 @@ function PluggyPage() {
                     {c.nome ?? (c.tipo === "CREDIT" ? "Cartão" : "Conta")}
                     {c.cartao_final && <span className="text-xs text-muted-foreground"> · final {c.cartao_final}</span>}
                   </p>
+                  {(c.numero_conta || c.titular) && (
+                    <p className="text-xs text-muted-foreground">
+                      {c.titular ? `Titular: ${c.titular}` : ""}
+                      {c.titular && c.numero_conta ? " · " : ""}
+                      {c.numero_conta ? `Conta: ${c.numero_conta}` : ""}
+                    </p>
+                  )}
                   {c.tipo === "CREDIT" ? (
                     <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
                       <li>Limite: {c.limite != null ? formatBRL(c.limite) : "não informado"}</li>
@@ -245,6 +261,61 @@ function PluggyPage() {
 
         <Card>
           <CardHeader>
+            <CardTitle className="text-base">Investimentos ({patrimonio?.investimentos.length ?? 0})</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {(patrimonio?.investimentos.length ?? 0) === 0 && (
+              <p className="text-sm text-muted-foreground">Nenhum investimento importado.</p>
+            )}
+            <ul className="divide-y text-sm">
+              {patrimonio?.investimentos.map((i: any) => (
+                <li key={i.id} className="flex flex-wrap items-center gap-2 py-2">
+                  <span className="min-w-0 flex-1 truncate">
+                    {i.nome ?? "Investimento"}
+                    <span className="text-xs text-muted-foreground">
+                      {" "}· {i.tipo ?? ""}{i.instituicao ? ` · ${i.instituicao}` : ""}
+                      {i.rentabilidade_anual != null ? ` · taxa ${i.rentabilidade_anual}% a.a.` : ""}
+                      {i.vencimento ? ` · vence ${new Date(`${i.vencimento}T12:00:00`).toLocaleDateString("pt-BR")}` : ""}
+                    </span>
+                  </span>
+                  <span className="shrink-0 tabular-nums">{i.saldo != null ? formatBRL(i.saldo) : "sem saldo"}</span>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Empréstimos e financiamentos ({patrimonio?.emprestimos.length ?? 0})</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {(patrimonio?.emprestimos.length ?? 0) === 0 && (
+              <p className="text-sm text-muted-foreground">Nenhum empréstimo importado.</p>
+            )}
+            <ul className="divide-y text-sm">
+              {patrimonio?.emprestimos.map((e: any) => (
+                <li key={e.id} className="flex flex-wrap items-center gap-2 py-2">
+                  <span className="min-w-0 flex-1 truncate">
+                    {e.tipo ?? "Empréstimo"}
+                    <span className="text-xs text-muted-foreground">
+                      {" "}· {e.instituicao ?? ""}
+                      {e.indexador ? ` · indexador ${e.indexador}` : ""}
+                      {e.taxa_anual != null ? ` · taxa ${e.taxa_anual}% a.a.` : ""}
+                      {e.vencimento ? ` · vence ${new Date(`${e.vencimento}T12:00:00`).toLocaleDateString("pt-BR")}` : ""}
+                    </span>
+                  </span>
+                  <span className="shrink-0 tabular-nums">
+                    {e.saldo_devedor != null ? `saldo ${formatBRL(e.saldo_devedor)}` : e.valor_contratado != null ? formatBRL(e.valor_contratado) : ""}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
             <CardTitle className="text-base">Importadas automaticamente ({importados?.itens.length ?? 0})</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
@@ -259,7 +330,7 @@ function PluggyPage() {
                     <span className="text-xs text-muted-foreground"> · {d.cartao_final ? `cartão final ${d.cartao_final}` : d.banco_nome ?? "banco"}</span>
                   </span>
                   <span className="shrink-0 tabular-nums">{formatBRL(d.valor_total)}</span>
-                  {congelado(d.importada_em) ? (
+                  {congelado(d) ? (
                     <Badge variant="outline">Congelado</Badge>
                   ) : (
                     <Button

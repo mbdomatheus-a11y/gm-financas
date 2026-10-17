@@ -136,6 +136,20 @@ export const pluggySincronizarAgora = createServerFn({ method: "POST" })
     return { ok: true as const, transacoes: r.transacoes };
   });
 
+/** Investimentos e empréstimos das conexões ativas. */
+export const pluggyListarPatrimonio = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await exigirPrincipal(context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const db = supabaseAdmin as any;
+    const [inv, emp] = await Promise.all([
+      db.from("pluggy_investimentos").select("id,nome,tipo,instituicao,saldo,valor_aplicado,rentabilidade_anual,vencimento").eq("user_id", context.userId).order("saldo", { ascending: false }),
+      db.from("pluggy_emprestimos").select("id,tipo,instituicao,valor_contratado,saldo_devedor,taxa_anual,indexador,vencimento").eq("user_id", context.userId),
+    ]);
+    return { investimentos: (inv.data ?? []) as any[], emprestimos: (emp.data ?? []) as any[] };
+  });
+
 /** Contas e cartões conectados, com limite, fatura e saldo. */
 export const pluggyListarContas = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -144,7 +158,7 @@ export const pluggyListarContas = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data } = await (supabaseAdmin as any)
       .from("pluggy_contas")
-      .select("id,nome,tipo,cartao_final,limite,limite_disponivel,fatura_valor,fatura_vencimento,saldo,atualizado_em")
+      .select("id,nome,tipo,cartao_final,numero_conta,titular,limite,limite_disponivel,fatura_valor,fatura_vencimento,saldo,atualizado_em")
       .eq("user_id", context.userId)
       .eq("ativo", true)
       .order("tipo", { ascending: true });
@@ -159,7 +173,7 @@ export const pluggyListarImportados = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data } = await (supabaseAdmin as any)
       .from("despesas")
-      .select("id,descricao,valor_total,data_compra,cartao_final,banco_nome,pluggy_transaction_id,importada_em")
+      .select("id,descricao,valor_total,data_compra,cartao_final,banco_nome,pluggy_transaction_id,importada_em,congelada")
       .eq("origem", "pluggy")
       .eq("created_by", context.userId)
       .order("data_compra", { ascending: false })
@@ -174,6 +188,7 @@ export const pluggyListarImportados = createServerFn({ method: "POST" })
         banco_nome: string | null;
         pluggy_transaction_id: string;
         importada_em: string | null;
+        congelada: boolean;
       }[],
     };
   });
