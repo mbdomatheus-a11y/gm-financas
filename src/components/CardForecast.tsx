@@ -16,13 +16,16 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { usePrivacidadeValores } from "@/hooks/usePrivacidadeValores";
 import { monthLabelLong } from "@/lib/format";
-import { useCicloVigente } from "@/lib/periodo-vigente";
+import { useCicloVigente, useCompetenciaVigente } from "@/lib/periodo-vigente";
 
 interface CardForecastProps {
   mesAtual: string; // "YYYY-MM"
   totalReceitas: number;
   totalDespesas: number;
   fixas: number;
+  /** Parcelas de compras/faturas do período: compromisso contratado, fora da projeção. */
+  parcelados?: number;
+  /** Variável puro: já sem fixas e sem parcelados. */
   variaveis: number;
   saldoAtual: number;
 }
@@ -31,10 +34,13 @@ export function CardForecast({
   mesAtual,
   totalReceitas,
   fixas,
+  parcelados = 0,
   variaveis,
 }: CardForecastProps) {
   const { formatar } = usePrivacidadeValores();
   const ciclo = useCicloVigente();
+  // Competência do ciclo definido pelo admin (dia de virada), não o mês calendário.
+  const competenciaCiclo = useCompetenciaVigente();
 
   const forecast = useMemo(() => {
     const hoje = new Date();
@@ -42,11 +48,8 @@ export function CardForecast({
     const ano = Number(anoStr) || hoje.getFullYear();
     const mes = Number(mesStr) || hoje.getMonth() + 1;
 
-    const ehMesVigente = hoje.getFullYear() === ano && hoje.getMonth() + 1 === mes;
-    const mesPassado =
-      !ehMesVigente &&
-      (hoje.getFullYear() > ano ||
-        (hoje.getFullYear() === ano && hoje.getMonth() + 1 > mes));
+    const ehMesVigente = mesAtual === competenciaCiclo;
+    const mesPassado = !ehMesVigente && mesAtual < competenciaCiclo;
     const mesFuturo = !ehMesVigente && !mesPassado;
 
     // Se estivermos na competência vigente, usamos os dias precisos do ciclo do admin
@@ -56,9 +59,10 @@ export function CardForecast({
     const diaAtualNoCiclo = ehMesVigente ? ciclo.diaAtualNoCiclo : (mesPassado ? diasTotais : 1);
 
     // 1. Orçamento disponível para o variável: Receita total menos compromissos fixos/parcelas contratuais
-    const orcamentoVariavel = Math.max(0, totalReceitas - fixas);
+    const orcamentoVariavel = Math.max(0, totalReceitas - fixas - parcelados);
 
     // 2. Variáveis já realizadas até o momento
+    const compromissos = fixas + parcelados;
     const variaveisRealizadas = Math.max(0, variaveis);
 
     // 3. Saldo variável livre restante no ciclo
@@ -90,35 +94,59 @@ export function CardForecast({
 
     // Status e diagnóstico financeiro inteligente
     let status: "seguro" | "atencao" | "alerta" | "neutro" = "seguro";
-    let statusTexto = "";
     let tomBadge: "default" | "secondary" | "destructive" = "secondary";
 
+    const comprometidoPct =
+      totalReceitas > 0 ? Math.round((compromissos / totalReceitas) * 100) : 0;
+    const partes: string[] = [];
     if (totalReceitas <= 0) {
       status = "neutro";
-      statusTexto = "Cadastre as receitas previstas desta competência para calibrar o forecast.";
-      tomBadge = "secondary";
+      partes.push("Cadastre as receitas previstas desta competência para calibrar o forecast.");
     } else if (orcamentoVariavel <= 0) {
       status = "alerta";
-      statusTexto = `Os compromissos fixos e parcelas (${formatar(fixas)}) já consomem 100% das receitas. Qualquer gasto variável gera déficit.`;
       tomBadge = "destructive";
-    } else if (saldoVariavelRestante < 0) {
-      status = "alerta";
-      statusTexto = `O orçamento variável de ${formatar(orcamentoVariavel)} foi estourado em ${formatar(Math.abs(saldoVariavelRestante))}. Evite novos gastos variáveis.`;
-      tomBadge = "destructive";
-    } else if (ehMesVigente && sobraLivreProjetada < 0) {
-      const excessoDiario = ritmoDiarioVariavel - tetoDiarioSeguro;
-      status = "alerta";
-      statusTexto = `Atenção: o ritmo diário variável (${formatar(ritmoDiarioVariavel)}/dia) supera o teto seguro de ${formatar(tetoDiarioSeguro)}/dia. Reduza cerca de ${formatar(excessoDiario)}/dia para não fechar no negativo.`;
-      tomBadge = "destructive";
-    } else if (ehMesVigente && sobraLivreProjetada < orcamentoVariavel * 0.1) {
-      status = "atencao";
-      statusTexto = `Margem de sobra livre apertada: projeção de sobra de ${formatar(sobraLivreProjetada)}. Mantenha seus gastos diários abaixo de ${formatar(tetoDiarioSeguro)}/dia.`;
-      tomBadge = "secondary";
+      partes.push(
+        `Fixas e parcelas (${formatar(compromissos)}) já consomem ${comprometidoPct}% das receitas. Qualquer gasto variável gera déficit.`,
+      );
     } else {
-      status = "seguro";
-      statusTexto = `No ritmo ideal! Gastando em média ${formatar(ritmoDiarioVariavel)}/dia (abaixo do teto de ${formatar(tetoDiarioSeguro)}/dia), a sobra livre projetada é de ${formatar(sobraLivreProjetada)}.`;
-      tomBadge = "default";
+      partes.push(
+        `Das receitas de ${formatar(totalReceitas)}, ${comprometidoPct}% já estão comprometidos com fixas (${formatar(fixas)}) e parcelas (${formatar(parcelados)}). Sobram ${formatar(orcamentoVariavel)} para gastos variáveis, e só eles entram na projeção.`,
+      );
+      if (saldoVariavelRestante < 0) {
+        status = "alerta";
+        tomBadge = "destructive";
+        partes.push(
+          `O orçamento variável foi estourado em ${formatar(Math.abs(saldoVariavelRestante))}. Evite novos gastos variáveis.`,
+        );
+      } else if (ehMesVigente && diasRestantes > 0) {
+        if (sobraLivreProjetada < 0) {
+          status = "alerta";
+          tomBadge = "destructive";
+          partes.push(
+            `No ritmo atual (${formatar(ritmoDiarioVariavel)}/dia) o variável fecha em ${formatar(projecaoVariavelFinal)}, ${formatar(Math.abs(sobraLivreProjetada))} acima do orçamento. Reduza para até ${formatar(tetoDiarioSeguro)}/dia nos ${diasRestantes} dias restantes.`,
+          );
+        } else if (sobraLivreProjetada < orcamentoVariavel * 0.1) {
+          status = "atencao";
+          partes.push(
+            `Margem apertada: projeção de sobra de ${formatar(sobraLivreProjetada)}. Mantenha o variável abaixo de ${formatar(tetoDiarioSeguro)}/dia.`,
+          );
+        } else {
+          partes.push(
+            `No ritmo atual (${formatar(ritmoDiarioVariavel)}/dia, teto de ${formatar(tetoDiarioSeguro)}/dia) a sobra livre projetada é de ${formatar(sobraLivreProjetada)}.`,
+          );
+        }
+        if (pctOrcamentoVariavelGasto - pctCicloDecorrido > 10) {
+          partes.push(
+            `Você gastou ${pctOrcamentoVariavelGasto}% do variável com ${pctCicloDecorrido}% do ciclo transcorrido.`,
+          );
+        }
+      } else {
+        partes.push(
+          `O variável do período fechou em ${formatar(variaveisRealizadas)}, com sobra de ${formatar(sobraLivreProjetada)}.`,
+        );
+      }
     }
+    const statusTexto = partes.join(" ");
 
     return {
       diasTotais,
@@ -141,7 +169,7 @@ export function CardForecast({
       statusTexto,
       tomBadge,
     };
-  }, [mesAtual, totalReceitas, fixas, variaveis, ciclo, formatar]);
+  }, [mesAtual, competenciaCiclo, totalReceitas, fixas, parcelados, variaveis, ciclo, formatar]);
 
   return (
     <Card className="mt-4 overflow-hidden border-primary/20 bg-gradient-to-b from-card via-card to-muted/20 shadow-sm">
@@ -192,7 +220,7 @@ export function CardForecast({
           <div className="flex items-center gap-2">
             <Info className="size-3.5 text-primary" />
             <span>
-              Compromissos fixos e faturas contratadas (<strong>{formatar(fixas)}</strong>) já estão garantidos e isolados do forecast.
+              Fixas e parcelas (<strong>{formatar(fixas + parcelados)}</strong>) estão garantidas e fora da projeção. Só o variável é projetado.
             </span>
           </div>
           <div className="flex items-center gap-1.5 font-medium text-foreground">

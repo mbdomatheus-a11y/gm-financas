@@ -2644,5 +2644,7 @@
  "vs. mês anterior": "مقارنة بالشهر السابق",
  "WhatsApp": "WhatsApp",
  "Workspace integrado. Recarregando dados…": "تم دمج مساحة العمل. جارٍ إعادة تحميل البيانات…",
- "XXXX-XXXX (ou deixe em branco)": "XXXX-XXXX (أو اتركه فارغًا)"
+ "XXXX-XXXX (ou deixe em branco)": "XXXX-XXXX (أو اتركه فارغًا)",
+ "Fixas e parcelas (": "الثوابت والأقساط (",
+ ") estão garantidas e fora da projeção. Só o variável é projetado.": ") مضمونة ومستبعدة من التوقع. يتم توقع المتغير فقط."
 }

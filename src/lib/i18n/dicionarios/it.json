@@ -2644,5 +2644,7 @@
  "vs. mês anterior": "rispetto al mese precedente",
  "WhatsApp": "WhatsApp",
  "Workspace integrado. Recarregando dados…": "Workspace integrato. Ricaricamento dati…",
- "XXXX-XXXX (ou deixe em branco)": "XXXX-XXXX (o lascia vuoto)"
+ "XXXX-XXXX (ou deixe em branco)": "XXXX-XXXX (o lascia vuoto)",
+ "Fixas e parcelas (": "Fisse e rate (",
+ ") estão garantidas e fora da projeção. Só o variável é projetado.": ") sono garantite e escluse dalla proiezione. Si proietta solo il variabile."
 }

@@ -345,7 +345,13 @@ function DashboardPage() {
     const fixas = parcelasMes
       .filter((p: any) => p.despesa.tipo === "fixa")
       .reduce((s: number, p: any) => s + toBRL(Number(p.valor), p.despesa.moeda, cotacao), 0);
+    // Parcelados (parcelas de compras/faturas) são compromissos contratados:
+    // ficam fora da base variável do forecast, assim como as fixas.
+    const parcelados = parcelasMes
+      .filter((p: any) => p.despesa.tipo !== "fixa" && p.despesa.total_parcelas > 1)
+      .reduce((s: number, p: any) => s + toBRL(Number(p.valor), p.despesa.moeda, cotacao), 0);
     const variaveis = totalDespesas - fixas;
+    const variaveisPuras = Math.max(0, variaveis - parcelados);
 
     const mensalizado = parcelasMes
       .filter((p: any) => p.despesa.tipo !== "fixa" && p.despesa.total_parcelas > 1)
@@ -578,6 +584,8 @@ function DashboardPage() {
       taxaPoupanca: totalReceitas > 0 ? ((totalReceitas - totalDespesas) / totalReceitas) * 100 : 0,
       fixas,
       variaveis,
+      parcelados,
+      variaveisPuras,
       mensalizado,
       dividaTotal,
       mediaDespesas,
@@ -804,7 +812,8 @@ function DashboardPage() {
         totalReceitas={dados.totalReceitas}
         totalDespesas={dados.totalDespesas}
         fixas={dados.fixas}
-        variaveis={dados.variaveis}
+        parcelados={dados.parcelados}
+        variaveis={dados.variaveisPuras}
         saldoAtual={dados.saldo}
       />
 

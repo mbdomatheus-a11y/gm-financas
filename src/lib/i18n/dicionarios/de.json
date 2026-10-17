@@ -2644,5 +2644,7 @@
  "vs. mês anterior": "ggü. Vormonat",
  "WhatsApp": "WhatsApp",
  "Workspace integrado. Recarregando dados…": "Workspace zusammengeführt. Daten werden neu geladen…",
- "XXXX-XXXX (ou deixe em branco)": "XXXX-XXXX (oder leer lassen)"
+ "XXXX-XXXX (ou deixe em branco)": "XXXX-XXXX (oder leer lassen)",
+ "Fixas e parcelas (": "Fixkosten und Raten (",
+ ") estão garantidas e fora da projeção. Só o variável é projetado.": ") sind gesichert und aus der Prognose ausgenommen. Nur das Variable wird prognostiziert."
 }
