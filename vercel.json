@@ -1,6 +1,9 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "crons": [{ "path": "/api/cron/descarte-layouts", "schedule": "0 10 * * *" }],
+  "crons": [
+    { "path": "/api/cron/descarte-layouts", "schedule": "0 10 * * *" },
+    { "path": "/api/cron/pluggy-sincronizar", "schedule": "0 * * * *" }
+  ],
   "headers": [
     {
       "source": "/(.*)",
