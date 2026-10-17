@@ -15,6 +15,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { VersaoBuild } from "@/components/VersaoBuild";
 import { DynamicFavicon } from "@/components/BrandMark";
 import { RastreadorAcessos } from "@/components/RastreadorAcessos";
+import { AvisoPrivacidade } from "@/components/AvisoPrivacidade";
 
 function NotFoundComponent() {
   return (
@@ -151,6 +152,7 @@ function RootComponent() {
       <DynamicFavicon />
       <RastreadorAcessos />
       <Outlet />
+      <AvisoPrivacidade />
       <Toaster position="top-center" richColors />
     </QueryClientProvider>
   );

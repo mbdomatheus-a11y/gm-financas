@@ -2671,5 +2671,10 @@
  "Valor atual: {0} · {1}% depreciado": "当前价值:{0} · 已折旧 {1}%",
  "Valor de compra": "购买价值",
  "Vida útil (meses):": "使用年限(月):",
- "Vida útil: {0} meses · Depreciação mensal: {1}": "使用年限:{0} 个月 · 月折旧:{1}"
+ "Vida útil: {0} meses · Depreciação mensal: {1}": "使用年限:{0} 个月 · 月折旧:{1}",
+ "Aviso de privacidade": "隐私提示",
+ "Saiba mais": "了解更多",
+ "Só o essencial": "仅必要项",
+ "Sua privacidade": "您的隐私",
+ "Usamos apenas o armazenamento essencial para você entrar e guardar suas preferências, e métricas anônimas de acesso para melhorar o site. Não usamos cookies de publicidade.": "我们仅使用必要的存储来让您登录并保存偏好设置,以及用于改进网站的匿名访问统计。我们不使用广告 Cookie。"
 }

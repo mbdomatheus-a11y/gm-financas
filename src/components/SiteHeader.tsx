@@ -78,8 +78,57 @@ export function SiteHeader({ home = false }: { home?: boolean }) {
             </SheetTrigger>
             <SheetContent side="right" className="w-72">
               <SheetTitle className="sr-only">Menu</SheetTitle>
-              <nav className="mt-8 flex flex-col items-start gap-4" aria-label="Menu do site">
-                {itens(() => setAberto(false))}
+              <nav className="mt-8 flex flex-col gap-1" aria-label="Menu do site">
+                {[
+                  { href: ancora("recursos"), rotulo: "Recursos" },
+                  { href: ancora("modulos"), rotulo: "Módulos" },
+                  { href: ancora("demonstracao"), rotulo: "Demonstração" },
+                  { href: ancora("precos"), rotulo: "Preços" },
+                ].map((i) => (
+                  <a
+                    key={i.href}
+                    href={i.href}
+                    onClick={() => setAberto(false)}
+                    className="rounded-lg px-3 py-3 text-base font-medium hover:bg-muted"
+                  >
+                    {i.rotulo}
+                  </a>
+                ))}
+                <div className="my-2 border-t" />
+                <Link
+                  to="/calculadoras"
+                  onClick={() => setAberto(false)}
+                  className="rounded-lg bg-primary/10 px-3 py-3 text-base font-medium text-primary"
+                >
+                  Calculadoras gratuitas
+                </Link>
+                <Link
+                  to="/links-temporarios"
+                  onClick={() => setAberto(false)}
+                  className="rounded-lg bg-primary/10 px-3 py-3 text-base font-medium text-primary"
+                >
+                  Link temporário
+                </Link>
+                <div className="my-2 border-t" />
+                <Link
+                  to="/termos-de-uso"
+                  onClick={() => setAberto(false)}
+                  className="px-3 py-2 text-sm text-muted-foreground"
+                >
+                  Termos
+                </Link>
+                <Link
+                  to="/privacidade"
+                  onClick={() => setAberto(false)}
+                  className="px-3 py-2 text-sm text-muted-foreground"
+                >
+                  Privacidade
+                </Link>
+                <Button asChild className="mt-4 h-12 text-base">
+                  <Link to="/entrar" onClick={() => setAberto(false)}>
+                    Criar minha conta grátis <ArrowRight className="size-4" />
+                  </Link>
+                </Button>
               </nav>
             </SheetContent>
           </Sheet>

@@ -81,6 +81,13 @@ function PrivacidadePage() {
               funcionam, e eles ficam disponíveis apenas à administração do site.
             </p>
             <p>
+              Cookies e armazenamento local: usamos apenas o armazenamento essencial do navegador
+              (login e preferências, como idioma e tema) e uma identificação anônima de sessão para
+              medir os acessos. Não usamos cookies de publicidade nem de rastreamento por terceiros.
+              Ao escolher "Só o essencial" no aviso do site, deixamos de registrar seus acessos nas
+              métricas. Você pode mudar essa escolha limpando os dados do site no navegador.
+            </p>
+            <p>
               Dados financeiros, documentos, fotos e informações de saúde são tratados como
               conteúdo privado do usuário. Exames são privados por padrão e só podem ser
               compartilhados com familiares por escolha expressa. Arquivos enviados para análise de

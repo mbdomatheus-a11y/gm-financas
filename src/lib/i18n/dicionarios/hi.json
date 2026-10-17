@@ -2671,5 +2671,10 @@
  "Valor atual: {0} · {1}% depreciado": "वर्तमान मूल्य: {0} · {1}% मूल्यह्रास",
  "Valor de compra": "खरीद मूल्य",
  "Vida útil (meses):": "उपयोगी आयु (महीने):",
- "Vida útil: {0} meses · Depreciação mensal: {1}": "उपयोगी आयु: {0} महीने · मासिक मूल्यह्रास: {1}"
+ "Vida útil: {0} meses · Depreciação mensal: {1}": "उपयोगी आयु: {0} महीने · मासिक मूल्यह्रास: {1}",
+ "Aviso de privacidade": "गोपनीयता सूचना",
+ "Saiba mais": "और जानें",
+ "Só o essencial": "केवल आवश्यक",
+ "Sua privacidade": "आपकी गोपनीयता",
+ "Usamos apenas o armazenamento essencial para você entrar e guardar suas preferências, e métricas anônimas de acesso para melhorar o site. Não usamos cookies de publicidade.": "हम केवल आवश्यक स्टोरेज का उपयोग करते हैं ताकि आप साइन इन कर सकें और अपनी प्राथमिकताएँ सहेज सकें, साथ ही साइट सुधारने के लिए गुमनाम एक्सेस मेट्रिक्स। हम विज्ञापन कुकीज़ का उपयोग नहीं करते।"
 }

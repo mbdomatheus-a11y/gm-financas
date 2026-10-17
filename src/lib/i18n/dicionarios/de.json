@@ -2671,5 +2671,10 @@
  "Valor atual: {0} · {1}% depreciado": "Aktueller Wert: {0} · {1}% abgeschrieben",
  "Valor de compra": "Kaufwert",
  "Vida útil (meses):": "Nutzungsdauer (Monate):",
- "Vida útil: {0} meses · Depreciação mensal: {1}": "Nutzungsdauer: {0} Monate · Monatliche Abschreibung: {1}"
+ "Vida útil: {0} meses · Depreciação mensal: {1}": "Nutzungsdauer: {0} Monate · Monatliche Abschreibung: {1}",
+ "Aviso de privacidade": "Datenschutzhinweis",
+ "Saiba mais": "Mehr erfahren",
+ "Só o essencial": "Nur Notwendiges",
+ "Sua privacidade": "Ihre Privatsphäre",
+ "Usamos apenas o armazenamento essencial para você entrar e guardar suas preferências, e métricas anônimas de acesso para melhorar o site. Não usamos cookies de publicidade.": "Wir nutzen nur notwendigen Speicher, damit Sie sich anmelden und Ihre Einstellungen behalten können, sowie anonyme Zugriffsmessungen zur Verbesserung der Seite. Wir verwenden keine Werbe-Cookies."
 }

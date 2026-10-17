@@ -427,8 +427,8 @@ function LandingPage() {
         <div className="pointer-events-none absolute -right-20 top-40 size-80 rounded-full bg-emerald-400/15 blur-3xl" />
         {/* Plano de retenção (2026-10-17): no celular o botão de criar conta aparece na
             primeira tela, com título de benefício curto. Marca animada e selo só do tablet em diante. */}
-        <div className="relative mx-auto grid max-w-6xl gap-10 px-4 py-7 sm:py-16 md:grid-cols-[1.1fr_.9fr] md:py-24">
-          <div className="flex flex-col justify-center">
+        <div className="relative mx-auto grid max-w-6xl grid-cols-1 gap-10 px-4 py-7 sm:py-16 md:grid-cols-[1.1fr_.9fr] md:py-24">
+          <div className="flex min-w-0 flex-col justify-center">
             <BrandAnimado className="mb-5 hidden sm:flex" />
 
             <div className="mb-4 hidden w-fit items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-1 text-xs font-semibold text-emerald-700 sm:inline-flex dark:text-emerald-400">

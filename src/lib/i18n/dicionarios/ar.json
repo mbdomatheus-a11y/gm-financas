@@ -2671,5 +2671,10 @@
  "Valor atual: {0} · {1}% depreciado": "القيمة الحالية: {0} · {1}% مُهلَك",
  "Valor de compra": "قيمة الشراء",
  "Vida útil (meses):": "العمر الإنتاجي (بالأشهر):",
- "Vida útil: {0} meses · Depreciação mensal: {1}": "العمر الإنتاجي: {0} أشهر · الإهلاك الشهري: {1}"
+ "Vida útil: {0} meses · Depreciação mensal: {1}": "العمر الإنتاجي: {0} أشهر · الإهلاك الشهري: {1}",
+ "Aviso de privacidade": "إشعار الخصوصية",
+ "Saiba mais": "اعرف المزيد",
+ "Só o essencial": "الضروري فقط",
+ "Sua privacidade": "خصوصيتك",
+ "Usamos apenas o armazenamento essencial para você entrar e guardar suas preferências, e métricas anônimas de acesso para melhorar o site. Não usamos cookies de publicidade.": "نستخدم التخزين الضروري فقط لتسجيل دخولك وحفظ تفضيلاتك، ومقاييس وصول مجهولة لتحسين الموقع. لا نستخدم ملفات تعريف ارتباط إعلانية."
 }

@@ -2671,5 +2671,10 @@
  "Valor atual: {0} · {1}% depreciado": "Valeur actuelle : {0} · {1}% amorti",
  "Valor de compra": "Valeur d'achat",
  "Vida útil (meses):": "Durée de vie (mois) :",
- "Vida útil: {0} meses · Depreciação mensal: {1}": "Durée de vie : {0} mois · Amortissement mensuel : {1}"
+ "Vida útil: {0} meses · Depreciação mensal: {1}": "Durée de vie : {0} mois · Amortissement mensuel : {1}",
+ "Aviso de privacidade": "Avis de confidentialité",
+ "Saiba mais": "En savoir plus",
+ "Só o essencial": "Essentiel uniquement",
+ "Sua privacidade": "Votre confidentialité",
+ "Usamos apenas o armazenamento essencial para você entrar e guardar suas preferências, e métricas anônimas de acesso para melhorar o site. Não usamos cookies de publicidade.": "Nous utilisons uniquement le stockage essentiel pour vous connecter et garder vos préférences, ainsi que des mesures d'accès anonymes pour améliorer le site. Nous n'utilisons pas de cookies publicitaires."
 }

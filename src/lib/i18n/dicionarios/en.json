@@ -2671,5 +2671,10 @@
  "Valor atual: {0} · {1}% depreciado": "Current value: {0} · {1}% depreciated",
  "Valor de compra": "Purchase value",
  "Vida útil (meses):": "Useful life (months):",
- "Vida útil: {0} meses · Depreciação mensal: {1}": "Useful life: {0} months · Monthly depreciation: {1}"
+ "Vida útil: {0} meses · Depreciação mensal: {1}": "Useful life: {0} months · Monthly depreciation: {1}",
+ "Aviso de privacidade": "Privacy notice",
+ "Saiba mais": "Learn more",
+ "Só o essencial": "Essential only",
+ "Sua privacidade": "Your privacy",
+ "Usamos apenas o armazenamento essencial para você entrar e guardar suas preferências, e métricas anônimas de acesso para melhorar o site. Não usamos cookies de publicidade.": "We only use essential storage so you can sign in and keep your preferences, plus anonymous access metrics to improve the site. We do not use advertising cookies."
 }
