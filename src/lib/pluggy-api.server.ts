@@ -123,10 +123,17 @@ function parcelaDe(descricao: string): { n: number; t: number } | null {
 }
 
 const isoData = (d: Date) => d.toISOString().slice(0, 10);
+/** A Pluggy envia datas com hora ("2026-09-26T00:00:00.000Z"); aqui fica só AAAA-MM-DD. */
+function dataIso(v: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(v ?? "");
+  if (!m) throw new Error(`Data inválida na transação: ${String(v)}`);
+  return `${m[1]}-${m[2]}-${m[3]}`;
+}
 function somarMeses(iso: string, meses: number): string {
-  const d = new Date(`${iso}T12:00:00Z`);
-  d.setUTCMonth(d.getUTCMonth() + meses);
-  return isoData(d);
+  const [ano = 1970, mes = 1, dia = 1] = dataIso(iso).split("-").map(Number);
+  // Dia 31 em mês de 30 dias vira o último dia do mês (e não cai no mês seguinte).
+  const ultimoDia = new Date(Date.UTC(ano, mes - 1 + meses + 1, 0)).getUTCDate();
+  return isoData(new Date(Date.UTC(ano, mes - 1 + meses, Math.min(dia, ultimoDia), 12)));
 }
 
 /**
@@ -217,6 +224,7 @@ async function importarDespesa(
   db: any,
   p: { userId: string; t: Transacao; cartaoId: string | null; cartaoFinal: string | null; banco: string | null; congelada: boolean },
 ): Promise<boolean> {
+  p = { ...p, t: { ...p.t, date: dataIso(p.t.date) } };
   const valor = Math.abs(p.t.amount);
   const agora = new Date().toISOString();
   const { data: rej } = await db.from("pluggy_transacoes").select("rejeitada").eq("transaction_id", p.t.id).maybeSingle();

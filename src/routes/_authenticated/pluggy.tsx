@@ -37,6 +37,54 @@ function congelado(d: { importada_em: string | null; congelada: boolean }): bool
   return Date.now() - new Date(d.importada_em).getTime() > 30 * 86400000;
 }
 
+const dataBR = (iso: string) => new Date(`${String(iso).slice(0, 10)}T12:00:00`).toLocaleDateString("pt-BR");
+
+/** Agrupa lançamentos importados por banco ou cartão e, dentro, por data (mais recente primeiro). */
+function agruparImportados(itens: any[]) {
+  const mapa = new Map<
+    string,
+    { nome: string; quantidade: number; total: number; dias: Map<string, { data: string; total: number; itens: any[] }> }
+  >();
+  for (const d of itens) {
+    const nome = d.cartao_final ? `${d.banco_nome ?? "Cartão"} · final ${d.cartao_final}` : (d.banco_nome ?? "Conta");
+    const data = String(d.data_compra).slice(0, 10);
+    let g = mapa.get(nome);
+    if (!g) {
+      g = { nome, quantidade: 0, total: 0, dias: new Map() };
+      mapa.set(nome, g);
+    }
+    let dia = g.dias.get(data);
+    if (!dia) {
+      dia = { data, total: 0, itens: [] };
+      g.dias.set(data, dia);
+    }
+    dia.itens.push(d);
+    dia.total += d.valor_total;
+    g.quantidade += 1;
+    g.total += d.valor_total;
+  }
+  return [...mapa.values()]
+    .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
+    .map((g) => ({ ...g, dias: [...g.dias.values()].sort((a, b) => b.data.localeCompare(a.data)) }));
+}
+
+/** Agrupa o histórico de sincronizações por banco, com contagem de sucessos e falhas. */
+function agruparHistorico(historico: any[], conectorDoItem: (itemId: string) => string) {
+  const mapa = new Map<string, { nome: string; ok: number; falhas: number; entradas: any[] }>();
+  for (const h of historico) {
+    const nome = conectorDoItem(h.item_id);
+    let g = mapa.get(nome);
+    if (!g) {
+      g = { nome, ok: 0, falhas: 0, entradas: [] };
+      mapa.set(nome, g);
+    }
+    if (h.status === "ok") g.ok += 1;
+    else if (h.status === "erro") g.falhas += 1;
+    g.entradas.push(h);
+  }
+  return [...mapa.values()];
+}
+
 export const Route = createFileRoute("/_authenticated/pluggy")({
   head: () => ({ meta: [{ title: "Bancos (teste) | Control ALL" }, { name: "robots", content: "noindex" }] }),
   component: PluggyPage,
@@ -173,76 +221,82 @@ function PluggyPage() {
     );
   }
 
+  const conectorDoItem = (itemId: string) => itens.itens.find((i) => i.item_id === itemId)?.conector ?? "Banco";
+  const grupos = agruparImportados(importados?.itens ?? []);
+  const historicoPorBanco = agruparHistorico(historico?.historico ?? [], conectorDoItem);
+  const totalImportados = importados?.itens.length ?? 0;
+  const investimentos = patrimonio?.investimentos ?? [];
+  const emprestimos = patrimonio?.emprestimos ?? [];
+  const totalInvestido = investimentos.reduce((s: number, i: any) => s + (i.saldo ?? 0), 0);
+  const totalDevedor = emprestimos.reduce((s: number, e: any) => s + (e.saldo_devedor ?? 0), 0);
+
   return (
     <AppLayout
       title="Bancos e cartões (teste)"
       description="Conexão automática via Pluggy (Open Finance). Visível só para a administração, não afeta os outros usuários."
     >
       <div className="space-y-4">
-        <Card className={cn(ADMIN_ONLY_CARD)}>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Landmark className="size-4" aria-hidden="true" /> Conectar banco ou cartão
-              <span className={ADMIN_ONLY_TAG}>Só admin</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm">
-            <p className="text-muted-foreground">
-              A conexão é feita na janela segura da Pluggy; o Control ALL nunca vê sua senha do banco. As saídas dos
-              bancos e cartões conectados entram nas despesas já aprovadas; você pode rejeitar qualquer uma na lista abaixo.
-            </p>
-            {st && !st.configurado && (
-              <p className="rounded-md border border-warning/40 bg-warning/10 p-3 text-xs">
-                Faltam as variáveis PLUGGY_CLIENT_ID e PLUGGY_CLIENT_SECRET no servidor (Vercel). Veja docs/PENDENCIAS.md.
-              </p>
-            )}
-            <Button disabled={!st?.configurado || conectar.isPending} onClick={() => conectar.mutate()}>
-              <Link2 className="mr-1.5 size-4" aria-hidden="true" />
-              {conectar.isPending ? "Preparando…" : "Conectar um banco"}
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card className={cn(ADMIN_ONLY_CARD)}>
-          <CardHeader>
-            <CardTitle className="text-base">Usar dados reais pelo Meu Pluggy (gratuito)</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm">
-            <p className="text-muted-foreground">
-              Conecte seu banco real em meu.pluggy.ai (serviço gratuito da Pluggy para desenvolvedores). No painel da
-              Pluggy, abra sua aplicação, clique em "Ir para Demo" e, no menu de três pontos, copie o Item ID. Cole aqui:
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <Input
-                className="min-w-0 flex-1"
-                placeholder="Item ID (formato xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)"
-                value={itemManual}
-                onChange={(e) => setItemManual(e.target.value.trim())}
-                aria-label="Item ID da Pluggy"
-              />
+        {/* 1. Sincronização (compacta, no topo) */}
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <CardTitle className="mr-auto flex items-center gap-2 text-base">
+                <RefreshCw className="size-4" aria-hidden="true" /> Sincronização
+              </CardTitle>
               <Button
-                disabled={!st?.configurado || !UUID.test(itemManual) || guardar.isPending}
-                onClick={() => guardar.mutate({ itemId: itemManual, conector: "Meu Pluggy" })}
+                size="sm"
+                disabled={sincronizarTudo.isPending || itens.itens.length === 0}
+                onClick={() => sincronizarTudo.mutate()}
               >
-                Adicionar
+                {sincronizarTudo.isPending ? "Sincronizando todos…" : "Sincronizar todos os bancos"}
               </Button>
             </div>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            {itens.itens.length === 0 && <p className="text-muted-foreground">Nenhum banco conectado ainda.</p>}
+            {itens.itens.map((i) => {
+              const u = ultimaDaConexao(i.item_id);
+              const emAndamento = sincronizarItem.isPending && sincronizarItem.variables === i.item_id;
+              return (
+                <div key={i.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md border px-3 py-2">
+                  <span className="font-medium">{i.conector ?? "Banco"}</span>
+                  {i.status && <Badge variant="outline">{i.status}</Badge>}
+                  <span className={cn("min-w-0 flex-1 text-xs", u && u.status !== "ok" ? "text-destructive" : "text-muted-foreground")}>
+                    {u
+                      ? `${new Date(u.iniciado_em).toLocaleString("pt-BR")} · ${
+                          u.status === "ok"
+                            ? `${u.transacoes_lidas} lidos, ${u.despesas_criadas} novos`
+                            : `falhou: ${u.mensagem ?? ""}`
+                        }`
+                      : "Nunca sincronizado"}
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={sincronizarItem.isPending}
+                    onClick={() => sincronizarItem.mutate(i.item_id)}
+                  >
+                    {emAndamento ? "Sincronizando…" : "Sincronizar"}
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="size-8"
+                    aria-label="Remover conexão"
+                    disabled={apagar.isPending}
+                    onClick={() => apagar.mutate(i.item_id)}
+                  >
+                    <Trash2 className="size-4" aria-hidden="true" />
+                  </Button>
+                </div>
+              );
+            })}
           </CardContent>
         </Card>
 
-        {token && Widget && (
-          <Widget
-            connectToken={token}
-            includeSandbox
-            language="pt"
-            onSuccess={({ item }: any) => guardar.mutate({ itemId: item.id, conector: item.connector?.name })}
-            onError={() => toast.error("Não foi possível concluir a conexão.")}
-            onClose={() => setToken(null)}
-          />
-        )}
-
+        {/* 2. Contas e cartões */}
         <Card>
-          <CardHeader>
+          <CardHeader className="pb-3">
             <CardTitle className="text-base">Contas e cartões</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
@@ -268,15 +322,12 @@ function PluggyPage() {
                       <li>Limite: {c.limite != null ? formatBRL(c.limite) : "não informado"}</li>
                       <li>Disponível: {c.limite_disponivel != null ? formatBRL(c.limite_disponivel) : "não informado"}</li>
                       <li>Fatura atual: {c.fatura_valor != null ? formatBRL(c.fatura_valor) : "não informado"}</li>
-                      <li>
-                        Vencimento:{" "}
-                        {c.fatura_vencimento
-                          ? new Date(`${c.fatura_vencimento}T12:00:00`).toLocaleDateString("pt-BR")
-                          : "não informado"}
-                      </li>
+                      <li>Vencimento: {c.fatura_vencimento ? dataBR(c.fatura_vencimento) : "não informado"}</li>
                     </ul>
                   ) : (
-                    <p className="mt-1 text-xs text-muted-foreground">Saldo: {c.saldo != null ? formatBRL(c.saldo) : "não informado"}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Saldo: {c.saldo != null ? formatBRL(c.saldo) : "não informado"}
+                    </p>
                   )}
                 </div>
               ))}
@@ -284,203 +335,263 @@ function PluggyPage() {
           </CardContent>
         </Card>
 
+        {/* 3. Conectar (link agrupado e resumido) */}
+        <Card className={cn(ADMIN_ONLY_CARD)}>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Landmark className="size-4" aria-hidden="true" /> Conectar banco ou cartão
+              <span className={ADMIN_ONLY_TAG}>Só admin</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm">
+            {st && !st.configurado && (
+              <p className="rounded-md border border-warning/40 bg-warning/10 p-3 text-xs">
+                Faltam as variáveis PLUGGY_CLIENT_ID e PLUGGY_CLIENT_SECRET no servidor (Vercel). Veja docs/PENDENCIAS.md.
+              </p>
+            )}
+            <div className="flex flex-wrap items-center gap-2">
+              <Button disabled={!st?.configurado || conectar.isPending} onClick={() => conectar.mutate()}>
+                <Link2 className="mr-1.5 size-4" aria-hidden="true" />
+                {conectar.isPending ? "Preparando…" : "Conectar um banco"}
+              </Button>
+              <span className="text-xs text-muted-foreground">
+                Você escolhe o banco na janela segura da Pluggy. Sua senha nunca passa pelo Control ALL.
+              </span>
+            </div>
+            <details className="text-xs">
+              <summary className="cursor-pointer text-muted-foreground">Usar dados reais pelo Meu Pluggy (gratuito)</summary>
+              <div className="mt-2 space-y-2">
+                <p className="text-muted-foreground">
+                  No meu.pluggy.ai, abra sua aplicação, clique em "Ir para Demo" e copie o Item ID no menu de três pontos.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <Input
+                    className="min-w-0 flex-1"
+                    placeholder="Item ID (formato xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)"
+                    value={itemManual}
+                    onChange={(e) => setItemManual(e.target.value.trim())}
+                    aria-label="Item ID da Pluggy"
+                  />
+                  <Button
+                    disabled={!st?.configurado || !UUID.test(itemManual) || guardar.isPending}
+                    onClick={() => guardar.mutate({ itemId: itemManual, conector: "Meu Pluggy" })}
+                  >
+                    Adicionar
+                  </Button>
+                </div>
+              </div>
+            </details>
+          </CardContent>
+        </Card>
+
+        {token && Widget && (
+          <Widget
+            connectToken={token}
+            includeSandbox
+            language="pt"
+            onSuccess={({ item }: any) => guardar.mutate({ itemId: item.id, conector: item.connector?.name })}
+            onError={() => toast.error("Não foi possível concluir a conexão.")}
+            onClose={() => setToken(null)}
+          />
+        )}
+
+        {/* 4. Investimentos e dívidas */}
         <Card>
-          <CardHeader>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Investimentos e empréstimos</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm">
+            <div className="grid gap-2 sm:grid-cols-2">
+              <div className="rounded-md bg-muted/40 p-3">
+                <p className="text-xs text-muted-foreground">Investimentos ({investimentos.length})</p>
+                <p className="text-lg font-semibold tabular-nums">{formatBRL(totalInvestido)}</p>
+              </div>
+              <div className="rounded-md bg-muted/40 p-3">
+                <p className="text-xs text-muted-foreground">Saldo devedor ({emprestimos.length})</p>
+                <p className="text-lg font-semibold tabular-nums">{formatBRL(totalDevedor)}</p>
+              </div>
+            </div>
+            {investimentos.length > 0 && (
+              <ul className="divide-y text-xs">
+                {investimentos.map((i: any) => (
+                  <li key={i.id} className="flex flex-wrap items-center gap-2 py-1.5">
+                    <span className="min-w-0 flex-1 truncate">
+                      {i.nome ?? "Investimento"}
+                      <span className="text-muted-foreground">
+                        {" "}· {i.tipo ?? ""}
+                        {i.instituicao ? ` · ${i.instituicao}` : ""}
+                        {i.rentabilidade_anual != null ? ` · ${i.rentabilidade_anual}% a.a.` : ""}
+                        {i.vencimento ? ` · vence ${dataBR(i.vencimento)}` : ""}
+                      </span>
+                    </span>
+                    <span className="shrink-0 tabular-nums">{i.saldo != null ? formatBRL(i.saldo) : "sem saldo"}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {emprestimos.length > 0 && (
+              <ul className="divide-y text-xs">
+                {emprestimos.map((e: any) => (
+                  <li key={e.id} className="flex flex-wrap items-center gap-2 py-1.5">
+                    <span className="min-w-0 flex-1 truncate">
+                      {e.tipo ?? "Empréstimo"}
+                      <span className="text-muted-foreground">
+                        {" "}· {e.instituicao ?? ""}
+                        {e.indexador ? ` · indexador ${e.indexador}` : ""}
+                        {e.taxa_anual != null ? ` · ${e.taxa_anual}% a.a.` : ""}
+                        {e.vencimento ? ` · vence ${dataBR(e.vencimento)}` : ""}
+                      </span>
+                    </span>
+                    <span className="shrink-0 tabular-nums">
+                      {e.saldo_devedor != null
+                        ? `saldo ${formatBRL(e.saldo_devedor)}`
+                        : e.valor_contratado != null
+                          ? formatBRL(e.valor_contratado)
+                          : ""}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* 5. Histórico resumido, agrupado por banco */}
+        <Card>
+          <CardHeader className="pb-3">
             <CardTitle className="text-base">Histórico de sincronizações</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2">
-            {(historico?.historico.length ?? 0) === 0 && (
-              <p className="text-sm text-muted-foreground">Nenhuma sincronização registrada ainda.</p>
+          <CardContent className="space-y-3 text-sm">
+            {historicoPorBanco.length === 0 && (
+              <p className="text-muted-foreground">Nenhuma sincronização registrada ainda.</p>
             )}
-            <ul className="divide-y text-xs">
-              {historico?.historico.map((h: any) => (
-                <li key={h.id} className="flex flex-wrap items-center gap-2 py-2">
-                  <span className="tabular-nums">{new Date(h.iniciado_em).toLocaleString("pt-BR")}</span>
-                  <Badge variant="outline">{h.primeira ? "primeira" : "automática/manual"}</Badge>
-                  <span className={h.status === "ok" ? "text-success" : "text-destructive"}>
-                    {h.status === "ok" ? "ok" : "falhou"}
+            {historicoPorBanco.map((g) => (
+              <div key={g.nome}>
+                <p className="font-medium">
+                  {g.nome}{" "}
+                  <span className="text-xs font-normal text-muted-foreground">
+                    · {g.ok} ok · {g.falhas} com falha
                   </span>
-                  <span className="text-muted-foreground">
-                    {h.status === "ok" ? `${h.transacoes_lidas} lidos, ${h.despesas_criadas} novos` : h.mensagem}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Investimentos ({patrimonio?.investimentos.length ?? 0})</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {(patrimonio?.investimentos.length ?? 0) === 0 && (
-              <p className="text-sm text-muted-foreground">Nenhum investimento importado.</p>
-            )}
-            <ul className="divide-y text-sm">
-              {patrimonio?.investimentos.map((i: any) => (
-                <li key={i.id} className="flex flex-wrap items-center gap-2 py-2">
-                  <span className="min-w-0 flex-1 truncate">
-                    {i.nome ?? "Investimento"}
-                    <span className="text-xs text-muted-foreground">
-                      {" "}· {i.tipo ?? ""}{i.instituicao ? ` · ${i.instituicao}` : ""}
-                      {i.rentabilidade_anual != null ? ` · taxa ${i.rentabilidade_anual}% a.a.` : ""}
-                      {i.vencimento ? ` · vence ${new Date(`${i.vencimento}T12:00:00`).toLocaleDateString("pt-BR")}` : ""}
-                    </span>
-                  </span>
-                  <span className="shrink-0 tabular-nums">{i.saldo != null ? formatBRL(i.saldo) : "sem saldo"}</span>
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Empréstimos e financiamentos ({patrimonio?.emprestimos.length ?? 0})</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {(patrimonio?.emprestimos.length ?? 0) === 0 && (
-              <p className="text-sm text-muted-foreground">Nenhum empréstimo importado.</p>
-            )}
-            <ul className="divide-y text-sm">
-              {patrimonio?.emprestimos.map((e: any) => (
-                <li key={e.id} className="flex flex-wrap items-center gap-2 py-2">
-                  <span className="min-w-0 flex-1 truncate">
-                    {e.tipo ?? "Empréstimo"}
-                    <span className="text-xs text-muted-foreground">
-                      {" "}· {e.instituicao ?? ""}
-                      {e.indexador ? ` · indexador ${e.indexador}` : ""}
-                      {e.taxa_anual != null ? ` · taxa ${e.taxa_anual}% a.a.` : ""}
-                      {e.vencimento ? ` · vence ${new Date(`${e.vencimento}T12:00:00`).toLocaleDateString("pt-BR")}` : ""}
-                    </span>
-                  </span>
-                  <span className="shrink-0 tabular-nums">
-                    {e.saldo_devedor != null ? `saldo ${formatBRL(e.saldo_devedor)}` : e.valor_contratado != null ? formatBRL(e.valor_contratado) : ""}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Importadas automaticamente ({importados?.itens.length ?? 0})</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {(importados?.itens.length ?? 0) === 0 && (
-              <p className="text-sm text-muted-foreground">Nenhum lançamento importado ainda.</p>
-            )}
-            <ul className="divide-y text-sm">
-              {importados?.itens.map((d) => (
-                <li key={d.id} className="flex items-center gap-2 py-2">
-                  <span className="min-w-0 flex-1 truncate">
-                    {new Date(`${d.data_compra}T12:00:00`).toLocaleDateString("pt-BR")} · {d.descricao}
-                    <span className="text-xs text-muted-foreground"> · {d.cartao_final ? `cartão final ${d.cartao_final}` : d.banco_nome ?? "banco"}</span>
-                  </span>
-                  <span className="shrink-0 tabular-nums">{formatBRL(d.valor_total)}</span>
-                  {congelado(d) ? (
-                    <Badge variant="outline">Congelado</Badge>
-                  ) : (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={recusar.isPending}
-                      onClick={() => recusar.mutate(d.pluggy_transaction_id)}
-                      aria-label="Rejeitar lançamento"
-                    >
-                      <X className="mr-1 size-3.5" aria-hidden="true" />
-                      Rejeitar
-                    </Button>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <div className="flex flex-wrap items-center gap-2">
-              <CardTitle className="mr-auto text-base">Conexões</CardTitle>
-              <Button
-                size="sm"
-                disabled={sincronizarTudo.isPending || (itens.itens.length === 0)}
-                onClick={() => sincronizarTudo.mutate()}
-              >
-                <RefreshCw className="mr-1 size-3.5" aria-hidden="true" />
-                {sincronizarTudo.isPending ? "Sincronizando todos…" : "Sincronizar todos os bancos"}
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {itens.itens.length === 0 && <p className="text-sm text-muted-foreground">Nenhum banco conectado ainda.</p>}
-            {itens.itens.map((i) => (
-              <div key={i.id} className="rounded-lg border p-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <b className="mr-auto text-sm">{i.conector ?? "Banco"}</b>
-                  {i.status && <Badge variant="outline">{i.status}</Badge>}
-                  <span className="w-full text-xs text-muted-foreground">
-                    {(() => {
-                      const u = ultimaDaConexao(i.item_id);
-                      if (!u) return "Nunca sincronizado.";
-                      const quando = new Date(u.iniciado_em).toLocaleString("pt-BR");
-                      return u.status === "ok"
-                        ? `Última sincronização: ${quando} · ${u.transacoes_lidas} lidos · ${u.despesas_criadas} novos`
-                        : `Última sincronização: ${quando} · falhou: ${u.mensagem ?? ""}`;
-                    })()}
-                  </span>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={sincronizarItem.isPending}
-                    onClick={() => sincronizarItem.mutate(i.item_id)}
-                  >
-                    {sincronizarItem.isPending ? "Sincronizando…" : "Sincronizar agora"}
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => setAberto(aberto === i.item_id ? null : i.item_id)}>
-                    <RefreshCw className="mr-1 size-3.5" aria-hidden="true" />
-                    {aberto === i.item_id ? "Fechar" : "Ver últimos 30 dias"}
-                  </Button>
-                  <Button
-                    size="icon"
-                    variant="outline"
-                    className="size-8"
-                    aria-label="Remover conexão"
-                    disabled={apagar.isPending}
-                    onClick={() => apagar.mutate(i.item_id)}
-                  >
-                    <Trash2 className="size-4" aria-hidden="true" />
-                  </Button>
-                </div>
-                {aberto === i.item_id && (
-                  <div className="mt-3 space-y-3">
-                    {mov.isLoading && <p className="text-sm text-muted-foreground">Consultando…</p>}
-                    {mov.error && <p className="text-sm text-destructive">{(mov.error as Error).message}</p>}
-                    {mov.data?.contas.map(({ conta, transacoes }) => (
-                      <div key={conta.id} className="rounded-md bg-muted/40 p-2">
-                        <p className="text-sm font-medium">
-                          {conta.name} <span className="text-xs text-muted-foreground">({conta.subtype})</span> · saldo/fatura{" "}
-                          {formatBRL(conta.balance)}
-                        </p>
-                        <ul className="mt-1 divide-y text-xs">
-                          {transacoes.slice(0, 50).map((t) => (
-                            <li key={t.id} className="flex justify-between gap-2 py-1">
-                              <span className="min-w-0 truncate">
-                                {new Date(t.date).toLocaleDateString("pt-BR")} · {t.description}
-                              </span>
-                              <span className={t.amount < 0 ? "text-destructive" : "text-success"}>{formatBRL(t.amount)}</span>
-                            </li>
-                          ))}
-                          {transacoes.length === 0 && <li className="py-1 text-muted-foreground">Sem movimentos no período.</li>}
-                        </ul>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                </p>
+                <ul className="mt-1 divide-y text-xs">
+                  {g.entradas.slice(0, 5).map((h: any) => (
+                    <li key={h.id} className="flex flex-wrap items-center gap-2 py-1.5">
+                      <span className="tabular-nums text-muted-foreground">
+                        {new Date(h.iniciado_em).toLocaleString("pt-BR")}
+                      </span>
+                      <span className={h.status === "ok" ? "text-success" : "text-destructive"}>
+                        {h.status === "ok" ? "ok" : "falhou"}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate text-muted-foreground">
+                        {h.status === "ok" ? `${h.transacoes_lidas} lidos, ${h.despesas_criadas} novos` : h.mensagem}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
               </div>
             ))}
+          </CardContent>
+        </Card>
+
+        {/* 6. Lançamentos importados, agrupados por banco/cartão e data */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">
+              Lançamentos importados <span className="text-xs font-normal text-muted-foreground">({totalImportados})</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm">
+            <p className="text-xs text-muted-foreground">
+              Entram já aprovados. Você pode rejeitar o que não for seu; depois de 30 dias o lançamento fica congelado.
+            </p>
+            {grupos.length === 0 && <p className="text-muted-foreground">Nenhum lançamento importado ainda.</p>}
+            {grupos.map((g) => (
+              <section key={g.nome} className="rounded-lg border">
+                <header className="flex flex-wrap items-center justify-between gap-2 border-b bg-muted/40 px-3 py-2">
+                  <span className="font-medium">{g.nome}</span>
+                  <span className="text-xs tabular-nums text-muted-foreground">
+                    {g.quantidade} lançamento(s) · {formatBRL(g.total)}
+                  </span>
+                </header>
+                {g.dias.map((dia) => (
+                  <div key={dia.data} className="border-b px-3 py-2 last:border-b-0">
+                    <div className="mb-1 flex justify-between text-xs">
+                      <span className="font-medium text-muted-foreground">{dataBR(dia.data)}</span>
+                      <span className="tabular-nums text-muted-foreground">{formatBRL(dia.total)}</span>
+                    </div>
+                    <ul className="divide-y">
+                      {dia.itens.map((d: any) => (
+                        <li key={d.id} className="flex items-center gap-2 py-1.5">
+                          <span className="min-w-0 flex-1 truncate">{d.descricao}</span>
+                          <span className="shrink-0 tabular-nums">{formatBRL(d.valor_total)}</span>
+                          {congelado(d) ? (
+                            <Badge variant="outline">Congelado</Badge>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              disabled={recusar.isPending}
+                              onClick={() => recusar.mutate(d.pluggy_transaction_id)}
+                              aria-label="Rejeitar lançamento"
+                            >
+                              <X className="mr-1 size-3.5" aria-hidden="true" />
+                              Rejeitar
+                            </Button>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </section>
+            ))}
+          </CardContent>
+        </Card>
+
+        {/* 7. Extrato dos últimos 30 dias (consulta direta na Pluggy) */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Extrato dos últimos 30 dias</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm">
+            {itens.itens.length === 0 && <p className="text-muted-foreground">Nenhum banco conectado ainda.</p>}
+            <div className="flex flex-wrap gap-2">
+              {itens.itens.map((i) => (
+                <Button
+                  key={i.id}
+                  size="sm"
+                  variant={aberto === i.item_id ? "default" : "outline"}
+                  onClick={() => setAberto(aberto === i.item_id ? null : i.item_id)}
+                >
+                  {i.conector ?? "Banco"}
+                </Button>
+              ))}
+            </div>
+            {aberto && (
+              <div className="space-y-3">
+                {mov.isLoading && <p className="text-muted-foreground">Consultando…</p>}
+                {mov.error && <p className="text-destructive">{(mov.error as Error).message}</p>}
+                {mov.data?.contas.map(({ conta, transacoes }) => (
+                  <div key={conta.id} className="rounded-md bg-muted/40 p-2">
+                    <p className="font-medium">
+                      {conta.name} <span className="text-xs text-muted-foreground">({conta.subtype})</span> · saldo/fatura{" "}
+                      {formatBRL(conta.balance)}
+                    </p>
+                    <ul className="mt-1 divide-y text-xs">
+                      {transacoes.slice(0, 50).map((t) => (
+                        <li key={t.id} className="flex justify-between gap-2 py-1">
+                          <span className="min-w-0 truncate">
+                            {dataBR(t.date)} · {t.description}
+                          </span>
+                          <span className={t.amount < 0 ? "text-destructive" : "text-success"}>{formatBRL(t.amount)}</span>
+                        </li>
+                      ))}
+                      {transacoes.length === 0 && <li className="py-1 text-muted-foreground">Sem movimentos no período.</li>}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
