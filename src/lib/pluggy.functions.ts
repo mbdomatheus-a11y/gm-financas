@@ -159,7 +159,7 @@ export const pluggyListarImportados = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data } = await (supabaseAdmin as any)
       .from("despesas")
-      .select("id,descricao,valor_total,data_compra,cartao_final,banco_nome,pluggy_transaction_id")
+      .select("id,descricao,valor_total,data_compra,cartao_final,banco_nome,pluggy_transaction_id,importada_em")
       .eq("origem", "pluggy")
       .eq("created_by", context.userId)
       .order("data_compra", { ascending: false })
@@ -173,6 +173,7 @@ export const pluggyListarImportados = createServerFn({ method: "POST" })
         cartao_final: string | null;
         banco_nome: string | null;
         pluggy_transaction_id: string;
+        importada_em: string | null;
       }[],
     };
   });

@@ -27,6 +27,12 @@ import {
 import { ADMIN_ONLY_CARD, ADMIN_ONLY_TAG } from "@/lib/areas";
 import { cn } from "@/lib/utils";
 
+/** Depois de 30 dias da importação o lançamento fica congelado (a trava está também no banco). */
+function congelado(importadaEm: string | null): boolean {
+  if (!importadaEm) return false;
+  return Date.now() - new Date(importadaEm).getTime() > 30 * 86400000;
+}
+
 export const Route = createFileRoute("/_authenticated/pluggy")({
   head: () => ({ meta: [{ title: "Bancos (teste) | Control ALL" }, { name: "robots", content: "noindex" }] }),
   component: PluggyPage,
@@ -253,16 +259,20 @@ function PluggyPage() {
                     <span className="text-xs text-muted-foreground"> · {d.cartao_final ? `cartão final ${d.cartao_final}` : d.banco_nome ?? "banco"}</span>
                   </span>
                   <span className="shrink-0 tabular-nums">{formatBRL(d.valor_total)}</span>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={recusar.isPending}
-                    onClick={() => recusar.mutate(d.pluggy_transaction_id)}
-                    aria-label="Rejeitar lançamento"
-                  >
-                    <X className="mr-1 size-3.5" aria-hidden="true" />
-                    Rejeitar
-                  </Button>
+                  {congelado(d.importada_em) ? (
+                    <Badge variant="outline">Congelado</Badge>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={recusar.isPending}
+                      onClick={() => recusar.mutate(d.pluggy_transaction_id)}
+                      aria-label="Rejeitar lançamento"
+                    >
+                      <X className="mr-1 size-3.5" aria-hidden="true" />
+                      Rejeitar
+                    </Button>
+                  )}
                 </li>
               ))}
             </ul>

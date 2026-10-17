@@ -98,7 +98,7 @@ async function importarDespesa(
       .limit(1)
       .maybeSingle();
     if (manual) {
-      await db.from("despesas").update({ origem: "pluggy", pluggy_transaction_id: p.t.id }).eq("id", manual.id);
+      await db.from("despesas").update({ origem: "pluggy", pluggy_transaction_id: p.t.id, importada_em: new Date().toISOString() }).eq("id", manual.id);
       await db.from("pluggy_transacoes").update({ substituiu_manual: true }).eq("transaction_id", p.t.id);
       return;
     }
@@ -120,6 +120,7 @@ async function importarDespesa(
       banco_nome: p.banco,
       origem: "pluggy",
       pluggy_transaction_id: p.t.id,
+      importada_em: new Date().toISOString(),
       created_by: p.userId,
     })
     .select("id")
