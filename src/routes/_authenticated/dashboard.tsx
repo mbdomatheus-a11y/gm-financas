@@ -627,7 +627,7 @@ function DashboardPage() {
   }, [despesas, mesAtual]);
 
   // A data padrão da dívida é o mês final do gráfico. O usuário pode alterar manualmente se quiser.
-  const mesLimiteDivida = mesLimiteDividaOverride ?? mesFimGrafico;
+  const mesLimiteDivida = mesLimiteDividaOverride ?? mesAtual;
 
   const mesesParaDivida = useMemo(() => {
     const now = new Date();
@@ -663,7 +663,7 @@ function DashboardPage() {
   // Pedido 3 (2026-10-03): Alívio de parcelas que terminam no período selecionado no gráfico
   const alivioPeriodo = useMemo(() => {
     const gruposNoPeriodo = dados.alivioParcelamentos.filter(
-      (g) => meses.includes(g.mes) || (g.mes >= mesAtual && g.mes <= mesFimGrafico),
+      (g) => g.mes === mesAtual,
     );
     const totalAlivio = gruposNoPeriodo.reduce((s, g) => s + g.total, 0);
     const qtdContratos = gruposNoPeriodo.reduce((s, g) => s + g.itens.length, 0);
@@ -775,7 +775,7 @@ function DashboardPage() {
         <CardDividaTotal
           info={dividaInfo}
           mesLimite={mesLimiteDivida}
-          mesFimGrafico={mesFimGrafico}
+          mesPadrao={mesAtual}
           ultimaParcelaReal={ultimaParcelaRealDivida}
           onMesChange={setMesLimiteDividaOverride}
           onRestaurarPadrao={() => setMesLimiteDividaOverride(null)}
@@ -788,8 +788,8 @@ function DashboardPage() {
           tone="success"
           hint={
             alivioPeriodo.qtdContratos > 0
-              ? `${alivioPeriodo.qtdContratos} ${alivioPeriodo.qtdContratos === 1 ? "parcelamento encerra" : "parcelamentos encerram"} no período`
-              : `Nenhum término até ${monthLabel(mesFimGrafico)}`
+              ? `${alivioPeriodo.qtdContratos} ${alivioPeriodo.qtdContratos === 1 ? "parcelamento encerra" : "parcelamentos encerram"} em ${monthLabel(mesAtual)}`
+              : `Nenhum término em ${monthLabel(mesAtual)}`
           }
           display={
             alivioPeriodo.totalAlivio > 0
@@ -1555,7 +1555,7 @@ function EmptyChart() {
 function CardDividaTotal({
   info,
   mesLimite,
-  mesFimGrafico,
+  mesPadrao,
   ultimaParcelaReal,
   onMesChange,
   onRestaurarPadrao,
@@ -1563,7 +1563,7 @@ function CardDividaTotal({
 }: {
   info: { total: number; variavel: number; fixa: number; alemDaUltimaParcela: boolean };
   mesLimite: string;
-  mesFimGrafico: string;
+  mesPadrao: string;
   ultimaParcelaReal: string;
   onMesChange: (mes: string) => void;
   onRestaurarPadrao: () => void;
@@ -1613,18 +1613,18 @@ function CardDividaTotal({
               variant="ghost"
               className="h-7 text-[11px]"
               onClick={onRestaurarPadrao}
-              title={`Restaurar data do gráfico (${monthLabel(mesFimGrafico)})`}
+              title={`Restaurar data do mês em aberto (${monthLabel(mesPadrao)})`}
             >
-              Gráfico ({monthLabel(mesFimGrafico)})
+              Mês aberto ({monthLabel(mesPadrao)})
             </Button>
           )}
         </div>
         <p className="mt-1 text-[10px] text-muted-foreground">
           {temOverride
-            ? `Personalizado manual (gráfico: ${monthLabel(mesFimGrafico)}).`
+            ? `Personalizado até ${monthLabelLong(mesLimite)} (padrão: ${monthLabel(mesPadrao)}).`
             : info.alemDaUltimaParcela
-              ? `Além da última parcela real (${monthLabel(ultimaParcelaReal)}) — só custo fixo projetado.`
-              : `Até ${monthLabelLong(mesLimite)} · conforme período do gráfico.`}
+              ? `Além da última parcela real (${monthLabel(ultimaParcelaReal)}) - só custo fixo projetado.`
+              : `Dívida em aberto até o mês vigente (${monthLabel(mesPadrao)}).`}
         </p>
       </CardContent>
     </Card>
