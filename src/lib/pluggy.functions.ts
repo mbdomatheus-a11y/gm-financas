@@ -264,6 +264,16 @@ export const pluggyRejeitarLancamento = createServerFn({ method: "POST" })
         await db.from("despesas").delete().eq("id", despesa.id);
       }
     }
+    const { data: receita } = await db
+      .from("receitas")
+      .select("id")
+      .eq("pluggy_transaction_id", data.transactionId)
+      .eq("created_by", context.userId)
+      .maybeSingle();
+    if (receita) {
+      const { error } = await db.from("receitas").delete().eq("id", receita.id);
+      if (error) throw new Error("Esta entrada já está congelada e não pode ser rejeitada.");
+    }
     await db.from("pluggy_transacoes").update({ rejeitada: true }).eq("transaction_id", data.transactionId);
     return { ok: true as const };
   });

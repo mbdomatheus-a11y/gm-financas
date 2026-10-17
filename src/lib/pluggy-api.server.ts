@@ -393,6 +393,37 @@ export async function sincronizarItem(itemId: string): Promise<{ ignorado: boole
   }
 }
 
+/**
+ * Entrada (crédito em conta bancária) vira receita já aprovada.
+ * Pula as já importadas e as rejeitadas pelo usuário.
+ */
+async function importarReceita(
+  db: any,
+  p: { userId: string; grupoId: string | null; t: Transacao; congelada: boolean },
+): Promise<boolean> {
+  const { data: rej } = await db.from("pluggy_transacoes").select("rejeitada").eq("transaction_id", p.t.id).maybeSingle();
+  if (rej?.rejeitada) return false;
+  const { data: ja } = await db.from("receitas").select("id").eq("pluggy_transaction_id", p.t.id).maybeSingle();
+  if (ja) return false;
+  const { error } = await db.from("receitas").insert({
+    descricao: p.t.description || "Entrada",
+    valor: Math.abs(p.t.amount),
+    moeda: "BRL",
+    categoria: "Outras receitas",
+    data_recebimento: dataIso(p.t.date),
+    recorrente: false,
+    responsavel: null,
+    origem: "pluggy",
+    pluggy_transaction_id: p.t.id,
+    importada_em: new Date().toISOString(),
+    congelada: p.congelada,
+    created_by: p.userId,
+    grupo_id: p.grupoId,
+  });
+  if (error) throw new Error("Falha ao criar a receita importada.");
+  return true;
+}
+
 async function executarSincronizacao(
   db: any,
   itemId: string,
@@ -470,7 +501,14 @@ async function executarSincronizacao(
         total += linhas.length;
       }
       for (const t of lista) {
-        if (t.type !== "DEBIT" || t.status === "PENDING") continue;
+        if (t.status === "PENDING") continue;
+        if (t.type === "CREDIT" && conta.type === "BANK") {
+          if (CATEGORIAS_NAO_DESPESA.has((t.category ?? "").trim().toLowerCase())) continue;
+          if (DESCRICAO_NAO_DESPESA.test(t.description ?? "")) continue;
+          await importarReceita(db, { userId: meu.user_id, grupoId, t, congelada: primeira });
+          continue;
+        }
+        if (t.type !== "DEBIT") continue;
         if (CATEGORIAS_NAO_DESPESA.has((t.category ?? "").trim().toLowerCase())) continue;
         if (DESCRICAO_NAO_DESPESA.test(t.description ?? "")) continue;
         if (conta.type === "BANK" && PAGAMENTO_FATURA.test(t.description ?? "")) continue;

@@ -726,6 +726,11 @@ function ReceitasPage() {
                         <p className="truncate text-sm font-semibold leading-tight">
                           <span className="text-primary">{r.responsavel} · </span>
                           {r.descricao}
+                          {((r as any).origem ?? (r as any).receitaOriginal?.origem) === "pluggy" && (
+                            <Badge variant="outline" className="ml-2 border-emerald-500/30 align-middle text-[10px] text-emerald-600 dark:text-emerald-400">
+                              Open Finance
+                            </Badge>
+                          )}
                         </p>
                         <p className="truncate text-[11px] text-muted-foreground">
                           {r.categoria} · {formatDate(r.data_recebimento)}
