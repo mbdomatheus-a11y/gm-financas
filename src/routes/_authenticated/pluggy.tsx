@@ -2,7 +2,7 @@ import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Landmark, Link2, RefreshCw, Trash2 } from "lucide-react";
+import { Landmark, Link2, RefreshCw, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppLayout } from "@/components/AppLayout";
@@ -15,8 +15,10 @@ import { formatBRL } from "@/lib/format";
 import {
   pluggyBuscarMovimentos,
   pluggyCriarConnectToken,
+  pluggyListarImportados,
   pluggyListarItens,
   pluggyRegistrarItem,
+  pluggyRejeitarLancamento,
   pluggyRemoverItem,
   pluggyStatus,
 } from "@/lib/pluggy.functions";
@@ -37,6 +39,8 @@ function PluggyPage() {
   const listar = useServerFn(pluggyListarItens);
   const remover = useServerFn(pluggyRemoverItem);
   const buscar = useServerFn(pluggyBuscarMovimentos);
+  const listarImportados = useServerFn(pluggyListarImportados);
+  const rejeitar = useServerFn(pluggyRejeitarLancamento);
   const [token, setToken] = useState<string | null>(null);
   const [Widget, setWidget] = useState<any>(null);
   const [aberto, setAberto] = useState<string | null>(null);
@@ -77,6 +81,21 @@ function PluggyPage() {
     },
     onError: (e: Error) => toast.error(e.message),
   });
+  const { data: importados } = useQuery({
+    queryKey: ["pluggy-importados"],
+    queryFn: () => listarImportados(),
+    enabled: !!ehAdmin,
+    retry: false,
+  });
+  const recusar = useMutation({
+    mutationFn: (transactionId: string) => rejeitar({ data: { transactionId } }),
+    onSuccess: () => {
+      toast.success("Lançamento rejeitado.");
+      qc.invalidateQueries({ queryKey: ["pluggy-importados"] });
+      qc.invalidateQueries({ queryKey: ["despesas"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
   const mov = useQuery({
     queryKey: ["pluggy-mov", aberto],
     queryFn: () => buscar({ data: { itemId: aberto!, dias: 30 } }),
@@ -109,8 +128,8 @@ function PluggyPage() {
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
             <p className="text-muted-foreground">
-              A conexão é feita na janela segura da Pluggy; o Control ALL nunca vê sua senha do banco. Nesta fase os
-              movimentos são só exibidos, nada é gravado nas suas despesas e receitas.
+              A conexão é feita na janela segura da Pluggy; o Control ALL nunca vê sua senha do banco. As saídas dos
+              bancos e cartões conectados entram nas despesas já aprovadas; você pode rejeitar qualquer uma na lista abaixo.
             </p>
             {st && !st.configurado && (
               <p className="rounded-md border border-warning/40 bg-warning/10 p-3 text-xs">
@@ -161,6 +180,38 @@ function PluggyPage() {
             onClose={() => setToken(null)}
           />
         )}
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Importadas automaticamente ({importados?.itens.length ?? 0})</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {(importados?.itens.length ?? 0) === 0 && (
+              <p className="text-sm text-muted-foreground">Nenhum lançamento importado ainda.</p>
+            )}
+            <ul className="divide-y text-sm">
+              {importados?.itens.map((d) => (
+                <li key={d.id} className="flex items-center gap-2 py-2">
+                  <span className="min-w-0 flex-1 truncate">
+                    {new Date(`${d.data_compra}T12:00:00`).toLocaleDateString("pt-BR")} · {d.descricao}
+                    <span className="text-xs text-muted-foreground"> · {d.cartao_final ? `cartão final ${d.cartao_final}` : d.banco_nome ?? "banco"}</span>
+                  </span>
+                  <span className="shrink-0 tabular-nums">{formatBRL(d.valor_total)}</span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={recusar.isPending}
+                    onClick={() => recusar.mutate(d.pluggy_transaction_id)}
+                    aria-label="Rejeitar lançamento"
+                  >
+                    <X className="mr-1 size-3.5" aria-hidden="true" />
+                    Rejeitar
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
 
         <Card>
           <CardHeader>

@@ -120,7 +120,71 @@ export const pluggyRemoverItem = createServerFn({ method: "POST" })
     } catch {
       /* se a Pluggy falhar, ainda removemos o vínculo local */
     }
+    await db.from("pluggy_contas").update({ ativo: false, atualizado_em: new Date().toISOString() }).eq("item_id", data.itemId).eq("user_id", context.userId);
     await db.from("pluggy_items").delete().eq("item_id", data.itemId).eq("user_id", context.userId);
+    return { ok: true as const };
+  });
+
+/** Lançamentos importados automaticamente (aprovados por padrão), para o usuário revisar e rejeitar. */
+export const pluggyListarImportados = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await exigirPrincipal(context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data } = await (supabaseAdmin as any)
+      .from("despesas")
+      .select("id,descricao,valor_total,data_compra,cartao_final,banco_nome,pluggy_transaction_id")
+      .eq("origem", "pluggy")
+      .eq("created_by", context.userId)
+      .order("data_compra", { ascending: false })
+      .limit(200);
+    return {
+      itens: (data ?? []) as {
+        id: string;
+        descricao: string;
+        valor_total: number;
+        data_compra: string;
+        cartao_final: string | null;
+        banco_nome: string | null;
+        pluggy_transaction_id: string;
+      }[],
+    };
+  });
+
+/**
+ * Rejeita um lançamento importado: marca a transação para não voltar nunca.
+ * Se ele tinha substituído um lançamento manual, o manual volta ao lugar.
+ */
+export const pluggyRejeitarLancamento = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((v: unknown) => z.object({ transactionId: z.string().min(1).max(200) }).parse(v))
+  .handler(async ({ data, context }) => {
+    await exigirPrincipal(context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const db = supabaseAdmin as any;
+    const { data: transacao } = await db
+      .from("pluggy_transacoes")
+      .select("transaction_id,substituiu_manual")
+      .eq("transaction_id", data.transactionId)
+      .eq("user_id", context.userId)
+      .maybeSingle();
+    if (!transacao) throw new Error("Lançamento não encontrado.");
+
+    const { data: despesa } = await db
+      .from("despesas")
+      .select("id")
+      .eq("pluggy_transaction_id", data.transactionId)
+      .eq("created_by", context.userId)
+      .maybeSingle();
+    if (despesa) {
+      if (transacao.substituiu_manual) {
+        await db.from("despesas").update({ origem: "manual", pluggy_transaction_id: null }).eq("id", despesa.id);
+      } else {
+        await db.from("parcelas").delete().eq("despesa_id", despesa.id);
+        await db.from("despesas").delete().eq("id", despesa.id);
+      }
+    }
+    await db.from("pluggy_transacoes").update({ rejeitada: true }).eq("transaction_id", data.transactionId);
     return { ok: true as const };
   });
 
