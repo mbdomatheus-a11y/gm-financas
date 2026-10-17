@@ -1,8 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Download, Loader2, Plus, Save, Search, Trash2, Upload } from "lucide-react";
+import { Download, Globe, Loader2, Plus, Save, Search, Sparkles, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
+import { identificarEstabelecimentoWeb } from "@/lib/depara-web.functions";
 
 import { AppLayout } from "@/components/AppLayout";
 import { AvisoPrimeiraVezDePara } from "@/components/AvisoPrimeiraVezDePara";
@@ -72,6 +74,35 @@ function DeParaPage() {
   const [nova, setNova] = useState({ descricao: "", categoria: "", subcategoria: "" });
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [confirmar, setConfirmar] = useState<null | "selecionadas" | "todas">(null);
+  const identificarWeb = useServerFn(identificarEstabelecimentoWeb);
+  const [identificando, setIdentificando] = useState(false);
+  const [explicacaoIa, setExplicacaoIa] = useState<string | null>(null);
+
+  async function consultarSegmentoWeb(termo: string) {
+    const limpo = termo.split("\n")[0]?.trim() || "";
+    if (!limpo) {
+      toast.info("Digite o nome do estabelecimento primeiro.");
+      return;
+    }
+    setIdentificando(true);
+    setExplicacaoIa(null);
+    try {
+      const res = await identificarWeb({ data: { termo: limpo } });
+      setNova((n) => ({
+        ...n,
+        categoria: res.categoria,
+        subcategoria: res.subcategoria || "",
+      }));
+      setExplicacaoIa(res.explicacao);
+      toast.success(
+        `Identificado: ${res.categoria}${res.subcategoria ? ` / ${res.subcategoria}` : ""} (${res.confianca === "alta" ? "Alta confiança" : "Confiança média"}).`
+      );
+    } catch (e: any) {
+      toast.error(e?.message ?? "Não foi possível identificar o estabelecimento online.");
+    } finally {
+      setIdentificando(false);
+    }
+  }
 
   const { data: regras = [], isLoading } = useQuery({
     queryKey: ["categoria-regras"],
@@ -533,7 +564,20 @@ function DeParaPage() {
           </div>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_1fr_auto]">
             <div className="space-y-1">
-              <Label className="text-xs">Estabelecimento (uma variação por linha)</Label>
+              <div className="flex items-center justify-between">
+                <Label className="text-xs">Estabelecimento (uma variação por linha)</Label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-5 px-1.5 text-[11px] gap-1 text-primary hover:text-primary hover:bg-primary/10"
+                  disabled={identificando || !nova.descricao.trim()}
+                  onClick={() => void consultarSegmentoWeb(nova.descricao)}
+                >
+                  <Sparkles className="size-3" />
+                  {identificando ? "Pesquisando…" : "Identificar na Web"}
+                </Button>
+              </div>
               <Textarea
                 className="min-h-9 py-2 text-sm"
                 rows={1}
@@ -591,6 +635,21 @@ function DeParaPage() {
               </Button>
             </div>
           </div>
+          {explicacaoIa && (
+            <div className="flex items-start justify-between gap-2 rounded-lg border border-primary/30 bg-primary/5 p-2.5 text-xs">
+              <div className="flex items-start gap-2">
+                <Sparkles className="mt-0.5 size-3.5 shrink-0 text-primary" />
+                <p className="text-foreground">{explicacaoIa}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setExplicacaoIa(null)}
+                className="text-[10px] text-muted-foreground hover:text-foreground"
+              >
+                Dispensar
+              </button>
+            </div>
+          )}
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (
@@ -624,9 +683,36 @@ function DeParaPage() {
                         />
                       </td>
                       <td className="p-2">
-                        <p className="font-medium">
-                          {r.texto_original ?? r.estabelecimento_normalizado}
-                        </p>
+                        <div className="flex items-center justify-between gap-1">
+                          <p className="font-medium">
+                            {r.texto_original ?? r.estabelecimento_normalizado}
+                          </p>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="size-6 text-muted-foreground hover:text-primary"
+                            title="Pesquisar segmento deste estabelecimento na Web"
+                            onClick={async () => {
+                              const termo = r.texto_original ?? r.estabelecimento_normalizado;
+                              try {
+                                const res = await identificarWeb({ data: { termo } });
+                                atualizar.mutate({
+                                  id: r.id,
+                                  patch: {
+                                    categoria: res.categoria,
+                                    subcategoria: res.subcategoria,
+                                  },
+                                });
+                                toast.success(`${termo}: ${res.categoria}${res.subcategoria ? ` / ${res.subcategoria}` : ""} (${res.explicacao})`);
+                              } catch {
+                                toast.error("Não foi possível pesquisar este estabelecimento online.");
+                              }
+                            }}
+                          >
+                            <Sparkles className="size-3" />
+                          </Button>
+                        </div>
                         {/* Bloco 4: edita as variações que casam com essa regra,
                             uma por linha — primeira linha vira o padrão principal
                             (estabelecimento_normalizado), mantido por compatibilidade. */}
