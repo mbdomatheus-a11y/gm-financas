@@ -187,7 +187,7 @@ function ImportarPage() {
   const { estrutura, criarSubcategoria } = useEstruturaCategorias("despesa");
   const qc = useQueryClient();
   const { user } = useSession();
-  const { can, canImportar } = usePermissoes();
+  const { can, canImportar, exclusaoBloqueada } = usePermissoes();
   const { data: profiles = [] } = useProfilesList();
   const { data: categorias = [] } = useCategorias("despesa");
   const { data: cartoes = [] } = useCartoes();
@@ -1567,6 +1567,91 @@ function ImportarPage() {
     },
   });
 
+  const faturasFechadasLista = useQuery({
+    queryKey: ["import-faturas-fechadas"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("import_faturas")
+        .select("id, arquivo_nome, banco, cartao_id, competencia, status, total_declarado, total_extraido, created_at, fechada_em")
+        .is("arquivo_excluido_em", null)
+        .order("competencia", { ascending: false })
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as any[];
+    },
+  });
+
+  const excluirFaturaFechada = useMutation({
+    mutationFn: async (fatura: any) => {
+      if (exclusaoBloqueada) throw new Error("Seu perfil não possui permissão para excluir dados.");
+      // 1. Busca todas as parcelas vinculadas a essa fatura
+      const { data: parcFatura, error: pErr } = await supabase
+        .from("parcelas")
+        .select("*, despesas(*)")
+        .eq("fatura_id", fatura.id);
+      if (pErr) throw pErr;
+
+      // 2. Salva backup para permitir desfazer
+      const despesasIds = [...new Set((parcFatura ?? []).map((p: any) => p.despesa_id))];
+      let despesasSalvas: any[] = [];
+      if (despesasIds.length) {
+        const { data: dData } = await supabase.from("despesas").select("*").in("id", despesasIds);
+        despesasSalvas = dData ?? [];
+      }
+
+      const { data: userSess } = await supabase.auth.getUser();
+      const grupoId = (userSess?.user?.user_metadata as any)?.grupo_id ?? null;
+
+      await (supabase as any).from("importacao_backups").insert({
+        grupo_id: grupoId,
+        cartao_id: fatura.cartao_id,
+        competencia: fatura.competencia,
+        faturas_antigas: [fatura.id],
+        faturas_novas: [],
+        dados: { despesas: despesasSalvas, parcelas: parcFatura ?? [] },
+        status: "ativo",
+      });
+
+      // 3. Remove parcelas desta fatura
+      const parcIds = (parcFatura ?? []).map((p: any) => p.id);
+      if (parcIds.length) {
+        const { error: delPErr } = await supabase.from("parcelas").delete().in("id", parcIds);
+        if (delPErr) throw delPErr;
+      }
+
+      // 4. Remove despesas que ficaram sem nenhuma parcela
+      if (despesasIds.length) {
+        const { data: restantes } = await supabase
+          .from("parcelas")
+          .select("despesa_id")
+          .in("despesa_id", despesasIds);
+        const aindaTem = new Set((restantes ?? []).map((r: any) => r.despesa_id));
+        const semParcelas = despesasIds.filter((id) => !aindaTem.has(id));
+        if (semParcelas.length) {
+          await supabase.from("despesas").delete().in("id", semParcelas);
+        }
+      }
+
+      // 5. Marca a fatura como excluída
+      await supabase
+        .from("import_faturas")
+        .update({
+          arquivo_excluido_em: new Date().toISOString(),
+          arquivo_excluido_por: userSess?.user?.id ?? null,
+        })
+        .eq("id", fatura.id);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["despesas"] });
+      qc.invalidateQueries({ queryKey: ["parcelas"] });
+      qc.invalidateQueries({ queryKey: ["fatura-mes"] });
+      qc.invalidateQueries({ queryKey: ["import-faturas-fechadas"] });
+      qc.invalidateQueries({ queryKey: ["importacao-backups"] });
+      toast.success("Fatura fechada excluída com sucesso. Você pode desfazer a qualquer momento.");
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Não foi possível excluir a fatura."),
+  });
+
   const desfazerSubstituicao = useMutation({
     mutationFn: async (backupId: string) => {
       const { data: bk, error: bkErr } = await (supabase as any)
@@ -2783,6 +2868,9 @@ function ImportarPage() {
               <TabsTrigger value="planilha">
                 <FileSpreadsheet className="mr-2 size-4" /> Planilha
               </TabsTrigger>
+              <TabsTrigger value="fechadas">
+                <ShieldCheck className="mr-2 size-4" /> Faturas fechadas
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="pdf">
@@ -3014,6 +3102,92 @@ function ImportarPage() {
                 >
                   Baixar modelo .csv
                 </Button>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="fechadas">
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-semibold">Faturas registradas por competência</p>
+                    <p className="text-xs text-muted-foreground">
+                      Consulte as faturas já salvas no banco. Você pode excluir uma competência específica (com backup e desfazer) ou substituir por uma nova versão. O passado nunca é apagado.
+                    </p>
+                  </div>
+                </div>
+
+                {faturasFechadasLista.isLoading ? (
+                  <p className="py-6 text-center text-xs text-muted-foreground">Carregando faturas…</p>
+                ) : (faturasFechadasLista.data ?? []).length === 0 ? (
+                  <div className="rounded-xl border border-dashed py-8 text-center text-xs text-muted-foreground">
+                    Nenhuma fatura fechada registrada ainda.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {(faturasFechadasLista.data ?? []).map((fat: any) => (
+                      <div
+                        key={fat.id}
+                        className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/20 p-3 text-xs"
+                      >
+                        <div className="min-w-0 flex-1 space-y-0.5">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-foreground">
+                              {fat.cartao_id ? rotuloCartao(fat.cartao_id) : BANCO_LABEL[fat.banco as BancoFatura] ?? fat.banco}
+                            </span>
+                            <Badge variant="secondary" className="text-[10px]">
+                              {fat.competencia ? monthLabelLong(fat.competencia) : "Sem competência"}
+                            </Badge>
+                            {fat.status === "fechada" && (
+                              <Badge variant="default" className="bg-emerald-600 text-[10px]">
+                                Fechada
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="truncate text-muted-foreground">
+                            {fat.arquivo_nome} · Total declarado: {fat.total_declarado !== null ? formatBRL(fat.total_declarado) : "—"} · Extraído: {fat.total_extraido !== null ? formatBRL(fat.total_extraido) : "—"}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground">
+                            Registrada em {new Date(fat.created_at).toLocaleString("pt-BR")}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-8 text-xs gap-1"
+                            onClick={() => {
+                              inputRef.current?.click();
+                              toast.info(`Selecione o novo PDF para substituir a fatura de ${fat.competencia ? monthLabelLong(fat.competencia) : ""}.`);
+                            }}
+                          >
+                            <Upload className="size-3.5" />
+                            Substituir
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive gap-1"
+                            disabled={excluirFaturaFechada.isPending}
+                            onClick={() => {
+                              if (
+                                window.confirm(
+                                  `Excluir a fatura de ${fat.competencia ? monthLabelLong(fat.competencia) : fat.arquivo_nome}? Os lançamentos desta competência serão removidos (com opção de desfazer mantida). O passado nunca é apagado.`
+                                )
+                              ) {
+                                excluirFaturaFechada.mutate(fat);
+                              }
+                            }}
+                          >
+                            <Trash2 className="size-3.5" />
+                            Excluir
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </TabsContent>
           </Tabs>
