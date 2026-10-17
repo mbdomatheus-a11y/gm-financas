@@ -14,7 +14,12 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 const BASE = "https://api.pluggy.ai";
 const JANELA_DIAS = 365;
 const ORIGENS_MANUAIS = ["manual", "fatura_rapida", "fatura_total_manual"];
-/** Pagamento de fatura vindo da conta corrente: já aparece nas compras do cartão, não pode duplicar. */
+/**
+ * Categorias do Pluggy que não são despesa: pagamento de fatura e transferências entre contas
+ * próprias já aparecem nas compras do cartão ou não saem do patrimônio. Não podem duplicar.
+ */
+const CATEGORIAS_NAO_DESPESA = new Set(["credit card payment", "transfer - internal", "same person transfer"]);
+/** Pagamento de fatura vindo da conta corrente (quando a categoria não vem preenchida). */
 const PAGAMENTO_FATURA = /pagament[oa].{0,20}fatura|pgto.{0,10}fatura|pagto.{0,10}cart/i;
 
 type Conta = {
@@ -220,6 +225,7 @@ export async function sincronizarItem(itemId: string): Promise<{ ignorado: boole
       }
       for (const t of lista) {
         if (t.type !== "DEBIT" || t.status === "PENDING") continue;
+        if (CATEGORIAS_NAO_DESPESA.has((t.category ?? "").trim().toLowerCase())) continue;
         if (conta.type === "BANK" && PAGAMENTO_FATURA.test(t.description ?? "")) continue;
         await importarDespesa(db, { userId: meu.user_id, t, cartaoId, cartaoFinal, banco });
       }
