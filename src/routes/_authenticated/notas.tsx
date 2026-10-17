@@ -23,8 +23,11 @@ import { AppLayout } from "@/components/AppLayout";
 import { LeitorNota } from "@/components/LeitorNota";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { classificarItemNota, calcularDepreciacao } from "@/lib/nota-itens-classificacao";
+import { LISTA_CATEGORIAS } from "@/lib/categorizacao";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -252,7 +255,16 @@ function NotasPage() {
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [detalhe, setDetalhe] = useState<string | null>(null);
   const [itensLidos, setItensLidos] = useState<
-    { descricao: string; quantidade: number; valor_unitario: number; valor_total: number }[]
+    {
+      descricao: string;
+      quantidade: number;
+      valor_unitario: number;
+      valor_total: number;
+      categoria?: string | null;
+      subcategoria?: string | null;
+      deprecia?: boolean | null;
+      meses_depreciacao?: number | null;
+    }[]
   >([]);
   const [fotosPendentes, setFotosPendentes] = useState<File[]>([]);
   const fileRef = useRef<HTMLInputElement | null>(null);
@@ -397,9 +409,22 @@ function NotasPage() {
         if (error) throw error;
         notaId = data.id;
         if (itensLidos.length) {
-          await supabase
-            .from("nota_itens")
-            .insert(itensLidos.map((i) => ({ ...i, nota_id: notaId! })));
+          await (supabase.from("nota_itens") as any).insert(
+            itensLidos.map((i) => {
+              const classif = i.categoria ? { categoria: i.categoria, subcategoria: i.subcategoria } : classificarItemNota(i.descricao);
+              return {
+                nota_id: notaId!,
+                descricao: i.descricao,
+                quantidade: i.quantidade,
+                valor_unitario: i.valor_unitario,
+                valor_total: i.valor_total,
+                categoria: i.categoria ?? classif.categoria,
+                subcategoria: i.subcategoria ?? classif.subcategoria,
+                deprecia: i.deprecia ?? false,
+                meses_depreciacao: i.meses_depreciacao ?? null,
+              };
+            }),
+          );
         }
       }
 
@@ -710,78 +735,247 @@ function NotasPage() {
           </Card>
         )}
 
-        <div className="flex flex-wrap items-center gap-2">
-          <Input
-            value={busca}
-            onChange={(e) => setBusca(e.target.value)}
-            placeholder="Buscar por loja, item, descrição ou chave"
-            className="h-9 max-w-xs"
-          />
-          {(
-            [
-              ["todas", "Todas"],
-              ["ativa", "Garantia ativa"],
-              ["expirando", "Vencendo em 30 dias"],
-              ["expirada", "Expiradas"],
-            ] as [Filtro, string][]
-          ).map(([id, label]) => (
-            <Button
-              key={id}
-              size="sm"
-              variant={filtro === id ? "default" : "outline"}
-              onClick={() => setFiltro(id)}
-            >
-              {label}
-            </Button>
-          ))}
-        </div>
+        <Tabs defaultValue="notas" className="space-y-4">
+          <TabsList className="h-9">
+            <TabsTrigger value="notas" className="text-xs">Notas fiscais</TabsTrigger>
+            <TabsTrigger value="segmentos" className="text-xs">Gastos por tipo</TabsTrigger>
+            <TabsTrigger value="depreciacao" className="text-xs">Depreciação</TabsTrigger>
+          </TabsList>
 
-        {isLoading ? (
-          <p className="text-sm text-muted-foreground">Carregando…</p>
-        ) : lista.length === 0 ? (
-          <Card>
-            <CardContent className="py-10 text-center text-sm text-muted-foreground">
-              Nenhuma nota por aqui ainda. Toque em “Nova nota” para começar.
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {lista.map((n) => {
-              const foto = (n.nota_arquivos ?? [])[0];
-              return (
-                <Card
-                  key={n.id}
-                  className="cursor-pointer transition-colors hover:border-primary/50"
-                  onClick={() => setDetalhe(n.id)}
+          {/* === ABA 1: listagem de notas === */}
+          <TabsContent value="notas" className="space-y-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <Input
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                placeholder="Buscar por loja, item, descrição ou chave"
+                className="h-9 max-w-xs"
+              />
+              {(
+                [
+                  ["todas", "Todas"],
+                  ["ativa", "Garantia ativa"],
+                  ["expirando", "Vencendo em 30 dias"],
+                  ["expirada", "Expiradas"],
+                ] as [Filtro, string][]
+              ).map(([id, label]) => (
+                <Button
+                  key={id}
+                  size="sm"
+                  variant={filtro === id ? "default" : "outline"}
+                  onClick={() => setFiltro(id)}
                 >
-                  <CardContent className="flex gap-3 py-4">
-                    <div className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-muted">
-                      {foto?.thumbnail_link ? (
-                        <img
-                          src={foto.thumbnail_link}
-                          alt={`Comprovante de ${n.estabelecimento ?? "nota fiscal"}`}
-                          className="size-full object-cover"
-                          loading="lazy"
-                        />
-                      ) : (
-                        <ImageIcon className="size-5 text-muted-foreground" />
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1 space-y-1">
-                      <p className="truncate text-sm font-semibold">
-                        {n.estabelecimento || n.descricao || "Nota fiscal"}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatDate(n.data_compra)} · {formatBRL(Number(n.valor_total))}
-                      </p>
-                      <SeloGarantia fim={n.garantia_fim} />
-                    </div>
-                  </CardContent>
-                </Card>
+                  {label}
+                </Button>
+              ))}
+            </div>
+
+            {isLoading ? (
+              <p className="text-sm text-muted-foreground">Carregando…</p>
+            ) : lista.length === 0 ? (
+              <Card>
+                <CardContent className="py-10 text-center text-sm text-muted-foreground">
+                  Nenhuma nota por aqui ainda. Toque em "Nova nota" para começar.
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                {lista.map((n) => {
+                  const foto = (n.nota_arquivos ?? [])[0];
+                  const temGarantia = !!n.garantia_fim;
+                  return (
+                    <Card
+                      key={n.id}
+                      className="cursor-pointer transition-colors hover:border-primary/50"
+                      onClick={() => setDetalhe(n.id)}
+                    >
+                      <CardContent className="flex gap-3 py-4">
+                        <div className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-muted">
+                          {foto?.thumbnail_link ? (
+                            <img
+                              src={foto.thumbnail_link}
+                              alt={`Comprovante de ${n.estabelecimento ?? "nota fiscal"}`}
+                              className="size-full object-cover"
+                              loading="lazy"
+                            />
+                          ) : (
+                            <ImageIcon className="size-5 text-muted-foreground" />
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1 space-y-1">
+                          <div className="flex items-start justify-between gap-1">
+                            <p className="truncate text-sm font-semibold">
+                              {n.estabelecimento || n.descricao || "Nota fiscal"}
+                            </p>
+                            {temGarantia ? (
+                              <Badge variant="default" className="shrink-0 h-4 text-[10px] px-1.5 bg-emerald-600 hover:bg-emerald-600">
+                                <ShieldCheck className="size-2.5 mr-0.5" />
+                                Garantia
+                              </Badge>
+                            ) : (
+                              <Badge variant="secondary" className="shrink-0 h-4 text-[10px] px-1.5">
+                                Sem garantia
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            {formatDate(n.data_compra)} · {formatBRL(Number(n.valor_total))}
+                          </p>
+                          <SeloGarantia fim={n.garantia_fim} />
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </TabsContent>
+
+          {/* === ABA 2: gastos por tipo / segmentos === */}
+          <TabsContent value="segmentos" className="space-y-3">
+            {(() => {
+              const todosItens = notas.flatMap((n) =>
+                (n.nota_itens ?? []).map((i) => ({
+                  ...i,
+                  data_compra: n.data_compra,
+                  estabelecimento: n.estabelecimento ?? n.descricao ?? "Nota fiscal",
+                })),
               );
-            })}
-          </div>
-        )}
+              if (!todosItens.length) {
+                return (
+                  <Card>
+                    <CardContent className="py-10 text-center text-sm text-muted-foreground">
+                      Nenhum item registrado ainda. Faça a leitura de uma nota via QR Code para ver os gastos por tipo.
+                    </CardContent>
+                  </Card>
+                );
+              }
+              const porCategoria = todosItens.reduce<Record<string, { total: number; qtdItens: number }>>((acc, i) => {
+                const cat = (i as any).categoria ?? "Outros";
+                if (!acc[cat]) acc[cat] = { total: 0, qtdItens: 0 };
+                acc[cat].total += Number((i as any).valor_total ?? 0);
+                acc[cat].qtdItens += 1;
+                return acc;
+              }, {});
+              const totalGeral = Object.values(porCategoria).reduce((s, v) => s + v.total, 0);
+              const categorias = Object.entries(porCategoria).sort((a, b) => b[1].total - a[1].total);
+              return (
+                <>
+                  <p className="text-xs text-muted-foreground">
+                    Total em itens registrados: <span className="font-semibold text-foreground">{formatBRL(totalGeral)}</span>
+                  </p>
+                  <div className="space-y-3">
+                    {categorias.map(([cat, { total, qtdItens }]) => {
+                      const pct = totalGeral > 0 ? (total / totalGeral) * 100 : 0;
+                      return (
+                        <Card key={cat}>
+                          <CardContent className="py-3 space-y-1.5">
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-sm font-medium">{cat}</p>
+                              <div className="flex items-center gap-2">
+                                <Badge variant="secondary" className="text-[10px]">
+                                  {qtdItens} {qtdItens === 1 ? "item" : "itens"}
+                                </Badge>
+                                <span className="text-sm font-semibold tabular-nums">
+                                  {formatBRL(total)}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                              <div
+                                className="h-full rounded-full bg-primary transition-all"
+                                style={{ width: `${pct.toFixed(1)}%` }}
+                              />
+                            </div>
+                            <p className="text-[11px] text-muted-foreground text-right">
+                              {pct.toFixed(1)}% do total
+                            </p>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                </>
+              );
+            })()}
+          </TabsContent>
+
+          {/* === ABA 3: módulo de depreciação === */}
+          <TabsContent value="depreciacao" className="space-y-3">
+            {(() => {
+              const bensDepreciaveis = notas.flatMap((n) =>
+                (n.nota_itens ?? [])
+                  .filter((i) => !!(i as any).deprecia && (i as any).meses_depreciacao)
+                  .map((i) => ({
+                    ...i,
+                    data_compra: n.data_compra,
+                    estabelecimento: n.estabelecimento ?? n.descricao ?? "Nota fiscal",
+                  })),
+              );
+              if (!bensDepreciaveis.length) {
+                return (
+                  <Card>
+                    <CardContent className="py-10 text-center text-sm text-muted-foreground">
+                      Nenhum bem sujeito a depreciação registrado. Ao ler uma nota, marque "Este item deprecia?" para ativá-lo aqui.
+                    </CardContent>
+                  </Card>
+                );
+              }
+              return (
+                <div className="space-y-3">
+                  {bensDepreciaveis.map((i) => {
+                    const dep = calcularDepreciacao({
+                      valorOriginal: Number((i as any).valor_total ?? 0),
+                      dataCompra: i.data_compra,
+                      mesesVidaUtil: Number((i as any).meses_depreciacao),
+                    });
+                    return (
+                      <Card key={(i as any).id}>
+                        <CardContent className="py-3 space-y-2">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium truncate">{(i as any).descricao}</p>
+                              <p className="text-xs text-muted-foreground">{(i as any).estabelecimento} · {formatDate(i.data_compra)}</p>
+                            </div>
+                            <Badge
+                              variant={dep.totalmenteDepreciado ? "destructive" : "secondary"}
+                              className="shrink-0 text-[10px]"
+                            >
+                              {dep.totalmenteDepreciado ? "Totalmente depreciado" : `${dep.percentualDepreciado.toFixed(0)}% depreciado`}
+                            </Badge>
+                          </div>
+                          <div className="grid grid-cols-3 gap-2 text-center">
+                            <div className="rounded-lg bg-muted/50 p-2">
+                              <p className="text-[10px] text-muted-foreground">Valor original</p>
+                              <p className="text-xs font-semibold">{formatBRL(Number((i as any).valor_total))}</p>
+                            </div>
+                            <div className="rounded-lg bg-muted/50 p-2">
+                              <p className="text-[10px] text-muted-foreground">Residual atual</p>
+                              <p className="text-xs font-semibold text-primary">{formatBRL(dep.valorResidual)}</p>
+                            </div>
+                            <div className="rounded-lg bg-muted/50 p-2">
+                              <p className="text-[10px] text-muted-foreground">Meses restantes</p>
+                              <p className="text-xs font-semibold">{dep.mesesRestantes}</p>
+                            </div>
+                          </div>
+                          <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                            <div
+                              className="h-full rounded-full bg-primary transition-all"
+                              style={{ width: `${dep.percentualDepreciado.toFixed(1)}%` }}
+                            />
+                          </div>
+                          <p className="text-[11px] text-muted-foreground">
+                            Vida util: {(i as any).meses_depreciacao} meses · Depreciação mensal: {formatBRL(dep.taxaMensal)}
+                          </p>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+          </TabsContent>
+        </Tabs>
       </div>
 
       {/* Escolha foto x leitura */}
@@ -990,20 +1184,76 @@ function NotasPage() {
               </div>
 
               {itensLidos.length > 0 && (
-                <div className="rounded-xl border p-3">
-                  <p className="mb-2 text-xs font-medium">
-                    {itensLidos.length} itens lidos da nota
+                <div className="rounded-xl border p-3 space-y-3">
+                  <p className="text-xs font-semibold">
+                    {itensLidos.length} {itensLidos.length === 1 ? "item identificado" : "itens identificados"}
                   </p>
-                  <ul className="max-h-40 space-y-1 overflow-y-auto text-xs text-muted-foreground">
-                    {itensLidos.map((i, idx) => (
-                      <li key={idx} className="flex justify-between gap-3">
-                        <span className="truncate">
-                          {i.quantidade}x {i.descricao}
-                        </span>
-                        <span>{formatBRL(i.valor_total)}</span>
-                      </li>
+                  <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
+                    {itensLidos.map((item, idx) => (
+                      <div key={idx} className="rounded-lg border bg-muted/30 p-2.5 space-y-1.5">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-medium truncate">
+                              {item.quantidade}x {item.descricao}
+                            </p>
+                            {item.categoria && (
+                              <Badge variant="secondary" className="mt-0.5 text-[10px] h-4 px-1.5">
+                                {item.categoria}{item.subcategoria ? ` / ${item.subcategoria}` : ""}
+                              </Badge>
+                            )}
+                          </div>
+                          <span className="shrink-0 text-xs font-semibold tabular-nums">
+                            {formatBRL(item.valor_total)}
+                          </span>
+                        </div>
+                        <label className="flex items-center gap-2 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={!!item.deprecia}
+                            onChange={(e) =>
+                              setItensLidos((prev) =>
+                                prev.map((it, i) =>
+                                  i === idx ? { ...it, deprecia: e.target.checked } : it,
+                                ),
+                              )
+                            }
+                            className="size-3.5 accent-primary"
+                          />
+                          <span className="text-[11px] text-muted-foreground">
+                            Este item deprecia?
+                          </span>
+                        </label>
+                        {item.deprecia && (
+                          <div className="flex items-center gap-2">
+                            <label className="text-[11px] text-muted-foreground shrink-0">
+                              Vida util (meses):
+                            </label>
+                            <input
+                              type="number"
+                              min={1}
+                              value={item.meses_depreciacao ?? ""}
+                              onChange={(e) =>
+                                setItensLidos((prev) =>
+                                  prev.map((it, i) =>
+                                    i === idx
+                                      ? { ...it, meses_depreciacao: Number(e.target.value) || null }
+                                      : it,
+                                  ),
+                                )
+                              }
+                              placeholder="Ex: 36"
+                              className="w-20 rounded border bg-background px-2 py-0.5 text-xs"
+                            />
+                            {item.meses_depreciacao && (
+                              <span className="text-[10px] text-muted-foreground">
+                                ≈ {(item.meses_depreciacao / 12).toFixed(1)} ano(s)
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     ))}
-                  </ul>
+                  </div>
                 </div>
               )}
 
@@ -1117,16 +1367,45 @@ function NotasPage() {
                 {(notaDetalhe.nota_itens ?? []).length > 0 && (
                   <div>
                     <p className="mb-2 text-xs font-medium">Itens</p>
-                    <ul className="space-y-1 text-xs text-muted-foreground">
-                      {(notaDetalhe.nota_itens ?? []).map((i) => (
-                        <li key={i.id} className="flex justify-between gap-3">
-                          <span className="truncate">
-                            {Number(i.quantidade)}x {i.descricao}
-                          </span>
-                          <span>{formatBRL(Number(i.valor_total))}</span>
-                        </li>
-                      ))}
-                    </ul>
+                    <div className="space-y-2">
+                      {(notaDetalhe.nota_itens ?? []).map((i) => {
+                        const iDepreciavel = !!(i as any).deprecia && (i as any).meses_depreciacao;
+                        const dep = iDepreciavel
+                          ? calcularDepreciacao({
+                              valorOriginal: Number(i.valor_total ?? 0),
+                              dataCompra: notaDetalhe.data_compra,
+                              mesesVidaUtil: Number((i as any).meses_depreciacao),
+                            })
+                          : null;
+                        return (
+                          <div key={i.id} className="rounded-lg border bg-muted/20 px-2.5 py-2 space-y-1">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0 flex-1">
+                                <p className="text-xs truncate">
+                                  {Number(i.quantidade)}x {i.descricao}
+                                </p>
+                                {(i as any).categoria && (
+                                  <Badge variant="secondary" className="mt-0.5 h-4 text-[10px] px-1.5">
+                                    {(i as any).categoria}
+                                    {(i as any).subcategoria ? ` / ${(i as any).subcategoria}` : ""}
+                                  </Badge>
+                                )}
+                              </div>
+                              <span className="shrink-0 text-xs font-semibold tabular-nums">
+                                {formatBRL(Number(i.valor_total))}
+                              </span>
+                            </div>
+                            {dep && (
+                              <p className="text-[11px] text-muted-foreground">
+                                {dep.totalmenteDepreciado
+                                  ? "Totalmente depreciado"
+                                  : `Residual: ${formatBRL(dep.valorResidual)} · ${dep.percentualDepreciado.toFixed(0)}% depreciado`}
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
 
