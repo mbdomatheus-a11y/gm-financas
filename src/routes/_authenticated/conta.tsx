@@ -1,5 +1,6 @@
 import { HistoricoConvitesGrupo, SairDoGrupoCard } from "@/components/ConvitesGrupo";
 import { createFileRoute } from "@tanstack/react-router";
+import { PreferenciaEmails } from "@/components/retencao/PreferenciaEmails";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { CalendarClock, Car, LogOut, Pencil, ShieldCheck, Trash2 } from "lucide-react";
@@ -273,6 +274,7 @@ function ContaPage() {
           </CardContent>
         </Card>
         <ConciliacaoFaturasCard />
+        <PreferenciaEmails />
         {isAdmin && <IaLancamentoModoGrupoCard />}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

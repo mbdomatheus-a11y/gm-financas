@@ -22,7 +22,13 @@ import { useSession } from "@/hooks/useAuthData";
  * Para contas novas: cria dados fictícios de exemplo (uma vez) e explica no
  * primeiro acesso que eles existem só para facilitar o entendimento do site.
  */
-export function BoasVindasExemplos({ bloqueado }: { bloqueado: boolean }) {
+export function BoasVindasExemplos({
+  bloqueado,
+  onVisibilityChange,
+}: {
+  bloqueado: boolean;
+  onVisibilityChange?: (aberto: boolean) => void;
+}) {
   const { user } = useSession();
   const qc = useQueryClient();
   const semear = useServerFn(semearDadosExemplo);
@@ -64,6 +70,10 @@ export function BoasVindasExemplos({ bloqueado }: { bloqueado: boolean }) {
       setMostrar(false);
     }
   }
+
+  useEffect(() => {
+    onVisibilityChange?.(mostrar);
+  }, [mostrar, onVisibilityChange]);
 
   if (!mostrar || bloqueado) return null;
   return (

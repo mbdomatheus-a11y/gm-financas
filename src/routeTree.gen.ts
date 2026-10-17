@@ -53,12 +53,14 @@ import { Route as CalculadorasDiferencaEntreDatasRouteImport } from './routes/ca
 import { Route as CalculadorasSimuladorDeDoseDiluicaoRouteImport } from './routes/calculadoras/simulador-de-dose-diluicao'
 import { Route as CalculadorasSomarDiasADataRouteImport } from './routes/calculadoras/somar-dias-a-data'
 import { Route as CalculadorasSomarHorariosRouteImport } from './routes/calculadoras/somar-horarios'
+import { Route as ComecarAssuntoRouteImport } from './routes/comecar/$assunto'
 import { Route as LinksTemporariosIndexRouteImport } from './routes/links-temporarios/index'
 import { Route as LinksTemporariosIdRouteImport } from './routes/links-temporarios/$id'
 import { Route as NotaTokenRouteImport } from './routes/nota/$token'
 import { Route as AuthenticatedLinksIndexRouteImport } from './routes/_authenticated/links/index'
 import { Route as AuthenticatedLinksIdRouteImport } from './routes/_authenticated/links/$id'
 import { Route as ApiCronDescarteLayoutsRouteImport } from './routes/api/cron/descarte-layouts'
+import { Route as ApiEmailPararRouteImport } from './routes/api/email/parar'
 import { Route as OauthGoogleDriveReturnRouteImport } from './routes/oauth/google-drive/return'
 
 const IndexRoute = IndexRouteImport.update({
@@ -292,6 +294,11 @@ const CalculadorasSomarHorariosRoute =
     path: '/calculadoras/somar-horarios',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ComecarAssuntoRoute = ComecarAssuntoRouteImport.update({
+  id: '/comecar/$assunto',
+  path: '/comecar/$assunto',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LinksTemporariosIndexRoute = LinksTemporariosIndexRouteImport.update({
   id: '/links-temporarios/',
   path: '/links-temporarios/',
@@ -320,6 +327,11 @@ const AuthenticatedLinksIdRoute = AuthenticatedLinksIdRouteImport.update({
 const ApiCronDescarteLayoutsRoute = ApiCronDescarteLayoutsRouteImport.update({
   id: '/api/cron/descarte-layouts',
   path: '/api/cron/descarte-layouts',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiEmailPararRoute = ApiEmailPararRouteImport.update({
+  id: '/api/email/parar',
+  path: '/api/email/parar',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OauthGoogleDriveReturnRoute = OauthGoogleDriveReturnRouteImport.update({
@@ -371,12 +383,14 @@ export interface FileRoutesByFullPath {
   '/calculadoras/simulador-de-dose-diluicao': typeof CalculadorasSimuladorDeDoseDiluicaoRoute
   '/calculadoras/somar-dias-a-data': typeof CalculadorasSomarDiasADataRoute
   '/calculadoras/somar-horarios': typeof CalculadorasSomarHorariosRoute
+  '/comecar/$assunto': typeof ComecarAssuntoRoute
   '/links-temporarios/$id': typeof LinksTemporariosIdRoute
   '/nota/$token': typeof NotaTokenRoute
   '/calculadoras/': typeof CalculadorasIndexRoute
   '/links-temporarios/': typeof LinksTemporariosIndexRoute
   '/links/$id': typeof AuthenticatedLinksIdRoute
   '/api/cron/descarte-layouts': typeof ApiCronDescarteLayoutsRoute
+  '/api/email/parar': typeof ApiEmailPararRoute
   '/oauth/google-drive/return': typeof OauthGoogleDriveReturnRoute
   '/links/': typeof AuthenticatedLinksIndexRoute
 }
@@ -423,12 +437,14 @@ export interface FileRoutesByTo {
   '/calculadoras/simulador-de-dose-diluicao': typeof CalculadorasSimuladorDeDoseDiluicaoRoute
   '/calculadoras/somar-dias-a-data': typeof CalculadorasSomarDiasADataRoute
   '/calculadoras/somar-horarios': typeof CalculadorasSomarHorariosRoute
+  '/comecar/$assunto': typeof ComecarAssuntoRoute
   '/links-temporarios/$id': typeof LinksTemporariosIdRoute
   '/nota/$token': typeof NotaTokenRoute
   '/calculadoras': typeof CalculadorasIndexRoute
   '/links-temporarios': typeof LinksTemporariosIndexRoute
   '/links/$id': typeof AuthenticatedLinksIdRoute
   '/api/cron/descarte-layouts': typeof ApiCronDescarteLayoutsRoute
+  '/api/email/parar': typeof ApiEmailPararRoute
   '/oauth/google-drive/return': typeof OauthGoogleDriveReturnRoute
   '/links': typeof AuthenticatedLinksIndexRoute
 }
@@ -477,12 +493,14 @@ export interface FileRoutesById {
   '/calculadoras/simulador-de-dose-diluicao': typeof CalculadorasSimuladorDeDoseDiluicaoRoute
   '/calculadoras/somar-dias-a-data': typeof CalculadorasSomarDiasADataRoute
   '/calculadoras/somar-horarios': typeof CalculadorasSomarHorariosRoute
+  '/comecar/$assunto': typeof ComecarAssuntoRoute
   '/links-temporarios/$id': typeof LinksTemporariosIdRoute
   '/nota/$token': typeof NotaTokenRoute
   '/calculadoras/': typeof CalculadorasIndexRoute
   '/links-temporarios/': typeof LinksTemporariosIndexRoute
   '/_authenticated/links/$id': typeof AuthenticatedLinksIdRoute
   '/api/cron/descarte-layouts': typeof ApiCronDescarteLayoutsRoute
+  '/api/email/parar': typeof ApiEmailPararRoute
   '/oauth/google-drive/return': typeof OauthGoogleDriveReturnRoute
   '/_authenticated/links/': typeof AuthenticatedLinksIndexRoute
 }
@@ -531,12 +549,14 @@ export interface FileRouteTypes {
     | '/calculadoras/simulador-de-dose-diluicao'
     | '/calculadoras/somar-dias-a-data'
     | '/calculadoras/somar-horarios'
+    | '/comecar/$assunto'
     | '/links-temporarios/$id'
     | '/nota/$token'
     | '/calculadoras/'
     | '/links-temporarios/'
     | '/links/$id'
     | '/api/cron/descarte-layouts'
+    | '/api/email/parar'
     | '/oauth/google-drive/return'
     | '/links/'
   fileRoutesByTo: FileRoutesByTo
@@ -583,12 +603,14 @@ export interface FileRouteTypes {
     | '/calculadoras/simulador-de-dose-diluicao'
     | '/calculadoras/somar-dias-a-data'
     | '/calculadoras/somar-horarios'
+    | '/comecar/$assunto'
     | '/links-temporarios/$id'
     | '/nota/$token'
     | '/calculadoras'
     | '/links-temporarios'
     | '/links/$id'
     | '/api/cron/descarte-layouts'
+    | '/api/email/parar'
     | '/oauth/google-drive/return'
     | '/links'
   id:
@@ -636,12 +658,14 @@ export interface FileRouteTypes {
     | '/calculadoras/simulador-de-dose-diluicao'
     | '/calculadoras/somar-dias-a-data'
     | '/calculadoras/somar-horarios'
+    | '/comecar/$assunto'
     | '/links-temporarios/$id'
     | '/nota/$token'
     | '/calculadoras/'
     | '/links-temporarios/'
     | '/_authenticated/links/$id'
     | '/api/cron/descarte-layouts'
+    | '/api/email/parar'
     | '/oauth/google-drive/return'
     | '/_authenticated/links/'
   fileRoutesById: FileRoutesById
@@ -660,11 +684,13 @@ export interface RootRouteChildren {
   CalculadorasSimuladorDeDoseDiluicaoRoute: typeof CalculadorasSimuladorDeDoseDiluicaoRoute
   CalculadorasSomarDiasADataRoute: typeof CalculadorasSomarDiasADataRoute
   CalculadorasSomarHorariosRoute: typeof CalculadorasSomarHorariosRoute
+  ComecarAssuntoRoute: typeof ComecarAssuntoRoute
   LinksTemporariosIdRoute: typeof LinksTemporariosIdRoute
   NotaTokenRoute: typeof NotaTokenRoute
   CalculadorasIndexRoute: typeof CalculadorasIndexRoute
   LinksTemporariosIndexRoute: typeof LinksTemporariosIndexRoute
   ApiCronDescarteLayoutsRoute: typeof ApiCronDescarteLayoutsRoute
+  ApiEmailPararRoute: typeof ApiEmailPararRoute
   OauthGoogleDriveReturnRoute: typeof OauthGoogleDriveReturnRoute
 }
 
@@ -978,6 +1004,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CalculadorasSomarHorariosRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/comecar/$assunto': {
+      id: '/comecar/$assunto'
+      path: '/comecar/$assunto'
+      fullPath: '/comecar/$assunto'
+      preLoaderRoute: typeof ComecarAssuntoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/links-temporarios/': {
       id: '/links-temporarios/'
       path: '/links-temporarios'
@@ -1018,6 +1051,13 @@ declare module '@tanstack/react-router' {
       path: '/api/cron/descarte-layouts'
       fullPath: '/api/cron/descarte-layouts'
       preLoaderRoute: typeof ApiCronDescarteLayoutsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/email/parar': {
+      id: '/api/email/parar'
+      path: '/api/email/parar'
+      fullPath: '/api/email/parar'
+      preLoaderRoute: typeof ApiEmailPararRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/oauth/google-drive/return': {
@@ -1118,16 +1158,21 @@ const rootRouteChildren: RootRouteChildren = {
     CalculadorasSimuladorDeDoseDiluicaoRoute,
   CalculadorasSomarDiasADataRoute: CalculadorasSomarDiasADataRoute,
   CalculadorasSomarHorariosRoute: CalculadorasSomarHorariosRoute,
+  ComecarAssuntoRoute: ComecarAssuntoRoute,
   LinksTemporariosIdRoute: LinksTemporariosIdRoute,
   NotaTokenRoute: NotaTokenRoute,
   CalculadorasIndexRoute: CalculadorasIndexRoute,
   LinksTemporariosIndexRoute: LinksTemporariosIndexRoute,
   ApiCronDescarteLayoutsRoute: ApiCronDescarteLayoutsRoute,
+  ApiEmailPararRoute: ApiEmailPararRoute,
   OauthGoogleDriveReturnRoute: OauthGoogleDriveReturnRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
 declare module '@tanstack/react-start' {
   interface Register {
     ssr: true

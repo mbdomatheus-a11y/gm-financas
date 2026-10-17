@@ -14,6 +14,7 @@ import { TourGuiado } from "@/components/TourGuiado";
 import { IdiomaProvider } from "@/hooks/useIdioma";
 import { ExclusaoAgendadaModal } from "@/components/ExclusaoAgendadaModal";
 import { BoasVindasExemplos } from "@/components/BoasVindasExemplos";
+import { PrimeirosPassos } from "@/components/retencao/PrimeirosPassos";
 import { useModulosGlobais, type ModuloGlobal } from "@/hooks/useAuthData";
 
 export const Route = createFileRoute("/_authenticated")({
@@ -68,6 +69,9 @@ function Protegido() {
   // confirmar que já sabe se há ou não aviso pendente (ver comentário em
   // ComunicadosModal.tsx sobre a condição de corrida que isso evita).
   const [avisoAberto, setAvisoAberto] = useState(true);
+  // Plano de retenção (2026-10-17): conta nova faz o 1º lançamento antes do tour.
+  const [exemplosAberto, setExemplosAberto] = useState(false);
+  const [primeirosPassos, setPrimeirosPassos] = useState(false);
   useEffect(() => {
     const modulo = MODULO_POR_ROTA[pathname];
     if (!isLoading && modulo && !habilitado(modulo))
@@ -78,8 +82,9 @@ function Protegido() {
       <IdiomaProvider>
       <ExclusaoAgendadaModal />
       <ComunicadosModal onVisibilityChange={setAvisoAberto} />
-      <BoasVindasExemplos bloqueado={avisoAberto} />
-      <TourGuiado bloqueado={avisoAberto} />
+      <BoasVindasExemplos bloqueado={avisoAberto} onVisibilityChange={setExemplosAberto} />
+      <PrimeirosPassos bloqueado={avisoAberto || exemplosAberto} onPendenteChange={setPrimeirosPassos} />
+      <TourGuiado bloqueado={avisoAberto || exemplosAberto || primeirosPassos} />
       <ConviteAposTresDias bloqueado={avisoAberto} />
       <Outlet />
       </IdiomaProvider>

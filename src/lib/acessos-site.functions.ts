@@ -31,7 +31,7 @@ export const registrarAcessoSite = createServerFn({ method: "POST" })
         utmMedium: z.string().max(80).nullish(),
         utmCampaign: z.string().max(120).nullish(),
         sessao: z.string().max(64).nullish(),
-        userId: z.string().uuid().nullish(),
+        token: z.string().max(4000).nullish(),
       })
       .parse(v),
   )
@@ -46,6 +46,12 @@ export const registrarAcessoSite = createServerFn({ method: "POST" })
         : /mobi|android|iphone/i.test(ua)
           ? "celular"
           : "computador";
+      // Usuário logado: o servidor confere o token (o navegador não informa o id direto).
+      let userId: string | null = null;
+      if (data.token) {
+        const { data: u } = await (supabaseAdmin as any).auth.getUser(data.token);
+        userId = u?.user?.id ?? null;
+      }
       await (supabaseAdmin as any).from("acessos_site_log").insert({
         caminho: data.caminho,
         referrer: data.referrer ?? null,
@@ -59,7 +65,7 @@ export const registrarAcessoSite = createServerFn({ method: "POST" })
         user_agent: ua.slice(0, 300) || null,
         dispositivo,
         sessao: data.sessao ?? null,
-        user_id: data.userId ?? null,
+        user_id: userId,
       });
     } catch {
       // Telemetria nunca atrapalha a navegação.

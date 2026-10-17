@@ -38,6 +38,8 @@ import { obterEstatisticaPublica } from "@/lib/estatisticas-site.functions";
 import { obterParceriaHome, registrarCliqueParceria } from "@/lib/parceria.functions";
 import { listarModulosPublicos } from "@/lib/modulos-publicos.functions";
 import { formatBRL } from "@/lib/format";
+import { contadorUsuariosPublico } from "@/lib/funil.functions";
+import { rastrearEvento } from "@/lib/funil-cliente";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -322,10 +324,83 @@ const jsonLdSoftwareApplication = {
   ],
 };
 
+/** Contador de usuários na home (pedido de 2026-10-17: mostrar mesmo que o número seja baixo). */
+function ContadorUsuarios({ className }: { className?: string }) {
+  const contadorFn = useServerFn(contadorUsuariosPublico);
+  const { data } = useQuery({ queryKey: ["contador-usuarios-home"], staleTime: 300_000, queryFn: () => contadorFn() });
+  if (!data || data.total <= 0) return null;
+  return (
+    <p className={cn("flex items-center gap-1.5 text-xs text-muted-foreground", className)}>
+      <span className="relative flex size-2">
+        <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-60" />
+        <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
+      </span>
+      <span>
+        <b className="text-foreground">{data.total}</b> {data.total === 1 ? "pessoa já usa" : "pessoas já usam"} o Control ALL
+        {data.novos30 > 0 && (
+          <>
+            {" · "}
+            <b className="text-foreground">{data.novos30}</b> {data.novos30 === 1 ? "chegou" : "chegaram"} nos últimos 30 dias
+          </>
+        )}
+      </span>
+    </p>
+  );
+}
+
+/** Mede até onde o visitante rolou a home (25, 50, 75 e 100%), uma vez por marco. */
+function useRolagemHome() {
+  useEffect(() => {
+    const marcados = new Set<number>();
+    const medir = () => {
+      const alturaUtil = document.documentElement.scrollHeight - window.innerHeight;
+      if (alturaUtil <= 0) return;
+      const pct = (window.scrollY / alturaUtil) * 100;
+      for (const marco of [25, 50, 75, 100]) {
+        if (pct >= marco - 2 && !marcados.has(marco)) {
+          marcados.add(marco);
+          rastrearEvento("home_rolagem", { valor: marco });
+        }
+      }
+    };
+    window.addEventListener("scroll", medir, { passive: true });
+    return () => window.removeEventListener("scroll", medir);
+  }, []);
+}
+
+/** Barra fixa no celular depois que o topo sai da tela: o botão de cadastro fica sempre à mão. */
+function BarraCadastroCelular() {
+  const [visivel, setVisivel] = useState(false);
+  useEffect(() => {
+    const medir = () => setVisivel(window.scrollY > window.innerHeight * 0.8);
+    medir();
+    window.addEventListener("scroll", medir, { passive: true });
+    return () => window.removeEventListener("scroll", medir);
+  }, []);
+  return (
+    <div
+      className={cn(
+        "fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 px-4 py-3 shadow-[0_-4px_16px_rgba(0,0,0,0.08)] backdrop-blur transition-transform sm:hidden",
+        visivel ? "translate-y-0" : "translate-y-full",
+      )}
+      style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
+    >
+      <Button asChild size="lg" className="h-12 w-full text-base font-semibold">
+        <Link to="/entrar" search={{ criar: true }} onClick={cliqueCadastrar("barra-celular")}>
+          Criar minha conta grátis <ArrowRight className="ml-2 size-4" />
+        </Link>
+      </Button>
+    </div>
+  );
+}
+
+const cliqueCadastrar = (origem: string) => () => rastrearEvento("clique_cadastrar", { caminho: `/#${origem}` });
+
 function LandingPage() {
   const moduloLiberado = useModulosLiberados();
   const navigate = useNavigate();
   const videoUrl = useVideoDemonstracaoUrl();
+  useRolagemHome();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -350,43 +425,52 @@ function LandingPage() {
       <section className="relative overflow-hidden border-b">
         <div className="pointer-events-none absolute -left-24 -top-24 size-96 rounded-full bg-primary/15 blur-3xl" />
         <div className="pointer-events-none absolute -right-20 top-40 size-80 rounded-full bg-emerald-400/15 blur-3xl" />
-        <div className="relative mx-auto grid max-w-6xl gap-12 px-4 py-16 md:grid-cols-[1.1fr_.9fr] md:py-24">
+        {/* Plano de retenção (2026-10-17): no celular o botão de criar conta aparece na
+            primeira tela, com título de benefício curto. Marca animada e selo só do tablet em diante. */}
+        <div className="relative mx-auto grid max-w-6xl gap-10 px-4 py-7 sm:py-16 md:grid-cols-[1.1fr_.9fr] md:py-24">
           <div className="flex flex-col justify-center">
-            <BrandAnimado className="mb-5" />
+            <BrandAnimado className="mb-5 hidden sm:flex" />
 
-            <div className="mb-4 inline-flex w-fit items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+            <div className="mb-4 hidden w-fit items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-1 text-xs font-semibold text-emerald-700 sm:inline-flex dark:text-emerald-400">
               <Sparkles className="size-3.5" />
               Finanças, notas fiscais e IA para te ajudar no dia a dia
             </div>
 
-            <h1 className="text-4xl font-extrabold leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl">
-              Seu dinheiro e suas notas fiscais, finalmente{" "}
-              <span className="text-gradient-brand">sob controle.</span>
+            <h1 className="text-[2.1rem] font-extrabold leading-[1.08] tracking-tight sm:text-5xl lg:text-6xl">
+              Saiba quanto sobra no fim do mês,{" "}
+              <span className="text-gradient-brand">sem planilha.</span>
             </h1>
 
-            <p className="mt-5 max-w-xl text-base leading-7 text-muted-foreground">
-              Organize receitas, despesas e parcelas, guarde suas notas fiscais e garantias e use um
-              assistente de IA para lançar gastos por texto ou voz e resumir o seu mês. Tudo em um só
-              lugar, simples para toda a família e gratuito.
+            <p className="mt-4 max-w-xl text-base leading-7 text-muted-foreground">
+              Fale um gasto e a IA lança. Envie a fatura do cartão e veja quando cada parcela acaba.
+              <span className="hidden sm:inline">
+                {" "}Notas fiscais e garantias no mesmo lugar, para toda a família.
+              </span>{" "}
+              Grátis.
             </p>
 
-            <div className="mt-8 flex flex-wrap items-center gap-3">
-              <Button asChild size="lg" className="h-12 px-6 text-sm font-semibold">
-                <Link to="/entrar" search={{ criar: true }}>
+            <div className="mt-6 flex flex-col gap-3 sm:mt-8 sm:flex-row sm:flex-wrap sm:items-center">
+              <Button asChild size="lg" className="h-12 w-full px-6 text-base font-semibold sm:w-auto sm:text-sm">
+                <Link to="/entrar" search={{ criar: true }} onClick={cliqueCadastrar("hero")}>
                   Criar minha conta grátis <ArrowRight className="ml-2 size-4" />
                 </Link>
               </Button>
-              <Button asChild size="lg" variant="outline" className="h-12 px-5 text-sm">
-                <a href="#demonstracao">
-                  <PlayCircle className="mr-2 size-4 text-primary" /> Ver demonstração
-                </a>
-              </Button>
-              <Button asChild size="lg" variant="ghost" className="h-12 px-5 text-sm">
-                <Link to="/calculadoras">
-                  <Calculator className="mr-2 size-4 text-primary" /> Calculadoras
-                </Link>
-              </Button>
+              <div className="flex gap-3">
+                {videoUrl && (
+                  <Button asChild size="lg" variant="outline" className="h-12 flex-1 px-5 text-sm sm:flex-none">
+                    <a href="#demonstracao">
+                      <PlayCircle className="mr-2 size-4 text-primary" /> Ver demonstração
+                    </a>
+                  </Button>
+                )}
+                <Button asChild size="lg" variant="ghost" className="h-12 flex-1 px-5 text-sm sm:flex-none">
+                  <Link to="/calculadoras">
+                    <Calculator className="mr-2 size-4 text-primary" /> Calculadoras
+                  </Link>
+                </Button>
+              </div>
             </div>
+            <ContadorUsuarios className="mt-4" />
 
             <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
               <span className="flex items-center gap-1.5">
@@ -455,7 +539,7 @@ function LandingPage() {
                 </p>
                 <div className="grid grid-cols-2 gap-2">
                   {modulos
-                    .filter((m) => m.titulo !== "Calculadoras gratuitas")
+                    .filter((m) => m.titulo !== "Calculadoras gratuitas" && moduloLiberado(m.titulo))
                     .map(({ icon: Icon, titulo }) => {
                       const ok = moduloLiberado(titulo);
                       return (
@@ -520,7 +604,7 @@ function LandingPage() {
           </div>
 
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {modulos.map(({ icon: Icon, titulo, texto, detalhes }) => {
+            {modulos.filter((m) => moduloLiberado(m.titulo)).map(({ icon: Icon, titulo, texto, detalhes }) => {
               const liberado = moduloLiberado(titulo);
               return (
               <Card key={titulo} className={cn("flex flex-col", liberado ? "lift" : "relative opacity-60 grayscale")}>
@@ -575,7 +659,8 @@ function LandingPage() {
         </div>
       </section>
 
-      {/* Demonstração */}
+      {/* Demonstração (só aparece quando há vídeo publicado) */}
+      {videoUrl && (
       <section id="demonstracao" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-16">
         <div className="grid items-center gap-8 md:grid-cols-2">
           <div>
@@ -605,6 +690,7 @@ function LandingPage() {
           )}
         </div>
       </section>
+      )}
 
       {/* Educação financeira */}
       <section id="educacao-financeira" className="scroll-mt-20 border-t bg-muted/20">
@@ -656,7 +742,7 @@ function LandingPage() {
                 ))}
               </ul>
               <Button asChild size="lg" className="mt-6 w-full font-semibold">
-                <Link to="/entrar" search={{ criar: true }}>
+                <Link to="/entrar" search={{ criar: true }} onClick={cliqueCadastrar("precos")}>
                   Criar conta grátis
                 </Link>
               </Button>
@@ -668,7 +754,8 @@ function LandingPage() {
       <div className="mx-auto max-w-6xl px-6 pb-8">
         <AppEmBreve />
       </div>
-      <footer className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 border-t px-6 py-8 text-xs text-muted-foreground sm:flex-row">
+      <BarraCadastroCelular />
+      <footer className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 border-t px-6 pb-24 pt-8 text-xs text-muted-foreground sm:flex-row sm:pb-8">
         <p>© {new Date().getFullYear()} Control ALL LTDA. Todos os direitos reservados.</p>
         <div className="flex items-center gap-4">
           <Link to="/calculadoras" className="hover:underline">

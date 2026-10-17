@@ -49,6 +49,7 @@ import {
 } from "@/lib/tour.functions";
 import { IaLancamentoModoSiteCard } from "@/components/IaLancamentoModoSiteCard";
 import { AcessosSiteAdmin } from "@/components/AcessosSiteAdmin";
+import { FunilAdmin, NovosUsuariosResumo } from "@/components/FunilAdmin";
 import { PadroesAdmin } from "@/components/PadroesAdmin";
 import { TelaInicialPadraoCard } from "@/components/TelaInicialPadraoCard";
 import {
@@ -116,6 +117,7 @@ const GRUPOS_ADMIN: {
     abas: [
       { id: "dados-gerais", rotulo: "Dados Gerais" },
       { id: "consulta", rotulo: "Consulta" },
+      { id: "funil", rotulo: "Funil e retenção" },
       { id: "acessos", rotulo: "Acessos ao site" },
     ],
   },
@@ -919,6 +921,7 @@ function Admin() {
   return (
     <AppLayout title="Administração do site" description="Painel de controle administrativo">
       <Tabs value={abaAtiva} onValueChange={setAbaAtiva} className="space-y-4">
+        <NovosUsuariosResumo />
         {/* Grupos (2026-10-06): as 10 abas foram agrupadas por assunto. Primeiro
             escolhe-se o grupo, depois a aba dentro dele. Os valores das abas e
             seus conteudos nao mudaram (links com ?aba= continuam validos). */}
@@ -964,6 +967,10 @@ function Admin() {
             </TabsTrigger>
           ))}
         </TabsList>
+
+        <TabsContent value="funil" className="space-y-4">
+          <FunilAdmin />
+        </TabsContent>
 
         <TabsContent value="acessos" className="space-y-4">
           <AcessosSiteAdmin />
