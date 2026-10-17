@@ -2661,5 +2661,15 @@
  "Remover depreciação": "Retirer l'amortissement",
  "Sem depreciação": "Sans amortissement",
  "Vida útil do bem": "Durée de vie du bien",
- "Vida útil do bem (sugestão: {0})": "Durée de vie du bien (suggérée : {0})"
+ "Vida útil do bem (sugestão: {0})": "Durée de vie du bien (suggérée : {0})",
+ "2 anos (Bateria)": "2 ans (Batterie)",
+ "3 anos (Pneus)": "3 ans (Pneus)",
+ "Depreciação é a perda de valor do bem ao longo da vida útil (método linear, em meses completos a partir da compra). Não é um gasto novo: o dinheiro já saiu na compra, então ela não entra nas despesas do mês.": "L'amortissement est la perte de valeur d'un bien sur sa durée de vie (méthode linéaire, en mois complets à partir de l'achat). Ce n'est pas une nouvelle dépense : l'argent est sorti à l'achat, donc il n'entre pas dans les dépenses du mois.",
+ "Depreciado até hoje": "Amorti à ce jour",
+ "Perda de valor por mês": "Perte de valeur par mois",
+ "Valor atual dos bens": "Valeur actuelle des biens",
+ "Valor atual: {0} · {1}% depreciado": "Valeur actuelle : {0} · {1}% amorti",
+ "Valor de compra": "Valeur d'achat",
+ "Vida útil (meses):": "Durée de vie (mois) :",
+ "Vida útil: {0} meses · Depreciação mensal: {1}": "Durée de vie : {0} mois · Amortissement mensuel : {1}"
 }

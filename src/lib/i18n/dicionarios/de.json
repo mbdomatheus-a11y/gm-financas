@@ -2661,5 +2661,15 @@
  "Remover depreciação": "Abschreibung entfernen",
  "Sem depreciação": "Keine Abschreibung",
  "Vida útil do bem": "Nutzungsdauer",
- "Vida útil do bem (sugestão: {0})": "Nutzungsdauer (Vorschlag: {0})"
+ "Vida útil do bem (sugestão: {0})": "Nutzungsdauer (Vorschlag: {0})",
+ "2 anos (Bateria)": "2 Jahre (Batterie)",
+ "3 anos (Pneus)": "3 Jahre (Reifen)",
+ "Depreciação é a perda de valor do bem ao longo da vida útil (método linear, em meses completos a partir da compra). Não é um gasto novo: o dinheiro já saiu na compra, então ela não entra nas despesas do mês.": "Abschreibung ist der Wertverlust eines Guts über seine Nutzungsdauer (linear, in vollen Monaten ab Kauf). Sie ist keine neue Ausgabe: Das Geld ist beim Kauf bereits abgeflossen, daher zählt sie nicht zu den Monatsausgaben.",
+ "Depreciado até hoje": "Bisher abgeschrieben",
+ "Perda de valor por mês": "Wertverlust pro Monat",
+ "Valor atual dos bens": "Aktueller Wert der Güter",
+ "Valor atual: {0} · {1}% depreciado": "Aktueller Wert: {0} · {1}% abgeschrieben",
+ "Valor de compra": "Kaufwert",
+ "Vida útil (meses):": "Nutzungsdauer (Monate):",
+ "Vida útil: {0} meses · Depreciação mensal: {1}": "Nutzungsdauer: {0} Monate · Monatliche Abschreibung: {1}"
 }

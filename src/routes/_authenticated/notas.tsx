@@ -922,8 +922,43 @@ function NotasPage() {
                   </Card>
                 );
               }
+              const calculos = bensDepreciaveis.map((i) =>
+                calcularDepreciacao({
+                  valorOriginal: Number((i as any).valor_total ?? 0),
+                  dataCompra: i.data_compra,
+                  mesesVidaUtil: Number((i as any).meses_depreciacao),
+                }),
+              );
+              const totalOriginal = bensDepreciaveis.reduce((s, i) => s + Number((i as any).valor_total ?? 0), 0);
+              const totalAtual = calculos.reduce((s, c) => s + c.valorAtual, 0);
+              const totalMensal = calculos.reduce((s, c) => s + (c.totalmenteDepreciado ? 0 : c.taxaMensal), 0);
               return (
                 <div className="space-y-3">
+                  <Card>
+                    <CardContent className="py-3 space-y-2">
+                      <div className="grid grid-cols-2 gap-2 text-center sm:grid-cols-4">
+                        <div className="rounded-lg bg-muted/50 p-2">
+                          <p className="text-[10px] text-muted-foreground">Valor de compra</p>
+                          <p className="text-xs font-semibold">{formatBRL(totalOriginal)}</p>
+                        </div>
+                        <div className="rounded-lg bg-muted/50 p-2">
+                          <p className="text-[10px] text-muted-foreground">Valor atual dos bens</p>
+                          <p className="text-xs font-semibold text-primary">{formatBRL(totalAtual)}</p>
+                        </div>
+                        <div className="rounded-lg bg-muted/50 p-2">
+                          <p className="text-[10px] text-muted-foreground">Depreciado até hoje</p>
+                          <p className="text-xs font-semibold">{formatBRL(totalOriginal - totalAtual)}</p>
+                        </div>
+                        <div className="rounded-lg bg-muted/50 p-2">
+                          <p className="text-[10px] text-muted-foreground">Perda de valor por mês</p>
+                          <p className="text-xs font-semibold">{formatBRL(totalMensal)}</p>
+                        </div>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">
+                        Depreciação é a perda de valor do bem ao longo da vida útil (método linear, em meses completos a partir da compra). Não é um gasto novo: o dinheiro já saiu na compra, então ela não entra nas despesas do mês.
+                      </p>
+                    </CardContent>
+                  </Card>
                   {bensDepreciaveis.map((i) => {
                     const dep = calcularDepreciacao({
                       valorOriginal: Number((i as any).valor_total ?? 0),
@@ -951,8 +986,8 @@ function NotasPage() {
                               <p className="text-xs font-semibold">{formatBRL(Number((i as any).valor_total))}</p>
                             </div>
                             <div className="rounded-lg bg-muted/50 p-2">
-                              <p className="text-[10px] text-muted-foreground">Residual atual</p>
-                              <p className="text-xs font-semibold text-primary">{formatBRL(dep.valorResidual)}</p>
+                              <p className="text-[10px] text-muted-foreground">Valor atual</p>
+                              <p className="text-xs font-semibold text-primary">{formatBRL(dep.valorAtual)}</p>
                             </div>
                             <div className="rounded-lg bg-muted/50 p-2">
                               <p className="text-[10px] text-muted-foreground">Meses restantes</p>
@@ -966,7 +1001,7 @@ function NotasPage() {
                             />
                           </div>
                           <p className="text-[11px] text-muted-foreground">
-                            Vida util: {(i as any).meses_depreciacao} meses · Depreciação mensal: {formatBRL(dep.taxaMensal)}
+                            Vida útil: {(i as any).meses_depreciacao} meses · Depreciação mensal: {formatBRL(dep.taxaMensal)}
                           </p>
                         </CardContent>
                       </Card>
@@ -1227,7 +1262,7 @@ function NotasPage() {
                         {item.deprecia && (
                           <div className="flex items-center gap-2">
                             <label className="text-[11px] text-muted-foreground shrink-0">
-                              Vida util (meses):
+                              Vida útil (meses):
                             </label>
                             <input
                               type="number"
@@ -1411,7 +1446,7 @@ function NotasPage() {
                               <p className="text-[11px] text-muted-foreground">
                                 {dep.totalmenteDepreciado
                                   ? "Totalmente depreciado"
-                                  : `Residual: ${formatBRL(dep.valorResidual)} · ${dep.percentualDepreciado.toFixed(0)}% depreciado`}
+                                  : `Valor atual: ${formatBRL(dep.valorAtual)} · ${dep.percentualDepreciado.toFixed(0)}% depreciado`}
                               </p>
                             )}
                             <DepreciacaoItem item={i as any} />

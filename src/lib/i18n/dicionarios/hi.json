@@ -2661,5 +2661,15 @@
  "Remover depreciação": "मूल्यह्रास हटाएं",
  "Sem depreciação": "कोई मूल्यह्रास नहीं",
  "Vida útil do bem": "संपत्ति की उपयोगी आयु",
- "Vida útil do bem (sugestão: {0})": "संपत्ति की उपयोगी आयु (सुझाव: {0})"
+ "Vida útil do bem (sugestão: {0})": "संपत्ति की उपयोगी आयु (सुझाव: {0})",
+ "2 anos (Bateria)": "2 वर्ष (बैटरी)",
+ "3 anos (Pneus)": "3 वर्ष (टायर)",
+ "Depreciação é a perda de valor do bem ao longo da vida útil (método linear, em meses completos a partir da compra). Não é um gasto novo: o dinheiro já saiu na compra, então ela não entra nas despesas do mês.": "मूल्यह्रास उपयोगी आयु के दौरान संपत्ति के मूल्य में कमी है (सीधी रेखा विधि, खरीद से पूरे महीनों में)। यह नया खर्च नहीं है: पैसा खरीद के समय ही निकल चुका है, इसलिए यह मासिक खर्चों में नहीं गिना जाता।",
+ "Depreciado até hoje": "आज तक मूल्यह्रास",
+ "Perda de valor por mês": "प्रति माह मूल्य हानि",
+ "Valor atual dos bens": "संपत्तियों का वर्तमान मूल्य",
+ "Valor atual: {0} · {1}% depreciado": "वर्तमान मूल्य: {0} · {1}% मूल्यह्रास",
+ "Valor de compra": "खरीद मूल्य",
+ "Vida útil (meses):": "उपयोगी आयु (महीने):",
+ "Vida útil: {0} meses · Depreciação mensal: {1}": "उपयोगी आयु: {0} महीने · मासिक मूल्यह्रास: {1}"
 }

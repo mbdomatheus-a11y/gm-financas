@@ -2661,5 +2661,15 @@
  "Remover depreciação": "Quitar depreciación",
  "Sem depreciação": "Sin depreciación",
  "Vida útil do bem": "Vida útil del bien",
- "Vida útil do bem (sugestão: {0})": "Vida útil del bien (sugerida: {0})"
+ "Vida útil do bem (sugestão: {0})": "Vida útil del bien (sugerida: {0})",
+ "2 anos (Bateria)": "2 años (Batería)",
+ "3 anos (Pneus)": "3 años (Neumáticos)",
+ "Depreciação é a perda de valor do bem ao longo da vida útil (método linear, em meses completos a partir da compra). Não é um gasto novo: o dinheiro já saiu na compra, então ela não entra nas despesas do mês.": "La depreciación es la pérdida de valor del bien durante su vida útil (método lineal, en meses completos desde la compra). No es un gasto nuevo: el dinero ya salió en la compra, por eso no cuenta en los gastos del mes.",
+ "Depreciado até hoje": "Depreciado hasta hoy",
+ "Perda de valor por mês": "Pérdida de valor por mes",
+ "Valor atual dos bens": "Valor actual de los bienes",
+ "Valor atual: {0} · {1}% depreciado": "Valor actual: {0} · {1}% depreciado",
+ "Valor de compra": "Valor de compra",
+ "Vida útil (meses):": "Vida útil (meses):",
+ "Vida útil: {0} meses · Depreciação mensal: {1}": "Vida útil: {0} meses · Depreciación mensual: {1}"
 }

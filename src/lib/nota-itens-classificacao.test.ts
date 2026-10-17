@@ -44,3 +44,32 @@ describe("nota-itens-classificacao", () => {
     expect(calc.totalmenteDepreciado).toBe(false);
   });
 });
+
+describe("depreciação: conceito", () => {
+  test("data AAAA-MM-01 conta no mês certo (sem deslocar para o mês anterior)", () => {
+    const c = calcularDepreciacao({
+      valorOriginal: 1200,
+      dataCompra: "2026-01-01",
+      mesesVidaUtil: 12,
+      dataReferencia: new Date(2026, 1, 15),
+    });
+    expect(c.mesesDecorridos).toBe(1);
+    expect(c.valorAtual).toBe(1100);
+  });
+
+  test("não passa de 100% e zera ao fim da vida útil", () => {
+    const c = calcularDepreciacao({
+      valorOriginal: 1000,
+      dataCompra: "2020-01-10",
+      mesesVidaUtil: 24,
+      dataReferencia: new Date(2026, 5, 1),
+    });
+    expect(c.valorAtual).toBe(0);
+    expect(c.totalmenteDepreciado).toBe(true);
+  });
+
+  test("óleo e filtros são manutenção e não depreciam; pneu deprecia", () => {
+    expect(classificarItemNota("Oleo motor 5W30").sugestaoDepreciacao).toBeUndefined();
+    expect(classificarItemNota("Pneu aro 15").sugestaoDepreciacao?.meses).toBe(36);
+  });
+});

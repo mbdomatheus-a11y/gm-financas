@@ -55,7 +55,11 @@ const REGRAS_ITENS: Array<{
 
   // VEÍCULO
   { padrao: /\b(gasolina|etanol|alcool|álcool|diesel|combustivel|combustível)\b/i, categoria: "Veículo", subcategoria: "Combustível" },
-  { padrao: /\b(oleo motor|óleo motor|filtro de oleo|filtro de ar|pneu|alinhamento|balanceamento|bateria automotiva|pastilha freio)\b/i, categoria: "Veículo", subcategoria: "Manutenção", depreciacao: { meses: 36, rotulo: "3 anos (Peças automotivas)" } },
+  // Consumíveis e serviços (óleo, filtros, alinhamento, pastilha) são despesa de manutenção: NÃO depreciam.
+  { padrao: /\b(oleo motor|óleo motor|filtro de oleo|filtro de ar|alinhamento|balanceamento|pastilha freio)\b/i, categoria: "Veículo", subcategoria: "Manutenção" },
+  // Bens duráveis do veículo: pneu e bateria têm vida útil própria.
+  { padrao: /\b(pneu)\b/i, categoria: "Veículo", subcategoria: "Manutenção", depreciacao: { meses: 36, rotulo: "3 anos (Pneus)" } },
+  { padrao: /\b(bateria automotiva)\b/i, categoria: "Veículo", subcategoria: "Manutenção", depreciacao: { meses: 24, rotulo: "2 anos (Bateria)" } },
 
   // BELEZA / CUIDADOS PESSOAIS
   { padrao: /\b(shampoo|condicionador|sabonete|desodorante|perfume|hidratante|protetor solar|pasta de dente|creme dental|fio dental|esmalte|maquiagem|batom)\b/i, categoria: "Beleza / Cuidados pessoais", subcategoria: "Cosméticos" },
@@ -108,6 +112,9 @@ export function calcularDepreciacao(params: {
   mesesDecorridos: number;
   mesesRestantes: number;
   valorDepreciado: number;
+  /** Valor contábil atual (original menos depreciação acumulada). */
+  valorAtual: number;
+  /** Alias antigo de valorAtual (mantido por compatibilidade). */
   valorResidual: number;
   taxaMensal: number;
   percentualDepreciado: number;
@@ -119,6 +126,7 @@ export function calcularDepreciacao(params: {
       mesesDecorridos: 0,
       mesesRestantes: 0,
       valorDepreciado: 0,
+      valorAtual: valorOriginal,
       valorResidual: valorOriginal,
       taxaMensal: 0,
       percentualDepreciado: 0,
@@ -126,12 +134,16 @@ export function calcularDepreciacao(params: {
     };
   }
 
-  const compra = new Date(dataCompra);
+  // "AAAA-MM-DD" lido como data local (new Date("AAAA-MM-DD") é UTC e, no Brasil,
+  // joga o dia 1 para o mês anterior).
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(dataCompra ?? "");
+  const compra = m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : new Date(dataCompra);
   if (isNaN(compra.getTime())) {
     return {
       mesesDecorridos: 0,
       mesesRestantes: mesesVidaUtil,
       valorDepreciado: 0,
+      valorAtual: valorOriginal,
       valorResidual: valorOriginal,
       taxaMensal: valorOriginal / mesesVidaUtil,
       percentualDepreciado: 0,
@@ -149,13 +161,15 @@ export function calcularDepreciacao(params: {
 
   const taxaMensal = valorOriginal / mesesVidaUtil;
   const valorDepreciado = Math.min(valorOriginal, mesesDecorridos * taxaMensal);
-  const valorResidual = Math.max(0, valorOriginal - valorDepreciado);
+  const valorAtual = Math.max(0, valorOriginal - valorDepreciado);
+  const valorResidual = valorAtual;
   const percentualDepreciado = Math.min(100, (valorDepreciado / valorOriginal) * 100);
 
   return {
     mesesDecorridos,
     mesesRestantes,
     valorDepreciado,
+    valorAtual,
     valorResidual,
     taxaMensal,
     percentualDepreciado,

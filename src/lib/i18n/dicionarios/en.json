@@ -2661,5 +2661,15 @@
  "Remover depreciação": "Remove depreciation",
  "Sem depreciação": "No depreciation",
  "Vida útil do bem": "Useful life",
- "Vida útil do bem (sugestão: {0})": "Useful life (suggested: {0})"
+ "Vida útil do bem (sugestão: {0})": "Useful life (suggested: {0})",
+ "2 anos (Bateria)": "2 years (Battery)",
+ "3 anos (Pneus)": "3 years (Tires)",
+ "Depreciação é a perda de valor do bem ao longo da vida útil (método linear, em meses completos a partir da compra). Não é um gasto novo: o dinheiro já saiu na compra, então ela não entra nas despesas do mês.": "Depreciation is the loss of value of an asset over its useful life (straight-line, in full months from purchase). It is not a new expense: the money already left at purchase, so it does not count in monthly expenses.",
+ "Depreciado até hoje": "Depreciated so far",
+ "Perda de valor por mês": "Value lost per month",
+ "Valor atual dos bens": "Current value of assets",
+ "Valor atual: {0} · {1}% depreciado": "Current value: {0} · {1}% depreciated",
+ "Valor de compra": "Purchase value",
+ "Vida útil (meses):": "Useful life (months):",
+ "Vida útil: {0} meses · Depreciação mensal: {1}": "Useful life: {0} months · Monthly depreciation: {1}"
 }

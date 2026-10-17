@@ -2661,5 +2661,15 @@
  "Remover depreciação": "Rimuovi ammortamento",
  "Sem depreciação": "Nessun ammortamento",
  "Vida útil do bem": "Vita utile del bene",
- "Vida útil do bem (sugestão: {0})": "Vita utile del bene (suggerita: {0})"
+ "Vida útil do bem (sugestão: {0})": "Vita utile del bene (suggerita: {0})",
+ "2 anos (Bateria)": "2 anni (Batteria)",
+ "3 anos (Pneus)": "3 anni (Pneumatici)",
+ "Depreciação é a perda de valor do bem ao longo da vida útil (método linear, em meses completos a partir da compra). Não é um gasto novo: o dinheiro já saiu na compra, então ela não entra nas despesas do mês.": "L'ammortamento è la perdita di valore del bene durante la sua vita utile (metodo lineare, in mesi interi dall'acquisto). Non è una nuova spesa: il denaro è già uscito all'acquisto, quindi non rientra nelle spese del mese.",
+ "Depreciado até hoje": "Ammortizzato finora",
+ "Perda de valor por mês": "Perdita di valore al mese",
+ "Valor atual dos bens": "Valore attuale dei beni",
+ "Valor atual: {0} · {1}% depreciado": "Valore attuale: {0} · {1}% ammortizzato",
+ "Valor de compra": "Valore di acquisto",
+ "Vida útil (meses):": "Vita utile (mesi):",
+ "Vida útil: {0} meses · Depreciação mensal: {1}": "Vita utile: {0} mesi · Ammortamento mensile: {1}"
 }

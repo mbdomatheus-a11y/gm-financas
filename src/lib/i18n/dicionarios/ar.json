@@ -2661,5 +2661,15 @@
  "Remover depreciação": "إزالة الإهلاك",
  "Sem depreciação": "بدون إهلاك",
  "Vida útil do bem": "العمر الإنتاجي للأصل",
- "Vida útil do bem (sugestão: {0})": "العمر الإنتاجي للأصل (المقترح: {0})"
+ "Vida útil do bem (sugestão: {0})": "العمر الإنتاجي للأصل (المقترح: {0})",
+ "2 anos (Bateria)": "سنتان (البطارية)",
+ "3 anos (Pneus)": "3 سنوات (الإطارات)",
+ "Depreciação é a perda de valor do bem ao longo da vida útil (método linear, em meses completos a partir da compra). Não é um gasto novo: o dinheiro já saiu na compra, então ela não entra nas despesas do mês.": "الإهلاك هو فقدان قيمة الأصل على مدى عمره الإنتاجي (بالقسط الثابت وبالأشهر الكاملة منذ الشراء). ليس إنفاقاً جديداً: فالمال خرج وقت الشراء، لذلك لا يُحتسب ضمن مصروفات الشهر.",
+ "Depreciado até hoje": "المُهلَك حتى اليوم",
+ "Perda de valor por mês": "فقدان القيمة شهرياً",
+ "Valor atual dos bens": "القيمة الحالية للأصول",
+ "Valor atual: {0} · {1}% depreciado": "القيمة الحالية: {0} · {1}% مُهلَك",
+ "Valor de compra": "قيمة الشراء",
+ "Vida útil (meses):": "العمر الإنتاجي (بالأشهر):",
+ "Vida útil: {0} meses · Depreciação mensal: {1}": "العمر الإنتاجي: {0} أشهر · الإهلاك الشهري: {1}"
 }

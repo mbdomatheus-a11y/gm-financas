@@ -2661,5 +2661,15 @@
  "Remover depreciação": "取消折旧",
  "Sem depreciação": "不折旧",
  "Vida útil do bem": "资产使用年限",
- "Vida útil do bem (sugestão: {0})": "资产使用年限(建议:{0})"
+ "Vida útil do bem (sugestão: {0})": "资产使用年限(建议:{0})",
+ "2 anos (Bateria)": "2 年(电池)",
+ "3 anos (Pneus)": "3 年(轮胎)",
+ "Depreciação é a perda de valor do bem ao longo da vida útil (método linear, em meses completos a partir da compra). Não é um gasto novo: o dinheiro já saiu na compra, então ela não entra nas despesas do mês.": "折旧是资产在使用年限内的价值损耗(直线法,自购买起按整月计算)。它不是新的支出:钱在购买时已经付出,因此不计入当月支出。",
+ "Depreciado até hoje": "截至目前已折旧",
+ "Perda de valor por mês": "每月价值损耗",
+ "Valor atual dos bens": "资产当前价值",
+ "Valor atual: {0} · {1}% depreciado": "当前价值:{0} · 已折旧 {1}%",
+ "Valor de compra": "购买价值",
+ "Vida útil (meses):": "使用年限(月):",
+ "Vida útil: {0} meses · Depreciação mensal: {1}": "使用年限:{0} 个月 · 月折旧:{1}"
 }
