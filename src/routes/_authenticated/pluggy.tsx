@@ -22,6 +22,7 @@ import {
   pluggyRegistrarItem,
   pluggyRejeitarLancamento,
   pluggySincronizarAgora,
+  pluggySincronizarTodos,
   pluggyRemoverItem,
   pluggyStatus,
 } from "@/lib/pluggy.functions";
@@ -53,6 +54,7 @@ function PluggyPage() {
   const rejeitar = useServerFn(pluggyRejeitarLancamento);
   const listarContas = useServerFn(pluggyListarContas);
   const sincronizar = useServerFn(pluggySincronizarAgora);
+  const sincronizarTodos = useServerFn(pluggySincronizarTodos);
   const listarPatrimonio = useServerFn(pluggyListarPatrimonio);
   const [token, setToken] = useState<string | null>(null);
   const [Widget, setWidget] = useState<any>(null);
@@ -111,6 +113,19 @@ function PluggyPage() {
     queryFn: () => listarPatrimonio(),
     enabled: !!ehAdmin,
     retry: false,
+  });
+  const sincronizarTudo = useMutation({
+    mutationFn: () => sincronizarTodos(),
+    onSuccess: (r) => {
+      toast.success(
+        `Sincronizados: ${r.ok} banco(s), ${r.lancamentos} lançamento(s) lidos${r.falhas ? `, ${r.falhas} com falha` : ""}.`,
+      );
+      qc.invalidateQueries({ queryKey: ["pluggy-contas"] });
+      qc.invalidateQueries({ queryKey: ["pluggy-importados"] });
+      qc.invalidateQueries({ queryKey: ["pluggy-patrimonio"] });
+      qc.invalidateQueries({ queryKey: ["despesas"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
   const sincronizarItem = useMutation({
     mutationFn: (itemId: string) => sincronizar({ data: { itemId } }),
@@ -352,7 +367,17 @@ function PluggyPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Conexões</CardTitle>
+            <div className="flex flex-wrap items-center gap-2">
+              <CardTitle className="mr-auto text-base">Conexões</CardTitle>
+              <Button
+                size="sm"
+                disabled={sincronizarTudo.isPending || (itens.itens.length === 0)}
+                onClick={() => sincronizarTudo.mutate()}
+              >
+                <RefreshCw className="mr-1 size-3.5" aria-hidden="true" />
+                {sincronizarTudo.isPending ? "Sincronizando todos…" : "Sincronizar todos os bancos"}
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="space-y-3">
             {itens.itens.length === 0 && <p className="text-sm text-muted-foreground">Nenhum banco conectado ainda.</p>}

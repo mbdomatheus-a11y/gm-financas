@@ -136,6 +136,29 @@ export const pluggySincronizarAgora = createServerFn({ method: "POST" })
     return { ok: true as const, transacoes: r.transacoes };
   });
 
+/** Sincroniza todos os bancos conectados de uma vez (botão único na página Bancos). */
+export const pluggySincronizarTodos = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await exigirPrincipal(context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { sincronizarItem } = await import("@/lib/pluggy-api.server");
+    const { data: itens } = await (supabaseAdmin as any).from("pluggy_items").select("item_id").eq("user_id", context.userId);
+    let ok = 0;
+    let falhas = 0;
+    let lancamentos = 0;
+    for (const { item_id } of (itens ?? []) as { item_id: string }[]) {
+      try {
+        const r = await sincronizarItem(item_id);
+        lancamentos += r.transacoes;
+        ok++;
+      } catch {
+        falhas++;
+      }
+    }
+    return { ok, falhas, lancamentos };
+  });
+
 /** Investimentos e empréstimos das conexões ativas. */
 export const pluggyListarPatrimonio = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
