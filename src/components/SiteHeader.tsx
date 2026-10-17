@@ -29,6 +29,9 @@ export function SiteHeader({ home = false }: { home?: boolean }) {
       <a href={ancora("recursos")} className={classeLink} onClick={aoClicar}>
         Recursos
       </a>
+      <a href={ancora("como-funciona")} className={classeLink} onClick={aoClicar}>
+        Como funciona
+      </a>
       <a href={ancora("modulos")} className={classeLink} onClick={aoClicar}>
         Módulos
       </a>
@@ -40,6 +43,9 @@ export function SiteHeader({ home = false }: { home?: boolean }) {
       </Link>
       <a href={ancora("demonstracao")} className={classeLink} onClick={aoClicar}>
         Demonstração
+      </a>
+      <a href={ancora("perguntas")} className={classeLink} onClick={aoClicar}>
+        Perguntas
       </a>
       <a href={ancora("precos")} className={classeLink} onClick={aoClicar}>
         Preços
@@ -81,8 +87,10 @@ export function SiteHeader({ home = false }: { home?: boolean }) {
               <nav className="mt-8 flex flex-col gap-1" aria-label="Menu do site">
                 {[
                   { href: ancora("recursos"), rotulo: "Recursos" },
+                  { href: ancora("como-funciona"), rotulo: "Como funciona" },
                   { href: ancora("modulos"), rotulo: "Módulos" },
                   { href: ancora("demonstracao"), rotulo: "Demonstração" },
+                  { href: ancora("perguntas"), rotulo: "Perguntas" },
                   { href: ancora("precos"), rotulo: "Preços" },
                 ].map((i) => (
                   <a

@@ -32,6 +32,7 @@ import { BrandAnimado } from "@/components/ferramentas/BrandAnimado";
 import { BrandMark } from "@/components/BrandMark";
 import { EducacaoFinanceira } from "@/components/EducacaoFinanceira";
 import { IlustracaoCalendario, IlustracaoFamilia, IlustracaoNotas } from "@/components/Ilustracoes";
+import { ComoFunciona, FaqBloco, PerdasInvisiveis, SegurancaBloco } from "@/components/home/BlocosHome";
 import { LegalDialogs } from "@/components/LegalDialogs";
 import { SiteHeader } from "@/components/SiteHeader";
 import { obterEstatisticaPublica } from "@/lib/estatisticas-site.functions";
@@ -569,6 +570,9 @@ function LandingPage() {
 
       <ParceriaBloco />
 
+      <PerdasInvisiveis />
+      <ComoFunciona />
+
       {/* Recursos */}
       <section id="recursos" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-16">
         <div className="mb-10 max-w-2xl">
@@ -713,6 +717,9 @@ function LandingPage() {
       </section>
 
       {/* Preços */}
+      <SegurancaBloco />
+      <FaqBloco />
+
       <section id="precos" className="scroll-mt-20 border-t bg-primary/5">
         <div className="mx-auto max-w-6xl px-4 py-16 text-center">
           <p className="eyebrow justify-center">Preços</p>
