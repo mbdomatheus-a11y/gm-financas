@@ -2646,5 +2646,7 @@
  "Workspace integrado. Recarregando dados…": "वर्कस्पेस जुड़ गया। डेटा रीलोड हो रहा है…",
  "XXXX-XXXX (ou deixe em branco)": "XXXX-XXXX (या खाली छोड़ें)",
  "Fixas e parcelas (": "निश्चित खर्च और किस्तें (",
- ") estão garantidas e fora da projeção. Só o variável é projetado.": ") सुरक्षित हैं और अनुमान से बाहर हैं। केवल परिवर्तनशील खर्च का अनुमान लगाया जाता है।"
+ ") estão garantidas e fora da projeção. Só o variável é projetado.": ") सुरक्षित हैं और अनुमान से बाहर हैं। केवल परिवर्तनशील खर्च का अनुमान लगाया जाता है।",
+ "{0} de {1} pagas · restam {2}": "{1} में से {0} चुकाई गईं · {2} बाकी",
+ "Mês atual": "वर्तमान माह"
 }

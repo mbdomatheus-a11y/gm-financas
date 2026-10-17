@@ -2646,5 +2646,7 @@
  "Workspace integrado. Recarregando dados…": "Workspace zusammengeführt. Daten werden neu geladen…",
  "XXXX-XXXX (ou deixe em branco)": "XXXX-XXXX (oder leer lassen)",
  "Fixas e parcelas (": "Fixkosten und Raten (",
- ") estão garantidas e fora da projeção. Só o variável é projetado.": ") sind gesichert und aus der Prognose ausgenommen. Nur das Variable wird prognostiziert."
+ ") estão garantidas e fora da projeção. Só o variável é projetado.": ") sind gesichert und aus der Prognose ausgenommen. Nur das Variable wird prognostiziert.",
+ "{0} de {1} pagas · restam {2}": "{0} von {1} bezahlt · {2} offen",
+ "Mês atual": "Aktueller Monat"
 }

@@ -2646,5 +2646,7 @@
  "Workspace integrado. Recarregando dados…": "Workspace merged. Reloading data…",
  "XXXX-XXXX (ou deixe em branco)": "XXXX-XXXX (or leave blank)",
  "Fixas e parcelas (": "Fixed costs and installments (",
- ") estão garantidas e fora da projeção. Só o variável é projetado.": ") are secured and left out of the projection. Only variable spending is projected."
+ ") estão garantidas e fora da projeção. Só o variável é projetado.": ") are secured and left out of the projection. Only variable spending is projected.",
+ "{0} de {1} pagas · restam {2}": "{0} of {1} paid · {2} left",
+ "Mês atual": "Current month"
 }

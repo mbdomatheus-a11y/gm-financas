@@ -22,6 +22,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { BarraSoma, useSelecaoSoma } from "@/components/BarraSoma";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { IndiceReajusteField } from "@/components/IndiceReajusteField";
+import { NavegadorMes } from "@/components/NavegadorMes";
 import { MonthPicker } from "@/components/MonthPicker";
 import {
   competenciaDe,
@@ -567,6 +568,23 @@ function ReceitasPage() {
             </TabsList>
           </Tabs>
         </div>
+
+        <NavegadorMes
+          valor={
+            filtroMes === "todos"
+              ? null
+              : filtroMes === "custom"
+                ? filtroMesCustom
+                : filtroMes === "atual_proximo"
+                  ? currentMonthKey()
+                  : filtroMes
+          }
+          onChange={(m) => {
+            if (filtroMes === "custom") setFiltroMesCustom(m);
+            else setFiltroMes(m);
+          }}
+          className="mb-2"
+        />
 
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           <Select

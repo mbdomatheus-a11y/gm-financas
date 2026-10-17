@@ -76,6 +76,7 @@ import {
 } from "@/hooks/useFinance";
 import { lembrarClassificacao } from "@/lib/classificacao-lembrada";
 import { SelectBusca } from "@/components/SelectBusca";
+import { NavegadorMes } from "@/components/NavegadorMes";
 import { usePermissoes, useSession } from "@/hooks/useAuthData";
 import {
   competenciaDe,
@@ -1130,6 +1131,12 @@ function DespesasPage() {
             </TabsList>
           </Tabs>
         </div>
+
+        <NavegadorMes
+          valor={filtroMes === "todos" ? null : filtroMes}
+          onChange={setFiltroMes}
+          className="mb-2"
+        />
 
         <div className="grid grid-cols-2 gap-2 lg:grid-cols-5">
           <Select value={filtroCartao} onValueChange={setFiltroCartao}>

@@ -2646,5 +2646,7 @@
  "Workspace integrado. Recarregando dados…": "Espace de travail intégré. Rechargement des données…",
  "XXXX-XXXX (ou deixe em branco)": "XXXX-XXXX (ou laisser vide)",
  "Fixas e parcelas (": "Frais fixes et échéances (",
- ") estão garantidas e fora da projeção. Só o variável é projetado.": ") sont garantis et exclus de la projection. Seul le variable est projeté."
+ ") estão garantidas e fora da projeção. Só o variável é projetado.": ") sont garantis et exclus de la projection. Seul le variable est projeté.",
+ "{0} de {1} pagas · restam {2}": "{0} sur {1} payées · reste {2}",
+ "Mês atual": "Mois en cours"
 }

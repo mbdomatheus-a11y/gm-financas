@@ -2646,5 +2646,7 @@
  "Workspace integrado. Recarregando dados…": "工作区已并入。正在重新加载数据…",
  "XXXX-XXXX (ou deixe em branco)": "XXXX-XXXX（或留空）",
  "Fixas e parcelas (": "固定支出和分期付款 (",
- ") estão garantidas e fora da projeção. Só o variável é projetado.": ") 已有保障,不计入预测。仅预测可变支出。"
+ ") estão garantidas e fora da projeção. Só o variável é projetado.": ") 已有保障,不计入预测。仅预测可变支出。",
+ "{0} de {1} pagas · restam {2}": "已付 {0}/{1} · 剩余 {2}",
+ "Mês atual": "当前月份"
 }

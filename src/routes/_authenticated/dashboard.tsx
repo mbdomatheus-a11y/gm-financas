@@ -413,6 +413,14 @@ function DashboardPage() {
         cartao: identificacaoDespesa(d) || "Sem forma de pagamento",
         pagas: (d.parcelas ?? []).filter((p: any) => p.paga).length,
         total: d.total_parcelas,
+        valorParcela: toBRL(
+          Number(d.valor_parcela ?? (d.parcelas ?? [])[0]?.valor ?? d.valor ?? 0),
+          d.moeda,
+          cotacao,
+        ),
+        restante: (d.parcelas ?? [])
+          .filter((p: any) => !p.paga)
+          .reduce((s: number, p: any) => s + toBRL(Number(p.valor ?? 0), d.moeda, cotacao), 0),
       }))
       .filter((d: any) => d.pagas < d.total)
       .slice(0, 6);
@@ -1370,12 +1378,18 @@ function DashboardPage() {
               <div key={p.id} className="space-y-1.5">
                 <div className="flex items-center justify-between gap-2 text-sm">
                   <span className="truncate font-medium">{p.descricao}</span>
-                  <Badge variant="secondary" className="shrink-0">
-                    {p.pagas} de {p.total} pagas
-                  </Badge>
+                  <span className="shrink-0 font-semibold tabular-nums">
+                    {formatBRL(p.valorParcela)}
+                    <span className="text-xs font-normal text-muted-foreground">/parcela</span>
+                  </span>
                 </div>
                 <Progress value={(p.pagas / p.total) * 100} className="h-2" />
-                <p className="text-xs text-muted-foreground">{p.cartao}</p>
+                <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                  <span className="truncate">{p.cartao}</span>
+                  <span className="shrink-0">
+                    {p.pagas} de {p.total} pagas · restam {formatBRL(p.restante)}
+                  </span>
+                </div>
               </div>
             ))}
           </CardContent>

@@ -2646,5 +2646,7 @@
  "Workspace integrado. Recarregando dados…": "تم دمج مساحة العمل. جارٍ إعادة تحميل البيانات…",
  "XXXX-XXXX (ou deixe em branco)": "XXXX-XXXX (أو اتركه فارغًا)",
  "Fixas e parcelas (": "الثوابت والأقساط (",
- ") estão garantidas e fora da projeção. Só o variável é projetado.": ") مضمونة ومستبعدة من التوقع. يتم توقع المتغير فقط."
+ ") estão garantidas e fora da projeção. Só o variável é projetado.": ") مضمونة ومستبعدة من التوقع. يتم توقع المتغير فقط.",
+ "{0} de {1} pagas · restam {2}": "تم دفع {0} من {1} · المتبقي {2}",
+ "Mês atual": "الشهر الحالي"
 }
