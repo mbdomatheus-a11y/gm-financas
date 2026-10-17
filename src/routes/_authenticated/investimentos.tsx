@@ -8,6 +8,7 @@ import { z } from "zod";
 
 import { AppLayout } from "@/components/AppLayout";
 import { ProjecaoRendimento } from "@/components/ProjecaoRendimento";
+import { InvestimentosImportados } from "@/components/InvestimentosImportados";
 import { Field } from "@/routes/_authenticated/receitas";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -293,6 +294,7 @@ function InvestimentosPage() {
         </Card>
       )}
 
+      <InvestimentosImportados />
       <div className="mt-4 space-y-2">
         {investimentos.length === 0 && (
           <Card>
