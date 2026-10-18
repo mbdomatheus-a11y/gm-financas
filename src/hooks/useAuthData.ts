@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { appSupabase } from "@/integrations/supabase/app-types";
 import { useServerFn } from "@tanstack/react-start";
 import { listarModulosDisponiveis } from "@/lib/configuracoes-site.functions";
+import { useModoCliente } from "@/lib/modo-cliente";
 
 export type ModuloGlobal =
   "financas" | "lista" | "notas" | "calculadora" | "pet" | "onde_esta" | "veiculo" | "exames" | "links";
@@ -106,6 +107,10 @@ export function usePermissoes() {
   const { data: isSiteAdmin } = useIsSiteAdmin();
   const { data: profile } = useProfile();
   const exclusaoBloqueada = profile?.cpf === "41412522803";
+  // Modo cliente: o admin enxerga exatamente o que um usuário comum enxerga.
+  const modoCliente = useModoCliente();
+  const adminEfetivo = !!isAdmin && !modoCliente;
+  const siteAdminEfetivo = !!isSiteAdmin && !modoCliente;
   const query = useQuery({
     queryKey: ["permissoes", user?.id],
     enabled: !!user?.id,
@@ -118,7 +123,7 @@ export function usePermissoes() {
 
   const can = (modulo: Modulo, acao: "ver" | "editar" | "excluir" = "ver") => {
     if (acao === "excluir" && exclusaoBloqueada) return false;
-    if (isAdmin) return true;
+    if (adminEfetivo) return true;
     const row = query.data?.find((p) => p.modulo === modulo);
     if (!row) return acao !== "excluir";
     if (acao === "ver") return row.pode_ver;
@@ -130,7 +135,7 @@ export function usePermissoes() {
    * permissivo (igual ao `can` genérico) quando não existe linha — admin
    * continua sempre liberado. */
   const canImportar = (tipo: TipoImportacao) => {
-    if (isAdmin) return true;
+    if (adminEfetivo) return true;
     const row = query.data?.find((p) => p.modulo === "importar");
     if (!row) return true;
     if (tipo === "lancamentos") return row.pode_importar_lancamentos;
@@ -142,8 +147,9 @@ export function usePermissoes() {
     ...query,
     can,
     canImportar,
-    isAdmin: !!isAdmin,
-    isSiteAdmin: !!isSiteAdmin,
+    isAdmin: adminEfetivo,
+    isSiteAdmin: siteAdminEfetivo,
+    modoCliente,
     exclusaoBloqueada,
   };
 }

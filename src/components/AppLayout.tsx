@@ -513,6 +513,12 @@ export function AppLayout({
   ).filter(podeVer);
   const itensGlobais = GLOBAL.filter(podeVer).filter((i) => !i.adminOnly);
   const itensAdmin = GLOBAL.filter(podeVer).filter((i) => i.adminOnly);
+  // No modo usuário comum, páginas exclusivas de admin mostram aviso em vez do conteúdo.
+  const rotaAdminBloqueada =
+    modoCliente &&
+    [...GLOBAL, ...Object.values(MUNDOS).flatMap((m) => m.items)].some(
+      (i) => (i.adminOnly || i.grupoAdmin) && i.to === pathname,
+    );
   // "superior": menu horizontal no desktop. Padrão ("lateral"): barra lateral.
   const topMenu = prefs.layout_menu === "superior";
   const [abertas, setAbertas] = useState<Record<string, boolean>>({});
@@ -845,34 +851,22 @@ export function AppLayout({
 
         </header>
 
-        {isSiteAdmin && (modoCliente || pathname === "/administracao") && (
-          <div
-            className={`mx-auto mt-3 flex w-full max-w-7xl flex-wrap items-center justify-between gap-2 rounded-md border px-4 py-2 text-sm ${
-              modoCliente
-                ? "border-amber-400 bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-100"
-                : "border-dashed"
-            }`}
-          >
-            {modoCliente ? (
-              <>
-                <span>Você está vendo como cliente. Os itens administrativos estão ocultos.</span>
-                <Button size="sm" variant="outline" onClick={() => definirModoCliente(false)}>
-                  Voltar ao modo admin
-                </Button>
-              </>
-            ) : (
-              <>
-                <span className="text-muted-foreground">
-                  Quer ver o app como um cliente comum? Use o modo cliente (só nesta aba).
-                </span>
-                <Button size="sm" variant="outline" onClick={() => definirModoCliente(true)}>
-                  Ver como cliente
-                </Button>
-              </>
-            )}
+        {modoCliente && (
+          <div className="mx-auto mt-3 flex w-full max-w-7xl flex-wrap items-center justify-between gap-2 rounded-md border border-amber-400 bg-amber-100 px-4 py-2 text-sm text-amber-900 dark:bg-amber-900/40 dark:text-amber-100">
+            <span>Modo usuário comum ativo. Itens administrativos ficam ocultos.</span>
+            <Button size="sm" variant="outline" onClick={() => definirModoCliente(false)}>
+              Voltar à visão admin
+            </Button>
           </div>
         )}
-        <main className="mx-auto w-full max-w-7xl px-4 pb-28 pt-6 lg:px-8 lg:pb-10">{children}
+        <main className="mx-auto w-full max-w-7xl px-4 pb-28 pt-6 lg:px-8 lg:pb-10">
+          {rotaAdminBloqueada ? (
+            <div className="rounded-md border p-6 text-center text-sm text-muted-foreground">
+              Esta área é exclusiva do administrador. Volte à visão admin para acessá-la.
+            </div>
+          ) : (
+            children
+          )}
           <AppEmBreve className="mt-10" />
         </main>
       </div>
