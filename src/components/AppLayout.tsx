@@ -982,19 +982,7 @@ export function AppLayout({
           return (
             <Fragment>
               {visiveis.slice(0, 1).map(renderAtalho)}
-              <div className="relative flex justify-center">
-                {acaoCentral && (
-                  <button
-                    type="button"
-                    aria-label={acaoCentral.rotulo}
-                    onClick={() => window.dispatchEvent(new Event(acaoCentral.evento))}
-                    className="absolute -top-7 flex size-16 flex-col items-center justify-center gap-0.5 rounded-full bg-primary text-primary-foreground shadow-lg ring-4 ring-background active:scale-95"
-                  >
-                    <Plus className="size-6" />
-                    <span className="text-[10px] font-semibold leading-none">{acaoCentral.rotulo}</span>
-                  </button>
-                )}
-              </div>
+              <div aria-hidden="true" />
               {visiveis.slice(1).map(renderAtalho)}
             </Fragment>
           );
@@ -1007,6 +995,17 @@ export function AppLayout({
           <Menu className="size-5" />
           Menu
         </button>
+        {acaoCentral && (
+          <button
+            type="button"
+            aria-label={acaoCentral.rotulo}
+            onClick={() => window.dispatchEvent(new Event(acaoCentral.evento))}
+            className="absolute left-1/2 -top-7 flex size-16 -translate-x-1/2 flex-col items-center justify-center gap-0.5 rounded-full bg-primary text-primary-foreground shadow-lg ring-4 ring-background active:scale-95"
+          >
+            <Plus className="size-6" />
+            <span className="text-[10px] font-semibold leading-none">{acaoCentral.rotulo}</span>
+          </button>
+        )}
       </nav>
 
       {/* Lançamento rápido por texto/áudio (IA) — pedido explícito do usuário
