@@ -41,6 +41,7 @@ import {
   PieChart,
 } from "lucide-react";
 
+import type { LucideIcon } from "lucide-react";
 import { AvatarPerfil } from "@/components/AvatarPerfil";
 import { SeletorIdioma } from "@/components/SeletorIdioma";
 import { useIdioma } from "@/hooks/useIdioma";
@@ -407,6 +408,13 @@ const GLOBAL: NavItem[] = [
     icon: Settings,
   },
   { to: "/suporte", label: "Suporte", short: "Suporte", icon: Headphones },
+];
+
+/** Atalhos da barra inferior no celular (Início fica fixo ao lado). */
+const ATALHOS_MOBILE: { id: MundoId; rotulo: string; icon: LucideIcon }[] = [
+  { id: "financas", rotulo: "Finanças", icon: Wallet },
+  { id: "notas", rotulo: "Notas", icon: ReceiptText },
+  { id: "lista", rotulo: "Lista", icon: ShoppingCart },
 ];
 
 const CALENDARIO: NavItem = {
@@ -859,6 +867,42 @@ export function AppLayout({
             </Button>
           </div>
         )}
+        {mundo && itensDoMundo.length > 0 && (
+          <nav
+            aria-label={`Páginas de ${mundo.titulo}`}
+            className="sticky top-0 z-20 -mx-4 overflow-x-auto border-b bg-background/95 px-4 py-2 backdrop-blur lg:hidden"
+          >
+            <div className="flex w-max gap-2">
+              <Link
+                to="/inicio"
+                className="inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-medium text-muted-foreground"
+              >
+                <Home className="size-3.5" />
+                Início
+              </Link>
+              {itensDoMundo.map((i) => {
+                const Ic = i.icon;
+                const ativo = pathname === i.to;
+                return (
+                  <Link
+                    key={i.to}
+                    to={i.to}
+                    aria-current={ativo ? "page" : undefined}
+                    className={cn(
+                      "inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-medium",
+                      ativo
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "text-muted-foreground",
+                    )}
+                  >
+                    <Ic className="size-3.5" />
+                    {i.short}
+                  </Link>
+                );
+              })}
+            </div>
+          </nav>
+        )}
         <main className="mx-auto w-full max-w-7xl px-4 pb-28 pt-6 lg:px-8 lg:pb-10">
           {rotaAdminBloqueada ? (
             <div className="rounded-md border p-6 text-center text-sm text-muted-foreground">
@@ -880,45 +924,35 @@ export function AppLayout({
 
       <nav
         aria-label="Navegação principal"
-        className={cn(
-          "glass fixed inset-x-2 bottom-2 z-30 grid grid-cols-4 gap-1 rounded-2xl border border-border/60 px-2 pb-[env(safe-area-inset-bottom)] pt-1 shadow-[var(--shadow-soft)]",
-          "lg:hidden",
-        )}
+        className="glass fixed inset-x-2 bottom-2 z-30 grid grid-cols-5 gap-1 rounded-2xl border border-border/60 px-1.5 pb-[env(safe-area-inset-bottom)] pt-1 shadow-[var(--shadow-soft)] lg:hidden"
       >
-        {[INICIO, CALENDARIO].map((item) => {
-          const active = pathname === item.to;
-          const Icon = item.icon;
+        <Link
+          to="/inicio"
+          className={cn(
+            "flex flex-col items-center gap-1 rounded-lg py-2 text-[11px] font-medium",
+            pathname === "/inicio" ? "text-primary" : "text-muted-foreground",
+          )}
+        >
+          <Home className="size-5" />
+          Início
+        </Link>
+        {ATALHOS_MOBILE.filter((m) => mundoVisivel(m.id)).map((m) => {
+          const ativo = mundoId === m.id;
+          const Icon = m.icon;
           return (
             <Link
-              key={item.to}
-              to={item.to}
+              key={m.id}
+              to={MUNDOS[m.id].home}
               className={cn(
                 "flex flex-col items-center gap-1 rounded-lg py-2 text-[11px] font-medium",
-                active ? "text-primary" : "text-muted-foreground",
+                ativo ? "text-primary" : "text-muted-foreground",
               )}
             >
               <Icon className="size-5" />
-              {item.short}
+              {m.rotulo}
             </Link>
           );
         })}
-        <Link
-          to={area ? area.to : "/compartilhar"}
-          className={cn(
-            "flex flex-col items-center gap-1 rounded-lg py-2 text-[11px] font-medium",
-            area && pathname === area.to ? "text-primary" : "text-muted-foreground",
-          )}
-        >
-          {area ? (
-            (() => {
-              const Ic = area.icon;
-              return <Ic className="size-5" />;
-            })()
-          ) : (
-            <Share2 className="size-5" />
-          )}
-          {area ? area.titulo : "Compart."}
-        </Link>
         <button
           type="button"
           onClick={() => setOpen(true)}
