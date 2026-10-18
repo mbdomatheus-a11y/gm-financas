@@ -420,9 +420,9 @@ function LandingPage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdMarca) }}
       />
+      <BannerOfertaHome />
       <SiteHeader home />
       <EconomiaTotalBanner />
-      <BannerOfertaHome />
 
       {/* Hero */}
       <section className="relative overflow-hidden border-b">

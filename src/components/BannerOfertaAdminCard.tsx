@@ -34,6 +34,9 @@ export function BannerOfertaAdminCard() {
   const [ativo, setAtivo] = useState<boolean | null>(null);
   const [inicio, setInicio] = useState<string | null>(null);
   const [duracao, setDuracao] = useState<string | null>(null);
+  const [titulo, setTitulo] = useState<string | null>(null);
+  const [texto, setTexto] = useState<string | null>(null);
+  const [botao, setBotao] = useState<string | null>(null);
 
   const ativoAtual = ativo ?? data?.ativo ?? false;
   const inicioAtual = inicio ?? paraCampoLocal(data?.inicio ?? null);
@@ -43,6 +46,9 @@ export function BannerOfertaAdminCard() {
       ? String(Math.round((Date.parse(data.fim) - Date.parse(data.inicio)) / 3_600_000))
       : "");
 
+  const tituloAtual = titulo ?? data?.titulo ?? "";
+  const textoAtual = texto ?? data?.texto ?? "";
+  const botaoAtual = botao ?? data?.botao ?? "";
   const duracaoNum = Number(duracaoAtual);
   const fimPrevisto =
     inicioAtual && duracaoNum > 0
@@ -56,6 +62,9 @@ export function BannerOfertaAdminCard() {
           ativo: ativoAtual,
           inicio: inicioAtual ? new Date(inicioAtual).toISOString() : null,
           duracaoHoras: duracaoNum > 0 ? duracaoNum : null,
+          titulo: tituloAtual,
+          texto: textoAtual,
+          botao: botaoAtual,
         },
       }),
     onSuccess: () => {
@@ -63,6 +72,9 @@ export function BannerOfertaAdminCard() {
       setAtivo(null);
       setInicio(null);
       setDuracao(null);
+      setTitulo(null);
+      setTexto(null);
+      setBotao(null);
       qc.invalidateQueries({ queryKey: ["banner-oferta-admin"] });
       qc.invalidateQueries({ queryKey: ["banner-oferta-home"] });
     },
@@ -81,6 +93,20 @@ export function BannerOfertaAdminCard() {
           O contador conta até o fim fixo da janela. Desligar no meio não zera o tempo; ligar de novo
           mostra o que falta. Para uma nova campanha, grave novo início e duração.
         </p>
+        <div className="grid gap-3">
+          <div className="space-y-1">
+            <Label htmlFor="banner-oferta-titulo" className="text-xs">Título (acima do contador)</Label>
+            <Input id="banner-oferta-titulo" maxLength={80} value={tituloAtual} onChange={(e) => setTitulo(e.target.value)} />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="banner-oferta-texto" className="text-xs">Texto (abaixo do contador)</Label>
+            <Input id="banner-oferta-texto" maxLength={160} value={textoAtual} onChange={(e) => setTexto(e.target.value)} />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="banner-oferta-botao" className="text-xs">Texto do botão</Label>
+            <Input id="banner-oferta-botao" maxLength={32} value={botaoAtual} onChange={(e) => setBotao(e.target.value)} />
+          </div>
+        </div>
         <div className="flex items-center justify-between gap-3">
           <Label htmlFor="banner-oferta-ativo" className="text-sm">Exibir banner na home</Label>
           <Switch

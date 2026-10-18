@@ -19,7 +19,7 @@ function formatarRestante(ms: number): string {
 }
 
 /**
- * Banner de oferta com contador até a data fim gravada pelo admin.
+ * Faixa de destaque no topo da home com contador até a data fim gravada pelo admin.
  * Só renderiza no cliente, para não divergir do servidor na primeira pintura.
  */
 export function BannerOfertaHome() {
@@ -44,30 +44,28 @@ export function BannerOfertaHome() {
   return (
     <section
       aria-label="Oferta por tempo limitado"
-      className="border-b bg-primary/10"
+      className="bg-gradient-to-r from-primary via-primary to-emerald-500 text-primary-foreground shadow-md"
     >
-      <div className="mx-auto flex max-w-6xl flex-col items-start gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
-            <Timer className="size-4" />
+      <div className="mx-auto flex max-w-6xl flex-col items-center gap-3 px-4 py-4 text-center md:flex-row md:justify-between md:text-left">
+        <div className="flex items-center gap-4">
+          <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-white/20">
+            <Timer className="size-6" />
           </span>
           <div>
-            <p className="text-sm font-semibold">
-              Oferta por tempo limitado. Termina em{" "}
-              <span className="tabular-nums text-primary">{formatarRestante(restante)}</span>
+            <p className="text-sm font-semibold uppercase tracking-wide opacity-90">{data.titulo}</p>
+            <p className="font-mono text-3xl font-extrabold tabular-nums sm:text-4xl">
+              {formatarRestante(restante)}
             </p>
-            <p className="text-xs text-muted-foreground">
-              Crie sua conta grátis e garanta acesso completo.
-            </p>
+            <p className="text-sm opacity-90">{data.texto}</p>
           </div>
         </div>
-        <Button asChild size="sm" className="font-semibold">
+        <Button asChild size="lg" variant="secondary" className="h-12 font-semibold">
           <Link
             to="/entrar"
             search={{ criar: true }}
             onClick={() => rastrearEvento("clique_cadastrar", { caminho: "/#banner-oferta" })}
           >
-            Criar conta grátis <ArrowRight className="ml-2 size-4" />
+            {data.botao} <ArrowRight className="ml-2 size-4" />
           </Link>
         </Button>
       </div>

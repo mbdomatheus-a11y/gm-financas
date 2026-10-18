@@ -15,7 +15,9 @@ export const obterBannerOferta = createServerFn({ method: "POST" }).handler(asyn
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data } = await (supabaseAdmin as any)
     .from("configuracoes_acesso_site")
-    .select("banner_oferta_ativo, banner_oferta_inicio, banner_oferta_fim")
+    .select(
+      "banner_oferta_ativo, banner_oferta_inicio, banner_oferta_fim, banner_oferta_titulo, banner_oferta_texto, banner_oferta_botao",
+    )
     .eq("id", true)
     .maybeSingle();
 
@@ -32,6 +34,9 @@ export const obterBannerOferta = createServerFn({ method: "POST" }).handler(asyn
   return {
     exibir,
     fim: exibir ? new Date(fim as number).toISOString() : null,
+    titulo: (data?.banner_oferta_titulo as string) ?? "Oferta por tempo limitado",
+    texto: (data?.banner_oferta_texto as string) ?? "Crie sua conta grátis e garanta acesso completo.",
+    botao: (data?.banner_oferta_botao as string) ?? "Criar conta grátis",
   };
 });
 
@@ -49,13 +54,18 @@ export const adminObterBannerOferta = createServerFn({ method: "POST" })
     if (!souAdmin) throw new Error("Acesso restrito à administração do site.");
     const { data } = await db
       .from("configuracoes_acesso_site")
-      .select("banner_oferta_ativo, banner_oferta_inicio, banner_oferta_fim")
+      .select(
+        "banner_oferta_ativo, banner_oferta_inicio, banner_oferta_fim, banner_oferta_titulo, banner_oferta_texto, banner_oferta_botao",
+      )
       .eq("id", true)
       .maybeSingle();
     return {
       ativo: Boolean(data?.banner_oferta_ativo),
       inicio: (data?.banner_oferta_inicio ?? null) as string | null,
       fim: (data?.banner_oferta_fim ?? null) as string | null,
+      titulo: (data?.banner_oferta_titulo as string) ?? "Oferta por tempo limitado",
+      texto: (data?.banner_oferta_texto as string) ?? "Crie sua conta grátis e garanta acesso completo.",
+      botao: (data?.banner_oferta_botao as string) ?? "Criar conta grátis",
     };
   });
 
@@ -67,6 +77,9 @@ export const adminSalvarBannerOferta = createServerFn({ method: "POST" })
         ativo: z.boolean(),
         inicio: z.string().datetime().nullable(),
         duracaoHoras: z.number().int().min(1).max(DURACAO_MAX_HORAS).nullable(),
+        titulo: z.string().trim().min(1).max(80),
+        texto: z.string().trim().min(1).max(160),
+        botao: z.string().trim().min(1).max(32),
       })
       .parse(v),
   )
@@ -100,6 +113,9 @@ export const adminSalvarBannerOferta = createServerFn({ method: "POST" })
         banner_oferta_ativo: data.ativo,
         banner_oferta_inicio: inicioIso,
         banner_oferta_fim: fimIso,
+        banner_oferta_titulo: data.titulo,
+        banner_oferta_texto: data.texto,
+        banner_oferta_botao: data.botao,
         atualizado_em: new Date().toISOString(),
         atualizado_por: context.userId,
       })
