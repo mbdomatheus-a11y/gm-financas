@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { LogPainel } from "@/components/LogPainel";
 import { AvisoCalculadoraAdminCard } from "@/components/AvisoCalculadoraAdminCard";
+import { BannerOfertaAdminCard } from "@/components/BannerOfertaAdminCard";
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -1231,6 +1232,7 @@ function Admin() {
             </Card>
           )}
           <AvisoCalculadoraAdminCard />
+          <BannerOfertaAdminCard />
           {config && (
             <Card className={cn(!config.google_drive_habilitado && ADMIN_ONLY_CARD)}>
               <CardHeader><CardTitle className="flex items-center gap-2 text-sm">Notas fiscais — Google Drive{!config.google_drive_habilitado && <span className={ADMIN_ONLY_TAG}>Só admin</span>}</CardTitle></CardHeader>

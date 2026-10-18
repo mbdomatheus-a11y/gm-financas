@@ -1,4 +1,5 @@
 import { AppEmBreve } from "@/components/AppEmBreve";
+import { BannerOfertaHome } from "@/components/BannerOfertaHome";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import {
@@ -421,6 +422,7 @@ function LandingPage() {
       />
       <SiteHeader home />
       <EconomiaTotalBanner />
+      <BannerOfertaHome />
 
       {/* Hero */}
       <section className="relative overflow-hidden border-b">
