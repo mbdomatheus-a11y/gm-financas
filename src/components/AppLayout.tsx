@@ -525,14 +525,14 @@ export function AppLayout({
   const itensAdmin = GLOBAL.filter(podeVer).filter((i) => i.adminOnly);
   // Botão central da barra do celular: ação principal de cada área.
   const podeLancar = can("despesas", "editar") || can("receitas", "editar");
-  const acaoCentral: { rotulo: string; evento: string } | null = pathname.startsWith("/notas")
-    ? { rotulo: "Nova nota", evento: "abrir-nova-nota" }
+  const acaoCentral: { rotulo: string; curto: string; evento: string } | null = pathname.startsWith("/notas")
+    ? { rotulo: "Nova nota", curto: "Nota", evento: "abrir-nova-nota" }
     : pathname.startsWith("/lista-compras")
-      ? { rotulo: "Novo item", evento: "abrir-novo-item-lista" }
+      ? { rotulo: "Novo item", curto: "Item", evento: "abrir-novo-item-lista" }
       : pathname.startsWith("/despesas")
         ? null
         : podeLancar
-          ? { rotulo: "Lançar", evento: "abrir-lancamento-rapido" }
+          ? { rotulo: "Lançar", curto: "Lançar", evento: "abrir-lancamento-rapido" }
           : null;
   // No modo usuário comum, páginas exclusivas de admin mostram aviso em vez do conteúdo.
   const rotaAdminBloqueada =
@@ -949,7 +949,7 @@ export function AppLayout({
 
       <nav
         aria-label="Navegação principal"
-        className="glass fixed inset-x-2 bottom-2 z-30 grid grid-cols-6 items-end gap-1 rounded-2xl border border-border/60 px-1.5 pb-[env(safe-area-inset-bottom)] pt-1 shadow-[var(--shadow-soft)] lg:hidden"
+        className="glass fixed inset-x-2 bottom-2 z-30 grid grid-cols-[1fr_1fr_5.5rem_1fr_1fr_1fr] items-end gap-1 rounded-2xl border border-border/60 px-1.5 pb-[env(safe-area-inset-bottom)] pt-1 shadow-[var(--shadow-soft)] lg:hidden"
       >
         <Link
           to="/inicio"
@@ -1003,7 +1003,7 @@ export function AppLayout({
             className="absolute left-1/2 -top-7 flex size-16 -translate-x-1/2 flex-col items-center justify-center gap-0.5 rounded-full bg-primary text-primary-foreground shadow-lg ring-4 ring-background active:scale-95"
           >
             <Plus className="size-6" />
-            <span className="text-[10px] font-semibold leading-none">{acaoCentral.rotulo}</span>
+            <span className="text-[10px] font-semibold leading-none">{acaoCentral.curto}</span>
           </button>
         )}
       </nav>
