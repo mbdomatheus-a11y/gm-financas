@@ -70,6 +70,7 @@ import { ConviteRapidoBotao } from "@/components/ConviteAmigosBanner";
 import { BrandMark } from "@/components/BrandMark";
 import { BotaoLancamentoRapido } from "@/components/LancamentoRapido/BotaoLancamentoRapido";
 import { obterUsoOracleDoMeuGrupo } from "@/lib/oracle-admin.functions";
+import { definirModoCliente, useModoCliente } from "@/lib/modo-cliente";
 import { usePrivacidadeValores } from "@/hooks/usePrivacidadeValores";
 import { useMascaraValores } from "@/hooks/useMascaraValores";
 import { Eye, EyeOff } from "lucide-react";
@@ -440,6 +441,7 @@ export function AppLayout({
   const { prefs } = usePreferencias();
   const { data: profile } = useProfile();
   const { can, isSiteAdmin, isAdmin } = usePermissoes();
+  const modoCliente = useModoCliente();
   const { t } = useIdioma();
   /** Rótulo do item no idioma escolhido; sem tradução ainda, mantém o original. */
   const rotuloNav = (item: NavItem) => {
@@ -464,6 +466,7 @@ export function AppLayout({
   }
 
   const podeVer = (i: NavItem) => {
+    if (modoCliente && (i.adminOnly || i.grupoAdmin)) return false;
     if (i.adminOnly) return isSiteAdmin;
     if (i.grupoAdmin) return isAdmin;
     if (i.moduloGlobal && !habilitado(i.moduloGlobal)) return false;
@@ -842,6 +845,33 @@ export function AppLayout({
 
         </header>
 
+        {isSiteAdmin && (modoCliente || pathname === "/administracao") && (
+          <div
+            className={`mx-auto mt-3 flex w-full max-w-7xl flex-wrap items-center justify-between gap-2 rounded-md border px-4 py-2 text-sm ${
+              modoCliente
+                ? "border-amber-400 bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-100"
+                : "border-dashed"
+            }`}
+          >
+            {modoCliente ? (
+              <>
+                <span>Você está vendo como cliente. Os itens administrativos estão ocultos.</span>
+                <Button size="sm" variant="outline" onClick={() => definirModoCliente(false)}>
+                  Voltar ao modo admin
+                </Button>
+              </>
+            ) : (
+              <>
+                <span className="text-muted-foreground">
+                  Quer ver o app como um cliente comum? Use o modo cliente (só nesta aba).
+                </span>
+                <Button size="sm" variant="outline" onClick={() => definirModoCliente(true)}>
+                  Ver como cliente
+                </Button>
+              </>
+            )}
+          </div>
+        )}
         <main className="mx-auto w-full max-w-7xl px-4 pb-28 pt-6 lg:px-8 lg:pb-10">{children}
           <AppEmBreve className="mt-10" />
         </main>
