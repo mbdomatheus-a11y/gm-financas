@@ -951,17 +951,27 @@ export function AppLayout({
 
       <nav
         aria-label="Navegação principal"
-        className="fixed inset-x-2 bottom-[calc(env(safe-area-inset-bottom)+0.5rem)] z-30 grid h-16 grid-cols-[1fr_1fr_5.5rem_1fr_1fr_1fr] items-center rounded-2xl border border-border bg-background px-1.5 shadow-lg lg:hidden"
+        className="fixed inset-x-2 bottom-[calc(env(safe-area-inset-bottom)+0.5rem)] z-30 grid h-16 grid-cols-6 items-end rounded-2xl border border-border bg-background px-1.5 shadow-lg lg:hidden"
       >
         <Link
           to="/inicio"
           className={cn(
-            "flex h-full flex-col items-center justify-center gap-0.5 rounded-lg text-[11px] font-medium leading-none",
+            "flex h-full flex-col items-center justify-end gap-0.5 pb-1.5 text-[10px] font-medium leading-none",
             pathname === "/inicio" ? "text-primary" : "text-muted-foreground",
           )}
         >
           <Home className="size-5" />
           Início
+        </Link>
+        <Link
+          to="/calendario"
+          className={cn(
+            "flex h-full flex-col items-center justify-end gap-0.5 pb-1.5 text-[10px] font-medium leading-none",
+            pathname === "/calendario" ? "text-primary" : "text-muted-foreground",
+          )}
+        >
+          <CalendarDays className="size-5" />
+          Calendário
         </Link>
         {(() => {
           const visiveis = ATALHOS_MOBILE.filter((m) => mundoVisivel(m.id));
@@ -972,7 +982,7 @@ export function AppLayout({
                 key={m.id}
                 to={MUNDOS[m.id].home}
                 className={cn(
-                  "flex h-full flex-col items-center justify-center gap-0.5 rounded-lg text-[11px] font-medium leading-none",
+                  "flex h-full flex-col items-center justify-end gap-0.5 pb-1.5 text-[10px] font-medium leading-none",
                   mundoId === m.id ? "text-primary" : "text-muted-foreground",
                 )}
               >
@@ -984,7 +994,6 @@ export function AppLayout({
           return (
             <Fragment>
               {visiveis.slice(0, 1).map(renderAtalho)}
-              <div aria-hidden="true" />
               {visiveis.slice(1).map(renderAtalho)}
             </Fragment>
           );
@@ -992,7 +1001,7 @@ export function AppLayout({
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="flex h-full flex-col items-center justify-center gap-0.5 rounded-lg text-[11px] font-medium leading-none text-muted-foreground"
+          className="flex h-full flex-col items-center justify-end gap-0.5 pb-1.5 text-[10px] font-medium leading-none text-muted-foreground"
         >
           <Menu className="size-5" />
           Menu
@@ -1002,7 +1011,7 @@ export function AppLayout({
             type="button"
             aria-label={acaoCentral.rotulo}
             onClick={() => window.dispatchEvent(new Event(acaoCentral.evento))}
-            className="absolute left-1/2 -top-7 flex size-14 -translate-x-1/2 flex-col items-center justify-center gap-0.5 rounded-full bg-primary text-primary-foreground shadow-lg ring-4 ring-background transition-transform active:scale-95"
+            className="absolute left-1/2 -top-8 flex size-14 -translate-x-1/2 flex-col items-center justify-center gap-0.5 rounded-full bg-primary text-primary-foreground shadow-lg ring-4 ring-background transition-transform active:scale-95"
           >
             <Plus className="size-6" />
             <span className="text-[10px] font-semibold leading-none">{acaoCentral.curto}</span>
