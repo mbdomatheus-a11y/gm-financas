@@ -1,6 +1,6 @@
 import { PerfilFinanceiroTelaCheia } from "@/components/PerfilFinanceiroTelaCheia";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Apple,
@@ -98,6 +98,15 @@ function categoriaLabel(id: string) {
 }
 
 function ListaComprasPage() {
+  useEffect(() => {
+    const focar = () => {
+      const campo = document.getElementById("campo-novo-item-lista");
+      campo?.scrollIntoView({ behavior: "smooth", block: "center" });
+      campo?.focus();
+    };
+    window.addEventListener("abrir-novo-item-lista", focar);
+    return () => window.removeEventListener("abrir-novo-item-lista", focar);
+  }, []);
   const { exclusaoBloqueada } = usePermissoes();
   const qc = useQueryClient();
   const { user } = useSession();
@@ -736,6 +745,7 @@ function ListaComprasPage() {
           <div>
             <Label className="sr-only">Item</Label>
             <Input
+              id="campo-novo-item-lista"
               value={nome}
               onChange={(e) => setNome(e.target.value)}
               placeholder="Nome do item (ex.: Arroz, Tênis, Furadeira…)"

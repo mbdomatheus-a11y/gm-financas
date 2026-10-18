@@ -506,15 +506,25 @@ function ReceitasPage() {
     onError: (e: any) => toast.error(e?.errors?.[0]?.message ?? e.message ?? "Erro ao salvar"),
   });
 
+  // Exclusão: confere se a linha foi mesmo apagada (RLS bloqueia sem erro). Receita fixa projetada
+  // para meses futuros vem do lançamento de origem, então a exclusão atinge esse lançamento.
   const excluir = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("receitas").delete().eq("id", id);
+    mutationFn: async (r: any) => {
+      if (r.projetada && !window.confirm(`"${r.descricao}" é uma receita fixa. Excluir o lançamento de origem? Ela deixa de aparecer em todos os meses.`)) {
+        return 0;
+      }
+      const alvo = String(r.projetada ? r.receita_id : r.id);
+      const { data, error } = await supabase.from("receitas").delete().eq("id", alvo).select("id");
       if (error) throw error;
+      if (!data || data.length === 0) throw new Error("Não foi possível excluir esta receita. Verifique suas permissões.");
+      return data.length;
     },
-    onSuccess: () => {
+    onSuccess: (n) => {
+      if (!n) return;
       toast.success("Receita excluída");
-      qc.invalidateQueries();
+      void qc.invalidateQueries({ queryKey: ["receitas"] });
     },
+    onError: (e: any) => toast.error(e?.message ?? "Erro ao excluir receita"),
   });
 
   const responsaveis = [...perfis.map((p: any) => p.nome), RESPONSAVEIS_EXTRA];
@@ -726,6 +736,9 @@ function ReceitasPage() {
                         <p className="truncate text-sm font-semibold leading-tight">
                           <span className="text-primary">{r.responsavel} · </span>
                           {r.descricao}
+                          {!!(r as any).possivel_duplicidade && (
+                            <Badge variant="outline" className="ml-2 border-amber-500/40 align-middle text-[10px] text-amber-700 dark:text-amber-300" title="Mesmo valor de um lançamento manual em outra data. Confira se não é duplicidade.">Possível duplicidade</Badge>
+                          )}
                           {((r as any).origem ?? (r as any).receitaOriginal?.origem) === "pluggy" && (
                             <Badge variant="outline" className="ml-2 border-emerald-500/30 align-middle text-[10px] text-emerald-600 dark:text-emerald-400">
                               Open Finance
@@ -774,7 +787,7 @@ function ReceitasPage() {
                             className="size-8 text-muted-foreground hover:text-destructive"
                             onClick={(e) => {
                               e.stopPropagation();
-                              excluir.mutate(r.receita_id ?? r.id);
+                              excluir.mutate(r);
                             }}
                             aria-label="Excluir receita"
                           >

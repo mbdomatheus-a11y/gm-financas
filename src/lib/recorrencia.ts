@@ -317,6 +317,7 @@ export interface ReceitaCompetencia {
   cartao_id?: string | null;
   projetada: boolean;
   receitaOriginal: any;
+  possivel_duplicidade?: boolean;
 }
 
 /**
@@ -388,6 +389,7 @@ export function receitasPorCompetencias(
         observacoes: r.observacoes ?? null,
         cartao_id: r.cartao_id ?? null,
         projetada: false,
+        possivel_duplicidade: !!r.possivel_duplicidade,
         receitaOriginal: r,
       });
     }

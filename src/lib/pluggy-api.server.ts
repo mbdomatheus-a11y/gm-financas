@@ -237,26 +237,25 @@ async function importarDespesa(
   const parc = parcelaDe(p.t.description ?? "");
   if (parc) return importarParcelado(db, p, parc);
 
-  if (p.cartaoId) {
-    const { data: manual } = await db
+  // Mesmo cartão (ou mesma conta) com lançamento manual:
+  //  * mesma data e mesmo valor (centavos) -> o manual é substituído pelo Open Finance;
+  //  * só o mesmo valor (centavos), outra data -> importa, mas marca como possível duplicidade.
+  const base = () => {
+    let q = db.from("despesas").select("id").in("origem", ORIGENS_MANUAIS).is("pluggy_transaction_id", null);
+    q = p.cartaoId ? q.eq("cartao_id", p.cartaoId) : q.is("cartao_id", null);
+    if (!p.cartaoId && p.banco) q = q.eq("banco_nome", p.banco);
+    return q;
+  };
+  const { data: manual } = await base().eq("data_compra", p.t.date).eq("valor_total", valor).limit(1).maybeSingle();
+  if (manual) {
+    await db
       .from("despesas")
-      .select("id")
-      .eq("cartao_id", p.cartaoId)
-      .in("origem", ORIGENS_MANUAIS)
-      .is("pluggy_transaction_id", null)
-      .eq("data_compra", p.t.date)
-      .eq("valor_total", valor)
-      .limit(1)
-      .maybeSingle();
-    if (manual) {
-      await db
-        .from("despesas")
-        .update({ origem: "pluggy", pluggy_transaction_id: p.t.id, importada_em: agora, congelada: p.congelada })
-        .eq("id", manual.id);
-      await db.from("pluggy_transacoes").update({ substituiu_manual: true }).eq("transaction_id", p.t.id);
-      return true;
-    }
+      .update({ origem: "pluggy", pluggy_transaction_id: p.t.id, importada_em: agora, congelada: p.congelada })
+      .eq("id", manual.id);
+    await db.from("pluggy_transacoes").update({ substituiu_manual: true }).eq("transaction_id", p.t.id);
+    return true;
   }
+  const { data: mesmoValor } = await base().eq("valor_total", valor).limit(1).maybeSingle();
 
   const { data: nova, error } = await db
     .from("despesas")
@@ -276,6 +275,7 @@ async function importarDespesa(
       pluggy_transaction_id: p.t.id,
       importada_em: agora,
       congelada: p.congelada,
+      possivel_duplicidade: !!mesmoValor,
       created_by: p.userId,
       grupo_id: p.grupoId,
     })
@@ -405,18 +405,35 @@ async function importarReceita(
   if (rej?.rejeitada) return false;
   const { data: ja } = await db.from("receitas").select("id").eq("pluggy_transaction_id", p.t.id).maybeSingle();
   if (ja) return false;
+  const valor = Math.abs(p.t.amount);
+  const data = dataIso(p.t.date);
+  const agora = new Date().toISOString();
+  // Receita manual de mesmo valor: mesma data substitui; outra data importa marcada como possível duplicidade.
+  const base = () =>
+    db.from("receitas").select("id").neq("origem", "pluggy").is("pluggy_transaction_id", null).eq("created_by", p.userId).eq("valor", valor);
+  const { data: mesmoDia } = await base().eq("data_recebimento", data).limit(1).maybeSingle();
+  if (mesmoDia) {
+    await db
+      .from("receitas")
+      .update({ origem: "pluggy", pluggy_transaction_id: p.t.id, importada_em: agora, congelada: p.congelada })
+      .eq("id", mesmoDia.id);
+    await db.from("pluggy_transacoes").update({ substituiu_manual: true }).eq("transaction_id", p.t.id);
+    return true;
+  }
+  const { data: mesmoValor } = await base().limit(1).maybeSingle();
   const { error } = await db.from("receitas").insert({
     descricao: p.t.description || "Entrada",
-    valor: Math.abs(p.t.amount),
+    valor,
     moeda: "BRL",
     categoria: "Outras receitas",
-    data_recebimento: dataIso(p.t.date),
+    data_recebimento: data,
     recorrente: false,
     responsavel: null,
     origem: "pluggy",
     pluggy_transaction_id: p.t.id,
-    importada_em: new Date().toISOString(),
+    importada_em: agora,
     congelada: p.congelada,
+    possivel_duplicidade: !!mesmoValor,
     created_by: p.userId,
     grupo_id: p.grupoId,
   });

@@ -42,6 +42,8 @@ import {
 } from "lucide-react";
 
 import type { LucideIcon } from "lucide-react";
+import { Plus } from "lucide-react";
+import { Fragment } from "react";
 import { AvatarPerfil } from "@/components/AvatarPerfil";
 import { SeletorIdioma } from "@/components/SeletorIdioma";
 import { useIdioma } from "@/hooks/useIdioma";
@@ -521,6 +523,17 @@ export function AppLayout({
   ).filter(podeVer);
   const itensGlobais = GLOBAL.filter(podeVer).filter((i) => !i.adminOnly);
   const itensAdmin = GLOBAL.filter(podeVer).filter((i) => i.adminOnly);
+  // Botão central da barra do celular: ação principal de cada área.
+  const podeLancar = can("despesas", "editar") || can("receitas", "editar");
+  const acaoCentral: { rotulo: string; evento: string } | null = pathname.startsWith("/notas")
+    ? { rotulo: "Nova nota", evento: "abrir-nova-nota" }
+    : pathname.startsWith("/lista-compras")
+      ? { rotulo: "Novo item", evento: "abrir-novo-item-lista" }
+      : pathname.startsWith("/despesas")
+        ? null
+        : podeLancar
+          ? { rotulo: "Lançar", evento: "abrir-lancamento-rapido" }
+          : null;
   // No modo usuário comum, páginas exclusivas de admin mostram aviso em vez do conteúdo.
   const rotaAdminBloqueada =
     modoCliente &&
@@ -918,13 +931,25 @@ export function AppLayout({
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent side="left" className="w-72 bg-sidebar p-0">
           <SheetTitle className="sr-only">Menu</SheetTitle>
+          <div className="border-b p-3 lg:hidden">
+            <Button
+              className="w-full gap-2"
+              disabled={!podeLancar}
+              onClick={() => {
+                setOpen(false);
+                window.dispatchEvent(new Event("abrir-lancamento-rapido"));
+              }}
+            >
+              <Plus className="size-4" /> Lançar despesa ou receita
+            </Button>
+          </div>
           <SidebarInner onNavigate={() => setOpen(false)} />
         </SheetContent>
       </Sheet>
 
       <nav
         aria-label="Navegação principal"
-        className="glass fixed inset-x-2 bottom-2 z-30 grid grid-cols-5 gap-1 rounded-2xl border border-border/60 px-1.5 pb-[env(safe-area-inset-bottom)] pt-1 shadow-[var(--shadow-soft)] lg:hidden"
+        className="glass fixed inset-x-2 bottom-2 z-30 grid grid-cols-6 items-end gap-1 rounded-2xl border border-border/60 px-1.5 pb-[env(safe-area-inset-bottom)] pt-1 shadow-[var(--shadow-soft)] lg:hidden"
       >
         <Link
           to="/inicio"
@@ -936,23 +961,44 @@ export function AppLayout({
           <Home className="size-5" />
           Início
         </Link>
-        {ATALHOS_MOBILE.filter((m) => mundoVisivel(m.id)).map((m) => {
-          const ativo = mundoId === m.id;
-          const Icon = m.icon;
+        {(() => {
+          const visiveis = ATALHOS_MOBILE.filter((m) => mundoVisivel(m.id));
+          const renderAtalho = (m: (typeof ATALHOS_MOBILE)[number]) => {
+            const Icon = m.icon;
+            return (
+              <Link
+                key={m.id}
+                to={MUNDOS[m.id].home}
+                className={cn(
+                  "flex flex-col items-center gap-1 rounded-lg py-2 text-[11px] font-medium",
+                  mundoId === m.id ? "text-primary" : "text-muted-foreground",
+                )}
+              >
+                <Icon className="size-5" />
+                {m.rotulo}
+              </Link>
+            );
+          };
           return (
-            <Link
-              key={m.id}
-              to={MUNDOS[m.id].home}
-              className={cn(
-                "flex flex-col items-center gap-1 rounded-lg py-2 text-[11px] font-medium",
-                ativo ? "text-primary" : "text-muted-foreground",
-              )}
-            >
-              <Icon className="size-5" />
-              {m.rotulo}
-            </Link>
+            <Fragment>
+              {visiveis.slice(0, 1).map(renderAtalho)}
+              <div className="relative flex justify-center">
+                {acaoCentral && (
+                  <button
+                    type="button"
+                    aria-label={acaoCentral.rotulo}
+                    onClick={() => window.dispatchEvent(new Event(acaoCentral.evento))}
+                    className="absolute -top-7 flex size-16 flex-col items-center justify-center gap-0.5 rounded-full bg-primary text-primary-foreground shadow-lg ring-4 ring-background active:scale-95"
+                  >
+                    <Plus className="size-6" />
+                    <span className="text-[10px] font-semibold leading-none">{acaoCentral.rotulo}</span>
+                  </button>
+                )}
+              </div>
+              {visiveis.slice(1).map(renderAtalho)}
+            </Fragment>
           );
-        })}
+        })()}
         <button
           type="button"
           onClick={() => setOpen(true)}
@@ -967,7 +1013,7 @@ export function AppLayout({
           (2026-10-01): botão flutuante acessível de qualquer tela
           autenticada, não escondido dentro dos formulários de
           despesas/receitas. Ver claude/plano-lancamento-ia-2026-10-01.md. */}
-      {(mundoId === "financas" || pathname === "/inicio") && <BotaoLancamentoRapido />}
+      <BotaoLancamentoRapido flutuante={mundoId === "financas" || pathname === "/inicio"} />
     </div>
   );
 }

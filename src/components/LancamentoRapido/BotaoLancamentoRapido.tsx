@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { Plus, Sparkles, TrendingDown, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -21,11 +21,17 @@ import { LancamentoRapidoDialog } from "@/components/LancamentoRapido/Lancamento
  *
  * Só aparece pra quem pode editar despesas OU receitas.
  */
-export function BotaoLancamentoRapido() {
+export function BotaoLancamentoRapido({ flutuante = true }: { flutuante?: boolean }) {
   const { can } = usePermissoes();
   const navigate = useNavigate();
   const [escolha, setEscolha] = useState(false);
   const [ia, setIa] = useState(false);
+  // Ação "Lançar" disparada pela barra inferior ou pelo menu do celular.
+  useEffect(() => {
+    const abrir = () => setEscolha(true);
+    window.addEventListener("abrir-lancamento-rapido", abrir);
+    return () => window.removeEventListener("abrir-lancamento-rapido", abrir);
+  }, []);
 
   const podeDespesa = can("despesas", "editar");
   const podeReceita = can("receitas", "editar");
@@ -38,9 +44,10 @@ export function BotaoLancamentoRapido() {
 
   return (
     <>
+      {flutuante && (
       <Button
         onClick={() => setEscolha(true)}
-        className="fixed bottom-20 right-4 z-40 h-14 gap-2 rounded-full px-5 text-base font-bold shadow-lg lg:bottom-6"
+        className="hidden lg:inline-flex fixed bottom-6 right-4 z-40 h-14 gap-2 rounded-full px-5 text-base font-bold shadow-lg"
         aria-label="Lançar uma despesa, uma receita ou usar a IA"
         title="Lançar"
         data-tour="lancamento-ia"
@@ -48,6 +55,7 @@ export function BotaoLancamentoRapido() {
         <Plus className="size-6" />
         Lançar
       </Button>
+      )}
 
       <Dialog open={escolha} onOpenChange={setEscolha}>
         <DialogContent className="max-w-sm">

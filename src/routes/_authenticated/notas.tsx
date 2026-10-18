@@ -240,6 +240,11 @@ function NotasPage() {
   const [filtro, setFiltro] = useState<Filtro>("todas");
   const [busca, setBusca] = useState("");
   const [escolha, setEscolha] = useState(false);
+  useEffect(() => {
+    const abrir = () => setEscolha(true);
+    window.addEventListener("abrir-nova-nota", abrir);
+    return () => window.removeEventListener("abrir-nova-nota", abrir);
+  }, []);
   const [leitor, setLeitor] = useState(false);
   const [form, setForm] = useState<NotaForm | null>(null);
   const { data: cartoesLista = [] } = useCartoes();

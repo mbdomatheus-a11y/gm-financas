@@ -1468,6 +1468,9 @@ function DespesasPage() {
                                   <span className="text-primary">{identificacaoDespesa(d)} · </span>
                                 )}
                                 {d.descricao}
+                                {!!d.possivel_duplicidade && (
+                                  <Badge variant="outline" className="ml-2 border-amber-500/40 align-middle text-[10px] text-amber-700 dark:text-amber-300" title="Mesmo valor de um lançamento manual em outra data. Confira se não é duplicidade.">Possível duplicidade</Badge>
+                                )}
                               </p>
                               {ignoradaNoMes && (
                                 <Badge
