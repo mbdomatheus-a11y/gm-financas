@@ -951,12 +951,12 @@ export function AppLayout({
 
       <nav
         aria-label="Navegação principal"
-        className="glass fixed inset-x-2 bottom-2 z-30 grid grid-cols-[1fr_1fr_5.5rem_1fr_1fr_1fr] items-end gap-1 rounded-2xl border border-border/60 px-1.5 pb-[env(safe-area-inset-bottom)] pt-1 shadow-[var(--shadow-soft)] lg:hidden"
+        className="fixed inset-x-2 bottom-[calc(env(safe-area-inset-bottom)+0.5rem)] z-30 grid h-16 grid-cols-[1fr_1fr_5.5rem_1fr_1fr_1fr] items-center rounded-2xl border border-border bg-background px-1.5 shadow-lg lg:hidden"
       >
         <Link
           to="/inicio"
           className={cn(
-            "flex flex-col items-center gap-1 rounded-lg py-2 text-[11px] font-medium",
+            "flex h-full flex-col items-center justify-center gap-0.5 rounded-lg text-[11px] font-medium leading-none",
             pathname === "/inicio" ? "text-primary" : "text-muted-foreground",
           )}
         >
@@ -972,7 +972,7 @@ export function AppLayout({
                 key={m.id}
                 to={MUNDOS[m.id].home}
                 className={cn(
-                  "flex flex-col items-center gap-1 rounded-lg py-2 text-[11px] font-medium",
+                  "flex h-full flex-col items-center justify-center gap-0.5 rounded-lg text-[11px] font-medium leading-none",
                   mundoId === m.id ? "text-primary" : "text-muted-foreground",
                 )}
               >
@@ -992,7 +992,7 @@ export function AppLayout({
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="flex flex-col items-center gap-1 rounded-lg py-2 text-[11px] font-medium text-muted-foreground"
+          className="flex h-full flex-col items-center justify-center gap-0.5 rounded-lg text-[11px] font-medium leading-none text-muted-foreground"
         >
           <Menu className="size-5" />
           Menu
@@ -1002,7 +1002,7 @@ export function AppLayout({
             type="button"
             aria-label={acaoCentral.rotulo}
             onClick={() => window.dispatchEvent(new Event(acaoCentral.evento))}
-            className="absolute left-1/2 -top-7 flex size-16 -translate-x-1/2 flex-col items-center justify-center gap-0.5 rounded-full bg-primary text-primary-foreground shadow-lg ring-4 ring-background active:scale-95"
+            className="absolute left-1/2 -top-7 flex size-14 -translate-x-1/2 flex-col items-center justify-center gap-0.5 rounded-full bg-primary text-primary-foreground shadow-lg ring-4 ring-background transition-transform active:scale-95"
           >
             <Plus className="size-6" />
             <span className="text-[10px] font-semibold leading-none">{acaoCentral.curto}</span>
