@@ -967,7 +967,7 @@ export function AppLayout({
           (2026-10-01): botão flutuante acessível de qualquer tela
           autenticada, não escondido dentro dos formulários de
           despesas/receitas. Ver claude/plano-lancamento-ia-2026-10-01.md. */}
-      {mundoId === "financas" && <BotaoLancamentoRapido />}
+      {(mundoId === "financas" || pathname === "/inicio") && <BotaoLancamentoRapido />}
     </div>
   );
 }
