@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Boxes, Calendar, MapPin, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { AppLayout } from "@/components/AppLayout";
@@ -80,6 +80,13 @@ function formatarData(iso: string | null): string | null {
 }
 
 function OndeEsta() {
+  useEffect(() => {
+    const abrir = () => {
+      abrirNovoItem();
+    };
+    window.addEventListener("abrir-novo-item-onde-esta", abrir);
+    return () => window.removeEventListener("abrir-novo-item-onde-esta", abrir);
+  }, []);
   const qc = useQueryClient();
   const [q, setQ] = useState("");
   const [dialogLocal, setDialogLocal] = useState<null | "novo" | Local>(null);

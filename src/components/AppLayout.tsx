@@ -523,17 +523,19 @@ export function AppLayout({
   ).filter(podeVer);
   const itensGlobais = GLOBAL.filter(podeVer).filter((i) => !i.adminOnly);
   const itensAdmin = GLOBAL.filter(podeVer).filter((i) => i.adminOnly);
-  // Botão central da barra do celular: ação principal de cada área.
+  // Botão central da barra do celular: ação principal de cada área (só onde existe uma ação única).
   const podeLancar = can("despesas", "editar") || can("receitas", "editar");
   const acaoCentral: { rotulo: string; curto: string; evento: string } | null = pathname.startsWith("/notas")
     ? { rotulo: "Nova nota", curto: "Nota", evento: "abrir-nova-nota" }
     : pathname.startsWith("/lista-compras")
       ? { rotulo: "Novo item", curto: "Item", evento: "abrir-novo-item-lista" }
-      : pathname.startsWith("/despesas")
-        ? null
-        : podeLancar
-          ? { rotulo: "Lançar", curto: "Lançar", evento: "abrir-lancamento-rapido" }
-          : null;
+      : pathname.startsWith("/onde-esta")
+        ? { rotulo: "Novo item", curto: "Item", evento: "abrir-novo-item-onde-esta" }
+        : pathname.startsWith("/veiculos")
+          ? { rotulo: "Novo veículo", curto: "Veículo", evento: "abrir-novo-veiculo" }
+          : mundoId === "financas" && !pathname.startsWith("/despesas") && podeLancar
+            ? { rotulo: "Lançar", curto: "Lançar", evento: "abrir-lancamento-rapido" }
+            : null;
   // No modo usuário comum, páginas exclusivas de admin mostram aviso em vez do conteúdo.
   const rotaAdminBloqueada =
     modoCliente &&

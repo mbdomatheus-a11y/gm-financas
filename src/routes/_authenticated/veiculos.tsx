@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
@@ -131,6 +131,11 @@ const eventoFormVazio = {
 };
 
 function VeiculosPage() {
+  useEffect(() => {
+    const abrir = () => abrirNovo();
+    window.addEventListener("abrir-novo-veiculo", abrir);
+    return () => window.removeEventListener("abrir-novo-veiculo", abrir);
+  }, []);
   const qc = useQueryClient();
   const { can } = usePermissoes();
   const { user } = useSession();
