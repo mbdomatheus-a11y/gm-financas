@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 
 import { AppLayout } from "@/components/AppLayout";
+import { GastosPorCategoria } from "@/components/GastosPorCategoria";
 import { Field } from "@/routes/_authenticated/receitas";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -240,6 +241,8 @@ function CategoriasPage() {
           </TabsTrigger>
         </TabsList>
       </Tabs>
+
+      {tipo === "despesa" && <GastosPorCategoria />}
 
       <Card className="mt-4">
         <CardContent className="space-y-2 p-4">

@@ -1,4 +1,5 @@
-import { GraduationCap } from "lucide-react";
+import { Armchair, Baby, BookOpen, Briefcase, GraduationCap, Users } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
@@ -66,6 +67,9 @@ const PRINCIPIOS = [
   "Nunca compartilhe senhas ou códigos, e desconfie de promessas de ganho fácil.",
 ];
 
+/** Miniatura de cada faixa de idade, na mesma ordem de FAIXAS. */
+const MINIATURAS: LucideIcon[] = [Baby, BookOpen, Briefcase, Users, Armchair];
+
 export function EducacaoFinanceira() {
   return (
     <Card>
@@ -85,9 +89,18 @@ export function EducacaoFinanceira() {
           ))}
         </ul>
         <Accordion type="single" collapsible className="w-full">
-          {FAIXAS.map((f) => (
+          {FAIXAS.map((f, idx) => {
+            const Miniatura = MINIATURAS[idx % MINIATURAS.length] ?? GraduationCap;
+            return (
             <AccordionItem key={f.id} value={f.id}>
-              <AccordionTrigger className="text-sm">{f.titulo}</AccordionTrigger>
+              <AccordionTrigger className="text-sm">
+                <span className="flex items-center gap-2.5">
+                  <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                    <Miniatura className="size-4" aria-hidden="true" />
+                  </span>
+                  {f.titulo}
+                </span>
+              </AccordionTrigger>
               <AccordionContent>
                 <ul className="list-disc space-y-1.5 pl-5 text-sm text-muted-foreground">
                   {f.dicas.map((d) => (
@@ -96,7 +109,8 @@ export function EducacaoFinanceira() {
                 </ul>
               </AccordionContent>
             </AccordionItem>
-          ))}
+            );
+          })}
         </Accordion>
         <p className="text-[11px] text-muted-foreground">
           Conteúdo educativo geral, sem recomendação de investimento ou aconselhamento financeiro

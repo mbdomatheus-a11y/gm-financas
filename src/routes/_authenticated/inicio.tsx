@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { AppLayout } from "@/components/AppLayout";
 import { HomeWidgets } from "@/components/HomeWidgets";
+import { ResumoPrevisaoHome } from "@/components/ResumoPrevisaoHome";
 import { InstalarAppCartao } from "@/components/retencao/InstalarApp";
 
 export const Route = createFileRoute("/_authenticated/inicio")({
@@ -20,6 +21,7 @@ function InicioPage() {
   return (
     <AppLayout title="Início" description="Escolha o que deseja acessar">
       <InstalarAppCartao className="mb-4" />
+      <ResumoPrevisaoHome />
       <HomeWidgets />
     </AppLayout>
   );

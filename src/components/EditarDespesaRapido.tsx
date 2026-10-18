@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useCategorias } from "@/hooks/useFinance";
+import { chaveEstabelecimento } from "@/lib/categorizacao";
 
 /** Edição rápida de uma despesa sem sair da tela. */
 export function EditarDespesaRapido({
@@ -43,6 +44,13 @@ export function EditarDespesaRapido({
     });
   }, [despesa]);
 
+  // Depois de corrigir a categoria, pergunta se a correção vira regra para o estabelecimento.
+  const [sugestaoRegra, setSugestaoRegra] = useState<{
+    chave: string;
+    descricao: string;
+    categoria: string;
+  } | null>(null);
+
   const salvar = useMutation({
     mutationFn: async () => {
       const { error } = await supabase
@@ -58,13 +66,65 @@ export function EditarDespesaRapido({
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["despesas"] });
+      const mudouCategoria = form.categoria && form.categoria !== (despesa.categoria ?? "");
+      const chave = chaveEstabelecimento(form.descricao);
+      if (mudouCategoria && chave) {
+        toast.success("Despesa atualizada.");
+        setSugestaoRegra({ chave, descricao: form.descricao, categoria: form.categoria });
+        return;
+      }
       toast.success("Despesa atualizada.");
       onClose();
     },
     onError: (e: any) => toast.error(e?.message ?? "Não consegui salvar."),
   });
 
+  const criarRegra = useMutation({
+    mutationFn: async () => {
+      if (!sugestaoRegra) return;
+      const { data: userData } = await supabase.auth.getUser();
+      const { error } = await supabase.from("categoria_regras").insert({
+        estabelecimento_normalizado: sugestaoRegra.chave,
+        categoria: sugestaoRegra.categoria,
+        subcategoria: null,
+        padroes: [sugestaoRegra.descricao],
+        tipo_regra: "de_para",
+        prioridade: 0,
+        ativo: true,
+        created_by: userData.user?.id ?? null,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["categoria-regras"] });
+      toast.success("Regra criada: esta categoria vale para este estabelecimento.");
+      setSugestaoRegra(null);
+      onClose();
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Não consegui criar a regra."),
+  });
+
   return (
+    <>
+    <Dialog open={!!sugestaoRegra} onOpenChange={(v) => !v && (setSugestaoRegra(null), onClose())}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Usar sempre esta categoria?</DialogTitle>
+        </DialogHeader>
+        <p className="text-sm text-muted-foreground">
+          Quer que os próximos lançamentos de <span className="font-medium text-foreground">{sugestaoRegra?.descricao}</span> entrem
+          automaticamente em <span className="font-medium text-foreground">{sugestaoRegra?.categoria}</span>?
+        </p>
+        <div className="flex flex-col gap-2 pt-2 sm:flex-row sm:justify-end">
+          <Button variant="outline" onClick={() => (setSugestaoRegra(null), onClose())}>
+            Só esta despesa
+          </Button>
+          <Button onClick={() => criarRegra.mutate()} disabled={criarRegra.isPending}>
+            Sim, sempre
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
     <Dialog open={!!despesa} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
@@ -123,5 +183,6 @@ export function EditarDespesaRapido({
         </div>
       </DialogContent>
     </Dialog>
+    </>
   );
 }

@@ -100,6 +100,13 @@ function acharPorNome<T>(lista: T[], nome: string | null, nomeDe: (item: T) => s
   return lista.find((item) => chave(nomeDe(item)) === alvo) ?? null;
 }
 
+/** Perguntas de continuação mostradas após cada resposta da IA. */
+const SUGESTOES_CONTINUACAO = [
+  "Quanto gastei por categoria?",
+  "Quais contas vencem nos próximos 7 dias?",
+  "Onde posso economizar este mês?",
+];
+
 export type ItemHistoricoIA = {
   id: string;
   dataHora: string;
@@ -352,11 +359,13 @@ export function LancamentoRapidoDialog({
     }
   }
 
-  async function resumir() {
+  async function resumir(perguntaExtra?: string) {
+    const pergunta = (perguntaExtra ?? perguntaResumo).trim();
+    if (perguntaExtra) setPerguntaResumo(perguntaExtra);
     setResumindo(true);
     setRespostaResumo(null);
     try {
-      const r = await resumirFn({ data: { pergunta: perguntaResumo.trim(), resumo } });
+      const r = await resumirFn({ data: { pergunta, resumo } });
       if (r.erro && !r.texto) {
         toast.error(r.erro);
         return;
@@ -364,7 +373,7 @@ export function LancamentoRapidoDialog({
       setRespostaResumo(r.texto);
       registrarNoHistorico(
         "resumo",
-        perguntaResumo.trim() || "Resumo financeiro do mês",
+        pergunta || "Resumo financeiro do mês",
         r.texto,
       );
       qc.invalidateQueries({ queryKey: ["lista-compras"] });
@@ -690,7 +699,7 @@ export function LancamentoRapidoDialog({
                   <Loader2 className="size-3.5 animate-spin" /> Transcrevendo áudio…
                 </span>
               )}
-              <Button type="button" size="sm" onClick={resumir} disabled={resumindo || gravando || transcrevendo}>
+              <Button type="button" size="sm" onClick={() => resumir()} disabled={resumindo || gravando || transcrevendo}>
                 {resumindo ? (
                   <Loader2 className="size-4 animate-spin" />
                 ) : (
@@ -700,8 +709,26 @@ export function LancamentoRapidoDialog({
               </Button>
               </div>
               {respostaResumo && (
-                <div className="rounded-lg border bg-muted/40 p-3 text-sm whitespace-pre-wrap">
-                  {respostaResumo}
+                <div className="space-y-3 rounded-xl border border-primary/25 bg-card p-4 shadow-sm">
+                  <div className="flex items-center gap-2 text-xs font-medium text-primary">
+                    <Sparkles className="size-3.5" /> Resposta da IA
+                  </div>
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed">{respostaResumo}</p>
+                  <div className="flex flex-wrap gap-2 border-t pt-3">
+                    {SUGESTOES_CONTINUACAO.map((sugestao) => (
+                      <Button
+                        key={sugestao}
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-8 rounded-full text-xs"
+                        disabled={resumindo}
+                        onClick={() => resumir(sugestao)}
+                      >
+                        {sugestao}
+                      </Button>
+                    ))}
+                  </div>
                 </div>
               )}
             </TabsContent>

@@ -353,6 +353,12 @@ function PluggyPage() {
                 Faltam as variáveis PLUGGY_CLIENT_ID e PLUGGY_CLIENT_SECRET no servidor (Vercel). Veja docs/PENDENCIAS.md.
               </p>
             )}
+            <ul className="grid gap-2 rounded-lg border bg-muted/30 p-3 text-xs sm:grid-cols-2">
+              <li>Conexão protegida pelo Open Finance.</li>
+              <li>Sistema regulamentado pelo Banco Central.</li>
+              <li>Sua senha do banco não passa pelo Control ALL.</li>
+              <li>Você desconecta quando quiser.</li>
+            </ul>
             <div className="flex flex-wrap items-center gap-2">
               <Button disabled={!st?.configurado || conectar.isPending} onClick={() => conectar.mutate()}>
                 <Link2 className="mr-1.5 size-4" aria-hidden="true" />

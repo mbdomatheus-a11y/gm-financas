@@ -23,7 +23,7 @@ export function SocialAuthButtons({
     setNavegadorEmbutido(/Instagram|FBAN|FBAV|FB_IAB|TikTok|Line\/|Snapchat|MicroMessenger/i.test(navigator.userAgent));
   }, []);
 
-  const handleOAuth = async (provider: "google" | "azure") => {
+  const handleOAuth = async (provider: "google" | "azure" | "apple") => {
     try {
       setLoadingProvider(provider);
       const origin = window.location.origin;
@@ -66,7 +66,7 @@ export function SocialAuthButtons({
 
       {navegadorEmbutido && (
         <p className="rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900">
-          Você está no navegador de um aplicativo (como o Instagram). O login com Google e Microsoft
+          Você está no navegador de um aplicativo (como o Instagram). O login com Google, Microsoft e Apple
           pode não funcionar aqui. Toque nos três pontinhos e escolha "Abrir no navegador" (Chrome ou
           Safari), ou crie a conta com e-mail e senha.
         </p>
@@ -125,9 +125,30 @@ export function SocialAuthButtons({
           )}
           <span>{labelPrefix} Microsoft</span>
         </Button>
+
+        {/* Apple */}
+        <Button
+          type="button"
+          variant="outline"
+          className="h-10 w-full justify-center gap-2.5 text-xs font-medium hover:bg-muted/60"
+          onClick={() => handleOAuth("apple")}
+          disabled={loadingProvider !== null}
+        >
+          {loadingProvider === "apple" ? (
+            <Loader2 className="size-4 animate-spin text-muted-foreground" />
+          ) : (
+            <svg className="size-4 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                fill="currentColor"
+                d="M16.37 12.6c-.02-2.2 1.8-3.26 1.88-3.31-1.02-1.5-2.61-1.7-3.18-1.73-1.35-.14-2.64.8-3.33.8-.69 0-1.75-.78-2.88-.76-1.48.02-2.85.86-3.61 2.19-1.54 2.67-.39 6.61 1.1 8.77.73 1.06 1.6 2.25 2.74 2.2 1.1-.04 1.52-.71 2.85-.71 1.33 0 1.7.71 2.87.69 1.19-.02 1.94-1.08 2.66-2.15.84-1.23 1.19-2.42 1.2-2.48-.03-.01-2.3-.88-2.32-3.5zM14.2 5.9c.61-.74 1.02-1.76.91-2.78-.88.04-1.94.58-2.57 1.32-.56.65-1.05 1.69-.92 2.69.98.08 1.98-.5 2.58-1.23z"
+              />
+            </svg>
+          )}
+          <span>{labelPrefix} Apple</span>
+        </Button>
       </div>
       <p className="text-center text-[11px] text-muted-foreground">
-        Ao continuar com Google ou Microsoft você concorda com os Termos de Uso e o Aviso de
+        Ao continuar com Google, Microsoft ou Apple você concorda com os Termos de Uso e o Aviso de
         Privacidade.
       </p>
     </div>

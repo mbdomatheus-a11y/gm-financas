@@ -26,7 +26,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
-import { useCartoes, useDespesas, useFaturasMes } from "@/hooks/useFinance";
+import { useCartoes, useDespesas, useFaturasMes, useReceitas } from "@/hooks/useFinance";
 import { useCotacao } from "@/hooks/useCotacao";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { aplicarRegrasFaturaMes } from "@/lib/fatura-mes";
@@ -117,6 +117,7 @@ function CalendarioPage() {
   const { data: despesas = [] } = useDespesas();
   const { data: faturasMes = [] } = useFaturasMes();
   const { data: cartoes = [] } = useCartoes();
+  const { data: receitas = [] } = useReceitas();
 
   const { data: notas = [] } = useQuery({
     queryKey: ["calendario-notas"],
@@ -242,6 +243,43 @@ function CalendarioPage() {
   }, [mes]);
 
   const eventosDoDia = porDia.get(diaSel) ?? [];
+
+  // Entradas, saídas e resultado por dia no mês exibido (receitas por data de recebimento,
+  // despesas e parcelas por vencimento). Mesma regra do card de previsão do Início.
+  const financeiro = useMemo(() => {
+    const dias = ultimoDiaDoMes(mes);
+    const porDiaFin = new Map<string, { entradas: number; saidas: number }>();
+    const bucket = (d: string) => {
+      if (!porDiaFin.has(d)) porDiaFin.set(d, { entradas: 0, saidas: 0 });
+      return porDiaFin.get(d)!;
+    };
+    for (const r of receitas as any[]) {
+      if (monthKey(r.data_recebimento) !== mes) continue;
+      const dia = Math.min(dias, new Date(r.data_recebimento).getDate());
+      bucket(`${mes}-${String(dia).padStart(2, "0")}`).entradas += toBRL(Number(r.valor), r.moeda, cotacao);
+    }
+    const parcelas = aplicarRegrasFaturaMes(
+      lancamentosPorCompetencias(despesas as any[], [mes]),
+      faturasMes as any[],
+    ).filter((p) => monthKey(p.vencimento) === mes);
+    for (const p of parcelas) {
+      const dia = Math.min(dias, new Date(p.vencimento).getDate());
+      bucket(`${mes}-${String(dia).padStart(2, "0")}`).saidas += toBRL(Number(p.valor), p.despesa.moeda, cotacao);
+    }
+    let entradas = 0;
+    let saidas = 0;
+    for (const v of porDiaFin.values()) {
+      entradas += v.entradas;
+      saidas += v.saidas;
+    }
+    return { porDia: porDiaFin, entradas, saidas, resultado: entradas - saidas };
+  }, [mes, receitas, despesas, faturasMes, cotacao]);
+
+  function compacto(v: number): string {
+    const abs = Math.abs(v);
+    const txt = abs >= 1000 ? `${(abs / 1000).toFixed(1).replace(".", ",")}k` : abs.toFixed(0);
+    return `${v < 0 ? "−" : "+"}${txt}`;
+  }
   const totalFaturasMes = visiveis
     .filter((e) => e.tipo === "fatura" && e.data.slice(0, 7) === mes)
     .reduce((t, e) => t + (e.valor ?? 0), 0);
@@ -419,10 +457,28 @@ function CalendarioPage() {
               </div>
             ))}
           </div>
+          <div className="mb-2 grid grid-cols-3 gap-2 text-center">
+            <div className="rounded-md bg-emerald-500/10 p-2">
+              <p className="text-[10px] uppercase text-muted-foreground">Entradas</p>
+              <p className="text-xs font-semibold text-emerald-600 sm:text-sm">{formatBRL(financeiro.entradas)}</p>
+            </div>
+            <div className="rounded-md bg-rose-500/10 p-2">
+              <p className="text-[10px] uppercase text-muted-foreground">Saídas</p>
+              <p className="text-xs font-semibold text-rose-600 sm:text-sm">{formatBRL(financeiro.saidas)}</p>
+            </div>
+            <div className="rounded-md bg-muted/50 p-2">
+              <p className="text-[10px] uppercase text-muted-foreground">Resultado</p>
+              <p className={cn("text-xs font-semibold sm:text-sm", financeiro.resultado >= 0 ? "text-emerald-600" : "text-rose-600")}>
+                {formatBRL(financeiro.resultado)}
+              </p>
+            </div>
+          </div>
           <div className="grid grid-cols-7 gap-1">
             {celulas.map((dia, i) => {
               if (!dia) return <div key={`v${i}`} className="min-h-14 rounded-md bg-muted/20 sm:min-h-24" />;
               const evs = porDia.get(dia) ?? [];
+              const fin = financeiro.porDia.get(dia);
+              const resDia = fin ? fin.entradas - fin.saidas : 0;
               const ehHoje = dia === hojeISO;
               const sel = dia === diaSel;
               return (
@@ -439,6 +495,17 @@ function CalendarioPage() {
                   <span className={cn("text-xs font-semibold", ehHoje && "text-primary")}>
                     {Number(dia.slice(8, 10))}
                   </span>
+                  {fin && (fin.entradas > 0 || fin.saidas > 0) && (
+                    <span
+                      className={cn(
+                        "truncate text-[10px] font-medium tabular-nums",
+                        resDia >= 0 ? "text-emerald-600" : "text-rose-600",
+                      )}
+                      title={`Entradas ${formatBRL(fin.entradas)} · Saídas ${formatBRL(fin.saidas)}`}
+                    >
+                      {compacto(resDia)}
+                    </span>
+                  )}
                   <div className="hidden flex-col gap-0.5 sm:flex">
                     {evs.slice(0, 3).map((e) => (
                       <span

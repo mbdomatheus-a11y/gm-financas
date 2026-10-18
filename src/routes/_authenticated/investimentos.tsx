@@ -151,6 +151,23 @@ function InvestimentosPage() {
     }, {}),
   ).map(([name, value]) => ({ name, value: value as number }));
 
+  // Renda fixa x variável: renda fixa = tem regra de rendimento ou tipo típico de renda fixa.
+  const fixaVariavel = (() => {
+    let fixa = 0;
+    let variavel = 0;
+    for (const i of investimentos) {
+      const v = Number(i.valor_atual);
+      const ehFixa =
+        !!i.tipo_rendimento || /renda fixa|cdb|lci|lca|tesouro|poupan|deb[êe]nture/i.test(i.tipo ?? "");
+      if (ehFixa) fixa += v;
+      else variavel += v;
+    }
+    return [
+      { name: "Renda fixa", value: fixa },
+      { name: "Renda variável", value: variavel },
+    ].filter((d) => d.value > 0);
+  })();
+
   const salvar = useMutation({
     mutationFn: async () => {
       const investido = Number(String(form.valor_investido).replace(",", ".")) || 0;
@@ -288,6 +305,38 @@ function InvestimentosPage() {
                   ))}
                 </Pie>
                 <Tooltip formatter={(v: any) => formatBRL(Number(v))} />
+              </PieChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      )}
+
+      {fixaVariavel.length > 0 && (
+        <Card className="mt-4">
+          <CardHeader className="pb-0">
+            <CardTitle className="text-sm">Renda fixa x variável</CardTitle>
+          </CardHeader>
+          <CardContent className="h-56">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={fixaVariavel}
+                  dataKey="value"
+                  nameKey="name"
+                  innerRadius={45}
+                  outerRadius={80}
+                >
+                  {fixaVariavel.map((d, i) => (
+                    <Cell key={d.name} fill={i === 0 ? "#0079BF" : "#10b981"} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  formatter={(v: any, name: any, item: any) => {
+                    const total = fixaVariavel.reduce((s, d) => s + d.value, 0);
+                    const pct = total > 0 ? ((Number(v) / total) * 100).toFixed(1) : "0";
+                    return [`${formatBRL(Number(v))} (${pct}%)`, name];
+                  }}
+                />
               </PieChart>
             </ResponsiveContainer>
           </CardContent>
