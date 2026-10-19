@@ -224,6 +224,26 @@ async function importarParcelado(
 }
 
 /**
+ * Entre os manuais de mesmo valor, escolhe o que se parece com a transação do Open Finance:
+ * data até 3 dias de distância, ou ao menos uma palavra em comum na descrição. Prefere a data mais próxima.
+ */
+function manualParecido(
+  lista: { id: string; data_compra?: string | null; descricao?: string | null }[],
+  dataTx: string,
+  descricaoTx: string,
+): { id: string } | null {
+  const palavrasTx = palavrasDoNome(descricaoTx);
+  let melhor: { id: string; dist: number } | null = null;
+  for (const m of lista) {
+    const dist = Math.abs(Date.parse(dataIso(m.data_compra ?? dataTx)) - Date.parse(dataIso(dataTx))) / 86400000;
+    const descricaoBate = palavrasDoNome(m.descricao ?? "").some((a) => palavrasTx.some((b) => a.includes(b) || b.includes(a)));
+    if (dist > 3 && !descricaoBate) continue;
+    if (!melhor || dist < melhor.dist) melhor = { id: m.id, dist };
+  }
+  return melhor;
+}
+
+/**
  * Cria a despesa importada, ou troca o lançamento manual igual por ela.
  * Pula lançamentos já importados e os rejeitados pelo usuário.
  */
@@ -243,15 +263,16 @@ async function importarDespesa(
   if (parc) return importarParcelado(db, p, parc);
 
   // Mesmo cartão (ou mesma conta) com lançamento manual:
-  //  * mesma data e mesmo valor (centavos) -> o manual é substituído pelo Open Finance;
-  //  * só o mesmo valor (centavos), outra data -> importa, mas marca como possível duplicidade.
+  //  * manual de mesmo valor (centavos) e data até 3 dias, ou descrição parecida -> o Open Finance prevalece e substitui o manual;
+  //  * manual de mesmo valor sem nada parecido -> importa, marcado como possível duplicidade.
   const base = () => {
     let q = db.from("despesas").select("id").in("origem", ORIGENS_MANUAIS).is("pluggy_transaction_id", null);
     q = p.cartaoId ? q.eq("cartao_id", p.cartaoId) : q.is("cartao_id", null);
     if (!p.cartaoId && p.banco) q = q.eq("banco_nome", p.banco);
     return q;
   };
-  const { data: manual } = await base().eq("data_compra", p.t.date).eq("valor_total", valor).limit(1).maybeSingle();
+  const { data: candidatos } = await base().eq("valor_total", valor).select("id, data_compra, descricao");
+  const manual = manualParecido(candidatos ?? [], p.t.date, p.t.description ?? "");
   if (manual) {
     await db
       .from("despesas")
@@ -260,7 +281,7 @@ async function importarDespesa(
     await db.from("pluggy_transacoes").update({ substituiu_manual: true }).eq("transaction_id", p.t.id);
     return true;
   }
-  const { data: mesmoValor } = await base().eq("valor_total", valor).limit(1).maybeSingle();
+  const mesmoValor = (candidatos ?? []).length > 0;
 
   const { data: nova, error } = await db
     .from("despesas")
@@ -280,7 +301,7 @@ async function importarDespesa(
       pluggy_transaction_id: p.t.id,
       importada_em: agora,
       congelada: p.congelada,
-      possivel_duplicidade: !!mesmoValor,
+      possivel_duplicidade: mesmoValor,
       created_by: p.userId,
       grupo_id: p.grupoId,
     })

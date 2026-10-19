@@ -36,6 +36,8 @@ import {
   type RecorrenciaFixa,
 } from "@/lib/recorrencia";
 import { correspondeBuscaComValor } from "@/lib/busca";
+import { excluirReceitaSerie, type ModoExclusao } from "@/lib/exclusao-recorrente";
+import { ExcluirRecorrenteDialog } from "@/components/ExcluirRecorrenteDialog";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { usePrivacidadeValores } from "@/hooks/usePrivacidadeValores";
 import { Button } from "@/components/ui/button";
@@ -508,10 +510,15 @@ function ReceitasPage() {
 
   // Exclusão: confere se a linha foi mesmo apagada (RLS bloqueia sem erro). Receita fixa projetada
   // para meses futuros vem do lançamento de origem, então a exclusão atinge esse lançamento.
+  const [receitaFixaParaExcluir, setReceitaFixaParaExcluir] = useState<any | null>(null);
   const excluir = useMutation({
-    mutationFn: async (r: any) => {
-      if (r.projetada && !window.confirm(`"${r.descricao}" é uma receita fixa. Excluir o lançamento de origem? Ela deixa de aparecer em todos os meses.`)) {
-        return 0;
+    mutationFn: async ({ r, modo }: { r: any; modo?: ModoExclusao }) => {
+      if (r.recorrente && modo) {
+        const alvoSerie = String(r.projetada ? r.receita_id : r.id);
+        const { data: linha, error: erroLinha } = await supabase.from("receitas").select("*").eq("id", alvoSerie).single();
+        if (erroLinha || !linha) throw new Error("Não foi possível localizar esta receita.");
+        await excluirReceitaSerie(supabase, linha, r.competencia ?? competenciaDe(r.data_recebimento), modo);
+        return 1;
       }
       const alvo = String(r.projetada ? r.receita_id : r.id);
       const { data, error } = await supabase.from("receitas").delete().eq("id", alvo).select("id");
@@ -787,7 +794,8 @@ function ReceitasPage() {
                             className="size-8 text-muted-foreground hover:text-destructive"
                             onClick={(e) => {
                               e.stopPropagation();
-                              excluir.mutate(r);
+                              if (r.recorrente) setReceitaFixaParaExcluir(r);
+                              else excluir.mutate({ r });
                             }}
                             aria-label="Excluir receita"
                           >
@@ -803,6 +811,18 @@ function ReceitasPage() {
           );
         })}
       </div>
+
+      <ExcluirRecorrenteDialog
+        aberto={!!receitaFixaParaExcluir}
+        onFechar={() => setReceitaFixaParaExcluir(null)}
+        descricao={receitaFixaParaExcluir?.descricao ?? ""}
+        competencia={receitaFixaParaExcluir?.competencia ?? competenciasParaFiltro[0] ?? ""}
+        onConfirmar={(modo) => {
+          const alvo = receitaFixaParaExcluir;
+          setReceitaFixaParaExcluir(null);
+          if (alvo) excluir.mutate({ r: alvo, modo });
+        }}
+      />
 
       {lista.some((r: any) => r.tipo === "fixa") && (
         <p className="mt-4 text-xs text-muted-foreground">

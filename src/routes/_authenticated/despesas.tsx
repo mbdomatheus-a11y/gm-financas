@@ -21,6 +21,8 @@ import {
 import { FaturaMesDialog } from "@/components/FaturaMesDialog";
 import { IndiceReajusteField } from "@/components/IndiceReajusteField";
 import { toast } from "sonner";
+import { excluirDespesaSerie } from "@/lib/exclusao-recorrente";
+import { ExcluirRecorrenteDialog } from "@/components/ExcluirRecorrenteDialog";
 import { z } from "zod";
 
 import { Checkbox } from "@/components/ui/checkbox";
@@ -538,6 +540,8 @@ function DespesasPage() {
   });
 
   const [despesaParaExcluir, setDespesaParaExcluir] = useState<any | null>(null);
+  const [despesaFixaParaExcluir, setDespesaFixaParaExcluir] = useState<any | null>(null);
+  const competenciaFiltrada = filtroMes !== "todos" ? filtroMes : monthKey(new Date());
 
   async function executarExclusaoComUndo(d: any) {
     const faturaVinculada = (faturasMes as any[]).find((f) => f.despesa_avulsa_id === d.id);
@@ -1634,7 +1638,8 @@ function DespesasPage() {
                                 className="size-8 text-muted-foreground hover:text-destructive"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  setDespesaParaExcluir(d);
+                                  if (d.tipo === "fixa" && !d.cartao_id) setDespesaFixaParaExcluir(d);
+                                  else setDespesaParaExcluir(d);
                                 }}
                                 aria-label="Excluir despesa"
                               >
@@ -2020,6 +2025,25 @@ function DespesasPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ExcluirRecorrenteDialog
+        aberto={!!despesaFixaParaExcluir}
+        onFechar={() => setDespesaFixaParaExcluir(null)}
+        descricao={despesaFixaParaExcluir?.descricao ?? ""}
+        competencia={competenciaFiltrada}
+        onConfirmar={async (modo) => {
+          const alvo = despesaFixaParaExcluir;
+          setDespesaFixaParaExcluir(null);
+          if (!alvo) return;
+          try {
+            await excluirDespesaSerie(supabase, alvo.id, competenciaFiltrada, modo);
+            toast.success("Despesa excluída");
+            qc.invalidateQueries();
+          } catch (e: any) {
+            toast.error(e?.message ?? "Erro ao excluir despesa");
+          }
+        }}
+      />
     </AppLayout>
   );
 }
