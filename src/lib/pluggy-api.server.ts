@@ -15,6 +15,7 @@
  *  - investimentos, empréstimos e dados da conta são guardados como vieram da Pluggy.
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { excluirReceitaSerie } from "@/lib/exclusao-recorrente";
 
 const BASE = "https://api.pluggy.ai";
 const DIAS_HISTORICO_INICIAL = 3650;
@@ -339,7 +340,7 @@ function palavrasDoNome(texto: string): string[] {
  */
 async function conciliarBoleto(db: any, p: { userId: string; grupoId: string | null; t: Transacao }): Promise<void> {
   const desc = p.t.description ?? "";
-  if (!/^pagamento de boleto/i.test(desc) || p.t.status === "PENDING") return;
+  if (p.t.status === "PENDING") return;
   const { data: ligada } = await db.from("pluggy_transacoes").select("parcela_conciliada_id").eq("transaction_id", p.t.id).maybeSingle();
   if (ligada?.parcela_conciliada_id) return;
 
@@ -372,6 +373,73 @@ async function conciliarBoleto(db: any, p: { userId: string; grupoId: string | n
   if (!melhor) return;
   await db.from("parcelas").update({ paga: true, data_pagamento: data }).eq("id", melhor.id);
   await db.from("pluggy_transacoes").update({ parcela_conciliada_id: melhor.id }).eq("transaction_id", p.t.id);
+}
+
+/**
+ * PIX recebido que atende uma regra cadastrada pelo administrador (faixa de valor e intervalo de dias
+ * em torno do dia previsto da receita fixa) confirma a receita daquela competência. A receita fixa
+ * sai só daquele mês e entra o valor recebido, como lançamento vindo do Open Finance.
+ */
+async function aplicarRegrasPix(db: any, p: { userId: string; t: Transacao }): Promise<void> {
+  if (p.t.status === "PENDING" || p.t.type !== "CREDIT") return;
+  const { data: jaSubstituida } = await db.from("receitas").select("id").eq("pluggy_transaction_id", p.t.id).maybeSingle();
+  if (jaSubstituida) return;
+
+  const valor = Math.abs(p.t.amount);
+  const dataTx = dataIso(p.t.date);
+  const { data: regras } = await db.from("regras_pix_receita").select("*").eq("ativo", true).eq("created_by", p.userId);
+  for (const regra of regras ?? []) {
+    if (valor < Number(regra.valor_minimo) || valor > Number(regra.valor_maximo)) continue;
+
+    const { data: serie } = await db
+      .from("receitas")
+      .select("*")
+      .eq("recorrente", true)
+      .eq("created_by", p.userId)
+      .eq("descricao", regra.receita_descricao)
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    if (!serie) continue;
+
+    const inicio = String(serie.recorrencia_inicio ?? serie.data_recebimento ?? "");
+    const diaPrevisto = Number(inicio.slice(8, 10));
+    if (!diaPrevisto) continue;
+    // Dia previsto na competência do PIX (e na anterior, se a data cruzar o mês).
+    const candidatas = [dataTx.slice(0, 7), somarMeses(dataTx, -1).slice(0, 7)].map(
+      (comp) => `${comp}-${String(diaPrevisto).padStart(2, "0")}`,
+    );
+    const previsto = candidatas
+      .map((iso) => ({ iso, dist: Math.abs(Date.parse(iso) - Date.parse(dataTx)) / 86400000 }))
+      .filter((c) => !Number.isNaN(c.dist) && c.dist <= Number(regra.dias_tolerancia))
+      .sort((a, b) => a.dist - b.dist)[0];
+    if (!previsto) continue;
+
+    const competencia = previsto.iso.slice(0, 7);
+    try {
+      await excluirReceitaSerie(db, serie, competencia, "so_competencia");
+    } catch {
+      continue; // competência já fora da série (já confirmada ou anterior ao início): não mexe
+    }
+    const { error } = await db.from("receitas").insert({
+      descricao: serie.descricao,
+      valor,
+      moeda: "BRL",
+      categoria: serie.categoria ?? "Outras receitas",
+      data_recebimento: dataTx,
+      recorrente: false,
+      responsavel: serie.responsavel ?? null,
+      origem: "pluggy",
+      pluggy_transaction_id: p.t.id,
+      importada_em: new Date().toISOString(),
+      congelada: false,
+      possivel_duplicidade: false,
+      created_by: serie.created_by,
+      grupo_id: serie.grupo_id,
+    });
+    if (error) throw new Error("Falha ao confirmar a receita pelo PIX.");
+    return;
+  }
 }
 
 /** Investimentos da conexão: guarda o retorno da Pluggy (saldo, aplicado, taxa, vencimento). */
@@ -572,6 +640,7 @@ async function executarSincronizacao(
       if (conta.type !== "CREDIT") {
         for (const t of lista) {
           if (t.type === "DEBIT") await conciliarBoleto(db, { userId: meu.user_id, grupoId, t });
+          else if (t.type === "CREDIT") await aplicarRegrasPix(db, { userId: meu.user_id, t });
         }
         if (!r.next) break;
         const m = /after=([^&]+)/.exec(r.next);

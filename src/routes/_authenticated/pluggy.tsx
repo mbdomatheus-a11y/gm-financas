@@ -6,6 +6,7 @@ import { Landmark, Link2, RefreshCw, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppLayout } from "@/components/AppLayout";
+import { RegrasPixReceita } from "@/components/RegrasPixReceita";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -236,6 +237,8 @@ function PluggyPage() {
       description="Conexão automática via Pluggy (Open Finance). Visível só para a administração, não afeta os outros usuários."
     >
       <div className="space-y-4">
+        <RegrasPixReceita />
+
         {/* 1. Sincronização (compacta, no topo) */}
         <Card>
           <CardHeader className="pb-3">
