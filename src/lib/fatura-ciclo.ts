@@ -1,0 +1,50 @@
+/**
+ * Fatura do cartão: em qual fatura (pela data de vencimento) cai uma compra.
+ *  - Fechamento: dia de fechamento do cadastro. Se vazio, vencimento menos 7 dias.
+ *  - Compra até o dia do fechamento (inclusive) entra na fatura que fecha naquele dia.
+ *    A partir do dia seguinte, entra na fatura do fechamento seguinte.
+ *  - A fatura vence no dia de vencimento. Se o vencimento for antes do fechamento
+ *    (ex.: fecha dia 25, vence dia 5), vence no mês seguinte ao fechamento.
+ *  - Dias que não existem no mês (dia 31 em fevereiro) usam o último dia do mês.
+ * Datas em AAAA-MM-DD.
+ */
+export type CicloCartao = { diaFechamento: number | null; diaVencimento: number };
+
+const DIA_MS = 86400000;
+
+function diaDoMes(ano: number, mes: number, dia: number): number {
+  const ultimo = new Date(Date.UTC(ano, mes, 0)).getUTCDate();
+  return Date.UTC(ano, mes - 1, Math.min(Math.max(dia, 1), ultimo));
+}
+
+function paraIso(ms: number): string {
+  const d = new Date(ms);
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getUTCFullYear()}-${p(d.getUTCMonth() + 1)}-${p(d.getUTCDate())}`;
+}
+
+export function vencimentoDaFatura(dataCompra: string, ciclo: CicloCartao): string {
+  const [ano, mes, dia] = dataCompra.slice(0, 10).split("-").map(Number) as [number, number, number];
+  const compra = Date.UTC(ano, mes - 1, dia);
+
+  const candidatas: { fechamento: number; vencimento: number }[] = [];
+  for (let k = -1; k <= 1; k++) {
+    const ref = new Date(Date.UTC(ano, mes - 1 + k, 1));
+    const a = ref.getUTCFullYear();
+    const m = ref.getUTCMonth() + 1;
+    const vencimentoNoMes = diaDoMes(a, m, ciclo.diaVencimento);
+    const fechamento =
+      ciclo.diaFechamento != null ? diaDoMes(a, m, ciclo.diaFechamento) : vencimentoNoMes - 7 * DIA_MS;
+    // Vencimento depois do fechamento: mesmo mês do fechamento. Antes: mês seguinte.
+    const vencimento =
+      ciclo.diaFechamento != null && ciclo.diaVencimento <= ciclo.diaFechamento
+        ? diaDoMes(a, m + 1, ciclo.diaVencimento)
+        : vencimentoNoMes;
+    candidatas.push({ fechamento, vencimento });
+  }
+  const escolhida = candidatas
+    .filter((c) => c.fechamento >= compra)
+    .sort((x, y) => x.fechamento - y.fechamento)[0];
+  if (!escolhida) throw new Error("Não foi possível calcular a fatura desta compra.");
+  return paraIso(escolhida.vencimento);
+}

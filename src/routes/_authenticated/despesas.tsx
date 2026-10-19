@@ -22,6 +22,7 @@ import { FaturaMesDialog } from "@/components/FaturaMesDialog";
 import { IndiceReajusteField } from "@/components/IndiceReajusteField";
 import { toast } from "sonner";
 import { excluirDespesaSerie } from "@/lib/exclusao-recorrente";
+import { vencimentoDaFatura } from "@/lib/fatura-ciclo";
 import { ExcluirRecorrenteDialog } from "@/components/ExcluirRecorrenteDialog";
 import { z } from "zod";
 
@@ -473,10 +474,21 @@ function DespesasPage() {
 
       const parcelasPagasInformadas = Math.max(1, Number(form.parcela_atual) || 1);
       const dataInformada = parseDate(parsed.data_primeira_parcela);
+      // Compra de cartão cai na fatura do ciclo (fechamento e vencimento do cadastro).
+      const cartaoDaCompra = !ehFixa && tipoPg === "cartao" ? cartoes.find((c: any) => c.id === idPg) : undefined;
+      const dataNaFatura =
+        cartaoDaCompra?.dia_vencimento
+          ? parseDate(
+              vencimentoDaFatura(toISODate(dataInformada), {
+                diaFechamento: cartaoDaCompra.dia_fechamento ?? null,
+                diaVencimento: cartaoDaCompra.dia_vencimento,
+              }),
+            )
+          : dataInformada;
       const base =
         !ehFixa && parsed.total_parcelas > 1 && parcelasPagasInformadas > 1
-          ? addMonths(dataInformada, 1 - parcelasPagasInformadas)
-          : dataInformada;
+          ? addMonths(dataNaFatura, 1 - parcelasPagasInformadas)
+          : dataNaFatura;
 
       const parcelas = ehFixa
         ? projecao.map((c, i) => ({

@@ -16,6 +16,7 @@
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { excluirReceitaSerie } from "@/lib/exclusao-recorrente";
+import { vencimentoDaFatura } from "@/lib/fatura-ciclo";
 
 const BASE = "https://api.pluggy.ai";
 const DIAS_HISTORICO_INICIAL = 3650;
@@ -224,6 +225,15 @@ async function importarParcelado(
   return true;
 }
 
+/** Vencimento da fatura à qual a compra do cartão pertence. Sem cartão cadastrado, usa a própria data. */
+async function vencimentoCartao(db: any, cartaoId: string | null, data: string): Promise<string> {
+  const iso = dataIso(data);
+  if (!cartaoId) return iso;
+  const { data: cartao } = await db.from("cartoes").select("dia_fechamento, dia_vencimento").eq("id", cartaoId).maybeSingle();
+  if (!cartao?.dia_vencimento) return iso;
+  return vencimentoDaFatura(iso, { diaFechamento: cartao.dia_fechamento ?? null, diaVencimento: cartao.dia_vencimento });
+}
+
 /**
  * Entre os manuais de mesmo valor, escolhe o que se parece com a transação do Open Finance:
  * data até 3 dias de distância, ou ao menos uma palavra em comum na descrição. Prefere a data mais próxima.
@@ -316,7 +326,7 @@ async function importarDespesa(
     total: 1,
     valor,
     moeda: "BRL",
-    vencimento: p.t.date,
+    vencimento: await vencimentoCartao(db, p.cartaoId, p.t.date),
     paga: false,
     grupo_id: p.grupoId,
   });
