@@ -6,8 +6,10 @@
  * Regras:
  *  - primeira importação de cada conexão: todo o histórico disponível, e tudo entra congelado;
  *  - importações seguintes: últimos 365 dias; lançamento novo congela 30 dias depois;
- *  - saída (DEBIT) vira despesa aprovada, origem "pluggy"; pagamento de fatura e transferência
+ *  - saída (DEBIT) de CARTÃO vira despesa aprovada, origem "pluggy"; pagamento de fatura e transferência
  *    entre contas próprias não entram;
+ *  - conta corrente (PIX, débitos, créditos e saldo) só é guardada em pluggy_transacoes, sem virar
+ *    despesa ou receita, até o Control ALL funcionar como conta corrente;
  *  - lançamento manual igual (mesmo cartão, data e valor) é substituído pelo da API;
  *  - lançamento rejeitado pelo usuário nunca volta;
  *  - investimentos, empréstimos e dados da conta são guardados como vieram da Pluggy.
@@ -17,6 +19,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 const BASE = "https://api.pluggy.ai";
 const DIAS_HISTORICO_INICIAL = 3650;
 const DIAS_JANELA_NORMAL = 365;
+const TRAVA_MINUTOS = 10;
 const ORIGENS_MANUAIS = ["manual", "fatura_rapida", "fatura_total_manual"];
 /** Categorias do Pluggy que não são despesa: pagamento de fatura e transferência entre contas próprias. */
 const CATEGORIAS_NAO_DESPESA = new Set([
@@ -29,8 +32,6 @@ const CATEGORIAS_NAO_DESPESA = new Set([
 const DESCRICAO_NAO_DESPESA = /valor transferido para investimentos|aplica[cç][aã]o|resgate/i;
 /** Parcela na descrição, ex.: "VETNASA 4/6", "DIAUTO 01/04", "AMAZONMKTPLC*AMGGR01/03". */
 const PADRAO_PARCELA = /(?:^|[^0-9])(\d{1,2})\/(\d{1,2})(?![0-9])/;
-/** Pagamento de fatura vindo da conta corrente quando a categoria não vem preenchida. */
-const PAGAMENTO_FATURA = /pagament[oa].{0,20}fatura|pgto.{0,10}fatura|pagto.{0,10}cart/i;
 
 type Conta = {
   id: string;
@@ -370,6 +371,26 @@ export async function sincronizarItem(itemId: string): Promise<{ ignorado: boole
   if (erroItem) throw new Error("Falha ao consultar a conexão.");
   if (!meu) return { ignorado: true, transacoes: 0, primeira: false, criadas: 0 };
 
+  // Trava por conexão: webhook e cron podem chegar juntos; só um processa por vez.
+  const { data: travou } = await db
+    .from("pluggy_items")
+    .update({ sincronizando_em: new Date().toISOString() })
+    .eq("item_id", itemId)
+    .or(`sincronizando_em.is.null,sincronizando_em.lt.${new Date(Date.now() - TRAVA_MINUTOS * 60000).toISOString()}`)
+    .select("item_id");
+  if (!travou?.length) return { ignorado: true, transacoes: 0, primeira: false, criadas: 0 };
+  try {
+    return await sincronizarItemTravado(db, itemId, meu);
+  } finally {
+    await db.from("pluggy_items").update({ sincronizando_em: null }).eq("item_id", itemId);
+  }
+}
+
+async function sincronizarItemTravado(
+  db: any,
+  itemId: string,
+  meu: { user_id: string; conector: string | null; sincronizado_em: string | null },
+): Promise<{ ignorado: boolean; transacoes: number; primeira: boolean; criadas: number }> {
   const primeira = !meu.sincronizado_em;
   const { data: log } = await db
     .from("pluggy_sincronizacoes")
@@ -391,54 +412,6 @@ export async function sincronizarItem(itemId: string): Promise<{ ignorado: boole
       .eq("id", log?.id);
     throw e;
   }
-}
-
-/**
- * Entrada (crédito em conta bancária) vira receita já aprovada.
- * Pula as já importadas e as rejeitadas pelo usuário.
- */
-async function importarReceita(
-  db: any,
-  p: { userId: string; grupoId: string | null; t: Transacao; congelada: boolean },
-): Promise<boolean> {
-  const { data: rej } = await db.from("pluggy_transacoes").select("rejeitada").eq("transaction_id", p.t.id).maybeSingle();
-  if (rej?.rejeitada) return false;
-  const { data: ja } = await db.from("receitas").select("id").eq("pluggy_transaction_id", p.t.id).maybeSingle();
-  if (ja) return false;
-  const valor = Math.abs(p.t.amount);
-  const data = dataIso(p.t.date);
-  const agora = new Date().toISOString();
-  // Receita manual de mesmo valor: mesma data substitui; outra data importa marcada como possível duplicidade.
-  const base = () =>
-    db.from("receitas").select("id").neq("origem", "pluggy").is("pluggy_transaction_id", null).eq("created_by", p.userId).eq("valor", valor);
-  const { data: mesmoDia } = await base().eq("data_recebimento", data).limit(1).maybeSingle();
-  if (mesmoDia) {
-    await db
-      .from("receitas")
-      .update({ origem: "pluggy", pluggy_transaction_id: p.t.id, importada_em: agora, congelada: p.congelada })
-      .eq("id", mesmoDia.id);
-    await db.from("pluggy_transacoes").update({ substituiu_manual: true }).eq("transaction_id", p.t.id);
-    return true;
-  }
-  const { data: mesmoValor } = await base().limit(1).maybeSingle();
-  const { error } = await db.from("receitas").insert({
-    descricao: p.t.description || "Entrada",
-    valor,
-    moeda: "BRL",
-    categoria: "Outras receitas",
-    data_recebimento: data,
-    recorrente: false,
-    responsavel: null,
-    origem: "pluggy",
-    pluggy_transaction_id: p.t.id,
-    importada_em: agora,
-    congelada: p.congelada,
-    possivel_duplicidade: !!mesmoValor,
-    created_by: p.userId,
-    grupo_id: p.grupoId,
-  });
-  if (error) throw new Error("Falha ao criar a receita importada.");
-  return true;
 }
 
 async function executarSincronizacao(
@@ -517,18 +490,20 @@ async function executarSincronizacao(
         if (error) throw new Error("Falha ao gravar os lançamentos.");
         total += linhas.length;
       }
+      // Conta corrente (BANK): PIX, transferências e saldo ficam só em pluggy_transacoes.
+      // O Control ALL ainda não funciona como conta corrente, então nada vira despesa ou receita.
+      if (conta.type !== "CREDIT") {
+        if (!r.next) break;
+        const m = /after=([^&]+)/.exec(r.next);
+        depois = m ? decodeURIComponent(m[1]!) : null;
+        if (!depois) break;
+        continue;
+      }
       for (const t of lista) {
         if (t.status === "PENDING") continue;
-        if (t.type === "CREDIT" && conta.type === "BANK") {
-          if (CATEGORIAS_NAO_DESPESA.has((t.category ?? "").trim().toLowerCase())) continue;
-          if (DESCRICAO_NAO_DESPESA.test(t.description ?? "")) continue;
-          await importarReceita(db, { userId: meu.user_id, grupoId, t, congelada: primeira });
-          continue;
-        }
         if (t.type !== "DEBIT") continue;
         if (CATEGORIAS_NAO_DESPESA.has((t.category ?? "").trim().toLowerCase())) continue;
         if (DESCRICAO_NAO_DESPESA.test(t.description ?? "")) continue;
-        if (conta.type === "BANK" && PAGAMENTO_FATURA.test(t.description ?? "")) continue;
         if (await importarDespesa(db, { userId: meu.user_id, grupoId, t, cartaoId, cartaoFinal, banco, congelada: primeira })) criadas++;
       }
       if (!r.next) break;
