@@ -50,7 +50,7 @@ type Conta = {
   owner?: string;
   balance?: number;
   currencyCode?: string;
-  creditData?: { brand?: string; creditLimit?: number; availableCreditLimit?: number; balanceDueDate?: string; minimumPayment?: number };
+  creditData?: { brand?: string; creditLimit?: number; availableCreditLimit?: number; balanceDueDate?: string; minimumPayment?: number; additionalCards?: { number?: string }[] };
 };
 type Transacao = {
   id: string;
@@ -767,6 +767,23 @@ async function executarSincronizacao(
       // Banco do cartão: o que já está cadastrado no cartão tem prioridade sobre o nome da conta.
       bancoId = cartao.bancoId;
       bancoNome = bancoId ? await nomeDoBanco(db, bancoId) : null;
+      // Cartões adicionais da mesma conta viram cartões próprios, no mesmo banco e com o mesmo vencimento.
+      // O limite é compartilhado com o principal: não é repetido no adicional, para não duplicar a soma.
+      const nomeBase = nomeConta || `Cartão ${cartaoFinal}`;
+      for (const adicional of conta.creditData?.additionalCards ?? []) {
+        const finalAdicional = ultimos4(adicional.number);
+        if (!finalAdicional || finalAdicional === cartaoFinal) continue;
+        await garantirCartao(db, {
+          grupoId,
+          final: finalAdicional,
+          nome: `${nomeBase} adicional ${finalAdicional}`,
+          bandeira: marcaCartao(conta.creditData?.brand),
+          limite: null,
+          diaVencimento: diaDe(conta.creditData?.balanceDueDate),
+          titular: (conta.owner ?? nomeConta) || "Titular",
+          bancoId,
+        });
+      }
     } else if (conta.type !== "CREDIT") {
       // Conta corrente / poupança: cria o banco se ainda não existe.
       const bancoConta = await garantirBanco(db, {
