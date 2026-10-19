@@ -100,6 +100,22 @@ export const pluggyListarItens = createServerFn({ method: "POST" })
     return { itens: (data ?? []) as { id: string; item_id: string; conector: string | null; status: string | null; criado_em: string }[] };
   });
 
+/** Renomeia a conexão (nome do banco que aparece na tela, para os casos sem banco identificado). */
+export const pluggyEditarItem = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((v: unknown) => z.object({ itemId: z.string().uuid(), nome: z.string().trim().min(1).max(120) }).parse(v))
+  .handler(async ({ data, context }) => {
+    await exigirPrincipal(context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await (supabaseAdmin as any)
+      .from("pluggy_items")
+      .update({ conector: data.nome, atualizado_em: new Date().toISOString() })
+      .eq("item_id", data.itemId)
+      .eq("user_id", context.userId);
+    if (error) throw new Error("Não foi possível salvar o nome da conexão.");
+    return { ok: true as const };
+  });
+
 export const pluggyRemoverItem = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((v: unknown) => z.object({ itemId: z.string().uuid() }).parse(v))

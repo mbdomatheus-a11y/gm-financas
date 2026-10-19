@@ -2,7 +2,7 @@ import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Landmark, Link2, RefreshCw, Trash2, X } from "lucide-react";
+import { Copy, Landmark, Link2, Pencil, RefreshCw, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppLayout } from "@/components/AppLayout";
@@ -25,6 +25,7 @@ import {
   pluggySincronizarAgora,
   pluggySincronizarTodos,
   pluggyListarSincronizacoes,
+  pluggyEditarItem,
   pluggyRemoverItem,
   pluggyStatus,
 } from "@/lib/pluggy.functions";
@@ -110,6 +111,8 @@ function PluggyPage() {
   const registrar = useServerFn(pluggyRegistrarItem);
   const listar = useServerFn(pluggyListarItens);
   const remover = useServerFn(pluggyRemoverItem);
+  const editarItem = useServerFn(pluggyEditarItem);
+  const [editandoItem, setEditandoItem] = useState<{ itemId: string; nome: string } | null>(null);
   const buscar = useServerFn(pluggyBuscarMovimentos);
   const listarImportados = useServerFn(pluggyListarImportados);
   const rejeitar = useServerFn(pluggyRejeitarLancamento);
@@ -146,6 +149,15 @@ function PluggyPage() {
       toast.success("Banco conectado.");
       setToken(null);
       setItemManual("");
+      qc.invalidateQueries({ queryKey: ["pluggy-itens"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const renomear = useMutation({
+    mutationFn: (p: { itemId: string; nome: string }) => editarItem({ data: p }),
+    onSuccess: () => {
+      toast.success("Nome da conexão salvo.");
+      setEditandoItem(null);
       qc.invalidateQueries({ queryKey: ["pluggy-itens"] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -278,7 +290,58 @@ function PluggyPage() {
                     aria-hidden="true"
                   />
                   <div className="min-w-0 basis-full">
-                    <p className="font-medium">{bancosDaConexao(contas?.contas ?? [], i.item_id) || i.conector || "Banco"}</p>
+                    {editandoItem?.itemId === i.item_id ? (
+                      <form
+                        className="flex gap-2"
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          renomear.mutate({ itemId: i.item_id, nome: editandoItem.nome });
+                        }}
+                      >
+                        <Input
+                          autoFocus
+                          value={editandoItem.nome}
+                          onChange={(e) => setEditandoItem({ itemId: i.item_id, nome: e.target.value })}
+                          placeholder="Nome do banco (ex.: Itaú)"
+                          className="h-8"
+                          maxLength={120}
+                        />
+                        <Button size="sm" type="submit" disabled={renomear.isPending || !editandoItem.nome.trim()}>
+                          Salvar
+                        </Button>
+                        <Button size="sm" variant="ghost" type="button" onClick={() => setEditandoItem(null)}>
+                          Cancelar
+                        </Button>
+                      </form>
+                    ) : (
+                      <p className="flex items-center gap-1 font-medium">
+                        {bancosDaConexao(contas?.contas ?? [], i.item_id) || i.conector || "Banco"}
+                        <button
+                          type="button"
+                          className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                          aria-label="Editar nome da conexão"
+                          onClick={() => setEditandoItem({ itemId: i.item_id, nome: i.conector ?? "" })}
+                        >
+                          <Pencil className="size-3.5" aria-hidden="true" />
+                        </button>
+                      </p>
+                    )}
+                    <p className="flex items-center gap-1 text-[11px] text-muted-foreground/80">
+                      Chave: <code className="break-all">{i.item_id}</code>
+                      <button
+                        type="button"
+                        className="rounded p-1 hover:bg-muted hover:text-foreground"
+                        aria-label="Copiar chave da conexão"
+                        onClick={() => {
+                          void navigator.clipboard.writeText(i.item_id).then(
+                            () => toast.success("Chave copiada."),
+                            () => toast.error("Não foi possível copiar."),
+                          );
+                        }}
+                      >
+                        <Copy className="size-3" aria-hidden="true" />
+                      </button>
+                    </p>
                     <ul className="text-xs text-muted-foreground">
                       {(contas?.contas ?? [])
                         .filter((c: any) => c.item_id === i.item_id)

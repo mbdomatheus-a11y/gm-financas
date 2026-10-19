@@ -176,10 +176,29 @@ async function garantirBanco(
 async function garantirCartao(
   db: any,
   p: { grupoId: string | null; final: string; nome: string; bandeira: string; limite: number | null; diaVencimento: number | null; titular: string; bancoId: string | null },
-): Promise<string> {
+): Promise<{ id: string; bancoId: string | null }> {
   let q = db.from("cartoes").select("id, banco_id").eq("final", p.final);
   q = p.grupoId ? q.eq("grupo_id", p.grupoId) : q.is("grupo_id", null);
   const { data: existente } = await q.limit(1).maybeSingle();
+  const cartaoId = await gravarCartao(db, p, existente);
+  // Lançamentos antigos desse cartão, criados antes de ele existir, ficam sem cartão: liga agora.
+  let ligar = db.from("despesas").update({ cartao_id: cartaoId }).is("cartao_id", null).eq("cartao_final", p.final);
+  ligar = p.grupoId ? ligar.eq("grupo_id", p.grupoId) : ligar.is("grupo_id", null);
+  const { error: erroLigar } = await ligar;
+  if (erroLigar) throw new Error("Falha ao ligar os lançamentos ao cartão.");
+  return { id: cartaoId, bancoId: existente?.banco_id ?? p.bancoId };
+}
+
+async function nomeDoBanco(db: any, bancoId: string): Promise<string | null> {
+  const { data } = await db.from("bancos").select("nome").eq("id", bancoId).maybeSingle();
+  return data?.nome ?? null;
+}
+
+async function gravarCartao(
+  db: any,
+  p: { grupoId: string | null; final: string; nome: string; bandeira: string; limite: number | null; diaVencimento: number | null; titular: string; bancoId: string | null },
+  existente: { id: string; banco_id: string | null } | null,
+): Promise<string> {
   if (existente) {
     const atualiza: { limite?: number; dia_vencimento?: number; banco_id?: string } = {};
     if (p.limite != null) atualiza.limite = p.limite;
@@ -734,7 +753,7 @@ async function executarSincronizacao(
       const bancoCartao = await garantirBanco(db, { grupoId, nome: nomeConta, criar: false });
       bancoId = bancoCartao?.id ?? null;
       bancoNome = bancoCartao?.nome ?? null;
-      cartaoId = await garantirCartao(db, {
+      const cartao = await garantirCartao(db, {
         grupoId,
         final: cartaoFinal,
         nome: nomeConta || `Cartão ${cartaoFinal}`,
@@ -744,6 +763,10 @@ async function executarSincronizacao(
         titular: (conta.owner ?? nomeConta) || "Titular",
         bancoId,
       });
+      cartaoId = cartao.id;
+      // Banco do cartão: o que já está cadastrado no cartão tem prioridade sobre o nome da conta.
+      bancoId = cartao.bancoId;
+      bancoNome = bancoId ? await nomeDoBanco(db, bancoId) : null;
     } else if (conta.type !== "CREDIT") {
       // Conta corrente / poupança: cria o banco se ainda não existe.
       const bancoConta = await garantirBanco(db, {
