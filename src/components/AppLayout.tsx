@@ -47,7 +47,6 @@ import { Fragment } from "react";
 import { AvatarPerfil } from "@/components/AvatarPerfil";
 import { SeletorIdioma } from "@/components/SeletorIdioma";
 import { useIdioma } from "@/hooks/useIdioma";
-import { useOcultarNaRolagem } from "@/hooks/useOcultarNaRolagem";
 import type { ChaveTraducao } from "@/lib/i18n/traducoes";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -467,7 +466,6 @@ export function AppLayout({
   const qc = useQueryClient();
   const registrarEncerramento = useServerFn(encerrarSessao);
   const [open, setOpen] = useState(false);
-  const barraOculta = useOcultarNaRolagem();
   const location = useRouterState({ select: (s) => s.location });
   const pathname = location.pathname;
 
@@ -953,11 +951,7 @@ export function AppLayout({
 
       <nav
         aria-label="Navegação principal"
-        aria-hidden={barraOculta || undefined}
-        className={cn(
-          "fixed inset-x-2 bottom-[calc(env(safe-area-inset-bottom)+0.5rem)] z-30 grid h-16 grid-cols-6 items-end rounded-2xl border border-border bg-background px-1.5 shadow-lg transition-transform duration-300 ease-out will-change-transform motion-reduce:transition-none lg:hidden",
-          barraOculta ? "pointer-events-none translate-y-[150%]" : "translate-y-0",
-        )}
+        className="fixed inset-x-2 bottom-[calc(env(safe-area-inset-bottom)+0.5rem)] z-30 grid h-16 grid-cols-6 items-end rounded-2xl border border-border bg-background px-1.5 shadow-lg lg:hidden"
       >
         <Link
           to="/inicio"
