@@ -45,11 +45,12 @@ type Conta = {
   type?: string;
   subtype?: string;
   name?: string;
+  marketingName?: string;
   number?: string;
   owner?: string;
   balance?: number;
   currencyCode?: string;
-  creditData?: { creditLimit?: number; availableCreditLimit?: number; balanceDueDate?: string; minimumPayment?: number };
+  creditData?: { brand?: string; creditLimit?: number; availableCreditLimit?: number; balanceDueDate?: string; minimumPayment?: number };
 };
 type Transacao = {
   id: string;
@@ -111,12 +112,114 @@ function ultimos4(numero?: string): string | null {
 
 const data10 = (v?: string | null) => (v ? v.slice(0, 10) : null);
 
-/** Acha o cartão cadastrado no Control ALL pelos 4 últimos dígitos, dentro do mesmo grupo. */
-async function cartaoPeloFinal(db: any, final: string, grupoId: string | null): Promise<string | null> {
-  let q = db.from("cartoes").select("id").eq("final", final);
-  q = grupoId ? q.eq("grupo_id", grupoId) : q.is("grupo_id", null);
-  const { data } = await q.limit(1).maybeSingle();
-  return data?.id ?? null;
+/** Nome sem acento e sem caixa, para comparar bancos e contas. */
+function chaveNome(texto: string): string {
+  return (texto ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+/** Trechos do nome da conta do Open Finance que identificam um banco já conhecido. */
+const BANCOS_CONHECIDOS: Array<[string, string]> = [
+  ["nu pagamentos", "nubank"],
+  ["nubank", "nubank"],
+  ["itau", "itau"],
+  ["santander", "santander"],
+  ["bradesco", "bradesco"],
+  ["banco inter", "inter"],
+  ["mercado pago", "mercado pago"],
+  ["picpay", "picpay"],
+  ["caixa", "caixa"],
+  ["banco do brasil", "banco do brasil"],
+];
+
+function bancoCanonico(nome: string): string {
+  const n = chaveNome(nome);
+  for (const [trecho, canonico] of BANCOS_CONHECIDOS) if (n.includes(trecho)) return canonico;
+  return n;
+}
+
+/**
+ * Acha o banco do grupo que corresponde ao nome da conta do Open Finance.
+ * Com `criar`, cria o banco quando não existe (usado para conta corrente, não para cartão).
+ */
+async function garantirBanco(
+  db: any,
+  p: { grupoId: string | null; nome: string; criar: boolean; titular?: string | null; numero?: string | null },
+): Promise<{ id: string; nome: string } | null> {
+  const alvo = bancoCanonico(p.nome);
+  if (!alvo) return null;
+  let q = db.from("bancos").select("id, nome");
+  q = p.grupoId ? q.eq("grupo_id", p.grupoId) : q.is("grupo_id", null);
+  const { data: lista } = await q;
+  const achado = (lista ?? []).find((b: any) => bancoCanonico(b.nome) === alvo);
+  if (achado) return { id: achado.id, nome: achado.nome };
+  if (!p.criar) return null;
+  const { data: novo, error } = await db
+    .from("bancos")
+    .insert({
+      nome: p.nome.trim().replace(/\s+/g, " "),
+      titular: p.titular ?? null,
+      conta: p.numero ?? null,
+      tipo_conta: "corrente",
+      saldo_atual: 0,
+      grupo_id: p.grupoId,
+    })
+    .select("id, nome")
+    .single();
+  if (error) throw new Error("Falha ao criar o banco do Open Finance.");
+  return { id: novo.id, nome: novo.nome };
+}
+
+/**
+ * Acha o cartão pelos 4 últimos dígitos, no grupo. Se não existe, cria com os dados do Open Finance.
+ * Atualiza limite e dia de vencimento; não mexe em apelido, fechamento nem banco já preenchidos.
+ */
+async function garantirCartao(
+  db: any,
+  p: { grupoId: string | null; final: string; nome: string; bandeira: string; limite: number | null; diaVencimento: number | null; titular: string; bancoId: string | null },
+): Promise<string> {
+  let q = db.from("cartoes").select("id, banco_id").eq("final", p.final);
+  q = p.grupoId ? q.eq("grupo_id", p.grupoId) : q.is("grupo_id", null);
+  const { data: existente } = await q.limit(1).maybeSingle();
+  if (existente) {
+    const atualiza: { limite?: number; dia_vencimento?: number; banco_id?: string } = {};
+    if (p.limite != null) atualiza.limite = p.limite;
+    if (p.diaVencimento) atualiza.dia_vencimento = p.diaVencimento;
+    if (!existente.banco_id && p.bancoId) atualiza.banco_id = p.bancoId;
+    if (Object.keys(atualiza).length) {
+      const { error } = await db.from("cartoes").update(atualiza).eq("id", existente.id);
+      if (error) throw new Error("Falha ao atualizar o cartão do Open Finance.");
+    }
+    return existente.id;
+  }
+  const { data: novo, error } = await db
+    .from("cartoes")
+    .insert({
+      titular: p.titular,
+      final: p.final,
+      apelido: p.nome,
+      bandeira: p.bandeira,
+      tipo: "credito",
+      limite: p.limite,
+      dia_vencimento: p.diaVencimento,
+      banco_id: p.bancoId,
+      grupo_id: p.grupoId,
+    })
+    .select("id")
+    .single();
+  if (error) throw new Error("Falha ao criar o cartão do Open Finance.");
+  return novo.id;
+}
+
+/** Bandeira no formato do app (ex.: MASTERCARD vira Mastercard). */
+function marcaCartao(brand?: string | null): string {
+  const b = (brand ?? "").trim();
+  return b ? b.charAt(0).toUpperCase() + b.slice(1).toLowerCase() : "Outra";
+}
+
+/** Dia do mês de uma data AAAA-MM-DD (vencimento da fatura). */
+function diaDe(v?: string | null): number | null {
+  const m = /^\d{4}-\d{2}-(\d{2})/.exec(v ?? "");
+  return m ? Number(m[1]) : null;
 }
 
 /** Número da parcela e total, se a descrição trouxer "n/t" (ex.: 4/6). Ignora datas de período de fatura. */
@@ -618,10 +721,43 @@ async function executarSincronizacao(
   let total = 0;
   let criadas = 0;
 
+  // Saldo de conta corrente por banco (somado entre as contas do mesmo banco).
+  const saldoPorBanco = new Map<string, number>();
   for (const conta of contas.results ?? []) {
     const cartaoFinal = conta.type === "CREDIT" ? ultimos4(conta.number) : null;
-    const cartaoId = cartaoFinal ? await cartaoPeloFinal(db, cartaoFinal, grupoId) : null;
-    const banco = meu.conector ?? conta.name ?? null;
+    const nomeConta = (conta.name ?? conta.marketingName ?? "").trim();
+    let bancoId: string | null = null;
+    let bancoNome: string | null = null;
+    let cartaoId: string | null = null;
+    if (conta.type === "CREDIT" && cartaoFinal) {
+      // Cartão: identifica o banco pelo nome (sem criar banco) e cria/atualiza o cartão com os dados da Pluggy.
+      const bancoCartao = await garantirBanco(db, { grupoId, nome: nomeConta, criar: false });
+      bancoId = bancoCartao?.id ?? null;
+      bancoNome = bancoCartao?.nome ?? null;
+      cartaoId = await garantirCartao(db, {
+        grupoId,
+        final: cartaoFinal,
+        nome: nomeConta || `Cartão ${cartaoFinal}`,
+        bandeira: marcaCartao(conta.creditData?.brand),
+        limite: conta.creditData?.creditLimit ?? null,
+        diaVencimento: diaDe(conta.creditData?.balanceDueDate),
+        titular: (conta.owner ?? nomeConta) || "Titular",
+        bancoId,
+      });
+    } else if (conta.type !== "CREDIT") {
+      // Conta corrente / poupança: cria o banco se ainda não existe.
+      const bancoConta = await garantirBanco(db, {
+        grupoId,
+        nome: nomeConta,
+        criar: true,
+        titular: conta.owner ?? null,
+        numero: conta.number ?? null,
+      });
+      bancoId = bancoConta?.id ?? null;
+      bancoNome = bancoConta?.nome ?? null;
+      if (bancoId) saldoPorBanco.set(bancoId, (saldoPorBanco.get(bancoId) ?? 0) + Number(conta.balance ?? 0));
+    }
+    const banco = bancoNome ?? (nomeConta || null);
 
     const { error: erroConta } = await db.from("pluggy_contas").upsert(
       {
@@ -632,6 +768,7 @@ async function executarSincronizacao(
         tipo: conta.type ?? "BANK",
         nome: conta.name ?? null,
         cartao_final: cartaoFinal,
+        banco_id: bancoId,
         numero_conta: conta.number ?? null,
         titular: conta.owner ?? null,
         dados: conta,
@@ -699,6 +836,10 @@ async function executarSincronizacao(
     }
   }
 
+  for (const [id, saldo] of saldoPorBanco) {
+    const { error } = await db.from("bancos").update({ saldo_atual: saldo }).eq("id", id);
+    if (error) throw new Error("Falha ao atualizar o saldo do banco.");
+  }
   await sincronizarInvestimentos(db, key, itemId, meu.user_id);
   await sincronizarEmprestimos(db, key, itemId, meu.user_id);
   await db.from("pluggy_items").update({ sincronizado_em: new Date().toISOString() }).eq("item_id", itemId);
