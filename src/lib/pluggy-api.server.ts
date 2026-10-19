@@ -20,6 +20,10 @@ const BASE = "https://api.pluggy.ai";
 const DIAS_HISTORICO_INICIAL = 3650;
 const DIAS_JANELA_NORMAL = 365;
 const TRAVA_MINUTOS = 10;
+/** Palavras que não identificam o beneficiário do boleto. */
+const PALAVRAS_BOLETO_GENERICAS = new Set([
+  "PAGAMENTO", "BOLETO", "PAGTO", "LTDA", "EIRELI", "CIA", "SERVICOS", "BRASIL", "PAGAMENTOS", "INSTITUICAO", "DOS", "DAS",
+]);
 const ORIGENS_MANUAIS = ["manual", "fatura_rapida", "fatura_total_manual"];
 /** Categorias do Pluggy que não são despesa: pagamento de fatura e transferência entre contas próprias. */
 const CATEGORIAS_NAO_DESPESA = new Set([
@@ -297,6 +301,58 @@ async function importarDespesa(
   return true;
 }
 
+/** Palavras significativas (sem acento, 4+ letras) do nome do beneficiário ou da descrição. */
+function palavrasDoNome(texto: string): string[] {
+  return texto
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase()
+    .split(/[^A-Z0-9]+/)
+    .filter((w) => w.length >= 4 && !PALAVRAS_BOLETO_GENERICAS.has(w));
+}
+
+/**
+ * Pagamento de boleto da conta corrente: procura a despesa (sem cartão, parcela única) de mesmo valor,
+ * com vencimento até 10 dias de distância e descrição parecida (ao menos uma palavra em comum,
+ * parcial). Se achar, marca a parcela como paga. Não cria lançamento.
+ */
+async function conciliarBoleto(db: any, p: { userId: string; grupoId: string | null; t: Transacao }): Promise<void> {
+  const desc = p.t.description ?? "";
+  if (!/^pagamento de boleto/i.test(desc) || p.t.status === "PENDING") return;
+  const { data: ligada } = await db.from("pluggy_transacoes").select("parcela_conciliada_id").eq("transaction_id", p.t.id).maybeSingle();
+  if (ligada?.parcela_conciliada_id) return;
+
+  const valor = Math.abs(p.t.amount);
+  const data = dataIso(p.t.date);
+  const palavrasBoleto = palavrasDoNome(desc.replace(/^pagamento de boleto/i, ""));
+  if (!palavrasBoleto.length) return;
+
+  let q = db
+    .from("despesas")
+    .select("id, descricao, parcelas(id, vencimento, paga)")
+    .eq("valor_total", valor)
+    .eq("total_parcelas", 1)
+    .is("cartao_id", null);
+  q = p.grupoId ? q.eq("grupo_id", p.grupoId) : q.eq("created_by", p.userId).is("grupo_id", null);
+  const { data: candidatas } = await q;
+
+  let melhor: { id: string; dist: number } | null = null;
+  for (const d of candidatas ?? []) {
+    const palavrasDesp = palavrasDoNome(d.descricao ?? "");
+    const bate = palavrasBoleto.some((a) => palavrasDesp.some((b) => a.includes(b) || b.includes(a)));
+    if (!bate) continue;
+    for (const par of d.parcelas ?? []) {
+      if (par.paga) continue;
+      const dist = Math.abs(Date.parse(par.vencimento) - Date.parse(data)) / 86400000;
+      if (dist > 10) continue;
+      if (!melhor || dist < melhor.dist) melhor = { id: par.id, dist };
+    }
+  }
+  if (!melhor) return;
+  await db.from("parcelas").update({ paga: true, data_pagamento: data }).eq("id", melhor.id);
+  await db.from("pluggy_transacoes").update({ parcela_conciliada_id: melhor.id }).eq("transaction_id", p.t.id);
+}
+
 /** Investimentos da conexão: guarda o retorno da Pluggy (saldo, aplicado, taxa, vencimento). */
 async function sincronizarInvestimentos(db: any, key: string, itemId: string, userId: string) {
   let r: { results?: Investimento[] };
@@ -493,6 +549,9 @@ async function executarSincronizacao(
       // Conta corrente (BANK): PIX, transferências e saldo ficam só em pluggy_transacoes.
       // O Control ALL ainda não funciona como conta corrente, então nada vira despesa ou receita.
       if (conta.type !== "CREDIT") {
+        for (const t of lista) {
+          if (t.type === "DEBIT") await conciliarBoleto(db, { userId: meu.user_id, grupoId, t });
+        }
         if (!r.next) break;
         const m = /after=([^&]+)/.exec(r.next);
         depois = m ? decodeURIComponent(m[1]!) : null;
