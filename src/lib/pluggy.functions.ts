@@ -194,13 +194,32 @@ export const pluggyListarContas = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     await exigirPrincipal(context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data } = await (supabaseAdmin as any)
+    const db = supabaseAdmin as any;
+    const { data } = await db
       .from("pluggy_contas")
-      .select("id,nome,tipo,cartao_final,numero_conta,titular,limite,limite_disponivel,fatura_valor,fatura_vencimento,saldo,atualizado_em")
+      .select("id,item_id,banco_id,nome,tipo,cartao_final,numero_conta,titular,limite,limite_disponivel,fatura_valor,fatura_vencimento,saldo,atualizado_em")
       .eq("user_id", context.userId)
       .eq("ativo", true)
       .order("tipo", { ascending: true });
-    return { contas: (data ?? []) as any[] };
+    const contas = (data ?? []) as any[];
+    // Nome do banco e bandeira do cartão, para a tela mostrar o que é cada conta (e não só o código).
+    const { data: perfil } = await db.from("profiles").select("grupo_id").eq("id", context.userId).maybeSingle();
+    const grupoId: string | null = perfil?.grupo_id ?? null;
+    const bancoIds = [...new Set(contas.map((c) => c.banco_id).filter(Boolean))];
+    const finais = [...new Set(contas.map((c) => c.cartao_final).filter(Boolean))];
+    const { data: bancos } = bancoIds.length ? await db.from("bancos").select("id,nome").in("id", bancoIds) : { data: [] };
+    let cartoesQ = db.from("cartoes").select("final,bandeira").in("final", finais.length ? finais : ["-"]);
+    cartoesQ = grupoId ? cartoesQ.eq("grupo_id", grupoId) : cartoesQ.is("grupo_id", null);
+    const { data: cartoes } = await cartoesQ;
+    const nomeBanco = new Map<string, string>((bancos ?? []).map((b: any) => [b.id, b.nome]));
+    const bandeiraPorFinal = new Map<string, string>((cartoes ?? []).map((c: any) => [c.final, c.bandeira]));
+    return {
+      contas: contas.map((c) => ({
+        ...c,
+        banco_nome: c.banco_id ? (nomeBanco.get(c.banco_id) ?? null) : null,
+        bandeira: c.cartao_final ? (bandeiraPorFinal.get(c.cartao_final) ?? null) : null,
+      })),
+    };
   });
 
 /** Lançamentos importados automaticamente (aprovados por padrão), para o usuário revisar e rejeitar. */

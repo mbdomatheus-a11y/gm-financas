@@ -41,6 +41,17 @@ function congelado(d: { importada_em: string | null; congelada: boolean }): bool
 const dataBR = (iso: string) => new Date(`${String(iso).slice(0, 10)}T12:00:00`).toLocaleDateString("pt-BR");
 
 /** Agrupa lançamentos importados por banco ou cartão e, dentro, por data (mais recente primeiro). */
+/** Identificação curta da conta: cartão com bandeira e final, ou conta com o número. */
+function identificadorConta(c: any): string {
+  if (c.tipo === "CREDIT") return `Cartão ${c.bandeira ? `${c.bandeira} ` : ""}final ${c.cartao_final ?? "?"}`;
+  return c.numero_conta ? `Conta ${c.numero_conta}` : "Conta";
+}
+
+/** Nomes dos bancos das contas de uma conexão, para o título do card (no lugar do conector genérico). */
+function bancosDaConexao(contas: any[], itemId: string): string {
+  return [...new Set(contas.filter((c) => c.item_id === itemId && c.banco_nome).map((c) => c.banco_nome as string))].join(", ");
+}
+
 function agruparImportados(itens: any[]) {
   const mapa = new Map<
     string,
@@ -266,7 +277,19 @@ function PluggyPage() {
                     className={cn("size-2 rounded-full", u?.status === "ok" ? "bg-success" : u ? "bg-destructive" : "bg-muted-foreground")}
                     aria-hidden="true"
                   />
-                  <span className="font-medium">{i.conector ?? "Banco"}</span>
+                  <div className="min-w-0 basis-full">
+                    <p className="font-medium">{bancosDaConexao(contas?.contas ?? [], i.item_id) || i.conector || "Banco"}</p>
+                    <ul className="text-xs text-muted-foreground">
+                      {(contas?.contas ?? [])
+                        .filter((c: any) => c.item_id === i.item_id)
+                        .map((c: any) => (
+                          <li key={c.id}>
+                            {(c.banco_nome ?? "Banco não definido") + " · " + identificadorConta(c)}
+                          </li>
+                        ))}
+                      {(contas?.contas ?? []).every((c: any) => c.item_id !== i.item_id) && <li>Contas ainda não sincronizadas</li>}
+                    </ul>
+                  </div>
                   {i.status && <Badge variant="outline">{i.status}</Badge>}
                   <span className={cn("min-w-0 flex-1 text-xs", u && u.status !== "ok" ? "text-destructive" : "text-muted-foreground")}>
                     {u
@@ -313,17 +336,12 @@ function PluggyPage() {
             <div className="grid gap-2 sm:grid-cols-2">
               {contas?.contas.map((c: any) => (
                 <div key={c.id} className="rounded-lg border p-3 text-sm">
-                  <p className="font-medium">
-                    {c.nome ?? (c.tipo === "CREDIT" ? "Cartão" : "Conta")}
-                    {c.cartao_final && <span className="text-xs text-muted-foreground"> · final {c.cartao_final}</span>}
+                  <p className="font-medium">{c.banco_nome ?? "Banco não definido"}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {identificadorConta(c)}
+                    {c.titular ? ` · Titular: ${c.titular}` : ""}
                   </p>
-                  {(c.numero_conta || c.titular) && (
-                    <p className="text-xs text-muted-foreground">
-                      {c.titular ? `Titular: ${c.titular}` : ""}
-                      {c.titular && c.numero_conta ? " · " : ""}
-                      {c.numero_conta ? `Conta: ${c.numero_conta}` : ""}
-                    </p>
-                  )}
+                  <p className="text-[11px] text-muted-foreground/80">Nome no Open Finance: {c.nome ?? "não informado"}</p>
                   {c.tipo === "CREDIT" ? (
                     <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
                       <li>Limite: {c.limite != null ? formatBRL(c.limite) : "não informado"}</li>
@@ -576,7 +594,7 @@ function PluggyPage() {
                   variant={aberto === i.item_id ? "default" : "outline"}
                   onClick={() => setAberto(aberto === i.item_id ? null : i.item_id)}
                 >
-                  {i.conector ?? "Banco"}
+                  {bancosDaConexao(contas?.contas ?? [], i.item_id) || i.conector || "Banco"}
                 </Button>
               ))}
             </div>
