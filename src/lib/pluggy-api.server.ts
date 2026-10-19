@@ -26,7 +26,8 @@ const TRAVA_MINUTOS = 10;
 const PALAVRAS_BOLETO_GENERICAS = new Set([
   "PAGAMENTO", "BOLETO", "PAGTO", "LTDA", "EIRELI", "CIA", "SERVICOS", "BRASIL", "PAGAMENTOS", "INSTITUICAO", "DOS", "DAS",
 ]);
-const ORIGENS_MANUAIS = ["manual", "fatura_rapida", "fatura_total_manual"];
+/** Lançamento que não veio do Open Finance (manual, importado de arquivo etc.): pode ser substituído por ele. */
+const FILTRO_NAO_PLUGGY = "origem.is.null,origem.neq.pluggy";
 /** Categorias do Pluggy que não são despesa: pagamento de fatura e transferência entre contas próprias. */
 const CATEGORIAS_NAO_DESPESA = new Set([
   "credit card payment",
@@ -156,8 +157,26 @@ async function importarParcelado(
   const valorParcela = Math.abs(p.t.amount);
   const nucleo = (p.t.description ?? "").replace(PADRAO_PARCELA, " ").replace(/\s+/g, " ").trim().toUpperCase();
   const primeira = somarMeses(p.t.date, -(n - 1));
+  // As parcelas podem cair em dias diferentes do mesmo mês (ex.: 03/09 e 11/09), então a compra
+  // é identificada pelo mês da primeira parcela, e não pelo dia.
+  const primeiraMes = primeira.slice(0, 7);
   const grupo = `${p.cartaoFinal ?? p.banco ?? "x"}|${nucleo}|${t}|${valorParcela.toFixed(2)}|${primeira}`;
 
+  let jaMes = db
+    .from("despesas")
+    .select("id")
+    .eq("total_parcelas", t)
+    .eq("descricao", nucleo || p.t.description)
+    .gte("data_primeira_parcela", `${primeiraMes}-01`)
+    .lt("data_primeira_parcela", `${somarMeses(`${primeiraMes}-01`, 1)}`)
+    .limit(1);
+  jaMes = p.cartaoFinal
+    ? jaMes.eq("cartao_final", p.cartaoFinal)
+    : p.banco
+      ? jaMes.eq("banco_nome", p.banco)
+      : jaMes.is("banco_nome", null);
+  const { data: jaCompra } = await jaMes.maybeSingle();
+  if (jaCompra) return false;
   const { data: jaGrupo } = await db.from("despesas").select("id").eq("pluggy_grupo", grupo).maybeSingle();
   if (jaGrupo) return false;
 
@@ -166,7 +185,7 @@ async function importarParcelado(
       .from("despesas")
       .select("id")
       .eq("cartao_id", p.cartaoId)
-      .in("origem", ORIGENS_MANUAIS)
+      .or(FILTRO_NAO_PLUGGY)
       .is("pluggy_grupo", null)
       .eq("total_parcelas", t)
       .gte("data_primeira_parcela", somarMeses(primeira, 0).replace(/-(\d{2})$/, "-01"))
@@ -278,7 +297,7 @@ async function importarDespesa(
   //  * manual de mesmo valor (centavos) e data até 3 dias, ou descrição parecida -> o Open Finance prevalece e substitui o manual;
   //  * manual de mesmo valor sem nada parecido -> importa, marcado como possível duplicidade.
   const base = () => {
-    let q = db.from("despesas").select("id").in("origem", ORIGENS_MANUAIS).is("pluggy_transaction_id", null);
+    let q = db.from("despesas").select("id").or(FILTRO_NAO_PLUGGY).is("pluggy_transaction_id", null);
     q = p.cartaoId ? q.eq("cartao_id", p.cartaoId) : q.is("cartao_id", null);
     if (!p.cartaoId && p.banco) q = q.eq("banco_nome", p.banco);
     return q;

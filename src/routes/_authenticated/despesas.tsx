@@ -1108,6 +1108,26 @@ function DespesasPage() {
       )}
 
       <div className="mb-3 space-y-2">
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3.5 top-1/2 size-5 -translate-y-1/2 text-primary" aria-hidden="true" />
+          <Input
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            placeholder="Buscar despesa por descrição, categoria ou responsável"
+            aria-label="Buscar despesas"
+            className="h-12 border-primary/50 bg-card pl-11 pr-11 text-base shadow-sm focus-visible:border-primary"
+          />
+          {busca && (
+            <button
+              type="button"
+              onClick={() => setBusca("")}
+              aria-label="Limpar busca"
+              className="absolute right-2.5 top-1/2 flex size-8 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <X className="size-4" />
+            </button>
+          )}
+        </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           {/* Ajuste mobile (otimização para celulares, 2026-09-27): abas,
               busca e selects de filtro ganham altura/toque maiores (~40-44px)
@@ -1127,15 +1147,6 @@ function DespesasPage() {
               </TabsTrigger>
             </TabsList>
           </Tabs>
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={busca}
-              onChange={(e) => setBusca(e.target.value)}
-              placeholder="Buscar descrição, categoria ou responsável"
-              className="h-11 pl-9"
-            />
-          </div>
           <Tabs value={modoLista} onValueChange={(v) => setModoLista(v as "lista" | "cartao")}>
             <TabsList className="h-10">
               <TabsTrigger value="lista" className="gap-1 px-3.5 py-2 text-xs">
