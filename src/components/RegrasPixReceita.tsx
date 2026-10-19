@@ -31,7 +31,7 @@ export function RegrasPixReceita() {
   const { data: regras = [] } = useQuery({
     queryKey: ["regras-pix"],
     queryFn: async () => {
-      const { data, error } = await (supabase as any).from("regras_pix_receita").select("*").order("created_at");
+      const { data, error } = await supabase.from("regras_pix_receita").select("*").order("created_at");
       if (error) throw error;
       return (data ?? []) as Regra[];
     },
@@ -46,6 +46,36 @@ export function RegrasPixReceita() {
     },
   });
 
+  const { data: diasCartao } = useQuery({
+    queryKey: ["dias-substituicao-cartao"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("configuracoes_open_finance")
+        .select("valor")
+        .eq("chave", "dias_substituicao_cartao")
+        .maybeSingle();
+      if (error) throw error;
+      return data?.valor ?? 3;
+    },
+  });
+  const [diasEditados, setDiasEditados] = useState<string | null>(null);
+  const salvarDiasCartao = useMutation({
+    mutationFn: async () => {
+      const n = Number(diasEditados);
+      if (!(Number.isInteger(n) && n >= 0 && n <= 31)) throw new Error("Use um número inteiro de 0 a 31.");
+      const { error } = await (supabase as any)
+        .from("configuracoes_open_finance")
+        .upsert({ chave: "dias_substituicao_cartao", valor: n });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Intervalo salvo");
+      setDiasEditados(null);
+      void qc.invalidateQueries({ queryKey: ["dias-substituicao-cartao"] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar"),
+  });
+
   const criar = useMutation({
     mutationFn: async () => {
       const min = Number(form.min.replace(",", "."));
@@ -54,7 +84,7 @@ export function RegrasPixReceita() {
       if (!form.receita) throw new Error("Escolha a receita fixa.");
       if (!(min > 0) || !(max >= min)) throw new Error("Informe a faixa de valor: mínimo maior que zero e máximo igual ou maior que o mínimo.");
       if (!(Number.isInteger(dias) && dias >= 0 && dias <= 31)) throw new Error("Intervalo de dias deve ser um número inteiro de 0 a 31.");
-      const { error } = await (supabase as any).from("regras_pix_receita").insert({
+      const { error } = await supabase.from("regras_pix_receita").insert({
         nome: form.nome.trim() || form.receita,
         receita_descricao: form.receita,
         valor_minimo: min,
@@ -73,7 +103,7 @@ export function RegrasPixReceita() {
 
   const alternar = useMutation({
     mutationFn: async (r: Regra) => {
-      const { error } = await (supabase as any).from("regras_pix_receita").update({ ativo: !r.ativo }).eq("id", r.id);
+      const { error } = await supabase.from("regras_pix_receita").update({ ativo: !r.ativo }).eq("id", r.id);
       if (error) throw error;
     },
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["regras-pix"] }),
@@ -82,7 +112,7 @@ export function RegrasPixReceita() {
 
   const excluir = useMutation({
     mutationFn: async (r: Regra) => {
-      const { data, error } = await (supabase as any).from("regras_pix_receita").delete().eq("id", r.id).select("id");
+      const { data, error } = await supabase.from("regras_pix_receita").delete().eq("id", r.id).select("id");
       if (error) throw error;
       if (!data || data.length === 0) throw new Error("Não foi possível excluir a regra.");
     },
@@ -100,6 +130,27 @@ export function RegrasPixReceita() {
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
+        <div className="flex flex-wrap items-end gap-2 rounded-md border p-3">
+          <div className="mr-auto">
+            <p className="text-sm font-medium">Substituir despesa de cartão pelo Open Finance</p>
+            <p className="text-xs text-muted-foreground">
+              Lançamento manual de cartão com o mesmo valor e data até este número de dias, ou com nome parecido, é
+              substituído.
+            </p>
+          </div>
+          <label className="flex items-center gap-2 text-sm">
+            Dias
+            <Input
+              className="w-20"
+              inputMode="numeric"
+              value={diasEditados ?? String(diasCartao ?? 3)}
+              onChange={(e) => setDiasEditados(e.target.value)}
+            />
+          </label>
+          <Button size="sm" variant="outline" disabled={diasEditados === null || salvarDiasCartao.isPending} onClick={() => salvarDiasCartao.mutate()}>
+            Salvar
+          </Button>
+        </div>
         <div className="space-y-2">
           {regras.length === 0 && <p className="text-sm text-muted-foreground">Nenhuma regra cadastrada.</p>}
           {regras.map((r) => (

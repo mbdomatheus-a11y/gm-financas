@@ -232,13 +232,14 @@ function manualParecido(
   lista: { id: string; data_compra?: string | null; descricao?: string | null }[],
   dataTx: string,
   descricaoTx: string,
+  diasTolerancia: number,
 ): { id: string } | null {
   const palavrasTx = palavrasDoNome(descricaoTx);
   let melhor: { id: string; dist: number } | null = null;
   for (const m of lista) {
     const dist = Math.abs(Date.parse(dataIso(m.data_compra ?? dataTx)) - Date.parse(dataIso(dataTx))) / 86400000;
     const descricaoBate = palavrasDoNome(m.descricao ?? "").some((a) => palavrasTx.some((b) => a.includes(b) || b.includes(a)));
-    if (dist > 3 && !descricaoBate) continue;
+    if (dist > diasTolerancia && !descricaoBate) continue;
     if (!melhor || dist < melhor.dist) melhor = { id: m.id, dist };
   }
   return melhor;
@@ -250,7 +251,7 @@ function manualParecido(
  */
 async function importarDespesa(
   db: any,
-  p: { userId: string; grupoId: string | null; t: Transacao; cartaoId: string | null; cartaoFinal: string | null; banco: string | null; congelada: boolean },
+  p: { userId: string; grupoId: string | null; t: Transacao; cartaoId: string | null; cartaoFinal: string | null; banco: string | null; congelada: boolean; diasTolerancia: number },
 ): Promise<boolean> {
   p = { ...p, t: { ...p.t, date: dataIso(p.t.date) } };
   const valor = Math.abs(p.t.amount);
@@ -273,7 +274,7 @@ async function importarDespesa(
     return q;
   };
   const { data: candidatos } = await base().eq("valor_total", valor).select("id, data_compra, descricao");
-  const manual = manualParecido(candidatos ?? [], p.t.date, p.t.description ?? "");
+  const manual = manualParecido(candidatos ?? [], p.t.date, p.t.description ?? "", p.diasTolerancia);
   if (manual) {
     await db
       .from("despesas")
@@ -578,6 +579,13 @@ async function executarSincronizacao(
 
   const contas = await pluggy<{ results: Conta[] }>(key, `/accounts?itemId=${encodeURIComponent(itemId)}`);
   const de = new Date(Date.now() - dias * 86400000).toISOString().slice(0, 10);
+  // Intervalo de dias para substituir manual de cartão pelo Open Finance (configurado pelo admin).
+  const { data: cfgDias } = await db
+    .from("configuracoes_open_finance")
+    .select("valor")
+    .eq("chave", "dias_substituicao_cartao")
+    .maybeSingle();
+  const diasTolerancia = Number.isInteger(cfgDias?.valor) ? Number(cfgDias.valor) : 3;
   let total = 0;
   let criadas = 0;
 
@@ -653,7 +661,7 @@ async function executarSincronizacao(
         if (t.type !== "DEBIT") continue;
         if (CATEGORIAS_NAO_DESPESA.has((t.category ?? "").trim().toLowerCase())) continue;
         if (DESCRICAO_NAO_DESPESA.test(t.description ?? "")) continue;
-        if (await importarDespesa(db, { userId: meu.user_id, grupoId, t, cartaoId, cartaoFinal, banco, congelada: primeira })) criadas++;
+        if (await importarDespesa(db, { userId: meu.user_id, grupoId, t, cartaoId, cartaoFinal, banco, congelada: primeira, diasTolerancia })) criadas++;
       }
       if (!r.next) break;
       const m = /after=([^&]+)/.exec(r.next);
