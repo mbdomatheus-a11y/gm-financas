@@ -1,0 +1,51 @@
+# Build iOS e envio ao TestFlight, rodando no Mac do GitHub Actions.
+# A chave da API vem dos Secrets ASC_KEY_ID, ASC_ISSUER_ID e ASC_KEY_P8.
+
+BUNDLE_ID = "co.median.ios.nmlbjjq"
+TEAM_ID = "WG63N8W37M"
+PERFIL = "Control ALL Finanças AppStore"
+
+default_platform(:ios)
+
+platform :ios do
+  desc "Compila o app e envia ao TestFlight"
+  lane :testflight do
+    api = app_store_connect_api_key(
+      key_id: ENV["ASC_KEY_ID"],
+      issuer_id: ENV["ASC_ISSUER_ID"],
+      key_content: ENV["ASC_KEY_P8"],
+      is_key_content_base64: false,
+      in_house: false
+    )
+
+    # Certificado de distribuição (cria se não existir) e perfil de App Store.
+    cert(api_key: api, development: false)
+    sigh(
+      api_key: api,
+      app_identifier: BUNDLE_ID,
+      adhoc: false,
+      provisioning_name: PERFIL,
+      force: true
+    )
+
+    build_app(
+      workspace: "ios/App/App.xcworkspace",
+      scheme: "App",
+      export_method: "app-store",
+      clean: true,
+      output_directory: "build",
+      xcargs: "DEVELOPMENT_TEAM=#{TEAM_ID} CODE_SIGN_STYLE=Manual CURRENT_PROJECT_VERSION=#{ENV['GITHUB_RUN_NUMBER']}",
+      export_options: {
+        method: "app-store",
+        signingStyle: "manual",
+        teamID: TEAM_ID,
+        provisioningProfiles: { BUNDLE_ID => PERFIL }
+      }
+    )
+
+    upload_to_testflight(
+      api_key: api,
+      skip_waiting_for_build_processing: true
+    )
+  end
+end
