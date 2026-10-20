@@ -38,4 +38,4 @@ jobs:
       - name: Compila e envia ao TestFlight (fastlane)
         run: |
           gem install fastlane -N || true
-          fastlane ios testflight
+          fastlane ios enviar_testflight

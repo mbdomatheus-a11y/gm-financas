@@ -9,7 +9,7 @@ default_platform(:ios)
 
 platform :ios do
   desc "Compila o app e envia ao TestFlight"
-  lane :testflight do
+  lane :enviar_testflight do
     api = app_store_connect_api_key(
       key_id: ENV["ASC_KEY_ID"],
       issuer_id: ENV["ASC_ISSUER_ID"],
