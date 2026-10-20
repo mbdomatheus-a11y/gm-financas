@@ -4,6 +4,7 @@
 BUNDLE_ID = "co.median.ios.nmlbjjq"
 TEAM_ID = "WG63N8W37M"
 PERFIL = "Control ALL Finanças AppStore"
+CERT_ID = "MBK6W266SF"
 
 default_platform(:ios)
 
@@ -18,13 +19,13 @@ platform :ios do
       in_house: false
     )
 
-    # Certificado de distribuição (cria se não existir) e perfil de App Store.
-    cert(api_key: api, development: false)
+    # Perfil de App Store usando o certificado já importado do Secret CERT_P12_BASE64.
     sigh(
       api_key: api,
       app_identifier: BUNDLE_ID,
       adhoc: false,
       provisioning_name: PERFIL,
+      cert_id: CERT_ID,
       force: true
     )
 
