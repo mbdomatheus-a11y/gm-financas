@@ -29,13 +29,25 @@ platform :ios do
       force: true
     )
 
+    # Assinatura manual só no target App (os Pods não aceitam perfil manual).
+    require "xcodeproj"
+    proj = Xcodeproj::Project.open("ios/App/App.xcodeproj")
+    app_target = proj.targets.find { |t| t.name == "App" }
+    app_target.build_configurations.each do |c|
+      c.build_settings["DEVELOPMENT_TEAM"] = TEAM_ID
+      c.build_settings["CODE_SIGN_STYLE"] = "Manual"
+      c.build_settings["CODE_SIGN_IDENTITY"] = "Apple Distribution"
+      c.build_settings["PROVISIONING_PROFILE_SPECIFIER"] = PERFIL
+      c.build_settings["CURRENT_PROJECT_VERSION"] = ENV["GITHUB_RUN_NUMBER"] || "1"
+    end
+    proj.save
+
     build_app(
       workspace: "ios/App/App.xcworkspace",
       scheme: "App",
       export_method: "app-store",
       clean: true,
       output_directory: "build",
-      xcargs: "DEVELOPMENT_TEAM=#{TEAM_ID} CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=\"Apple Distribution\" PROVISIONING_PROFILE_SPECIFIER=\"#{PERFIL}\" CURRENT_PROJECT_VERSION=#{ENV['GITHUB_RUN_NUMBER']}",
       export_options: {
         method: "app-store",
         signingStyle: "manual",
