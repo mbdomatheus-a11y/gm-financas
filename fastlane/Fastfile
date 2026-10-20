@@ -31,7 +31,7 @@ platform :ios do
 
     # Assinatura manual só no target App (os Pods não aceitam perfil manual).
     require "xcodeproj"
-    proj = Xcodeproj::Project.open("ios/App/App.xcodeproj")
+    proj = Xcodeproj::Project.open(File.expand_path("../ios/App/App.xcodeproj", __dir__))
     app_target = proj.targets.find { |t| t.name == "App" }
     app_target.build_configurations.each do |c|
       c.build_settings["DEVELOPMENT_TEAM"] = TEAM_ID
