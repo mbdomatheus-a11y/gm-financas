@@ -2,7 +2,7 @@
 # A chave da API vem dos Secrets ASC_KEY_ID, ASC_ISSUER_ID e ASC_KEY_P8.
 
 BUNDLE_ID = "co.median.ios.nmlbjjq"
-TEAM_ID = "WG63N8W37M"
+TEAM_ID = "WG63N9W37M"
 PERFIL = "Control ALL Finanças AppStore"
 CERT_ID = "MBK6W266SF"
 

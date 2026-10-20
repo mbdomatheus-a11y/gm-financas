@@ -16,7 +16,7 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 60
     env:
-      TEAM_ID: WG63N8W37M
+      TEAM_ID: WG63N9W37M
       BUNDLE_ID: co.median.ios.nmlbjjq
       ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
       ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
