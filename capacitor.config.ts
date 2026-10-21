@@ -10,6 +10,13 @@ const config: CapacitorConfig = {
     url: "https://www.controlall.com.br",
     cleartext: false,
   },
+  ios: {
+    contentInset: "automatic",
+    backgroundColor: "#f5f9fc",
+    allowsLinkPreview: false,
+    scrollEnabled: true,
+    preferredContentMode: "mobile",
+  },
 };
 
 export default config;
