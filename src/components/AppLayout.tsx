@@ -871,7 +871,42 @@ export function AppLayout({
               {actions}
             </div>
           </div>
-
+          {mundo && itensDoMundo.length > 0 && (
+            <nav
+              aria-label={`Páginas de ${mundo.titulo}`}
+              className="overflow-x-auto border-t px-4 py-2 [scrollbar-width:none] lg:hidden [&::-webkit-scrollbar]:hidden"
+            >
+              <div className="flex w-max gap-2">
+                <Link
+                  to="/inicio"
+                  className="inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-medium text-muted-foreground"
+                >
+                  <Home className="size-3.5" />
+                  Início
+                </Link>
+                {itensDoMundo.map((i) => {
+                  const Ic = i.icon;
+                  const ativo = pathname === i.to;
+                  return (
+                    <Link
+                      key={i.to}
+                      to={i.to}
+                      aria-current={ativo ? "page" : undefined}
+                      className={cn(
+                        "inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-medium",
+                        ativo
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "text-muted-foreground",
+                      )}
+                    >
+                      <Ic className="size-3.5" />
+                      {i.short}
+                    </Link>
+                  );
+                })}
+              </div>
+            </nav>
+          )}
         </header>
 
         {modoCliente && (
@@ -882,42 +917,6 @@ export function AppLayout({
             </Button>
           </div>
         )}
-        {mundo && itensDoMundo.length > 0 && (
-          <nav
-            aria-label={`Páginas de ${mundo.titulo}`}
-            className="sticky top-0 z-20 -mx-4 overflow-x-auto border-b bg-background/95 px-4 py-2 backdrop-blur lg:hidden"
-          >
-            <div className="flex w-max gap-2">
-              <Link
-                to="/inicio"
-                className="inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-medium text-muted-foreground"
-              >
-                <Home className="size-3.5" />
-                Início
-              </Link>
-              {itensDoMundo.map((i) => {
-                const Ic = i.icon;
-                const ativo = pathname === i.to;
-                return (
-                  <Link
-                    key={i.to}
-                    to={i.to}
-                    aria-current={ativo ? "page" : undefined}
-                    className={cn(
-                      "inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-medium",
-                      ativo
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "text-muted-foreground",
-                    )}
-                  >
-                    <Ic className="size-3.5" />
-                    {i.short}
-                  </Link>
-                );
-              })}
-            </div>
-          </nav>
-        )}
         <main className="mx-auto w-full max-w-7xl px-4 pb-28 pt-6 lg:px-8 lg:pb-10">
           {rotaAdminBloqueada ? (
             <div className="rounded-md border p-6 text-center text-sm text-muted-foreground">
@@ -926,7 +925,7 @@ export function AppLayout({
           ) : (
             children
           )}
-          <AppEmBreve className="mt-10" />
+          <AppEmBreve className="mt-10 native:hidden" />
         </main>
       </div>
 

@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   ChevronDown,
   CreditCard,
+  EllipsisVertical,
   List as ListIcon,
   Pencil,
   Plus,
@@ -27,6 +28,12 @@ import { ExcluirRecorrenteDialog } from "@/components/ExcluirRecorrenteDialog";
 import { z } from "zod";
 
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { correspondeBuscaComValor } from "@/lib/busca";
 import { PrimeiraCategoriaGuia } from "@/components/PrimeiraCategoriaGuia";
 import { AppLayout } from "@/components/AppLayout";
@@ -1351,7 +1358,7 @@ function DespesasPage() {
                 <div
                   role="button"
                   tabIndex={0}
-                  className="flex w-full items-center gap-3 border-b bg-muted/30 px-3 py-2 text-left"
+                  className="flex w-full items-center gap-3 border-b bg-muted/30 px-3 py-2 text-left native:flex-wrap native:gap-y-2"
                   onClick={() => setGrupoExpandido(grupoExpandido === grupo.key ? null : grupo.key)}
                   onKeyDown={(e) =>
                     e.key === "Enter" &&
@@ -1384,7 +1391,7 @@ function DespesasPage() {
                     <Button
                       size="sm"
                       variant="outline"
-                      className="h-9 shrink-0 text-xs"
+                      className="h-9 shrink-0 text-xs native:order-last native:h-8 native:w-full"
                       disabled={
                         marcarLote.isPending || idsDoLote(grupo.itens, "abertas").length === 0
                       }
@@ -1404,7 +1411,7 @@ function DespesasPage() {
                       <Button
                         size="sm"
                         variant="outline"
-                        className="h-9 shrink-0 text-xs"
+                        className="h-9 shrink-0 text-xs native:order-last native:h-8 native:w-full"
                         disabled={marcarLote.isPending}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -1452,7 +1459,7 @@ function DespesasPage() {
                         <div
                           onClick={() => abrirEdicao(d)}
                           className={cn(
-                            "flex items-center gap-3 px-3 py-2.5 transition-colors hover:bg-muted/40",
+                            "flex items-center gap-3 px-3 py-2.5 transition-colors hover:bg-muted/40 native:gap-2 native:active:bg-muted/50",
                             can("despesas", "editar") && "cursor-pointer",
                             (ignoradaNoMes ||
                               d.origem === "fatura_total_concluida" ||
@@ -1490,7 +1497,7 @@ function DespesasPage() {
                           />
                           <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-1.5">
-                              <p className="truncate text-sm font-semibold leading-tight">
+                              <p className="truncate text-sm font-semibold leading-tight native:line-clamp-2 native:whitespace-normal">
                                 {identificacaoDespesa(d) && (
                                   <span className="text-primary">{identificacaoDespesa(d)} · </span>
                                 )}
@@ -1597,7 +1604,60 @@ function DespesasPage() {
                               </p>
                             )}
                           </div>
-                          <div className="flex shrink-0 items-center">
+                          {/* No app: um único botão de ações, como em app nativo. */}
+                          <div className="hidden shrink-0 native:block">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="size-8 text-muted-foreground"
+                                  onClick={(e) => e.stopPropagation()}
+                                  aria-label={`Ações de ${d.descricao}`}
+                                >
+                                  <EllipsisVertical className="size-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                                {can("despesas", "editar") && (
+                                  <DropdownMenuItem onSelect={() => abrirEdicao(d)}>
+                                    <Pencil className="size-4" /> Editar
+                                  </DropdownMenuItem>
+                                )}
+                                {can("despesas", "editar") && (
+                                  <DropdownMenuItem
+                                    onSelect={() =>
+                                      moverTipo.mutate({
+                                        id: d.id,
+                                        tipo: d.tipo === "fixa" ? "variavel" : "fixa",
+                                      })
+                                    }
+                                  >
+                                    <ArrowLeftRight className="size-4" />
+                                    {d.tipo === "fixa" ? "Mover para variável" : "Mover para fixa"}
+                                  </DropdownMenuItem>
+                                )}
+                                {parcelas.length > 0 && (
+                                  <DropdownMenuItem onSelect={() => setExpandida(aberta ? null : d.id)}>
+                                    <ChevronDown className="size-4" />
+                                    {aberta ? "Ocultar parcelas" : "Ver parcelas"}
+                                  </DropdownMenuItem>
+                                )}
+                                {can("despesas", "excluir") && (
+                                  <DropdownMenuItem
+                                    className="text-destructive focus:text-destructive"
+                                    onSelect={() => {
+                                      if (d.tipo === "fixa" && !d.cartao_id) setDespesaFixaParaExcluir(d);
+                                      else setDespesaParaExcluir(d);
+                                    }}
+                                  >
+                                    <Trash2 className="size-4" /> Excluir
+                                  </DropdownMenuItem>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                          <div className="flex shrink-0 items-center native:hidden">
                             {can("despesas", "editar") && (
                               <Button
                                 variant="ghost"

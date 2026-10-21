@@ -11,6 +11,8 @@
 @import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
+/* Modo app iOS: a classe native-app só existe dentro do app; no navegador nada muda. */
+@custom-variant native (&:where(.native-app, .native-app *));
 
 @theme inline {
   --font-sans: var(--app-font), ui-sans-serif, system-ui, sans-serif;
@@ -273,4 +275,21 @@
 * {
   scrollbar-width: thin;
   scrollbar-color: color-mix(in oklab, var(--foreground) 25%, transparent) transparent;
+}
+
+
+/* App iOS (Capacitor): sem cara de navegador. */
+html.native-app { overflow-x: clip; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+html.native-app body { overscroll-behavior-x: none; }
+.native-app { -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; }
+.native-app :where(p, span, h1, h2, h3, h4, h5, h6, li, td, th, label, button, a) { -webkit-user-select: none; user-select: none; }
+.native-app :where(input, textarea, select, [contenteditable="true"]) { -webkit-user-select: text; user-select: text; }
+
+/* Transição entre telas: só é iniciada pelo roteador no app nativo, então o web não é afetado. */
+::view-transition-old(root) { animation: vt-fade-out 160ms ease-in both; }
+::view-transition-new(root) { animation: vt-slide-in 240ms cubic-bezier(.2,.8,.2,1) both; }
+@keyframes vt-slide-in { from { transform: translateX(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes vt-fade-out { from { opacity: 1; } to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root), ::view-transition-new(root) { animation: none; }
 }

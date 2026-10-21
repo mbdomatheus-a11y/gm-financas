@@ -1,0 +1,67 @@
+# Build iOS e envio ao TestFlight, rodando no Mac do GitHub Actions.
+# A chave da API vem dos Secrets ASC_KEY_ID, ASC_ISSUER_ID e ASC_KEY_P8.
+
+BUNDLE_ID = "co.median.ios.nmlbjjq"
+TEAM_ID = "WG63N9W37M"
+PERFIL = "Control ALL Finanças AppStore"
+CERT_ID = "MBK6W266SF"
+
+default_platform(:ios)
+
+platform :ios do
+  desc "Compila o app e envia ao TestFlight"
+  lane :enviar_testflight do
+    api = app_store_connect_api_key(
+      key_id: ENV["ASC_KEY_ID"],
+      issuer_id: ENV["ASC_ISSUER_ID"],
+      key_content: ENV["ASC_KEY_P8"],
+      is_key_content_base64: false,
+      in_house: false
+    )
+
+    # Perfil de App Store usando o certificado já importado do Secret CERT_P12_BASE64.
+    sigh(
+      api_key: api,
+      app_identifier: BUNDLE_ID,
+      adhoc: false,
+      provisioning_name: PERFIL,
+      cert_id: CERT_ID,
+      force: true
+    )
+
+    # O sigh pode criar o perfil com outro nome (sufixo); usa o nome real.
+    perfil = lane_context[SharedValues::SIGH_NAME] || PERFIL
+
+    # Assinatura manual só no target App (os Pods não aceitam perfil manual).
+    require "xcodeproj"
+    proj = Xcodeproj::Project.open(File.expand_path("../ios/App/App.xcodeproj", __dir__))
+    app_target = proj.targets.find { |t| t.name == "App" }
+    app_target.build_configurations.each do |c|
+      c.build_settings["DEVELOPMENT_TEAM"] = TEAM_ID
+      c.build_settings["CODE_SIGN_STYLE"] = "Manual"
+      c.build_settings["CODE_SIGN_IDENTITY"] = "Apple Distribution"
+      c.build_settings["PROVISIONING_PROFILE_SPECIFIER"] = perfil
+      c.build_settings["CURRENT_PROJECT_VERSION"] = ENV["GITHUB_RUN_NUMBER"] || "1"
+    end
+    proj.save
+
+    build_app(
+      workspace: "ios/App/App.xcworkspace",
+      scheme: "App",
+      export_method: "app-store",
+      clean: true,
+      output_directory: "build",
+      export_options: {
+        method: "app-store",
+        signingStyle: "manual",
+        teamID: TEAM_ID,
+        provisioningProfiles: { BUNDLE_ID => perfil }
+      }
+    )
+
+    upload_to_testflight(
+      api_key: api,
+      skip_waiting_for_build_processing: true
+    )
+  end
+end
