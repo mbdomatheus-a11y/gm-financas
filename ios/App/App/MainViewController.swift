@@ -1,6 +1,7 @@
 import UIKit
 import WebKit
 import AVFoundation
+import EventKit
 import Capacitor
 
 /// Controlador principal do app Control ALL.
@@ -100,6 +101,14 @@ class MainViewController: CAPBridgeViewController, WKScriptMessageHandler {
         """
         conteudo.addUserScript(WKUserScript(source: aposCarregar, injectionTime: .atDocumentEnd, forMainFrameOnly: true))
         conteudo.add(self, name: "temaApp")
+        conteudo.add(self, name: "agendaApp")
+
+        // Versão do app instalada (aparece no Menu do site dentro do app).
+        let info = Bundle.main.infoDictionary
+        let versao = (info?["CFBundleShortVersionString"] as? String) ?? "?"
+        let build = (info?["CFBundleVersion"] as? String) ?? "?"
+        let versaoJS = "window.__controlAllApp = { plataforma: 'ios', versao: '\(versao)', build: '\(build)' };"
+        conteudo.addUserScript(WKUserScript(source: versaoJS, injectionTime: .atDocumentStart, forMainFrameOnly: true))
         return config
     }
 
@@ -221,10 +230,108 @@ class MainViewController: CAPBridgeViewController, WKScriptMessageHandler {
     // MARK: - Tema claro/escuro vindo do site
 
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        if message.name == "agendaApp" {
+            let corpo = message.body as? [String: Any]
+            sincronizarAgenda(eventos: (corpo?["eventos"] as? [[String: Any]]) ?? [])
+            return
+        }
         guard message.name == "temaApp", let valor = message.body as? String else { return }
         aplicarTema(escuro: valor == "escuro")
         // A cada página carregada (e troca de tema) reenvia as áreas seguras para o CSS.
         atualizarAreasSeguras()
+    }
+
+    // MARK: - Agenda do iPhone (calendário "Control ALL")
+
+    private let agenda = EKEventStore()
+    private let chaveCalendario = "controlall.calendarioId"
+
+    private func pedirAcessoAgenda(_ concluir: @escaping (Bool) -> Void) {
+        if #available(iOS 17.0, *) {
+            agenda.requestFullAccessToEvents { ok, _ in DispatchQueue.main.async { concluir(ok) } }
+        } else {
+            agenda.requestAccess(to: .event) { ok, _ in DispatchQueue.main.async { concluir(ok) } }
+        }
+    }
+
+    /// Calendário próprio do app: assim os vencimentos ficam separados e podem ser
+    /// atualizados sem mexer nos outros compromissos do usuário.
+    private func calendarioDoApp() throws -> EKCalendar {
+        if let id = UserDefaults.standard.string(forKey: chaveCalendario), let existente = agenda.calendar(withIdentifier: id) {
+            return existente
+        }
+        if let existente = agenda.calendars(for: .event).first(where: { $0.title == "Control ALL" && $0.allowsContentModifications }) {
+            UserDefaults.standard.set(existente.calendarIdentifier, forKey: chaveCalendario)
+            return existente
+        }
+        let novo = EKCalendar(for: .event, eventStore: agenda)
+        novo.title = "Control ALL"
+        novo.cgColor = UIColor(red: 47.0 / 255.0, green: 95.0 / 255.0, blue: 149.0 / 255.0, alpha: 1).cgColor
+        novo.source = agenda.defaultCalendarForNewEvents?.source
+            ?? agenda.sources.first(where: { $0.sourceType == .local })
+            ?? agenda.sources.first
+        try agenda.saveCalendar(novo, commit: true)
+        UserDefaults.standard.set(novo.calendarIdentifier, forKey: chaveCalendario)
+        return novo
+    }
+
+    /// Recria os vencimentos futuros no calendário do app (idempotente: sincronizar de novo
+    /// atualiza valores e remove o que já foi pago ou excluído).
+    private func sincronizarAgenda(eventos: [[String: Any]]) {
+        pedirAcessoAgenda { [weak self] permitido in
+            guard let self = self else { return }
+            guard permitido else {
+                self.responderAgenda(["ok": false, "erro": "Sem acesso à agenda. Libere em Ajustes > Control ALL > Calendários."])
+                return
+            }
+            do {
+                let calendario = try self.calendarioDoApp()
+                let hoje = Calendar.current.startOfDay(for: Date())
+                let inicio = Calendar.current.date(byAdding: .day, value: -1, to: hoje) ?? hoje
+                let fim = Calendar.current.date(byAdding: .year, value: 2, to: hoje) ?? hoje
+                let filtro = self.agenda.predicateForEvents(withStart: inicio, end: fim, calendars: [calendario])
+                for antigo in self.agenda.events(matching: filtro) {
+                    try self.agenda.remove(antigo, span: .thisEvent, commit: false)
+                }
+                let formato = DateFormatter()
+                formato.calendar = Calendar(identifier: .gregorian)
+                formato.locale = Locale(identifier: "en_US_POSIX")
+                formato.timeZone = TimeZone.current
+                formato.dateFormat = "yyyy-MM-dd"
+                var total = 0
+                for item in eventos {
+                    guard let titulo = item["titulo"] as? String,
+                          let texto = item["data"] as? String,
+                          let dia = formato.date(from: texto), dia >= hoje
+                    else { continue }
+                    let evento = EKEvent(eventStore: self.agenda)
+                    evento.calendar = calendario
+                    evento.title = titulo
+                    evento.isAllDay = true
+                    evento.startDate = dia
+                    evento.endDate = dia
+                    evento.notes = item["notas"] as? String
+                    evento.url = URL(string: "https://www.controlall.com.br/calendario")
+                    evento.addAlarm(EKAlarm(relativeOffset: -15 * 3600)) // véspera, às 9h
+                    try self.agenda.save(evento, span: .thisEvent, commit: false)
+                    total += 1
+                }
+                try self.agenda.commit()
+                self.responderAgenda(["ok": true, "total": total])
+            } catch {
+                self.agenda.reset()
+                self.responderAgenda(["ok": false, "erro": "Não consegui gravar na agenda: \(error.localizedDescription)"])
+            }
+        }
+    }
+
+    private func responderAgenda(_ resultado: [String: Any]) {
+        guard let dados = try? JSONSerialization.data(withJSONObject: resultado),
+              let json = String(data: dados, encoding: .utf8) else { return }
+        webView?.evaluateJavaScript(
+            "window.dispatchEvent(new CustomEvent('agenda-app-resultado', { detail: \(json) }))",
+            completionHandler: nil
+        )
     }
 
     private func aplicarTema(escuro: Bool) {

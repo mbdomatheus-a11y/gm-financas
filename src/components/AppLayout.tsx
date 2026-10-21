@@ -413,6 +413,21 @@ const GLOBAL: NavItem[] = [
 ];
 
 /** Atalhos da barra inferior no celular (Início fica fixo ao lado). */
+/** Versão do app iOS instalada (o app nativo informa em window.__controlAllApp). No navegador não aparece. */
+function VersaoDoApp() {
+  const [info, setInfo] = useState<{ versao: string; build: string } | null>(null);
+  useEffect(() => {
+    const app = (window as unknown as { __controlAllApp?: { versao: string; build: string } }).__controlAllApp;
+    if (app?.versao) setInfo({ versao: app.versao, build: app.build });
+  }, []);
+  if (!info) return null;
+  return (
+    <p className="mt-auto border-t px-2 pt-3 text-center text-[11px] text-muted-foreground">
+      Control ALL para iPhone · versão {info.versao} (build {info.build})
+    </p>
+  );
+}
+
 const ATALHOS_MOBILE: { id: MundoId; rotulo: string; icon: LucideIcon }[] = [
   { id: "financas", rotulo: "Finanças", icon: Wallet },
   { id: "notas", rotulo: "Notas", icon: ReceiptText },
@@ -695,6 +710,7 @@ export function AppLayout({
       >
         <LogOut className="size-4.5" /> Sair
       </Button>
+      <VersaoDoApp />
     </div>
   );
 

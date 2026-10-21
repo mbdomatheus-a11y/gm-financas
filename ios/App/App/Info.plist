@@ -51,6 +51,10 @@
 	<string>O Control ALL acessa suas fotos para anexar notas fiscais, comprovantes e sua foto de perfil.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>O Control ALL salva na sua galeria as imagens de resumo que você baixar.</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>O Control ALL coloca os vencimentos de faturas e o fim de garantias num calendário próprio da sua agenda, com lembrete na véspera.</string>
+	<key>NSCalendarsUsageDescription</key>
+	<string>O Control ALL coloca os vencimentos de faturas e o fim de garantias num calendário próprio da sua agenda, com lembrete na véspera.</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 </dict>

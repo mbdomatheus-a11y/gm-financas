@@ -1,8 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CalendarDays,
+  CalendarPlus,
   ChevronLeft,
   ChevronRight,
   CreditCard,
@@ -294,6 +295,55 @@ function CalendarioPage() {
     setAtivos((a) => (a.includes(t) ? a.filter((x) => x !== t) : [...a, t]));
   }
 
+  // Agenda do iPhone: o app nativo grava os vencimentos num calendário "Control ALL".
+  const [sincronizando, setSincronizando] = useState(false);
+  useEffect(() => {
+    const aoResponder = (ev: Event) => {
+      setSincronizando(false);
+      const r = (ev as CustomEvent<{ ok: boolean; total?: number; erro?: string }>).detail;
+      if (r?.ok) {
+        toast.success(
+          r.total
+            ? `${r.total} vencimento(s) no calendário "Control ALL" do iPhone, com lembrete na véspera.`
+            : "Agenda atualizada: nenhum vencimento em aberto nos próximos 12 meses.",
+        );
+      } else {
+        toast.error(r?.erro ?? "Não consegui sincronizar com a agenda.");
+      }
+    };
+    window.addEventListener("agenda-app-resultado", aoResponder);
+    return () => window.removeEventListener("agenda-app-resultado", aoResponder);
+  }, []);
+
+  function sincronizarAgenda() {
+    const ponte = (
+      window as unknown as {
+        webkit?: { messageHandlers?: { agendaApp?: { postMessage: (m: unknown) => void } } };
+      }
+    ).webkit?.messageHandlers?.agendaApp;
+    if (!ponte) {
+      toast.error("A sincronização com a agenda funciona no app do iPhone (versão 1.1.0 ou mais nova).");
+      return;
+    }
+    const atual = monthKey(new Date());
+    const eventos = Array.from({ length: 12 }, (_, i) => gerarEventos(somarMes(atual, i)))
+      .flat()
+      .filter((e) => e.data >= hojeISO)
+      .filter(
+        (e) =>
+          e.tipo === "garantia" ||
+          (e.tipo === "fatura" && !((e.ref?.itens ?? []) as { paga?: boolean }[]).every((l) => l.paga)),
+      )
+      .map((e) => ({
+        id: e.id,
+        titulo: e.valor ? `${e.titulo} · ${formatBRL(e.valor)}` : e.titulo,
+        data: e.data,
+        notas: [e.detalhe, "Lançado pelo Control ALL"].filter(Boolean).join(" · "),
+      }));
+    setSincronizando(true);
+    ponte.postMessage({ eventos });
+  }
+
   return (
     <AppLayout
       title="Calendário"
@@ -314,6 +364,17 @@ function CalendarioPage() {
             {v === "mes" ? "Mês" : "Ano (12 meses)"}
           </button>
         ))}
+      </div>
+
+      <div className="mb-3 hidden native:block">
+        <Button variant="outline" className="w-full gap-2" disabled={sincronizando} onClick={sincronizarAgenda}>
+          <CalendarPlus className="size-4" />
+          {sincronizando ? "Sincronizando…" : "Sincronizar com a agenda do iPhone"}
+        </Button>
+        <p className="mt-1 text-[11px] text-muted-foreground">
+          Faturas em aberto e fim de garantias dos próximos 12 meses, no calendário "Control ALL", com lembrete na
+          véspera. Toque de novo para atualizar.
+        </p>
       </div>
 
       {visao === "ano" && (

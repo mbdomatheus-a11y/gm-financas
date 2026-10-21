@@ -1,0 +1,10 @@
+Control ALL 1.1.0
+
+Novidades:
+- Agenda do iPhone: no Calendário, toque em "Sincronizar com a agenda" para colocar os vencimentos de faturas e o fim de garantias num calendário "Control ALL", com lembrete na véspera às 9h.
+- A versão do app aparece no Menu (ex.: 1.1.0 build 17).
+
+O que testar:
+- Calendário > Sincronizar com a agenda: permitir o acesso e conferir os eventos no app Calendário do iPhone.
+- Sincronizar de novo depois de pagar uma fatura: o evento dela deve sumir.
+- Menu: conferir a versão exibida no rodapé.
