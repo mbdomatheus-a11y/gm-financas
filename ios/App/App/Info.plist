@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-        <string>Control ALL Finanças</string>
+	<string>Control ALL</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -33,8 +33,6 @@
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>UISupportedInterfaceOrientations~ipad</key>
 	<array>
@@ -45,6 +43,14 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>O Control ALL usa o microfone para você lançar despesas e receitas falando.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>O Control ALL usa a câmera para fotografar notas fiscais, comprovantes e sua foto de perfil.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>O Control ALL acessa suas fotos para anexar notas fiscais, comprovantes e sua foto de perfil.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>O Control ALL salva na sua galeria as imagens de resumo que você baixar.</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 </dict>
