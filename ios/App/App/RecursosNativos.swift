@@ -57,6 +57,12 @@ extension MainViewController: ASWebAuthenticationPresentationContextProviding, U
     /// fica fixa como uma tela de app. Nas demais, volta ao normal.
     func aplicarRota(_ rota: String) {
         guard let webView = webView else { return }
+        // A página inicial do site (marketing) não existe no app: qualquer ida a "/" vira o Início
+        // (que manda para Entrar/Criar conta se a pessoa não estiver logada).
+        if rota == "/" || rota.isEmpty {
+            webView.evaluateJavaScript("location.replace('/inicio')", completionHandler: nil)
+            return
+        }
         let telasDeAcesso = ["/entrar", "/esqueci-senha", "/redefinir-senha", "/nova-senha"]
         let travar = telasDeAcesso.contains { rota == $0 || rota.hasPrefix($0 + "/") }
         webView.scrollView.bounces = !travar

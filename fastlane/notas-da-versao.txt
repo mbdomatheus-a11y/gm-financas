@@ -1,4 +1,9 @@
-Control ALL 1.2.0
+Control ALL 1.2.1
+
+Correção desta versão:
+- No app nunca aparece a página inicial do site: abre direto em Entrar/Criar conta (ou no Início, se já estiver logado).
+
+Tudo da 1.2.0:
 
 Novidades:
 - Abertura animada do logo ao abrir o app.

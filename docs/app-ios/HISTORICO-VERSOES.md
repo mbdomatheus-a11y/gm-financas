@@ -15,7 +15,10 @@ registrar aqui embaixo e enviar para a branch `ios-app` (o GitHub Actions compil
 Mudanças de site (pasta `src/`) só chegam ao app depois do merge em `main` (deploy da Vercel),
 porque o app carrega o site de produção.
 
-## 1.2.0 (build 18 em diante): login, notificações, ajustes e acabamento
+## 1.2.1 (build 20 em diante): sem página inicial do site no app
+- Qualquer ida a "/" dentro do app vai para o Início (ou Entrar/Criar conta), pelo app e pelo site.
+
+## 1.2.0 (builds 18 e 19): login, notificações, ajustes e acabamento
 - Abertura animada do logo (continua a tela de abertura do iOS e sai com zoom quando a página carrega).
 - Login travado como tela de app (sem rolar, sem cabeçalho do site), sugestões de e-mail tocáveis,
   olho para mostrar a senha, senha nas Senhas do iPhone (Associated Domains + apple-app-site-association).
