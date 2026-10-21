@@ -26,7 +26,11 @@ platform :ios do
     tipos = bundle.get_capabilities.map(&:capability_type)
     unless tipos.include?(Spaceship::ConnectAPI::BundleIdCapability::Type::ASSOCIATED_DOMAINS)
       UI.message("Ligando Associated Domains no App ID #{BUNDLE_ID}")
-      bundle.update_capability(Spaceship::ConnectAPI::BundleIdCapability::Type::ASSOCIATED_DOMAINS, enabled: true)
+      # Endpoint oficial da API (POST /v1/bundleIdCapabilities): funciona com a chave de API.
+      Spaceship::ConnectAPI.post_bundle_id_capability(
+        bundle_id_id: bundle.id,
+        capability_type: Spaceship::ConnectAPI::BundleIdCapability::Type::ASSOCIATED_DOMAINS
+      )
     end
 
     # Perfil de App Store usando o certificado já importado do Secret CERT_P12_BASE64.
