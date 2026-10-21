@@ -275,7 +275,11 @@ export function LancamentoRapidoDialog({
         pararGravacao();
       }, LIMITE_GRAVACAO_MS);
     } catch {
-      toast.error("Não consegui acessar o microfone — verifique a permissão do navegador.");
+      toast.error(
+        typeof document !== "undefined" && document.documentElement.classList.contains("native-app")
+          ? "Não consegui acessar o microfone. Libere em Ajustes > Control ALL > Microfone."
+          : "Não consegui acessar o microfone — verifique a permissão do navegador.",
+      );
     }
   }
 

@@ -10,7 +10,9 @@ export const getRouter = () => {
     context: { queryClient },
     scrollRestoration: true,
     defaultPreloadStaleTime: 0,
-    defaultViewTransition: typeof window !== "undefined" && !!window.Capacitor?.isNativePlatform?.(),
+    // Transição de tela estilo app só dentro do app iOS (classe marcada pelo app nativo).
+    defaultViewTransition:
+      typeof document !== "undefined" && document.documentElement.classList.contains("native-app"),
   });
 
   return router;

@@ -11,6 +11,8 @@
 @import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
+/* Modo app iOS: a classe native-app só existe dentro do app; no navegador nada muda. */
+@custom-variant native (&:where(.native-app, .native-app *));
 
 @theme inline {
   --font-sans: var(--app-font), ui-sans-serif, system-ui, sans-serif;
@@ -277,7 +279,7 @@
 
 
 /* App iOS (Capacitor): sem cara de navegador. */
-html.native-app { overflow-x: clip; }
+html.native-app { overflow-x: clip; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 html.native-app body { overscroll-behavior-x: none; }
 .native-app { -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; }
 .native-app :where(p, span, h1, h2, h3, h4, h5, h6, li, td, th, label, button, a) { -webkit-user-select: none; user-select: none; }

@@ -724,7 +724,7 @@ function ReceitasPage() {
                       key={r.id}
                       onClick={() => can("receitas", "editar") && abrirEdicao(r.receitaOriginal ?? r)}
                       className={cn(
-                        "flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-muted/30",
+                        "flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-muted/30 native:gap-2 native:px-3 native:active:bg-muted/50",
                         can("receitas", "editar") && "cursor-pointer",
                       )}
                     >
@@ -740,7 +740,7 @@ function ReceitasPage() {
                         <TrendingUp className="size-4 text-success" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold leading-tight">
+                        <p className="truncate text-sm font-semibold leading-tight native:line-clamp-2 native:whitespace-normal">
                           <span className="text-primary">{r.responsavel} · </span>
                           {r.descricao}
                           {!!(r as any).possivel_duplicidade && (
@@ -777,7 +777,7 @@ function ReceitasPage() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="size-8 text-muted-foreground hover:text-primary"
+                            className="size-8 text-muted-foreground hover:text-primary native:hidden"
                             onClick={(e) => {
                               e.stopPropagation();
                               abrirEdicao(r.receitaOriginal ?? r);
