@@ -1,10 +1,19 @@
-Control ALL 1.1.0
+Control ALL 1.2.0
 
 Novidades:
-- Agenda do iPhone: no Calendário, toque em "Sincronizar com a agenda" para colocar os vencimentos de faturas e o fim de garantias num calendário "Control ALL", com lembrete na véspera às 9h.
-- A versão do app aparece no Menu (ex.: 1.1.0 build 17).
+- Abertura animada do logo ao abrir o app.
+- Login: fica só a tela de acesso (sem rolar), sugestões de e-mail que preenchem ao tocar, olho para ver a senha e senha salva nas Senhas do iPhone.
+- Login com Google, Microsoft e Apple por uma janela do próprio iOS, que volta para o app (não abre mais o Safari).
+- Notificações na tela de bloqueio: faturas e contas na véspera e no dia, às 9h, e garantias 7 dias antes. Teste em Ajustes > Testar notificação.
+- Agenda do iPhone automática depois de vincular (o botão some quando já está vinculada).
+- Nova tela Ajustes do app (Menu > Ajustes do app): idioma, aparência, notificações, agenda, privacidade, versão e sair.
+- No app a visão é sempre de usuário (sem itens de admin) e o idioma padrão é português.
+- Home: em Personalizar, arraste os widgets para mudar a ordem.
+- Assistente da Home: corrigido o erro de "pergunta muito longa" em qualquer pergunta.
+- Convite de amigos e aviso de cookies não voltam depois de dispensados.
 
 O que testar:
-- Calendário > Sincronizar com a agenda: permitir o acesso e conferir os eventos no app Calendário do iPhone.
-- Sincronizar de novo depois de pagar uma fatura: o evento dela deve sumir.
-- Menu: conferir a versão exibida no rodapé.
+- Abrir o app (animação), sair e entrar de novo (sugestão de e-mail, olho, salvar senha).
+- Ajustes > Testar notificação com a tela bloqueada.
+- Calendário > Vincular à agenda do iPhone; depois conferir o calendário "Control ALL".
+- Home > Personalizar > segurar e arrastar um widget.

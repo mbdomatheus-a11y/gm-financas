@@ -80,8 +80,10 @@ export function AssistenteHome() {
     try {
       const r = await perguntarFn({
         data: {
-          pergunta: `${termo}\n\nDados adicionais do usuário:\n${contexto ?? "(sem dados)"}`,
+          // Só o que o usuário digitou conta no limite de caracteres; os dados vão à parte.
+          pergunta: termo,
           resumo,
+          contextoExtra: contexto ?? "",
         },
       });
       if (r.erro && !r.texto) {

@@ -34,6 +34,18 @@ import { aplicarRegrasFaturaMes } from "@/lib/fatura-mes";
 import { lancamentosPorCompetencias } from "@/lib/recorrencia";
 import { formatBRL, formatDate, monthKey, monthLabelLong, toBRL, toISODate } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import {
+  agendaAppVinculada,
+  enviarParaAgendaApp,
+  eventosParaAgendaApp,
+  gerarEventosMes,
+  somarMes,
+  ultimoDiaDoMes,
+  useListaAgenda,
+  useNotasAgenda,
+  type Evento,
+  type Tipo,
+} from "@/lib/agenda-app";
 
 export const Route = createFileRoute("/_authenticated/calendario")({
   head: () => ({
@@ -49,17 +61,6 @@ export const Route = createFileRoute("/_authenticated/calendario")({
   component: CalendarioPage,
 });
 
-type Tipo = "fatura" | "nota" | "garantia" | "lista";
-
-type Evento = {
-  id: string;
-  tipo: Tipo;
-  data: string; // YYYY-MM-DD
-  titulo: string;
-  valor?: number | undefined;
-  detalhe?: string | undefined;
-  ref?: any;
-};
 
 const TIPOS: Record<Tipo, { rotulo: string; cor: string; ponto: string; icone: typeof CreditCard }> = {
   fatura: {
@@ -90,16 +91,6 @@ const TIPOS: Record<Tipo, { rotulo: string; cor: string; ponto: string; icone: t
 
 const DIAS_SEMANA = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
-function ultimoDiaDoMes(chave: string): number {
-  const [a, m] = chave.split("-").map(Number);
-  return new Date(a!, m!, 0).getDate();
-}
-
-function somarMes(chave: string, delta: number): string {
-  const [a, m] = chave.split("-").map(Number);
-  return monthKey(new Date(a!, m! - 1 + delta, 1));
-}
-
 function CalendarioPage() {
   const qc = useQueryClient();
   const cotacao = useCotacao();
@@ -120,101 +111,11 @@ function CalendarioPage() {
   const { data: cartoes = [] } = useCartoes();
   const { data: receitas = [] } = useReceitas();
 
-  const { data: notas = [] } = useQuery({
-    queryKey: ["calendario-notas"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("notas_fiscais")
-        .select("id,estabelecimento,descricao,data_compra,garantia_fim,valor_total");
-      if (error) throw error;
-      return data ?? [];
-    },
-  });
+  const { data: notas = [] } = useNotasAgenda();
+  const { data: listaItens = [] } = useListaAgenda();
 
-  const { data: listaItens = [] } = useQuery({
-    queryKey: ["calendario-lista"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("lista_compras")
-        .select("id,nome,quantidade,valor_estimado,alerta_em,updated_at,comprado,aprovacoes_necessarias,aprovado_por");
-      if (error) throw error;
-      return data ?? [];
-    },
-  });
-
-  const gerarEventos = (mes: string): Evento[] => {
-    const out: Evento[] = [];
-    // Faturas do mês: soma por cartão, vencendo no dia de vencimento do cartão.
-    const lanc = aplicarRegrasFaturaMes(
-      lancamentosPorCompetencias(despesas as any[], [mes]),
-      faturasMes as any[],
-    );
-    const porCartao = new Map<string, any[]>();
-    for (const l of lanc as any[]) {
-      const cid = l.despesa?.cartao_id;
-      if (!cid) continue;
-      if (!porCartao.has(cid)) porCartao.set(cid, []);
-      porCartao.get(cid)!.push(l);
-    }
-    for (const [cid, itens] of porCartao) {
-      const c = (cartoes as any[]).find((x) => x.id === cid);
-      if (!c) continue;
-      const dia = Math.min(Number(c.dia_vencimento) || 10, ultimoDiaDoMes(mes));
-      const total = itens.reduce(
-        (t, l) => t + toBRL(Number(l.valor), l.moeda ?? l.despesa?.moeda ?? "BRL", cotacao),
-        0,
-      );
-      const paga = itens.every((l) => l.paga);
-      out.push({
-        id: `fatura:${cid}:${mes}`,
-        tipo: "fatura",
-        data: `${mes}-${String(dia).padStart(2, "0")}`,
-        titulo: `Fatura ${c.apelido || c.titular || "cartão"}${c.final ? ` •${c.final}` : ""}`,
-        valor: total,
-        detalhe: `${itens.length} lançamento(s)${paga ? " · paga" : ""}`,
-        ref: { cartao: c, itens },
-      });
-    }
-    for (const n of notas as any[]) {
-      if (n.data_compra && n.data_compra.slice(0, 7) === mes) {
-        out.push({
-          id: `nota:${n.id}`,
-          tipo: "nota",
-          data: n.data_compra,
-          titulo: `Nota: ${n.estabelecimento || n.descricao || "compra"}`,
-          valor: Number(n.valor_total) || 0,
-          ref: n,
-        });
-      }
-      if (n.garantia_fim && n.garantia_fim.slice(0, 7) === mes) {
-        out.push({
-          id: `garantia:${n.id}`,
-          tipo: "garantia",
-          data: n.garantia_fim,
-          titulo: `Garantia termina: ${n.estabelecimento || n.descricao || "compra"}`,
-          valor: Number(n.valor_total) || 0,
-          ref: n,
-        });
-      }
-    }
-    for (const it of listaItens as any[]) {
-      const nec = Number(it.aprovacoes_necessarias) || 0;
-      const aprov = (it.aprovado_por ?? []).length;
-      if (it.comprado || nec <= 0 || aprov < nec) continue;
-      const data = it.alerta_em || String(it.updated_at ?? "").slice(0, 10);
-      if (!data || data.slice(0, 7) !== mes) continue;
-      out.push({
-        id: `lista:${it.id}`,
-        tipo: "lista",
-        data,
-        titulo: `Aprovado: ${it.nome}${it.quantidade > 1 ? ` (x${it.quantidade})` : ""}`,
-        valor: it.valor_estimado != null ? Number(it.valor_estimado) : undefined,
-        detalhe: "Item aprovado da lista de compras",
-        ref: it,
-      });
-    }
-    return out;
-  };
+  const dadosAgenda = { despesas, faturasMes, cartoes, notas, listaItens, cotacao };
+  const gerarEventos = (mes: string): Evento[] => gerarEventosMes(mes, dadosAgenda);
 
   const ano = mes.slice(0, 4);
   const eventosAno = useMemo(
@@ -297,10 +198,15 @@ function CalendarioPage() {
 
   // Agenda do iPhone: o app nativo grava os vencimentos num calendário "Control ALL".
   const [sincronizando, setSincronizando] = useState(false);
+  const [vinculada, setVinculada] = useState(false);
+  useEffect(() => setVinculada(agendaAppVinculada()), []);
   useEffect(() => {
     const aoResponder = (ev: Event) => {
+      const r = (ev as CustomEvent<{ ok: boolean; total?: number; erro?: string; silencioso?: boolean }>).detail;
+      if (r?.ok) setVinculada(true);
+      // Sincronização automática em segundo plano: sem aviso na tela.
+      if (r?.silencioso) return;
       setSincronizando(false);
-      const r = (ev as CustomEvent<{ ok: boolean; total?: number; erro?: string }>).detail;
       if (r?.ok) {
         toast.success(
           r.total
@@ -316,32 +222,11 @@ function CalendarioPage() {
   }, []);
 
   function sincronizarAgenda() {
-    const ponte = (
-      window as unknown as {
-        webkit?: { messageHandlers?: { agendaApp?: { postMessage: (m: unknown) => void } } };
-      }
-    ).webkit?.messageHandlers?.agendaApp;
-    if (!ponte) {
+    if (!enviarParaAgendaApp(eventosParaAgendaApp(dadosAgenda))) {
       toast.error("A sincronização com a agenda funciona no app do iPhone (versão 1.1.0 ou mais nova).");
       return;
     }
-    const atual = monthKey(new Date());
-    const eventos = Array.from({ length: 12 }, (_, i) => gerarEventos(somarMes(atual, i)))
-      .flat()
-      .filter((e) => e.data >= hojeISO)
-      .filter(
-        (e) =>
-          e.tipo === "garantia" ||
-          (e.tipo === "fatura" && !((e.ref?.itens ?? []) as { paga?: boolean }[]).every((l) => l.paga)),
-      )
-      .map((e) => ({
-        id: e.id,
-        titulo: e.valor ? `${e.titulo} · ${formatBRL(e.valor)}` : e.titulo,
-        data: e.data,
-        notas: [e.detalhe, "Lançado pelo Control ALL"].filter(Boolean).join(" · "),
-      }));
     setSincronizando(true);
-    ponte.postMessage({ eventos });
   }
 
   return (
@@ -366,16 +251,25 @@ function CalendarioPage() {
         ))}
       </div>
 
-      <div className="mb-3 hidden native:block">
-        <Button variant="outline" className="w-full gap-2" disabled={sincronizando} onClick={sincronizarAgenda}>
-          <CalendarPlus className="size-4" />
-          {sincronizando ? "Sincronizando…" : "Sincronizar com a agenda do iPhone"}
-        </Button>
-        <p className="mt-1 text-[11px] text-muted-foreground">
-          Faturas em aberto e fim de garantias dos próximos 12 meses, no calendário "Control ALL", com lembrete na
-          véspera. Toque de novo para atualizar.
+      {/* Agenda do iPhone (só no app): depois de vinculada, sincroniza sozinha. */}
+      {vinculada ? (
+        <p className="mb-3 hidden items-center gap-1.5 text-xs text-muted-foreground native:flex">
+          <CalendarPlus className="size-3.5" aria-hidden="true" />
+          Agenda do iPhone vinculada: os vencimentos vão sozinhos para o calendário "Control ALL".
         </p>
-      </div>
+      ) : (
+        <div className="mb-3 hidden rounded-xl border border-primary/30 bg-primary/5 p-3 native:block">
+          <p className="text-sm font-semibold">Veja os vencimentos na agenda do iPhone</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Faturas em aberto, fim de garantias e compras aprovadas entram num calendário "Control ALL", com lembrete
+            na véspera. Depois de permitir, a agenda se atualiza sozinha.
+          </p>
+          <Button className="mt-2 w-full gap-2" disabled={sincronizando} onClick={sincronizarAgenda}>
+            <CalendarPlus className="size-4" />
+            {sincronizando ? "Vinculando…" : "Vincular à agenda do iPhone"}
+          </Button>
+        </div>
+      )}
 
       {visao === "ano" && (
         <div className="mb-3 flex items-center gap-2">

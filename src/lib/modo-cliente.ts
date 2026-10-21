@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+import { ehAppNativo } from "@/lib/app-nativo";
 
 /**
  * "Ver como cliente": só o admin do site pode ativar. Esconde no menu e nas telas
@@ -10,6 +11,8 @@ const CHAVE = "modo-cliente";
 const ouvintes = new Set<() => void>();
 
 function ler(): boolean {
+  // No app do iPhone todo mundo usa a visão de usuário (admin completo só no navegador).
+  if (ehAppNativo()) return true;
   try {
     return typeof window !== "undefined" && window.sessionStorage.getItem(CHAVE) === "1";
   } catch {

@@ -46,6 +46,7 @@ import { Plus } from "lucide-react";
 import { Fragment } from "react";
 import { AvatarPerfil } from "@/components/AvatarPerfil";
 import { SeletorIdioma } from "@/components/SeletorIdioma";
+import { SincronizadorAgendaApp } from "@/components/SincronizadorAgendaApp";
 import { useIdioma } from "@/hooks/useIdioma";
 import type { ChaveTraducao } from "@/lib/i18n/traducoes";
 import { supabase } from "@/integrations/supabase/client";
@@ -576,6 +577,13 @@ export function AppLayout({
     limparUrlRetorno();
     navigate({ to: "/entrar", replace: true });
   }
+  // Tela Ajustes do app pede para sair por evento (o sair completo mora aqui).
+  useEffect(() => {
+    const sair = () => void signOut();
+    window.addEventListener("sair-da-conta", sair);
+    return () => window.removeEventListener("sair-da-conta", sair);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const NavLink = ({
       item,
@@ -702,6 +710,17 @@ export function AppLayout({
         </div>
       </Link>
       <OracleQuotaBadge />
+      {/* Só no app do iPhone: tela de Ajustes própria (idioma, notificações, agenda, versão). */}
+      <Link
+        to="/ajustes-app"
+        onClick={onNavigate}
+        className="hidden items-center gap-3 rounded-xl border bg-card px-3 py-2.5 text-sm font-medium native:flex"
+      >
+        <span className="flex size-8 items-center justify-center rounded-lg bg-slate-700 text-white">
+          <Settings className="size-4.5" aria-hidden="true" />
+        </span>
+        Ajustes do app
+      </Link>
       <NavLinks onNavigate={onNavigate} />
       <Button
         variant="ghost"
@@ -877,7 +896,10 @@ export function AppLayout({
                   <span className="hidden text-xs font-medium sm:inline">Calendário</span>
                 </Link>
               </Button>
-              <SeletorIdioma />
+              {/* No app o idioma fica em Ajustes; no site continua aqui no topo. */}
+              <span className="contents native:hidden">
+                <SeletorIdioma />
+              </span>
               <CalculadoraRapida />
               <AvatarPerfil tamanho="size-8" className="ml-1" />
               <span className="hidden sm:contents">
@@ -926,7 +948,7 @@ export function AppLayout({
         </header>
 
         {modoCliente && (
-          <div className="mx-auto mt-3 flex w-full max-w-7xl flex-wrap items-center justify-between gap-2 rounded-md border border-amber-400 bg-amber-100 px-4 py-2 text-sm text-amber-900 dark:bg-amber-900/40 dark:text-amber-100">
+          <div className="mx-auto mt-3 flex w-full max-w-7xl flex-wrap items-center justify-between gap-2 rounded-md border border-amber-400 bg-amber-100 px-4 py-2 text-sm text-amber-900 dark:bg-amber-900/40 dark:text-amber-100 native:hidden">
             <span>Modo usuário comum ativo. Itens administrativos ficam ocultos.</span>
             <Button size="sm" variant="outline" onClick={() => definirModoCliente(false)}>
               Voltar à visão admin
@@ -942,11 +964,15 @@ export function AppLayout({
             children
           )}
           <AppEmBreve className="mt-10 native:hidden" />
+          <SincronizadorAgendaApp />
         </main>
       </div>
 
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent side="left" className="w-72 bg-sidebar p-0">
+        <SheetContent
+          side="left"
+          className="w-72 bg-sidebar p-0 native:overflow-y-auto native:pb-[var(--app-inset-bottom,0px)]"
+        >
           <SheetTitle className="sr-only">Menu</SheetTitle>
           <div className="border-b p-3 lg:hidden">
             <Button

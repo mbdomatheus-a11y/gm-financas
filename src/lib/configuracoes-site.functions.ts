@@ -28,7 +28,7 @@ export const obterConfiguracaoAcesso = createServerFn({ method: "GET" }).handler
   const { data, error } = await (supabaseAdmin as any)
     .from("configuracoes_acesso_site")
     .select(
-      "modo_login,segundo_fator_email,sessao_maxima_minutos,cota_convites,google_drive_habilitado,cadastro_livre_habilitado,tela_inicial_padrao",
+      "modo_login,segundo_fator_email,sessao_maxima_minutos,cota_convites,google_drive_habilitado,cadastro_livre_habilitado,tela_inicial_padrao,rodada_aviso_convite,rodada_aviso_privacidade",
     )
     .eq("id", true)
     .single();
@@ -46,8 +46,40 @@ export const obterConfiguracaoAcesso = createServerFn({ method: "GET" }).handler
     /** Tela em que o login cai por padrão (Item 1 da Frente 4, plano de
      * 2026-10-02) — ver `src/lib/tela-inicial-padrao.ts`. */
     tela_inicial_padrao: "financas" | "lista-compras" | "notas";
+    /** Rodada dos avisos dispensáveis: o admin aumenta para mostrar de novo a todos. */
+    rodada_aviso_convite: number;
+    rodada_aviso_privacidade: number;
   };
 });
+
+/** Admin: mostra de novo um aviso dispensável para todos (convite de amigos ou cookies). */
+export const adminRedispararAviso = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((v: unknown) => z.object({ aviso: z.enum(["convite", "privacidade"]) }).parse(v))
+  .handler(async ({ data, context }) => {
+    await exigirAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const db = supabaseAdmin as any;
+    const coluna = data.aviso === "convite" ? "rodada_aviso_convite" : "rodada_aviso_privacidade";
+    const { data: atual, error: erroLeitura } = await db
+      .from("configuracoes_acesso_site")
+      .select(coluna)
+      .eq("id", true)
+      .single();
+    if (erroLeitura) throw new Error(erroLeitura.message);
+    const nova = Number(atual?.[coluna] ?? 1) + 1;
+    const { error } = await db
+      .from("configuracoes_acesso_site")
+      .update({ [coluna]: nova, atualizado_em: new Date().toISOString(), atualizado_por: context.userId })
+      .eq("id", true);
+    if (error) throw new Error(error.message);
+    await db.from("admin_audit_logs").insert({
+      ator_id: context.userId,
+      acao: "aviso_redisparado",
+      detalhes: { aviso: data.aviso, rodada: nova },
+    });
+    return { ok: true as const, rodada: nova };
+  });
 
 export const adminSalvarTelaInicialPadrao = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

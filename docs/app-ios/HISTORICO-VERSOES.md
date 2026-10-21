@@ -15,7 +15,21 @@ registrar aqui embaixo e enviar para a branch `ios-app` (o GitHub Actions compil
 Mudanças de site (pasta `src/`) só chegam ao app depois do merge em `main` (deploy da Vercel),
 porque o app carrega o site de produção.
 
-## 1.1.0 (build 17 em diante): agenda e controle de versões
+## 1.2.0 (build 18 em diante): login, notificações, ajustes e acabamento
+- Abertura animada do logo (continua a tela de abertura do iOS e sai com zoom quando a página carrega).
+- Login travado como tela de app (sem rolar, sem cabeçalho do site), sugestões de e-mail tocáveis,
+  olho para mostrar a senha, senha nas Senhas do iPhone (Associated Domains + apple-app-site-association).
+- Login social pela janela do iOS (ASWebAuthenticationSession, retorno controlall://auth-callback).
+- Notificações locais na tela de bloqueio (faturas, contas, garantias) e botão de teste.
+- Agenda do iPhone automática depois de vinculada; botão só aparece se ainda não vinculou.
+- Tela Ajustes do app; idioma padrão português e seletor só nos Ajustes (no site continua no topo).
+- No app a visão é sempre de usuário; admin completo só no navegador.
+- Home: widgets reordenados arrastando (@dnd-kit).
+- Assistente da Home: dados extras não contam mais no limite de 500 caracteres da pergunta.
+- Convite de amigos e aviso de cookies: dispensou, não volta; o admin pode redisparar (Administração).
+- Transição de voltar entrando pela esquerda; menu e aviso de cookies respeitam a barrinha de início.
+
+## 1.1.0 (build 17): agenda e controle de versões
 - Sincronizar com a agenda do iPhone: calendário "Control ALL" com vencimentos de faturas em aberto
   e fim de garantias dos próximos 12 meses, lembrete na véspera às 9h. Sincronizar de novo atualiza
   e remove o que foi pago.

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { ehAppNativo, ponteNativa } from "@/lib/app-nativo";
 import { Button } from "@/components/ui/button";
 
 interface SocialAuthButtonsProps {
@@ -23,9 +24,78 @@ export function SocialAuthButtons({
     setNavegadorEmbutido(/Instagram|FBAN|FBAV|FB_IAB|TikTok|Line\/|Snapchat|MicroMessenger/i.test(navigator.userAgent));
   }, []);
 
+  // Destrava o botão ao voltar para a página (ex.: o usuário saiu para o provedor e voltou).
+  useEffect(() => {
+    const destravar = () => setLoadingProvider(null);
+    const aoFicarVisivel = () => {
+      if (document.visibilityState === "visible") window.setTimeout(destravar, 1500);
+    };
+    window.addEventListener("pageshow", destravar);
+    document.addEventListener("visibilitychange", aoFicarVisivel);
+    return () => {
+      window.removeEventListener("pageshow", destravar);
+      document.removeEventListener("visibilitychange", aoFicarVisivel);
+    };
+  }, []);
+
+  // App do iPhone: a janela de login do iOS devolve controlall://auth-callback com a sessão.
+  useEffect(() => {
+    const aoResultado = async (ev: Event) => {
+      const r = (ev as CustomEvent<{ ok: boolean; url?: string; erro?: string; cancelado?: boolean }>).detail;
+      if (!r?.ok || !r.url) {
+        setLoadingProvider(null);
+        if (!r?.cancelado) toast.error(r?.erro ?? "Não foi possível entrar.");
+        return;
+      }
+      try {
+        const retorno = new URL(r.url.replace(/^controlall:\/\//, "https://app.controlall.local/"));
+        const hash = new URLSearchParams(retorno.hash.replace(/^#/, ""));
+        const consulta = retorno.searchParams;
+        const erro = hash.get("error_description") ?? consulta.get("error_description") ?? consulta.get("error");
+        if (erro) throw new Error(erro.replace(/\+/g, " "));
+        const accessToken = hash.get("access_token");
+        const refreshToken = hash.get("refresh_token");
+        const codigo = consulta.get("code");
+        if (accessToken && refreshToken) {
+          const { error } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+          if (error) throw error;
+        } else if (codigo) {
+          const { error } = await supabase.auth.exchangeCodeForSession(codigo);
+          if (error) throw error;
+        } else {
+          throw new Error("O login não devolveu a sessão. Tente de novo ou use e-mail e senha.");
+        }
+        // A página /entrar finaliza o perfil e leva para a tela inicial.
+        window.location.assign(next ? `/entrar?next=${encodeURIComponent(next)}` : "/entrar");
+      } catch (e) {
+        setLoadingProvider(null);
+        toast.error(e instanceof Error ? e.message : "Não foi possível entrar.");
+      }
+    };
+    window.addEventListener("auth-app-resultado", aoResultado);
+    return () => window.removeEventListener("auth-app-resultado", aoResultado);
+  }, [next]);
+
   const handleOAuth = async (provider: "google" | "azure" | "apple") => {
     try {
       setLoadingProvider(provider);
+
+      // No app do iPhone: login pela janela do iOS, que volta para o app (não abre o Safari).
+      const ponte = ehAppNativo() ? ponteNativa("authApp") : null;
+      if (ponte) {
+        const { data, error } = await supabase.auth.signInWithOAuth({
+          provider,
+          options: { redirectTo: "controlall://auth-callback", skipBrowserRedirect: true },
+        });
+        if (error || !data?.url) {
+          toast.error(error ? `Falha na autenticação: ${error.message}` : "Não foi possível iniciar o login.");
+          setLoadingProvider(null);
+          return;
+        }
+        ponte.postMessage({ url: data.url });
+        return;
+      }
+
       const origin = window.location.origin;
       const redirectUrl = next
         ? `${origin}/entrar?next=${encodeURIComponent(next)}`

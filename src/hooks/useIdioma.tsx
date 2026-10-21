@@ -10,6 +10,7 @@ import {
 } from "@/lib/i18n/idiomas";
 import { traduzir, type ChaveTraducao } from "@/lib/i18n/traducoes";
 import { aplicarIdioma } from "@/lib/i18n/runtime";
+import { ehAppNativo } from "@/lib/app-nativo";
 
 const CHAVE_LOCAL = "control-all.idioma";
 
@@ -41,7 +42,8 @@ export function IdiomaProvider({ children }: { children: React.ReactNode }) {
   const [local, setLocal] = useState<Idioma | null>(() => lerLocal());
   const daConta = idiomaValido((prefs as { idioma?: unknown }).idioma);
 
-  const idioma = daConta ?? local ?? idiomaDoNavegador();
+  // No app do iPhone o padrão é português do Brasil (troca em Ajustes); no site segue o navegador.
+  const idioma = daConta ?? local ?? (ehAppNativo() ? IDIOMA_PADRAO : idiomaDoNavegador());
   const automatico = !daConta && !local;
 
   // A conta manda: se o usuário trocou em outro aparelho, o navegador acompanha.

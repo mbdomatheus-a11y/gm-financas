@@ -19,6 +19,16 @@ platform :ios do
       in_house: false
     )
 
+    # Salvar senha nas Senhas do iPhone: o App ID precisa da capacidade Associated Domains
+    # (idempotente: só liga se ainda não estiver ligada). O perfil gerado abaixo já a inclui.
+    Spaceship::ConnectAPI.token = Spaceship::ConnectAPI::Token.from(hash: api)
+    bundle = Spaceship::ConnectAPI::BundleId.find(BUNDLE_ID)
+    tipos = bundle.get_capabilities.map(&:capability_type)
+    unless tipos.include?(Spaceship::ConnectAPI::BundleIdCapability::Type::ASSOCIATED_DOMAINS)
+      UI.message("Ligando Associated Domains no App ID #{BUNDLE_ID}")
+      bundle.update_capability(Spaceship::ConnectAPI::BundleIdCapability::Type::ASSOCIATED_DOMAINS, enabled: true)
+    end
+
     # Perfil de App Store usando o certificado já importado do Secret CERT_P12_BASE64.
     sigh(
       api_key: api,
@@ -47,6 +57,7 @@ platform :ios do
       c.build_settings["PROVISIONING_PROFILE_SPECIFIER"] = perfil
       c.build_settings["CURRENT_PROJECT_VERSION"] = ENV["GITHUB_RUN_NUMBER"] || "1"
       c.build_settings["MARKETING_VERSION"] = versao
+      c.build_settings["CODE_SIGN_ENTITLEMENTS"] = "App/App.entitlements"
     end
     proj.save
 

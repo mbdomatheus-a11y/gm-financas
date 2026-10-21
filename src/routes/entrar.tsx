@@ -124,13 +124,16 @@ function LoginPage() {
   }, [search.next, configInicial?.tela_inicial_padrao, garantirPerfilOAuth]);
 
   return (
-    <main className="min-h-screen bg-background text-foreground flex flex-col">
-      <SiteHeader />
+    <main className="min-h-screen bg-background text-foreground flex flex-col native:min-h-dvh">
+      {/* No app: só a tela de acesso, sem o cabeçalho do site. */}
+      <div className="contents native:hidden">
+        <SiteHeader />
+      </div>
       <div className="flex-1 flex flex-col items-center justify-center px-4 py-10">
         <div className="w-full max-w-sm">
           <Link
             to="/"
-            className="mb-6 flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
+            className="mb-6 flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground native:hidden"
           >
             <ArrowLeft className="size-3.5" /> Voltar pra página inicial
           </Link>

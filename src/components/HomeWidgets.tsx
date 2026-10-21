@@ -1,11 +1,10 @@
 import { GraficoHome, opcaoGraficoValida } from "@/components/GraficoHome";
 import { Link } from "@tanstack/react-router";
 import {
-  ArrowDown,
   ArrowRight,
-  ArrowUp,
   CalendarDays,
   DatabaseBackup,
+  GripVertical,
   Headphones,
   LayoutGrid,
   Lock,
@@ -18,6 +17,24 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  TouchSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  rectSortingStrategy,
+  sortableKeyboardCoordinates,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 import { GamificacaoFinanceira } from "@/components/GamificacaoFinanceira";
 import { Button } from "@/components/ui/button";
@@ -247,6 +264,80 @@ const ROTULO_TAMANHO: Record<TamanhoWidget, string> = { p: "Pequeno", m: "Médio
  * e ter o tamanho ajustado (respeitando um mínimo). "Organizar automático"
  * volta ao layout padrão. A escolha fica salva na conta (preferencias_usuario).
  */
+/** Um widget da Home que pode ser arrastado para outra posição quando "Personalizar" está ativo. */
+function WidgetOrdenavel({
+  item,
+  editando,
+  onTamanho,
+  onRemover,
+  onOpcao,
+}: {
+  item: ItemWidget;
+  editando: boolean;
+  onTamanho: (t: TamanhoWidget) => void;
+  onRemover: () => void;
+  onOpcao: (o: string) => void;
+}) {
+  const info = WIDGETS[item.id];
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } =
+    useSortable({ id: item.id, disabled: !editando });
+  return (
+    <section
+      ref={setNodeRef}
+      aria-label={info.titulo}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={cn(
+        classeTamanho(item.tamanho),
+        "relative min-w-0",
+        editando && "rounded-xl ring-2 ring-primary/30 ring-offset-2 ring-offset-background",
+        isDragging && "z-20 scale-[1.02] opacity-90 shadow-2xl ring-primary",
+      )}
+    >
+      {editando && (
+        <div className="mb-2 flex flex-wrap items-center gap-1 rounded-lg bg-muted/60 p-1.5 text-xs">
+          <button
+            type="button"
+            ref={setActivatorNodeRef}
+            {...attributes}
+            {...listeners}
+            className="flex h-9 min-w-9 cursor-grab touch-none items-center gap-1.5 rounded-md px-1.5 font-semibold active:cursor-grabbing"
+            aria-label={`Arrastar ${info.titulo} para outra posição`}
+          >
+            <GripVertical className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+            <span className="truncate">{info.titulo}</span>
+          </button>
+          <span className="mr-auto" />
+          {(["p", "m", "g"] as TamanhoWidget[]).map((t) => (
+            <Button
+              key={t}
+              size="sm"
+              variant={item.tamanho === t ? "default" : "outline"}
+              className="h-7 px-2 text-xs"
+              disabled={!tamanhoPermitido(item.id, t)}
+              aria-pressed={item.tamanho === t}
+              onClick={() => onTamanho(t)}
+            >
+              {ROTULO_TAMANHO[t]}
+            </Button>
+          ))}
+          <Button
+            size="icon"
+            variant="outline"
+            className="size-7"
+            aria-label={`Remover ${info.titulo} da tela`}
+            onClick={onRemover}
+          >
+            <X className="size-3.5" aria-hidden="true" />
+          </Button>
+        </div>
+      )}
+      <div className={cn(isDragging && "pointer-events-none")}>
+        <Corpo id={item.id} opcao={item.opcao} onOpcao={onOpcao} />
+      </div>
+    </section>
+  );
+}
+
 export function HomeWidgets() {
   const { prefs, save } = usePreferencias();
   const podeMostrar = usePodeMostrar();
@@ -259,12 +350,19 @@ export function HomeWidgets() {
     setItens(novo);
     save.mutate({ home_widgets: auto ? null : novo });
   }
-  function mover(i: number, dir: -1 | 1) {
-    const j = i + dir;
-    if (j < 0 || j >= itens.length) return;
-    const novo = [...itens];
-    [novo[i], novo[j]] = [novo[j]!, novo[i]!];
-    aplicar(novo);
+  // Arrastar e soltar: no toque, segurar ~0,15 s inicia o arraste (rolar a tela continua livre).
+  const sensores = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+  function aoSoltar(evento: DragEndEvent) {
+    const { active, over } = evento;
+    if (!over || active.id === over.id) return;
+    const de = itens.findIndex((x) => x.id === active.id);
+    const para = itens.findIndex((x) => x.id === over.id);
+    if (de < 0 || para < 0) return;
+    aplicar(arrayMove(itens, de, para));
   }
   const ausentes = (Object.keys(WIDGETS) as WidgetId[]).filter(
     (id) => !itens.some((x) => x.id === id) && podeMostrar(id),
@@ -289,76 +387,31 @@ export function HomeWidgets() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {itens.map((item, i) => {
-          if (!podeMostrar(item.id)) return null;
-          const info = WIDGETS[item.id];
-          return (
-            <section
-              key={item.id}
-              aria-label={info.titulo}
-              className={cn(
-                classeTamanho(item.tamanho),
-                "relative min-w-0",
-                editando && "rounded-xl ring-2 ring-primary/30 ring-offset-2 ring-offset-background",
-              )}
-            >
-              {editando && (
-                <div className="mb-2 flex flex-wrap items-center gap-1 rounded-lg bg-muted/60 p-1.5 text-xs">
-                  <span className="mr-auto px-1 font-semibold">{info.titulo}</span>
-                  {(["p", "m", "g"] as TamanhoWidget[]).map((t) => (
-                    <Button
-                      key={t}
-                      size="sm"
-                      variant={item.tamanho === t ? "default" : "outline"}
-                      className="h-7 px-2 text-xs"
-                      disabled={!tamanhoPermitido(item.id, t)}
-                      aria-pressed={item.tamanho === t}
-                      onClick={() => aplicar(itens.map((x) => (x.id === item.id ? { ...x, tamanho: t } : x)))}
-                    >
-                      {ROTULO_TAMANHO[t]}
-                    </Button>
-                  ))}
-                  <Button
-                    size="icon"
-                    variant="outline"
-                    className="size-7"
-                    disabled={i === 0}
-                    aria-label={`Mover ${info.titulo} para antes`}
-                    onClick={() => mover(i, -1)}
-                  >
-                    <ArrowUp className="size-3.5" aria-hidden="true" />
-                  </Button>
-                  <Button
-                    size="icon"
-                    variant="outline"
-                    className="size-7"
-                    disabled={i === itens.length - 1}
-                    aria-label={`Mover ${info.titulo} para depois`}
-                    onClick={() => mover(i, 1)}
-                  >
-                    <ArrowDown className="size-3.5" aria-hidden="true" />
-                  </Button>
-                  <Button
-                    size="icon"
-                    variant="outline"
-                    className="size-7"
-                    aria-label={`Remover ${info.titulo} da tela`}
-                    onClick={() => aplicar(itens.filter((x) => x.id !== item.id))}
-                  >
-                    <X className="size-3.5" aria-hidden="true" />
-                  </Button>
-                </div>
-              )}
-              <Corpo
-                id={item.id}
-                opcao={item.opcao}
-                onOpcao={(o) => aplicar(itens.map((x) => (x.id === item.id ? { ...x, opcao: o } : x)))}
-              />
-            </section>
-          );
-        })}
-      </div>
+      {editando && (
+        <p className="mb-3 text-xs text-muted-foreground">
+          Arraste pelo <GripVertical className="inline size-3.5 align-text-bottom" aria-hidden="true" /> para mudar a
+          ordem. No celular, segure e arraste.
+        </p>
+      )}
+      <DndContext sensors={sensores} collisionDetection={closestCenter} onDragEnd={aoSoltar}>
+        <SortableContext items={itens.map((x) => x.id)} strategy={rectSortingStrategy}>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {itens.map((item) => {
+              if (!podeMostrar(item.id)) return null;
+              return (
+                <WidgetOrdenavel
+                  key={item.id}
+                  item={item}
+                  editando={editando}
+                  onTamanho={(t) => aplicar(itens.map((x) => (x.id === item.id ? { ...x, tamanho: t } : x)))}
+                  onRemover={() => aplicar(itens.filter((x) => x.id !== item.id))}
+                  onOpcao={(o) => aplicar(itens.map((x) => (x.id === item.id ? { ...x, opcao: o } : x)))}
+                />
+              );
+            })}
+          </div>
+        </SortableContext>
+      </DndContext>
 
       {editando && ausentes.length > 0 && (
         <Card className="mt-4">
