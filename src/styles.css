@@ -282,6 +282,8 @@
 html.native-app { overflow-x: clip; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 html.native-app body { overscroll-behavior-x: none; }
 .native-app { -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; }
+/* Com o teclado aberto, a barra de baixo some (como nos apps do iPhone). */
+html.native-app.teclado-aberto .barra-app { display: none; }
 .native-app :where(p, span, h1, h2, h3, h4, h5, h6, li, td, th, label, button, a) { -webkit-user-select: none; user-select: none; }
 .native-app :where(input, textarea, select, [contenteditable="true"]) { -webkit-user-select: text; user-select: text; }
 

@@ -917,7 +917,7 @@ export function AppLayout({
             </Button>
           </div>
         )}
-        <main className="mx-auto w-full max-w-7xl px-4 pb-28 pt-6 lg:px-8 lg:pb-10">
+        <main className="mx-auto w-full max-w-7xl px-4 pb-28 pt-6 lg:px-8 lg:pb-10 native:pb-[calc(5.5rem+var(--app-inset-bottom,0px))]">
           {rotaAdminBloqueada ? (
             <div className="rounded-md border p-6 text-center text-sm text-muted-foreground">
               Esta área é exclusiva do administrador. Volte à visão admin para acessá-la.
@@ -950,12 +950,18 @@ export function AppLayout({
 
       <nav
         aria-label="Navegação principal"
-        className="fixed inset-x-2 bottom-[calc(env(safe-area-inset-bottom)+0.5rem)] z-30 grid h-16 grid-cols-6 items-end rounded-2xl border border-border bg-background px-1.5 shadow-lg lg:hidden"
+        className={cn(
+          "barra-app fixed inset-x-2 bottom-[calc(env(safe-area-inset-bottom)+0.5rem)] z-30 grid h-16 grid-cols-6 items-end rounded-2xl border border-border bg-background px-1.5 shadow-lg lg:hidden",
+          // No app iOS: barra colada embaixo, cobrindo a área do indicador de início.
+          "native:inset-x-0 native:bottom-0 native:h-[calc(3.5rem+var(--app-inset-bottom,0px))] native:items-stretch native:rounded-none native:border-x-0 native:border-b-0 native:bg-background/90 native:px-1 native:pb-[var(--app-inset-bottom,0px)] native:shadow-none native:backdrop-blur-xl",
+          // Com o botão + no centro, ele ganha coluna própria (não fica por cima dos vizinhos).
+          acaoCentral && "native:grid-cols-7",
+        )}
       >
         <Link
           to="/inicio"
           className={cn(
-            "flex h-full flex-col items-center justify-end gap-0.5 pb-1.5 text-[10px] font-medium leading-none",
+            "flex h-full flex-col items-center justify-end gap-0.5 pb-1.5 text-[10px] font-medium leading-none native:justify-center native:gap-1 native:pb-0 native:[&>svg]:size-6",
             pathname === "/inicio" ? "text-primary" : "text-muted-foreground",
           )}
         >
@@ -965,7 +971,7 @@ export function AppLayout({
         <Link
           to="/calendario"
           className={cn(
-            "flex h-full flex-col items-center justify-end gap-0.5 pb-1.5 text-[10px] font-medium leading-none",
+            "flex h-full flex-col items-center justify-end gap-0.5 pb-1.5 text-[10px] font-medium leading-none native:justify-center native:gap-1 native:pb-0 native:[&>svg]:size-6",
             pathname === "/calendario" ? "text-primary" : "text-muted-foreground",
           )}
         >
@@ -981,7 +987,7 @@ export function AppLayout({
                 key={m.id}
                 to={MUNDOS[m.id].home}
                 className={cn(
-                  "flex h-full flex-col items-center justify-end gap-0.5 pb-1.5 text-[10px] font-medium leading-none",
+                  "flex h-full flex-col items-center justify-end gap-0.5 pb-1.5 text-[10px] font-medium leading-none native:justify-center native:gap-1 native:pb-0 native:[&>svg]:size-6",
                   mundoId === m.id ? "text-primary" : "text-muted-foreground",
                 )}
               >
@@ -993,6 +999,18 @@ export function AppLayout({
           return (
             <Fragment>
               {visiveis.slice(0, 1).map(renderAtalho)}
+              {acaoCentral && (
+                <div className="hidden items-center justify-center native:flex">
+                  <button
+                    type="button"
+                    aria-label={acaoCentral.rotulo}
+                    onClick={() => window.dispatchEvent(new Event(acaoCentral.evento))}
+                    className="flex size-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md transition-transform active:scale-95"
+                  >
+                    <Plus className="size-6" />
+                  </button>
+                </div>
+              )}
               {visiveis.slice(1).map(renderAtalho)}
             </Fragment>
           );
@@ -1000,7 +1018,7 @@ export function AppLayout({
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="flex h-full flex-col items-center justify-end gap-0.5 pb-1.5 text-[10px] font-medium leading-none text-muted-foreground"
+          className="flex h-full flex-col items-center justify-end gap-0.5 pb-1.5 text-[10px] font-medium leading-none native:justify-center native:gap-1 native:pb-0 native:[&>svg]:size-6 text-muted-foreground"
         >
           <Menu className="size-5" />
           Menu
@@ -1010,7 +1028,7 @@ export function AppLayout({
             type="button"
             aria-label={acaoCentral.rotulo}
             onClick={() => window.dispatchEvent(new Event(acaoCentral.evento))}
-            className="absolute left-1/2 -top-8 flex size-14 -translate-x-1/2 flex-col items-center justify-center gap-0.5 rounded-full bg-primary text-primary-foreground shadow-lg ring-4 ring-background transition-transform active:scale-95"
+            className="absolute left-1/2 -top-8 flex size-14 -translate-x-1/2 flex-col items-center justify-center gap-0.5 rounded-full bg-primary text-primary-foreground shadow-lg ring-4 ring-background transition-transform active:scale-95 native:hidden"
           >
             <Plus className="size-6" />
             <span className="text-[10px] font-semibold leading-none">{acaoCentral.curto}</span>

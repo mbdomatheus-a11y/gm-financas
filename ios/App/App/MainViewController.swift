@@ -1,5 +1,6 @@
 import UIKit
 import WebKit
+import AVFoundation
 import Capacitor
 
 /// Controlador principal do app Control ALL.
@@ -16,6 +17,8 @@ class MainViewController: CAPBridgeViewController, WKScriptMessageHandler {
     private let corEscura = UIColor(red: 15.0 / 255.0, green: 21.0 / 255.0, blue: 32.0 / 255.0, alpha: 1)
     private let faixaStatus = UIView()
     private var temaEscuro = false
+    private var alturaTeclado: CGFloat = 0
+    private let chavePermissoes = "controlall.permissoesIniciaisPedidas"
 
     // MARK: - Configuração da WebView (antes de ela ser criada)
 
@@ -125,6 +128,89 @@ class MainViewController: CAPBridgeViewController, WKScriptMessageHandler {
             faixaStatus.bottomAnchor.constraint(equalTo: webView.safeAreaLayoutGuide.topAnchor),
         ])
         aplicarTema(escuro: false)
+
+        // Teclado: a WebView encolhe para caber acima dele (nada fica "atrás" do teclado
+        // e a tela não pula), e o site esconde a barra de baixo enquanto ele está aberto.
+        let centro = NotificationCenter.default
+        centro.addObserver(self, selector: #selector(tecladoMudou(_:)),
+                           name: UIResponder.keyboardWillChangeFrameNotification, object: nil)
+        centro.addObserver(self, selector: #selector(tecladoSumiu(_:)),
+                           name: UIResponder.keyboardWillHideNotification, object: nil)
+    }
+
+    // MARK: - Primeira abertura: pedir câmera e microfone
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        guard !UserDefaults.standard.bool(forKey: chavePermissoes) else { return }
+        // Espera a primeira tela aparecer antes de perguntar.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [weak self] in self?.pedirPermissoesIniciais() }
+    }
+
+    private func pedirPermissoesIniciais() {
+        guard view.window != nil, presentedViewController == nil else { return }
+        UserDefaults.standard.set(true, forKey: chavePermissoes)
+        let precisaCamera = AVCaptureDevice.authorizationStatus(for: .video) == .notDetermined
+        let precisaMicrofone = AVCaptureDevice.authorizationStatus(for: .audio) == .notDetermined
+        guard precisaCamera || precisaMicrofone else { return }
+
+        let alerta = UIAlertController(
+            title: "Bem-vindo ao Control ALL",
+            message: "Para fotografar notas fiscais e comprovantes, e para lançar despesas falando, "
+                + "o app precisa da câmera e do microfone. Você pode mudar isso depois em Ajustes.",
+            preferredStyle: .alert
+        )
+        alerta.addAction(UIAlertAction(title: "Agora não", style: .cancel))
+        alerta.addAction(UIAlertAction(title: "Permitir", style: .default) { _ in
+            let pedirMicrofone = {
+                guard precisaMicrofone else { return }
+                AVCaptureDevice.requestAccess(for: .audio) { _ in }
+            }
+            if precisaCamera {
+                AVCaptureDevice.requestAccess(for: .video) { _ in
+                    DispatchQueue.main.async { pedirMicrofone() }
+                }
+            } else {
+                pedirMicrofone()
+            }
+        })
+        present(alerta, animated: true)
+    }
+
+    // MARK: - Teclado
+
+    @objc private func tecladoMudou(_ aviso: Notification) {
+        guard let janela = webView?.window,
+              let fim = (aviso.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue
+        else { return }
+        let fimNaJanela = janela.convert(fim, from: nil)
+        aplicarTeclado(altura: max(0, janela.bounds.maxY - fimNaJanela.minY), aviso: aviso)
+    }
+
+    @objc private func tecladoSumiu(_ aviso: Notification) {
+        aplicarTeclado(altura: 0, aviso: aviso)
+    }
+
+    private func aplicarTeclado(altura: CGFloat, aviso: Notification) {
+        guard let webView = webView, let janela = webView.window, altura != alturaTeclado else { return }
+        alturaTeclado = altura
+        var quadro = janela.bounds
+        quadro.size.height -= altura
+        let duracao = (aviso.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? Double) ?? 0.25
+        UIView.animate(withDuration: duracao) { webView.frame = quadro }
+        webView.evaluateJavaScript(
+            "document.documentElement.classList.toggle('teclado-aberto', \(altura > 0 ? "true" : "false"))",
+            completionHandler: nil
+        )
+        atualizarAreasSeguras()
+    }
+
+    /// Passa para o site a altura real das áreas do sistema (barra de baixo / indicador de início).
+    private func atualizarAreasSeguras() {
+        guard let webView = webView else { return }
+        let baixo = alturaTeclado > 0 ? 0 : view.safeAreaInsets.bottom
+        let js = "document.documentElement.style.setProperty('--app-inset-bottom', '\(Int(baixo))px')"
+        webView.evaluateJavaScript(js, completionHandler: nil)
     }
 
     @objc private func recarregar(_ controle: UIRefreshControl) {
@@ -137,6 +223,8 @@ class MainViewController: CAPBridgeViewController, WKScriptMessageHandler {
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         guard message.name == "temaApp", let valor = message.body as? String else { return }
         aplicarTema(escuro: valor == "escuro")
+        // A cada página carregada (e troca de tema) reenvia as áreas seguras para o CSS.
+        atualizarAreasSeguras()
     }
 
     private func aplicarTema(escuro: Bool) {
