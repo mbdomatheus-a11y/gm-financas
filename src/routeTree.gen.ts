@@ -19,6 +19,7 @@ import { Route as PrivacidadeRouteImport } from './routes/privacidade'
 import { Route as RedefinirSenhaRouteImport } from './routes/redefinir-senha'
 import { Route as TermosDeUsoRouteImport } from './routes/termos-de-uso'
 import { Route as AuthenticatedAdministracaoRouteImport } from './routes/_authenticated/administracao'
+import { Route as AuthenticatedAjustesAppRouteImport } from './routes/_authenticated/ajustes-app'
 import { Route as AuthenticatedBackupRouteImport } from './routes/_authenticated/backup'
 import { Route as AuthenticatedCalendarioRouteImport } from './routes/_authenticated/calendario'
 import { Route as AuthenticatedCartoesRouteImport } from './routes/_authenticated/cartoes'
@@ -115,6 +116,11 @@ const AuthenticatedAdministracaoRoute =
     path: '/administracao',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedAjustesAppRoute = AuthenticatedAjustesAppRouteImport.update({
+  id: '/ajustes-app',
+  path: '/ajustes-app',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedBackupRoute = AuthenticatedBackupRouteImport.update({
   id: '/backup',
   path: '/backup',
@@ -363,6 +369,7 @@ export interface FileRoutesByFullPath {
   '/redefinir-senha': typeof RedefinirSenhaRoute
   '/termos-de-uso': typeof TermosDeUsoRoute
   '/administracao': typeof AuthenticatedAdministracaoRoute
+  '/ajustes-app': typeof AuthenticatedAjustesAppRoute
   '/backup': typeof AuthenticatedBackupRoute
   '/calendario': typeof AuthenticatedCalendarioRoute
   '/cartoes': typeof AuthenticatedCartoesRoute
@@ -419,6 +426,7 @@ export interface FileRoutesByTo {
   '/redefinir-senha': typeof RedefinirSenhaRoute
   '/termos-de-uso': typeof TermosDeUsoRoute
   '/administracao': typeof AuthenticatedAdministracaoRoute
+  '/ajustes-app': typeof AuthenticatedAjustesAppRoute
   '/backup': typeof AuthenticatedBackupRoute
   '/calendario': typeof AuthenticatedCalendarioRoute
   '/cartoes': typeof AuthenticatedCartoesRoute
@@ -477,6 +485,7 @@ export interface FileRoutesById {
   '/redefinir-senha': typeof RedefinirSenhaRoute
   '/termos-de-uso': typeof TermosDeUsoRoute
   '/_authenticated/administracao': typeof AuthenticatedAdministracaoRoute
+  '/_authenticated/ajustes-app': typeof AuthenticatedAjustesAppRoute
   '/_authenticated/backup': typeof AuthenticatedBackupRoute
   '/_authenticated/calendario': typeof AuthenticatedCalendarioRoute
   '/_authenticated/cartoes': typeof AuthenticatedCartoesRoute
@@ -535,6 +544,7 @@ export interface FileRouteTypes {
     | '/redefinir-senha'
     | '/termos-de-uso'
     | '/administracao'
+    | '/ajustes-app'
     | '/backup'
     | '/calendario'
     | '/cartoes'
@@ -591,6 +601,7 @@ export interface FileRouteTypes {
     | '/redefinir-senha'
     | '/termos-de-uso'
     | '/administracao'
+    | '/ajustes-app'
     | '/backup'
     | '/calendario'
     | '/cartoes'
@@ -648,6 +659,7 @@ export interface FileRouteTypes {
     | '/redefinir-senha'
     | '/termos-de-uso'
     | '/_authenticated/administracao'
+    | '/_authenticated/ajustes-app'
     | '/_authenticated/backup'
     | '/_authenticated/calendario'
     | '/_authenticated/cartoes'
@@ -791,6 +803,13 @@ declare module '@tanstack/react-router' {
       path: '/administracao'
       fullPath: '/administracao'
       preLoaderRoute: typeof AuthenticatedAdministracaoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/ajustes-app': {
+      id: '/_authenticated/ajustes-app'
+      path: '/ajustes-app'
+      fullPath: '/ajustes-app'
+      preLoaderRoute: typeof AuthenticatedAjustesAppRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/backup': {
@@ -1113,6 +1132,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdministracaoRoute: typeof AuthenticatedAdministracaoRoute
+  AuthenticatedAjustesAppRoute: typeof AuthenticatedAjustesAppRoute
   AuthenticatedBackupRoute: typeof AuthenticatedBackupRoute
   AuthenticatedCalendarioRoute: typeof AuthenticatedCalendarioRoute
   AuthenticatedCartoesRoute: typeof AuthenticatedCartoesRoute
@@ -1148,6 +1168,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdministracaoRoute: AuthenticatedAdministracaoRoute,
+  AuthenticatedAjustesAppRoute: AuthenticatedAjustesAppRoute,
   AuthenticatedBackupRoute: AuthenticatedBackupRoute,
   AuthenticatedCalendarioRoute: AuthenticatedCalendarioRoute,
   AuthenticatedCartoesRoute: AuthenticatedCartoesRoute,

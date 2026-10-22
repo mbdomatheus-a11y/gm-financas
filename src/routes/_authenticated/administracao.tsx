@@ -53,6 +53,7 @@ import { AcessosSiteAdmin } from "@/components/AcessosSiteAdmin";
 import { FunilAdmin, NovosUsuariosResumo } from "@/components/FunilAdmin";
 import { PadroesAdmin } from "@/components/PadroesAdmin";
 import { TelaInicialPadraoCard } from "@/components/TelaInicialPadraoCard";
+import { RedispararAvisosCard } from "@/components/RedispararAvisosCard";
 import {
   adminListarSolicitacoesPrivacidade,
   adminTratarSolicitacaoPrivacidade,
@@ -1282,6 +1283,7 @@ function Admin() {
           )}
           <IaLancamentoModoSiteCard />
           <TelaInicialPadraoCard />
+          <RedispararAvisosCard />
           <Card>
             <CardHeader><CardTitle className="text-sm">Log de tentativas de login</CardTitle></CardHeader>
             <CardContent className="space-y-3">

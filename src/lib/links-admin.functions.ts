@@ -109,7 +109,7 @@ export const adminSalvarLink = createServerFn({ method: "POST" })
           .string()
           .trim()
           .min(1, "Informe o conteúdo.")
-          .max(100_000, "Conteúdo com até 100.000 caracteres."),
+          .max(500_000, "Conteúdo com até 500.000 caracteres."),
         tipo: z.enum(["temporario", "permanente"]),
         expiraEm: z.string().datetime().nullable().optional(),
       })
@@ -277,8 +277,8 @@ export const adminUnificarLinks = createServerFn({ method: "POST" })
     const conteudo = (itens as { titulo: string; conteudo: string }[])
       .map((i) => `# ${i.titulo}\n\n${i.conteudo}`)
       .join("\n\n---\n\n");
-    if (conteudo.length > 100_000) {
-      throw new Error("A união passa de 100.000 caracteres. Escolha menos anotações.");
+    if (conteudo.length > 500_000) {
+      throw new Error("A união passa de 500.000 caracteres. Escolha menos anotações.");
     }
     const { data: novo, error: e1 } = await db
       .from("links_admin")

@@ -25,6 +25,7 @@ import {
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { ehAppNativo } from "@/lib/app-nativo";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
@@ -405,6 +406,12 @@ function LandingPage() {
   useRolagemHome();
 
   useEffect(() => {
+    // No app do iPhone não existe página inicial do site: vai direto para o app
+    // (Início se já estiver logado, senão o /inicio manda para Entrar/Criar conta).
+    if (ehAppNativo()) {
+      navigate({ to: "/inicio", replace: true });
+      return;
+    }
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) navigate({ to: "/inicio" });
     });

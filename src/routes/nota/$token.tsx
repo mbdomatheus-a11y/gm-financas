@@ -5,6 +5,10 @@ import { useServerFn } from "@tanstack/react-start";
 import { PaginaPublica } from "@/components/PaginaPublica";
 import { TextoFormatado } from "@/components/TextoFormatado";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Copy } from "lucide-react";
+import { toast } from "sonner";
+import { copiarTextoCompleto } from "@/lib/copiar-texto";
 import { abrirNotaPublica } from "@/lib/links-admin.functions";
 
 /**
@@ -49,8 +53,22 @@ function NotaPublicaPage() {
             <p className="text-sm text-muted-foreground">Carregando…</p>
           ) : ok ? (
             <>
-              <h1 className="text-xl font-bold">{ok.titulo}</h1>
-              <TextoFormatado texto={ok.conteudo} />
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h1 className="text-xl font-bold">{ok.titulo}</h1>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={async () => {
+                    const texto = `${ok.titulo}\n\n${ok.conteudo}`;
+                    if (await copiarTextoCompleto(texto)) toast.success("Nota inteira copiada.");
+                    else toast.error("Não foi possível copiar. Selecione o texto e copie manualmente.");
+                  }}
+                >
+                  <Copy className="mr-1.5 size-4" aria-hidden="true" /> Copiar nota toda
+                </Button>
+              </div>
+              <TextoFormatado texto={ok.conteudo} emCaixa />
             </>
           ) : null}
         </CardContent>

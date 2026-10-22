@@ -19,6 +19,20 @@ platform :ios do
       in_house: false
     )
 
+    # Salvar senha nas Senhas do iPhone: o App ID precisa da capacidade Associated Domains
+    # (idempotente: só liga se ainda não estiver ligada). O perfil gerado abaixo já a inclui.
+    Spaceship::ConnectAPI.token = Spaceship::ConnectAPI::Token.from(hash: api)
+    bundle = Spaceship::ConnectAPI::BundleId.find(BUNDLE_ID)
+    tipos = bundle.get_capabilities.map(&:capability_type)
+    unless tipos.include?(Spaceship::ConnectAPI::BundleIdCapability::Type::ASSOCIATED_DOMAINS)
+      UI.message("Ligando Associated Domains no App ID #{BUNDLE_ID}")
+      # Endpoint oficial da API (POST /v1/bundleIdCapabilities): funciona com a chave de API.
+      Spaceship::ConnectAPI.post_bundle_id_capability(
+        bundle_id_id: bundle.id,
+        capability_type: Spaceship::ConnectAPI::BundleIdCapability::Type::ASSOCIATED_DOMAINS
+      )
+    end
+
     # Perfil de App Store usando o certificado já importado do Secret CERT_P12_BASE64.
     sigh(
       api_key: api,
@@ -32,6 +46,10 @@ platform :ios do
     # O sigh pode criar o perfil com outro nome (sufixo); usa o nome real.
     perfil = lane_context[SharedValues::SIGH_NAME] || PERFIL
 
+    # Versão do app (ex.: 1.1.0) vem de ios/VERSAO; o build é o número da execução do CI.
+    versao = File.read(File.expand_path("../ios/VERSAO", __dir__)).strip
+    UI.message("Control ALL iOS: versão #{versao} (build #{ENV['GITHUB_RUN_NUMBER'] || '1'})")
+
     # Assinatura manual só no target App (os Pods não aceitam perfil manual).
     require "xcodeproj"
     proj = Xcodeproj::Project.open(File.expand_path("../ios/App/App.xcodeproj", __dir__))
@@ -42,6 +60,8 @@ platform :ios do
       c.build_settings["CODE_SIGN_IDENTITY"] = "Apple Distribution"
       c.build_settings["PROVISIONING_PROFILE_SPECIFIER"] = perfil
       c.build_settings["CURRENT_PROJECT_VERSION"] = ENV["GITHUB_RUN_NUMBER"] || "1"
+      c.build_settings["MARKETING_VERSION"] = versao
+      c.build_settings["CODE_SIGN_ENTITLEMENTS"] = "App/App.entitlements"
     end
     proj.save
 
@@ -59,9 +79,17 @@ platform :ios do
       }
     )
 
+    # Notas desta versão aparecem no TestFlight, em "O que testar".
+    notas = File.read(File.expand_path("notas-da-versao.txt", __dir__)).strip
     upload_to_testflight(
       api_key: api,
-      skip_waiting_for_build_processing: true
+      skip_waiting_for_build_processing: false,
+      wait_processing_timeout_duration: 2400,
+      distribute_external: false,
+      localized_build_info: {
+        "default" => { whats_new: notas },
+        "pt-BR" => { whats_new: notas }
+      }
     )
   end
 end

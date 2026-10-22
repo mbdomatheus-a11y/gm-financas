@@ -368,7 +368,9 @@ function montarPromptResumo(r: ResumoFinanceiroContexto, pergunta: string): stri
 
 export const resumoFinanceiroIA = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { pergunta: string; resumo: ResumoFinanceiroContexto }) => input)
+  .inputValidator(
+    (input: { pergunta: string; resumo: ResumoFinanceiroContexto; contextoExtra?: string }) => input,
+  )
   .handler(async ({ data, context }): Promise<{ texto: string; erro?: string }> => {
     const apiKey = chaveOpenAI();
     if (!apiKey) {
@@ -398,7 +400,17 @@ export const resumoFinanceiroIA = createServerFn({ method: "POST" })
         body: JSON.stringify({
           model: modelo,
           temperature: 0.3,
-          messages: [{ role: "system", content: montarPromptResumo(data.resumo, pergunta) }],
+          messages: [
+            {
+              role: "system",
+              content:
+                montarPromptResumo(data.resumo, pergunta) +
+                // Dados extras montados pelo próprio site (não contam no limite da pergunta do usuário).
+                (data.contextoExtra?.trim()
+                  ? `\n\nDADOS ADICIONAIS DO USUÁRIO:\n${data.contextoExtra.trim().slice(0, 6000)}`
+                  : ""),
+            },
+          ],
         }),
         signal: AbortSignal.timeout(20000),
       });

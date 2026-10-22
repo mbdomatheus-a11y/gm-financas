@@ -3,7 +3,7 @@ import { urlRetornoSegura } from "@/lib/return-url";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Loader2 } from "lucide-react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -48,6 +48,7 @@ export function EntrarForm({
   const navigate = useNavigate();
   const [identificador, setIdentificador] = useState("");
   const [senha, setSenha] = useState("");
+  const [mostrarSenha, setMostrarSenha] = useState(false);
   const [lembrarIdentificador, setLembrarIdentificador] = useState(false);
   const [loading, setLoading] = useState(false);
   const [desafio2fa, setDesafio2fa] = useState<{
@@ -81,6 +82,19 @@ export function EntrarForm({
 
   const modo = config?.modo_login ?? "ambos";
   const ehEmail = identificador.includes("@");
+
+  // Sugestões de domínio em botões (o <datalist> do navegador não funciona ao tocar no iPhone).
+  const sugestoesEmail = (() => {
+    const texto = identificador.trim();
+    if (!texto || !/[a-z]/i.test(texto)) return [];
+    const [usuario, parcial = ""] = texto.split("@");
+    if (!usuario) return [];
+    if (!texto.includes("@")) return DOMINIOS_EMAIL.slice(0, 4).map((d) => `${usuario}@${d}`);
+    if (DOMINIOS_EMAIL.includes(parcial)) return [];
+    return DOMINIOS_EMAIL.filter((d) => d.startsWith(parcial.toLowerCase()))
+      .slice(0, 4)
+      .map((d) => `${usuario}@${d}`);
+  })();
   const cpfDigitado = ehEmail ? "" : identificador;
 
   async function handleSubmit(e: React.FormEvent) {
@@ -234,7 +248,12 @@ export function EntrarForm({
         </Label>
         <Input
           id="identificador"
+          name="username"
           autoComplete="username"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
+          inputMode={modo === "cpf" ? "numeric" : "email"}
           placeholder={
             modo === "cpf"
               ? "000.000.000-00"
@@ -253,31 +272,55 @@ export function EntrarForm({
               : identificador
           }
           onChange={(e) => setIdentificador(e.target.value)}
-          list="dominios-email-comuns"
           className="h-11"
         />
-        <datalist id="dominios-email-comuns">
-          {identificador && !identificador.includes("@") && /[a-z]/i.test(identificador)
-            ? DOMINIOS_EMAIL.map((dominio) => (
-                <option key={dominio} value={`${identificador.trim()}@${dominio}`} />
-              ))
-            : null}
-        </datalist>
+        {sugestoesEmail.length > 0 && (
+          <div className="flex gap-1.5 overflow-x-auto [scrollbar-width:none]" aria-label="Sugestões de e-mail">
+            {sugestoesEmail.map((sugestao) => (
+              <button
+                key={sugestao}
+                type="button"
+                // Não tira o foco do campo antes do toque (senão a lista some antes do clique).
+                onPointerDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  setIdentificador(sugestao);
+                  document.getElementById("senha")?.focus();
+                }}
+                className="shrink-0 rounded-full border bg-muted/50 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors active:bg-muted"
+              >
+                @{sugestao.split("@")[1]}
+              </button>
+            ))}
+          </div>
+        )}
         {!ehEmail && onlyDigits(cpfDigitado).length === 11 && !isValidCpf(cpfDigitado) && (
           <p className="text-xs text-destructive">CPF inválido</p>
         )}
       </div>
       <div className="space-y-2">
         <Label htmlFor="senha">Senha</Label>
-        <Input
-          id="senha"
-          type="password"
-          autoComplete="current-password"
-          placeholder="••••••••"
-          value={senha}
-          onChange={(e) => setSenha(e.target.value)}
-          className="h-11"
-        />
+        <div className="relative">
+          <Input
+            id="senha"
+            name="password"
+            type={mostrarSenha ? "text" : "password"}
+            autoComplete="current-password"
+            autoCapitalize="none"
+            autoCorrect="off"
+            placeholder="••••••••"
+            value={senha}
+            onChange={(e) => setSenha(e.target.value)}
+            className="h-11 pr-11"
+          />
+          <button
+            type="button"
+            onClick={() => setMostrarSenha((v) => !v)}
+            aria-label={mostrarSenha ? "Ocultar senha" : "Mostrar senha"}
+            className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-muted-foreground"
+          >
+            {mostrarSenha ? <EyeOff className="size-4.5" /> : <Eye className="size-4.5" />}
+          </button>
+        </div>
       </div>
       <label className="flex items-center gap-2 text-xs text-muted-foreground">
         <Checkbox

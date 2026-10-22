@@ -281,7 +281,15 @@
 /* App iOS (Capacitor): sem cara de navegador. */
 html.native-app { overflow-x: clip; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 html.native-app body { overscroll-behavior-x: none; }
+/* Palavras e valores longos quebram em vez de empurrar a largura da tela. */
+html.native-app main { overflow-wrap: break-word; }
+/* Caixa de leitura de notas: barra de rolagem sempre visível no computador. */
+.caixa-rolagem { scrollbar-gutter: stable; scrollbar-width: thin; }
+.caixa-rolagem::-webkit-scrollbar { width: 8px; }
+.caixa-rolagem::-webkit-scrollbar-thumb { background: color-mix(in oklab, var(--muted-foreground) 45%, transparent); border-radius: 9999px; }
 .native-app { -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; }
+/* Com o teclado aberto, a barra de baixo some (como nos apps do iPhone). */
+html.native-app.teclado-aberto .barra-app { display: none; }
 .native-app :where(p, span, h1, h2, h3, h4, h5, h6, li, td, th, label, button, a) { -webkit-user-select: none; user-select: none; }
 .native-app :where(input, textarea, select, [contenteditable="true"]) { -webkit-user-select: text; user-select: text; }
 
@@ -289,6 +297,9 @@ html.native-app body { overscroll-behavior-x: none; }
 ::view-transition-old(root) { animation: vt-fade-out 160ms ease-in both; }
 ::view-transition-new(root) { animation: vt-slide-in 240ms cubic-bezier(.2,.8,.2,1) both; }
 @keyframes vt-slide-in { from { transform: translateX(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+/* Voltando (botão voltar ou gesto): entra pela esquerda, mais curto, como no iOS. */
+html[data-nav="voltar"]::view-transition-new(root) { animation: vt-slide-in-voltar 200ms cubic-bezier(.2,.8,.2,1) both; }
+@keyframes vt-slide-in-voltar { from { transform: translateX(-16px); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes vt-fade-out { from { opacity: 1; } to { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-old(root), ::view-transition-new(root) { animation: none; }

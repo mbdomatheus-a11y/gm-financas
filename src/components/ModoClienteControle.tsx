@@ -3,6 +3,7 @@ import { Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useIsSiteAdmin } from "@/hooks/useAuthData";
 import { definirModoCliente, useModoCliente } from "@/lib/modo-cliente";
+import { ehAppNativo } from "@/lib/app-nativo";
 
 /**
  * Botão fixo na home para o admin do site alternar entre a visão admin e a visão
@@ -11,7 +12,8 @@ import { definirModoCliente, useModoCliente } from "@/lib/modo-cliente";
 export function ModoClienteControle({ className = "" }: { className?: string }) {
   const { data: admin } = useIsSiteAdmin();
   const modo = useModoCliente();
-  if (!admin) return null;
+  // No app do iPhone a visão é sempre de usuário; a troca para admin só existe no navegador.
+  if (!admin || ehAppNativo()) return null;
   return (
     <div
       className={`flex flex-wrap items-center justify-between gap-2 rounded-md border border-dashed px-4 py-2 text-sm ${className}`}

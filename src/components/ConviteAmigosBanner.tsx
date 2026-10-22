@@ -354,9 +354,10 @@ export function ConviteRapidoBotao({ comTexto = false }: { comTexto?: boolean })
   );
 }
 
-const CHAVE_CONVITE_ADIADO = "control-all-convite-adiado-ate";
+// Quem toca em "Agora não" (ou fecha) não vê mais o convite, até o admin redisparar
+// (rodada_aviso_convite na configuração do site).
+const CHAVE_CONVITE_DISPENSADO = "control-all-convite-dispensado-rodada";
 const DIAS_PARA_PEDIR_CONVITE = 3;
-const DIAS_ADIAR_CONVITE = 7;
 
 /**
  * Depois de 3 dias de uso, mostra uma vez na abertura um pedido para convidar
@@ -365,6 +366,13 @@ const DIAS_ADIAR_CONVITE = 7;
 export function ConviteAposTresDias({ bloqueado = false }: { bloqueado?: boolean }) {
   const { data: perfil } = useProfile();
   const { temConviteDisponivel, isLoading } = useConvitesAmigos();
+  const obterConfig = useServerFn(obterConfiguracaoAcesso);
+  const { data: config } = useQuery({
+    queryKey: ["configuracao-acesso-publica"],
+    queryFn: () => obterConfig(),
+    staleTime: 60_000,
+  });
+  const rodada = String(config?.rodada_aviso_convite ?? 1);
   const [aberto, setAberto] = useState(false);
   const [dialogo, setDialogo] = useState(false);
 
@@ -374,24 +382,20 @@ export function ConviteAposTresDias({ bloqueado = false }: { bloqueado?: boolean
     Date.now() - new Date(criadoEm).getTime() >= DIAS_PARA_PEDIR_CONVITE * 86_400_000;
 
   useEffect(() => {
-    if (bloqueado || !elegivel || isLoading || !temConviteDisponivel) return;
+    if (bloqueado || !elegivel || isLoading || !temConviteDisponivel || !config) return;
     try {
       if (sessionStorage.getItem("control-all-convite-visto-sessao")) return;
-      const ate = Number(localStorage.getItem(CHAVE_CONVITE_ADIADO) ?? 0);
-      if (ate > Date.now()) return;
+      if (localStorage.getItem(CHAVE_CONVITE_DISPENSADO) === rodada) return;
       sessionStorage.setItem("control-all-convite-visto-sessao", "1");
     } catch {
       // Sem armazenamento: mostra mesmo assim.
     }
     setAberto(true);
-  }, [bloqueado, elegivel, isLoading, temConviteDisponivel]);
+  }, [bloqueado, elegivel, isLoading, temConviteDisponivel, config, rodada]);
 
   function adiar() {
     try {
-      localStorage.setItem(
-        CHAVE_CONVITE_ADIADO,
-        String(Date.now() + DIAS_ADIAR_CONVITE * 86_400_000),
-      );
+      localStorage.setItem(CHAVE_CONVITE_DISPENSADO, rodada);
     } catch {
       // ignorado
     }

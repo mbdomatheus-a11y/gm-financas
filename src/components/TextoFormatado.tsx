@@ -25,7 +25,22 @@ function inline(texto: string, chave: string): ReactNode[] {
   });
 }
 
-export function TextoFormatado({ texto }: { texto: string }) {
+/**
+ * Mostra o texto formatado. Com `emCaixa`, fica numa caixa de altura limitada com barra de
+ * rolagem própria (notas longas não ocupam a tela inteira).
+ */
+export function TextoFormatado({ texto, emCaixa = false }: { texto: string; emCaixa?: boolean }) {
+  if (emCaixa) {
+    return (
+      <div
+        className="caixa-rolagem max-h-[60vh] overflow-y-auto overscroll-contain rounded-xl border bg-muted/20 p-4"
+        tabIndex={0}
+        aria-label="Conteúdo da nota (role para ler)"
+      >
+        <TextoFormatado texto={texto} />
+      </div>
+    );
+  }
   const linhas = texto.replace(/\r\n/g, "\n").split("\n");
   const blocos: ReactNode[] = [];
   let paragrafo: string[] = [];

@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Bell } from "lucide-react";
@@ -17,6 +18,14 @@ import {
   versoesAtivasSite,
 } from "@/lib/comunicados.functions";
 import { useIsSiteAdmin } from "@/hooks/useAuthData";
+import { useModoCliente } from "@/lib/modo-cliente";
+import {
+  agendarLembretesNoApp,
+  ehAppNativo,
+  momentoLembrete,
+  ponteNativa,
+  type LembreteApp,
+} from "@/lib/app-nativo";
 
 type Aviso = {
   chave: string;
@@ -44,7 +53,29 @@ export function AlertsBell() {
   const [vistos, setVistos] = useState<Aviso[]>([]);
   const versoesFn = useServerFn(versoesAtivasSite);
   const limparFn = useServerFn(limparVersoesSite);
-  const { data: isSiteAdminUser } = useIsSiteAdmin();
+  const { data: isSiteAdminRaw } = useIsSiteAdmin();
+  const modoCliente = useModoCliente();
+  const isSiteAdminUser = !!isSiteAdminRaw && !modoCliente;
+  // Dentro do app do iPhone: sem avisos de deploy do site e com botão de testar notificação.
+  const [ehApp, setEhApp] = useState(false);
+  useEffect(() => {
+    setEhApp(ehAppNativo());
+    const aoResponder = (ev: Event) => {
+      const r = (ev as CustomEvent<{ ok: boolean; erro?: string }>).detail;
+      if (!r?.ok) toast.error(r?.erro ?? "Não consegui agendar a notificação de teste.");
+    };
+    window.addEventListener("notificacao-app-resultado", aoResponder);
+    return () => window.removeEventListener("notificacao-app-resultado", aoResponder);
+  }, []);
+  function testarNotificacao() {
+    const ponte = ponteNativa("notificacoesApp");
+    if (!ponte) {
+      toast.error("Atualize o app pelo TestFlight para testar notificações.");
+      return;
+    }
+    ponte.postMessage({ acao: "testar" });
+    toast.success("Bloqueie a tela agora: a notificação chega em 5 segundos.");
+  }
   const { data: versoes = [], refetch: refetchVersoes } = useQuery({
     queryKey: ["versoes-site"],
     queryFn: () => versoesFn(),
@@ -77,7 +108,7 @@ export function AlertsBell() {
         supabase.from("cartoes").select("id,apelido,dia_fechamento,dia_vencimento"),
         supabase
           .from("parcelas")
-          .select("id,vencimento,despesas(descricao)")
+          .select("id,vencimento,despesas(descricao,cartao_id)")
           .eq("paga", false)
           .order("vencimento", { ascending: true })
           .limit(200),
@@ -168,13 +199,54 @@ export function AlertsBell() {
           destino: "/despesas",
         });
       }
+      // No app do iPhone: agenda notificações na tela de bloqueio para os próximos vencimentos
+      // (funciona com o app fechado, sem servidor de push). No navegador não faz nada.
+      if (ehAppNativo()) {
+        const lembretes: LembreteApp[] = [];
+        const hojeLocal = new Date();
+        for (const cartao of cartoes.data ?? []) {
+          const nome = cartao.apelido || "cartão";
+          if (cartao.dia_vencimento) {
+            const venc = proximaVirada(new Date(hojeLocal.getTime() - 86400000), cartao.dia_vencimento);
+            lembretes.push(
+              { id: `fatura-${cartao.id}-vespera`, titulo: "Fatura vence amanhã", corpo: `A fatura do ${nome} vence amanhã.`, quando: momentoLembrete(venc, 9, 1), destino: "/despesas" },
+              { id: `fatura-${cartao.id}-dia`, titulo: "Fatura vence hoje", corpo: `A fatura do ${nome} vence hoje.`, quando: momentoLembrete(venc, 9, 0), destino: "/despesas" },
+            );
+          }
+          if (cartao.dia_fechamento) {
+            const fecha = proximaVirada(new Date(hojeLocal.getTime() - 86400000), cartao.dia_fechamento);
+            lembretes.push({ id: `fechamento-${cartao.id}`, titulo: "Fatura fecha hoje", corpo: `A fatura do ${nome} fecha hoje. Compras a partir de agora vão para a próxima.`, quando: momentoLembrete(fecha, 9, 0), destino: "/despesas" });
+          }
+        }
+        // Contas fora do cartão (o cartão já é avisado pela fatura), agrupadas por dia.
+        const porDia = new Map<string, string[]>();
+        for (const parcela of parcelas.data ?? []) {
+          const despesa = (parcela as { despesas?: { descricao?: string; cartao_id?: string | null } | null }).despesas;
+          if (despesa?.cartao_id) continue;
+          const dia = String(parcela.vencimento).slice(0, 10);
+          porDia.set(dia, [...(porDia.get(dia) ?? []), despesa?.descricao ?? "Conta"]);
+        }
+        for (const [dia, nomes] of porDia) {
+          const resumo = nomes.length === 1 ? nomes[0]! : `${nomes.length} contas (${nomes.slice(0, 3).join(", ")}${nomes.length > 3 ? "…" : ""})`;
+          lembretes.push(
+            { id: `contas-${dia}-vespera`, titulo: "Conta vence amanhã", corpo: `${resumo} vence amanhã.`, quando: momentoLembrete(dia, 9, 1), destino: "/despesas" },
+            { id: `contas-${dia}-dia`, titulo: "Conta vence hoje", corpo: `${resumo} vence hoje.`, quando: momentoLembrete(dia, 9, 0), destino: "/despesas" },
+          );
+        }
+        for (const nota of notas.data ?? []) {
+          if (!nota.garantia_fim) continue;
+          const nome = nota.estabelecimento ?? nota.descricao ?? "compra";
+          lembretes.push({ id: `garantia-${nota.id}`, titulo: "Garantia termina em 7 dias", corpo: `A garantia de ${nome} termina em 7 dias.`, quando: momentoLembrete(nota.garantia_fim, 9, 7), destino: "/notas" });
+        }
+        agendarLembretesNoApp(lembretes);
+      }
       return alertas.slice(0, 50);
     },
     refetchInterval: 60_000,
   });
   const avisosComVersao: Aviso[] = [
     ...avisos,
-    ...versoes.map((v: any) => ({
+    ...(ehApp ? [] : versoes).map((v: any) => ({
       chave: `versao:${v.versao}`,
       texto: `Nova versão publicada: build ${v.versao} · ${new Date(v.build_em ?? v.criado_em).toLocaleString("pt-BR")}`,
     })),
@@ -253,6 +325,11 @@ export function AlertsBell() {
             onClick={() => void limparFn().then(() => refetchVersoes())}
           >
             Limpar versões para todos
+          </Button>
+        )}
+        {ehApp && (
+          <Button variant="outline" size="sm" className="mt-2 w-full" onClick={testarNotificacao}>
+            Testar notificação no iPhone
           </Button>
         )}
         {historico.length > 0 && (

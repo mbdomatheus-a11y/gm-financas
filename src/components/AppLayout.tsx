@@ -46,6 +46,7 @@ import { Plus } from "lucide-react";
 import { Fragment } from "react";
 import { AvatarPerfil } from "@/components/AvatarPerfil";
 import { SeletorIdioma } from "@/components/SeletorIdioma";
+import { SincronizadorAgendaApp } from "@/components/SincronizadorAgendaApp";
 import { useIdioma } from "@/hooks/useIdioma";
 import type { ChaveTraducao } from "@/lib/i18n/traducoes";
 import { supabase } from "@/integrations/supabase/client";
@@ -413,6 +414,21 @@ const GLOBAL: NavItem[] = [
 ];
 
 /** Atalhos da barra inferior no celular (Início fica fixo ao lado). */
+/** Versão do app iOS instalada (o app nativo informa em window.__controlAllApp). No navegador não aparece. */
+function VersaoDoApp() {
+  const [info, setInfo] = useState<{ versao: string; build: string } | null>(null);
+  useEffect(() => {
+    const app = (window as unknown as { __controlAllApp?: { versao: string; build: string } }).__controlAllApp;
+    if (app?.versao) setInfo({ versao: app.versao, build: app.build });
+  }, []);
+  if (!info) return null;
+  return (
+    <p className="mt-auto border-t px-2 pt-3 text-center text-[11px] text-muted-foreground">
+      Control ALL para iPhone · versão {info.versao} (build {info.build})
+    </p>
+  );
+}
+
 const ATALHOS_MOBILE: { id: MundoId; rotulo: string; icon: LucideIcon }[] = [
   { id: "financas", rotulo: "Finanças", icon: Wallet },
   { id: "notas", rotulo: "Notas", icon: ReceiptText },
@@ -561,6 +577,13 @@ export function AppLayout({
     limparUrlRetorno();
     navigate({ to: "/entrar", replace: true });
   }
+  // Tela Ajustes do app pede para sair por evento (o sair completo mora aqui).
+  useEffect(() => {
+    const sair = () => void signOut();
+    window.addEventListener("sair-da-conta", sair);
+    return () => window.removeEventListener("sair-da-conta", sair);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const NavLink = ({
       item,
@@ -687,6 +710,17 @@ export function AppLayout({
         </div>
       </Link>
       <OracleQuotaBadge />
+      {/* Só no app do iPhone: tela de Ajustes própria (idioma, notificações, agenda, versão). */}
+      <Link
+        to="/ajustes-app"
+        onClick={onNavigate}
+        className="hidden items-center gap-3 rounded-xl border bg-card px-3 py-2.5 text-sm font-medium native:flex"
+      >
+        <span className="flex size-8 items-center justify-center rounded-lg bg-slate-700 text-white">
+          <Settings className="size-4.5" aria-hidden="true" />
+        </span>
+        Ajustes do app
+      </Link>
       <NavLinks onNavigate={onNavigate} />
       <Button
         variant="ghost"
@@ -695,6 +729,7 @@ export function AppLayout({
       >
         <LogOut className="size-4.5" /> Sair
       </Button>
+      <VersaoDoApp />
     </div>
   );
 
@@ -861,7 +896,10 @@ export function AppLayout({
                   <span className="hidden text-xs font-medium sm:inline">Calendário</span>
                 </Link>
               </Button>
-              <SeletorIdioma />
+              {/* No app o idioma fica em Ajustes; no site continua aqui no topo. */}
+              <span className="contents native:hidden">
+                <SeletorIdioma />
+              </span>
               <CalculadoraRapida />
               <AvatarPerfil tamanho="size-8" className="ml-1" />
               <span className="hidden sm:contents">
@@ -910,14 +948,14 @@ export function AppLayout({
         </header>
 
         {modoCliente && (
-          <div className="mx-auto mt-3 flex w-full max-w-7xl flex-wrap items-center justify-between gap-2 rounded-md border border-amber-400 bg-amber-100 px-4 py-2 text-sm text-amber-900 dark:bg-amber-900/40 dark:text-amber-100">
+          <div className="mx-auto mt-3 flex w-full max-w-7xl flex-wrap items-center justify-between gap-2 rounded-md border border-amber-400 bg-amber-100 px-4 py-2 text-sm text-amber-900 dark:bg-amber-900/40 dark:text-amber-100 native:hidden">
             <span>Modo usuário comum ativo. Itens administrativos ficam ocultos.</span>
             <Button size="sm" variant="outline" onClick={() => definirModoCliente(false)}>
               Voltar à visão admin
             </Button>
           </div>
         )}
-        <main className="mx-auto w-full max-w-7xl px-4 pb-28 pt-6 lg:px-8 lg:pb-10">
+        <main className="mx-auto w-full max-w-7xl px-4 pb-28 pt-6 lg:px-8 lg:pb-10 native:pb-[calc(5.5rem+var(--app-inset-bottom,0px))]">
           {rotaAdminBloqueada ? (
             <div className="rounded-md border p-6 text-center text-sm text-muted-foreground">
               Esta área é exclusiva do administrador. Volte à visão admin para acessá-la.
@@ -926,11 +964,15 @@ export function AppLayout({
             children
           )}
           <AppEmBreve className="mt-10 native:hidden" />
+          <SincronizadorAgendaApp />
         </main>
       </div>
 
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent side="left" className="w-72 bg-sidebar p-0">
+        <SheetContent
+          side="left"
+          className="w-72 bg-sidebar p-0 native:overflow-y-auto native:pb-[var(--app-inset-bottom,0px)]"
+        >
           <SheetTitle className="sr-only">Menu</SheetTitle>
           <div className="border-b p-3 lg:hidden">
             <Button
@@ -950,12 +992,18 @@ export function AppLayout({
 
       <nav
         aria-label="Navegação principal"
-        className="fixed inset-x-2 bottom-[calc(env(safe-area-inset-bottom)+0.5rem)] z-30 grid h-16 grid-cols-6 items-end rounded-2xl border border-border bg-background px-1.5 shadow-lg lg:hidden"
+        className={cn(
+          "barra-app fixed inset-x-2 bottom-[calc(env(safe-area-inset-bottom)+0.5rem)] z-30 grid h-16 grid-cols-6 items-end rounded-2xl border border-border bg-background px-1.5 shadow-lg lg:hidden",
+          // No app iOS: barra colada embaixo, cobrindo a área do indicador de início.
+          "native:inset-x-0 native:bottom-0 native:h-[calc(3.5rem+var(--app-inset-bottom,0px))] native:items-stretch native:rounded-none native:border-x-0 native:border-b-0 native:bg-background/90 native:px-1 native:pb-[var(--app-inset-bottom,0px)] native:shadow-none native:backdrop-blur-xl",
+          // Com o botão + no centro, ele ganha coluna própria (não fica por cima dos vizinhos).
+          acaoCentral && "native:grid-cols-7",
+        )}
       >
         <Link
           to="/inicio"
           className={cn(
-            "flex h-full flex-col items-center justify-end gap-0.5 pb-1.5 text-[10px] font-medium leading-none",
+            "flex h-full flex-col items-center justify-end gap-0.5 pb-1.5 text-[10px] font-medium leading-none native:justify-center native:gap-1 native:pb-0 native:[&>svg]:size-6",
             pathname === "/inicio" ? "text-primary" : "text-muted-foreground",
           )}
         >
@@ -965,7 +1013,7 @@ export function AppLayout({
         <Link
           to="/calendario"
           className={cn(
-            "flex h-full flex-col items-center justify-end gap-0.5 pb-1.5 text-[10px] font-medium leading-none",
+            "flex h-full flex-col items-center justify-end gap-0.5 pb-1.5 text-[10px] font-medium leading-none native:justify-center native:gap-1 native:pb-0 native:[&>svg]:size-6",
             pathname === "/calendario" ? "text-primary" : "text-muted-foreground",
           )}
         >
@@ -981,7 +1029,7 @@ export function AppLayout({
                 key={m.id}
                 to={MUNDOS[m.id].home}
                 className={cn(
-                  "flex h-full flex-col items-center justify-end gap-0.5 pb-1.5 text-[10px] font-medium leading-none",
+                  "flex h-full flex-col items-center justify-end gap-0.5 pb-1.5 text-[10px] font-medium leading-none native:justify-center native:gap-1 native:pb-0 native:[&>svg]:size-6",
                   mundoId === m.id ? "text-primary" : "text-muted-foreground",
                 )}
               >
@@ -993,6 +1041,18 @@ export function AppLayout({
           return (
             <Fragment>
               {visiveis.slice(0, 1).map(renderAtalho)}
+              {acaoCentral && (
+                <div className="hidden items-center justify-center native:flex">
+                  <button
+                    type="button"
+                    aria-label={acaoCentral.rotulo}
+                    onClick={() => window.dispatchEvent(new Event(acaoCentral.evento))}
+                    className="flex size-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md transition-transform active:scale-95"
+                  >
+                    <Plus className="size-6" />
+                  </button>
+                </div>
+              )}
               {visiveis.slice(1).map(renderAtalho)}
             </Fragment>
           );
@@ -1000,7 +1060,7 @@ export function AppLayout({
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="flex h-full flex-col items-center justify-end gap-0.5 pb-1.5 text-[10px] font-medium leading-none text-muted-foreground"
+          className="flex h-full flex-col items-center justify-end gap-0.5 pb-1.5 text-[10px] font-medium leading-none native:justify-center native:gap-1 native:pb-0 native:[&>svg]:size-6 text-muted-foreground"
         >
           <Menu className="size-5" />
           Menu
@@ -1010,7 +1070,7 @@ export function AppLayout({
             type="button"
             aria-label={acaoCentral.rotulo}
             onClick={() => window.dispatchEvent(new Event(acaoCentral.evento))}
-            className="absolute left-1/2 -top-8 flex size-14 -translate-x-1/2 flex-col items-center justify-center gap-0.5 rounded-full bg-primary text-primary-foreground shadow-lg ring-4 ring-background transition-transform active:scale-95"
+            className="absolute left-1/2 -top-8 flex size-14 -translate-x-1/2 flex-col items-center justify-center gap-0.5 rounded-full bg-primary text-primary-foreground shadow-lg ring-4 ring-background transition-transform active:scale-95 native:hidden"
           >
             <Plus className="size-6" />
             <span className="text-[10px] font-semibold leading-none">{acaoCentral.curto}</span>

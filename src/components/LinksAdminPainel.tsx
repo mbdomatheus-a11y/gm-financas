@@ -21,7 +21,8 @@ import {
   adminUnificarLinks,
 } from "@/lib/links-admin.functions";
 
-const MAX_CONTEUDO = 100_000;
+// Só a administração cria links: limite alto (500 mil caracteres, igual ao banco).
+const MAX_CONTEUDO = 500_000;
 
 /** Valor para <input type="datetime-local"> no fuso do navegador. */
 function paraInputLocal(iso: string | null): string {
@@ -281,7 +282,7 @@ export function LinksAdminPainel({
             <details className="rounded-lg border p-3">
               <summary className="cursor-pointer text-xs font-semibold">Pré-visualização</summary>
               <div className="mt-2">
-                <TextoFormatado texto={conteudo} />
+                <TextoFormatado texto={conteudo} emCaixa />
               </div>
             </details>
           )}
