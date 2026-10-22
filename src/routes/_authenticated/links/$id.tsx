@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useIsAdmin } from "@/hooks/useAuthData";
 import { abrirLinkAdmin, adminConcluirLink } from "@/lib/links-admin.functions";
+import { copiarTextoCompleto } from "@/lib/copiar-texto";
 
 export const Route = createFileRoute("/_authenticated/links/$id")({
   head: () => ({ meta: [{ title: "Link | Control ALL" }, { name: "robots", content: "noindex" }] }),
@@ -44,10 +45,9 @@ function LinkPage() {
   async function copiar() {
     if (!ok) return;
     const texto = `${ok.titulo}\n\n${ok.conteudo}`;
-    try {
-      await navigator.clipboard.writeText(texto);
-      toast.success("Nota copiada com o título.");
-    } catch {
+    if (await copiarTextoCompleto(texto)) {
+      toast.success(`Nota inteira copiada (${texto.length.toLocaleString("pt-BR")} caracteres).`);
+    } else {
       toast.error("Não foi possível copiar. Selecione o texto e copie manualmente.");
     }
   }
@@ -86,7 +86,7 @@ function LinkPage() {
             </div>
           )}
           {isLoading && <p className="text-sm text-muted-foreground">Carregando…</p>}
-          {ok && <TextoFormatado texto={ok.conteudo} />}
+          {ok && <TextoFormatado texto={ok.conteudo} emCaixa />}
           {data?.status === "expirado" && <p className="text-sm">Este link expirou.</p>}
           {(!valido || data?.status === "nao_encontrado") && <p className="text-sm">Link não encontrado.</p>}
         </CardContent>

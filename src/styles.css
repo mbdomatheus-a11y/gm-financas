@@ -283,6 +283,10 @@ html.native-app { overflow-x: clip; -webkit-text-size-adjust: 100%; text-size-ad
 html.native-app body { overscroll-behavior-x: none; }
 /* Palavras e valores longos quebram em vez de empurrar a largura da tela. */
 html.native-app main { overflow-wrap: break-word; }
+/* Caixa de leitura de notas: barra de rolagem sempre visível no computador. */
+.caixa-rolagem { scrollbar-gutter: stable; scrollbar-width: thin; }
+.caixa-rolagem::-webkit-scrollbar { width: 8px; }
+.caixa-rolagem::-webkit-scrollbar-thumb { background: color-mix(in oklab, var(--muted-foreground) 45%, transparent); border-radius: 9999px; }
 .native-app { -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; }
 /* Com o teclado aberto, a barra de baixo some (como nos apps do iPhone). */
 html.native-app.teclado-aberto .barra-app { display: none; }
