@@ -87,16 +87,23 @@ export const solicitarRecuperacaoSenha = createServerFn({ method: "POST" })
 
     const link = `${urlBase()}/redefinir-senha?token=${token}`;
     const { enviarEmail } = await import("@/lib/email.server");
+    const seg = await import("@/lib/seguranca-email.server");
+    // Dados de quem pediu (aparelho, data, local) e o link "Não fui eu" para bloquear a conta.
+    const pedido = seg.contextoDaRequisicao();
+    const linkBloqueio = await seg.criarLinkBloqueio(db, usuario.id);
     const envio = await enviarEmail({
       to: usuario.email ?? email,
-      subject: "Redefinição de senha — Control ALL",
-      html: `
-        <p>Recebemos um pedido para redefinir a senha da sua conta no <strong>Control ALL</strong>.</p>
-        <p><a href="${link}">Clique aqui para criar uma nova senha</a></p>
-        <p style="color:#888;font-size:12px">
-          Esse link expira em ${EXPIRACAO_MINUTOS} minutos. Se você não pediu isso, ignore este e-mail — sua senha continua a mesma.
-        </p>
-      `,
+      subject: "Redefinição de senha do Control ALL",
+      html: seg.layoutEmailSeguranca(
+        "Pedido de redefinição de senha",
+        `<p>Recebemos um pedido para redefinir a senha da sua conta. Confira de onde ele veio:</p>
+${seg.blocoDoPedido(pedido)}
+<p><strong>Foi você?</strong> Crie a nova senha pelo botão abaixo. O link vale ${EXPIRACAO_MINUTOS} minutos e pode ser usado uma vez.</p>
+${seg.botaoEmail(link, "Criar nova senha")}
+<p><strong>Não foi você?</strong> Sua senha continua a mesma. Se achar que alguém está tentando entrar na sua conta, bloqueie agora. O bloqueio encerra todos os acessos, cancela este link e abre um chamado no suporte; só o suporte desbloqueia, depois de confirmar sua identidade.</p>
+${seg.botaoEmail(linkBloqueio, "Não fui eu, bloquear minha conta", "#DB2B33")}
+<p style="color:#6b7280;font-size:12px">O link de bloqueio vale 24 horas e pede uma segunda confirmação antes de bloquear.</p>`,
+      ),
     });
 
     // A resposta ao usuário continua genérica (não revela se a conta existe), mas a

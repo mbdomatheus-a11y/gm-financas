@@ -1,3 +1,4 @@
+import { InputSenha } from "@/components/ui/input-senha";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -79,13 +80,12 @@ function NovaSenhaPage() {
         </div>
         <div className="space-y-2">
           <Label htmlFor="s1">Nova senha</Label>
-          <Input id="s1" type="password" value={senha} onChange={(e) => setSenha(e.target.value)} />
+          <InputSenha id="s1" value={senha} onChange={(e) => setSenha(e.target.value)} />
         </div>
         <div className="space-y-2">
           <Label htmlFor="s2">Confirmar nova senha</Label>
-          <Input
+          <InputSenha
             id="s2"
-            type="password"
             value={confirma}
             onChange={(e) => setConfirma(e.target.value)}
           />

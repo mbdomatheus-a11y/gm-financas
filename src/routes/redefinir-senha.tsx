@@ -1,3 +1,4 @@
+import { InputSenha } from "@/components/ui/input-senha";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -90,9 +91,8 @@ function RedefinirSenhaPage() {
           >
             <div className="space-y-2">
               <Label htmlFor="senha">Nova senha</Label>
-              <Input
+              <InputSenha
                 id="senha"
-                type="password"
                 autoComplete="new-password"
                 value={senha}
                 onChange={(e) => setSenha(e.target.value)}
@@ -101,9 +101,8 @@ function RedefinirSenhaPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="confirmar">Confirmar nova senha</Label>
-              <Input
+              <InputSenha
                 id="confirmar"
-                type="password"
                 autoComplete="new-password"
                 value={confirmar}
                 onChange={(e) => setConfirmar(e.target.value)}

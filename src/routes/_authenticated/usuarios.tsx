@@ -1,3 +1,4 @@
+import { adminReativarUsuario } from "@/lib/admin.functions";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -178,10 +179,11 @@ function UsuariosPage() {
     onError: (e: any) => toast.error(e.message),
   });
 
+  const reativarUsuario = useServerFn(adminReativarUsuario);
   const toggleAtivo = useMutation({
+    // Pelo servidor: ao reativar também tira o bloqueio de acesso (conta bloqueada pelo titular).
     mutationFn: async ({ id, ativo }: { id: string; ativo: boolean }) => {
-      const { error } = await supabase.from("profiles").update({ ativo }).eq("id", id);
-      if (error) throw error;
+      await reativarUsuario({ data: { userId: id, ativo } });
     },
     onSuccess: () => qc.invalidateQueries(),
   });

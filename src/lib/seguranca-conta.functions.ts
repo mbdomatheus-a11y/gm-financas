@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { createHash, randomBytes, randomInt, timingSafeEqual } from "node:crypto";
+import { createHash, randomInt, timingSafeEqual } from "node:crypto";
 import { getRequest } from "@tanstack/react-start/server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { isValidCpf, onlyDigits } from "@/lib/cpf";
@@ -261,20 +261,21 @@ async function enviarAlertaSenha(userId: string) {
   const db = supabaseAdmin as any;
   const { data: auth } = await supabaseAdmin.auth.admin.getUserById(userId);
   if (!auth.user?.email || auth.user.email.endsWith("@financascasal.app")) return;
-  const token = randomBytes(32).toString("hex");
-  await db.from("bloqueio_conta_tokens").insert({ user_id: userId, token_hash: hash(token) });
+  const seg = await import("@/lib/seguranca-email.server");
+  const linkBloqueio = await seg.criarLinkBloqueio(db, userId);
   const { enviarEmail } = await import("@/lib/email.server");
   await enviarEmail({
     to: auth.user.email,
     subject: "Sua senha do Control ALL foi alterada",
-    html: `<p>A senha da sua conta no <strong>Control ALL</strong> foi alterada.</p>
+    html: seg.layoutEmailSeguranca(
+      "Sua senha foi alterada",
+      `<p>A senha da sua conta foi alterada. Dados da alteração:</p>
+${seg.blocoDoPedido(seg.contextoDaRequisicao())}
 <p>Se foi você, nenhuma ação é necessária.</p>
-<p>Se você <strong>não reconhece</strong> esta alteração:</p>
-<ul>
-  <li><a href="${urlBase()}/bloquear-conta?token=${token}">Solicitar bloqueio imediato da conta</a> (link válido por 24h)</li>
-  <li><a href="${urlBase()}/suporte">Acessar a Central de Suporte</a> para atendimento</li>
-  <li>Ou responda diretamente para <a href="mailto:privacidade@controlall.com.br">privacidade@controlall.com.br</a></li>
-</ul>`,
+<p>Se você <strong>não reconhece</strong> esta alteração, bloqueie a conta agora. O bloqueio encerra todos os acessos e abre um chamado no suporte; só o suporte desbloqueia, depois de confirmar sua identidade.</p>
+${seg.botaoEmail(linkBloqueio, "Não fui eu, bloquear minha conta", "#DB2B33")}
+<p style="color:#6b7280;font-size:12px">O link vale 24 horas e pede uma segunda confirmação. Você também pode escrever para <a href="mailto:privacidade@controlall.com.br">privacidade@controlall.com.br</a> ou abrir a <a href="${urlBase()}/suporte">Central de Suporte</a>.</p>`,
+    ),
   });
 }
 
@@ -585,17 +586,52 @@ export const bloquearContaPorToken = createServerFn({ method: "POST" })
       .maybeSingle();
     if (siteAdmin)
       throw new Error("A conta administrativa exige atendimento manual pelo canal de privacidade.");
+    // Bloqueio: impede novos acessos (ban), marca a conta inativa e cancela links de senha pendentes.
     await supabaseAdmin.auth.admin.updateUserById(registro.user_id, { ban_duration: "876000h" });
     await db.from("profiles").update({ ativo: false }).eq("id", registro.user_id);
     await db
       .from("bloqueio_conta_tokens")
       .update({ usado_em: new Date().toISOString() })
-      .eq("id", registro.id);
+      .eq("user_id", registro.user_id)
+      .is("usado_em", null);
+    await db.from("password_reset_tokens").update({ usado: true }).eq("user_id", registro.user_id).eq("usado", false);
+    const seg = await import("@/lib/seguranca-email.server");
+    const pedido = seg.contextoDaRequisicao();
+    const { data: perfil } = await db.from("profiles").select("nome,email,grupo_id").eq("id", registro.user_id).maybeSingle();
+    const { data: auth } = await supabaseAdmin.auth.admin.getUserById(registro.user_id);
+    const email = (auth?.user?.email ?? perfil?.email ?? "") as string;
+    // Chamado automático para o suporte desbloquear depois de confirmar a identidade.
+    const { data: chamado } = await db
+      .from("chamados_suporte")
+      .insert({
+        user_id: registro.user_id,
+        grupo_id: perfil?.grupo_id ?? null,
+        email,
+        nome: perfil?.nome ?? null,
+        assunto: "Conta bloqueada a pedido do titular",
+        descricao: `Bloqueio pedido pelo link "Não fui eu" do e-mail de segurança. Confirmar a identidade antes de desbloquear (Usuários > reativar). Pedido feito de: ${pedido.aparelho}, ${pedido.dataHora}, ${pedido.local}.`,
+        prioridade: "reclamacao",
+      })
+      .select("protocolo")
+      .maybeSingle();
     await db.from("admin_audit_logs").insert({
       ator_id: null,
-      acao: "conta_bloqueada_por_alerta_de_senha",
+      acao: "conta_bloqueada_pelo_titular",
       alvo_id: registro.user_id,
-      detalhes: {},
+      detalhes: { aparelho: pedido.aparelho, local: pedido.local, protocolo: chamado?.protocolo ?? null },
     });
-    return { ok: true as const };
+    if (email && !email.endsWith("@financascasal.app")) {
+      const { enviarEmail } = await import("@/lib/email.server");
+      await enviarEmail({
+        to: email,
+        subject: "Sua conta do Control ALL foi bloqueada",
+        html: seg.layoutEmailSeguranca(
+          "Conta bloqueada",
+          `<p>Sua conta foi bloqueada a seu pedido. Ninguém consegue entrar nela, nem com a senha, e os links de troca de senha foram cancelados.</p>
+${seg.blocoDoPedido(pedido)}
+<p>Abrimos um chamado no suporte${chamado?.protocolo ? ` (protocolo <strong>${chamado.protocolo}</strong>)` : ""}. Para desbloquear, o suporte vai confirmar sua identidade. Responda este e-mail ou escreva para <a href="mailto:privacidade@controlall.com.br">privacidade@controlall.com.br</a>.</p>`,
+        ),
+      });
+    }
+    return { ok: true as const, protocolo: (chamado?.protocolo as string | undefined) ?? null };
   });

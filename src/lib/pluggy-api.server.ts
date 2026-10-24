@@ -739,10 +739,32 @@ async function executarSincronizacao(
   const diasTolerancia = Number.isInteger(cfgDias?.valor) ? Number(cfgDias.valor) : 3;
   let total = 0;
   let criadas = 0;
+  let contasRepetidas = 0;
 
   // Saldo de conta corrente por banco (somado entre as contas do mesmo banco).
   const saldoPorBanco = new Map<string, number>();
   for (const conta of contas.results ?? []) {
+    // Banco conectado duas vezes (caso Itaú 2026-10): a mesma conta (tipo + número) já vem de outra
+    // conexão ativa do usuário. Ignora aqui para não duplicar despesas, receitas e investimentos.
+    if (conta.number) {
+      const { data: outra } = await db
+        .from("pluggy_contas")
+        .select("item_id")
+        .eq("user_id", meu.user_id)
+        .eq("tipo", conta.type ?? "BANK")
+        .eq("numero_conta", conta.number)
+        .eq("ativo", true)
+        .neq("item_id", itemId)
+        .limit(1)
+        .maybeSingle();
+      if (outra) {
+        const { data: viva } = await db.from("pluggy_items").select("item_id").eq("item_id", outra.item_id).maybeSingle();
+        if (viva) {
+          contasRepetidas++;
+          continue;
+        }
+      }
+    }
     const cartaoFinal = conta.type === "CREDIT" ? ultimos4(conta.number) : null;
     const nomeConta = (conta.name ?? conta.marketingName ?? "").trim();
     let bancoId: string | null = null;
@@ -880,8 +902,12 @@ async function executarSincronizacao(
     const { error } = await db.from("bancos").update({ saldo_atual: saldo }).eq("id", id);
     if (error) throw new Error("Falha ao atualizar o saldo do banco.");
   }
-  await sincronizarInvestimentos(db, key, itemId, meu.user_id);
-  await sincronizarEmprestimos(db, key, itemId, meu.user_id);
+  // Conexão que só repete contas de outra: não traz investimentos nem empréstimos de novo.
+  const soRepetida = (contas.results ?? []).length > 0 && contasRepetidas === (contas.results ?? []).length;
+  if (!soRepetida) {
+    await sincronizarInvestimentos(db, key, itemId, meu.user_id);
+    await sincronizarEmprestimos(db, key, itemId, meu.user_id);
+  }
   await db.from("pluggy_items").update({ sincronizado_em: new Date().toISOString() }).eq("item_id", itemId);
   return { ignorado: false, transacoes: total, primeira, criadas };
 }

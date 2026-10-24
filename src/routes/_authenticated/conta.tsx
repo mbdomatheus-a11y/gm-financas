@@ -1,3 +1,4 @@
+import { InputSenha } from "@/components/ui/input-senha";
 import { HistoricoConvitesGrupo, SairDoGrupoCard } from "@/components/ConvitesGrupo";
 import { createFileRoute } from "@tanstack/react-router";
 import { PreferenciaEmails } from "@/components/retencao/PreferenciaEmails";
@@ -511,24 +512,21 @@ function ContaPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <Field label="Senha atual">
-              <Input
-                type="password"
+              <InputSenha
                 placeholder="Digite sua senha atual"
                 value={senhaAtual}
                 onChange={(e) => setSenhaAtual(e.target.value)}
               />
             </Field>
             <Field label="Nova senha">
-              <Input
-                type="password"
+              <InputSenha
                 placeholder="Mínimo 8 caracteres"
                 value={senha}
                 onChange={(e) => setSenha(e.target.value)}
               />
             </Field>
             <Field label="Confirmar nova senha">
-              <Input
-                type="password"
+              <InputSenha
                 placeholder="Repita a nova senha"
                 value={confirma}
                 onChange={(e) => setConfirma(e.target.value)}

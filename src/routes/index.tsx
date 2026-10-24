@@ -459,6 +459,10 @@ function LandingPage() {
               Grátis.
             </p>
 
+            <p className="mt-3 max-w-xl text-sm font-semibold text-foreground sm:text-base">
+              Suas finanças e sua casa, tudo num lugar só. Entre com sua conta no app e no site.
+            </p>
+
             <div className="mt-6 flex flex-col gap-3 sm:mt-8 sm:flex-row sm:flex-wrap sm:items-center">
               <Button asChild size="lg" className="h-12 w-full px-6 text-base font-semibold sm:w-auto sm:text-sm">
                 <Link to="/entrar" search={{ criar: true }} onClick={cliqueCadastrar("hero")}>

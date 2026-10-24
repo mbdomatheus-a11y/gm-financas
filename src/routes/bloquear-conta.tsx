@@ -18,7 +18,8 @@ export const Route = createFileRoute("/bloquear-conta")({
 function BloquearConta() {
   const { token } = Route.useSearch();
   const bloquear = useServerFn(bloquearContaPorToken);
-  const [estado, setEstado] = useState<"pronto" | "enviando" | "concluido" | "erro">("pronto");
+  const [estado, setEstado] = useState<"pronto" | "confirmar" | "enviando" | "concluido" | "erro">("pronto");
+  const [protocolo, setProtocolo] = useState<string | null>(null);
   return (
     <main className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
@@ -27,17 +28,26 @@ function BloquearConta() {
           <h1 className="text-xl font-bold">Bloqueio emergencial</h1>
           {estado === "concluido" ? (
             <>
-              <p>Sua conta foi bloqueada e novas entradas foram interrompidas.</p>
+              <p>Sua conta foi bloqueada. Ninguém consegue entrar nela, e os links de troca de senha foram cancelados.</p>
+              <p className="text-sm text-muted-foreground">
+                Abrimos um chamado no suporte{protocolo ? ` (protocolo ${protocolo})` : ""} e enviamos a confirmação por e-mail.
+                Só o suporte desbloqueia, depois de confirmar sua identidade.
+              </p>
               <a className="text-sm underline" href="mailto:privacidade@controlall.com.br">
-                Contatar a administração
+                Falar com o suporte
               </a>
             </>
           ) : (
             <>
               <p className="text-sm text-muted-foreground">
-                Use esta opção somente se você não reconhece a alteração de senha. O administrador
-                do site será avisado.
+                Use esta opção só se você não reconhece o pedido de troca de senha ou a alteração feita na sua conta.
+                O bloqueio encerra todos os acessos e só o suporte consegue desbloquear, depois de confirmar sua identidade.
               </p>
+              {estado === "confirmar" && (
+                <p className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm font-medium text-destructive">
+                  Tem certeza? Toque de novo em "Confirmar bloqueio" para bloquear a conta agora.
+                </p>
+              )}
               {estado === "erro" && (
                 <p className="text-sm text-destructive">
                   O link é inválido, expirou ou já foi utilizado.
@@ -47,16 +57,22 @@ function BloquearConta() {
                 variant="destructive"
                 disabled={!token || estado === "enviando"}
                 onClick={async () => {
+                  // Dupla confirmação: o primeiro toque só pede confirmação.
+                  if (estado !== "confirmar") {
+                    setEstado("confirmar");
+                    return;
+                  }
                   setEstado("enviando");
                   try {
-                    await bloquear({ data: { token: token! } });
+                    const r = await bloquear({ data: { token: token! } });
+                    setProtocolo((r as { protocolo?: string | null })?.protocolo ?? null);
                     setEstado("concluido");
                   } catch {
                     setEstado("erro");
                   }
                 }}
               >
-                Bloquear minha conta
+                {estado === "confirmar" || estado === "enviando" ? "Confirmar bloqueio" : "Bloquear minha conta"}
               </Button>
             </>
           )}
