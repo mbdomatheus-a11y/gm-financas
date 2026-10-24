@@ -147,9 +147,13 @@ async function garantirBanco(
 ): Promise<{ id: string; nome: string } | null> {
   const alvo = bancoCanonico(p.nome);
   if (!alvo) return null;
-  let q = db.from("bancos").select("id, nome");
+  let q = db.from("bancos").select("id, nome, conta");
   q = p.grupoId ? q.eq("grupo_id", p.grupoId) : q.is("grupo_id", null);
   const { data: lista } = await q;
+  // Primeiro pelo número da conta: o usuário pode ter renomeado o banco no site ou no app
+  // (ex.: "itau" para "Itaú Personnalité"), e o nome deixa de bater.
+  const pelaConta = p.numero ? (lista ?? []).find((b: any) => b.conta && String(b.conta).trim() === String(p.numero).trim()) : null;
+  if (pelaConta) return { id: pelaConta.id, nome: pelaConta.nome };
   const achado = (lista ?? []).find((b: any) => bancoCanonico(b.nome) === alvo);
   if (achado) return { id: achado.id, nome: achado.nome };
   if (!p.criar) return null;
