@@ -185,7 +185,14 @@ function UsuariosPage() {
     mutationFn: async ({ id, ativo }: { id: string; ativo: boolean }) => {
       await reativarUsuario({ data: { userId: id, ativo } });
     },
-    onSuccess: () => qc.invalidateQueries(),
+    onSuccess: (_r, v) => {
+      toast.success(v.ativo ? "Usuário reativado." : "Usuário desativado.");
+      qc.invalidateQueries();
+    },
+    onError: (e: unknown) => {
+      toast.error(e instanceof Error && e.message ? e.message : "Não foi possível alterar. Só a administração do site pode ativar ou desativar contas.");
+      qc.invalidateQueries();
+    },
   });
 
   const excluirMutation = useMutation({

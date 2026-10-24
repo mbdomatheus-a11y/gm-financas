@@ -349,7 +349,10 @@ function suprimirFixasRecebidasPeloBanco(lista: ReceitaCompetencia[]): ReceitaCo
   for (const b of doBanco) {
     const texto = normalizarTexto(`${b.descricao ?? ""} ${(b.receitaOriginal as any)?.observacoes ?? ""}`);
     for (const p of lista) {
-      if (!p.projetada || p.competencia !== b.competencia) continue;
+      // Prevista: projeção de receita fixa ou a própria ocorrência recorrente lançada à mão.
+      const prevista = p.projetada || (!!(p.receitaOriginal as any)?.recorrente && (p.receitaOriginal as any)?.origem !== "pluggy");
+      if (!prevista || p.id === b.id || p.competencia !== b.competencia) continue;
+      if (((p as any).moeda ?? "BRL") !== ((b as any).moeda ?? "BRL")) continue;
       if (Math.abs(Number(p.valor) - Number(b.valor)) > 0.01) continue;
       const nomes = [p.responsavel, ...(String(p.descricao ?? "").split(/[^A-Za-zÀ-ÿ]+/))]
         .map((n) => normalizarTexto(n).trim())

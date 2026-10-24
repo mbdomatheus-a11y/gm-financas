@@ -751,19 +751,28 @@ async function executarSincronizacao(
     // Banco conectado duas vezes (caso Itaú 2026-10): a mesma conta (tipo + número) já vem de outra
     // conexão ativa do usuário. Ignora aqui para não duplicar despesas, receitas e investimentos.
     if (conta.number) {
-      const { data: outra } = await db
+      // Dona da conta: a conexão mais antiga. A mais nova pula a conta e marca a sua cópia como inativa.
+      // Vale para o grupo (conta conjunta conectada por duas pessoas da família também não duplica).
+      let q = db
         .from("pluggy_contas")
         .select("item_id")
-        .eq("user_id", meu.user_id)
         .eq("tipo", conta.type ?? "BANK")
         .eq("numero_conta", conta.number)
         .eq("ativo", true)
-        .neq("item_id", itemId)
-        .limit(1)
-        .maybeSingle();
-      if (outra) {
-        const { data: viva } = await db.from("pluggy_items").select("item_id").eq("item_id", outra.item_id).maybeSingle();
-        if (viva) {
+        .neq("item_id", itemId);
+      q = grupoId ? q.eq("grupo_id", grupoId) : q.eq("user_id", meu.user_id);
+      const { data: outras } = await q;
+      const ids = [...new Set(((outras ?? []) as { item_id: string }[]).map((o) => o.item_id))];
+      if (ids.length) {
+        const { data: itens } = await db.from("pluggy_items").select("item_id, criado_em").in("item_id", [...ids, itemId]);
+        const vivos = (itens ?? []) as { item_id: string; criado_em: string | null }[];
+        const meuItem = vivos.find((x) => x.item_id === itemId);
+        const maisAntigaOutra = vivos
+          .filter((x) => x.item_id !== itemId)
+          .sort((a, b) => String(a.criado_em ?? "").localeCompare(String(b.criado_em ?? "")))[0];
+        const souDona = !maisAntigaOutra || String(meuItem?.criado_em ?? "9") <= String(maisAntigaOutra.criado_em ?? "9");
+        if (!souDona) {
+          await db.from("pluggy_contas").update({ ativo: false }).eq("account_id", conta.id);
           contasRepetidas++;
           continue;
         }

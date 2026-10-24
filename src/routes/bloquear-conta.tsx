@@ -28,7 +28,7 @@ function BloquearConta() {
           <h1 className="text-xl font-bold">Bloqueio emergencial</h1>
           {estado === "concluido" ? (
             <>
-              <p>Sua conta foi bloqueada. Ninguém consegue entrar nela, e os links de troca de senha foram cancelados.</p>
+              <p>Sua conta foi bloqueada. Ninguém consegue fazer um novo acesso, e os links de troca de senha foram cancelados. Um acesso já aberto em outro aparelho pode durar até 1 hora.</p>
               <p className="text-sm text-muted-foreground">
                 Abrimos um chamado no suporte{protocolo ? ` (protocolo ${protocolo})` : ""} e enviamos a confirmação por e-mail.
                 Só o suporte desbloqueia, depois de confirmar sua identidade.

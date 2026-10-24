@@ -79,11 +79,11 @@ const MODULOS: Modulo[] = [
   },
   {
     nome: "Assistente e lançamento com IA",
-    guarda: "O texto ou áudio que você envia e um resumo dos dados do seu grupo necessários para responder (por exemplo, totais do mês, categorias e próximos vencimentos) são enviados ao provedor de IA só para gerar a resposta. A conversa do assistente não fica gravada no nosso banco. A IA sugere; nada é salvo sem a sua confirmação.",
+    guarda: "O texto ou áudio que você envia e um resumo dos dados do seu grupo necessários para responder (por exemplo, totais do mês, categorias e próximos vencimentos) são enviados ao provedor de IA só para gerar a resposta. A conversa do assistente não fica gravada no nosso banco. No app, a IA sugere e nada é salvo sem a sua confirmação. No site, um pedido direto de lançamento pode ser gravado na hora; ele aparece na lista para você conferir, editar ou excluir.",
     quemVe: "Só você vê a conversa. Há limite diário de uso, e a administração pode desativar a IA.",
   },
   {
-    nome: "Calendário no iPhone e resumos compartilhados",
+    nome: "Calendário no iPhone e resumos compartilhados (só no app)",
     guarda: "O link de assinatura do calendário é pessoal e assinado; quem tiver o link vê os eventos (vencimentos, receitas, garantias). Resumos compartilhados só saem quando você toca em compartilhar.",
     quemVe: "Quem receber o link ou o resumo que você enviar.",
   },
@@ -115,10 +115,10 @@ function TermosPage() {
             <section className="space-y-2">
               <h2 className="text-base font-semibold">2. Conta, acesso e segurança</h2>
               <ul className="list-disc space-y-1 pl-5">
-                <li>Você entra com e-mail ou CPF e senha. A senha fica guardada de forma cifrada pelo provedor de autenticação; nem a administração consegue vê-la.</li>
+                <li>Você entra com e-mail ou CPF e senha. A senha é guardada pelo provedor de autenticação só em forma de hash (um embaralhamento que não pode ser desfeito); nem a administração consegue vê-la.</li>
                 <li>Depois de 3 tentativas erradas, o acesso fica bloqueado por alguns minutos. Pode ser exigido um código enviado por e-mail (segundo fator).</li>
-                <li>A sessão tem tempo máximo e pode ser encerrada por inatividade. No app, o Face ID e a senha salva ficam só no seu aparelho.</li>
-                <li>Pedidos de troca de senha e alterações de senha geram um e-mail com aparelho, data, hora e local aproximado. Se não foi você, o botão "Não fui eu" bloqueia a conta na hora, com uma segunda confirmação; o desbloqueio é feito só pelo suporte, depois de confirmar sua identidade.</li>
+                <li>A sessão tem tempo máximo e pode ser encerrada por inatividade. No app (iPhone), o Face ID e a senha salva no iCloud ficam só no seu aparelho e na sua conta Apple.</li>
+                <li>Pedidos de troca de senha e alterações de senha geram um e-mail com aparelho, data, hora e local aproximado. Se não foi você, o botão "Não fui eu", com uma segunda confirmação, bloqueia na hora novos acessos à conta; um acesso que já estava aberto em outro aparelho pode continuar por até 1 hora, até a sessão expirar; o desbloqueio é feito só pelo suporte, depois de confirmar sua identidade.</li>
                 <li>Você é responsável pelos dados que insere, por manter a senha em sigilo e por não compartilhar usuário, senha, convite ou sessão. Acesso indevido deve ser comunicado a <a className="underline" href="mailto:contato@controlall.com.br">contato@controlall.com.br</a>.</li>
               </ul>
             </section>
@@ -128,8 +128,8 @@ function TermosPage() {
               <p>
                 Cada conta pertence a um grupo (por exemplo, você e sua família). Os dados lançados ficam
                 no grupo, não na pessoa. Quem administra o grupo define, para cada pessoa e cada módulo, se
-                ela pode ver, editar ou excluir. Pessoas de outros grupos nunca veem os seus dados: o banco
-                de dados separa os grupos em todas as consultas.
+                ela pode ver, editar ou excluir. Pessoas de outros grupos não veem os seus dados: as regras de acesso do banco
+                de dados separam os grupos.
               </p>
               <ul className="list-disc space-y-1 pl-5">
                 <li>Ao aceitar um convite para o grupo de outra pessoa, você passa a ver e lançar nos dados daquele grupo. Ao sair, volta para o seu grupo original.</li>
@@ -188,7 +188,7 @@ function TermosPage() {
               <p>
                 Leituras automáticas (faturas, notas fiscais, Open Finance e IA) podem errar ou atrasar
                 porque dependem de arquivos, bancos e órgãos externos. Confira os valores antes de tomar
-                decisões. Lançamentos sugeridos pela IA só são salvos depois da sua confirmação.
+                decisões. No app, lançamentos sugeridos pela IA só são salvos depois da sua confirmação.
               </p>
             </section>
 
@@ -206,8 +206,8 @@ function TermosPage() {
             <section className="space-y-2">
               <h2 className="text-base font-semibold">10. Alterações e contato</h2>
               <p>
-                Alterações relevantes serão apresentadas no site e no app para aceite. O uso após o aceite
-                registra a concordância com a versão informada. Dúvidas:{" "}
+                Alterações relevantes serão avisadas no site e no app, e a data da versão em vigor fica nesta
+                página. Continuar usando o serviço depois do aviso significa concordar com a nova versão. Dúvidas:{" "}
                 <a className="underline" href="mailto:contato@controlall.com.br">contato@controlall.com.br</a>{" "}
                 ou{" "}
                 <a className="underline" href="mailto:privacidade@controlall.com.br">privacidade@controlall.com.br</a>.

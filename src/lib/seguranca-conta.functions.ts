@@ -586,8 +586,21 @@ export const bloquearContaPorToken = createServerFn({ method: "POST" })
       .maybeSingle();
     if (siteAdmin)
       throw new Error("A conta administrativa exige atendimento manual pelo canal de privacidade.");
+    // Reserva o link de forma atômica: dois cliques ao mesmo tempo não geram dois chamados.
+    const { data: reservado } = await db
+      .from("bloqueio_conta_tokens")
+      .update({ usado_em: new Date().toISOString() })
+      .eq("id", registro.id)
+      .is("usado_em", null)
+      .select("id");
+    if (!reservado?.length) throw new Error("Este link já foi usado.");
     // Bloqueio: impede novos acessos (ban), marca a conta inativa e cancela links de senha pendentes.
-    await supabaseAdmin.auth.admin.updateUserById(registro.user_id, { ban_duration: "876000h" });
+    const { error: erroBan } = await supabaseAdmin.auth.admin.updateUserById(registro.user_id, { ban_duration: "876000h" });
+    if (erroBan) {
+      // Devolve o link para a pessoa tentar de novo.
+      await db.from("bloqueio_conta_tokens").update({ usado_em: null }).eq("id", registro.id);
+      throw new Error("Não foi possível bloquear agora. Tente de novo em instantes ou escreva para privacidade@controlall.com.br.");
+    }
     await db.from("profiles").update({ ativo: false }).eq("id", registro.user_id);
     await db
       .from("bloqueio_conta_tokens")
@@ -627,11 +640,32 @@ export const bloquearContaPorToken = createServerFn({ method: "POST" })
         subject: "Sua conta do Control ALL foi bloqueada",
         html: seg.layoutEmailSeguranca(
           "Conta bloqueada",
-          `<p>Sua conta foi bloqueada a seu pedido. Ninguém consegue entrar nela, nem com a senha, e os links de troca de senha foram cancelados.</p>
+          `<p>Sua conta foi bloqueada a seu pedido. Ninguém consegue fazer um novo acesso, nem com a senha, e os links de troca de senha foram cancelados. Um acesso que já estava aberto em outro aparelho pode continuar por até 1 hora, até a sessão expirar.</p>
 ${seg.blocoDoPedido(pedido)}
 <p>Abrimos um chamado no suporte${chamado?.protocolo ? ` (protocolo <strong>${chamado.protocolo}</strong>)` : ""}. Para desbloquear, o suporte vai confirmar sua identidade. Responda este e-mail ou escreva para <a href="mailto:privacidade@controlall.com.br">privacidade@controlall.com.br</a>.</p>`,
         ),
       });
     }
     return { ok: true as const, protocolo: (chamado?.protocolo as string | undefined) ?? null };
+  });
+
+/**
+ * Troca da senha provisória (2026-10-24): quem entrou com senha provisória não sabe a "senha atual",
+ * então não usa alterarMinhaSenha. Só funciona enquanto profiles.senha_temporaria for verdadeiro.
+ */
+export const definirSenhaProvisoria = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((v: unknown) =>
+    z.object({ senha: z.string().min(8, "A nova senha deve ter no mínimo 8 caracteres").max(72) }).parse(v),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const db = supabaseAdmin as any;
+    const { data: perfil } = await db.from("profiles").select("senha_temporaria").eq("id", context.userId).maybeSingle();
+    if (!perfil?.senha_temporaria) throw new Error("Sua senha não é provisória. Troque a senha em Minha conta.");
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(context.userId, { password: data.senha });
+    if (error) throw new Error("Não foi possível definir a senha.");
+    await db.from("profiles").update({ senha_temporaria: false }).eq("id", context.userId);
+    await enviarAlertaSenha(context.userId);
+    return { ok: true as const };
   });

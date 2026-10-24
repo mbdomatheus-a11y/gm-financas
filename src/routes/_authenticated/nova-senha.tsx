@@ -10,7 +10,7 @@ import { useSession } from "@/hooks/useAuthData";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { alterarMinhaSenha } from "@/lib/seguranca-conta.functions";
+import { definirSenhaProvisoria } from "@/lib/seguranca-conta.functions";
 import { useServerFn } from "@tanstack/react-start";
 
 export const Route = createFileRoute("/_authenticated/nova-senha")({
@@ -29,7 +29,7 @@ function NovaSenhaPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { user } = useSession();
-  const alterarSenha = useServerFn(alterarMinhaSenha);
+  const alterarSenha = useServerFn(definirSenhaProvisoria);
   const [senha, setSenha] = useState("");
   const [confirma, setConfirma] = useState("");
   const [loading, setLoading] = useState(false);
@@ -80,12 +80,13 @@ function NovaSenhaPage() {
         </div>
         <div className="space-y-2">
           <Label htmlFor="s1">Nova senha</Label>
-          <InputSenha id="s1" value={senha} onChange={(e) => setSenha(e.target.value)} />
+          <InputSenha id="s1" autoComplete="new-password" value={senha} onChange={(e) => setSenha(e.target.value)} />
         </div>
         <div className="space-y-2">
           <Label htmlFor="s2">Confirmar nova senha</Label>
           <InputSenha
             id="s2"
+            autoComplete="new-password"
             value={confirma}
             onChange={(e) => setConfirma(e.target.value)}
           />
