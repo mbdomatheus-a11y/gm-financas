@@ -33,7 +33,6 @@ import { TURNSTILE_ATIVO } from "@/lib/turnstile-config";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BrandMark } from "@/components/BrandMark";
 import { SiteHeader } from "@/components/SiteHeader";
-import { LegalDialogs } from "@/components/LegalDialogs";
 import { EntrarForm } from "@/components/EntrarForm";
 import { SocialAuthButtons } from "@/components/SocialAuthButtons";
 import { obterConfiguracaoAcesso } from "@/lib/configuracoes-site.functions";
@@ -754,10 +753,9 @@ function OnboardingWizard({
                   className="mt-0.5"
                 />
                 <span className="text-xs text-muted-foreground leading-relaxed">
-                  Ao continuar, você concorda com nossos{" "}
-                  <span className="inline-flex gap-1">
-                    <LegalDialogs compact />
-                  </span>
+                  Declaro ter 18 anos ou mais e concordo com os{" "}
+                  <Link to="/termos-de-uso" target="_blank" className="underline underline-offset-4">Termos de Uso</Link> e a{" "}
+                  <Link to="/privacidade" target="_blank" className="underline underline-offset-4">Política de Privacidade</Link>
                   . Entendo que sou responsável pela guarda da minha senha.
                 </span>
               </label>

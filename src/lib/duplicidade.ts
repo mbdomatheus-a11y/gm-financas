@@ -1,3 +1,4 @@
+import { valoresOcultosNaArea } from "@/lib/format";
 export type ResultadoDuplicidade = {
   duplicata: boolean;
   motivo: string | null;
@@ -65,5 +66,6 @@ export function verificarPossivelDuplicata(
 }
 
 function formatarBrlSimples(v: number): string {
+  if (valoresOcultosNaArea()) return "R$ ••••••";
   return `R$ ${v.toFixed(2).replace(".", ",")}`;
 }

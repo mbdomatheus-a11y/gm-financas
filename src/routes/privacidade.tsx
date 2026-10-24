@@ -6,6 +6,9 @@ import { useServerFn } from "@tanstack/react-start";
 import { enviarSolicitacaoPrivacidade } from "@/lib/privacidade.functions";
 import { consultarProtocolo } from "@/lib/central-solicitacoes.functions";
 import { SiteHeader } from "@/components/SiteHeader";
+import { SiteFooter } from "@/components/SiteFooter";
+import { DocumentoLegalView } from "@/components/DocumentoLegalView";
+import { PRIVACIDADE } from "@/lib/textos-legais";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -16,11 +19,11 @@ import { isValidCpf, onlyDigits, maskCpf } from "@/lib/cpf";
 export const Route = createFileRoute("/privacidade")({
   head: () => ({
     meta: [
-      { title: "Privacidade — Control ALL" },
+      { title: "Política de Privacidade — Control ALL" },
       {
         name: "description",
         content:
-          "Aviso de Privacidade do Control ALL: como tratamos seus dados, como solicitar seus direitos e como consultar o status de uma solicitação já enviada.",
+          "Política de Privacidade do Control ALL (site e app): dados tratados, finalidades, compartilhamento, prazos, segurança, cookies e como exercer seus direitos.",
       },
     ],
   }),
@@ -65,44 +68,7 @@ function PrivacidadePage() {
       <div className="mx-auto max-w-3xl px-4 py-10">
         <Card>
           <CardContent className="space-y-6 p-6 text-sm leading-6">
-            <div>
-              <h1 className="text-2xl font-bold">Aviso de Privacidade</h1>
-              <p className="text-muted-foreground">Control ALL LTDA, versão 20/09/2026</p>
-            </div>
-            <p>
-              Tratamos os dados necessários para criar a conta, oferecer os módulos escolhidos,
-              proteger acessos, atender solicitações e melhorar a experiência. Não vendemos dados
-              pessoais nem os compartilhamos com terceiros para publicidade.
-            </p>
-            <p>
-              Ao visitar o site registramos a página aberta, o endereço IP, a localização
-              aproximada (cidade e país), o aparelho e a origem do acesso (por exemplo, o link de uma
-              campanha). Usamos esses dados para segurança e para medir se as ações de divulgação
-              funcionam, e eles ficam disponíveis apenas à administração do site.
-            </p>
-            <p>
-              Cookies e armazenamento local: usamos apenas o armazenamento essencial do navegador
-              (login e preferências, como idioma e tema) e uma identificação anônima de sessão para
-              medir os acessos. Não usamos cookies de publicidade nem de rastreamento por terceiros.
-              Ao escolher "Só o essencial" no aviso do site, deixamos de registrar seus acessos nas
-              métricas. Você pode mudar essa escolha limpando os dados do site no navegador.
-            </p>
-            <p>
-              Dados financeiros, documentos, fotos e informações de saúde são tratados como
-              conteúdo privado do usuário. Exames são privados por padrão e só podem ser
-              compartilhados com familiares por escolha expressa. Arquivos enviados para análise de
-              layout de fatura são usados exclusivamente para modelagem técnica e têm descarte
-              previsto em até 30 dias.
-            </p>
-            <p>
-              Você pode solicitar confirmação, acesso, correção, anonimização, eliminação,
-              informação sobre compartilhamento ou revisão do tratamento. Para segurança, pedimos
-              e-mail, telefone e CPF no formulário abaixo. Canal de privacidade:{" "}
-              <a className="underline" href="mailto:privacidade@controlall.com.br">
-                privacidade@controlall.com.br
-              </a>
-              .
-            </p>
+            <DocumentoLegalView doc={PRIVACIDADE} />
             <form onSubmit={submit} className="grid gap-3 border-t pt-5">
               <h2 className="font-semibold">Solicitar exclusão ou outro direito de privacidade</h2>
               <div className="grid gap-3 sm:grid-cols-2">
@@ -144,6 +110,7 @@ function PrivacidadePage() {
 
         <ConsultaProtocolo />
       </div>
+      <SiteFooter />
     </main>
   );
 }

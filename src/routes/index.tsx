@@ -35,8 +35,8 @@ import { BrandMark } from "@/components/BrandMark";
 import { EducacaoFinanceira } from "@/components/EducacaoFinanceira";
 import { IlustracaoCalendario, IlustracaoFamilia, IlustracaoNotas } from "@/components/Ilustracoes";
 import { ComoFunciona, FaqBloco, PerdasInvisiveis, SegurancaBloco } from "@/components/home/BlocosHome";
-import { LegalDialogs } from "@/components/LegalDialogs";
 import { SiteHeader } from "@/components/SiteHeader";
+import { SiteFooter } from "@/components/SiteFooter";
 import { obterEstatisticaPublica } from "@/lib/estatisticas-site.functions";
 import { obterParceriaHome, registrarCliqueParceria } from "@/lib/parceria.functions";
 import { listarModulosPublicos } from "@/lib/modulos-publicos.functions";
@@ -433,8 +433,9 @@ function LandingPage() {
 
       {/* Hero */}
       <section className="relative overflow-hidden border-b">
-        <div className="pointer-events-none absolute -left-24 -top-24 size-96 rounded-full bg-primary/15 blur-3xl" />
-        <div className="pointer-events-none absolute -right-20 top-40 size-80 rounded-full bg-emerald-400/15 blur-3xl" />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,color-mix(in_oklab,var(--foreground)_9%,transparent)_1px,transparent_0)] [background-size:22px_22px] [mask-image:radial-gradient(70%_60%_at_50%_30%,black,transparent)]" />
+        <div className="pointer-events-none absolute -left-24 -top-24 size-[28rem] rounded-full bg-primary/20 blur-3xl" />
+        <div className="pointer-events-none absolute -right-20 top-32 size-96 rounded-full bg-emerald-400/20 blur-3xl" />
         {/* Plano de retenção (2026-10-17): no celular o botão de criar conta aparece na
             primeira tela, com título de benefício curto. Marca animada e selo só do tablet em diante. */}
         <div className="relative mx-auto grid max-w-6xl grid-cols-1 gap-10 px-4 py-7 sm:py-16 md:grid-cols-[1.1fr_.9fr] md:py-24">
@@ -775,18 +776,7 @@ function LandingPage() {
         <AppEmBreve />
       </div>
       <BarraCadastroCelular />
-      <footer className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 border-t px-6 pb-24 pt-8 text-xs text-muted-foreground sm:flex-row sm:pb-8">
-        <p>© {new Date().getFullYear()} Control ALL LTDA. Todos os direitos reservados.</p>
-        <div className="flex items-center gap-4">
-          <Link to="/calculadoras" className="hover:underline">
-            Calculadoras
-          </Link>
-          <Link to="/links-temporarios" className="hover:underline">
-            Link temporário
-          </Link>
-          <LegalDialogs compact />
-        </div>
-      </footer>
+      <SiteFooter />
     </main>
   );
 }

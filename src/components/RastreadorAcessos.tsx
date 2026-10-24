@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useRouterState } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { registrarAcessoSite } from "@/lib/acessos-site.functions";
-import { escolhaPrivacidade } from "@/components/AvisoPrivacidade";
+import { metricasPermitidas } from "@/components/AvisoPrivacidade";
 import { origemAcesso, sessaoAcesso, tokenAtual } from "@/lib/funil-cliente";
 
 /** Registra cada página aberta (caminho, origem, sessão anônima e, com login, o usuário) no log de acessos. */
@@ -12,8 +12,8 @@ export function RastreadorAcessos() {
 
   useEffect(() => {
     if (!caminho || caminho.startsWith("/api") || caminho.startsWith("/oauth")) return;
-    // Quem escolheu "só o essencial" não entra nas métricas de acesso.
-    if (escolhaPrivacidade() === "essencial") return;
+    // Métricas só com aceite explícito no aviso de cookies (quem não respondeu ou escolheu "só o essencial" fica de fora).
+    if (!metricasPermitidas()) return;
     const { sessao, primeira } = sessaoAcesso();
     const origem = origemAcesso();
     let referrer: string | null = null;

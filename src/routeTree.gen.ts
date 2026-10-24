@@ -13,10 +13,12 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as BloquearContaRouteImport } from './routes/bloquear-conta'
 import { Route as ConsultarProtocoloRouteImport } from './routes/consultar-protocolo'
+import { Route as CookiesRouteImport } from './routes/cookies'
 import { Route as EntrarRouteImport } from './routes/entrar'
 import { Route as EsqueciSenhaRouteImport } from './routes/esqueci-senha'
 import { Route as PrivacidadeRouteImport } from './routes/privacidade'
 import { Route as RedefinirSenhaRouteImport } from './routes/redefinir-senha'
+import { Route as SobreRouteImport } from './routes/sobre'
 import { Route as TermosDeUsoRouteImport } from './routes/termos-de-uso'
 import { Route as AuthenticatedAdministracaoRouteImport } from './routes/_authenticated/administracao'
 import { Route as AuthenticatedAjustesAppRouteImport } from './routes/_authenticated/ajustes-app'
@@ -85,6 +87,11 @@ const ConsultarProtocoloRoute = ConsultarProtocoloRouteImport.update({
   path: '/consultar-protocolo',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CookiesRoute = CookiesRouteImport.update({
+  id: '/cookies',
+  path: '/cookies',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const EntrarRoute = EntrarRouteImport.update({
   id: '/entrar',
   path: '/entrar',
@@ -103,6 +110,11 @@ const PrivacidadeRoute = PrivacidadeRouteImport.update({
 const RedefinirSenhaRoute = RedefinirSenhaRouteImport.update({
   id: '/redefinir-senha',
   path: '/redefinir-senha',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SobreRoute = SobreRouteImport.update({
+  id: '/sobre',
+  path: '/sobre',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TermosDeUsoRoute = TermosDeUsoRouteImport.update({
@@ -363,10 +375,12 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/bloquear-conta': typeof BloquearContaRoute
   '/consultar-protocolo': typeof ConsultarProtocoloRoute
+  '/cookies': typeof CookiesRoute
   '/entrar': typeof EntrarRoute
   '/esqueci-senha': typeof EsqueciSenhaRoute
   '/privacidade': typeof PrivacidadeRoute
   '/redefinir-senha': typeof RedefinirSenhaRoute
+  '/sobre': typeof SobreRoute
   '/termos-de-uso': typeof TermosDeUsoRoute
   '/administracao': typeof AuthenticatedAdministracaoRoute
   '/ajustes-app': typeof AuthenticatedAjustesAppRoute
@@ -420,10 +434,12 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/bloquear-conta': typeof BloquearContaRoute
   '/consultar-protocolo': typeof ConsultarProtocoloRoute
+  '/cookies': typeof CookiesRoute
   '/entrar': typeof EntrarRoute
   '/esqueci-senha': typeof EsqueciSenhaRoute
   '/privacidade': typeof PrivacidadeRoute
   '/redefinir-senha': typeof RedefinirSenhaRoute
+  '/sobre': typeof SobreRoute
   '/termos-de-uso': typeof TermosDeUsoRoute
   '/administracao': typeof AuthenticatedAdministracaoRoute
   '/ajustes-app': typeof AuthenticatedAjustesAppRoute
@@ -479,10 +495,12 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/bloquear-conta': typeof BloquearContaRoute
   '/consultar-protocolo': typeof ConsultarProtocoloRoute
+  '/cookies': typeof CookiesRoute
   '/entrar': typeof EntrarRoute
   '/esqueci-senha': typeof EsqueciSenhaRoute
   '/privacidade': typeof PrivacidadeRoute
   '/redefinir-senha': typeof RedefinirSenhaRoute
+  '/sobre': typeof SobreRoute
   '/termos-de-uso': typeof TermosDeUsoRoute
   '/_authenticated/administracao': typeof AuthenticatedAdministracaoRoute
   '/_authenticated/ajustes-app': typeof AuthenticatedAjustesAppRoute
@@ -538,10 +556,12 @@ export interface FileRouteTypes {
     | '/'
     | '/bloquear-conta'
     | '/consultar-protocolo'
+    | '/cookies'
     | '/entrar'
     | '/esqueci-senha'
     | '/privacidade'
     | '/redefinir-senha'
+    | '/sobre'
     | '/termos-de-uso'
     | '/administracao'
     | '/ajustes-app'
@@ -595,10 +615,12 @@ export interface FileRouteTypes {
     | '/'
     | '/bloquear-conta'
     | '/consultar-protocolo'
+    | '/cookies'
     | '/entrar'
     | '/esqueci-senha'
     | '/privacidade'
     | '/redefinir-senha'
+    | '/sobre'
     | '/termos-de-uso'
     | '/administracao'
     | '/ajustes-app'
@@ -653,10 +675,12 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/bloquear-conta'
     | '/consultar-protocolo'
+    | '/cookies'
     | '/entrar'
     | '/esqueci-senha'
     | '/privacidade'
     | '/redefinir-senha'
+    | '/sobre'
     | '/termos-de-uso'
     | '/_authenticated/administracao'
     | '/_authenticated/ajustes-app'
@@ -712,10 +736,12 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   BloquearContaRoute: typeof BloquearContaRoute
   ConsultarProtocoloRoute: typeof ConsultarProtocoloRoute
+  CookiesRoute: typeof CookiesRoute
   EntrarRoute: typeof EntrarRoute
   EsqueciSenhaRoute: typeof EsqueciSenhaRoute
   PrivacidadeRoute: typeof PrivacidadeRoute
   RedefinirSenhaRoute: typeof RedefinirSenhaRoute
+  SobreRoute: typeof SobreRoute
   TermosDeUsoRoute: typeof TermosDeUsoRoute
   CalculadorasDiferencaEntreDatasRoute: typeof CalculadorasDiferencaEntreDatasRoute
   CalculadorasSimuladorDeDoseDiluicaoRoute: typeof CalculadorasSimuladorDeDoseDiluicaoRoute
@@ -763,6 +789,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ConsultarProtocoloRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/cookies': {
+      id: '/cookies'
+      path: '/cookies'
+      fullPath: '/cookies'
+      preLoaderRoute: typeof CookiesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/entrar': {
       id: '/entrar'
       path: '/entrar'
@@ -789,6 +822,13 @@ declare module '@tanstack/react-router' {
       path: '/redefinir-senha'
       fullPath: '/redefinir-senha'
       preLoaderRoute: typeof RedefinirSenhaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sobre': {
+      id: '/sobre'
+      path: '/sobre'
+      fullPath: '/sobre'
+      preLoaderRoute: typeof SobreRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/termos-de-uso': {
@@ -1210,10 +1250,12 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   BloquearContaRoute: BloquearContaRoute,
   ConsultarProtocoloRoute: ConsultarProtocoloRoute,
+  CookiesRoute: CookiesRoute,
   EntrarRoute: EntrarRoute,
   EsqueciSenhaRoute: EsqueciSenhaRoute,
   PrivacidadeRoute: PrivacidadeRoute,
   RedefinirSenhaRoute: RedefinirSenhaRoute,
+  SobreRoute: SobreRoute,
   TermosDeUsoRoute: TermosDeUsoRoute,
   CalculadorasDiferencaEntreDatasRoute: CalculadorasDiferencaEntreDatasRoute,
   CalculadorasSimuladorDeDoseDiluicaoRoute:

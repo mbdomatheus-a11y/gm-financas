@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { formatBRL } from "@/lib/format";
+import { formatBRLSemMascara } from "@/lib/format";
 
 const STORAGE_KEY = "financas_ocultar_valores";
 const STORAGE_KEY_ITENS = "financas_ocultar_valores_itens";
@@ -108,7 +108,7 @@ export function usePrivacidadeValores(itemId?: string) {
 
   /** Formata um valor numérico em BRL ou mascara como 'R$ ••••••' se a privacidade estiver ativa */
   const formatar = useCallback(
-    (valor: number | null | undefined, customFormatter: (v: number) => string = formatBRL) => {
+    (valor: number | null | undefined, customFormatter: (v: number) => string = formatBRLSemMascara) => {
       if (valor == null) return "—";
       if (ocultoNesteItem) return "R$ ••••••";
       return customFormatter(valor);

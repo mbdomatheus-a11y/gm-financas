@@ -76,6 +76,7 @@ import { BotaoLancamentoRapido } from "@/components/LancamentoRapido/BotaoLancam
 import { obterUsoOracleDoMeuGrupo } from "@/lib/oracle-admin.functions";
 import { definirModoCliente, useModoCliente } from "@/lib/modo-cliente";
 import { usePrivacidadeValores } from "@/hooks/usePrivacidadeValores";
+import { definirOcultarValoresNaArea } from "@/lib/format";
 import { useMascaraValores } from "@/hooks/useMascaraValores";
 import { Eye, EyeOff } from "lucide-react";
 import { ADMIN_ONLY_TAG, AREAS, ORDEM_AREAS, type AreaId } from "@/lib/areas";
@@ -475,6 +476,10 @@ export function AppLayout({
     return chave ? t(chave) : item.label;
   };
   const { ocultarValores, toggle: alternarOcultarValores } = usePrivacidadeValores();
+  // Olho global: liga a máscara antes de desenhar a página e remonta o conteúdo ao alternar,
+  // para que todas as cifras (formatBRL/formatUSD) sigam a escolha na hora.
+  definirOcultarValoresNaArea(ocultarValores);
+  useEffect(() => () => definirOcultarValoresNaArea(false), []);
   const { habilitado, liberadoGeral } = useModulosGlobais();
   useMascaraValores(ocultarValores);
   const navigate = useNavigate();
@@ -961,7 +966,7 @@ export function AppLayout({
               Esta área é exclusiva do administrador. Volte à visão admin para acessá-la.
             </div>
           ) : (
-            children
+            <Fragment key={ocultarValores ? "valores-ocultos" : "valores-visiveis"}>{children}</Fragment>
           )}
           <AppEmBreve className="mt-10 native:hidden" />
           <SincronizadorAgendaApp />

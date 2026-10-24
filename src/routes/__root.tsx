@@ -15,7 +15,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { VersaoBuild } from "@/components/VersaoBuild";
 import { DynamicFavicon } from "@/components/BrandMark";
 import { RastreadorAcessos } from "@/components/RastreadorAcessos";
-import { AvisoPrivacidade } from "@/components/AvisoPrivacidade";
+import { AvisoPrivacidade, metricasPermitidas } from "@/components/AvisoPrivacidade";
 
 function NotFoundComponent() {
   return (
@@ -142,6 +142,8 @@ function RootComponent() {
   useEffect(() => {
     inject({
       beforeSend: (event: BeforeSendEvent) => {
+        // Métricas só com aceite explícito no aviso de cookies (LGPD, consentimento).
+        if (!metricasPermitidas()) return null;
         try {
           const url = new URL(event.url);
           return { ...event, url: `${url.origin}${url.pathname}` };

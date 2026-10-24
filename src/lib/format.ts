@@ -1,12 +1,28 @@
 export type Moeda = "BRL" | "USD";
 
-export function formatBRL(value: number): string {
+// Ocultar valores (olho): dentro da área logada, todas as cifras viram máscara.
+// O AppLayout liga/desliga esta chave; páginas públicas (calculadoras) não são afetadas.
+let ocultarNaArea = false;
+export function definirOcultarValoresNaArea(v: boolean) {
+  ocultarNaArea = v;
+}
+export function valoresOcultosNaArea(): boolean {
+  return ocultarNaArea;
+}
+
+export function formatBRLSemMascara(value: number): string {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(
     Number.isFinite(value) ? value : 0,
   );
 }
 
+export function formatBRL(value: number): string {
+  if (ocultarNaArea) return "R$ ••••••";
+  return formatBRLSemMascara(value);
+}
+
 export function formatUSD(value: number): string {
+  if (ocultarNaArea) return "US$ ••••••";
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(
     Number.isFinite(value) ? value : 0,
   );

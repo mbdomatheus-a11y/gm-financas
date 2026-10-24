@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { abrirPreferenciasCookies } from "@/components/AvisoPrivacidade";
 
 /**
  * Links para Termos de Uso e Aviso de Privacidade. Navegam pra página
@@ -21,6 +22,15 @@ export function LegalDialogs({ compact = false }: { compact?: boolean }) {
       </Link>
       <Link to="/privacidade" className={classe}>
         Privacidade
+      </Link>
+      <Link to="/cookies" className={classe}>
+        Cookies
+      </Link>
+      <button type="button" className={classe} onClick={abrirPreferenciasCookies}>
+        Preferências de cookies
+      </button>
+      <Link to="/sobre" className={classe}>
+        Sobre
       </Link>
     </>
   );

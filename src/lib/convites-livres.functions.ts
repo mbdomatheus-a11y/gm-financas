@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { menorDeIdade, metadadosAceite, MSG_MENOR_DE_IDADE } from "@/lib/termos-aceite";
 import { verificarTurnstileToken } from "@/lib/turnstile.functions";
 import { TURNSTILE_ATIVO } from "@/lib/turnstile-config";
 import { isValidCpf } from "@/lib/cpf";
@@ -43,6 +44,11 @@ export const criarContaSemConvite = createServerFn({ method: "POST" })
       if (!ok) throw new Error("Verificação de segurança inválida.");
     }
 
+    // Termos, item 4.2: só maiores de 18 anos.
+    if (data.dataNascimento && menorDeIdade(new Date(data.dataNascimento))) {
+      throw new Error(MSG_MENOR_DE_IDADE);
+    }
+
     // 3. Validar CPF se fornecido
     if (data.cpf) {
       if (!isValidCpf(data.cpf)) throw new Error("CPF inválido.");
@@ -61,6 +67,7 @@ export const criarContaSemConvite = createServerFn({ method: "POST" })
       email: emailNorm,
       password: data.senha,
       email_confirm: true,
+      user_metadata: metadadosAceite(),
     });
     if (authError || !authUser.user) {
       throw new Error(authError?.message ?? "Erro ao criar usuário.");

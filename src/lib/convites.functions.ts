@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { menorDeIdade, metadadosAceite, MSG_MENOR_DE_IDADE } from "@/lib/termos-aceite";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { isValidCpf, onlyDigits } from "@/lib/cpf";
 import { verificarTurnstileToken } from "@/lib/turnstile.functions";
@@ -202,6 +203,7 @@ export const aceitarConvite = createServerFn({ method: "POST" })
       if (Number.isNaN(nascimento.getTime()) || nascimento > new Date()) {
         throw new Error("Data de nascimento inválida");
       }
+      if (menorDeIdade(nascimento)) throw new Error(MSG_MENOR_DE_IDADE);
     }
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -326,6 +328,7 @@ export const aceitarConvite = createServerFn({ method: "POST" })
       email: data.email,
       password: data.senha,
       email_confirm: true,
+      user_metadata: metadadosAceite(),
     });
     if (authError || !created.user) {
       throw new Error(
@@ -414,6 +417,7 @@ export const criarContaSemConvite = createServerFn({ method: "POST" })
     if (Number.isNaN(nascimento.getTime()) || nascimento > new Date()) {
       throw new Error("Data de nascimento inválida");
     }
+    if (menorDeIdade(nascimento)) throw new Error(MSG_MENOR_DE_IDADE);
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const db = supabaseAdmin as any;
@@ -446,6 +450,7 @@ export const criarContaSemConvite = createServerFn({ method: "POST" })
       email: data.email,
       password: data.senha,
       email_confirm: true,
+      user_metadata: metadadosAceite(),
     });
     if (authError || !created.user) {
       throw new Error(
