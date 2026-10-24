@@ -326,6 +326,52 @@ export interface ReceitaCompetencia {
  * Receitas fixas (recorrentes sem prazo ou com prazo) projetam para qualquer mês
  * futuro ou presente selecionado (ex: 2026, 2029, 2030), aplicando reajustes se configurados.
  */
+/**
+ * Open Finance prevalece (2026-10-24): se o banco já trouxe uma entrada no mês com o mesmo valor
+ * de uma receita fixa prevista (e o nome do responsável ou da receita aparece no extrato, ou a data
+ * é próxima), a previsão daquele mês sai da conta para não somar em dobro.
+ * Ex.: "Guilherme - Dia 30" R$ 2.874 previsto e "PIX RECEBIDO GUILHERME" R$ 2.874 do banco.
+ * Cada entrada do banco substitui no máximo uma previsão.
+ */
+function normalizarTexto(t: string): string {
+  return String(t ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase();
+}
+
+function suprimirFixasRecebidasPeloBanco(lista: ReceitaCompetencia[]): ReceitaCompetencia[] {
+  const doBanco = lista.filter((r) => !r.projetada && (r.receitaOriginal as any)?.origem === "pluggy");
+  if (!doBanco.length) return lista;
+  const remover = new Set<string>();
+  type Par = { proj: string; banco: string; nota: number };
+  const pares: Par[] = [];
+  for (const b of doBanco) {
+    const texto = normalizarTexto(`${b.descricao ?? ""} ${(b.receitaOriginal as any)?.observacoes ?? ""}`);
+    for (const p of lista) {
+      if (!p.projetada || p.competencia !== b.competencia) continue;
+      if (Math.abs(Number(p.valor) - Number(b.valor)) > 0.01) continue;
+      const nomes = [p.responsavel, ...(String(p.descricao ?? "").split(/[^A-Za-zÀ-ÿ]+/))]
+        .map((n) => normalizarTexto(n).trim())
+        .filter((n) => n.length >= 4);
+      const temNome = nomes.some((n) => texto.includes(n));
+      const d1 = new Date(`${String(p.data_recebimento).slice(0, 10)}T12:00:00`).getTime();
+      const d2 = new Date(`${String(b.data_recebimento).slice(0, 10)}T12:00:00`).getTime();
+      const dias = Number.isFinite(d1) && Number.isFinite(d2) ? Math.abs(d1 - d2) / 86400000 : 99;
+      if (!temNome && dias > 5) continue;
+      pares.push({ proj: p.id, banco: b.id, nota: (temNome ? 100 : 0) - dias });
+    }
+  }
+  pares.sort((a, b) => b.nota - a.nota);
+  const usados = new Set<string>();
+  for (const par of pares) {
+    if (remover.has(par.proj) || usados.has(par.banco)) continue;
+    remover.add(par.proj);
+    usados.add(par.banco);
+  }
+  return remover.size ? lista.filter((r) => !remover.has(r.id)) : lista;
+}
+
 export function receitasPorCompetencias(
   receitas: any[],
   competencias: string[],
@@ -434,6 +480,6 @@ export function receitasPorCompetencias(
     }
   }
 
-  return out;
+  return suprimirFixasRecebidasPeloBanco(out);
 }
 
