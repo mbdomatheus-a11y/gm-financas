@@ -5,3 +5,4 @@
 - Registros de acesso (acessos_site_log, logs de login): mínimo 6 meses (Marco Civil art. 15). Proposta: expurgo após 12 meses (pendente, precisa de autorização para mudar o banco).
 - Conversas da IA: não persistem no banco; histórico do lançamento rápido só no navegador.
 - Backups pontuais (ex.: public.backup_pluggy_dup_20261024): apagar quando a correção estiver confirmada.
+- Códigos de confirmação de e-mail (verificacoes_email): guardados só como hash, valem 15 minutos; cada novo pedido apaga os pendentes. Proposta: expurgo de linhas com mais de 30 dias.

@@ -3,8 +3,6 @@ import { z } from "zod";
 import { menorDeIdade, metadadosAceite, MSG_MENOR_DE_IDADE } from "@/lib/termos-aceite";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { isValidCpf, onlyDigits } from "@/lib/cpf";
-import { verificarTurnstileToken } from "@/lib/turnstile.functions";
-import { TURNSTILE_ATIVO } from "@/lib/turnstile-config";
 
 /** URL base do site pra montar o link de convite clicável. */
 const urlBase = () => process.env["SITE_URL"] || "https://www.controlall.com.br";
@@ -182,6 +180,7 @@ export const aceitarConvite = createServerFn({ method: "POST" })
         dataNascimento: z.string().max(10).optional().nullable(),
         senha: z.string().min(8).max(72),
         turnstileToken: z.string().optional(),
+        codigoEmail: z.string().max(12).optional(),
         recuperarDados: z.boolean().optional(),
         codigoRecuperacao: z.string().min(20).max(100).optional(),
         aceitouDocumentos: z.literal(true),
@@ -239,11 +238,8 @@ export const aceitarConvite = createServerFn({ method: "POST" })
     if (contaArquivada && data.recuperarDados === undefined) {
       throw new Error("RECUPERACAO_DISPONIVEL");
     }
-    if (TURNSTILE_ATIVO) {
-      const turnstileOk = await verificarTurnstileToken(data.turnstileToken ?? "");
-      if (!turnstileOk)
-        throw new Error("Verificação de segurança falhou. Recarregue e tente de novo.");
-    }
+    // Turnstile agora é conferido ao enviar o código de e-mail (o token só vale uma vez).
+    // Conta nova exige o código; recuperação exige o código enviado ao e-mail anterior.
     if (contaArquivada && data.recuperarDados) {
       if (
         contaArquivada.email?.toLowerCase() !== data.email.toLowerCase() ||
@@ -313,6 +309,10 @@ export const aceitarConvite = createServerFn({ method: "POST" })
     // Bug corrigido em 2026-09-18: antes o código reaproveitava
     // `convite.grupo_id` (o grupo de quem gerou o convite), então todo
     // convidado passava a enxergar os dados financeiros de quem o convidou.
+    // Revisão de segurança 24/10: só cria a conta com o código enviado ao e-mail (prova de dono).
+    const { consumirCodigoVerificacao } = await import("@/lib/verificacao-email.server");
+    await consumirCodigoVerificacao(db, { email: data.email, finalidade: "cadastro", codigo: data.codigoEmail });
+
     let grupoId = null;
     if (!grupoId) {
       const { data: grupoNovo, error: grupoError } = await db
@@ -406,6 +406,7 @@ export const criarContaSemConvite = createServerFn({ method: "POST" })
         dataNascimento: z.string().min(10),
         senha: z.string().min(8).max(72),
         turnstileToken: z.string().optional(),
+        codigoEmail: z.string().max(12).optional(),
         aceitouDocumentos: z.literal(true),
       })
       .parse(d),
@@ -432,11 +433,9 @@ export const criarContaSemConvite = createServerFn({ method: "POST" })
       throw new Error("O cadastro sem convite não está liberado no momento.");
     }
 
-    if (TURNSTILE_ATIVO) {
-      const turnstileOk = await verificarTurnstileToken(data.turnstileToken ?? "");
-      if (!turnstileOk)
-        throw new Error("Verificação de segurança falhou. Recarregue e tente de novo.");
-    }
+    // Revisão de segurança 24/10: só cria a conta com o código enviado ao e-mail (prova de dono).
+    const { consumirCodigoVerificacao } = await import("@/lib/verificacao-email.server");
+    await consumirCodigoVerificacao(db, { email: data.email, finalidade: "cadastro", codigo: data.codigoEmail });
 
     const { data: grupoNovo, error: grupoError } = await db
       .from("grupos")

@@ -38,6 +38,8 @@ import { SocialAuthButtons } from "@/components/SocialAuthButtons";
 import { obterConfiguracaoAcesso } from "@/lib/configuracoes-site.functions";
 import { rotaDaTelaInicial } from "@/lib/tela-inicial-padrao";
 import { criarContaSemConvite } from "@/lib/convites-livres.functions";
+import { enviarCodigoCadastro } from "@/lib/verificacao-email.functions";
+import { DialogoCodigoEmail } from "@/components/DialogoCodigoEmail";
 import { garantirPerfilUsuarioOAuth } from "@/lib/seguranca-conta.functions";
 
 export const Route = createFileRoute("/entrar")({
@@ -197,6 +199,34 @@ function CriarContaForm({ token }: { token: string | undefined }) {
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [aceitouDocumentos, setAceitouDocumentos] = useState(false);
+  const enviarCodigo = useServerFn(enviarCodigoCadastro);
+  // Revisão de segurança 24/10: a conta só é criada com o código enviado ao e-mail.
+  const [codigoAberto, setCodigoAberto] = useState(false);
+  const [emailMascarado, setEmailMascarado] = useState("");
+  const [turnstileChave, setTurnstileChave] = useState(0);
+
+  async function pedirCodigo() {
+    if (TURNSTILE_ATIVO && !turnstileToken) {
+      toast.error("Aguarde a verificação de segurança e tente de novo.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const r = await enviarCodigo({
+        data: { email: form.email.trim(), turnstileToken: turnstileToken ?? undefined },
+      });
+      setEmailMascarado(r.emailMascarado);
+      setCodigoAberto(true);
+      toast.success("Código enviado para o seu e-mail.");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Não foi possível enviar o código.");
+    } finally {
+      // O token do Turnstile vale uma vez: gera outro para um possível reenvio.
+      setTurnstileToken(null);
+      setTurnstileChave((k) => k + 1);
+      setLoading(false);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -232,6 +262,11 @@ function CriarContaForm({ token }: { token: string | undefined }) {
       return;
     }
 
+    await pedirCodigo();
+  }
+
+  async function criarConta(codigoEmail: string) {
+    const cpfLimpo = onlyDigits(form.cpf);
     setLoading(true);
     try {
       const usaCadastroLivre = !tokenInput.trim() || cadastroLivre;
@@ -245,7 +280,7 @@ function CriarContaForm({ token }: { token: string | undefined }) {
             telefone: form.telefone.trim() || undefined,
             dataNascimento: form.dataNascimento || undefined,
             senha: form.senha,
-            turnstileToken: turnstileToken ?? undefined,
+            codigoEmail,
             aceitouDocumentos: true as const,
           },
         });
@@ -258,7 +293,7 @@ function CriarContaForm({ token }: { token: string | undefined }) {
           telefone: form.telefone.trim() || undefined,
           dataNascimento: form.dataNascimento || undefined,
           senha: form.senha,
-          turnstileToken: turnstileToken ?? undefined,
+          codigoEmail,
           aceitouDocumentos: true as const,
         };
         try {
@@ -288,6 +323,7 @@ function CriarContaForm({ token }: { token: string | undefined }) {
         }
       }
 
+      setCodigoAberto(false);
       toast.success("Conta criada! Entrando…");
       const { error } = await supabase.auth.signInWithPassword({
         email: res.email,
@@ -306,7 +342,17 @@ function CriarContaForm({ token }: { token: string | undefined }) {
   }
 
   return (
+    <>
+    <DialogoCodigoEmail
+      aberto={codigoAberto}
+      emailMascarado={emailMascarado}
+      carregando={loading}
+      onConfirmar={criarConta}
+      onReenviar={pedirCodigo}
+      onFechar={() => setCodigoAberto(false)}
+    />
     <OnboardingWizard
+      turnstileChave={turnstileChave}
       form={form}
       setForm={setForm}
       tokenInput={tokenInput}
@@ -319,6 +365,7 @@ function CriarContaForm({ token }: { token: string | undefined }) {
       cadastroLivre={cadastroLivre}
       onSubmit={handleSubmit}
     />
+    </>
   );
 }
 
@@ -371,6 +418,7 @@ interface WizardProps {
   setAceitouDocumentos: (v: boolean) => void;
   cadastroLivre: boolean;
   onSubmit: (e: React.FormEvent) => void;
+  turnstileChave: number;
 }
 
 // ─── Wizard de onboarding ─────────────────────────────────────────────────────
@@ -387,6 +435,7 @@ function OnboardingWizard({
   setAceitouDocumentos,
   cadastroLivre,
   onSubmit,
+  turnstileChave,
 }: WizardProps) {
   const stepsVisiveis: StepId[] = cadastroLivre
     ? ["boas-vindas", "objetivo", "dados", "senha", "termos"]
@@ -744,7 +793,7 @@ function OnboardingWizard({
                 </p>
               </div>
 
-              {TURNSTILE_ATIVO && <TurnstileWidget onVerify={setTurnstileToken} />}
+              {TURNSTILE_ATIVO && <TurnstileWidget key={turnstileChave} onVerify={setTurnstileToken} />}
 
               <label className="flex items-start gap-3 rounded-xl border p-4 cursor-pointer hover:bg-muted/40 transition-colors">
                 <Checkbox

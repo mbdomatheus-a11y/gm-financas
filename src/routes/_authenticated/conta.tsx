@@ -27,6 +27,8 @@ import { useProfile, usePermissoes, useModulosGlobais } from "@/hooks/useAuthDat
 import { maskCpf, onlyDigits } from "@/lib/cpf";
 import { useServerFn } from "@tanstack/react-start";
 import { alterarMinhaSenha, atualizarMeusDados } from "@/lib/seguranca-conta.functions";
+import { enviarCodigoTrocaEmail } from "@/lib/verificacao-email.functions";
+import { DialogoCodigoEmail } from "@/components/DialogoCodigoEmail";
 import {
   aceitarConviteGrupo,
   convidarParaMeuGrupo,
@@ -80,6 +82,10 @@ function ContaPage() {
   const [emailGrupo, setEmailGrupo] = useState("");
 
   const atualizarDados = useServerFn(atualizarMeusDados);
+  const pedirCodigoTroca = useServerFn(enviarCodigoTrocaEmail);
+  // Revisão de segurança 24/10: e-mail novo só é salvo com o código enviado a ele.
+  const [codigoTrocaAberto, setCodigoTrocaAberto] = useState(false);
+  const [emailTrocaMascarado, setEmailTrocaMascarado] = useState("");
   const [editandoDados, setEditandoDados] = useState(false);
   const [formNome, setFormNome] = useState("");
   const [formEmail, setFormEmail] = useState("");
@@ -154,7 +160,14 @@ function ContaPage() {
   }, [perfil]);
 
   const salvarDados = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (codigoEmail?: string): Promise<"salvo" | "codigo"> => {
+      const trocouEmail = formEmail.trim().toLowerCase() !== (perfil?.email ?? "").trim().toLowerCase();
+      if (trocouEmail && !codigoEmail) {
+        const r = await pedirCodigoTroca({ data: { email: formEmail.trim() } });
+        setEmailTrocaMascarado(r.emailMascarado);
+        setCodigoTrocaAberto(true);
+        return "codigo";
+      }
       await atualizarDados({
         data: {
           nome: formNome,
@@ -163,10 +176,17 @@ function ContaPage() {
           dataNascimento: formDataNascimento || null,
           cpf: formCpf ? onlyDigits(formCpf) : null,
           horasTrabalhoMes: Number(formHorasMes) || 160,
+          codigoEmail: codigoEmail ?? null,
         },
       });
+      return "salvo";
     },
-    onSuccess: () => {
+    onSuccess: (resultado) => {
+      if (resultado === "codigo") {
+        toast.success("Enviamos um código para o novo e-mail.");
+        return;
+      }
+      setCodigoTrocaAberto(false);
       toast.success("Dados cadastrais atualizados com sucesso.");
       setEditandoDados(false);
       qc.invalidateQueries({ queryKey: ["profile"] });
@@ -224,6 +244,14 @@ function ContaPage() {
 
   return (
     <AppLayout title="Minha conta" description="Dados de acesso e segurança">
+      <DialogoCodigoEmail
+        aberto={codigoTrocaAberto}
+        emailMascarado={emailTrocaMascarado}
+        carregando={salvarDados.isPending}
+        onConfirmar={(codigo) => salvarDados.mutate(codigo)}
+        onReenviar={() => salvarDados.mutate(undefined)}
+        onFechar={() => setCodigoTrocaAberto(false)}
+      />
       <div className="grid gap-4 lg:grid-cols-2">
         <ConviteAmigosBanner className="lg:col-span-2" />
         {conviteGrupo && (

@@ -1,8 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { menorDeIdade, metadadosAceite, MSG_MENOR_DE_IDADE } from "@/lib/termos-aceite";
-import { verificarTurnstileToken } from "@/lib/turnstile.functions";
-import { TURNSTILE_ATIVO } from "@/lib/turnstile-config";
 import { isValidCpf } from "@/lib/cpf";
 
 const schemaCadastroLivre = z.object({
@@ -13,6 +11,7 @@ const schemaCadastroLivre = z.object({
   telefone: z.string().optional(),
   dataNascimento: z.string().optional(),
   turnstileToken: z.string().optional(),
+  codigoEmail: z.string().max(12).optional(),
   aceitouDocumentos: z.literal(true),
 });
 
@@ -38,11 +37,7 @@ export const criarContaSemConvite = createServerFn({ method: "POST" })
       throw new Error("Cadastro sem convite não está habilitado no momento.");
     }
 
-    // 2. Verificar Turnstile (se ativo)
-    if (TURNSTILE_ATIVO) {
-      const ok = await verificarTurnstileToken(data.turnstileToken ?? "");
-      if (!ok) throw new Error("Verificação de segurança inválida.");
-    }
+    // 2. Turnstile agora é conferido ao enviar o código de e-mail (o token só vale uma vez).
 
     // Termos, item 4.2: só maiores de 18 anos.
     if (data.dataNascimento && menorDeIdade(new Date(data.dataNascimento))) {
@@ -60,6 +55,10 @@ export const criarContaSemConvite = createServerFn({ method: "POST" })
         .single();
       if (existeCpf) throw new Error("Já existe uma conta com este CPF.");
     }
+
+    // Revisão de segurança 24/10: só cria a conta com o código enviado ao e-mail (prova de dono).
+    const { consumirCodigoVerificacao } = await import("@/lib/verificacao-email.server");
+    await consumirCodigoVerificacao(db, { email: data.email, finalidade: "cadastro", codigo: data.codigoEmail });
 
     // 4. Criar usuário no Supabase Auth
     const emailNorm = data.email.trim().toLowerCase();

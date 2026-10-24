@@ -354,6 +354,7 @@ export const atualizarMeusDados = createServerFn({ method: "POST" })
         dataNascimento: z.string().max(10).optional().nullable(),
         cpf: z.string().trim().optional().nullable(),
         horasTrabalhoMes: z.number().int().min(1).max(720).optional().nullable(),
+        codigoEmail: z.string().max(12).optional().nullable(),
       })
       .parse(v),
   )
@@ -369,6 +370,14 @@ export const atualizarMeusDados = createServerFn({ method: "POST" })
 
     // Atualiza auth se o email mudou
     if (data.email.toLowerCase() !== anterior?.email?.toLowerCase()) {
+      // Revisão de segurança 24/10: e-mail novo só entra com o código enviado a ele.
+      const { consumirCodigoVerificacao } = await import("@/lib/verificacao-email.server");
+      await consumirCodigoVerificacao(db, {
+        email: data.email,
+        finalidade: "troca_email",
+        codigo: data.codigoEmail,
+        userId: context.userId,
+      });
       const { error: authErr } = await supabaseAdmin.auth.admin.updateUserById(context.userId, {
         email: data.email,
         email_confirm: true,
@@ -422,7 +431,7 @@ export const atualizarMeusDados = createServerFn({ method: "POST" })
       alvo_id: context.userId,
       detalhes: {
         anterior,
-        novo: data,
+        novo: { ...data, codigoEmail: undefined },
       },
     });
 
