@@ -25,12 +25,18 @@ export const registrarSucessoLogin = createServerFn({ method: "POST" })
   .inputValidator((value: unknown) =>
     z.object({ identificador: z.string().min(3).max(180) }).parse(value),
   )
-  .handler(async ({ data, context }) => {
+  .handler(async ({ context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    await (supabaseAdmin as any).rpc("registrar_tentativa_login", {
-      p_hash: hash(data.identificador),
-      p_sucesso: true,
-    });
+    // Auditoria 24/10: zera só o contador da PRÓPRIA conta (e-mail da sessão), nunca o
+    // identificador enviado pelo navegador (antes qualquer logado destravava outra conta).
+    const { data: auth } = await supabaseAdmin.auth.admin.getUserById(context.userId);
+    const email = auth?.user?.email;
+    if (email) {
+      await (supabaseAdmin as any).rpc("registrar_tentativa_login", {
+        p_hash: hash(email),
+        p_sucesso: true,
+      });
+    }
     await (supabaseAdmin as any).from("eventos_sessao").insert({ user_id: context.userId });
     return { ok: true as const };
   });

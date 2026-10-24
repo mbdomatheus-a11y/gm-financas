@@ -16,6 +16,15 @@ const ROTAS_RESTRITAS = ["/administracao", "/usuarios", "/backup"];
 
 export function urlRetornoSegura(url: string | null | undefined): string | null {
   if (!url || !url.startsWith("/") || url.startsWith("//")) return null;
+  // Auditoria 24/10: barra invertida e caracteres de controle (TAB etc.) viram "//site-externo"
+  // no navegador. Recusa e confere que a URL resolvida continua no próprio site.
+  if (/[\\\u0000-\u001f\u007f]/.test(url)) return null;
+  try {
+    const base = "https://controlall.local";
+    if (new URL(url, base).origin !== base) return null;
+  } catch {
+    return null;
+  }
   const caminho = url.split("?")[0]?.split("#")[0] ?? "";
   if (ROTAS_RESTRITAS.some((r) => caminho === r || caminho.startsWith(`${r}/`))) return null;
   if (caminho === "/entrar" || caminho === "/") return null;

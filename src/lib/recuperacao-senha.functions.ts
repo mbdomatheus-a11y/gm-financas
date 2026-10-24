@@ -59,7 +59,8 @@ export const solicitarRecuperacaoSenha = createServerFn({ method: "POST" })
     const { data: perfil } = await db
       .from("profiles")
       .select("id,email")
-      .ilike("email", email)
+      // Auditoria 24/10: '%' e '_' são curingas no ilike; escapa para comparar o e-mail exato.
+      .ilike("email", email.replace(/[\\%_]/g, (c) => `\\${c}`))
       .maybeSingle();
     let usuario: { id: string; email?: string | undefined } | null = perfil
       ? { id: perfil.id as string, email: (perfil.email as string | null) ?? email }
@@ -70,6 +71,13 @@ export const solicitarRecuperacaoSenha = createServerFn({ method: "POST" })
       if (achado) usuario = { id: achado.id, email: achado.email };
     }
     if (!usuario) return { ok: true as const };
+    // Limite também pela conta encontrada (variações do texto não ganham cota própria).
+    await aplicarLimite(db, {
+      rota: "solicitar-recuperacao-senha-conta",
+      chave: usuario.id,
+      maxPorJanela: 5,
+      janelaMinutos: 60,
+    });
 
     // Um novo pedido invalida os links anteriores ainda não usados.
     await supabaseAdmin

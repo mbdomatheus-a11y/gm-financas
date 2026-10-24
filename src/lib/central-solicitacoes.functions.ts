@@ -148,19 +148,21 @@ export const consultarProtocolo = createServerFn({ method: "POST" })
       const cpfHash = createHash("sha256").update(data.cpf).digest("hex");
       const { data: privs } = await db
         .from("solicitacoes_privacidade")
-        .select("protocolo,status,tipo,criado_em,atualizado_em,resposta_admin")
+        .select("status,tipo,criado_em,atualizado_em")
         .eq("cpf_hash", cpfHash)
         .order("criado_em", { ascending: false })
         .limit(10);
       if (privs && privs.length > 0) {
+        // Auditoria 24/10: quem só sabe o CPF vê o andamento, mas não o protocolo nem a
+        // resposta da administração (isso fica para a consulta pelo protocolo recebido no e-mail).
         return (privs as any[]).map((priv: any) => ({
           tipo: "privacidade" as const,
-          protocolo: priv.protocolo,
+          protocolo: "—",
           status: priv.status,
           tipo_solicitacao: priv.tipo,
           dias_aberto: Math.floor((Date.now() - new Date(priv.criado_em).getTime()) / 86400000),
           atualizado_em: priv.atualizado_em,
-          resposta: priv.resposta_admin,
+          resposta: null,
         }));
       }
       return null;
@@ -181,10 +183,24 @@ const TIPOS_ANEXO_PERMITIDOS = new Set(["application/pdf", "image/png", "image/j
 const TAMANHO_MAXIMO_ANEXO = 20 * 1024 * 1024; // 20MB
 
 const anexoSchema = z.object({
-  path: z.string().min(1),
+  path: z.string().min(1).max(400),
   nome: z.string().min(1).max(180),
   tipo: z.string().min(1).max(100),
 });
+
+/** Auditoria 24/10: o anexo só pode ser um arquivo enviado pelo próprio autor (chamados/<autor>/...). */
+function anexoDoAutor(anexo: { path: string } | undefined, autorId: string): string | null {
+  if (!anexo) return null;
+  if (!caminhoAnexoSeguro(anexo.path) || !anexo.path.startsWith(`chamados/${autorId}/`)) {
+    throw new Error("Anexo não pertence a este usuário.");
+  }
+  return anexo.path;
+}
+
+/** Só caminhos da pasta de chamados, sem '..' nem barras duplicadas (não assina documentos de veículos etc.). */
+function caminhoAnexoSeguro(path: string): boolean {
+  return path.startsWith("chamados/") && !path.includes("..") && !path.includes("//") && !path.includes("\\");
+}
 
 export const criarUploadAnexoChamado = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -239,7 +255,7 @@ export const enviarChamadoSuporte = createServerFn({ method: "POST" })
         assunto: data.assunto,
         descricao: data.descricao,
         prioridade: data.prioridade ?? "sugestao",
-        anexo_path: data.anexo?.path ?? null,
+        anexo_path: anexoDoAutor(data.anexo, context.userId),
         anexo_nome: data.anexo?.nome ?? null,
         anexo_tipo: data.anexo?.tipo ?? null,
       })
@@ -352,7 +368,7 @@ export const adminAtualizarChamado = createServerFn({ method: "POST" })
         autor_tipo: "admin",
         autor_id: context.userId,
         mensagem: data.resposta ?? null,
-        anexo_path: data.anexo?.path ?? null,
+        anexo_path: anexoDoAutor(data.anexo, context.userId),
         anexo_nome: data.anexo?.nome ?? null,
         anexo_tipo: data.anexo?.tipo ?? null,
       });
@@ -441,7 +457,7 @@ export const complementarChamadoSuporte = createServerFn({ method: "POST" })
       autor_tipo: "usuario",
       autor_id: context.userId,
       mensagem: data.mensagem ?? null,
-      anexo_path: data.anexo?.path ?? null,
+      anexo_path: anexoDoAutor(data.anexo, context.userId),
       anexo_nome: data.anexo?.nome ?? null,
       anexo_tipo: data.anexo?.tipo ?? null,
     });
@@ -534,6 +550,7 @@ export const obterUrlAnexoChamado = createServerFn({ method: "POST" })
     }
     if (!pathValido) throw new Error("Anexo não pertence a este chamado.");
 
+    if (!caminhoAnexoSeguro(data.path)) throw new Error("Anexo não pertence a este chamado.");
     const { data: signed, error } = await db.storage.from("anexos").createSignedUrl(data.path, 300);
     if (error) throw new Error(error.message);
     return { url: signed.signedUrl as string };

@@ -118,13 +118,22 @@ export const abrirLinkTemporario = createServerFn({ method: "POST" })
     // aberturas permitidas, MESMO que a senha digitada esteja errada — o
     // servidor nunca sabe se a senha estava correta (a decodificação é só
     // no navegador). Avise a pessoa a senha certa antes dela abrir o link.
+    // Auditoria 24/10: consome a abertura de forma atômica. Só segue quem conseguiu
+    // mudar o contador a partir do valor lido (aberturas simultâneas não passam do limite).
+    const { data: consumida } = await db
+      .from("links_temporarios")
+      .update({ aberturas_usadas: novasAberturas })
+      .eq("id", link.id)
+      .eq("aberturas_usadas", link.aberturas_usadas)
+      .select("id");
+    if (!consumida?.length) {
+      await db
+        .from("links_temporarios_auditoria")
+        .insert({ link_id: link.id, evento: "esgotado", ip_hash: ipHash });
+      return { status: "esgotado" as const };
+    }
     if (esgotouAgora) {
       await db.from("links_temporarios").delete().eq("id", link.id);
-    } else {
-      await db
-        .from("links_temporarios")
-        .update({ aberturas_usadas: novasAberturas })
-        .eq("id", link.id);
     }
     await db
       .from("links_temporarios_auditoria")

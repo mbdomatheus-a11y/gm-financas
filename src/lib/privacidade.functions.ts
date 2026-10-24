@@ -4,6 +4,11 @@ import { z } from "zod";
 import { isValidCpf, onlyDigits } from "@/lib/cpf";
 import { aplicarLimitePorIp } from "@/lib/rate-limit.server";
 
+/** Auditoria 24/10: texto do usuário entra no e-mail sempre escapado. */
+function esc(v: string): string {
+  return String(v).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] as string);
+}
+
 const emailAdmin = "privacidade@controlall.com.br";
 const pedidoSchema = z.object({ email: z.string().trim().email(), telefone: z.string().trim().min(8).max(24), cpf: z.string().transform(onlyDigits).refine(isValidCpf, "Informe um CPF válido."), motivo: z.string().trim().max(2000).optional() });
 const cpfHash = (cpf: string) => createHash("sha256").update(cpf).digest("hex");
@@ -45,9 +50,9 @@ export const enviarSolicitacaoPrivacidade = createServerFn({ method: "POST" })
           <div style="font-family: sans-serif; padding: 20px;">
             <h2>Nova solicitação de privacidade (exclusão)</h2>
             <p><b>Protocolo:</b> ${pedido.protocolo}</p>
-            <p><b>E-mail:</b> ${data.email}</p>
-            <p><b>Telefone:</b> ${data.telefone}</p>
-            <p><b>Motivo/detalhe:</b> ${data.motivo || "Não informado"}</p>
+            <p><b>E-mail:</b> ${esc(data.email)}</p>
+            <p><b>Telefone:</b> ${esc(data.telefone)}</p>
+            <p><b>Motivo/detalhe:</b> ${esc(data.motivo || "Não informado")}</p>
             <p style="margin-top: 20px;">
               <a href="${base}/administracao?aba=privacidade" style="background:#0f172a;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none;">Tratar solicitação</a>
             </p>
@@ -66,10 +71,9 @@ export const enviarSolicitacaoPrivacidade = createServerFn({ method: "POST" })
         html: `
           <div style="font-family: sans-serif; padding: 20px;">
             <p>Olá,</p>
-            <p>Recebemos sua solicitação de exclusão de dados. Cópia da sua solicitação:</p>
-            <p><b>Telefone informado:</b> ${data.telefone}</p>
-            <p><b>Motivo/detalhe:</b> ${data.motivo || "Não informado"}</p>
+            <p>Recebemos sua solicitação de privacidade. Guarde o número do protocolo:</p>
             <p><b>Protocolo:</b> ${pedido.protocolo}</p>
+            <p>Se você não fez este pedido, ignore este e-mail.</p>
             <p style="margin-top: 16px;">
               Acompanhe pelo link: <a href="${base}/consultar-protocolo?p=${pedido.protocolo}">${base}/consultar-protocolo?p=${pedido.protocolo}</a>
             </p>

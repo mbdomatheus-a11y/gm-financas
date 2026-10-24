@@ -43,7 +43,7 @@ import { garantirPerfilUsuarioOAuth } from "@/lib/seguranca-conta.functions";
 export const Route = createFileRoute("/entrar")({
   validateSearch: (s: Record<string, unknown>): { convite?: string; next?: string; criar?: boolean } => ({
     ...(typeof s["convite"] === "string" && s["convite"] ? { convite: s["convite"] } : {}),
-    ...(typeof s["next"] === "string" && s["next"].startsWith("/") && !s["next"].startsWith("//")
+    ...(typeof s["next"] === "string" && urlRetornoSegura(s["next"])
       ? { next: s["next"] }
       : {}),
     ...(s["criar"] === true || s["criar"] === "true" ? { criar: true } : {}),

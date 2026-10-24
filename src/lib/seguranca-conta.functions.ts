@@ -136,6 +136,24 @@ export const iniciarLoginSeguro = createServerFn({ method: "POST" })
       }
       email = perfil.email.toLowerCase();
     }
+    // Auditoria 24/10: o bloqueio vale pela conta (e-mail), não pelo texto digitado
+    // (CPF com pontos, espaços ou letras não abre contador novo).
+    const contaHash = hashIdentificador(email);
+    if (contaHash !== identificadorHash) {
+      const { data: tentativaConta } = await db
+        .from("login_tentativas")
+        .select("bloqueado_ate")
+        .eq("identificador_hash", contaHash)
+        .maybeSingle();
+      if (tentativaConta?.bloqueado_ate && new Date(tentativaConta.bloqueado_ate).getTime() > Date.now()) {
+        await registrarFalhaLoginDetalhada(db, {
+          identificador: data.identificador,
+          motivo: "conta_bloqueada",
+          bloqueou: true,
+        });
+        throw new Error("LOGIN_BLOQUEADO");
+      }
+    }
     const { createClient } = await import("@supabase/supabase-js");
     const url = process.env["SUPABASE_URL"] || process.env["VITE_SUPABASE_URL"];
     const chave =
@@ -150,7 +168,7 @@ export const iniciarLoginSeguro = createServerFn({ method: "POST" })
     });
     if (error || !auth.user || !auth.session) {
       const { data: tentativa } = await db.rpc("registrar_tentativa_login", {
-        p_hash: identificadorHash,
+        p_hash: contaHash,
         p_sucesso: false,
       });
       const retorno = Array.isArray(tentativa) ? tentativa[0] : tentativa;
@@ -219,7 +237,7 @@ export const iniciarLoginSeguro = createServerFn({ method: "POST" })
       throw new Error("Usuário inativo. Fale com um administrador.");
     }
     await db.rpc("registrar_tentativa_login", {
-      p_hash: identificadorHash,
+      p_hash: contaHash,
       p_sucesso: true,
     });
     if (!config.segundo_fator_email)
@@ -543,15 +561,29 @@ export const confirmarSegundoFator = createServerFn({ method: "POST" })
       new Date(desafio.expira_em).getTime() < Date.now()
     )
       throw new Error("Código inválido ou expirado.");
+    // Auditoria 24/10: reserva a tentativa de forma atômica antes de comparar
+    // (tentativas em paralelo não passam do limite de 5).
+    const { data: reservada } = await db
+      .from("login_2fa_desafios")
+      .update({ tentativas: desafio.tentativas + 1 })
+      .eq("id", desafio.id)
+      .eq("tentativas", desafio.tentativas)
+      .is("usado_em", null)
+      .select("id");
+    if (!reservada?.length) throw new Error("Código inválido ou expirado.");
     const recebido = Buffer.from(hash(data.codigo), "hex"),
       esperado = Buffer.from(desafio.codigo_hash, "hex");
     if (recebido.length !== esperado.length || !timingSafeEqual(recebido, esperado)) {
-      await db
-        .from("login_2fa_desafios")
-        .update({ tentativas: desafio.tentativas + 1 })
-        .eq("id", desafio.id);
       throw new Error("Código inválido ou expirado.");
     }
+    // Uso único: só um pedido consegue marcar o desafio como usado.
+    const { data: marcado } = await db
+      .from("login_2fa_desafios")
+      .update({ usado_em: new Date().toISOString() })
+      .eq("id", desafio.id)
+      .is("usado_em", null)
+      .select("id");
+    if (!marcado?.length) throw new Error("Código inválido ou expirado.");
     const { data: auth } = await supabaseAdmin.auth.admin.getUserById(desafio.user_id);
     if (!auth.user?.email) throw new Error("Conta indisponível.");
     const { data: link, error } = await supabaseAdmin.auth.admin.generateLink({
@@ -560,10 +592,6 @@ export const confirmarSegundoFator = createServerFn({ method: "POST" })
     });
     if (error || !link.properties.hashed_token)
       throw new Error("Não foi possível concluir o acesso.");
-    await db
-      .from("login_2fa_desafios")
-      .update({ usado_em: new Date().toISOString() })
-      .eq("id", desafio.id);
     return { tokenHash: link.properties.hashed_token };
   });
 

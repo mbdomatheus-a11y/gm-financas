@@ -486,7 +486,16 @@ export const resolverUrlsOracle = createServerFn({ method: "POST" })
     if (!grupoId) return { urls: {} as Record<string, string> };
 
     const prefixoPermitido = `${grupoId}/`;
-    const objectKeysDoGrupo = data.objectKeys.filter((k) => k.startsWith(prefixoPermitido));
+    // Auditoria 24/10: além do prefixo do grupo, recusa "..", "//", "\\" e caracteres de controle,
+    // que poderiam escapar da pasta do grupo depois de normalizados.
+    const objectKeysDoGrupo = data.objectKeys.filter(
+      (k) =>
+        k.startsWith(prefixoPermitido) &&
+        !k.split("/").includes("..") &&
+        !k.includes("//") &&
+        !/[\\\u0000-\u001f\u007f]/.test(k) &&
+        !/%2e|%2f|%5c/i.test(k),
+    );
     if (objectKeysDoGrupo.length === 0) return { urls: {} as Record<string, string> };
 
     const { oracleStorageConfigurado, urlAssinadaOracle } =

@@ -97,6 +97,55 @@ function numeroBR(texto: string): number {
  * Tenta ler os dados públicos da nota a partir da URL do QR Code.
  * Muitos estados exigem captcha; nesse caso devolvemos status "manual".
  */
+/**
+ * Auditoria 24/10: segue redirecionamentos manualmente e confere cada salto (só https/http em
+ * *.gov.br, porta padrão), com limite de tamanho. Evita que um redirect leve o servidor para
+ * endereços internos ou fora dos portais oficiais.
+ */
+const LIMITE_BYTES_SEFAZ = 3 * 1024 * 1024;
+function urlSefazPermitida(u: URL): boolean {
+  return /^https?:$/.test(u.protocol) && /\.gov\.br$/i.test(u.hostname) && u.port === "" && !u.username && !u.password;
+}
+async function buscarSefaz(inicio: URL, init: RequestInit): Promise<{ res: Response; final: URL; bytes: Uint8Array }> {
+  let atual = inicio;
+  for (let salto = 0; salto < 5; salto++) {
+    if (!urlSefazPermitida(atual)) throw new Error("Redirecionamento fora dos portais oficiais");
+    const res = await fetch(atual.toString(), { ...init, redirect: "manual" });
+    if (res.status >= 300 && res.status < 400) {
+      const destino = res.headers.get("location");
+      await res.body?.cancel();
+      if (!destino) throw new Error(`Portal respondeu ${res.status}`);
+      atual = new URL(destino, atual);
+      continue;
+    }
+    const tamanho = Number(res.headers.get("content-length") ?? "0");
+    if (tamanho > LIMITE_BYTES_SEFAZ) throw new Error("Resposta grande demais");
+    const leitor = res.body?.getReader();
+    const partes: Uint8Array[] = [];
+    let total = 0;
+    if (leitor) {
+      for (;;) {
+        const { done, value } = await leitor.read();
+        if (done) break;
+        total += value.byteLength;
+        if (total > LIMITE_BYTES_SEFAZ) {
+          await leitor.cancel();
+          throw new Error("Resposta grande demais");
+        }
+        partes.push(value);
+      }
+    }
+    const bytes = new Uint8Array(total);
+    let pos = 0;
+    for (const p of partes) {
+      bytes.set(p, pos);
+      pos += p.byteLength;
+    }
+    return { res, final: atual, bytes };
+  }
+  throw new Error("Redirecionamentos demais");
+}
+
 export const consultarNota = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { url: string }) => input)
@@ -121,7 +170,7 @@ export const consultarNota = createServerFn({ method: "POST" })
 
     let html = "";
     try {
-      const res = await fetch(alvo.toString(), {
+      const { res, bytes } = await buscarSefaz(alvo, {
         headers: {
           "User-Agent":
             "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Mobile Safari/537.36",
@@ -130,7 +179,7 @@ export const consultarNota = createServerFn({ method: "POST" })
         signal: AbortSignal.timeout(12000),
       });
       if (!res.ok) return { ...vazio, motivo: `Portal respondeu ${res.status}` };
-      html = await res.text();
+      html = new TextDecoder("utf-8").decode(bytes);
     } catch {
       return { ...vazio, motivo: "Portal indisponível" };
     }
