@@ -2,17 +2,15 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { appSupabase } from "@/integrations/supabase/app-types";
 import { useProfile } from "@/hooks/useAuthData";
+import { buscarTudo } from "@/lib/buscar-tudo";
 
 export function useReceitas() {
   return useQuery({
     queryKey: ["receitas"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("receitas")
-        .select("*")
-        .order("data_recebimento", { ascending: false });
-      if (error) throw error;
-      return data ?? [];
+      return buscarTudo(() =>
+        supabase.from("receitas").select("*").order("data_recebimento", { ascending: false }).order("id"),
+      );
     },
   });
 }
@@ -21,12 +19,13 @@ export function useDespesas() {
   return useQuery({
     queryKey: ["despesas"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("despesas")
-        .select("*, parcelas(*), cartoes(apelido, titular, final, cor), bancos(nome)")
-        .order("data_compra", { ascending: false });
-      if (error) throw error;
-      return data ?? [];
+      return buscarTudo(() =>
+        supabase
+          .from("despesas")
+          .select("*, parcelas(*), cartoes(apelido, titular, final, cor), bancos(nome)")
+          .order("data_compra", { ascending: false })
+          .order("id"),
+      );
     },
   });
 }
@@ -35,12 +34,9 @@ export function useParcelas() {
   return useQuery({
     queryKey: ["parcelas"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("parcelas")
-        .select("*, despesas(descricao, categoria, tipo, moeda)")
-        .order("vencimento");
-      if (error) throw error;
-      return data ?? [];
+      return buscarTudo(() =>
+        supabase.from("parcelas").select("*, despesas(descricao, categoria, tipo, moeda)").order("vencimento").order("id"),
+      );
     },
   });
 }

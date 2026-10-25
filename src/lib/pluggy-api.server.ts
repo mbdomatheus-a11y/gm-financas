@@ -322,24 +322,44 @@ function somarMeses(iso: string, meses: number): string {
   return isoData(new Date(Date.UTC(ano, mes - 1 + meses, Math.min(dia, ultimoDia), 12)));
 }
 
+type LinhaCartao = { cartaoId: string | null; t: Transacao; banco: string | null; faturas?: Map<string, string>; statusConfiavel?: boolean };
+
 /**
- * Vencimento da fatura de uma parcela cuja linha o banco data perto do fechamento (ex.: 07/10 ou 08/09):
- * ela pertence à fatura do ciclo seguinte. Usa fechamento e vencimento do cadastro (ou o padrão do banco).
+ * Em qual fatura (pelo vencimento) cai uma linha do cartão. Regras da documentação da Pluggy
+ * (Credit Card Installments, 25/10/2026):
+ *  1. billId presente: a linha está numa fatura já fechada; vale o vencimento dessa fatura (/bills).
+ *  2. status PENDING = fatura aberta (sem billId). Linha pendente com data até hoje é da fatura aberta;
+ *     linha futura (parcelas que o banco já projeta) cai pela data, nunca antes da fatura aberta.
+ *  3. status POSTED = fatura fechada: pela data, mas nunca depois da última fatura que já fechou.
+ *  4. Banco sem status confiável (o Nubank marca tudo como PENDING): vale só a data, e a compra no
+ *     próprio dia do fechamento já é da fatura seguinte (como o app do banco mostra).
+ * Fechamento e vencimento vêm do cadastro do cartão (ou do padrão do banco). Sem vencimento: null.
  */
-async function proximoVencimentoCartao(db: any, cartaoId: string | null, data: string, banco?: string | null): Promise<string | null> {
-  if (!cartaoId) return null;
-  const { data: cartao } = await db.from("cartoes").select("dia_fechamento, dia_vencimento, apelido, bancos(nome)").eq("id", cartaoId).maybeSingle();
+async function vencimentoDaLinha(db: any, p: LinhaCartao): Promise<string | null> {
+  const meta = p.t.creditCardMetadata ?? null;
+  const daFatura = meta?.billId ? p.faturas?.get(String(meta.billId)) ?? null : null;
+  if (daFatura) return daFatura;
+  if (!p.cartaoId) return null;
+  const { data: cartao } = await db.from("cartoes").select("dia_fechamento, dia_vencimento, apelido, bancos(nome)").eq("id", p.cartaoId).maybeSingle();
   const dia = cartao?.dia_vencimento ? Number(cartao.dia_vencimento) : null;
   if (!dia) return null;
-  const nomeBanco = `${cartao.bancos?.nome ?? ""} ${cartao.apelido ?? ""} ${banco ?? ""}`;
-  // Itaú data a parcela no próprio fechamento; Nubank, Santander e demais, no início do ciclo (+25 dias).
-  const fechamentoNaData = /ita[uú]|personnalite|uniclass/i.test(nomeBanco);
-  const alvo = fechamentoNaData ? dataIso(data) : isoData(new Date(Date.parse(`${dataIso(data)}T12:00:00Z`) + 25 * 86400000));
-  return vencimentoDaFatura(alvo, {
+  const ciclo = {
     diaFechamento: cartao.dia_fechamento ?? null,
     diaVencimento: dia,
-    diasAntes: diasAntesPadrao(nomeBanco),
-  });
+    diasAntes: diasAntesPadrao(`${cartao.bancos?.nome ?? ""} ${cartao.apelido ?? ""} ${p.banco ?? ""}`),
+  };
+  const d = dataIso(p.t.date);
+  if (!p.statusConfiavel) return vencimentoDaFatura(somarDias(d, 1), ciclo);
+  const hoje = new Date().toISOString().slice(0, 10);
+  const aberta = vencimentoDaFatura(hoje, ciclo);
+  if (p.t.status === "PENDING") {
+    if (d <= hoje) return aberta;
+    const futura = vencimentoDaFatura(d, ciclo);
+    return futura > aberta ? futura : aberta;
+  }
+  const ultimaFechada = somarMeses(aberta, -1);
+  const v = vencimentoDaFatura(d, ciclo);
+  return v > ultimaFechada ? ultimaFechada : v;
 }
 
 /** Parcelamento que já existe: as parcelas até a n-ésima (a que acabou de aparecer no extrato) ficam pagas. */
@@ -358,7 +378,7 @@ async function marcarPagasAte(db: any, despesaId: string, n: number): Promise<vo
  */
 async function importarParcelado(
   db: any,
-  p: { userId: string; grupoId: string | null; t: Transacao; cartaoId: string | null; cartaoFinal: string | null; banco: string | null; congelada: boolean; pendente?: boolean; faturas?: Map<string, string> },
+  p: { userId: string; grupoId: string | null; t: Transacao; cartaoId: string | null; cartaoFinal: string | null; banco: string | null; congelada: boolean; pendente?: boolean; faturas?: Map<string, string>; statusConfiavel?: boolean },
   { n, t }: { n: number; t: number },
 ): Promise<boolean> {
   const valorParcela = Math.abs(p.t.amount);
@@ -370,7 +390,7 @@ async function importarParcelado(
   // Fatura desta parcela: 1) billId do banco; 2) a linha do extrato vem datada no fechamento, então vale o
   // próximo vencimento do cartão depois dessa data; 3) sem nada disso, cai na data da compra (regra antiga).
   const vencDestaParcela =
-    (meta?.billId ? p.faturas?.get(String(meta.billId)) ?? null : null) ?? (await proximoVencimentoCartao(db, p.cartaoId, p.t.date, p.banco));
+    await vencimentoDaLinha(db, p);
   // As parcelas podem cair em dias diferentes do mesmo mês (ex.: 03/09 e 11/09), então a compra
   // é identificada pelo mês da primeira parcela, e não pelo dia.
   const primeiraMes = primeira.slice(0, 7);
@@ -463,7 +483,10 @@ async function importarParcelado(
     moeda: "BRL",
     // Com a fatura desta parcela, as outras caem uma por mês a partir dela (igual à fatura do banco).
     vencimento: vencDestaParcela ? somarMeses(vencDestaParcela, i + 1 - n) : somarMeses(primeira, i),
-    paga: p.pendente ? somarMeses(primeira, i) < new Date().toISOString().slice(0, 10) && i + 1 < n : i + 1 <= n,
+    // Fatura já vencida conta como paga; sem a fatura desta parcela, segue a regra antiga.
+    paga: vencDestaParcela
+      ? somarMeses(vencDestaParcela, i + 1 - n) < new Date().toISOString().slice(0, 10)
+      : p.pendente ? somarMeses(primeira, i) < new Date().toISOString().slice(0, 10) && i + 1 < n : i + 1 <= n,
     grupo_id: p.grupoId,
   }));
   const { error: e2 } = await db.from("parcelas").insert(parcelas);
@@ -576,7 +599,7 @@ function somarDias(iso: string, dias: number): string {
  */
 async function importarDespesa(
   db: any,
-  p: { userId: string; grupoId: string | null; t: Transacao; cartaoId: string | null; cartaoFinal: string | null; banco: string | null; congelada: boolean; diasTolerancia: number; pendente?: boolean; faturas?: Map<string, string> },
+  p: { userId: string; grupoId: string | null; t: Transacao; cartaoId: string | null; cartaoFinal: string | null; banco: string | null; congelada: boolean; diasTolerancia: number; pendente?: boolean; faturas?: Map<string, string>; statusConfiavel?: boolean },
 ): Promise<boolean> {
   p = { ...p, t: { ...p.t, date: dataIso(p.t.date) } };
   const valor = Math.abs(p.t.amount);
@@ -650,14 +673,15 @@ async function importarDespesa(
     .select("id")
     .single();
   if (error) throw new Error("Falha ao criar a despesa importada.");
+  const vencLinha = (await vencimentoDaLinha(db, p)) ?? (await vencimentoCartao(db, p.cartaoId, p.t.date));
   const { error: e2 } = await db.from("parcelas").insert({
     despesa_id: nova.id,
     numero: 1,
     total: 1,
     valor,
     moeda: "BRL",
-    vencimento: vencFatura ?? (await vencimentoCartao(db, p.cartaoId, p.t.date)),
-    paga: false,
+    vencimento: vencLinha,
+    paga: vencLinha < new Date().toISOString().slice(0, 10),
     grupo_id: p.grupoId,
   });
   if (e2) throw new Error("Falha ao criar a parcela da despesa importada.");
@@ -1118,6 +1142,7 @@ async function executarSincronizacao(
     let depois: string | null = null;
     const inicioConta = new Date().toISOString();
     const faturas = conta.type === "CREDIT" ? await faturasDoCartao(key, conta.id) : new Map<string, string>();
+    const doCartao: Transacao[] = [];
     for (let pagina = 0; pagina < 200; pagina++) {
       const qs = new URLSearchParams({ accountId: conta.id, dateFrom: de });
       if (depois) qs.set("after", depois);
@@ -1155,20 +1180,35 @@ async function executarSincronizacao(
         if (!depois) break;
         continue;
       }
-      for (const t of lista) {
-        // Cartão: a compra pendente (fatura aberta) também entra; ver adotarPendente.
-        const pendente = t.status === "PENDING";
-        if (t.type !== "DEBIT") continue;
-        if (CATEGORIAS_NAO_DESPESA.has((t.category ?? "").trim().toLowerCase())) continue;
-        if (DESCRICAO_NAO_DESPESA.test(t.description ?? "")) continue;
-        if (await importarDespesa(db, { userId: meu.user_id, grupoId, t, cartaoId, cartaoFinal, banco, congelada: pendente ? false : primeira, diasTolerancia, pendente, faturas })) criadas++;
-      }
+      // Cartão: junta todas as páginas antes de importar, para escolher a melhor linha de cada compra.
+      doCartao.push(...lista);
       if (!r.next) break;
       const m = /after=([^&]+)/.exec(r.next);
       depois = m ? decodeURIComponent(m[1]!) : null;
       if (!depois) break;
     }
-    if (conta.type === "CREDIT") await limparPendentesSumidas(db, conta.id, de, inicioConta);
+    if (conta.type === "CREDIT") {
+      // Status só vale se o banco usa POSTED (o Nubank marca tudo como PENDING).
+      const statusConfiavel = doCartao.some((t) => t.status === "POSTED");
+      const hoje = new Date().toISOString().slice(0, 10);
+      // Ordem: a linha que melhor diz a fatura cria a compra (fatura aberta, depois futuras, depois as
+      // fechadas mais recentes); as outras parcelas da mesma compra só são reconhecidas depois.
+      const peso = (t: Transacao) => {
+        const d = dataIso(t.date);
+        if (statusConfiavel && t.status === "PENDING" && d <= hoje) return 0;
+        return d > hoje ? 1 : 2;
+      };
+      doCartao.sort((a, b) => peso(a) - peso(b) || (dataIso(a.date) < dataIso(b.date) ? 1 : -1));
+      for (const t of doCartao) {
+        // Cartão: a compra pendente (fatura aberta) também entra; ver adotarPendente.
+        const pendente = t.status === "PENDING";
+        if (t.type !== "DEBIT") continue;
+        if (CATEGORIAS_NAO_DESPESA.has((t.category ?? "").trim().toLowerCase())) continue;
+        if (DESCRICAO_NAO_DESPESA.test(t.description ?? "")) continue;
+        if (await importarDespesa(db, { userId: meu.user_id, grupoId, t, cartaoId, cartaoFinal, banco, congelada: pendente ? false : primeira, diasTolerancia, pendente, faturas, statusConfiavel })) criadas++;
+      }
+      await limparPendentesSumidas(db, conta.id, de, inicioConta);
+    }
   }
 
   for (const [id, saldo] of saldoPorBanco) {
