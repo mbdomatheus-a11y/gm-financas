@@ -171,7 +171,7 @@ function PluggyPage() {
   const apagar = useMutation({
     mutationFn: (itemId: string) => remover({ data: { itemId } }),
     onSuccess: () => {
-      toast.success("Conexão removida.");
+      toast.success("Banco removido e dados apagados.");
       qc.invalidateQueries({ queryKey: ["pluggy-itens"] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -391,7 +391,14 @@ function PluggyPage() {
                     className="size-8"
                     aria-label="Remover conexão"
                     disabled={apagar.isPending || ocupado}
-                    onClick={() => apagar.mutate(i.item_id)}
+                    onClick={() => {
+                      if (
+                        window.confirm(
+                          "Remover este banco? Apaga as contas, os lançamentos ainda não aprovados, os investimentos e o histórico dele. Despesas e receitas já aprovadas continuam.",
+                        )
+                      )
+                        apagar.mutate(i.item_id);
+                    }}
                   >
                     <Trash2 className="size-4" aria-hidden="true" />
                   </Button>

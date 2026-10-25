@@ -137,9 +137,45 @@ export const pluggyRemoverItem = createServerFn({ method: "POST" })
       /* se a Pluggy falhar, ainda removemos o vínculo local */
     }
     await db.from("pluggy_contas").update({ ativo: false, atualizado_em: new Date().toISOString() }).eq("item_id", data.itemId).eq("user_id", context.userId);
+    await apagarDadosDaConexao(db, data.itemId, context.userId);
     await db.from("pluggy_items").delete().eq("item_id", data.itemId).eq("user_id", context.userId);
     return { ok: true as const };
   });
+
+/**
+ * Apaga os dados deste banco: contas, lançamentos ainda não aprovados, investimentos e empréstimos
+ * vindos do Open Finance e o histórico de sincronização. Despesas e receitas já aprovadas NÃO são
+ * apagadas. Lançamentos rejeitados ficam guardados, para não voltarem quando o banco for reconectado.
+ */
+async function apagarDadosDaConexao(db: any, itemId: string, userId: string) {
+  const falhou = (erro: unknown) => {
+    if (erro) throw new Error("Não foi possível apagar os dados desta conexão. Tente de novo.");
+  };
+  const { data: invs, error: erroInvs } = await db
+    .from("pluggy_investimentos")
+    .select("id")
+    .eq("item_id", itemId)
+    .eq("user_id", userId);
+  falhou(erroInvs);
+  const idsInv = (invs ?? []).map((x: any) => x.id);
+  if (idsInv.length) {
+    // Só os espelhados (origem pluggy); os cadastrados à mão continuam.
+    const { error } = await db.from("investimentos").delete().eq("origem", "pluggy").in("pluggy_investimento_id", idsInv).eq("user_id", userId);
+    falhou(error);
+  }
+  falhou((await db.from("pluggy_investimentos").delete().eq("item_id", itemId).eq("user_id", userId)).error);
+  falhou((await db.from("pluggy_emprestimos").delete().eq("item_id", itemId).eq("user_id", userId)).error);
+  falhou(
+    (await db
+      .from("pluggy_transacoes")
+      .delete()
+      .eq("item_id", itemId)
+      .eq("user_id", userId)
+      .or("rejeitada.is.null,rejeitada.eq.false")).error,
+  );
+  falhou((await db.from("pluggy_contas").delete().eq("item_id", itemId).eq("user_id", userId)).error);
+  falhou((await db.from("pluggy_sincronizacoes").delete().eq("item_id", itemId).eq("user_id", userId)).error);
+}
 
 /** Sincroniza agora uma conexão (todo o histórico da janela), a pedido do administrador. */
 export const pluggySincronizarAgora = createServerFn({ method: "POST" })
