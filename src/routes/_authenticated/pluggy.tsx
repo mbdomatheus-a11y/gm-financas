@@ -132,6 +132,9 @@ function PluggyPage() {
     return achado && UUID.test(achado[0]) ? achado[0] : null;
   };
   const itemExtraido = extrairItemId(itemManual);
+  // Links de meu.pluggy.ai/connections são conexões do produto Meu Pluggy, não itens da aplicação do site:
+  // a API devolve 404. Para conectar um banco, use o botão "Conectar um banco" e escolha o banco na lista.
+  const ehLinkMeuPluggy = /meu\.pluggy\.ai\/connections/i.test(itemManual);
 
   const { data: st } = useQuery({ queryKey: ["pluggy-status"], queryFn: () => status(), enabled: !!ehAdmin, retry: false });
   const { data: itens = { itens: [] } } = useQuery({
@@ -477,23 +480,30 @@ function PluggyPage() {
               <summary className="cursor-pointer text-muted-foreground">Usar dados reais pelo Meu Pluggy (gratuito)</summary>
               <div className="mt-2 space-y-2">
                 <p className="text-muted-foreground">
-                  Cole o link da conexão do meu.pluggy.ai (meu.pluggy.ai/connections/...) ou só o Item ID.
+                  Só para quem já tem o Item ID de uma conexão criada na aplicação do site. Para conectar um banco, use o botão
+                  "Conectar um banco" acima e escolha o banco na lista.
                 </p>
                 <div className="flex flex-wrap gap-2">
                   <Input
                     className="min-w-0 flex-1"
-                    placeholder="Link ou Item ID da conexão no meu.pluggy.ai"
+                    placeholder="Item ID da aplicação do site"
                     value={itemManual}
                     onChange={(e) => setItemManual(e.target.value.trim())}
-                    aria-label="Link ou Item ID da Pluggy"
+                    aria-label="Item ID da Pluggy"
                   />
                   <Button
-                    disabled={!st?.configurado || !itemExtraido || guardar.isPending}
+                    disabled={!st?.configurado || !itemExtraido || ehLinkMeuPluggy || guardar.isPending}
                     onClick={() => itemExtraido && guardar.mutate({ itemId: itemExtraido, conector: "Meu Pluggy" })}
                   >
                     Adicionar
                   </Button>
                 </div>
+                {ehLinkMeuPluggy && (
+                  <p className="text-destructive">
+                    Este link é uma conexão do Meu Pluggy e não funciona aqui (a Pluggy responde 404). Use o botão "Conectar um banco" e
+                    escolha o Itaú, o Nubank ou o Santander na lista.
+                  </p>
+                )}
               </div>
             </details>
           </CardContent>
