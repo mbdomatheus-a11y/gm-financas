@@ -304,6 +304,22 @@ function somarMeses(iso: string, meses: number): string {
   return isoData(new Date(Date.UTC(ano, mes - 1 + meses, Math.min(dia, ultimoDia), 12)));
 }
 
+/** Próximo vencimento do cartão em data igual ou depois da informada (dia de vencimento do cadastro). */
+async function proximoVencimentoCartao(db: any, cartaoId: string | null, data: string): Promise<string | null> {
+  if (!cartaoId) return null;
+  const { data: cartao } = await db.from("cartoes").select("dia_vencimento").eq("id", cartaoId).maybeSingle();
+  const dia = cartao?.dia_vencimento ? Number(cartao.dia_vencimento) : null;
+  if (!dia) return null;
+  const iso = dataIso(data);
+  const [ano = 1970, mes = 1] = iso.split("-").map(Number);
+  for (let k = 0; k <= 1; k++) {
+    const ultimo = new Date(Date.UTC(ano, mes + k, 0)).getUTCDate();
+    const cand = isoData(new Date(Date.UTC(ano, mes - 1 + k, Math.min(dia, ultimo), 12)));
+    if (cand >= iso) return cand;
+  }
+  return null;
+}
+
 /** Parcelamento que já existe: as parcelas até a n-ésima (a que acabou de aparecer no extrato) ficam pagas. */
 async function marcarPagasAte(db: any, despesaId: string, n: number): Promise<void> {
   try {
@@ -329,7 +345,10 @@ async function importarParcelado(
   // Data da compra e fatura desta parcela como o banco informa; sem isso, estima pela data da linha.
   const compraBanco = meta?.purchaseDate ? String(meta.purchaseDate).slice(0, 10) : null;
   const primeira = compraBanco && /^\d{4}-\d{2}-\d{2}$/.test(compraBanco) ? compraBanco : somarMeses(p.t.date, -(n - 1));
-  const vencDestaParcela = meta?.billId ? p.faturas?.get(String(meta.billId)) ?? null : null;
+  // Fatura desta parcela: 1) billId do banco; 2) a linha do extrato vem datada no fechamento, então vale o
+  // próximo vencimento do cartão depois dessa data; 3) sem nada disso, cai na data da compra (regra antiga).
+  const vencDestaParcela =
+    (meta?.billId ? p.faturas?.get(String(meta.billId)) ?? null : null) ?? (await proximoVencimentoCartao(db, p.cartaoId, p.t.date));
   // As parcelas podem cair em dias diferentes do mesmo mês (ex.: 03/09 e 11/09), então a compra
   // é identificada pelo mês da primeira parcela, e não pelo dia.
   const primeiraMes = primeira.slice(0, 7);
@@ -345,8 +364,8 @@ async function importarParcelado(
     .eq("descricao", nucleo || p.t.description)
     .gte("data_primeira_parcela", somarMeses(`${primeiraMes}-01`, -1))
     .lt("data_primeira_parcela", somarMeses(`${primeiraMes}-01`, 2))
-    .gte("valor_total", (valorParcela - 0.1) * t)
-    .lte("valor_total", (valorParcela + 0.1) * t)
+    .gte("valor_total", (valorParcela - 0.3) * t)
+    .lte("valor_total", (valorParcela + 0.3) * t)
     .limit(1);
   jaMes = p.cartaoFinal
     ? jaMes.eq("cartao_final", p.cartaoFinal)

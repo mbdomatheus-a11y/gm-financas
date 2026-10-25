@@ -181,6 +181,8 @@ function BackupPage() {
   // Um módulo (botão da linha) ou todos de uma vez (depois de "Baixar backup" com todos marcados).
   const [reset, setReset] = useState<Array<(typeof MODULOS)[number]> | null>(null);
   const [confirma, setConfirma] = useState("");
+  const [resetCompleto, setResetCompleto] = useState(false);
+  const [confirmaCompleto, setConfirmaCompleto] = useState("");
 
   function toggle(chave: ModuloKey) {
     setSelecionados((s) => {
@@ -259,6 +261,32 @@ function BackupPage() {
         .delete()
         .not("id", "is", null);
       if (error) throw error;
+    }
+  }
+
+  /** Reset completo do grupo: lançamentos, cartões, categorias e dados importados dos bancos (backup automático no banco). */
+  async function executarResetCompleto() {
+    if (exclusaoBloqueada) {
+      toast.error("Este administrador não possui permissão para excluir dados.");
+      return;
+    }
+    setBusy("reset-completo");
+    try {
+      const { data, error } = await (supabase as any).rpc("resetar_grupo_completo", {
+        p_confirmacao: confirmaCompleto,
+      });
+      if (error) throw new Error(error.message);
+      await qc.invalidateQueries();
+      const d = (data ?? {}) as Record<string, number>;
+      toast.success(
+        `Reset completo feito: ${d["despesas"] ?? 0} despesas, ${d["receitas"] ?? 0} receitas e ${d["cartoes"] ?? 0} cartões apagados. Backup guardado.`,
+      );
+      setResetCompleto(false);
+      setConfirmaCompleto("");
+    } catch (e: any) {
+      toast.error(e.message ?? "Falha ao resetar");
+    } finally {
+      setBusy(null);
     }
   }
 
@@ -405,8 +433,37 @@ function BackupPage() {
         <Card className="lg:col-span-2 border-destructive/40">
           <CardContent className="space-y-3 p-5">
             <div className="flex items-center gap-2">
+              <RotateCcw className="size-4.5 text-destructive" />
+              <p className="font-semibold">Reset completo (começar do zero)</p>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Apaga despesas, receitas, parcelas, faturas, cartões, bancos cadastrados, categorias,
+              regras e tudo o que foi importado dos bancos conectados (Open Finance), inclusive
+              lançamentos congelados. As conexões com os bancos continuam: é só sincronizar de novo
+              depois. Veículos, notas fiscais e lista de compras não são mexidos. Um backup completo é
+              guardado automaticamente antes de apagar, e se algo falhar nada é apagado.
+            </p>
+            <Button
+              size="sm"
+              variant="destructive"
+              className="gap-1"
+              disabled={exclusaoBloqueada || busy !== null}
+              title={exclusaoBloqueada ? "Este administrador não pode excluir dados" : undefined}
+              onClick={() => {
+                setConfirmaCompleto("");
+                setResetCompleto(true);
+              }}
+            >
+              <RotateCcw className="size-3.5" /> Reset completo
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="lg:col-span-2 border-destructive/40">
+          <CardContent className="space-y-3 p-5">
+            <div className="flex items-center gap-2">
               <Database className="size-4.5 text-destructive" />
-              <p className="font-semibold">3. Reset por módulo</p>
+              <p className="font-semibold">Reset por módulo</p>
             </div>
             <p className="text-sm text-muted-foreground">
               Apaga só os dados do módulo escolhido — dá pra resetar as notas fiscais ou o veículo
@@ -519,6 +576,34 @@ function BackupPage() {
               onClick={() => void executarReset()}
             >
               {busy === "reset" ? "Apagando..." : "Apagar definitivamente"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={resetCompleto} onOpenChange={(o) => !o && setResetCompleto(false)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmar reset completo</DialogTitle>
+            <DialogDescription>
+              Isso apaga lançamentos, cartões, categorias e os dados importados dos bancos. Um backup
+              é guardado antes. Digite <strong>RESETAR</strong> para confirmar.
+            </DialogDescription>
+          </DialogHeader>
+          <Input
+            value={confirmaCompleto}
+            onChange={(e) => setConfirmaCompleto(e.target.value)}
+            placeholder="RESETAR"
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setResetCompleto(false)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={confirmaCompleto.trim().toUpperCase() !== "RESETAR" || busy !== null}
+              onClick={() => void executarResetCompleto()}
+            >
+              {busy === "reset-completo" ? "Apagando..." : "Apagar tudo e recomeçar"}
             </Button>
           </DialogFooter>
         </DialogContent>
