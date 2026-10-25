@@ -12,11 +12,13 @@ export type CicloCartao = { diaFechamento: number | null; diaVencimento: number;
 
 /**
  * Padrão de fechamento por banco quando o cadastro não tem o dia (25/10/2026):
- * Nubank e C6 fecham 7 dias corridos antes do vencimento; Itaú e bancos tradicionais, entre 7 e 10
- * (usa 8). O usuário pode trocar por cartão; no cadastro com o dia informado, vale o dia informado.
+ * Nubank e C6 fecham 7 dias corridos antes do vencimento; Itaú, 10 (as parcelas vêm datadas no
+ * fechamento, ex.: dia 5 para vencimento 15); demais bancos, 8. O usuário pode trocar por cartão; no cadastro com o dia informado, vale o dia informado.
  */
 export function diasAntesPadrao(nomeBanco: string | null | undefined): number {
-  return /nubank|nu pagamentos|\bc6\b/i.test(String(nomeBanco ?? "")) ? 7 : 8;
+  const n = String(nomeBanco ?? "");
+  if (/nubank|nu pagamentos|\bc6\b/i.test(n)) return 7;
+  return /ita[uú]|personnalite|uniclass/i.test(n) ? 10 : 8;
 }
 
 /** Dia de fechamento sugerido (1 a 31) a partir do vencimento e do banco. */

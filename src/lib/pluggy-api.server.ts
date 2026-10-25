@@ -38,7 +38,7 @@ const CATEGORIAS_NAO_DESPESA = new Set([
 /** Aplicação e resgate em investimento: movimenta o patrimônio, não é gasto. */
 const DESCRICAO_NAO_DESPESA = /valor transferido para investimentos|aplica[cç][aã]o|resgate/i;
 /** Parcela na descrição, ex.: "VETNASA 4/6", "DIAUTO 01/04", "AMAZONMKTPLC*AMGGR01/03". */
-const PADRAO_PARCELA = /(?:^|[^0-9])(\d{1,2})\/(\d{1,2})(?![0-9])/;
+const PADRAO_PARCELA = /(?<![0-9])(\d{1,2})\/(\d{1,2})(?![0-9])/;
 
 type Conta = {
   id: string;
@@ -273,6 +273,10 @@ function marcaCartao(brand?: string | null): string {
   return b ? b.charAt(0).toUpperCase() + b.slice(1).toLowerCase() : "Outra";
 }
 
+/** Nubank não informa o vencimento pela Pluggy: os pagamentos caem no dia 15 (editável no cartão). */
+function diaPadraoBanco(texto: string): number | null {
+  return /nubank|nu pagamentos|croma/i.test(texto) ? 15 : null;
+}
 /** Dia do mês de uma data AAAA-MM-DD (vencimento da fatura). */
 function diaDe(v?: string | null): number | null {
   const m = /^\d{4}-\d{2}-(\d{2})/.exec(v ?? "");
@@ -313,11 +317,14 @@ async function proximoVencimentoCartao(db: any, cartaoId: string | null, data: s
   const { data: cartao } = await db.from("cartoes").select("dia_fechamento, dia_vencimento, apelido, bancos(nome)").eq("id", cartaoId).maybeSingle();
   const dia = cartao?.dia_vencimento ? Number(cartao.dia_vencimento) : null;
   if (!dia) return null;
-  const alvo = isoData(new Date(Date.parse(`${dataIso(data)}T12:00:00Z`) + 25 * 86400000));
+  const nomeBanco = `${cartao.bancos?.nome ?? ""} ${cartao.apelido ?? ""} ${banco ?? ""}`;
+  // Itaú data a parcela no próprio fechamento; Nubank, Santander e demais, no início do ciclo (+25 dias).
+  const fechamentoNaData = /ita[uú]|personnalite|uniclass/i.test(nomeBanco);
+  const alvo = fechamentoNaData ? dataIso(data) : isoData(new Date(Date.parse(`${dataIso(data)}T12:00:00Z`) + 25 * 86400000));
   return vencimentoDaFatura(alvo, {
     diaFechamento: cartao.dia_fechamento ?? null,
     diaVencimento: dia,
-    diasAntes: diasAntesPadrao(`${cartao.bancos?.nome ?? ""} ${cartao.apelido ?? ""} ${banco ?? ""}`),
+    diasAntes: diasAntesPadrao(nomeBanco),
   });
 }
 
@@ -1026,7 +1033,7 @@ async function executarSincronizacao(
         nome: nomeConta || `Cartão ${cartaoFinal}`,
         bandeira: marcaCartao(conta.creditData?.brand),
         limite: conta.creditData?.creditLimit ?? null,
-        diaVencimento: diaDe(conta.creditData?.balanceDueDate),
+        diaVencimento: diaDe(conta.creditData?.balanceDueDate) ?? diaPadraoBanco(`${nomeConta} ${bancoNome ?? ""}`),
         titular: (conta.owner ?? nomeConta) || "Titular",
         bancoId,
       });
@@ -1046,7 +1053,7 @@ async function executarSincronizacao(
           nome: `${nomeBase} adicional ${finalAdicional}`,
           bandeira: marcaCartao(conta.creditData?.brand),
           limite: null,
-          diaVencimento: diaDe(conta.creditData?.balanceDueDate),
+          diaVencimento: diaDe(conta.creditData?.balanceDueDate) ?? diaPadraoBanco(`${nomeConta} ${bancoNome ?? ""}`),
           titular: (conta.owner ?? nomeConta) || "Titular",
           bancoId,
         });
