@@ -221,7 +221,9 @@ function DespesasPage() {
   const [tab, setTab] = usePersistedState<"total" | "fixa" | "variavel" | "pix">("despesas.tab", "total");
   // Aba PIX (24/10/2026): PIX enviados pelo Open Finance esperando decisão.
   const { data: pixSaida } = usePix("saida");
-  const pixPendentes = (pixSaida?.itens ?? []).filter((p) => p.situacao === "pendente").length;
+  const pixPendentes = (pixSaida?.itens ?? []).filter(
+    (p) => p.situacao === "pendente" && (filtroMes === "todos" || p.data.slice(0, 7) === filtroMes),
+  ).length;
   useEffect(() => {
     if (tab === "pix" && pixSaida && !pixSaida.disponivel) setTab("total");
   }, [tab, pixSaida, setTab]);
@@ -1317,7 +1319,11 @@ function DespesasPage() {
         )}
 
       {tab === "pix" ? (
-        <PixDespesas despesas={despesas as any[]} categorias={categorias as any[]} />
+        <PixDespesas
+          despesas={despesas as any[]}
+          categorias={categorias as any[]}
+          mes={filtroMes === "todos" ? null : filtroMes}
+        />
       ) : filtroResumo ? (
         <Card>
           <CardContent className="p-0">

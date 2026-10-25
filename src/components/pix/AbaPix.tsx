@@ -23,6 +23,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { usePrivacidadeValores } from "@/hooks/usePrivacidadeValores";
 import { formatDate, monthLabelLong } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { visualDoBanco } from "@/lib/banco-visual";
 import { receitasPorCompetencias } from "@/lib/recorrencia";
 import {
   competenciaAnterior,
@@ -112,9 +113,14 @@ export function candidatosDespesa(despesas: any[], pixData: string): CandidatoDe
 }
 
 /** Quantos PIX recebidos pendentes parecem com uma receita prevista (para o aviso no topo de Receitas). */
-export function contarSugestoesReceita(itens: PixListado[] | undefined, receitas: any[]): number {
-  if (!itens?.length) return 0;
-  return itens.filter(
+export function contarSugestoesReceita(
+  itens: PixListado[] | undefined,
+  receitas: any[],
+  mes: string | null = null,
+): number {
+  const lista = filtrarMes(itens, mes);
+  if (!lista.length) return 0;
+  return lista.filter(
     (p) => p.situacao === "pendente" && sugerirParaPix(p, candidatosReceita(receitas, p.data)),
   ).length;
 }
@@ -134,16 +140,51 @@ function useCriarCategoria(tipo: "receita" | "despesa") {
   };
 }
 
+/** Ícone do banco: logo oficial da Pluggy; se não carregar, iniciais na cor do banco. */
+export function IconeBanco({ nome, logo, className }: { nome: string; logo: string | null; className?: string }) {
+  const [falhou, setFalhou] = useState(false);
+  const v = visualDoBanco(nome);
+  if (logo && !falhou)
+    return (
+      <img
+        src={logo}
+        alt={nome}
+        title={nome}
+        loading="lazy"
+        onError={() => setFalhou(true)}
+        className={cn("size-9 shrink-0 rounded-xl border bg-white object-contain p-1", className)}
+      />
+    );
+  return (
+    <span
+      title={nome}
+      aria-label={nome}
+      className={cn("grid size-9 shrink-0 place-items-center rounded-xl text-xs font-bold", className)}
+      style={{ backgroundColor: v.cor, color: v.texto }}
+    >
+      {v.sigla}
+    </span>
+  );
+}
+
+/** Mês da tela (AAAA-MM) ou null para todos os meses. */
+function filtrarMes(itens: PixListado[] | undefined, mes: string | null): PixListado[] {
+  if (!itens) return [];
+  return mes ? itens.filter((p) => p.data.slice(0, 7) === mes) : itens;
+}
+
 // ─── Lista ───────────────────────────────────────────────────────────────────
 
 function ListaPix({
   direcao,
   itens,
+  mes,
   sugestaoDe,
   onLancar,
 }: {
   direcao: Direcao;
   itens: PixListado[];
+  mes: string | null;
   sugestaoDe: (p: PixListado) => Sugestao<Candidato> | null;
   onLancar: (p: PixListado) => void;
 }) {
@@ -194,7 +235,9 @@ function ListaPix({
           <CardContent className="p-3">
             <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Nesta lista</p>
             <p className="text-lg font-bold tabular-nums">{formatar(somaVisiveis)}</p>
-            <p className="text-[11px] text-muted-foreground">{visiveis.length} item(ns), últimos 12 meses</p>
+            <p className="text-[11px] text-muted-foreground">
+              {visiveis.length} item(ns) · {mes ? monthLabelLong(mes) : "últimos 12 meses"}
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -220,7 +263,9 @@ function ListaPix({
       {visiveis.length === 0 ? (
         <Card>
           <CardContent className="py-10 text-center text-sm text-muted-foreground">
-            {mostrar === "pendente" ? "Nada esperando decisão." : "Nenhum lançamento nos últimos 12 meses."}
+            {mostrar === "pendente"
+              ? `Nada esperando decisão${mes ? ` em ${monthLabelLong(mes)}` : ""}.`
+              : `Nenhum lançamento${mes ? ` em ${monthLabelLong(mes)}` : " nos últimos 12 meses"}.`}
           </CardContent>
         </Card>
       ) : (
@@ -231,18 +276,28 @@ function ListaPix({
               return (
                 <div key={p.id} className="flex flex-col gap-2 p-3 sm:flex-row sm:items-center">
                   <div className="flex min-w-0 flex-1 items-start gap-3">
-                    <span
-                      className={cn(
-                        "mt-0.5 grid size-9 shrink-0 place-items-center rounded-xl",
-                        direcao === "entrada" ? "bg-emerald-500/10 text-emerald-600" : "bg-rose-500/10 text-rose-600",
-                      )}
-                    >
-                      <Icone className="size-4" />
+                    <span className="relative mt-0.5 shrink-0">
+                      <IconeBanco nome={p.banco} logo={p.bancoLogo} />
+                      <span
+                        className={cn(
+                          "absolute -bottom-1 -right-1 grid size-4 place-items-center rounded-full border-2 border-background",
+                          direcao === "entrada" ? "bg-emerald-500 text-white" : "bg-rose-500 text-white",
+                        )}
+                      >
+                        <Icone className="size-2.5" />
+                      </span>
                     </span>
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-baseline justify-between gap-x-3">
                         <p className="truncate text-sm font-medium">{p.descricao || "PIX"}</p>
-                        <p className="text-sm font-semibold tabular-nums">{formatar(p.valor)}</p>
+                        <p
+                          className={cn(
+                            "text-sm font-semibold tabular-nums",
+                            direcao === "entrada" ? "text-emerald-600" : "text-rose-600",
+                          )}
+                        >
+                          {formatar(p.valor)}
+                        </p>
                       </div>
                       <p className="text-xs text-muted-foreground">
                         {formatDate(p.data)} · {p.banco}
@@ -353,7 +408,16 @@ function Opcao({
 
 // ─── Receitas ────────────────────────────────────────────────────────────────
 
-export function PixReceitas({ receitas, categorias }: { receitas: any[]; categorias: any[] }) {
+export function PixReceitas({
+  receitas,
+  categorias,
+  mes = null,
+}: {
+  receitas: any[];
+  categorias: any[];
+  /** Mês escolhido na tela (AAAA-MM); null mostra todos. */
+  mes?: string | null;
+}) {
   const { data, isLoading } = usePix("entrada");
   const [aberto, setAberto] = useState<PixListado | null>(null);
 
@@ -372,7 +436,7 @@ export function PixReceitas({ receitas, categorias }: { receitas: any[]; categor
   return (
     <div className="space-y-4">
       <Explicacao direcao="entrada" />
-      <ListaPix direcao="entrada" itens={data.itens} sugestaoDe={sugestaoDe} onLancar={setAberto} />
+      <ListaPix direcao="entrada" itens={filtrarMes(data.itens, mes)} mes={mes} sugestaoDe={sugestaoDe} onLancar={setAberto} />
       <RegrasPix />
       {aberto && (
         <DialogPixReceita
@@ -451,7 +515,8 @@ function DialogPixReceita({
       <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
         <DialogHeader>
           <DialogTitle>PIX recebido de {formatar(pix.valor)}</DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="flex items-center gap-2">
+            <IconeBanco nome={pix.banco} logo={pix.bancoLogo} className="size-6 rounded-md text-[9px]" />
             {formatDate(pix.data)} · {pix.banco} · {pix.descricao || "PIX"}
           </DialogDescription>
         </DialogHeader>
@@ -631,7 +696,15 @@ function RegrasPix() {
 
 // ─── Despesas ────────────────────────────────────────────────────────────────
 
-export function PixDespesas({ despesas, categorias }: { despesas: any[]; categorias: any[] }) {
+export function PixDespesas({
+  despesas,
+  categorias,
+  mes = null,
+}: {
+  despesas: any[];
+  categorias: any[];
+  mes?: string | null;
+}) {
   const { data, isLoading } = usePix("saida");
   const [aberto, setAberto] = useState<PixListado | null>(null);
   const sugestaoDe = (p: PixListado) => sugerirParaPix(p, candidatosDespesa(despesas, p.data));
@@ -649,7 +722,7 @@ export function PixDespesas({ despesas, categorias }: { despesas: any[]; categor
   return (
     <div className="space-y-4">
       <Explicacao direcao="saida" />
-      <ListaPix direcao="saida" itens={data.itens} sugestaoDe={sugestaoDe} onLancar={setAberto} />
+      <ListaPix direcao="saida" itens={filtrarMes(data.itens, mes)} mes={mes} sugestaoDe={sugestaoDe} onLancar={setAberto} />
       {aberto && (
         <DialogPixDespesa pix={aberto} despesas={despesas} categorias={categorias} onFechar={() => setAberto(null)} />
       )}

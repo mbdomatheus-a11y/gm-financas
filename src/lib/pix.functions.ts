@@ -22,15 +22,56 @@ async function grupoDe(db: any, userId: string): Promise<string | null> {
   return (data?.grupo_id as string | null) ?? null;
 }
 
-/** Contas correntes (não cartão) do grupo, com o nome do banco. */
+/**
+ * Logo do banco (ícone oficial que a Pluggy publica para cada conector), guardado por 12 horas.
+ * Sem a Pluggy disponível, a tela mostra as iniciais do banco na cor dele.
+ */
+const LOGOS = new Map<string, { url: string | null; ate: number }>();
+async function logosDosItens(itemIds: string[]): Promise<Map<string, string | null>> {
+  const out = new Map<string, string | null>();
+  const faltam: string[] = [];
+  for (const id of new Set(itemIds)) {
+    const c = LOGOS.get(id);
+    if (c && c.ate > Date.now()) out.set(id, c.url);
+    else faltam.push(id);
+  }
+  if (!faltam.length) return out;
+  try {
+    const { chaveApi } = await import("@/lib/pluggy-api.server");
+    const key = await chaveApi();
+    await Promise.all(
+      faltam.map(async (id) => {
+        let url: string | null = null;
+        try {
+          const r = await fetch(`https://api.pluggy.ai/items/${encodeURIComponent(id)}`, {
+            headers: { "X-API-KEY": key },
+            signal: AbortSignal.timeout(5000),
+          });
+          const j: any = r.ok ? await r.json() : null;
+          const bruto = String(j?.connector?.imageUrl ?? "");
+          if (/^https:\/\/([a-z0-9-]+\.)*pluggy\.ai\//i.test(bruto)) url = bruto;
+        } catch {
+          url = null;
+        }
+        LOGOS.set(id, { url, ate: Date.now() + 12 * 3600_000 });
+        out.set(id, url);
+      }),
+    );
+  } catch {
+    for (const id of faltam) out.set(id, null);
+  }
+  return out;
+}
+
+/** Contas correntes (não cartão) do grupo, com o nome e o logo do banco. */
 async function contasDoGrupo(db: any, grupoId: string) {
   const { data: contas } = await db
     .from("pluggy_contas")
-    .select("account_id, banco_id, nome, tipo")
+    .select("account_id, banco_id, nome, tipo, item_id")
     .eq("grupo_id", grupoId)
     .eq("ativo", true) // conta conectada duas vezes: só a cópia ativa (evita PIX em dobro)
     .neq("tipo", "CREDIT");
-  const lista = (contas ?? []) as { account_id: string; banco_id: string | null; nome: string | null }[];
+  const lista = (contas ?? []) as { account_id: string; banco_id: string | null; nome: string | null; item_id: string }[];
   const bancoIds = [...new Set(lista.map((c) => c.banco_id).filter(Boolean))] as string[];
   const nomes = new Map<string, string>();
   if (bancoIds.length) {
@@ -39,6 +80,7 @@ async function contasDoGrupo(db: any, grupoId: string) {
   }
   return lista.map((c) => ({
     accountId: c.account_id,
+    itemId: c.item_id,
     bancoId: c.banco_id,
     banco: (c.banco_id && nomes.get(c.banco_id)) || c.nome || "Conta",
   }));
@@ -107,6 +149,7 @@ export type PixListado = {
   descricao: string | null;
   valor: number;
   banco: string;
+  bancoLogo: string | null;
   situacao: "pendente" | "lancado" | "ignorado";
 };
 
@@ -155,6 +198,7 @@ export const listarPix = createServerFn({ method: "POST" })
       for (const l of ls ?? []) jaLancados.add(String(l.pluggy_transaction_id));
     }
 
+    const logos = await logosDosItens(contas.map((c) => c.itemId));
     return {
       disponivel: true,
       itens: pix.map((t: any) => ({
@@ -163,6 +207,7 @@ export const listarPix = createServerFn({ method: "POST" })
         descricao: t.descricao ?? null,
         valor: Math.abs(Number(t.valor) || 0),
         banco: contas.find((c) => c.accountId === t.account_id)?.banco ?? "Conta",
+        bancoLogo: logos.get(contas.find((c) => c.accountId === t.account_id)?.itemId ?? "") ?? null,
         situacao:
           t.pix_situacao === "ignorado"
             ? "ignorado"

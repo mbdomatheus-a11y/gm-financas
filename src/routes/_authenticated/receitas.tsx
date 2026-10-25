@@ -157,18 +157,29 @@ function ReceitasPage() {
   // Item 3 (backlog 2026-09-27): filtros e modo de exibição lembrados por
   // sessão (localStorage) e restaurados quando o usuário volta pra tela.
   const [tab, setTab] = usePersistedState<"total" | "fixa" | "variavel" | "pix">("receitas.tab", "total");
+  const [filtroMes, setFiltroMes] = usePersistedState("receitas.filtroMes", currentMonthKey());
+  const [filtroMesCustom, setFiltroMesCustom] = usePersistedState("receitas.filtroMesCustom", currentMonthKey());
   // Aba PIX (24/10/2026): PIX recebidos pelo Open Finance esperando decisão.
   const { data: pixEntrada } = usePix("entrada");
-  const pixPendentes = (pixEntrada?.itens ?? []).filter((p) => p.situacao === "pendente").length;
+  // A aba PIX segue o mês escolhido na tela (outubro mostra só os PIX de outubro).
+  const mesPix =
+    filtroMes === "todos"
+      ? null
+      : filtroMes === "custom"
+        ? filtroMesCustom
+        : filtroMes === "atual_proximo" || !filtroMes
+          ? currentMonthKey()
+          : filtroMes;
+  const pixPendentes = (pixEntrada?.itens ?? []).filter(
+    (p) => p.situacao === "pendente" && (!mesPix || p.data.slice(0, 7) === mesPix),
+  ).length;
   useEffect(() => {
     if (tab === "pix" && pixEntrada && !pixEntrada.disponivel) setTab("total");
   }, [tab, pixEntrada, setTab]);
   const pixComSugestao = useMemo(
-    () => contarSugestoesReceita(pixEntrada?.itens, receitas as any[]),
-    [pixEntrada, receitas],
+    () => contarSugestoesReceita(pixEntrada?.itens, receitas as any[], mesPix),
+    [pixEntrada, receitas, mesPix],
   );
-  const [filtroMes, setFiltroMes] = usePersistedState("receitas.filtroMes", currentMonthKey());
-  const [filtroMesCustom, setFiltroMesCustom] = usePersistedState("receitas.filtroMesCustom", currentMonthKey());
   const [filtroCat, setFiltroCat] = usePersistedState("receitas.filtroCat", "todas");
   const [filtroResp, setFiltroResp] = usePersistedState("receitas.filtroResp", "todos");
   const [busca, setBusca] = useState("");
@@ -710,7 +721,7 @@ function ReceitasPage() {
         </button>
       )}
 
-      {tab === "pix" && <PixReceitas receitas={receitas as any[]} categorias={categorias as any[]} />}
+      {tab === "pix" && <PixReceitas receitas={receitas as any[]} categorias={categorias as any[]} mes={mesPix} />}
 
       <BarraSoma qtd={soma.ids.size} total={totalSelecionadoReceitas} onLimpar={soma.limpar} />
 
