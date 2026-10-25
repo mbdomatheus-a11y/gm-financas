@@ -126,6 +126,12 @@ function PluggyPage() {
   const [aberto, setAberto] = useState<string | null>(null);
   const [itemManual, setItemManual] = useState("");
   const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  // Aceita o link completo da conexão (meu.pluggy.ai/connections/<id>) ou só o Item ID.
+  const extrairItemId = (texto: string): string | null => {
+    const achado = texto.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
+    return achado && UUID.test(achado[0]) ? achado[0] : null;
+  };
+  const itemExtraido = extrairItemId(itemManual);
 
   const { data: st } = useQuery({ queryKey: ["pluggy-status"], queryFn: () => status(), enabled: !!ehAdmin, retry: false });
   const { data: itens = { itens: [] } } = useQuery({
@@ -464,19 +470,19 @@ function PluggyPage() {
               <summary className="cursor-pointer text-muted-foreground">Usar dados reais pelo Meu Pluggy (gratuito)</summary>
               <div className="mt-2 space-y-2">
                 <p className="text-muted-foreground">
-                  No meu.pluggy.ai, abra sua aplicação, clique em "Ir para Demo" e copie o Item ID no menu de três pontos.
+                  Cole o link da conexão do meu.pluggy.ai (meu.pluggy.ai/connections/...) ou só o Item ID.
                 </p>
                 <div className="flex flex-wrap gap-2">
                   <Input
                     className="min-w-0 flex-1"
-                    placeholder="Item ID (formato xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)"
+                    placeholder="Link ou Item ID da conexão no meu.pluggy.ai"
                     value={itemManual}
                     onChange={(e) => setItemManual(e.target.value.trim())}
-                    aria-label="Item ID da Pluggy"
+                    aria-label="Link ou Item ID da Pluggy"
                   />
                   <Button
-                    disabled={!st?.configurado || !UUID.test(itemManual) || guardar.isPending}
-                    onClick={() => guardar.mutate({ itemId: itemManual, conector: "Meu Pluggy" })}
+                    disabled={!st?.configurado || !itemExtraido || guardar.isPending}
+                    onClick={() => itemExtraido && guardar.mutate({ itemId: itemExtraido, conector: "Meu Pluggy" })}
                   >
                     Adicionar
                   </Button>
