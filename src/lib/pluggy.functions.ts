@@ -130,12 +130,8 @@ export const pluggyRemoverItem = createServerFn({ method: "POST" })
       .eq("user_id", context.userId)
       .maybeSingle();
     if (!meu) throw new Error("Conexão não encontrada.");
-    try {
-      const key = await apiKey();
-      await fetch(`${BASE}/items/${data.itemId}`, { method: "DELETE", headers: { "X-API-KEY": key } });
-    } catch {
-      /* se a Pluggy falhar, ainda removemos o vínculo local */
-    }
+    // Não apaga a conexão na Pluggy: na aplicação demo ela não pode ser recriada pelo site, só pelo Item ID do Meu Pluggy.
+    // Para revogar a autorização no banco, use o meu.pluggy.ai.
     await db.from("pluggy_contas").update({ ativo: false, atualizado_em: new Date().toISOString() }).eq("item_id", data.itemId).eq("user_id", context.userId);
     await apagarDadosDaConexao(db, data.itemId, context.userId);
     await db.from("pluggy_items").delete().eq("item_id", data.itemId).eq("user_id", context.userId);

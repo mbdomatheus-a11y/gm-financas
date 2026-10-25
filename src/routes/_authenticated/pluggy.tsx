@@ -473,15 +473,16 @@ function PluggyPage() {
                 {conectar.isPending ? "Preparando…" : "Conectar um banco"}
               </Button>
               <span className="text-xs text-muted-foreground">
-                Você escolhe o banco na janela segura da Pluggy. Sua senha nunca passa pelo Control ALL.
+                A aplicação da Pluggy está em modo demo: esta janela só conecta o banco de teste (Sandbox). Bancos reais entram pelo
+                Item ID do Meu Pluggy, logo abaixo.
               </span>
             </div>
             <details className="text-xs">
               <summary className="cursor-pointer text-muted-foreground">Usar dados reais pelo Meu Pluggy (gratuito)</summary>
               <div className="mt-2 space-y-2">
                 <p className="text-muted-foreground">
-                  Só para quem já tem o Item ID de uma conexão criada na aplicação do site. Para conectar um banco, use o botão
-                  "Conectar um banco" acima e escolha o banco na lista.
+                  No meu.pluggy.ai, abra sua aplicação, clique em "Ir para Demo", conecte o banco pelo conector MeuPluggy e copie o
+                  Item ID no menu de três pontos. Cole o Item ID aqui.
                 </p>
                 <div className="flex flex-wrap gap-2">
                   <Input
@@ -500,8 +501,8 @@ function PluggyPage() {
                 </div>
                 {ehLinkMeuPluggy && (
                   <p className="text-destructive">
-                    Este link é uma conexão do Meu Pluggy e não funciona aqui (a Pluggy responde 404). Use o botão "Conectar um banco" e
-                    escolha o Itaú, o Nubank ou o Santander na lista.
+                    Este link é a página da conexão no Meu Pluggy, não o Item ID, e a Pluggy responde 404 para ele. Abra sua aplicação,
+                    clique em "Ir para Demo", conecte o banco pelo MeuPluggy e copie o Item ID no menu de três pontos.
                   </p>
                 )}
               </div>
