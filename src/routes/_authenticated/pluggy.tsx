@@ -474,15 +474,15 @@ function PluggyPage() {
               </Button>
               <span className="text-xs text-muted-foreground">
                 A aplicação da Pluggy está em modo demo: esta janela só conecta o banco de teste (Sandbox). Bancos reais entram pelo
-                Item ID do Meu Pluggy, logo abaixo.
+                Item ID do conector MeuPluggy, logo abaixo.
               </span>
             </div>
             <details className="text-xs">
               <summary className="cursor-pointer text-muted-foreground">Usar dados reais pelo Meu Pluggy (gratuito)</summary>
               <div className="mt-2 space-y-2">
                 <p className="text-muted-foreground">
-                  No meu.pluggy.ai, abra sua aplicação, clique em "Ir para Demo", conecte o banco pelo conector MeuPluggy e copie o
-                  Item ID no menu de três pontos. Cole o Item ID aqui.
+                  Conecte o banco no meu.pluggy.ai. Depois, no dashboard.pluggy.ai, abra sua aplicação, crie uma conexão com o conector
+                  MeuPluggy (login com sua conta do Meu Pluggy), autorize o banco e copie o Item ID da conexão. Cole o Item ID aqui.
                 </p>
                 <div className="flex flex-wrap gap-2">
                   <Input
@@ -501,8 +501,8 @@ function PluggyPage() {
                 </div>
                 {ehLinkMeuPluggy && (
                   <p className="text-destructive">
-                    Este link é a página da conexão no Meu Pluggy, não o Item ID, e a Pluggy responde 404 para ele. Abra sua aplicação,
-                    clique em "Ir para Demo", conecte o banco pelo MeuPluggy e copie o Item ID no menu de três pontos.
+                    Este link é a página da conexão no Meu Pluggy, não o Item ID, e a Pluggy responde 404 para ele. O Item ID sai do
+                    dashboard.pluggy.ai, na conexão criada na sua aplicação com o conector MeuPluggy.
                   </p>
                 )}
               </div>

@@ -156,7 +156,7 @@ async function apagarDadosDaConexao(db: any, itemId: string, userId: string) {
   const idsInv = (invs ?? []).map((x: any) => x.id);
   if (idsInv.length) {
     // Só os espelhados (origem pluggy); os cadastrados à mão continuam.
-    const { error } = await db.from("investimentos").delete().eq("origem", "pluggy").in("pluggy_investimento_id", idsInv).eq("user_id", userId);
+    const { error } = await db.from("investimentos").delete().eq("origem", "pluggy").in("pluggy_investimento_id", idsInv);
     falhou(error);
   }
   falhou((await db.from("pluggy_investimentos").delete().eq("item_id", itemId).eq("user_id", userId)).error);

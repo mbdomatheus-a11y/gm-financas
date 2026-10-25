@@ -133,7 +133,7 @@ export async function chaveApi(): Promise<string> {
 async function pluggy<T>(key: string, caminho: string): Promise<T> {
   const r = await fetch(`${BASE}${caminho}`, { headers: { "X-API-KEY": key } });
   if (r.status === 404) {
-    throw new Error("A Pluggy não reconhece esta conexão com a chave do site (404). O Item ID precisa ser de uma conexão criada na aplicação do site (meu.pluggy.ai, Ir para Demo). Remova este card e cole o Item ID correto.");
+    throw new Error("A Pluggy não reconhece esta conexão com a chave do site (404). O Item ID precisa ser de uma conexão criada na aplicação do site, no dashboard.pluggy.ai, com o conector MeuPluggy. Remova este card e cole o Item ID correto.");
   }
   if (!r.ok) throw new Error(`Falha ao consultar a Pluggy (${r.status}).`);
   return (await r.json()) as T;
