@@ -163,10 +163,41 @@ function ListaPix({
 
   const visiveis = mostrar === "pendente" ? itens.filter((p) => p.situacao === "pendente") : itens;
   const pendentes = itens.filter((p) => p.situacao === "pendente").length;
+  const somaPendentes = itens.filter((p) => p.situacao === "pendente").reduce((s, p) => s + p.valor, 0);
+  const somaLancados = itens.filter((p) => p.situacao === "lancado").reduce((s, p) => s + p.valor, 0);
+  const somaVisiveis = visiveis.reduce((s, p) => s + p.valor, 0);
   const Icone = direcao === "entrada" ? ArrowDownLeft : ArrowUpRight;
 
   return (
     <div className="space-y-3">
+      {/* Soma no topo (25/10/2026). O que está "a decidir" NÃO entra nos totais de receitas/despesas. */}
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        <Card>
+          <CardContent className="p-3">
+            <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">A decidir</p>
+            <p className="text-lg font-bold tabular-nums">{formatar(somaPendentes)}</p>
+            <p className="text-[11px] text-muted-foreground">
+              {pendentes} {direcao === "entrada" ? "entrada(s)" : "PIX"} · fora da soma
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-3">
+            <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Já lançados</p>
+            <p className="text-lg font-bold tabular-nums">{formatar(somaLancados)}</p>
+            <p className="text-[11px] text-muted-foreground">
+              entram em {direcao === "entrada" ? "Receitas" : "Despesas"}
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="col-span-2 sm:col-span-1">
+          <CardContent className="p-3">
+            <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Nesta lista</p>
+            <p className="text-lg font-bold tabular-nums">{formatar(somaVisiveis)}</p>
+            <p className="text-[11px] text-muted-foreground">{visiveis.length} item(ns), últimos 12 meses</p>
+          </CardContent>
+        </Card>
+      </div>
       <div className="flex flex-wrap items-center gap-2">
         <Button
           size="sm"
@@ -189,7 +220,7 @@ function ListaPix({
       {visiveis.length === 0 ? (
         <Card>
           <CardContent className="py-10 text-center text-sm text-muted-foreground">
-            {mostrar === "pendente" ? "Nenhum PIX esperando decisão." : "Nenhum PIX nos últimos 12 meses."}
+            {mostrar === "pendente" ? "Nada esperando decisão." : "Nenhum lançamento nos últimos 12 meses."}
           </CardContent>
         </Card>
       ) : (
@@ -279,7 +310,7 @@ function Explicacao({ direcao }: { direcao: Direcao }) {
       <Landmark className="mt-0.5 size-4 shrink-0 text-primary" />
       <p>
         {direcao === "entrada"
-          ? "PIX recebidos nas contas conectadas pelo Open Finance. Eles só entram nas receitas quando você decide: lançar como receita nova ou trocar uma receita prevista do mês pelo valor que caiu de verdade."
+          ? "PIX, TED e outras entradas das contas conectadas pelo Open Finance. Elas não entram na soma das receitas até você decidir: lançar como receita nova ou trocar uma receita prevista do mês pelo valor que caiu de verdade. Transferências entre suas próprias contas e resgates de investimento não aparecem aqui."
           : "PIX enviados das contas conectadas pelo Open Finance. Eles só entram nas despesas quando você decide: lançar como despesa nova ou trocar uma despesa lançada à mão pelo valor do banco."}
       </p>
     </div>

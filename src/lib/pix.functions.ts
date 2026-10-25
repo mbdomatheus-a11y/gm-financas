@@ -12,6 +12,8 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const DIAS_LISTA = 400;
 const CATEGORIAS_PROPRIAS = /^(same person transfer|transfer - internal)/i;
+/** Aplicação e resgate de investimento: movimentam patrimônio, não são receita nem despesa. */
+const DESCRICAO_INVESTIMENTO = /valor transferido para investimentos|aplica[cç][aã]o|resgate/i;
 
 type Contexto = { userId: string; supabase: any };
 
@@ -26,6 +28,7 @@ async function contasDoGrupo(db: any, grupoId: string) {
     .from("pluggy_contas")
     .select("account_id, banco_id, nome, tipo")
     .eq("grupo_id", grupoId)
+    .eq("ativo", true) // conta conectada duas vezes: só a cópia ativa (evita PIX em dobro)
     .neq("tipo", "CREDIT");
   const lista = (contas ?? []) as { account_id: string; banco_id: string | null; nome: string | null }[];
   const bancoIds = [...new Set(lista.map((c) => c.banco_id).filter(Boolean))] as string[];
@@ -45,6 +48,27 @@ function ehPix(t: { descricao: string | null; categoria_pluggy: string | null })
   const cat = String(t.categoria_pluggy ?? "");
   if (CATEGORIAS_PROPRIAS.test(cat)) return false;
   return /\bpix\b/i.test(String(t.descricao ?? "")) || /pix/i.test(cat);
+}
+
+/**
+ * Entradas da conta corrente que ficam na aba PIX de Receitas (25/10/2026): PIX e também TED,
+ * depósitos e outras transferências recebidas, para nada entrar na soma sem a pessoa decidir.
+ * Ficam de fora transferências entre contas próprias e resgates de investimento.
+ */
+function ehEntradaDaAba(t: { descricao: string | null; categoria_pluggy: string | null }): boolean {
+  if (CATEGORIAS_PROPRIAS.test(String(t.categoria_pluggy ?? ""))) return false;
+  return !DESCRICAO_INVESTIMENTO.test(String(t.descricao ?? ""));
+}
+
+/** Mesma data, mesmo valor e mesma descrição em contas diferentes conta uma vez só. */
+function chaveDuplicidade(t: { data: string | null; valor: number | null; descricao: string | null }): string {
+  const desc = String(t.descricao ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+  return `${String(t.data ?? "").slice(0, 10)}|${Math.abs(Number(t.valor) || 0).toFixed(2)}|${desc}`;
 }
 
 const data10 = (v: string | null) => String(v ?? "").slice(0, 10);
@@ -109,7 +133,18 @@ export const listarPix = createServerFn({ method: "POST" })
       .limit(1000);
     if (error) throw new Error("Não foi possível ler os PIX.");
 
-    const pix = (linhas ?? []).filter((t: any) => t.status !== "PENDING" && ehPix(t));
+    // Duplicidade: a mesma transação vinda por duas contas (conexões repetidas) aparece uma vez.
+    // Dois PIX iguais na MESMA conta são reais e ficam os dois.
+    const contaDaChave = new Map<string, string>();
+    const pix = (linhas ?? []).filter((t: any) => {
+      if (t.status === "PENDING") return false;
+      if (!(data.direcao === "entrada" ? ehEntradaDaAba(t) : ehPix(t))) return false;
+      const chave = chaveDuplicidade(t);
+      const conta = contaDaChave.get(chave);
+      if (conta && conta !== t.account_id) return false;
+      contaDaChave.set(chave, t.account_id);
+      return true;
+    });
     // PIX que já viraram lançamento por outro caminho (regra automática, conciliação antiga).
     const ids = pix.map((t: any) => t.transaction_id);
     const jaLancados = new Set<string>();
