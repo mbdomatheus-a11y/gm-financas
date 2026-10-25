@@ -219,14 +219,6 @@ function DespesasPage() {
   // vindos de outras telas, ex. o card "Dívida total" do dashboard), e
   // persistir por localStorage entraria em conflito com esse comportamento.
   const [tab, setTab] = usePersistedState<"total" | "fixa" | "variavel" | "pix">("despesas.tab", "total");
-  // Aba PIX (24/10/2026): PIX enviados pelo Open Finance esperando decisão.
-  const { data: pixSaida } = usePix("saida");
-  const pixPendentes = (pixSaida?.itens ?? []).filter(
-    (p) => p.situacao === "pendente" && (filtroMes === "todos" || p.data.slice(0, 7) === filtroMes),
-  ).length;
-  useEffect(() => {
-    if (tab === "pix" && pixSaida && !pixSaida.disponivel) setTab("total");
-  }, [tab, pixSaida, setTab]);
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   // Bloco 6 (plano-mega 2026-09-14): simulação visual de corte em despesas
@@ -244,6 +236,14 @@ function DespesasPage() {
   // dashboard) abre a página já mostrando a dívida completa, não só a do
   // mês atual.
   const [filtroMes, setFiltroMes] = useState(search.mes ?? monthKey(new Date()));
+  // Aba PIX (24/10/2026): PIX enviados pelo Open Finance esperando decisão.
+  const { data: pixSaida } = usePix("saida");
+  const pixPendentes = (pixSaida?.itens ?? []).filter(
+    (p) => p.situacao === "pendente" && (filtroMes === "todos" || p.data.slice(0, 7) === filtroMes),
+  ).length;
+  useEffect(() => {
+    if (tab === "pix" && pixSaida && !pixSaida.disponivel) setTab("total");
+  }, [tab, pixSaida, setTab]);
   const [filtroBanco, setFiltroBanco] = usePersistedState("despesas.filtroBanco", "todos");
   const [filtroCategoria, setFiltroCategoria] = usePersistedState(
     "despesas.filtroCategoria",
