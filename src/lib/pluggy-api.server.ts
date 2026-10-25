@@ -286,7 +286,7 @@ async function marcarPagasAte(db: any, despesaId: string, n: number): Promise<vo
  */
 async function importarParcelado(
   db: any,
-  p: { userId: string; grupoId: string | null; t: Transacao; cartaoId: string | null; cartaoFinal: string | null; banco: string | null; congelada: boolean },
+  p: { userId: string; grupoId: string | null; t: Transacao; cartaoId: string | null; cartaoFinal: string | null; banco: string | null; congelada: boolean; pendente?: boolean },
   { n, t }: { n: number; t: number },
 ): Promise<boolean> {
   const valorParcela = Math.abs(p.t.amount);
@@ -297,13 +297,18 @@ async function importarParcelado(
   const primeiraMes = primeira.slice(0, 7);
   const grupo = `${p.cartaoFinal ?? p.banco ?? "x"}|${nucleo}|${t}|${valorParcela.toFixed(2)}|${primeira}`;
 
+  // 25/10/2026: o Nubank data as parcelas de um jeito que a 1ª calculada pode cair um mês antes
+  // ou depois (ex.: WILCA 1/5 em 04/07 e 4/5 em 08/06), e o total pode variar alguns centavos
+  // (ex.: 9x de R$ 106,72 e de R$ 106,66). A mesma compra é reconhecida com essa folga.
   let jaMes = db
     .from("despesas")
     .select("id")
     .eq("total_parcelas", t)
     .eq("descricao", nucleo || p.t.description)
-    .gte("data_primeira_parcela", `${primeiraMes}-01`)
-    .lt("data_primeira_parcela", `${somarMeses(`${primeiraMes}-01`, 1)}`)
+    .gte("data_primeira_parcela", somarMeses(`${primeiraMes}-01`, -1))
+    .lt("data_primeira_parcela", somarMeses(`${primeiraMes}-01`, 2))
+    .gte("valor_total", (valorParcela - 0.1) * t)
+    .lte("valor_total", (valorParcela + 0.1) * t)
     .limit(1);
   jaMes = p.cartaoFinal
     ? jaMes.eq("cartao_final", p.cartaoFinal)
@@ -311,13 +316,14 @@ async function importarParcelado(
       ? jaMes.eq("banco_nome", p.banco)
       : jaMes.is("banco_nome", null);
   const { data: jaCompra } = await jaMes.maybeSingle();
+  // Parcela pendente (fatura aberta ou futura) não marca nada como pago.
   if (jaCompra) {
-    await marcarPagasAte(db, jaCompra.id, n);
+    if (!p.pendente) await marcarPagasAte(db, jaCompra.id, n);
     return false;
   }
   const { data: jaGrupo } = await db.from("despesas").select("id").eq("pluggy_grupo", grupo).maybeSingle();
   if (jaGrupo) {
-    await marcarPagasAte(db, jaGrupo.id, n);
+    if (!p.pendente) await marcarPagasAte(db, jaGrupo.id, n);
     return false;
   }
 
@@ -377,7 +383,7 @@ async function importarParcelado(
     valor: valorParcela,
     moeda: "BRL",
     vencimento: somarMeses(primeira, i),
-    paga: i + 1 <= n,
+    paga: p.pendente ? somarMeses(primeira, i) < new Date().toISOString().slice(0, 10) && i + 1 < n : i + 1 <= n,
     grupo_id: p.grupoId,
   }));
   const { error: e2 } = await db.from("parcelas").insert(parcelas);
@@ -416,12 +422,77 @@ function manualParecido(
 }
 
 /**
+ * Compra pendente (25/10/2026): a fatura aberta chega como "PENDING" e antes era ignorada, por isso
+ * só apareciam as parcelas de compras antigas. Agora a pendente entra na fatura e, quando o banco
+ * confirma com outro ID, a mesma despesa passa a apontar para a transação confirmada (sem duplicar).
+ */
+async function adotarPendente(
+  db: any,
+  p: { cartaoId: string | null; banco: string | null; valor: number; data: string; novoId: string },
+): Promise<boolean> {
+  const de = somarDias(p.data, -5);
+  const ate = somarDias(p.data, 5);
+  let q = db
+    .from("despesas")
+    .select("id, pluggy_transaction_id")
+    .eq("origem", "pluggy")
+    .eq("total_parcelas", 1)
+    .eq("valor_total", p.valor)
+    .gte("data_compra", de)
+    .lte("data_compra", ate)
+    .not("pluggy_transaction_id", "is", null);
+  q = p.cartaoId ? q.eq("cartao_id", p.cartaoId) : p.banco ? q.eq("banco_nome", p.banco) : q;
+  const { data: candidatas } = await q.limit(10);
+  if (!candidatas?.length) return false;
+  const { data: pendentes } = await db
+    .from("pluggy_transacoes")
+    .select("transaction_id")
+    .in("transaction_id", candidatas.map((c: any) => c.pluggy_transaction_id))
+    .eq("status", "PENDING");
+  const ids = new Set((pendentes ?? []).map((x: any) => String(x.transaction_id)));
+  const alvo = candidatas.find((c: any) => ids.has(String(c.pluggy_transaction_id)));
+  if (!alvo) return false;
+  await db.from("despesas").update({ pluggy_transaction_id: p.novoId, data_compra: p.data }).eq("id", alvo.id);
+  // A pendente antiga deixa de existir no banco: some da tabela para não ser limpa depois.
+  await db.from("pluggy_transacoes").delete().eq("transaction_id", alvo.pluggy_transaction_id);
+  return true;
+}
+
+/**
+ * Compras pendentes que o banco não devolveu nesta sincronização foram canceladas ou confirmadas
+ * com outro ID (já adotado acima): a despesa da pendente sai, para a fatura não ficar com fantasma.
+ */
+async function limparPendentesSumidas(db: any, accountId: string, desde: string, inicioSync: string): Promise<void> {
+  const { data: sumidas } = await db
+    .from("pluggy_transacoes")
+    .select("transaction_id")
+    .eq("account_id", accountId)
+    .eq("status", "PENDING")
+    .gte("data", desde)
+    .lt("atualizado_em", inicioSync);
+  for (const s of sumidas ?? []) {
+    const { data: d } = await db.from("despesas").select("id, total_parcelas").eq("pluggy_transaction_id", s.transaction_id).maybeSingle();
+    if (d && Number(d.total_parcelas) === 1) {
+      await db.from("parcelas").delete().eq("despesa_id", d.id);
+      await db.from("despesas").delete().eq("id", d.id);
+    }
+    await db.from("pluggy_transacoes").delete().eq("transaction_id", s.transaction_id);
+  }
+}
+
+function somarDias(iso: string, dias: number): string {
+  const d = new Date(`${dataIso(iso)}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + dias);
+  return d.toISOString().slice(0, 10);
+}
+
+/**
  * Cria a despesa importada, ou troca o lançamento manual igual por ela.
  * Pula lançamentos já importados e os rejeitados pelo usuário.
  */
 async function importarDespesa(
   db: any,
-  p: { userId: string; grupoId: string | null; t: Transacao; cartaoId: string | null; cartaoFinal: string | null; banco: string | null; congelada: boolean; diasTolerancia: number },
+  p: { userId: string; grupoId: string | null; t: Transacao; cartaoId: string | null; cartaoFinal: string | null; banco: string | null; congelada: boolean; diasTolerancia: number; pendente?: boolean },
 ): Promise<boolean> {
   p = { ...p, t: { ...p.t, date: dataIso(p.t.date) } };
   const valor = Math.abs(p.t.amount);
@@ -433,6 +504,11 @@ async function importarDespesa(
 
   const parc = parcelaDe(p.t.description ?? "");
   if (parc) return importarParcelado(db, p, parc);
+
+  // Confirmada pelo banco com outro ID: assume a despesa que entrou quando ainda estava pendente.
+  if (!p.pendente && (await adotarPendente(db, { cartaoId: p.cartaoId, banco: p.banco, valor, data: p.t.date, novoId: p.t.id }))) {
+    return true;
+  }
 
   // Mesmo cartão (ou mesma conta) com lançamento manual:
   //  * manual de mesmo valor (centavos) e data até 3 dias, ou descrição parecida -> o Open Finance prevalece e substitui o manual;
@@ -934,6 +1010,7 @@ async function executarSincronizacao(
     if (erroConta) throw new Error("Falha ao guardar a conta.");
 
     let depois: string | null = null;
+    const inicioConta = new Date().toISOString();
     for (let pagina = 0; pagina < 200; pagina++) {
       const qs = new URLSearchParams({ accountId: conta.id, dateFrom: de });
       if (depois) qs.set("after", depois);
@@ -972,17 +1049,19 @@ async function executarSincronizacao(
         continue;
       }
       for (const t of lista) {
-        if (t.status === "PENDING") continue;
+        // Cartão: a compra pendente (fatura aberta) também entra; ver adotarPendente.
+        const pendente = t.status === "PENDING";
         if (t.type !== "DEBIT") continue;
         if (CATEGORIAS_NAO_DESPESA.has((t.category ?? "").trim().toLowerCase())) continue;
         if (DESCRICAO_NAO_DESPESA.test(t.description ?? "")) continue;
-        if (await importarDespesa(db, { userId: meu.user_id, grupoId, t, cartaoId, cartaoFinal, banco, congelada: primeira, diasTolerancia })) criadas++;
+        if (await importarDespesa(db, { userId: meu.user_id, grupoId, t, cartaoId, cartaoFinal, banco, congelada: pendente ? false : primeira, diasTolerancia, pendente })) criadas++;
       }
       if (!r.next) break;
       const m = /after=([^&]+)/.exec(r.next);
       depois = m ? decodeURIComponent(m[1]!) : null;
       if (!depois) break;
     }
+    if (conta.type === "CREDIT") await limparPendentesSumidas(db, conta.id, de, inicioConta);
   }
 
   for (const [id, saldo] of saldoPorBanco) {
