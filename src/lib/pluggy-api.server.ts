@@ -50,7 +50,7 @@ type Conta = {
   owner?: string;
   balance?: number;
   currencyCode?: string;
-  creditData?: { brand?: string; creditLimit?: number; availableCreditLimit?: number; balanceDueDate?: string; minimumPayment?: number; additionalCards?: { number?: string }[] };
+  creditData?: { brand?: string; creditLimit?: number; availableCreditLimit?: number; disaggregatedCreditLimits?: { identificationNumber?: string; customizedLimitAmount?: number }[]; balanceDueDate?: string; minimumPayment?: number; additionalCards?: { number?: string }[] };
 };
 type Transacao = {
   id: string;
@@ -271,6 +271,20 @@ async function gravarCartao(
 function marcaCartao(brand?: string | null): string {
   const b = (brand ?? "").trim();
   return b ? b.charAt(0).toUpperCase() + b.slice(1).toLowerCase() : "Outra";
+}
+
+/**
+ * Limite que o banco realmente libera para uso: no Nubank o limite total é 17.900, mas o limite usável
+ * (customizedLimitAmount) é 4.590 e é com ele que o app do banco calcula o disponível. Valor 1 ou
+ * acima do total é ignorado.
+ */
+function limiteDoCartao(cd: Conta["creditData"] | undefined, final: string | null): number | null {
+  const total = cd?.creditLimit ?? null;
+  const custom = (cd?.disaggregatedCreditLimits ?? [])
+    .filter((x) => !final || x.identificationNumber === final)
+    .map((x) => Number(x.customizedLimitAmount))
+    .find((n) => Number.isFinite(n) && n > 1);
+  return custom && (total == null || custom < total) ? custom : total;
 }
 
 /** Nubank não informa o vencimento pela Pluggy: os pagamentos caem no dia 15 (editável no cartão). */
@@ -1032,7 +1046,7 @@ async function executarSincronizacao(
         final: cartaoFinal,
         nome: nomeConta || `Cartão ${cartaoFinal}`,
         bandeira: marcaCartao(conta.creditData?.brand),
-        limite: conta.creditData?.creditLimit ?? null,
+        limite: limiteDoCartao(conta.creditData, cartaoFinal),
         diaVencimento: diaDe(conta.creditData?.balanceDueDate) ?? diaPadraoBanco(`${nomeConta} ${bancoNome ?? ""}`),
         titular: (conta.owner ?? nomeConta) || "Titular",
         bancoId,
@@ -1044,7 +1058,10 @@ async function executarSincronizacao(
       // Cartões adicionais da mesma conta viram cartões próprios, no mesmo banco e com o mesmo vencimento.
       // O limite é compartilhado com o principal: não é repetido no adicional, para não duplicar a soma.
       const nomeBase = nomeConta || `Cartão ${cartaoFinal}`;
-      for (const adicional of conta.creditData?.additionalCards ?? []) {
+      // Nubank: dezenas de cartões virtuais dividem uma só fatura e a Pluggy não diz de qual cartão é cada compra;
+      // tudo fica consolidado no cartão principal (Nubank), sem criar um cartão por número virtual.
+      const consolidaAdicionais = /nubank|nu pagamentos|croma/i.test(`${nomeConta} ${bancoNome ?? ""}`);
+      for (const adicional of consolidaAdicionais ? [] : (conta.creditData?.additionalCards ?? [])) {
         const finalAdicional = ultimos4(adicional.number);
         if (!finalAdicional || finalAdicional === cartaoFinal) continue;
         await garantirCartao(db, {
@@ -1086,7 +1103,7 @@ async function executarSincronizacao(
         numero_conta: conta.number ?? null,
         titular: conta.owner ?? null,
         dados: conta,
-        limite: conta.creditData?.creditLimit ?? null,
+        limite: limiteDoCartao(conta.creditData, cartaoFinal),
         limite_disponivel: conta.creditData?.availableCreditLimit ?? null,
         fatura_valor: conta.type === "CREDIT" ? (conta.balance ?? null) : null,
         fatura_vencimento: data10(conta.creditData?.balanceDueDate),
