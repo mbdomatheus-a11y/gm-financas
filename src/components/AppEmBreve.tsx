@@ -1,18 +1,21 @@
 import { Apple, Play, Smartphone } from "lucide-react";
+import { LINK_TESTFLIGHT } from "@/lib/testflight.functions";
 import { cn } from "@/lib/utils";
 
-function Loja({ icone, pequeno, nome }: { icone: React.ReactNode; pequeno: string; nome: string }) {
+function Loja({ icone, pequeno, nome, href }: { icone: React.ReactNode; pequeno: string; nome: string; href?: string }) {
+  const Tag: any = href ? "a" : "div";
   return (
-    <div
-      className="flex items-center gap-2.5 rounded-xl border border-border bg-foreground px-4 py-2 text-background opacity-90"
-      aria-label={`${nome}: em breve`}
+    <Tag
+      {...(href ? { href, target: "_blank", rel: "noreferrer" } : {})}
+      className={cn("flex items-center gap-2.5 rounded-xl border border-border bg-foreground px-4 py-2 text-background", href ? "transition-opacity hover:opacity-80" : "opacity-90")}
+      aria-label={href ? `${nome}: abrir convite do beta` : `${nome}: em breve`}
     >
       {icone}
       <span className="leading-tight">
         <span className="block text-[10px] uppercase tracking-wide opacity-80">{pequeno}</span>
         <span className="block text-sm font-semibold">{nome}</span>
       </span>
-    </div>
+    </Tag>
   );
 }
 
@@ -36,7 +39,7 @@ export function AppEmBreve({ className }: { className?: string }) {
         </p>
       </div>
       <div className="flex flex-wrap justify-center gap-2">
-        <Loja icone={<Apple className="size-6" />} pequeno="Em breve na" nome="App Store" />
+        <Loja icone={<Apple className="size-6" />} pequeno="Beta no" nome="TestFlight" href={LINK_TESTFLIGHT} />
         <Loja icone={<Play className="size-5" />} pequeno="Em breve no" nome="Google Play" />
       </div>
     </section>

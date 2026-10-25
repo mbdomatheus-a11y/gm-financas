@@ -1126,8 +1126,8 @@ function DespesasPage() {
         </div>
       )}
 
-      <div className="mb-3 space-y-2">
-        <div className="relative">
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <div className="relative min-w-[16rem] flex-1">
           <Search className="pointer-events-none absolute left-3.5 top-1/2 size-5 -translate-y-1/2 text-primary" aria-hidden="true" />
           <Input
             value={busca}
@@ -1147,7 +1147,7 @@ function DespesasPage() {
             </button>
           )}
         </div>
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <div className="contents">
           {/* Ajuste mobile (otimização para celulares, 2026-09-27): abas,
               busca e selects de filtro ganham altura/toque maiores (~40-44px)
               — os h-9/py-1 anteriores ficavam abaixo do mínimo recomendado
@@ -1191,10 +1191,10 @@ function DespesasPage() {
         <NavegadorMes
           valor={filtroMes === "todos" ? null : filtroMes}
           onChange={setFiltroMes}
-          className="mb-2"
         />
 
-        <div className="mb-2 flex flex-nowrap items-center gap-1.5 overflow-x-auto pb-1 [&>*]:shrink-0">
+        <div className="flex w-full flex-wrap items-center gap-1.5">
+        <div className="contents">
           <Select value={filtroCartao} onValueChange={setFiltroCartao}>
             <SelectTrigger className="h-9 w-auto min-w-[8.5rem] text-xs">
               <SelectValue placeholder="Cartão" />
@@ -1273,7 +1273,7 @@ function DespesasPage() {
         </div>
 
         {chips.length > 0 && (
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div className="contents">
             {chips.map((c) => (
               <button
                 key={c.label}
@@ -1289,6 +1289,7 @@ function DespesasPage() {
             </Button>
           </div>
         )}
+        </div>
       </div>
 
       {modoLista === "lista" &&
