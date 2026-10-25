@@ -67,6 +67,7 @@ import { Route as ApiCronPluggySincronizarRouteImport } from './routes/api/cron/
 import { Route as ApiEmailPararRouteImport } from './routes/api/email/parar'
 import { Route as OauthGoogleDriveReturnRouteImport } from './routes/oauth/google-drive/return'
 import { Route as ApiPluggyWebhookTokenRouteImport } from './routes/api/pluggy/webhook.$token'
+import { Route as ApiPluggyConectarRouteImport } from './routes/api/pluggy/conectar'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -371,6 +372,12 @@ const ApiPluggyWebhookTokenRoute = ApiPluggyWebhookTokenRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 
+const ApiPluggyConectarRoute = ApiPluggyConectarRouteImport.update({
+  id: '/api/pluggy/conectar',
+  path: '/api/pluggy/conectar',
+  getParentRoute: () => rootRouteImport,
+} as any)
+
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/bloquear-conta': typeof BloquearContaRoute
@@ -429,6 +436,7 @@ export interface FileRoutesByFullPath {
   '/oauth/google-drive/return': typeof OauthGoogleDriveReturnRoute
   '/links/': typeof AuthenticatedLinksIndexRoute
   '/api/pluggy/webhook/$token': typeof ApiPluggyWebhookTokenRoute
+  '/api/pluggy/conectar': typeof ApiPluggyConectarRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -488,6 +496,7 @@ export interface FileRoutesByTo {
   '/oauth/google-drive/return': typeof OauthGoogleDriveReturnRoute
   '/links': typeof AuthenticatedLinksIndexRoute
   '/api/pluggy/webhook/$token': typeof ApiPluggyWebhookTokenRoute
+  '/api/pluggy/conectar': typeof ApiPluggyConectarRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -549,6 +558,7 @@ export interface FileRoutesById {
   '/oauth/google-drive/return': typeof OauthGoogleDriveReturnRoute
   '/_authenticated/links/': typeof AuthenticatedLinksIndexRoute
   '/api/pluggy/webhook/$token': typeof ApiPluggyWebhookTokenRoute
+  '/api/pluggy/conectar': typeof ApiPluggyConectarRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -610,6 +620,7 @@ export interface FileRouteTypes {
     | '/oauth/google-drive/return'
     | '/links/'
     | '/api/pluggy/webhook/$token'
+    | '/api/pluggy/conectar'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -669,6 +680,7 @@ export interface FileRouteTypes {
     | '/oauth/google-drive/return'
     | '/links'
     | '/api/pluggy/webhook/$token'
+    | '/api/pluggy/conectar'
   id:
     | '__root__'
     | '/'
@@ -729,6 +741,7 @@ export interface FileRouteTypes {
     | '/oauth/google-drive/return'
     | '/_authenticated/links/'
     | '/api/pluggy/webhook/$token'
+    | '/api/pluggy/conectar'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -757,6 +770,7 @@ export interface RootRouteChildren {
   ApiEmailPararRoute: typeof ApiEmailPararRoute
   OauthGoogleDriveReturnRoute: typeof OauthGoogleDriveReturnRoute
   ApiPluggyWebhookTokenRoute: typeof ApiPluggyWebhookTokenRoute
+  ApiPluggyConectarRoute: typeof ApiPluggyConectarRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1167,6 +1181,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPluggyWebhookTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/pluggy/conectar': {
+      id: '/api/pluggy/conectar'
+      path: '/api/pluggy/conectar'
+      fullPath: '/api/pluggy/conectar'
+      preLoaderRoute: typeof ApiPluggyConectarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -1272,6 +1293,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiEmailPararRoute: ApiEmailPararRoute,
   OauthGoogleDriveReturnRoute: OauthGoogleDriveReturnRoute,
   ApiPluggyWebhookTokenRoute: ApiPluggyWebhookTokenRoute,
+  ApiPluggyConectarRoute: ApiPluggyConectarRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
