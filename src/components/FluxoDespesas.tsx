@@ -1,3 +1,5 @@
+import { useFinancasProntas } from "@/hooks/useFinancasProntas";
+import { CartaoCarregando } from "@/components/CartaoCarregando";
 import { useMemo } from "react";
 import { CalendarClock, Receipt } from "lucide-react";
 
@@ -34,6 +36,7 @@ function ranking(mapa: Map<string, number>): Linha[] {
  * despesas futuras (parcelas e compromissos a vencer), com barra por categoria.
  */
 export function FluxoDespesas() {
+  const financasProntas = useFinancasProntas();
   const cotacao = useCotacao();
   const { data: despesas = [] } = useDespesas();
   const { data: faturasMes = [] } = useFaturasMes();
@@ -67,6 +70,7 @@ export function FluxoDespesas() {
   const totalAtual = atual.reduce((s, l) => s + l.valor, 0);
   const totalFuturo = futuro.reduce((s, l) => s + l.valor, 0);
 
+  if (!financasProntas) return <CartaoCarregando alturaGrafico="h-48" />;
   return (
     <div className="mt-4 grid gap-4 md:grid-cols-2">
       <Bloco

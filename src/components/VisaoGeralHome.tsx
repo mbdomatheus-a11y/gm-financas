@@ -1,3 +1,5 @@
+import { useFinancasProntas } from "@/hooks/useFinancasProntas";
+import { CartaoCarregando } from "@/components/CartaoCarregando";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { ArrowDownRight, ArrowUpRight, ChevronDown, ChevronRight, Eye, EyeOff, Minus } from "lucide-react";
@@ -115,6 +117,7 @@ function BotaoOlhoItem({ oculto, onClick }: { oculto: boolean; onClick: () => vo
 }
 
 export function VisaoGeralHome({ ocultarValores }: { ocultarValores?: boolean } = {}) {
+  const financasProntas = useFinancasProntas();
   const cotacao = useCotacao();
   const { data: despesas = [] } = useDespesas();
   const { data: faturasMes = [] } = useFaturasMes();
@@ -249,6 +252,7 @@ export function VisaoGeralHome({ ocultarValores }: { ocultarValores?: boolean } 
       .reduce((s, d) => s + toBRL(Number(d.valor_total ?? 0), d.moeda ?? "BRL", cotacao), 0);
   }, [despesas, cotacao]);
 
+  if (!financasProntas) return <CartaoCarregando alturaGrafico="h-48" />;
   return (
     <>
       <div className="mb-3 grid grid-cols-2 gap-2">

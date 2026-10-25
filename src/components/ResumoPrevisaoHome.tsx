@@ -1,3 +1,5 @@
+import { useFinancasProntas } from "@/hooks/useFinancasProntas";
+import { CartaoCarregando } from "@/components/CartaoCarregando";
 import { useMemo } from "react";
 import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { TrendingDown, TrendingUp } from "lucide-react";
@@ -17,6 +19,7 @@ import { lancamentosPorCompetencias } from "@/lib/recorrencia";
  * e parcelas com vencimento no mês). Linha sólida até hoje; tracejada é projeção.
  */
 export function ResumoPrevisaoHome() {
+  const financasProntas = useFinancasProntas();
   const cotacao = useCotacao();
   const { data: despesas = [] } = useDespesas();
   const { data: faturasMes = [] } = useFaturasMes();
@@ -72,6 +75,7 @@ export function ResumoPrevisaoHome() {
   const positivo = resumo.sobra >= 0;
   const Icone = positivo ? TrendingUp : TrendingDown;
 
+  if (!financasProntas) return <CartaoCarregando alturaGrafico="h-44" />;
   return (
     <Card className="mb-4 overflow-hidden border-primary/30">
       <CardContent className="space-y-3 p-4 sm:p-5">

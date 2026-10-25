@@ -1,3 +1,5 @@
+import { useFinancasProntas } from "@/hooks/useFinancasProntas";
+import { CartaoCarregando } from "@/components/CartaoCarregando";
 import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -63,6 +65,7 @@ export function useGamificacaoFinanceira() {
 }
 
 export function GamificacaoFinanceira() {
+  const financasProntas = useFinancasProntas();
   const g = useGamificacaoFinanceira();
   const { data: profile } = useProfile();
   const qc = useQueryClient();
@@ -114,6 +117,7 @@ export function GamificacaoFinanceira() {
     }
   }
 
+  if (!financasProntas) return <CartaoCarregando alturaGrafico="h-24" />;
   return (
     <Card className="mb-8 border-primary/30">
       <CardContent className="space-y-4 p-5">

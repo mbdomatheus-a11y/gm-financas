@@ -1,3 +1,5 @@
+import { useFinancasProntas } from "@/hooks/useFinancasProntas";
+import { CartaoCarregando } from "@/components/CartaoCarregando";
 import { useMemo, useState } from "react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,6 +19,7 @@ type Modo = "reais" | "percentual";
  * Alterna entre valores em R$ e percentual do total.
  */
 export function GastosPorCategoria() {
+  const financasProntas = useFinancasProntas();
   const cotacao = useCotacao();
   const { data: despesas = [] } = useDespesas();
   const { data: faturasMes = [] } = useFaturasMes();
@@ -53,6 +56,7 @@ export function GastosPorCategoria() {
     return formatar(v);
   }
 
+  if (!financasProntas) return <CartaoCarregando alturaGrafico="h-48" />;
   return (
     <Card className="mt-4">
       <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0 pb-2">

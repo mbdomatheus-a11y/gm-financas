@@ -270,6 +270,15 @@ function somarMeses(iso: string, meses: number): string {
   return isoData(new Date(Date.UTC(ano, mes - 1 + meses, Math.min(dia, ultimoDia), 12)));
 }
 
+/** Parcelamento que já existe: as parcelas até a n-ésima (a que acabou de aparecer no extrato) ficam pagas. */
+async function marcarPagasAte(db: any, despesaId: string, n: number): Promise<void> {
+  try {
+    await db.from("parcelas").update({ paga: true }).eq("despesa_id", despesaId).lte("numero", n).eq("paga", false);
+  } catch {
+    // compra congelada: mantém como está
+  }
+}
+
 /**
  * Compra parcelada: cria a despesa com o total e projeta todas as parcelas até o fim.
  * As parcelas já cobradas (até n) ficam pagas; as seguintes ficam em aberto.
@@ -302,9 +311,15 @@ async function importarParcelado(
       ? jaMes.eq("banco_nome", p.banco)
       : jaMes.is("banco_nome", null);
   const { data: jaCompra } = await jaMes.maybeSingle();
-  if (jaCompra) return false;
+  if (jaCompra) {
+    await marcarPagasAte(db, jaCompra.id, n);
+    return false;
+  }
   const { data: jaGrupo } = await db.from("despesas").select("id").eq("pluggy_grupo", grupo).maybeSingle();
-  if (jaGrupo) return false;
+  if (jaGrupo) {
+    await marcarPagasAte(db, jaGrupo.id, n);
+    return false;
+  }
 
   if (p.cartaoId) {
     const { data: manual } = await db

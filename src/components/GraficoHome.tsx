@@ -1,3 +1,5 @@
+import { useFinancasProntas } from "@/hooks/useFinancasProntas";
+import { CartaoCarregando } from "@/components/CartaoCarregando";
 import { useMemo } from "react";
 import { BarChart3 } from "lucide-react";
 import {
@@ -45,6 +47,7 @@ export function GraficoHome({
   opcao: OpcaoGrafico;
   onOpcao: (o: OpcaoGrafico) => void;
 }) {
+  const financasProntas = useFinancasProntas();
   const cotacao = useCotacao();
   const { data: despesas = [] } = useDespesas();
   const { data: faturasMes = [] } = useFaturasMes();
@@ -100,6 +103,7 @@ export function GraficoHome({
   const vazio =
     opcao === "categorias" ? categorias.length === 0 : serie.every((s) => !s.Receitas && !s.Despesas);
 
+  if (!financasProntas) return <CartaoCarregando alturaGrafico="h-56" />;
   return (
     <Card className="h-full">
       <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 space-y-0 pb-2">
