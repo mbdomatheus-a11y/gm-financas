@@ -219,6 +219,7 @@ function PluggyPage() {
     },
     onError: (e: Error) => toast.error(e.message),
   });
+  const ocupado = sincronizarItem.isPending || sincronizarTudo.isPending;
   const recusar = useMutation({
     mutationFn: (transactionId: string) => rejeitar({ data: { transactionId } }),
     onSuccess: () => {
@@ -271,7 +272,7 @@ function PluggyPage() {
               </CardTitle>
               <Button
                 size="sm"
-                disabled={sincronizarTudo.isPending || itens.itens.length === 0}
+                disabled={ocupado || itens.itens.length === 0}
                 onClick={() => sincronizarTudo.mutate()}
               >
                 {sincronizarTudo.isPending ? "Sincronizando todos…" : "Sincronizar todos os bancos"}
@@ -284,7 +285,14 @@ function PluggyPage() {
               const u = ultimaDaConexao(i.item_id);
               const emAndamento = sincronizarItem.isPending && sincronizarItem.variables === i.item_id;
               return (
-                <div key={i.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border bg-card p-4 shadow-sm">
+                <div
+                  key={i.id}
+                  aria-busy={emAndamento || undefined}
+                  className={cn(
+                    "flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border bg-card p-4 shadow-sm transition-opacity",
+                    ocupado && !emAndamento && "pointer-events-none opacity-50",
+                  )}
+                >
                   <span
                     className={cn("size-2 rounded-full", u?.status === "ok" ? "bg-success" : u ? "bg-destructive" : "bg-muted-foreground")}
                     aria-hidden="true"
@@ -366,7 +374,7 @@ function PluggyPage() {
                   <Button
                     size="sm"
                     variant="outline"
-                    disabled={sincronizarItem.isPending}
+                    disabled={ocupado}
                     onClick={() => sincronizarItem.mutate(i.item_id)}
                   >
                     {emAndamento ? "Sincronizando…" : "Sincronizar"}
@@ -376,7 +384,7 @@ function PluggyPage() {
                     variant="ghost"
                     className="size-8"
                     aria-label="Remover conexão"
-                    disabled={apagar.isPending}
+                    disabled={apagar.isPending || ocupado}
                     onClick={() => apagar.mutate(i.item_id)}
                   >
                     <Trash2 className="size-4" aria-hidden="true" />
