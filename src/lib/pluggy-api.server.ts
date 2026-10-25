@@ -61,7 +61,38 @@ type Transacao = {
   category?: string | null;
   status?: string;
   accountId?: string;
+  /** Dados do cartão que o próprio banco manda (25/10/2026): parcela, total e a fatura (billId). */
+  creditCardMetadata?: {
+    installmentNumber?: number | null;
+    totalInstallments?: number | null;
+    totalAmount?: number | null;
+    purchaseDate?: string | null;
+    billId?: string | null;
+  } | null;
 };
+
+/**
+ * Faturas do cartão como o banco informa (id → vencimento AAAA-MM-DD). Cada compra traz o billId da
+ * fatura em que entrou; assim a despesa cai no mês da fatura certa, igual ao app do banco, em vez
+ * de o Control ALL adivinhar pelo dia de fechamento ou pela data da compra.
+ */
+/** Diagnóstico da última sincronização (fica na mensagem do histórico). */
+const DIAG = { faturas: 0, comFatura: 0, semFatura: 0 };
+
+async function faturasDoCartao(key: string, accountId: string): Promise<Map<string, string>> {
+  const mapa = new Map<string, string>();
+  try {
+    const r: any = await pluggy(key, `/bills?accountId=${encodeURIComponent(accountId)}&pageSize=100`);
+    for (const b of r?.results ?? []) {
+      const venc = String(b?.dueDate ?? "").slice(0, 10);
+      if (b?.id && /^\d{4}-\d{2}-\d{2}$/.test(venc)) mapa.set(String(b.id), venc);
+    }
+  } catch {
+    // banco sem faturas na Pluggy: segue a regra antiga
+  }
+  DIAG.faturas += mapa.size;
+  return mapa;
+}
 type Investimento = {
   id: string;
   name?: string;
@@ -286,12 +317,16 @@ async function marcarPagasAte(db: any, despesaId: string, n: number): Promise<vo
  */
 async function importarParcelado(
   db: any,
-  p: { userId: string; grupoId: string | null; t: Transacao; cartaoId: string | null; cartaoFinal: string | null; banco: string | null; congelada: boolean; pendente?: boolean },
+  p: { userId: string; grupoId: string | null; t: Transacao; cartaoId: string | null; cartaoFinal: string | null; banco: string | null; congelada: boolean; pendente?: boolean; faturas?: Map<string, string> },
   { n, t }: { n: number; t: number },
 ): Promise<boolean> {
   const valorParcela = Math.abs(p.t.amount);
   const nucleo = (p.t.description ?? "").replace(PADRAO_PARCELA, " ").replace(/\s+/g, " ").trim().toUpperCase();
-  const primeira = somarMeses(p.t.date, -(n - 1));
+  const meta = p.t.creditCardMetadata ?? null;
+  // Data da compra e fatura desta parcela como o banco informa; sem isso, estima pela data da linha.
+  const compraBanco = meta?.purchaseDate ? String(meta.purchaseDate).slice(0, 10) : null;
+  const primeira = compraBanco && /^\d{4}-\d{2}-\d{2}$/.test(compraBanco) ? compraBanco : somarMeses(p.t.date, -(n - 1));
+  const vencDestaParcela = meta?.billId ? p.faturas?.get(String(meta.billId)) ?? null : null;
   // As parcelas podem cair em dias diferentes do mesmo mês (ex.: 03/09 e 11/09), então a compra
   // é identificada pelo mês da primeira parcela, e não pelo dia.
   const primeiraMes = primeira.slice(0, 7);
@@ -355,7 +390,7 @@ async function importarParcelado(
     .from("despesas")
     .insert({
       descricao: nucleo || p.t.description,
-      valor_total: valorParcela * t,
+      valor_total: meta?.totalAmount && Math.abs(Number(meta.totalAmount)) > 0 ? Math.abs(Number(meta.totalAmount)) : valorParcela * t,
       moeda: "BRL",
       categoria: "Categoria a confirmar",
       tipo: "variavel",
@@ -382,7 +417,8 @@ async function importarParcelado(
     total: t,
     valor: valorParcela,
     moeda: "BRL",
-    vencimento: somarMeses(primeira, i),
+    // Com a fatura desta parcela, as outras caem uma por mês a partir dela (igual à fatura do banco).
+    vencimento: vencDestaParcela ? somarMeses(vencDestaParcela, i + 1 - n) : somarMeses(primeira, i),
     paga: p.pendente ? somarMeses(primeira, i) < new Date().toISOString().slice(0, 10) && i + 1 < n : i + 1 <= n,
     grupo_id: p.grupoId,
   }));
@@ -492,7 +528,7 @@ function somarDias(iso: string, dias: number): string {
  */
 async function importarDespesa(
   db: any,
-  p: { userId: string; grupoId: string | null; t: Transacao; cartaoId: string | null; cartaoFinal: string | null; banco: string | null; congelada: boolean; diasTolerancia: number; pendente?: boolean },
+  p: { userId: string; grupoId: string | null; t: Transacao; cartaoId: string | null; cartaoFinal: string | null; banco: string | null; congelada: boolean; diasTolerancia: number; pendente?: boolean; faturas?: Map<string, string> },
 ): Promise<boolean> {
   p = { ...p, t: { ...p.t, date: dataIso(p.t.date) } };
   const valor = Math.abs(p.t.amount);
@@ -502,8 +538,18 @@ async function importarDespesa(
   const { data: ja } = await db.from("despesas").select("id").eq("pluggy_transaction_id", p.t.id).maybeSingle();
   if (ja) return false;
 
-  const parc = parcelaDe(p.t.description ?? "");
+  const meta = p.t.creditCardMetadata ?? null;
+  // Parcela informada pelo banco vale mais que a lida na descrição ("4/6").
+  const parc =
+    meta?.totalInstallments && Number(meta.totalInstallments) > 1 && meta.installmentNumber
+      ? { n: Number(meta.installmentNumber), t: Number(meta.totalInstallments) }
+      : parcelaDe(p.t.description ?? "");
   if (parc) return importarParcelado(db, p, parc);
+  const vencFatura = meta?.billId ? p.faturas?.get(String(meta.billId)) ?? null : null;
+  if (p.cartaoId) {
+    if (vencFatura) DIAG.comFatura++;
+    else DIAG.semFatura++;
+  }
 
   // Confirmada pelo banco com outro ID: assume a despesa que entrou quando ainda estava pendente.
   if (!p.pendente && (await adotarPendente(db, { cartaoId: p.cartaoId, banco: p.banco, valor, data: p.t.date, novoId: p.t.id }))) {
@@ -562,7 +608,7 @@ async function importarDespesa(
     total: 1,
     valor,
     moeda: "BRL",
-    vencimento: await vencimentoCartao(db, p.cartaoId, p.t.date),
+    vencimento: vencFatura ?? (await vencimentoCartao(db, p.cartaoId, p.t.date)),
     paga: false,
     grupo_id: p.grupoId,
   });
@@ -852,7 +898,13 @@ async function sincronizarItemTravado(
     const r = await executarSincronizacao(db, itemId, meu, primeira);
     await db
       .from("pluggy_sincronizacoes")
-      .update({ status: "ok", terminado_em: new Date().toISOString(), transacoes_lidas: r.transacoes, despesas_criadas: r.criadas })
+      .update({
+        status: "ok",
+        terminado_em: new Date().toISOString(),
+        transacoes_lidas: r.transacoes,
+        despesas_criadas: r.criadas,
+        mensagem: `faturas do banco: ${DIAG.faturas} · compras novas na fatura do banco: ${DIAG.comFatura} · sem fatura: ${DIAG.semFatura}`,
+      })
       .eq("id", log?.id);
     return r;
   } catch (e) {
@@ -871,6 +923,9 @@ async function executarSincronizacao(
   meu: { user_id: string; conector: string | null },
   primeira: boolean,
 ): Promise<{ ignorado: boolean; transacoes: number; primeira: boolean; criadas: number }> {
+  DIAG.faturas = 0;
+  DIAG.comFatura = 0;
+  DIAG.semFatura = 0;
   const dias = primeira ? DIAS_HISTORICO_INICIAL : DIAS_JANELA_NORMAL;
   const { data: perfil } = await db.from("profiles").select("grupo_id").eq("id", meu.user_id).maybeSingle();
   const grupoId: string | null = perfil?.grupo_id ?? null;
@@ -1011,6 +1066,7 @@ async function executarSincronizacao(
 
     let depois: string | null = null;
     const inicioConta = new Date().toISOString();
+    const faturas = conta.type === "CREDIT" ? await faturasDoCartao(key, conta.id) : new Map<string, string>();
     for (let pagina = 0; pagina < 200; pagina++) {
       const qs = new URLSearchParams({ accountId: conta.id, dateFrom: de });
       if (depois) qs.set("after", depois);
@@ -1054,7 +1110,7 @@ async function executarSincronizacao(
         if (t.type !== "DEBIT") continue;
         if (CATEGORIAS_NAO_DESPESA.has((t.category ?? "").trim().toLowerCase())) continue;
         if (DESCRICAO_NAO_DESPESA.test(t.description ?? "")) continue;
-        if (await importarDespesa(db, { userId: meu.user_id, grupoId, t, cartaoId, cartaoFinal, banco, congelada: pendente ? false : primeira, diasTolerancia, pendente })) criadas++;
+        if (await importarDespesa(db, { userId: meu.user_id, grupoId, t, cartaoId, cartaoFinal, banco, congelada: pendente ? false : primeira, diasTolerancia, pendente, faturas })) criadas++;
       }
       if (!r.next) break;
       const m = /after=([^&]+)/.exec(r.next);
