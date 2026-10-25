@@ -22,6 +22,14 @@ export type PlanoCorte = {
   inicioNovaSerie: string | null;
 };
 
+/** AAAA-MM-DD no mês `competencia` com o dia de `dataBase` (limitado ao último dia do mês). */
+export function mesmoDiaNoMes(dataBase: string, competencia: string): string {
+  const dia = Number(String(dataBase).slice(8, 10)) || 1;
+  const [ano, mes] = competencia.split("-").map(Number);
+  const ultimo = new Date(Date.UTC(ano!, mes!, 0)).getUTCDate();
+  return `${competencia}-${String(Math.min(dia, ultimo)).padStart(2, "0")}`;
+}
+
 export function planejarCorte(entrada: {
   inicio: string;
   semPrazo: boolean;
@@ -37,9 +45,10 @@ export function planejarCorte(entrada: {
 
   const proxima = somarMeses(x, 1);
   const temFuturo = entrada.modo === "so_competencia" && (fimComp === null || proxima <= fimComp);
+  // 25/10/2026: a nova série mantém o dia do mês da original (salário dia 15 continua dia 15).
   const novaSerie: Serie | null = temFuturo
     ? {
-        recorrencia_inicio: `${proxima}-01`,
+        recorrencia_inicio: mesmoDiaNoMes(entrada.inicio, proxima),
         recorrencia_sem_prazo: fimComp === null,
         recorrencia_meses: fimComp === null ? null : mesesEntreCompetencias(proxima, fimComp) + 1,
       }
