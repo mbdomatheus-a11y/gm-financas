@@ -9,6 +9,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
  * Códigos de série confirmados na documentação oficial do BCB (FAQ "Price
  * Indices", bcb.gov.br) e cruzados com fontes independentes:
  *   - IPCA (mensal): 433
+ *   - INPC (mensal): 188
  *   - INCC-DI (mensal): 192
  *   - IGP-DI (mensal): 190
  *   - IGP-M (mensal): 189
@@ -18,7 +19,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
  *   - Selic acumulada no mês, anualizada (% a.a.): 4390
  */
 
-export type CodigoIndiceReajuste = "IPCA" | "INCC-DI" | "IGP-DI" | "IGP-M" | "CDI" | "SELIC";
+export type CodigoIndiceReajuste = "IPCA" | "INPC" | "INCC-DI" | "IGP-DI" | "IGP-M" | "CDI" | "SELIC";
 
 interface IndiceInfo {
   codigo: CodigoIndiceReajuste;
@@ -29,6 +30,7 @@ interface IndiceInfo {
 
 export const INDICES_REAJUSTE: IndiceInfo[] = [
   { codigo: "IPCA", label: "IPCA (inflação oficial)", serieSgs: 433, frequencia: "mensal" },
+  { codigo: "INPC", label: "INPC (comum em salários)", serieSgs: 188, frequencia: "mensal" },
   { codigo: "IGP-M", label: "IGP-M (comum em aluguéis)", serieSgs: 189, frequencia: "mensal" },
   { codigo: "IGP-DI", label: "IGP-DI", serieSgs: 190, frequencia: "mensal" },
   { codigo: "INCC-DI", label: "INCC-DI (construção civil)", serieSgs: 192, frequencia: "mensal" },
@@ -85,7 +87,7 @@ export const buscarValorIndice = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) =>
     z
       .object({
-        indice: z.enum(["IPCA", "INCC-DI", "IGP-DI", "IGP-M", "CDI", "SELIC"]),
+        indice: z.enum(["IPCA", "INPC", "INCC-DI", "IGP-DI", "IGP-M", "CDI", "SELIC"]),
         periodicidade: z.enum(["mensal", "semestral", "anual"]),
         mediaMeses: z.union([z.literal(6), z.literal(12), z.literal(24)]).optional(),
       })

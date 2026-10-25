@@ -112,6 +112,7 @@ import {
   toISODate,
 } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { PixDespesas, usePix } from "@/components/pix/AbaPix";
 
 export const Route = createFileRoute("/_authenticated/despesas")({
   validateSearch: (
@@ -217,7 +218,13 @@ function DespesasPage() {
   // eles já têm sua própria lógica de default (mês atual / `?mes=`/`?modo=`
   // vindos de outras telas, ex. o card "Dívida total" do dashboard), e
   // persistir por localStorage entraria em conflito com esse comportamento.
-  const [tab, setTab] = usePersistedState<"total" | "fixa" | "variavel">("despesas.tab", "total");
+  const [tab, setTab] = usePersistedState<"total" | "fixa" | "variavel" | "pix">("despesas.tab", "total");
+  // Aba PIX (24/10/2026): PIX enviados pelo Open Finance esperando decisão.
+  const { data: pixSaida } = usePix("saida");
+  const pixPendentes = (pixSaida?.itens ?? []).filter((p) => p.situacao === "pendente").length;
+  useEffect(() => {
+    if (tab === "pix" && pixSaida && !pixSaida.disponivel) setTab("total");
+  }, [tab, pixSaida, setTab]);
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   // Bloco 6 (plano-mega 2026-09-14): simulação visual de corte em despesas
@@ -362,7 +369,7 @@ function DespesasPage() {
   useEffect(() => {
     if (!search.novo) return;
     setEditId(null);
-    setForm(novoForm(tab === "total" ? "variavel" : tab));
+    setForm(novoForm(tab === "fixa" ? "fixa" : "variavel"));
     setOpen(true);
     void navigate({
       search: (p: Record<string, unknown>) => {
@@ -376,7 +383,7 @@ function DespesasPage() {
 
   function abrirNova() {
     setEditId(null);
-    setForm(novoForm(tab === "total" ? "variavel" : tab));
+    setForm(novoForm(tab === "fixa" ? "fixa" : "variavel"));
     setDuplicata(null);
     setOpen(true);
   }
@@ -541,7 +548,7 @@ function DespesasPage() {
       setOpen(false);
       setEditId(null);
       setDuplicata(null);
-      setForm(novoForm(tab === "total" ? "variavel" : tab));
+      setForm(novoForm(tab === "fixa" ? "fixa" : "variavel"));
       qc.invalidateQueries();
     },
     onError: (e: any) => toast.error(e?.errors?.[0]?.message ?? e.message ?? "Erro ao salvar"),
@@ -1152,6 +1159,16 @@ function DespesasPage() {
               <TabsTrigger value="variavel" className="px-3.5 py-2 text-xs">
                 Variáveis
               </TabsTrigger>
+              {pixSaida?.disponivel && (
+                <TabsTrigger value="pix" className="gap-1 px-3.5 py-2 text-xs">
+                  PIX
+                  {pixPendentes > 0 && (
+                    <span className="rounded-full bg-primary px-1.5 text-[10px] font-semibold text-primary-foreground">
+                      {pixPendentes}
+                    </span>
+                  )}
+                </TabsTrigger>
+              )}
             </TabsList>
           </Tabs>
           <Tabs value={modoLista} onValueChange={(v) => setModoLista(v as "lista" | "cartao")}>
@@ -1299,7 +1316,9 @@ function DespesasPage() {
           </div>
         )}
 
-      {filtroResumo ? (
+      {tab === "pix" ? (
+        <PixDespesas despesas={despesas as any[]} categorias={categorias as any[]} />
+      ) : filtroResumo ? (
         <Card>
           <CardContent className="p-0">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b px-3 py-2">
@@ -1959,18 +1978,31 @@ function DespesasPage() {
             )}
             {ehFixa && form.reajuste_tipo === "composto" && (
               <>
-                <Field label="Percentual (%)">
-                  <Input
-                    inputMode="decimal"
-                    placeholder="Ex.: 5"
-                    value={form.reajuste_percentual}
-                    onChange={(e) => setForm({ ...form, reajuste_percentual: e.target.value })}
+                {/* Ordem pedida em 24/10: índice primeiro; ao escolher índice e periodicidade o % é buscado sozinho. */}
+                <Field label="Índice" className="sm:col-span-2">
+                  <IndiceReajusteField
+                    indice={form.reajuste_indice}
+                    onIndiceChange={(v) => setForm((f: any) => ({ ...f, reajuste_indice: v }))}
+                    periodicidade={form.reajuste_periodicidade as Periodicidade}
+                    onValorBuscado={(percentual) =>
+                      setForm((f: any) => ({
+                        ...f,
+                        reajuste_percentual: String(percentual).replace(".", ","),
+                      }))
+                    }
+                    onMediaMensalBuscada={(percentual) =>
+                      setForm((f: any) => ({
+                        ...f,
+                        reajuste_periodicidade: "mensal",
+                        reajuste_percentual: String(percentual).replace(".", ","),
+                      }))
+                    }
                   />
                 </Field>
                 <Field label="Periodicidade">
                   <Select
                     value={form.reajuste_periodicidade}
-                    onValueChange={(v) => setForm({ ...form, reajuste_periodicidade: v })}
+                    onValueChange={(v) => setForm((f: any) => ({ ...f, reajuste_periodicidade: v }))}
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -1984,24 +2016,12 @@ function DespesasPage() {
                     </SelectContent>
                   </Select>
                 </Field>
-                <Field label="Índice (opcional)">
-                  <IndiceReajusteField
-                    indice={form.reajuste_indice}
-                    onIndiceChange={(v) => setForm({ ...form, reajuste_indice: v })}
-                    periodicidade={form.reajuste_periodicidade as Periodicidade}
-                    onValorBuscado={(percentual) =>
-                      setForm({
-                        ...form,
-                        reajuste_percentual: String(percentual).replace(".", ","),
-                      })
-                    }
-                    onMediaMensalBuscada={(percentual) =>
-                      setForm({
-                        ...form,
-                        reajuste_periodicidade: "mensal",
-                        reajuste_percentual: String(percentual).replace(".", ","),
-                      })
-                    }
+                <Field label="Percentual (%)">
+                  <Input
+                    inputMode="decimal"
+                    placeholder="Preenchido pelo índice, ou digite"
+                    value={form.reajuste_percentual}
+                    onChange={(e) => setForm({ ...form, reajuste_percentual: e.target.value })}
                   />
                 </Field>
                 <Field label="1º reajuste em">

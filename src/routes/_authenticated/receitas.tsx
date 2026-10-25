@@ -22,6 +22,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { BarraSoma, useSelecaoSoma } from "@/components/BarraSoma";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { IndiceReajusteField } from "@/components/IndiceReajusteField";
+import { PixReceitas, contarSugestoesReceita, usePix } from "@/components/pix/AbaPix";
 import { NavegadorMes } from "@/components/NavegadorMes";
 import { MonthPicker } from "@/components/MonthPicker";
 import {
@@ -155,7 +156,17 @@ function ReceitasPage() {
   const [duplicata, setDuplicata] = useState<any | null>(null);
   // Item 3 (backlog 2026-09-27): filtros e modo de exibição lembrados por
   // sessão (localStorage) e restaurados quando o usuário volta pra tela.
-  const [tab, setTab] = usePersistedState<"total" | "fixa" | "variavel">("receitas.tab", "total");
+  const [tab, setTab] = usePersistedState<"total" | "fixa" | "variavel" | "pix">("receitas.tab", "total");
+  // Aba PIX (24/10/2026): PIX recebidos pelo Open Finance esperando decisão.
+  const { data: pixEntrada } = usePix("entrada");
+  const pixPendentes = (pixEntrada?.itens ?? []).filter((p) => p.situacao === "pendente").length;
+  useEffect(() => {
+    if (tab === "pix" && pixEntrada && !pixEntrada.disponivel) setTab("total");
+  }, [tab, pixEntrada, setTab]);
+  const pixComSugestao = useMemo(
+    () => contarSugestoesReceita(pixEntrada?.itens, receitas as any[]),
+    [pixEntrada, receitas],
+  );
   const [filtroMes, setFiltroMes] = usePersistedState("receitas.filtroMes", currentMonthKey());
   const [filtroMesCustom, setFiltroMesCustom] = usePersistedState("receitas.filtroMesCustom", currentMonthKey());
   const [filtroCat, setFiltroCat] = usePersistedState("receitas.filtroCat", "todas");
@@ -223,7 +234,7 @@ function ReceitasPage() {
       label: `Mês: ${monthLabelLong(filtroMesCustom)}`,
       clear: () => setFiltroMes(currentMonthKey()),
     },
-    tab !== "total" && {
+    tab !== "total" && tab !== "pix" && {
       label: tab === "fixa" ? "Somente fixas" : "Somente variáveis",
       clear: () => setTab("total"),
     },
@@ -561,6 +572,16 @@ function ReceitasPage() {
               <TabsTrigger value="variavel" className="px-3.5 py-2 text-xs">
                 Variáveis
               </TabsTrigger>
+              {pixEntrada?.disponivel && (
+                <TabsTrigger value="pix" className="gap-1 px-3.5 py-2 text-xs">
+                  PIX
+                  {pixPendentes > 0 && (
+                    <span className="rounded-full bg-primary px-1.5 text-[10px] font-semibold text-primary-foreground">
+                      {pixPendentes}
+                    </span>
+                  )}
+                </TabsTrigger>
+              )}
             </TabsList>
           </Tabs>
 
@@ -674,9 +695,26 @@ function ReceitasPage() {
         </div>
       )}
 
+      {tab !== "pix" && pixComSugestao > 0 && (
+        <button
+          type="button"
+          onClick={() => setTab("pix")}
+          className="mb-3 flex w-full items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 p-3 text-left text-sm"
+        >
+          <span className="font-medium text-primary">
+            {pixComSugestao === 1
+              ? "1 PIX recebido parece com uma receita prevista."
+              : `${pixComSugestao} PIX recebidos parecem com receitas previstas.`}
+          </span>
+          <span className="ml-auto shrink-0 text-xs font-semibold text-primary">Revisar</span>
+        </button>
+      )}
+
+      {tab === "pix" && <PixReceitas receitas={receitas as any[]} categorias={categorias as any[]} />}
+
       <BarraSoma qtd={soma.ids.size} total={totalSelecionadoReceitas} onLimpar={soma.limpar} />
 
-      <div className="space-y-4">
+      <div className={cn("space-y-4", tab === "pix" && "hidden")}>
         {lista.length === 0 && (
           <Card>
             <CardContent className="flex flex-col items-center gap-2 py-12 text-center">
@@ -995,11 +1033,33 @@ function ReceitasPage() {
                       </SelectContent>
                     </Select>
                   </Field>
+                  {form.reajuste_tipo === "percentual" && (
+                    <Field label="Índice" className="sm:col-span-2">
+                      <IndiceReajusteField
+                        indice={form.reajuste_indice}
+                        onIndiceChange={(v) => setForm((f: any) => ({ ...f, reajuste_indice: v }))}
+                        periodicidade={form.reajuste_periodicidade}
+                        onValorBuscado={(percentual) =>
+                          setForm((f: any) => ({
+                            ...f,
+                            reajuste_percentual: String(percentual).replace(".", ","),
+                          }))
+                        }
+                        onMediaMensalBuscada={(percentual) =>
+                          setForm((f: any) => ({
+                            ...f,
+                            reajuste_periodicidade: "mensal",
+                            reajuste_percentual: String(percentual).replace(".", ","),
+                          }))
+                        }
+                      />
+                    </Field>
+                  )}
                   {form.reajuste_tipo !== "nenhum" && (
                     <Field label="Periodicidade">
                       <Select
                         value={form.reajuste_periodicidade}
-                        onValueChange={(v) => setForm({ ...form, reajuste_periodicidade: v })}
+                        onValueChange={(v) => setForm((f: any) => ({ ...f, reajuste_periodicidade: v }))}
                       >
                         <SelectTrigger>
                           <SelectValue />
@@ -1040,28 +1100,6 @@ function ReceitasPage() {
                         type="month"
                         value={form.reajuste_inicio}
                         onChange={(e) => setForm({ ...form, reajuste_inicio: e.target.value })}
-                      />
-                    </Field>
-                  )}
-                  {form.reajuste_tipo === "percentual" && (
-                    <Field label="Índice (opcional)" className="sm:col-span-2">
-                      <IndiceReajusteField
-                        indice={form.reajuste_indice}
-                        onIndiceChange={(v) => setForm({ ...form, reajuste_indice: v })}
-                        periodicidade={form.reajuste_periodicidade}
-                        onValorBuscado={(percentual) =>
-                          setForm({
-                            ...form,
-                            reajuste_percentual: String(percentual).replace(".", ","),
-                          })
-                        }
-                        onMediaMensalBuscada={(percentual) =>
-                          setForm({
-                            ...form,
-                            reajuste_periodicidade: "mensal",
-                            reajuste_percentual: String(percentual).replace(".", ","),
-                          })
-                        }
                       />
                     </Field>
                   )}

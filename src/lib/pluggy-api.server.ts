@@ -577,7 +577,7 @@ async function aplicarRegrasPix(db: any, p: { userId: string; t: Transacao }): P
     } catch {
       continue; // competência já fora da série (já confirmada ou anterior ao início): não mexe
     }
-    const { error } = await db.from("receitas").insert({
+    const { data: criada, error } = await db.from("receitas").insert({
       descricao: serie.descricao,
       valor,
       moeda: "BRL",
@@ -592,8 +592,13 @@ async function aplicarRegrasPix(db: any, p: { userId: string; t: Transacao }): P
       possivel_duplicidade: false,
       created_by: serie.created_by,
       grupo_id: serie.grupo_id,
-    });
+    }).select("id").single();
     if (error) throw new Error("Falha ao confirmar a receita pelo PIX.");
+    // Aba PIX (24/10/2026): o PIX aplicado pela regra aparece como já lançado.
+    await db
+      .from("pluggy_transacoes")
+      .update({ pix_situacao: "lancado", pix_lancamento_id: criada?.id ?? null, pix_tratado_em: new Date().toISOString() })
+      .eq("transaction_id", p.t.id);
     return;
   }
 }
@@ -624,6 +629,60 @@ async function sincronizarInvestimentos(db: any, key: string, itemId: string, us
       },
       { onConflict: "id" },
     );
+  }
+  await espelharInvestimentos(db, userId, r.results ?? []);
+}
+
+/** Tipo da tela de Investimentos a partir do tipo e subtipo da Pluggy. */
+function tipoDoInvestimento(i: Investimento & { subtype?: string }): string {
+  const sub = String(i.subtype ?? "").toUpperCase();
+  const tipo = String(i.type ?? "").toUpperCase();
+  if (sub.includes("TREASURY")) return "Tesouro Direto";
+  if (sub.includes("REAL_ESTATE")) return "FIIs";
+  if (sub.includes("SAVING") || /poupan/i.test(i.name ?? "")) return "Poupança";
+  if (tipo === "FIXED_INCOME") return "Renda fixa";
+  if (tipo === "EQUITY" || tipo === "ETF") return "Ações";
+  return "Outro";
+}
+
+/**
+ * Pedido de 24/10/2026: investimentos do Open Finance entram na tela de Investimentos (site e app)
+ * e no total. Cada aplicação vira (ou atualiza) uma linha em `investimentos` com origem "pluggy";
+ * a pessoa pode ligar a linha a um investimento que já tinha cadastrado, para não contar duas vezes.
+ * Só o valor atual é atualizado nas sincronizações seguintes.
+ */
+async function espelharInvestimentos(db: any, userId: string, lista: Investimento[]) {
+  const { data: perfil } = await db.from("profiles").select("grupo_id, nome").eq("id", userId).maybeSingle();
+  if (!perfil?.grupo_id) return;
+  const hoje = new Date().toISOString().slice(0, 10);
+  for (const i of lista) {
+    const saldo = Number(i.balance ?? 0) || 0;
+    const { data: existente, error: erroBusca } = await db
+      .from("investimentos")
+      .select("id")
+      .eq("pluggy_investimento_id", i.id)
+      .maybeSingle();
+    if (erroBusca) return; // coluna ainda não criada no banco: não derruba a sincronização
+    if (existente) {
+      await db.from("investimentos").update({ valor_atual: Math.max(0, saldo) }).eq("id", existente.id);
+      continue;
+    }
+    if (!(saldo > 0)) continue;
+    const aplicado = Number(i.amountOriginal ?? 0) || saldo;
+    await db.from("investimentos").insert({
+      nome: i.name ?? "Investimento",
+      tipo: tipoDoInvestimento(i as any),
+      instituicao: i.issuer ?? null,
+      valor_investido: aplicado,
+      valor_atual: saldo,
+      data_investimento: data10((i as any).date) ?? hoje,
+      responsavel: perfil.nome ?? null,
+      observacoes: "Importado pelo Open Finance. O valor atual é atualizado a cada sincronização.",
+      origem: "pluggy",
+      pluggy_investimento_id: i.id,
+      created_by: userId,
+      grupo_id: perfil.grupo_id,
+    });
   }
 }
 

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation } from "@tanstack/react-query";
 import { Loader2, RefreshCw } from "lucide-react";
@@ -33,10 +33,11 @@ interface IndiceReajusteFieldProps {
 }
 
 /**
- * Seletor de índice de reajuste (IPCA, IGP-M, INCC-DI, IGP-DI, CDI, Selic ou
+ * Seletor de índice de reajuste (IPCA, INPC, IGP-M, INCC-DI, IGP-DI, CDI, Selic ou
  * "Outro" em texto livre) com busca automática do valor acumulado mais
  * recente via API do Banco Central (SGS), plugando o resultado direto no
- * percentual de reajuste.
+ * percentual de reajuste. Desde 24/10/2026 a busca roda sozinha quando a pessoa
+ * troca o índice, a periodicidade ou o tipo de consulta (o botão continua para atualizar).
  */
 export function IndiceReajusteField({
   indice,
@@ -73,6 +74,19 @@ export function IndiceReajusteField({
     onError: (e: any) =>
       toast.error(e?.message ?? "Não foi possível buscar o valor do índice agora"),
   });
+
+  // Busca automática a cada escolha da pessoa. Ignora a montagem para não sobrescrever
+  // o percentual de um lançamento salvo que está sendo editado.
+  const montado = useRef(false);
+  useEffect(() => {
+    if (!montado.current) {
+      montado.current = true;
+      return;
+    }
+    if (!conhecido || mutation.isPending) return;
+    mutation.mutate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [indice, periodicidade, mediaMeses]);
 
   return (
     <div className="space-y-2">

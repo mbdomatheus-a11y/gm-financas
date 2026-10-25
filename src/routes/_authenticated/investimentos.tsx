@@ -8,7 +8,7 @@ import { z } from "zod";
 
 import { AppLayout } from "@/components/AppLayout";
 import { ProjecaoRendimento } from "@/components/ProjecaoRendimento";
-import { InvestimentosImportados } from "@/components/InvestimentosImportados";
+import { VincularInvestimentoDialog } from "@/components/VincularInvestimentoDialog";
 import { Field } from "@/routes/_authenticated/receitas";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -94,6 +94,7 @@ function InvestimentosPage() {
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [mov, setMov] = useState<{ id: string; tipo: "aporte" | "resgate" } | null>(null);
+  const [vincular, setVincular] = useState<any | null>(null);
   const [valorMov, setValorMov] = useState("");
   const emptyForm = {
     nome: "",
@@ -343,7 +344,13 @@ function InvestimentosPage() {
         </Card>
       )}
 
-      <InvestimentosImportados />
+      {vincular && (
+        <VincularInvestimentoDialog
+          importado={vincular}
+          opcoes={investimentos.filter((x: any) => x.origem !== "pluggy" && !x.pluggy_investimento_id)}
+          onFechar={() => setVincular(null)}
+        />
+      )}
       <div className="mt-4 space-y-2">
         {investimentos.length === 0 && (
           <Card>
@@ -372,7 +379,14 @@ function InvestimentosPage() {
                     <PiggyBank className="size-5 text-primary" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold">{i.nome}</p>
+                    <p className="flex items-center gap-1.5 truncate text-sm font-semibold">
+                      <span className="truncate">{i.nome}</span>
+                      {i.origem === "pluggy" && (
+                        <Badge variant="outline" className="h-5 shrink-0 px-1.5 text-[10px]">
+                          Open Finance
+                        </Badge>
+                      )}
+                    </p>
                     <p className="truncate text-xs text-muted-foreground">
                       {i.tipo}
                       {i.instituicao ? ` · ${i.instituicao}` : ""} · desde{" "}
@@ -436,6 +450,13 @@ function InvestimentosPage() {
                       </Button>
                     </>
                   )}
+                  {i.origem === "pluggy" &&
+                    can("investimentos", "editar") &&
+                    investimentos.some((x: any) => x.origem !== "pluggy" && !x.pluggy_investimento_id) && (
+                      <Button size="sm" variant="ghost" onClick={() => setVincular(i)}>
+                        Já tinha cadastrado este
+                      </Button>
+                    )}
                   <span className="text-xs text-muted-foreground">
                     {(i.investimento_movimentos ?? []).length} movimento(s)
                   </span>
