@@ -26,25 +26,25 @@ export function NavegadorMes({
   const atual = currentMonthKey();
   const base = valor ?? atual;
   return (
-    <div className={`flex items-center gap-1.5 ${className}`}>
+    <div className={`inline-flex items-center gap-0.5 rounded-full border bg-card p-0.5 shadow-sm ${className}`}>
       <Button
         type="button"
-        variant="outline"
+        variant="ghost"
         size="icon"
-        className="h-11 w-11 shrink-0"
+        className="size-8 shrink-0 rounded-full"
         aria-label="Mês anterior"
         onClick={() => onChange(deslocar(base, -1))}
       >
         <ChevronLeft className="size-4" />
       </Button>
-      <div className="flex h-11 min-w-0 flex-1 items-center justify-center rounded-md border bg-muted/30 px-3 text-sm font-medium capitalize">
+      <span className="min-w-[8.5rem] px-2 text-center text-sm font-medium capitalize">
         {valor ? monthLabelLong(valor) : "Todos os meses"}
-      </div>
+      </span>
       <Button
         type="button"
-        variant="outline"
+        variant="ghost"
         size="icon"
-        className="h-11 w-11 shrink-0"
+        className="size-8 shrink-0 rounded-full"
         aria-label="Próximo mês"
         onClick={() => onChange(deslocar(base, 1))}
       >
@@ -52,12 +52,15 @@ export function NavegadorMes({
       </Button>
       <Button
         type="button"
-        variant="outline"
-        className="h-11 shrink-0 gap-1.5 px-3 text-xs"
+        variant="ghost"
+        size="icon"
+        className="size-8 shrink-0 rounded-full"
+        aria-label="Mês atual"
+        title="Mês atual"
         disabled={valor === atual}
         onClick={() => onChange(atual)}
       >
-        <CalendarDays className="size-3.5" /> Mês atual
+        <CalendarDays className="size-3.5" />
       </Button>
     </div>
   );

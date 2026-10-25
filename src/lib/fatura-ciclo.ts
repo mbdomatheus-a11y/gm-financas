@@ -8,7 +8,22 @@
  *  - Dias que não existem no mês (dia 31 em fevereiro) usam o último dia do mês.
  * Datas em AAAA-MM-DD.
  */
-export type CicloCartao = { diaFechamento: number | null; diaVencimento: number };
+export type CicloCartao = { diaFechamento: number | null; diaVencimento: number; diasAntes?: number };
+
+/**
+ * Padrão de fechamento por banco quando o cadastro não tem o dia (25/10/2026):
+ * Nubank e C6 fecham 7 dias corridos antes do vencimento; Itaú e bancos tradicionais, entre 7 e 10
+ * (usa 8). O usuário pode trocar por cartão; no cadastro com o dia informado, vale o dia informado.
+ */
+export function diasAntesPadrao(nomeBanco: string | null | undefined): number {
+  return /nubank|nu pagamentos|\bc6\b/i.test(String(nomeBanco ?? "")) ? 7 : 8;
+}
+
+/** Dia de fechamento sugerido (1 a 31) a partir do vencimento e do banco. */
+export function fechamentoPadrao(diaVencimento: number, nomeBanco?: string | null): number {
+  const d = new Date(Date.UTC(2026, 0, diaVencimento - diasAntesPadrao(nomeBanco)));
+  return d.getUTCDate();
+}
 
 const DIA_MS = 86400000;
 
@@ -34,7 +49,7 @@ export function vencimentoDaFatura(dataCompra: string, ciclo: CicloCartao): stri
     const m = ref.getUTCMonth() + 1;
     const vencimentoNoMes = diaDoMes(a, m, ciclo.diaVencimento);
     const fechamento =
-      ciclo.diaFechamento != null ? diaDoMes(a, m, ciclo.diaFechamento) : vencimentoNoMes - 7 * DIA_MS;
+      ciclo.diaFechamento != null ? diaDoMes(a, m, ciclo.diaFechamento) : vencimentoNoMes - (ciclo.diasAntes ?? 7) * DIA_MS;
     // Vencimento depois do fechamento: mesmo mês do fechamento. Antes: mês seguinte.
     const vencimento =
       ciclo.diaFechamento != null && ciclo.diaVencimento <= ciclo.diaFechamento

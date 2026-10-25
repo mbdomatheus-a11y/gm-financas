@@ -6,6 +6,8 @@ import { ResumoPrevisaoHome } from "@/components/ResumoPrevisaoHome";
 import { ModoClienteControle } from "@/components/ModoClienteControle";
 import { OpenFinanceEmBreve } from "@/components/OpenFinanceEmBreve";
 import { AssistenteHome } from "@/components/AssistenteHome";
+import { BetaTestFlight } from "@/components/BetaTestFlight";
+import { PerguntaFechamento } from "@/components/PerguntaFechamento";
 import { InstalarAppCartao } from "@/components/retencao/InstalarApp";
 
 export const Route = createFileRoute("/_authenticated/inicio")({
@@ -26,6 +28,8 @@ function InicioPage() {
       <ModoClienteControle className="mb-4" />
       <OpenFinanceEmBreve className="mb-4" />
       <InstalarAppCartao className="mb-4" />
+      <BetaTestFlight className="mb-4" />
+      <PerguntaFechamento />
       <ResumoPrevisaoHome />
       <AssistenteHome />
       <HomeWidgets />

@@ -23,7 +23,7 @@ import { FaturaMesDialog } from "@/components/FaturaMesDialog";
 import { IndiceReajusteField } from "@/components/IndiceReajusteField";
 import { toast } from "sonner";
 import { excluirDespesaSerie } from "@/lib/exclusao-recorrente";
-import { vencimentoDaFatura } from "@/lib/fatura-ciclo";
+import { diasAntesPadrao, vencimentoDaFatura } from "@/lib/fatura-ciclo";
 import { ExcluirRecorrenteDialog } from "@/components/ExcluirRecorrenteDialog";
 import { z } from "zod";
 
@@ -87,6 +87,7 @@ import {
 import { lembrarClassificacao } from "@/lib/classificacao-lembrada";
 import { SelectBusca } from "@/components/SelectBusca";
 import { NavegadorMes } from "@/components/NavegadorMes";
+import { IconeBanco } from "@/components/IconeBanco";
 import { usePermissoes, useSession } from "@/hooks/useAuthData";
 import {
   competenciaDe,
@@ -498,6 +499,7 @@ function DespesasPage() {
               vencimentoDaFatura(toISODate(dataInformada), {
                 diaFechamento: cartaoDaCompra.dia_fechamento ?? null,
                 diaVencimento: cartaoDaCompra.dia_vencimento,
+                diasAntes: diasAntesPadrao(`${cartaoDaCompra.bancos?.nome ?? ""} ${cartaoDaCompra.apelido ?? ""}`),
               }),
             )
           : dataInformada;
@@ -920,11 +922,11 @@ function DespesasPage() {
   const gruposLista = useMemo(() => {
     if (modoLista === "lista")
       return [
-        { key: "all", label: "", cor: "", itens: listaVisivel as any[], total: resumo.total },
+        { key: "all", label: "", cor: "", banco: "", itens: listaVisivel as any[], total: resumo.total },
       ];
     const mapa = new Map<
       string,
-      { key: string; label: string; cor: string; itens: any[]; total: number }
+      { key: string; label: string; cor: string; banco: string; itens: any[]; total: number }
     >();
     for (const d of listaVisivel as any[]) {
       const ehRecorrenteFora = !d.cartao_id && (d.tipo === "fixa" || d.tipo === "recorrente");
@@ -933,7 +935,8 @@ function DespesasPage() {
         ? `${d.cartoes.apelido || d.cartoes.bandeira || "Cartão"} •${d.cartoes.final ?? ""} · ${primeiroNome(d.cartoes.titular)}`
         : (ehRecorrenteFora ? "Recorrente fora do cartão" : "Sem atribuição");
       const cor = d.cartoes?.cor ?? "var(--muted-foreground)";
-      const g = mapa.get(key) ?? { key, label, cor, itens: [] as any[], total: 0 };
+      const banco = String(d.bancos?.nome ?? d.banco_nome ?? d.cartoes?.apelido ?? "");
+      const g = mapa.get(key) ?? { key, label, cor, banco, itens: [] as any[], total: 0 };
       g.itens.push(d);
       if (!idsIgnoradosPorTotal.has(d.id)) {
         g.total += toBRL(valorVisivel(d), d.moeda, cotacao);
@@ -1191,9 +1194,9 @@ function DespesasPage() {
           className="mb-2"
         />
 
-        <div className="grid grid-cols-2 gap-2 lg:grid-cols-5">
+        <div className="mb-2 flex flex-nowrap items-center gap-1.5 overflow-x-auto pb-1 [&>*]:shrink-0">
           <Select value={filtroCartao} onValueChange={setFiltroCartao}>
-            <SelectTrigger className="h-11 text-xs">
+            <SelectTrigger className="h-9 w-auto min-w-[8.5rem] text-xs">
               <SelectValue placeholder="Cartão" />
             </SelectTrigger>
             <SelectContent>
@@ -1208,7 +1211,7 @@ function DespesasPage() {
             </SelectContent>
           </Select>
           <Select value={filtroBanco} onValueChange={setFiltroBanco}>
-            <SelectTrigger className="h-11 text-xs">
+            <SelectTrigger className="h-9 w-auto min-w-[8.5rem] text-xs">
               <SelectValue placeholder="Banco" />
             </SelectTrigger>
             <SelectContent>
@@ -1221,7 +1224,7 @@ function DespesasPage() {
             </SelectContent>
           </Select>
           <SelectBusca
-            className="h-11 text-xs"
+            className="h-9 w-auto min-w-[8.5rem] text-xs"
             ariaLabel="Filtrar por categoria"
             placeholder="Categoria"
             valor={filtroCategoria}
@@ -1232,7 +1235,7 @@ function DespesasPage() {
             onEscolher={setFiltroCategoria}
           />
           <Select value={filtroResponsavel} onValueChange={setFiltroResponsavel}>
-            <SelectTrigger className="h-11 text-xs">
+            <SelectTrigger className="h-9 w-auto min-w-[8.5rem] text-xs">
               <SelectValue placeholder="Responsável" />
             </SelectTrigger>
             <SelectContent>
@@ -1245,7 +1248,7 @@ function DespesasPage() {
             </SelectContent>
           </Select>
           <Select value={filtroOrigem} onValueChange={setFiltroOrigem}>
-            <SelectTrigger className="h-11 text-xs">
+            <SelectTrigger className="h-9 w-auto min-w-[8.5rem] text-xs">
               <SelectValue placeholder="Origem" />
             </SelectTrigger>
             <SelectContent>
@@ -1255,7 +1258,7 @@ function DespesasPage() {
             </SelectContent>
           </Select>
           <Select value={filtroMes} onValueChange={setFiltroMes}>
-            <SelectTrigger className="h-11 text-xs">
+            <SelectTrigger className="h-9 w-auto min-w-[8.5rem] text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -1390,12 +1393,16 @@ function DespesasPage() {
                     setGrupoExpandido(grupoExpandido === grupo.key ? null : grupo.key)
                   }
                 >
-                  <div
-                    className="flex size-8 shrink-0 items-center justify-center rounded-lg"
-                    style={{ backgroundColor: grupo.cor }}
-                  >
-                    <CreditCard className="size-4 text-white" />
-                  </div>
+                  {grupo.banco ? (
+                    <IconeBanco nome={grupo.banco} className="size-8 rounded-lg" />
+                  ) : (
+                    <div
+                      className="flex size-8 shrink-0 items-center justify-center rounded-lg"
+                      style={{ backgroundColor: grupo.cor }}
+                    >
+                      <CreditCard className="size-4 text-white" />
+                    </div>
+                  )}
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold">{grupo.label}</p>
                     <Progress

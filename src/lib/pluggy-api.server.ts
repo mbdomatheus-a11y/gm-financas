@@ -16,7 +16,7 @@
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { excluirReceitaSerie } from "@/lib/exclusao-recorrente";
-import { vencimentoDaFatura } from "@/lib/fatura-ciclo";
+import { diasAntesPadrao, vencimentoDaFatura } from "@/lib/fatura-ciclo";
 
 const BASE = "https://api.pluggy.ai";
 const DIAS_HISTORICO_INICIAL = 3650;
@@ -304,20 +304,21 @@ function somarMeses(iso: string, meses: number): string {
   return isoData(new Date(Date.UTC(ano, mes - 1 + meses, Math.min(dia, ultimoDia), 12)));
 }
 
-/** Próximo vencimento do cartão em data igual ou depois da informada (dia de vencimento do cadastro). */
-async function proximoVencimentoCartao(db: any, cartaoId: string | null, data: string): Promise<string | null> {
+/**
+ * Vencimento da fatura de uma parcela cuja linha o banco data perto do fechamento (ex.: 07/10 ou 08/09):
+ * ela pertence à fatura do ciclo seguinte. Usa fechamento e vencimento do cadastro (ou o padrão do banco).
+ */
+async function proximoVencimentoCartao(db: any, cartaoId: string | null, data: string, banco?: string | null): Promise<string | null> {
   if (!cartaoId) return null;
-  const { data: cartao } = await db.from("cartoes").select("dia_vencimento").eq("id", cartaoId).maybeSingle();
+  const { data: cartao } = await db.from("cartoes").select("dia_fechamento, dia_vencimento, apelido, bancos(nome)").eq("id", cartaoId).maybeSingle();
   const dia = cartao?.dia_vencimento ? Number(cartao.dia_vencimento) : null;
   if (!dia) return null;
-  const iso = dataIso(data);
-  const [ano = 1970, mes = 1] = iso.split("-").map(Number);
-  for (let k = 0; k <= 1; k++) {
-    const ultimo = new Date(Date.UTC(ano, mes + k, 0)).getUTCDate();
-    const cand = isoData(new Date(Date.UTC(ano, mes - 1 + k, Math.min(dia, ultimo), 12)));
-    if (cand >= iso) return cand;
-  }
-  return null;
+  const alvo = isoData(new Date(Date.parse(`${dataIso(data)}T12:00:00Z`) + 25 * 86400000));
+  return vencimentoDaFatura(alvo, {
+    diaFechamento: cartao.dia_fechamento ?? null,
+    diaVencimento: dia,
+    diasAntes: diasAntesPadrao(`${cartao.bancos?.nome ?? ""} ${cartao.apelido ?? ""} ${banco ?? ""}`),
+  });
 }
 
 /** Parcelamento que já existe: as parcelas até a n-ésima (a que acabou de aparecer no extrato) ficam pagas. */
@@ -348,7 +349,7 @@ async function importarParcelado(
   // Fatura desta parcela: 1) billId do banco; 2) a linha do extrato vem datada no fechamento, então vale o
   // próximo vencimento do cartão depois dessa data; 3) sem nada disso, cai na data da compra (regra antiga).
   const vencDestaParcela =
-    (meta?.billId ? p.faturas?.get(String(meta.billId)) ?? null : null) ?? (await proximoVencimentoCartao(db, p.cartaoId, p.t.date));
+    (meta?.billId ? p.faturas?.get(String(meta.billId)) ?? null : null) ?? (await proximoVencimentoCartao(db, p.cartaoId, p.t.date, p.banco));
   // As parcelas podem cair em dias diferentes do mesmo mês (ex.: 03/09 e 11/09), então a compra
   // é identificada pelo mês da primeira parcela, e não pelo dia.
   const primeiraMes = primeira.slice(0, 7);
@@ -453,9 +454,13 @@ async function importarParcelado(
 async function vencimentoCartao(db: any, cartaoId: string | null, data: string): Promise<string> {
   const iso = dataIso(data);
   if (!cartaoId) return iso;
-  const { data: cartao } = await db.from("cartoes").select("dia_fechamento, dia_vencimento").eq("id", cartaoId).maybeSingle();
+  const { data: cartao } = await db.from("cartoes").select("dia_fechamento, dia_vencimento, apelido, bancos(nome)").eq("id", cartaoId).maybeSingle();
   if (!cartao?.dia_vencimento) return iso;
-  return vencimentoDaFatura(iso, { diaFechamento: cartao.dia_fechamento ?? null, diaVencimento: cartao.dia_vencimento });
+  return vencimentoDaFatura(iso, {
+    diaFechamento: cartao.dia_fechamento ?? null,
+    diaVencimento: cartao.dia_vencimento,
+    diasAntes: diasAntesPadrao(`${cartao.bancos?.nome ?? ""} ${cartao.apelido ?? ""}`),
+  });
 }
 
 /**

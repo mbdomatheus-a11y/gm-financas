@@ -17,6 +17,7 @@ import {
 
 import { AppLayout } from "@/components/AppLayout";
 import { Field } from "@/routes/_authenticated/receitas";
+import { IconeBanco } from "@/components/IconeBanco";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -198,8 +199,8 @@ function CartoesPage() {
         tipo: "credito",
       });
       const { error } = editCartaoId
-        ? await supabase.from("cartoes").update(parsed).eq("id", editCartaoId)
-        : await supabase.from("cartoes").insert(parsed);
+        ? await supabase.from("cartoes").update({ ...parsed, fechamento_confirmado: true } as any).eq("id", editCartaoId)
+        : await supabase.from("cartoes").insert({ ...parsed, fechamento_confirmado: true } as any);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -363,12 +364,15 @@ function CartoesPage() {
                 <div className="h-1.5" style={{ backgroundColor: c.cor }} />
                 <CardContent className="space-y-3 p-4">
                   <div className="flex items-start justify-between gap-2">
-                    <div>
+                    <div className="flex min-w-0 items-center gap-3">
+                      <IconeBanco nome={String(c.bancos?.nome ?? c.apelido ?? "")} className="size-10" />
+                      <div className="min-w-0">
                       <p className="text-sm font-semibold">{c.apelido}</p>
                       <p className="text-xs text-muted-foreground">
                         {c.bandeira} •••• {c.final} · {primeiroNome(c.titular)}
                         {c.bancos ? ` · ${c.bancos.nome}` : ""}
                       </p>
+                      </div>
                     </div>
                     <div className="flex shrink-0 items-center">
                       {can("cartoes", "editar") && (
@@ -440,9 +444,7 @@ function CartoesPage() {
           {bancos.map((b: any) => (
             <Card key={b.id}>
               <CardContent className="flex items-center gap-3 p-4">
-                <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10">
-                  <Building2 className="size-5 text-primary" />
-                </div>
+<IconeBanco nome={String(b.nome ?? "")} className="size-10" />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold">{b.nome}</p>
                   <p className="truncate text-xs text-muted-foreground">
