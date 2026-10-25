@@ -53,6 +53,14 @@ function bancosDaConexao(contas: any[], itemId: string): string {
   return [...new Set(contas.filter((c) => c.item_id === itemId && c.banco_nome).map((c) => c.banco_nome as string))].join(", ");
 }
 
+/** Título do card: o nome que o usuário salvou vale mais; senão, os bancos das contas; senão, o conector. */
+function tituloDaConexao(contas: any[], i: { item_id: string; conector: string | null }): string {
+  const nome = (i.conector ?? "").trim();
+  const generico = !nome || /^(meu\s*pluggy|meupluggy|pluggy|sandbox|banco)$/i.test(nome);
+  if (!generico) return nome;
+  return bancosDaConexao(contas, i.item_id) || nome || "Banco";
+}
+
 function agruparImportados(itens: any[]) {
   const mapa = new Map<
     string,
@@ -210,6 +218,7 @@ function PluggyPage() {
       toast.success(
         `Sincronizados: ${r.ok} banco(s), ${r.lancamentos} lançamento(s) lidos${r.falhas ? `, ${r.falhas} com falha` : ""}.`,
       );
+      qc.invalidateQueries({ queryKey: ["pluggy-itens"] });
       qc.invalidateQueries({ queryKey: ["pluggy-contas"] });
       qc.invalidateQueries({ queryKey: ["pluggy-importados"] });
       qc.invalidateQueries({ queryKey: ["pluggy-patrimonio"] });
@@ -222,6 +231,9 @@ function PluggyPage() {
     mutationFn: (itemId: string) => sincronizar({ data: { itemId } }),
     onSuccess: (r) => {
       toast.success(`Sincronizado: ${r.transacoes} lançamentos lidos.`);
+      qc.invalidateQueries({ queryKey: ["pluggy-itens"] });
+      qc.invalidateQueries({ queryKey: ["pluggy-historico"] });
+      qc.invalidateQueries({ queryKey: ["pluggy-patrimonio"] });
       qc.invalidateQueries({ queryKey: ["pluggy-contas"] });
       qc.invalidateQueries({ queryKey: ["pluggy-importados"] });
       qc.invalidateQueries({ queryKey: ["despesas"] });
@@ -255,7 +267,10 @@ function PluggyPage() {
     );
   }
 
-  const conectorDoItem = (itemId: string) => itens.itens.find((i) => i.item_id === itemId)?.conector ?? "Banco";
+  const conectorDoItem = (itemId: string) => {
+    const it = itens.itens.find((x) => x.item_id === itemId);
+    return it ? tituloDaConexao(contas?.contas ?? [], it) : "Banco";
+  };
   const grupos = agruparImportados(importados?.itens ?? []);
   const historicoPorBanco = agruparHistorico(historico?.historico ?? [], conectorDoItem);
   const totalImportados = importados?.itens.length ?? 0;
@@ -332,7 +347,7 @@ function PluggyPage() {
                       </form>
                     ) : (
                       <p className="flex items-center gap-1 font-medium">
-                        {bancosDaConexao(contas?.contas ?? [], i.item_id) || i.conector || "Banco"}
+                        {tituloDaConexao(contas?.contas ?? [], i)}
                         <button
                           type="button"
                           className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -689,7 +704,7 @@ function PluggyPage() {
                   variant={aberto === i.item_id ? "default" : "outline"}
                   onClick={() => setAberto(aberto === i.item_id ? null : i.item_id)}
                 >
-                  {bancosDaConexao(contas?.contas ?? [], i.item_id) || i.conector || "Banco"}
+                  {tituloDaConexao(contas?.contas ?? [], i)}
                 </Button>
               ))}
             </div>
