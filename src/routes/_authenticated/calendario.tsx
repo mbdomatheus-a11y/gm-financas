@@ -14,6 +14,7 @@ import {
 import { toast } from "sonner";
 
 import { AppLayout } from "@/components/AppLayout";
+import { AssinaturaCalendario } from "@/components/AssinaturaCalendario";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -523,6 +524,8 @@ function CalendarioPage() {
           </div>
         )}
       </div>
+
+      <AssinaturaCalendario />
 
       <EditarEventoDialog
         evento={editando}
