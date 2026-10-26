@@ -20,7 +20,7 @@ export function diasAntesPadrao(nomeBanco: string | null | undefined): number {
   // Conferido com as faturas reais (25/10/2026): Nubank e Santander com vencimento 15 fecham no dia 6
   // (a compra do dia 7 já vai para a fatura seguinte); Itaú, 10 dias antes (dia 5 para vencimento 15).
   if (/nubank|nu pagamentos|\bc6\b|croma|santander/i.test(n)) return 9;
-  return /ita[uú]|personnalite|uniclass/i.test(n) ? 10 : 8;
+  return 8; // Itaú confere nas faturas: fecha 7 a 8 dias antes (dia 8 p/ venc. 15, dia 10 p/ venc. 17)
 }
 
 /** Dia de fechamento sugerido (1 a 31) a partir do vencimento e do banco. */

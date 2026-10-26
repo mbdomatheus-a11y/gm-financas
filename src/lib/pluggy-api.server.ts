@@ -60,6 +60,8 @@ type Transacao = {
   /** Compra em outra moeda: amount vem na moeda original; o valor em reais é amountInAccountCurrency. */
   amountInAccountCurrency?: number | null;
   currencyCode?: string | null;
+  /** Valor na moeda original, guardado quando a compra foi em outra moeda. */
+  amountOriginal?: number | null;
   type: string;
   category?: string | null;
   status?: string;
@@ -299,7 +301,7 @@ function emReais(t: Transacao): Transacao {
   const moeda = String(t.currencyCode ?? "BRL").toUpperCase();
   if (moeda !== "BRL" && t.amountInAccountCurrency != null && Number.isFinite(Number(t.amountInAccountCurrency))) {
     const brl = Math.abs(Number(t.amountInAccountCurrency));
-    return { ...t, amount: t.amount < 0 ? -brl : brl };
+    return { ...t, amountOriginal: t.amount, amount: t.amount < 0 ? -brl : brl };
   }
   return t;
 }
@@ -1175,6 +1177,8 @@ async function executarSincronizacao(
         tipo: t.type,
         status: t.status ?? null,
         categoria_pluggy: t.category ?? null,
+        // Dados crus do banco: fatura (billId), data da compra, parcela e moeda original.
+        meta: { cartao: t.creditCardMetadata ?? null, moeda: t.currencyCode ?? null, valorOriginal: t.amountOriginal ?? null },
         atualizado_em: agora,
       }));
       if (linhas.length) {

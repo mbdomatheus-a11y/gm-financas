@@ -18,6 +18,7 @@ import {
 import { AppLayout } from "@/components/AppLayout";
 import { Field } from "@/routes/_authenticated/receitas";
 import { IconeBanco } from "@/components/IconeBanco";
+import { ConferirFaturasBanco } from "@/components/ConferirFaturasBanco";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -345,6 +346,9 @@ function CartoesPage() {
           <TabsTrigger value="limites" className="flex-1 sm:flex-none">
             Limites
           </TabsTrigger>
+          <TabsTrigger value="conferir" className="flex-1 sm:flex-none">
+            Conferir faturas
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="cartoes" className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -609,6 +613,9 @@ function CartoesPage() {
               );
             })
           )}
+        </TabsContent>
+        <TabsContent value="conferir" className="mt-4">
+          <ConferirFaturasBanco />
         </TabsContent>
       </Tabs>
 
