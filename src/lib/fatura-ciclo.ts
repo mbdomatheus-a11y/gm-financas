@@ -17,7 +17,9 @@ export type CicloCartao = { diaFechamento: number | null; diaVencimento: number;
  */
 export function diasAntesPadrao(nomeBanco: string | null | undefined): number {
   const n = String(nomeBanco ?? "");
-  if (/nubank|nu pagamentos|\bc6\b/i.test(n)) return 7;
+  // Conferido com as faturas reais (25/10/2026): Nubank e Santander com vencimento 15 fecham no dia 6
+  // (a compra do dia 7 já vai para a fatura seguinte); Itaú, 10 dias antes (dia 5 para vencimento 15).
+  if (/nubank|nu pagamentos|\bc6\b|croma|santander/i.test(n)) return 9;
   return /ita[uú]|personnalite|uniclass/i.test(n) ? 10 : 8;
 }
 

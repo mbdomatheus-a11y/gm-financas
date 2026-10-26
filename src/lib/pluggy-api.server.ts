@@ -57,6 +57,9 @@ type Transacao = {
   date: string;
   description: string;
   amount: number;
+  /** Compra em outra moeda: amount vem na moeda original; o valor em reais é amountInAccountCurrency. */
+  amountInAccountCurrency?: number | null;
+  currencyCode?: string | null;
   type: string;
   category?: string | null;
   status?: string;
@@ -291,6 +294,16 @@ function limiteDoCartao(cd: Conta["creditData"] | undefined, final: string | nul
 function diaPadraoBanco(texto: string): number | null {
   return /nubank|nu pagamentos|croma/i.test(texto) ? 15 : null;
 }
+/** Valor em reais da linha: compra em dólar (Lovable, Anthropic) vem com amount em USD (25/10/2026). */
+function emReais(t: Transacao): Transacao {
+  const moeda = String(t.currencyCode ?? "BRL").toUpperCase();
+  if (moeda !== "BRL" && t.amountInAccountCurrency != null && Number.isFinite(Number(t.amountInAccountCurrency))) {
+    const brl = Math.abs(Number(t.amountInAccountCurrency));
+    return { ...t, amount: t.amount < 0 ? -brl : brl };
+  }
+  return t;
+}
+
 /** Dia do mês de uma data AAAA-MM-DD (vencimento da fatura). */
 function diaDe(v?: string | null): number | null {
   const m = /^\d{4}-\d{2}-(\d{2})/.exec(v ?? "");
@@ -349,7 +362,7 @@ async function vencimentoDaLinha(db: any, p: LinhaCartao): Promise<string | null
     diasAntes: diasAntesPadrao(`${cartao.bancos?.nome ?? ""} ${cartao.apelido ?? ""} ${p.banco ?? ""}`),
   };
   const d = dataIso(p.t.date);
-  if (!p.statusConfiavel) return vencimentoDaFatura(somarDias(d, 1), ciclo);
+  if (!p.statusConfiavel) return vencimentoDaFatura(d, ciclo);
   const hoje = new Date().toISOString().slice(0, 10);
   const aberta = vencimentoDaFatura(hoje, ciclo);
   if (p.t.status === "PENDING") {
@@ -615,7 +628,9 @@ async function importarDespesa(
     meta?.totalInstallments && Number(meta.totalInstallments) > 1 && meta.installmentNumber
       ? { n: Number(meta.installmentNumber), t: Number(meta.totalInstallments) }
       : parcelaDe(p.t.description ?? "");
-  if (parc) return importarParcelado(db, p, parc);
+  // Anuidade, tarifa, juros e IOF: o banco cobra mês a mês e pode isentar; não projeta parcelas futuras.
+  const ehTarifa = /anuidade|tarifa|encargo|juros|multa|\biof\b/i.test(p.t.description ?? "");
+  if (parc && !ehTarifa) return importarParcelado(db, p, parc);
   const vencFatura = meta?.billId ? p.faturas?.get(String(meta.billId)) ?? null : null;
   if (p.cartaoId) {
     if (vencFatura) DIAG.comFatura++;
@@ -1147,7 +1162,7 @@ async function executarSincronizacao(
       const qs = new URLSearchParams({ accountId: conta.id, dateFrom: de });
       if (depois) qs.set("after", depois);
       const r: { results: Transacao[]; next: string | null } = await pluggy(key, `/v2/transactions?${qs.toString()}`);
-      const lista = r.results ?? [];
+      const lista = (r.results ?? []).map(emReais);
       const agora = new Date().toISOString();
       const linhas = lista.map((t) => ({
         user_id: meu.user_id,
