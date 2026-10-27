@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { InactivityGuard } from "@/components/InactivityGuard";
 import { ComunicadosModal } from "@/components/ComunicadosModal";
 import { ConviteAposTresDias } from "@/components/ConviteAmigosBanner";
+import { AvisoBetaApp } from "@/components/BetaTestFlight";
 import { TourGuiado } from "@/components/TourGuiado";
 import { IdiomaProvider } from "@/hooks/useIdioma";
 import { ExclusaoAgendadaModal } from "@/components/ExclusaoAgendadaModal";
@@ -45,6 +46,7 @@ const MODULO_POR_ROTA: Record<string, ModuloGlobal> = {
   "/dashboard": "financas",
   "/receitas": "financas",
   "/despesas": "financas",
+  "/caixinhas": "financas",
   "/importar": "financas",
   "/categorias": "financas",
   "/de-para": "financas",
@@ -72,6 +74,7 @@ function Protegido() {
   // Plano de retenção (2026-10-17): conta nova faz o 1º lançamento antes do tour.
   const [exemplosAberto, setExemplosAberto] = useState(false);
   const [primeirosPassos, setPrimeirosPassos] = useState(false);
+  const [betaAberto, setBetaAberto] = useState(false);
   useEffect(() => {
     const modulo = MODULO_POR_ROTA[pathname];
     if (!isLoading && modulo && !habilitado(modulo))
@@ -85,7 +88,8 @@ function Protegido() {
       <BoasVindasExemplos bloqueado={avisoAberto} onVisibilityChange={setExemplosAberto} />
       <PrimeirosPassos bloqueado={avisoAberto || exemplosAberto} onPendenteChange={setPrimeirosPassos} />
       <TourGuiado bloqueado={avisoAberto || exemplosAberto || primeirosPassos} />
-      <ConviteAposTresDias bloqueado={avisoAberto} />
+      <AvisoBetaApp bloqueado={avisoAberto || exemplosAberto} onVisibilityChange={setBetaAberto} />
+      <ConviteAposTresDias bloqueado={avisoAberto || betaAberto} />
       <Outlet />
       </IdiomaProvider>
     </InactivityGuard>

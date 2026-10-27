@@ -12,8 +12,9 @@ export function RastreadorAcessos() {
 
   useEffect(() => {
     if (!caminho || caminho.startsWith("/api") || caminho.startsWith("/oauth")) return;
-    // Métricas só com aceite explícito no aviso de cookies (quem não respondeu ou escolheu "só o essencial" fica de fora).
-    if (!metricasPermitidas()) return;
+    // Com aceite de métricas: registra tudo (origem, IP). Sem aceite: só a tela de quem está logado,
+    // sem IP nem local (resumo de uso do admin, 27/10/2026). Visitante sem aceite fica de fora.
+    const metricas = metricasPermitidas();
     const { sessao, primeira } = sessaoAcesso();
     const origem = origemAcesso();
     let referrer: string | null = null;
@@ -26,8 +27,9 @@ export function RastreadorAcessos() {
       }
     }
     // Com login, o token identifica a pessoa no servidor (separa o tráfego da própria administração).
-    void tokenAtual().then((token) =>
-      registrar({
+    void tokenAtual().then((token) => {
+      if (!metricas && !token) return;
+      return registrar({
         data: {
           caminho,
           referrer,
@@ -36,9 +38,11 @@ export function RastreadorAcessos() {
           utmCampaign: origem.utmCampaign,
           sessao,
           token,
+          metricas,
+          plataforma: (window as unknown as { __controlAllApp?: unknown }).__controlAllApp ? "app" : "site",
         },
-      }).catch(() => {}),
-    );
+      }).catch(() => {});
+    });
   }, [caminho, registrar]);
 
   return null;

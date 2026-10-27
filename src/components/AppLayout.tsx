@@ -1,4 +1,3 @@
-import { AppEmBreve } from "@/components/AppEmBreve";
 import { ConvitesRecebidosAviso } from "@/components/ConvitesGrupo";
 import { AvisoSincronizacaoPluggy } from "@/components/AvisoSincronizacaoPluggy";
 import { useEffect, useState, type MouseEvent, type ReactNode } from "react";
@@ -44,8 +43,8 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { Plus } from "lucide-react";
 import { Fragment } from "react";
-import { AvatarPerfil } from "@/components/AvatarPerfil";
-import { SeletorIdioma } from "@/components/SeletorIdioma";
+import { MenuUsuario } from "@/components/MenuUsuario";
+import { Paperclip } from "lucide-react";
 import { SincronizadorAgendaApp } from "@/components/SincronizadorAgendaApp";
 import { useIdioma } from "@/hooks/useIdioma";
 import type { ChaveTraducao } from "@/lib/i18n/traducoes";
@@ -73,6 +72,7 @@ import { CalculadoraRapida } from "@/components/CalculadoraRapida";
 import { ConviteRapidoBotao } from "@/components/ConviteAmigosBanner";
 import { BrandMark } from "@/components/BrandMark";
 import { BotaoLancamentoRapido } from "@/components/LancamentoRapido/BotaoLancamentoRapido";
+import { ControlIA } from "@/components/ControlIA";
 import { obterUsoOracleDoMeuGrupo } from "@/lib/oracle-admin.functions";
 import { definirModoCliente, useModoCliente } from "@/lib/modo-cliente";
 import { usePrivacidadeValores } from "@/hooks/usePrivacidadeValores";
@@ -126,6 +126,7 @@ type NavTo =
   | "/dashboard"
   | "/receitas"
   | "/despesas"
+  | "/caixinhas"
   | "/importar"
   | "/categorias"
   | "/de-para"
@@ -208,8 +209,8 @@ const MUNDOS: Record<MundoId, { titulo: string; home: NavTo; items: NavItem[] }>
     items: [
       {
         to: "/dashboard",
-        label: "Dashboard",
-        short: "Dashboard",
+        label: "Finanças",
+        short: "Finanças",
         icon: LayoutDashboard,
         moduloGlobal: "financas",
       },
@@ -225,6 +226,13 @@ const MUNDOS: Record<MundoId, { titulo: string; home: NavTo; items: NavItem[] }>
         label: "Despesas",
         short: "Despesas",
         icon: TrendingDown,
+        modulo: "despesas",
+      },
+      {
+        to: "/caixinhas",
+        label: "Caixinhas",
+        short: "Caixinhas",
+        icon: PiggyBank,
         modulo: "despesas",
       },
       {
@@ -379,10 +387,10 @@ const GLOBAL: NavItem[] = [
   },
   {
     to: "/usuarios",
-    label: "Usuários e Privilégios",
-    short: "Usuários",
+    label: "Meu grupo e permissões",
+    short: "Grupo",
     icon: Users,
-    adminOnly: true,
+    grupoAdmin: true,
   },
   {
     to: "/pluggy",
@@ -542,8 +550,11 @@ export function AppLayout({
       ? mundo.items
       : []
   ).filter(podeVer);
-  const itensGlobais = GLOBAL.filter(podeVer).filter((i) => !i.adminOnly);
-  const itensAdmin = GLOBAL.filter(podeVer).filter((i) => i.adminOnly);
+  // 27/10/2026: conta, configurações, idioma, grupo, backup e suporte foram para o menu da foto.
+  // O menu lateral fica só com o que é navegação do dia a dia e uma entrada da Administração.
+  const NO_MENU_DA_FOTO = new Set(["/usuarios", "/backup", "/configuracoes", "/suporte", "/pluggy"]);
+  const itensGlobais = GLOBAL.filter(podeVer).filter((i) => !i.adminOnly && !NO_MENU_DA_FOTO.has(i.to));
+  const itensAdmin = GLOBAL.filter(podeVer).filter((i) => i.adminOnly && !NO_MENU_DA_FOTO.has(i.to));
   // Botão central da barra do celular: ação principal de cada área (só onde existe uma ação única).
   const podeLancar = can("despesas", "editar") || can("receitas", "editar");
   const acaoCentral: { rotulo: string; curto: string; evento: string } | null = pathname.startsWith("/notas")
@@ -556,7 +567,9 @@ export function AppLayout({
           ? { rotulo: "Novo veículo", curto: "Veículo", evento: "abrir-novo-veiculo" }
           : mundoId === "financas" && !pathname.startsWith("/despesas") && podeLancar
             ? { rotulo: "Lançar", curto: "Lançar", evento: "abrir-lancamento-rapido" }
-            : null;
+            : mundoId === "financas" || pathname === "/inicio"
+              ? null
+              : { rotulo: "ControlIA", curto: "IA", evento: "abrir-controlia" };
   // No modo usuário comum, páginas exclusivas de admin mostram aviso em vez do conteúdo.
   const rotaAdminBloqueada =
     modoCliente &&
@@ -566,7 +579,28 @@ export function AppLayout({
   // "superior": menu horizontal no desktop. Padrão ("lateral"): barra lateral.
   const topMenu = prefs.layout_menu === "superior";
   const [abertas, setAbertas] = useState<Record<string, boolean>>({});
-  useEffect(() => setAbertas({}), [areaId]);
+  // Clips: com os menus fixos, todas as áreas ficam abertas e não recolhem ao trocar de tela.
+  const [menusFixos, setMenusFixos] = useState(false);
+  useEffect(() => {
+    try {
+      setMenusFixos(localStorage.getItem("control-all-menus-fixos") === "1");
+    } catch {
+      // sem armazenamento: segue agrupado
+    }
+  }, []);
+  const alternarMenusFixos = () =>
+    setMenusFixos((v) => {
+      try {
+        localStorage.setItem("control-all-menus-fixos", v ? "0" : "1");
+      } catch {
+        // sem armazenamento
+      }
+      setAbertas({});
+      return !v;
+    });
+  useEffect(() => {
+    if (!menusFixos) setAbertas({});
+  }, [areaId, menusFixos]);
 
   async function signOut() {
     try {
@@ -645,14 +679,26 @@ export function AppLayout({
       <NavLink item={CALENDARIO} onNavigate={onNavigate} />
 
       {areasVisiveis.length > 0 && (
-        <p className="mt-3 px-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/70">
-          Áreas
-        </p>
+        <div className="mt-3 flex items-center justify-between px-3">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/70">Áreas</p>
+          <button
+            type="button"
+            onClick={alternarMenusFixos}
+            aria-pressed={menusFixos}
+            title={menusFixos ? "Menus fixos abertos: clique para agrupar" : "Fixar todos os menus abertos"}
+            className={cn(
+              "rounded-md p-1 transition-colors",
+              menusFixos ? "bg-primary/15 text-primary" : "text-muted-foreground/70 hover:bg-muted hover:text-foreground",
+            )}
+          >
+            <Paperclip className="size-3.5" aria-hidden="true" />
+          </button>
+        </div>
       )}
       {areasVisiveis.map((id) => {
         const a = AREAS[id];
         const ativa = areaId === id;
-        const aberta = abertas[id] ?? ativa;
+        const aberta = abertas[id] ?? (menusFixos || ativa);
         const entrada: NavItem = { to: a.to, label: a.titulo, short: a.titulo, icon: a.icon };
         const filhos = a.modulos
           .filter((m) => mundosVisiveis.includes(m as MundoId))
@@ -801,39 +847,14 @@ export function AppLayout({
         );
       })}
       <div className="ml-auto flex items-center gap-1">
-        <DropdownMenu>
-          <DropdownMenuTrigger className={linkTopo(false)}>
-            {profile?.nome ?? "Conta"} <ChevronDown className="size-3.5" aria-hidden="true" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="min-w-56">
-            {itensGlobais.map((item) => {
-              const IconeItem = item.icon;
-              return (
-                <DropdownMenuItem key={item.to} asChild>
-                  <Link to={item.to} className="flex items-center gap-2">
-                    <IconeItem className="size-4" aria-hidden="true" /> {rotuloNav(item)}
-                  </Link>
-                </DropdownMenuItem>
-              );
-            })}
-            {itensAdmin.length > 0 && <DropdownMenuSeparator />}
-            {itensAdmin.map((item) => {
-              const IconeItem = item.icon;
-              return (
-                <DropdownMenuItem key={item.to} asChild className="bg-violet-500/[0.07]">
-                  <Link to={item.to} className="flex items-center gap-2">
-                    <IconeItem className="size-4" aria-hidden="true" /> {rotuloNav(item)}
-                    <span className={cn(ADMIN_ONLY_TAG, "ml-auto")}>Admin</span>
-                  </Link>
-                </DropdownMenuItem>
-              );
-            })}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={() => void signOut()}>
-              <LogOut className="size-4" aria-hidden="true" /> Sair
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        {itensAdmin.map((item) => {
+          const IconeItem = item.icon;
+          return (
+            <Link key={item.to} to={item.to} className={cn(linkTopo(pathname === item.to), "bg-violet-500/[0.07]")}>
+              <IconeItem className="size-4" aria-hidden="true" /> {rotuloNav(item)}
+            </Link>
+          );
+        })}
       </div>
     </div>
   );
@@ -901,17 +922,19 @@ export function AppLayout({
                   <span className="hidden text-xs font-medium sm:inline">Calendário</span>
                 </Link>
               </Button>
-              {/* No app o idioma fica em Ajustes; no site continua aqui no topo. */}
-              <span className="contents native:hidden">
-                <SeletorIdioma />
-              </span>
               <CalculadoraRapida />
-              <AvatarPerfil tamanho="size-8" className="ml-1" />
               <span className="hidden sm:contents">
                 <ConviteRapidoBotao />
               </span>
               <AlertsBell />
               {actions}
+              <MenuUsuario
+                isAdmin={isAdmin}
+                isSiteAdmin={isSiteAdmin}
+                modoCliente={modoCliente}
+                onSair={() => void signOut()}
+                className="ml-1"
+              />
             </div>
           </div>
           {mundo && itensDoMundo.length > 0 && (
@@ -968,7 +991,6 @@ export function AppLayout({
           ) : (
             <Fragment key={ocultarValores ? "valores-ocultos" : "valores-visiveis"}>{children}</Fragment>
           )}
-          <AppEmBreve className="mt-10 native:hidden" />
           <SincronizadorAgendaApp />
         </main>
       </div>
@@ -1088,6 +1110,8 @@ export function AppLayout({
           autenticada, não escondido dentro dos formulários de
           despesas/receitas. Ver claude/plano-lancamento-ia-2026-10-01.md. */}
       <BotaoLancamentoRapido flutuante={mundoId === "financas" || pathname === "/inicio"} />
+      {/* 27/10/2026: onde não há despesa para lançar, o botão flutuante é o ControlIA (voz ou texto). */}
+      <ControlIA flutuante={!(mundoId === "financas" || pathname === "/inicio")} />
     </div>
   );
 }

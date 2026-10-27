@@ -391,6 +391,7 @@ export const PRIVACIDADE: DocumentoLegal = {
               ["Guardar exames", "Dados de saúde que você cadastra", "Consentimento do titular ou do responsável legal"],
               ["Proteger a conta, prevenir fraude, enviar alertas e bloquear acessos", "IP, aparelho, local aproximado e registros de segurança", "Legítimo interesse e prevenção à fraude e à segurança do titular"],
               ["Medir acessos e melhorar o site", "Página aberta, origem da visita e identificação anônima da visita", "Consentimento (aviso de cookies)"],
+              ["Entender quais telas são usadas e melhorar o site e o app", "Nome da tela aberta, data e se foi no site ou no app, de quem está conectado. Sem IP, sem local e sem nenhum valor ou lançamento", "Legítimo interesse (melhoria do serviço)"],
               ["Atender suporte e pedidos de privacidade", "Contato, CPF e mensagens", "Execução de contrato e cumprimento de obrigação legal"],
               ["Cumprir a lei e defender direitos", "Registros de acesso e de atendimento", "Obrigação legal e exercício regular de direitos"],
             ],

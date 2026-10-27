@@ -742,7 +742,7 @@ function DashboardPage() {
 
   return (
     <AppLayout
-      title="Dashboard"
+      title="Finanças"
       description={`Resumo de ${monthLabel(mesAtual)} · USD ${cotacao.toFixed(2)}`}
     >
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-6">

@@ -1,3 +1,5 @@
+import { ConteudoBancosPluggy } from "@/components/BancosPluggy";
+import { ResumoUsoAdmin } from "@/components/ResumoUsoAdmin";
 import { createFileRoute } from "@tanstack/react-router";
 import { LogPainel } from "@/components/LogPainel";
 import { AvisoCalculadoraAdminCard } from "@/components/AvisoCalculadoraAdminCard";
@@ -118,6 +120,7 @@ const GRUPOS_ADMIN: {
     descricao: "Números do site e consulta de dados",
     abas: [
       { id: "dados-gerais", rotulo: "Dados Gerais" },
+      { id: "resumo-uso", rotulo: "Resumo de uso" },
       { id: "consulta", rotulo: "Consulta" },
       { id: "funil", rotulo: "Funil e retenção" },
       { id: "acessos", rotulo: "Acessos ao site" },
@@ -146,14 +149,20 @@ const GRUPOS_ADMIN: {
     ],
   },
   {
+    id: "openfinance",
+    titulo: "4. Open Finance",
+    descricao: "Bancos e cartões conectados (teste)",
+    abas: [{ id: "bancos", rotulo: "Bancos e cartões" }],
+  },
+  {
     id: "infra",
-    titulo: "4. Armazenamento",
+    titulo: "5. Armazenamento",
     descricao: "Arquivos e espaço em disco",
     abas: [{ id: "armazenamento", rotulo: "Armazenamento Oracle" }],
   },
   {
     id: "seguranca",
-    titulo: "5. Segurança",
+    titulo: "6. Segurança",
     descricao: "Histórico de ações e auditoria",
     abas: [{ id: "logs", rotulo: "Logs de Auditoria" }],
   },
@@ -970,6 +979,14 @@ function Admin() {
           ))}
         </TabsList>
 
+        <TabsContent value="resumo-uso" className="space-y-4">
+          <ResumoUsoAdmin />
+        </TabsContent>
+
+        <TabsContent value="bancos" className="space-y-4">
+          <ConteudoBancosPluggy embutido />
+        </TabsContent>
+
         <TabsContent value="funil" className="space-y-4">
           <FunilAdmin />
         </TabsContent>
@@ -984,6 +1001,45 @@ function Admin() {
 
         {/* ─── ABA 1: DADOS GERAIS ─── */}
         <TabsContent value="dados-gerais" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm">Atividade e espaço por usuário</CardTitle>
+
+              </div>
+            </CardHeader>
+            <CardContent>
+            <div className="max-h-96 overflow-auto">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th className="p-2">Usuário</th>
+                    <th className="p-2">Situação</th>
+                    <th className="p-2">Última atividade</th>
+                    <th className="p-2">Arquivos</th>
+                    <th className="p-2">Espaço</th>
+                    <th className="p-2">Grupo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(metricas?.usuarios ?? []).map((u: any) => (
+                    <tr key={u.id} className="border-b last:border-0">
+                      <td className="p-2">{u.nome}</td>
+                      <td className="p-2">{u.ativo ? <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-700">Ativa</Badge> : <Badge variant="secondary" className="bg-rose-500/10 text-rose-700">Inativa</Badge>}</td>
+                      <td className="p-2 text-xs text-muted-foreground">{u.ultimaAtividadeEm ? new Date(u.ultimaAtividadeEm).toLocaleString("pt-BR") : "Sem acesso"}</td>
+                      <td className="p-2">{u.arquivos}</td>
+                      <td className="p-2">{formatarTamanho(u.bytesArmazenados)}</td>
+                      <td className="p-2 text-xs text-muted-foreground">{u.grupoNome}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Sem CPF exibido por segurança. Armazenamento não atribuído: {formatarTamanho(metricas?.armazenamentoNaoAtribuidoBytes ?? 0)}.
+            </p>
+            </CardContent>
+          </Card>
           {/* Métricas gerais */}
           <div className="grid gap-3 sm:grid-cols-3">
             <Card><CardContent className="p-4"><b>{metricas?.total ?? 0}</b><p className="text-xs text-muted-foreground">usuários cadastrados</p></CardContent></Card>

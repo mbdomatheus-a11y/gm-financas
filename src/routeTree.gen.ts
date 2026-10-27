@@ -23,6 +23,7 @@ import { Route as TermosDeUsoRouteImport } from './routes/termos-de-uso'
 import { Route as AuthenticatedAdministracaoRouteImport } from './routes/_authenticated/administracao'
 import { Route as AuthenticatedAjustesAppRouteImport } from './routes/_authenticated/ajustes-app'
 import { Route as AuthenticatedBackupRouteImport } from './routes/_authenticated/backup'
+import { Route as AuthenticatedCaixinhasRouteImport } from './routes/_authenticated/caixinhas'
 import { Route as AuthenticatedCalendarioRouteImport } from './routes/_authenticated/calendario'
 import { Route as AuthenticatedCartoesRouteImport } from './routes/_authenticated/cartoes'
 import { Route as AuthenticatedCasaRouteImport } from './routes/_authenticated/casa'
@@ -65,9 +66,9 @@ import { Route as AuthenticatedLinksIdRouteImport } from './routes/_authenticate
 import { Route as ApiCronDescarteLayoutsRouteImport } from './routes/api/cron/descarte-layouts'
 import { Route as ApiCronPluggySincronizarRouteImport } from './routes/api/cron/pluggy-sincronizar'
 import { Route as ApiEmailPararRouteImport } from './routes/api/email/parar'
+import { Route as ApiPluggyConectarRouteImport } from './routes/api/pluggy/conectar'
 import { Route as OauthGoogleDriveReturnRouteImport } from './routes/oauth/google-drive/return'
 import { Route as ApiPluggyWebhookTokenRouteImport } from './routes/api/pluggy/webhook.$token'
-import { Route as ApiPluggyConectarRouteImport } from './routes/api/pluggy/conectar'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -137,6 +138,11 @@ const AuthenticatedAjustesAppRoute = AuthenticatedAjustesAppRouteImport.update({
 const AuthenticatedBackupRoute = AuthenticatedBackupRouteImport.update({
   id: '/backup',
   path: '/backup',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedCaixinhasRoute = AuthenticatedCaixinhasRouteImport.update({
+  id: '/caixinhas',
+  path: '/caixinhas',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedCalendarioRoute = AuthenticatedCalendarioRouteImport.update({
@@ -361,6 +367,11 @@ const ApiEmailPararRoute = ApiEmailPararRouteImport.update({
   path: '/api/email/parar',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPluggyConectarRoute = ApiPluggyConectarRouteImport.update({
+  id: '/api/pluggy/conectar',
+  path: '/api/pluggy/conectar',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OauthGoogleDriveReturnRoute = OauthGoogleDriveReturnRouteImport.update({
   id: '/oauth/google-drive/return',
   path: '/oauth/google-drive/return',
@@ -369,12 +380,6 @@ const OauthGoogleDriveReturnRoute = OauthGoogleDriveReturnRouteImport.update({
 const ApiPluggyWebhookTokenRoute = ApiPluggyWebhookTokenRouteImport.update({
   id: '/api/pluggy/webhook/$token',
   path: '/api/pluggy/webhook/$token',
-  getParentRoute: () => rootRouteImport,
-} as any)
-
-const ApiPluggyConectarRoute = ApiPluggyConectarRouteImport.update({
-  id: '/api/pluggy/conectar',
-  path: '/api/pluggy/conectar',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -392,6 +397,7 @@ export interface FileRoutesByFullPath {
   '/administracao': typeof AuthenticatedAdministracaoRoute
   '/ajustes-app': typeof AuthenticatedAjustesAppRoute
   '/backup': typeof AuthenticatedBackupRoute
+  '/caixinhas': typeof AuthenticatedCaixinhasRoute
   '/calendario': typeof AuthenticatedCalendarioRoute
   '/cartoes': typeof AuthenticatedCartoesRoute
   '/casa': typeof AuthenticatedCasaRoute
@@ -433,10 +439,10 @@ export interface FileRoutesByFullPath {
   '/api/cron/descarte-layouts': typeof ApiCronDescarteLayoutsRoute
   '/api/cron/pluggy-sincronizar': typeof ApiCronPluggySincronizarRoute
   '/api/email/parar': typeof ApiEmailPararRoute
+  '/api/pluggy/conectar': typeof ApiPluggyConectarRoute
   '/oauth/google-drive/return': typeof OauthGoogleDriveReturnRoute
   '/links/': typeof AuthenticatedLinksIndexRoute
   '/api/pluggy/webhook/$token': typeof ApiPluggyWebhookTokenRoute
-  '/api/pluggy/conectar': typeof ApiPluggyConectarRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -452,6 +458,7 @@ export interface FileRoutesByTo {
   '/administracao': typeof AuthenticatedAdministracaoRoute
   '/ajustes-app': typeof AuthenticatedAjustesAppRoute
   '/backup': typeof AuthenticatedBackupRoute
+  '/caixinhas': typeof AuthenticatedCaixinhasRoute
   '/calendario': typeof AuthenticatedCalendarioRoute
   '/cartoes': typeof AuthenticatedCartoesRoute
   '/casa': typeof AuthenticatedCasaRoute
@@ -493,10 +500,10 @@ export interface FileRoutesByTo {
   '/api/cron/descarte-layouts': typeof ApiCronDescarteLayoutsRoute
   '/api/cron/pluggy-sincronizar': typeof ApiCronPluggySincronizarRoute
   '/api/email/parar': typeof ApiEmailPararRoute
+  '/api/pluggy/conectar': typeof ApiPluggyConectarRoute
   '/oauth/google-drive/return': typeof OauthGoogleDriveReturnRoute
   '/links': typeof AuthenticatedLinksIndexRoute
   '/api/pluggy/webhook/$token': typeof ApiPluggyWebhookTokenRoute
-  '/api/pluggy/conectar': typeof ApiPluggyConectarRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -514,6 +521,7 @@ export interface FileRoutesById {
   '/_authenticated/administracao': typeof AuthenticatedAdministracaoRoute
   '/_authenticated/ajustes-app': typeof AuthenticatedAjustesAppRoute
   '/_authenticated/backup': typeof AuthenticatedBackupRoute
+  '/_authenticated/caixinhas': typeof AuthenticatedCaixinhasRoute
   '/_authenticated/calendario': typeof AuthenticatedCalendarioRoute
   '/_authenticated/cartoes': typeof AuthenticatedCartoesRoute
   '/_authenticated/casa': typeof AuthenticatedCasaRoute
@@ -555,10 +563,10 @@ export interface FileRoutesById {
   '/api/cron/descarte-layouts': typeof ApiCronDescarteLayoutsRoute
   '/api/cron/pluggy-sincronizar': typeof ApiCronPluggySincronizarRoute
   '/api/email/parar': typeof ApiEmailPararRoute
+  '/api/pluggy/conectar': typeof ApiPluggyConectarRoute
   '/oauth/google-drive/return': typeof OauthGoogleDriveReturnRoute
   '/_authenticated/links/': typeof AuthenticatedLinksIndexRoute
   '/api/pluggy/webhook/$token': typeof ApiPluggyWebhookTokenRoute
-  '/api/pluggy/conectar': typeof ApiPluggyConectarRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -576,6 +584,7 @@ export interface FileRouteTypes {
     | '/administracao'
     | '/ajustes-app'
     | '/backup'
+    | '/caixinhas'
     | '/calendario'
     | '/cartoes'
     | '/casa'
@@ -617,10 +626,10 @@ export interface FileRouteTypes {
     | '/api/cron/descarte-layouts'
     | '/api/cron/pluggy-sincronizar'
     | '/api/email/parar'
+    | '/api/pluggy/conectar'
     | '/oauth/google-drive/return'
     | '/links/'
     | '/api/pluggy/webhook/$token'
-    | '/api/pluggy/conectar'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -636,6 +645,7 @@ export interface FileRouteTypes {
     | '/administracao'
     | '/ajustes-app'
     | '/backup'
+    | '/caixinhas'
     | '/calendario'
     | '/cartoes'
     | '/casa'
@@ -677,10 +687,10 @@ export interface FileRouteTypes {
     | '/api/cron/descarte-layouts'
     | '/api/cron/pluggy-sincronizar'
     | '/api/email/parar'
+    | '/api/pluggy/conectar'
     | '/oauth/google-drive/return'
     | '/links'
     | '/api/pluggy/webhook/$token'
-    | '/api/pluggy/conectar'
   id:
     | '__root__'
     | '/'
@@ -697,6 +707,7 @@ export interface FileRouteTypes {
     | '/_authenticated/administracao'
     | '/_authenticated/ajustes-app'
     | '/_authenticated/backup'
+    | '/_authenticated/caixinhas'
     | '/_authenticated/calendario'
     | '/_authenticated/cartoes'
     | '/_authenticated/casa'
@@ -738,10 +749,10 @@ export interface FileRouteTypes {
     | '/api/cron/descarte-layouts'
     | '/api/cron/pluggy-sincronizar'
     | '/api/email/parar'
+    | '/api/pluggy/conectar'
     | '/oauth/google-drive/return'
     | '/_authenticated/links/'
     | '/api/pluggy/webhook/$token'
-    | '/api/pluggy/conectar'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -768,9 +779,9 @@ export interface RootRouteChildren {
   ApiCronDescarteLayoutsRoute: typeof ApiCronDescarteLayoutsRoute
   ApiCronPluggySincronizarRoute: typeof ApiCronPluggySincronizarRoute
   ApiEmailPararRoute: typeof ApiEmailPararRoute
+  ApiPluggyConectarRoute: typeof ApiPluggyConectarRoute
   OauthGoogleDriveReturnRoute: typeof OauthGoogleDriveReturnRoute
   ApiPluggyWebhookTokenRoute: typeof ApiPluggyWebhookTokenRoute
-  ApiPluggyConectarRoute: typeof ApiPluggyConectarRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -871,6 +882,13 @@ declare module '@tanstack/react-router' {
       path: '/backup'
       fullPath: '/backup'
       preLoaderRoute: typeof AuthenticatedBackupRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/caixinhas': {
+      id: '/_authenticated/caixinhas'
+      path: '/caixinhas'
+      fullPath: '/caixinhas'
+      preLoaderRoute: typeof AuthenticatedCaixinhasRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/calendario': {
@@ -1167,6 +1185,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiEmailPararRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/pluggy/conectar': {
+      id: '/api/pluggy/conectar'
+      path: '/api/pluggy/conectar'
+      fullPath: '/api/pluggy/conectar'
+      preLoaderRoute: typeof ApiPluggyConectarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/oauth/google-drive/return': {
       id: '/oauth/google-drive/return'
       path: '/oauth/google-drive/return'
@@ -1181,13 +1206,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPluggyWebhookTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/pluggy/conectar': {
-      id: '/api/pluggy/conectar'
-      path: '/api/pluggy/conectar'
-      fullPath: '/api/pluggy/conectar'
-      preLoaderRoute: typeof ApiPluggyConectarRouteImport
-      parentRoute: typeof rootRouteImport
-    }
   }
 }
 
@@ -1195,6 +1213,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdministracaoRoute: typeof AuthenticatedAdministracaoRoute
   AuthenticatedAjustesAppRoute: typeof AuthenticatedAjustesAppRoute
   AuthenticatedBackupRoute: typeof AuthenticatedBackupRoute
+  AuthenticatedCaixinhasRoute: typeof AuthenticatedCaixinhasRoute
   AuthenticatedCalendarioRoute: typeof AuthenticatedCalendarioRoute
   AuthenticatedCartoesRoute: typeof AuthenticatedCartoesRoute
   AuthenticatedCasaRoute: typeof AuthenticatedCasaRoute
@@ -1231,6 +1250,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdministracaoRoute: AuthenticatedAdministracaoRoute,
   AuthenticatedAjustesAppRoute: AuthenticatedAjustesAppRoute,
   AuthenticatedBackupRoute: AuthenticatedBackupRoute,
+  AuthenticatedCaixinhasRoute: AuthenticatedCaixinhasRoute,
   AuthenticatedCalendarioRoute: AuthenticatedCalendarioRoute,
   AuthenticatedCartoesRoute: AuthenticatedCartoesRoute,
   AuthenticatedCasaRoute: AuthenticatedCasaRoute,
@@ -1291,20 +1311,10 @@ const rootRouteChildren: RootRouteChildren = {
   ApiCronDescarteLayoutsRoute: ApiCronDescarteLayoutsRoute,
   ApiCronPluggySincronizarRoute: ApiCronPluggySincronizarRoute,
   ApiEmailPararRoute: ApiEmailPararRoute,
+  ApiPluggyConectarRoute: ApiPluggyConectarRoute,
   OauthGoogleDriveReturnRoute: OauthGoogleDriveReturnRoute,
   ApiPluggyWebhookTokenRoute: ApiPluggyWebhookTokenRoute,
-  ApiPluggyConectarRoute: ApiPluggyConectarRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

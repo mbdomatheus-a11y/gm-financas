@@ -13,6 +13,7 @@ import {
   KeyRound,
   Trash2,
   UserPlus,
+  Gift,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -30,6 +31,9 @@ import {
   listarMeusConvites,
 } from "@/lib/convites.functions";
 import { obterConfiguracaoAcesso } from "@/lib/configuracoes-site.functions";
+import { useAvisoDispensado } from "@/lib/avisos-dispensados";
+import { registrarEventoUso } from "@/lib/registrar-uso";
+import { Checkbox } from "@/components/ui/checkbox";
 import { usePermissoes, useProfile } from "@/hooks/useAuthData";
 import { formatDate } from "@/lib/format";
 
@@ -340,15 +344,20 @@ export function ConviteRapidoBotao({ comTexto = false }: { comTexto?: boolean })
   }
   return (
     <>
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={() => setAberto(true)}
+      <button
+        type="button"
+        onClick={() => {
+          registrarEventoUso("botao-convidar-amigos");
+          setAberto(true);
+        }}
         aria-label="Convidar amigos"
         title="Convidar amigos"
+        className="relative inline-flex h-9 items-center gap-1.5 rounded-full bg-gradient-to-r from-fuchsia-500 via-pink-500 to-orange-400 px-3 text-xs font-semibold text-white shadow-md transition hover:brightness-110 active:scale-95"
       >
-        <UserPlus className="size-4.5" />
-      </Button>
+        <Gift className="size-4.5" aria-hidden="true" />
+        <span className="hidden md:inline">Convidar</span>
+        <span className="absolute -right-0.5 -top-0.5 size-2.5 animate-ping rounded-full bg-yellow-300" aria-hidden="true" />
+      </button>
       <ConviteAmigosDialog open={aberto} onOpenChange={setAberto} />
     </>
   );
@@ -372,9 +381,12 @@ export function ConviteAposTresDias({ bloqueado = false }: { bloqueado?: boolean
     queryFn: () => obterConfig(),
     staleTime: 60_000,
   });
-  const rodada = String(config?.rodada_aviso_convite ?? 1);
+  // 27/10/2026: "não mostrar mais" fica na conta (vale em qualquer aparelho) até o admin redisparar.
+  const { rodadaDispensada, carregando, dispensar } = useAvisoDispensado("convite");
+  const rodada = Number(config?.rodada_aviso_convite ?? 1);
   const [aberto, setAberto] = useState(false);
   const [dialogo, setDialogo] = useState(false);
+  const [naoMostrar, setNaoMostrar] = useState(false);
 
   const criadoEm = (perfil as { created_at?: string } | null | undefined)?.created_at;
   const elegivel =
@@ -382,33 +394,35 @@ export function ConviteAposTresDias({ bloqueado = false }: { bloqueado?: boolean
     Date.now() - new Date(criadoEm).getTime() >= DIAS_PARA_PEDIR_CONVITE * 86_400_000;
 
   useEffect(() => {
-    if (bloqueado || !elegivel || isLoading || !temConviteDisponivel || !config) return;
+    if (bloqueado || !elegivel || isLoading || carregando || !temConviteDisponivel || !config) return;
+    if (rodadaDispensada >= rodada) return;
     try {
       if (sessionStorage.getItem("control-all-convite-visto-sessao")) return;
-      if (localStorage.getItem(CHAVE_CONVITE_DISPENSADO) === rodada) return;
+      // Quem já tinha dispensado no navegador (regra antiga) segue sem ver.
+      if (localStorage.getItem(CHAVE_CONVITE_DISPENSADO) === String(rodada)) return;
       sessionStorage.setItem("control-all-convite-visto-sessao", "1");
     } catch {
       // Sem armazenamento: mostra mesmo assim.
     }
     setAberto(true);
-  }, [bloqueado, elegivel, isLoading, temConviteDisponivel, config, rodada]);
+    registrarEventoUso("aviso-convite/exibido");
+  }, [bloqueado, elegivel, isLoading, carregando, temConviteDisponivel, config, rodada, rodadaDispensada]);
 
-  function adiar() {
-    try {
-      localStorage.setItem(CHAVE_CONVITE_DISPENSADO, rodada);
-    } catch {
-      // ignorado
-    }
+  function fechar() {
+    if (naoMostrar) {
+      void dispensar(rodada);
+      registrarEventoUso("aviso-convite/nao-mostrar-mais");
+    } else registrarEventoUso("aviso-convite/agora-nao");
     setAberto(false);
   }
 
   return (
     <>
-      <Dialog open={aberto} onOpenChange={(v) => (v ? setAberto(true) : adiar())}>
+      <Dialog open={aberto} onOpenChange={(v) => (v ? setAberto(true) : fechar())}>
         <DialogContent className="max-w-sm text-center">
           <DialogHeader>
-            <div className="mx-auto mb-2 flex size-12 items-center justify-center rounded-2xl bg-cyan-500/10 text-cyan-600">
-              <Users className="size-6" />
+            <div className="mx-auto mb-2 flex size-14 items-center justify-center rounded-2xl bg-gradient-to-br from-fuchsia-500 via-pink-500 to-orange-400 text-white shadow-lg">
+              <Gift className="size-7" />
             </div>
             <DialogTitle>Gostando do Control ALL?</DialogTitle>
             <DialogDescription>
@@ -419,15 +433,21 @@ export function ConviteAposTresDias({ bloqueado = false }: { bloqueado?: boolean
           <div className="flex flex-col gap-2">
             <Button
               onClick={() => {
+                registrarEventoUso("aviso-convite/convidar");
+                if (naoMostrar) void dispensar(rodada);
                 setAberto(false);
                 setDialogo(true);
               }}
             >
               <Share2 className="mr-2 size-4" /> Convidar amigos
             </Button>
-            <Button variant="ghost" onClick={adiar}>
+            <Button variant="ghost" onClick={fechar}>
               Agora não
             </Button>
+            <label className="mt-1 flex cursor-pointer items-center justify-center gap-2 text-xs text-muted-foreground">
+              <Checkbox checked={naoMostrar} onCheckedChange={(v) => setNaoMostrar(v === true)} />
+              Não mostrar este aviso de novo
+            </label>
           </div>
         </DialogContent>
       </Dialog>

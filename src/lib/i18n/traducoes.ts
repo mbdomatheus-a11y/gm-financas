@@ -30,7 +30,7 @@ export const TEXTOS = {
     "pt-BR": "Ferramentas", en: "Tools", es: "Herramientas", hi: "उपकरण", fr: "Outils", de: "Werkzeuge", it: "Strumenti", zh: "工具", ar: "الأدوات",
   },
   "nav.dashboard": {
-    "pt-BR": "Dashboard", en: "Dashboard", es: "Panel", hi: "डैशबोर्ड", fr: "Tableau de bord", de: "Übersicht", it: "Cruscotto", zh: "仪表板", ar: "لوحة المعلومات",
+    "pt-BR": "Finanças", en: "Finances", es: "Finanzas", hi: "वित्त", fr: "Finances", de: "Finanzen", it: "Finanze", zh: "财务", ar: "المالية",
   },
   "nav.receitas": {
     "pt-BR": "Receitas", en: "Income", es: "Ingresos", hi: "आय", fr: "Revenus", de: "Einnahmen", it: "Entrate", zh: "收入", ar: "الدخل",

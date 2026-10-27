@@ -55,7 +55,7 @@ export function AvisoSincronizacaoPluggy() {
           ? "1 banco com falha na última sincronização."
           : `${falhas.length} bancos com falha na última sincronização.`}
       </span>
-      <Link to="/pluggy" className="text-xs font-semibold text-primary underline-offset-4 hover:underline">
+      <Link to="/administracao" search={{ aba: "bancos" }} className="text-xs font-semibold text-primary underline-offset-4 hover:underline">
         Ver detalhes
       </Link>
       <button

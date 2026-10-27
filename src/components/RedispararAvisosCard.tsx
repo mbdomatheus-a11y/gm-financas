@@ -21,12 +21,14 @@ export function RedispararAvisosCard() {
     staleTime: 60_000,
   });
   const redisparar = useMutation({
-    mutationFn: (aviso: "convite" | "privacidade") => redispararFn({ data: { aviso } }),
+    mutationFn: (aviso: "convite" | "privacidade" | "beta") => redispararFn({ data: { aviso } }),
     onSuccess: (r, aviso) => {
       toast.success(
-        aviso === "convite"
-          ? `Convite de amigos vai aparecer de novo para todos (rodada ${r.rodada}).`
-          : `Aviso de cookies vai aparecer de novo para todos (rodada ${r.rodada}).`,
+        aviso === "beta"
+          ? `Aviso do app beta disparado para todos (rodada ${r.rodada}).`
+          : aviso === "convite"
+            ? `Convite de amigos vai aparecer de novo para todos (rodada ${r.rodada}).`
+            : `Aviso de cookies vai aparecer de novo para todos (rodada ${r.rodada}).`,
       );
       void qc.invalidateQueries({ queryKey: ["configuracao-acesso-publica"] });
     },
@@ -42,10 +44,19 @@ export function RedispararAvisosCard() {
       </CardHeader>
       <CardContent className="space-y-3 text-sm">
         <p className="text-muted-foreground">
-          Quem dispensa o convite de amigos ou responde o aviso de cookies não vê mais. Use os botões abaixo para
+          Quem marca "não mostrar mais" no aviso do app beta ou no convite de amigos, ou responde o aviso de cookies, não vê mais (vale em qualquer aparelho). Use os botões abaixo para
           mostrar de novo a todos (por exemplo, depois de mudar a política de privacidade).
         </p>
-        <div className="flex flex-col gap-2 sm:flex-row">
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+          <Button
+            className="bg-emerald-600 text-white hover:bg-emerald-700"
+            disabled={redisparar.isPending}
+            onClick={() => redisparar.mutate("beta")}
+          >
+            {Number(config?.rodada_aviso_beta ?? 0) > 0
+              ? `Disparar de novo o aviso do app beta (rodada atual ${config?.rodada_aviso_beta})`
+              : "Disparar aviso do app beta (TestFlight)"}
+          </Button>
           <Button
             variant="outline"
             disabled={redisparar.isPending}

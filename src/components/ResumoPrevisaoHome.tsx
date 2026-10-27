@@ -1,22 +1,23 @@
-import { useFinancasProntas } from "@/hooks/useFinancasProntas";
-import { CartaoCarregando } from "@/components/CartaoCarregando";
+import { useQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
+import { AlertTriangle, CheckCircle2, PiggyBank } from "lucide-react";
 import { useMemo } from "react";
 import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { TrendingDown, TrendingUp } from "lucide-react";
 
+import { CartaoCarregando } from "@/components/CartaoCarregando";
 import { Card, CardContent } from "@/components/ui/card";
 import { useCotacao } from "@/hooks/useCotacao";
 import { useDespesas, useFaturasMes, useReceitas } from "@/hooks/useFinance";
+import { useFinancasProntas } from "@/hooks/useFinancasProntas";
 import { usePrivacidadeValores } from "@/hooks/usePrivacidadeValores";
-import { aplicarRegrasFaturaMes } from "@/lib/fatura-mes";
-import { monthKey, toBRL } from "@/lib/format";
 import { useCompetenciaVigente } from "@/lib/periodo-vigente";
-import { lancamentosPorCompetencias } from "@/lib/recorrencia";
+import { listarCaixinhas, metaDoMes } from "@/lib/poupar";
+import { calcularPrevisaoMes } from "@/lib/previsao-mes";
 
 /**
- * Card do Início: quanto deve sobrar até o fim da competência vigente.
- * Usa só lançamentos já cadastrados (receitas recebidas/previstas e despesas
- * e parcelas com vencimento no mês). Linha sólida até hoje; tracejada é projeção.
+ * Card "Previsão do mês" do Início. 27/10/2026: mesma conta e mesmos textos do app
+ * (lib/previsao-mes.ts = controlall/src/lib/painel.ts): receitas com recorrentes projetadas,
+ * despesas comprometidas, valor a guardar nas caixinhas e ritmo dos gastos variáveis.
  */
 export function ResumoPrevisaoHome() {
   const financasProntas = useFinancasProntas();
@@ -24,121 +25,122 @@ export function ResumoPrevisaoHome() {
   const { data: despesas = [] } = useDespesas();
   const { data: faturasMes = [] } = useFaturasMes();
   const { data: receitas = [] } = useReceitas();
+  const { data: caixinhas = [] } = useQuery({ queryKey: ["caixinhas"], queryFn: listarCaixinhas, retry: false });
   const { formatar } = usePrivacidadeValores("resumo-previsao-home");
-  const competencia = useCompetenciaVigente();
+  const mes = useCompetenciaVigente();
 
-  const resumo = useMemo(() => {
-    const [ano = 1970, mes = 1] = competencia.split("-").map(Number);
-    const diasNoMes = new Date(ano, mes, 0).getDate();
-    const hoje = new Date();
-    const hojeKey = monthKey(hoje);
-    const diaHoje =
-      competencia === hojeKey ? hoje.getDate() : competencia < hojeKey ? diasNoMes : 0;
-
-    const parcelas = aplicarRegrasFaturaMes(
-      lancamentosPorCompetencias(despesas as any[], [competencia]),
-      faturasMes as any[],
-    ).filter((p) => monthKey(p.vencimento) === competencia);
-
-    const entradasPorDia = new Array(diasNoMes + 1).fill(0);
-    const saidasPorDia = new Array(diasNoMes + 1).fill(0);
-    for (const r of receitas as any[]) {
-      if (monthKey(r.data_recebimento) !== competencia) continue;
-      const dia = Math.min(diasNoMes, new Date(r.data_recebimento).getDate());
-      entradasPorDia[dia] += toBRL(Number(r.valor), r.moeda, cotacao);
-    }
-    for (const p of parcelas) {
-      const dia = Math.min(diasNoMes, new Date(p.vencimento).getDate());
-      saidasPorDia[dia] += toBRL(Number(p.valor), p.despesa.moeda, cotacao);
-    }
-
-    let entradas = 0;
-    let saidas = 0;
-    const serie = [];
-    for (let d = 1; d <= diasNoMes; d++) {
-      entradas += entradasPorDia[d];
-      saidas += saidasPorDia[d];
-      const saldo = Number((entradas - saidas).toFixed(2));
-      serie.push({
-        dia: d,
-        real: d <= diaHoje ? saldo : null,
-        previsto: d >= diaHoje ? saldo : null,
-      });
-    }
-    return {
-      diasNoMes,
-      sobra: Number((entradas - saidas).toFixed(2)),
-      serie,
-    };
-  }, [competencia, despesas, faturasMes, receitas, cotacao]);
-
-  const positivo = resumo.sobra >= 0;
-  const Icone = positivo ? TrendingUp : TrendingDown;
+  const p = useMemo(
+    () =>
+      calcularPrevisaoMes(
+        { despesas: despesas as any[], receitas: receitas as any[], faturas: faturasMes as any[], cotacao },
+        mes,
+        metaDoMes(caixinhas, mes),
+      ),
+    [despesas, receitas, faturasMes, cotacao, mes, caixinhas],
+  );
+  const serie = p.serie.map((s) => ({
+    dia: s.dia,
+    real: s.projetado ? null : s.saldo,
+    previsto: s.dia >= p.diaHoje ? s.saldo : null,
+  }));
 
   if (!financasProntas) return <CartaoCarregando alturaGrafico="h-44" />;
+  const encerrado = p.diaHoje >= p.diasNoMes && p.diasRestantes === 0;
+  const temMeta = p.meta > 0;
+  const semLivre = p.saldoLivre <= 0;
+  const futuro = p.diaHoje === 0;
+  const prefixo = futuro ? "No ritmo deste mês" : "Se continuar assim";
+
   return (
     <Card className="mb-4 overflow-hidden border-primary/30">
       <CardContent className="space-y-3 p-4 sm:p-5">
-        <div className="flex items-start justify-between gap-3">
+        <p className="text-xs uppercase tracking-wide text-muted-foreground">Previsão do mês</p>
+        {encerrado ? (
           <div>
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">Previsão do mês</p>
-            <p className="text-xl font-bold sm:text-2xl">
-              {positivo ? "Sobram" : "Faltam"}{" "}
-              <span className={positivo ? "text-emerald-600" : "text-rose-600"}>
-                {formatar(Math.abs(resumo.sobra))}
-              </span>{" "}
-              <span className="text-base font-medium text-muted-foreground">
-                até o dia {resumo.diasNoMes}
-              </span>
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Considera receitas e despesas já cadastradas para este mês.
+            <p className={`text-2xl font-bold ${p.finalPrevisto >= p.meta ? "text-emerald-600" : "text-rose-600"}`}>{formatar(p.finalPrevisto)}</p>
+            <p className="text-xs text-muted-foreground">Mês encerrado: saldo final{temMeta ? ` (meta de guardar ${formatar(p.meta)})` : ""}.</p>
+          </div>
+        ) : semLivre ? (
+          <div>
+            <p className="text-2xl font-bold text-rose-600">Sem saldo livre</p>
+            <p className="text-sm text-muted-foreground">
+              Faltam <b className="text-rose-600">{formatar(Math.abs(p.saldoLivre))}</b>{" "}
+              {temMeta ? "para cobrir as despesas do mês e a meta das caixinhas." : "para cobrir as despesas já comprometidas no mês."}
             </p>
           </div>
-          <span
-            className={`flex size-10 shrink-0 items-center justify-center rounded-full ${
-              positivo ? "bg-emerald-500/15 text-emerald-600" : "bg-rose-500/15 text-rose-600"
-            }`}
-          >
-            <Icone className="size-5" aria-hidden="true" />
-          </span>
+        ) : (
+          <div>
+            <p className="text-sm font-semibold text-muted-foreground">Você pode gastar</p>
+            <p className="text-2xl font-bold text-emerald-600">
+              {formatar(p.porDia)} <span className="text-base font-semibold">por dia</span>
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {temMeta ? `para atingir sua meta de guardar ${formatar(p.meta)}` : "para não ficar negativo"} · {p.diasRestantes}{" "}
+              {p.diasRestantes === 1 ? "dia restante" : "dias restantes"}
+            </p>
+          </div>
+        )}
+
+        {!encerrado && (
+          <div className={`flex gap-2 rounded-lg p-3 ${p.alerta ? "bg-rose-500/10" : "bg-emerald-500/10"}`}>
+            {p.alerta ? <AlertTriangle className="size-5 shrink-0 text-rose-600" /> : <CheckCircle2 className="size-5 shrink-0 text-emerald-600" />}
+            <div className="text-sm">
+              {p.alerta ? (
+                <p className="font-semibold text-rose-600">
+                  {prefixo}, termina o mês com {formatar(p.finalPrevisto)}
+                  {temMeta && p.finalPrevisto >= 0 ? `, abaixo da meta de ${formatar(p.meta)}` : ""}
+                </p>
+              ) : (
+                <p className="font-semibold text-emerald-700 dark:text-emerald-400">
+                  {prefixo}, sobram {formatar(p.sobraPrevista)}
+                  {temMeta ? ` depois de guardar ${formatar(p.meta)}` : " no fim do mês"}
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                {p.ritmoDiario > 0 ? `Ritmo dos gastos variáveis: ${formatar(p.ritmoDiario)} por dia.` : "Sem gastos variáveis no mês até agora."}
+              </p>
+            </div>
+          </div>
+        )}
+
+        <div className="space-y-1 rounded-lg bg-muted/40 p-3 text-sm">
+          <Linha rotulo="Receitas do mês" valor={formatar(p.receitas)} />
+          <Linha rotulo="Despesas já comprometidas" valor={formatar(-p.comprometido)} />
+          {temMeta && <Linha rotulo="A guardar nas caixinhas" valor={formatar(-p.meta)} />}
+          <div className="my-1 h-px bg-border" />
+          <Linha rotulo="Saldo livre" valor={formatar(p.saldoLivre)} forte />
         </div>
+
         <div className="h-40 w-full sm:h-48">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={resumo.serie} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+            <LineChart data={serie} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
               <XAxis dataKey="dia" tick={{ fontSize: 11 }} interval="preserveStartEnd" />
               <YAxis hide />
               <ReferenceLine y={0} stroke="var(--muted-foreground)" strokeDasharray="2 2" />
-              <Tooltip
-                formatter={(v: number) => formatar(v)}
-                labelFormatter={(d) => `Dia ${d}`}
-              />
-              <Line
-                type="monotone"
-                dataKey="real"
-                name="Realizado"
-                stroke="var(--primary)"
-                strokeWidth={2.5}
-                dot={false}
-                connectNulls={false}
-                isAnimationActive={false}
-              />
-              <Line
-                type="monotone"
-                dataKey="previsto"
-                name="Previsto"
-                stroke="var(--primary)"
-                strokeWidth={2.5}
-                strokeDasharray="6 6"
-                dot={false}
-                connectNulls={false}
-                isAnimationActive={false}
-              />
+              {temMeta && <ReferenceLine y={p.meta} stroke="#10b981" strokeDasharray="4 4" />}
+              <Tooltip formatter={(v: number) => formatar(v)} labelFormatter={(d) => `Dia ${d}`} />
+              <Line type="monotone" dataKey="real" name="Realizado" stroke="var(--primary)" strokeWidth={2.5} dot={false} connectNulls={false} isAnimationActive={false} />
+              <Line type="monotone" dataKey="previsto" name="Previsto" stroke="var(--primary)" strokeWidth={2.5} strokeDasharray="6 6" dot={false} connectNulls={false} isAnimationActive={false} />
             </LineChart>
           </ResponsiveContainer>
         </div>
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+          <span>Real até hoje, projetado pelo ritmo depois{temMeta ? ` · meta ${formatar(p.meta)}` : ""}</span>
+          <Link to="/caixinhas" className="inline-flex items-center gap-1 font-medium text-primary hover:underline">
+            <PiggyBank className="size-3.5" /> {temMeta ? "Ver caixinhas" : "Criar uma caixinha"}
+          </Link>
+        </div>
       </CardContent>
     </Card>
+  );
+}
+
+function Linha({ rotulo, valor, forte }: { rotulo: string; valor: string; forte?: boolean }) {
+  return (
+    <div className="flex items-center justify-between">
+      <span className={forte ? "font-semibold" : "text-muted-foreground"}>{rotulo}</span>
+      <span className={forte ? "font-bold" : "font-medium"}>{valor}</span>
+    </div>
   );
 }

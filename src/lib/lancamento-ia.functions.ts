@@ -37,17 +37,22 @@ function chaveOpenAI(): string | null {
 const COTA_IA_POR_DIA = 30;
 async function verificarCotaIA(userId: string): Promise<string | null> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  try {
-    await aplicarLimite(supabaseAdmin as any, {
-      rota: "ia_lancamento_uso",
-      chave: userId,
-      maxPorJanela: COTA_IA_POR_DIA,
-      janelaMinutos: 24 * 60,
-    });
-    return null;
-  } catch {
-    return `Limite diário de uso da IA atingido (${COTA_IA_POR_DIA} usos/dia, entre texto, áudio e resumo). Volta amanhã ou preencha manualmente.`;
-  }
+  // 27/10/2026: rajada de 10 pedidos por minuto e cota diária; passou, responde 429 + Retry-After.
+  await aplicarLimite(supabaseAdmin as any, {
+    rota: "ia_rajada_minuto",
+    chave: userId,
+    maxPorJanela: 10,
+    janelaMinutos: 1,
+    mensagem: "Muitos pedidos à IA em sequência. Espere um minuto e tente de novo.",
+  });
+  await aplicarLimite(supabaseAdmin as any, {
+    rota: "ia_lancamento_uso",
+    chave: userId,
+    maxPorJanela: COTA_IA_POR_DIA,
+    janelaMinutos: 24 * 60,
+    mensagem: `Limite diário de uso da IA atingido (${COTA_IA_POR_DIA} usos/dia, entre texto, áudio e resumo). Volta amanhã ou preencha manualmente.`,
+  });
+  return null;
 }
 
 /** Frente 2 do plano de 2026-10-02: trava de servidor pro controle de modo

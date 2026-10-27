@@ -1,5 +1,6 @@
-import { Apple, Play, Smartphone } from "lucide-react";
+import { Play, Smartphone } from "lucide-react";
 import { LINK_TESTFLIGHT } from "@/lib/testflight.functions";
+import { MacaBeta } from "@/components/BetaTestFlight";
 import { cn } from "@/lib/utils";
 
 function Loja({ icone, pequeno, nome, href }: { icone: React.ReactNode; pequeno: string; nome: string; href?: string }) {
@@ -32,14 +33,14 @@ export function AppEmBreve({ className }: { className?: string }) {
         <Smartphone className="size-6" />
       </span>
       <div className="flex-1">
-        <p className="text-xs font-semibold uppercase tracking-wide text-primary">Em breve</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">Beta aberto no iPhone, iPad e Mac</p>
         <h2 className="text-lg font-semibold">Um novo app para você</h2>
         <p className="text-sm text-muted-foreground">
-          Estamos preparando o aplicativo do Control ALL para o seu celular.
+          O app do Control ALL já está em teste pelo TestFlight. Android em breve.
         </p>
       </div>
       <div className="flex flex-wrap justify-center gap-2">
-        <Loja icone={<Apple className="size-6" />} pequeno="Beta no" nome="TestFlight" href={LINK_TESTFLIGHT} />
+        <Loja icone={<MacaBeta className="size-8" />} pequeno="Beta no" nome="TestFlight" href={LINK_TESTFLIGHT} />
         <Loja icone={<Play className="size-5" />} pequeno="Em breve no" nome="Google Play" />
       </div>
     </section>

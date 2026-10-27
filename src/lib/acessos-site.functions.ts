@@ -32,6 +32,9 @@ export const registrarAcessoSite = createServerFn({ method: "POST" })
         utmCampaign: z.string().max(120).nullish(),
         sessao: z.string().max(64).nullish(),
         token: z.string().max(4000).nullish(),
+        /** Aceite de cookies de métricas. Sem ele, só registra quem está logado e sem IP/local. */
+        metricas: z.boolean().optional(),
+        plataforma: z.enum(["site", "app"]).optional(),
       })
       .parse(v),
   )
@@ -52,20 +55,25 @@ export const registrarAcessoSite = createServerFn({ method: "POST" })
         const { data: u } = await (supabaseAdmin as any).auth.getUser(data.token);
         userId = u?.user?.id ?? null;
       }
+      // 27/10/2026: tela aberta por quem está logado entra sempre no log (só o caminho, para o resumo
+      // de uso); IP, local e navegador só com o aceite de métricas. Visitante sem aceite não entra.
+      const comMetricas = data.metricas !== false;
+      if (!comMetricas && !userId) return { ok: true };
       await (supabaseAdmin as any).from("acessos_site_log").insert({
         caminho: data.caminho,
-        referrer: data.referrer ?? null,
-        utm_source: data.utmSource ?? null,
-        utm_medium: data.utmMedium ?? null,
-        utm_campaign: data.utmCampaign ?? null,
-        ip: h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || null,
-        cidade: decodificar(h.get("x-vercel-ip-city")),
-        regiao: decodificar(h.get("x-vercel-ip-country-region")),
-        pais: h.get("x-vercel-ip-country"),
-        user_agent: ua.slice(0, 300) || null,
+        referrer: comMetricas ? (data.referrer ?? null) : null,
+        utm_source: comMetricas ? (data.utmSource ?? null) : null,
+        utm_medium: comMetricas ? (data.utmMedium ?? null) : null,
+        utm_campaign: comMetricas ? (data.utmCampaign ?? null) : null,
+        ip: comMetricas ? h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || null : null,
+        cidade: comMetricas ? decodificar(h.get("x-vercel-ip-city")) : null,
+        regiao: comMetricas ? decodificar(h.get("x-vercel-ip-country-region")) : null,
+        pais: comMetricas ? h.get("x-vercel-ip-country") : null,
+        user_agent: comMetricas ? ua.slice(0, 300) || null : null,
         dispositivo,
         sessao: data.sessao ?? null,
         user_id: userId,
+        plataforma: data.plataforma ?? "site",
       });
     } catch {
       // Telemetria nunca atrapalha a navegação.
@@ -89,6 +97,9 @@ export type AcessoSite = {
   sessao: string | null;
   user_id: string | null;
   user_agent: string | null;
+  plataforma: string | null;
+  /** Nome da pessoa (só para o resumo de uso do admin). */
+  nome?: string | null;
 };
 
 export const adminListarAcessos = createServerFn({ method: "POST" })
@@ -111,7 +122,7 @@ export const adminListarAcessos = createServerFn({ method: "POST" })
       const { data: rows, error } = await db
         .from("acessos_site_log")
         .select(
-          "id,criado_em,caminho,referrer,utm_source,utm_medium,utm_campaign,ip,cidade,regiao,pais,dispositivo,sessao,user_id,user_agent",
+          "id,criado_em,caminho,referrer,utm_source,utm_medium,utm_campaign,ip,cidade,regiao,pais,dispositivo,sessao,user_id,user_agent,plataforma",
         )
         .gte("criado_em", desde)
         .order("criado_em", { ascending: false })
@@ -119,6 +130,12 @@ export const adminListarAcessos = createServerFn({ method: "POST" })
       if (error) throw new Error("Não foi possível carregar os acessos.");
       todos.push(...((rows ?? []) as AcessoSite[]));
       if (!rows || rows.length < 1000) break;
+    }
+    const ids = [...new Set(todos.map((a) => a.user_id).filter(Boolean))] as string[];
+    if (ids.length) {
+      const { data: perfis } = await db.from("profiles").select("id,nome").in("id", ids);
+      const nomes = new Map<string, string>((perfis ?? []).map((p: any) => [String(p.id), String(p.nome ?? "")]));
+      for (const a of todos) a.nome = a.user_id ? (nomes.get(a.user_id) ?? null) : null;
     }
     return todos;
   });
