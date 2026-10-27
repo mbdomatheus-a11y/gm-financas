@@ -121,7 +121,7 @@ export function ControlIA({ flutuante = true }: { flutuante?: boolean }) {
         .filter((l: any, i: number, arr: any[]) => l.rota && arr.findIndex((x: any) => x.rota === l.rota) === i) as { rotulo: string; rota: string }[];
       const abrir = data.acao?.tipo === "abrir" ? rotaValida(data.acao.rota) : null;
       if (abrir && !links.some((l) => l.rota === abrir)) links.unshift({ rotulo: TELAS.find((t) => t.rota === abrir)?.titulo ?? "Abrir", rota: abrir });
-      setMsgs((m) => [...m, { papel: "assistant", texto: String(data.resposta ?? ""), links, lancar: !!data.rascunho }]);
+      setMsgs((m) => [...m, { papel: "assistant", texto: String(data.resposta ?? ""), links, lancar: !!data.rascunho?.tipo }]);
       // Pedido explícito de abrir: abre a tela e a conversa continua aberta ao lado (no celular, fecha para ver a tela).
       if (abrir) irPara(abrir);
     } catch (e) {

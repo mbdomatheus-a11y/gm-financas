@@ -1,0 +1,13 @@
+const store: Record<string, string> = {};
+const ls = { getItem: (k: string) => store[k] ?? null, setItem: (k: string, v: string) => { store[k] = v; }, removeItem: (k: string) => { delete store[k]; }, key: (i: number) => Object.keys(store)[i] ?? null, get length() { return Object.keys(store).length; } };
+(globalThis as any).window = { location: { reload: () => console.log("reload chamado") } };
+(globalThis as any).localStorage = ls; (globalThis as any).sessionStorage = { ...ls, getItem: () => null, setItem: () => {}, removeItem: () => {} };
+Object.defineProperty(globalThis, "navigator", { value: { languages: ["en-US"], language: "en-US" }, configurable: true });
+(globalThis as any).__APP_VERSION__ = "teste";
+const en = (await import("./lib/i18n/dicionarios/en.json")).default as Record<string, string>;
+store["control-all.idioma"] = "en";
+store["control-all.i18n.en.teste"] = JSON.stringify(en);
+const { __t, idiomaDaInterface } = await import("./lib/i18n/runtime");
+console.log(idiomaDaInterface(), "|", __t("Total despesas"), "|", __t("Próximo vencimento"), "|", __t("texto sem tradução"));
+const k = Object.keys(en).find((x) => x.includes("{0}"))!;
+console.log(k, "=>", __t(k, ["X1", "X2"]));

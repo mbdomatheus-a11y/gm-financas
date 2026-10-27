@@ -25,7 +25,7 @@ export function useBrandLogoUrl() {
   });
   return typeof logoPath === "string" && logoPath
     ? supabase.storage.from("site_assets").getPublicUrl(logoPath).data.publicUrl
-    : "/brand/control-all-network.jfif";
+    : "/brand/logo-control-all.png";
 }
 
 export function DynamicFavicon() {
