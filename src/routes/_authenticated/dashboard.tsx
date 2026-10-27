@@ -32,7 +32,7 @@ import {
 
 import { AppLayout } from "@/components/AppLayout";
 import { MonthPicker } from "@/components/MonthPicker";
-import { CardForecast } from "@/components/CardForecast";
+import { ResumoPrevisaoHome } from "@/components/ResumoPrevisaoHome";
 import { FluxoDespesas } from "@/components/FluxoDespesas";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -817,15 +817,8 @@ function DashboardPage() {
         />
       </div>
       <FluxoDespesas />
-      <CardForecast
-        mesAtual={mesAtual}
-        totalReceitas={dados.totalReceitas}
-        totalDespesas={dados.totalDespesas}
-        fixas={dados.fixas}
-        parcelados={dados.parcelados}
-        variaveis={dados.variaveisPuras}
-        saldoAtual={dados.saldo}
-      />
+      {/* 27/10/2026: mesmo cartão "Previsão do mês" do app e do Início (lib/previsao-mes.ts). */}
+      <ResumoPrevisaoHome mes={mesAtual} className="mt-4 overflow-hidden border-primary/30" />
 
       <Card id="fluxo-caixa" className="mt-4">
         <CardHeader className="flex flex-col gap-2 space-y-0 sm:flex-row sm:items-center sm:justify-between">

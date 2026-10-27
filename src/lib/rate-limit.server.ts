@@ -45,7 +45,7 @@ export function resposta429(retryAfterSeg: number, mensagem?: string): Response 
  */
 export async function aplicarLimite(
   db: any,
-  params: { rota: string; chave: string; maxPorJanela: number; janelaMinutos: number; mensagem?: string },
+  params: { rota: string; chave: string; maxPorJanela: number; janelaMinutos: number; mensagem?: string | undefined },
 ): Promise<void> {
   const { data, error } = await db.rpc("consumir_limite", {
     p_rota: params.rota,

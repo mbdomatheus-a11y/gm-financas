@@ -19,7 +19,7 @@ import { calcularPrevisaoMes } from "@/lib/previsao-mes";
  * (lib/previsao-mes.ts = controlall/src/lib/painel.ts): receitas com recorrentes projetadas,
  * despesas comprometidas, valor a guardar nas caixinhas e ritmo dos gastos variáveis.
  */
-export function ResumoPrevisaoHome() {
+export function ResumoPrevisaoHome({ mes: mesEscolhido, className }: { mes?: string; className?: string } = {}) {
   const financasProntas = useFinancasProntas();
   const cotacao = useCotacao();
   const { data: despesas = [] } = useDespesas();
@@ -27,7 +27,9 @@ export function ResumoPrevisaoHome() {
   const { data: receitas = [] } = useReceitas();
   const { data: caixinhas = [] } = useQuery({ queryKey: ["caixinhas"], queryFn: listarCaixinhas, retry: false });
   const { formatar } = usePrivacidadeValores("resumo-previsao-home");
-  const mes = useCompetenciaVigente();
+  const mesVigente = useCompetenciaVigente();
+  // Na tela Finanças segue o mês escolhido no filtro; no Início, a competência vigente.
+  const mes = mesEscolhido ?? mesVigente;
 
   const p = useMemo(
     () =>
@@ -52,7 +54,7 @@ export function ResumoPrevisaoHome() {
   const prefixo = futuro ? "No ritmo deste mês" : "Se continuar assim";
 
   return (
-    <Card className="mb-4 overflow-hidden border-primary/30">
+    <Card className={className ?? "mb-4 overflow-hidden border-primary/30"}>
       <CardContent className="space-y-3 p-4 sm:p-5">
         <p className="text-xs uppercase tracking-wide text-muted-foreground">Previsão do mês</p>
         {encerrado ? (
