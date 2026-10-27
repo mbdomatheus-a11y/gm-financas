@@ -369,7 +369,7 @@ function CartoesPage() {
                 <CardContent className="space-y-3 p-4">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex min-w-0 items-center gap-3">
-                      <IconeBanco nome={String(c.bancos?.nome ?? c.apelido ?? "")} className="size-10" />
+                      <IconeBanco nome={String(c.bancos?.nome ?? c.apelido ?? "")} bancoId={c.banco_id ?? null} className="size-10" />
                       <div className="min-w-0">
                       <p className="text-sm font-semibold">{c.apelido}</p>
                       <p className="text-xs text-muted-foreground">
@@ -448,7 +448,7 @@ function CartoesPage() {
           {bancos.map((b: any) => (
             <Card key={b.id}>
               <CardContent className="flex items-center gap-3 p-4">
-<IconeBanco nome={String(b.nome ?? "")} className="size-10" />
+<IconeBanco nome={String(b.nome ?? "")} bancoId={b.id ?? null} className="size-10" />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold">{b.nome}</p>
                   <p className="truncate text-xs text-muted-foreground">

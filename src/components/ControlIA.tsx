@@ -97,6 +97,11 @@ export function ControlIA({ flutuante = true }: { flutuante?: boolean }) {
     r.start();
   }
 
+  function irPara(rota: string) {
+    if (typeof window !== "undefined" && window.innerWidth < 1024) setAberto(false);
+    void navigate({ to: rota as never });
+  }
+
   async function enviar(pergunta?: string, origem: "texto" | "audio" = "texto") {
     const p = (pergunta ?? texto).trim();
     if (!p || enviando) return;
@@ -109,14 +114,16 @@ export function ControlIA({ flutuante = true }: { flutuante?: boolean }) {
       const { data, error } = await supabase.functions.invoke("assistente-ia", {
         body: { pergunta: p, historico, contexto, origem },
       });
-      if (error) throw error;
+      if (error) throw new Error("Não consegui falar com a IA agora. Tente de novo em instantes.");
       if (!data?.ok) throw new Error(data?.erro?.mensagem ?? "Não consegui responder agora.");
       const links = (Array.isArray(data.links) ? data.links : [])
         .map((l: any) => ({ rotulo: String(l?.rotulo ?? "Abrir"), rota: rotaValida(l?.rota) }))
-        .filter((l: any) => l.rota) as { rotulo: string; rota: string }[];
+        .filter((l: any, i: number, arr: any[]) => l.rota && arr.findIndex((x: any) => x.rota === l.rota) === i) as { rotulo: string; rota: string }[];
       const abrir = data.acao?.tipo === "abrir" ? rotaValida(data.acao.rota) : null;
       if (abrir && !links.some((l) => l.rota === abrir)) links.unshift({ rotulo: TELAS.find((t) => t.rota === abrir)?.titulo ?? "Abrir", rota: abrir });
       setMsgs((m) => [...m, { papel: "assistant", texto: String(data.resposta ?? ""), links, lancar: !!data.rascunho }]);
+      // Pedido explícito de abrir: abre a tela e a conversa continua aberta ao lado (no celular, fecha para ver a tela).
+      if (abrir) irPara(abrir);
     } catch (e) {
       setMsgs((m) => [...m, { papel: "assistant", texto: e instanceof Error ? e.message : "Não consegui responder agora.", erro: true }]);
     } finally {
@@ -149,6 +156,11 @@ export function ControlIA({ flutuante = true }: { flutuante?: boolean }) {
               <SheetTitle className="text-base">ControlIA</SheetTitle>
               <p className="text-xs text-muted-foreground">Pergunte sobre qualquer parte do site. Só com os seus dados.</p>
             </div>
+            {msgs.length > 0 && (
+              <Button variant="ghost" size="sm" className="text-xs" onClick={() => setMsgs([])}>
+                Nova conversa
+              </Button>
+            )}
             <Button variant="ghost" size="icon" onClick={() => setAberto(false)} aria-label="Fechar">
               <X className="size-4" />
             </Button>
@@ -157,7 +169,7 @@ export function ControlIA({ flutuante = true }: { flutuante?: boolean }) {
             {msgs.length === 0 && (
               <div className="space-y-2">
                 <p className="text-sm text-muted-foreground">Exemplos:</p>
-                {["Quanto sobra este mês?", "Quais faturas vencem esta semana?", "Onde vejo minhas caixinhas?", "Abrir minha lista de compras"].map((s) => (
+                {["Quanto sobra este mês?", "Quais faturas vencem esta semana?", "Onde cadastro meus cartões?", "Abrir minha lista de compras"].map((s) => (
                   <button key={s} type="button" onClick={() => void enviar(s)} className="block w-full rounded-lg border px-3 py-2 text-left text-sm hover:bg-muted">
                     {s}
                   </button>
@@ -173,10 +185,7 @@ export function ControlIA({ flutuante = true }: { flutuante?: boolean }) {
                       <button
                         key={l.rota}
                         type="button"
-                        onClick={() => {
-                          setAberto(false);
-                          void navigate({ to: l.rota as never });
-                        }}
+                        onClick={() => irPara(l.rota)}
                         className="rounded-full border border-primary/40 bg-background px-2.5 py-1 text-xs font-medium text-primary hover:bg-primary/10"
                       >
                         {l.rotulo} →
@@ -258,6 +267,7 @@ function useContexto(ativo: boolean) {
       .map((p) => ({ descricao: p.despesa.descricao, vencimento: p.vencimento, valor: r2(toBRL(Number(p.valor), p.despesa.moeda, cotacao)) }));
     return {
       hoje,
+      plataforma: "site",
       telas: TELAS,
       dados: {
         mes,

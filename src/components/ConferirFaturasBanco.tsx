@@ -110,7 +110,7 @@ export function ConferirFaturasBanco() {
             {cartoesComMovimento.map((c: any) => (
               <div key={c.id} className="rounded-xl border p-3">
                 <div className="mb-2 flex items-center gap-2">
-                  <IconeBanco nome={String(c.bancos?.nome ?? c.apelido ?? "")} className="size-8 rounded-lg" />
+                  <IconeBanco nome={String(c.bancos?.nome ?? c.apelido ?? "")} bancoId={c.banco_id ?? null} className="size-8 rounded-lg" />
                   <p className="text-sm font-semibold">
                     {c.apelido} •{c.final}
                   </p>

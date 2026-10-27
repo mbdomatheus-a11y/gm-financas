@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { CampoCategoria } from "@/components/CampoCategoria";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -1895,15 +1896,12 @@ function DespesasPage() {
               </Select>
             </Field>
             <Field label="Categoria">
-              <SelectBusca
+              <CampoCategoria
+                tipo="despesa"
                 ariaLabel="Categoria da despesa"
-                placeholder="Selecione"
-                valor={form.categoria}
-                opcoes={categorias.map((c: any) => ({
-                  valor: c.nome as string,
-                  rotulo: c.nome as string,
-                }))}
-                onEscolher={(v) => setForm({ ...form, categoria: v })}
+                valor={form.categoria ?? ""}
+                categorias={categorias.map((c: any) => ({ nome: String(c.nome), cor: c.cor ?? null }))}
+                onChange={(v) => setForm({ ...form, categoria: v })}
               />
             </Field>
             <Field label="Tipo">

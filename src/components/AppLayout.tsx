@@ -44,7 +44,7 @@ import type { LucideIcon } from "lucide-react";
 import { Plus } from "lucide-react";
 import { Fragment } from "react";
 import { MenuUsuario } from "@/components/MenuUsuario";
-import { Paperclip } from "lucide-react";
+import { Pin } from "lucide-react";
 import { SincronizadorAgendaApp } from "@/components/SincronizadorAgendaApp";
 import { useIdioma } from "@/hooks/useIdioma";
 import type { ChaveTraducao } from "@/lib/i18n/traducoes";
@@ -685,13 +685,18 @@ export function AppLayout({
             type="button"
             onClick={alternarMenusFixos}
             aria-pressed={menusFixos}
-            title={menusFixos ? "Menus fixos abertos: clique para agrupar" : "Fixar todos os menus abertos"}
+            title={menusFixos ? "Menus fixados abertos: clique para soltar" : "Fixar os menus abertos (alfinete)"}
+            aria-label={menusFixos ? "Soltar menus fixados" : "Fixar menus abertos"}
             className={cn(
               "rounded-md p-1 transition-colors",
               menusFixos ? "bg-primary/15 text-primary" : "text-muted-foreground/70 hover:bg-muted hover:text-foreground",
             )}
           >
-            <Paperclip className="size-3.5" aria-hidden="true" />
+            {/* Alfinete: em pé quando fixado, deitado quando solto. */}
+            <Pin
+              className={cn("size-3.5 transition-transform", menusFixos ? "fill-current" : "rotate-45")}
+              aria-hidden="true"
+            />
           </button>
         </div>
       )}

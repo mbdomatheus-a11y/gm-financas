@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { CampoCategoria } from "@/components/CampoCategoria";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { ArrowDownLeft, ArrowUpRight, Check, EyeOff, Landmark, Sparkles, Trash2, Undo2, Zap } from "lucide-react";
@@ -18,7 +19,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { SelectBusca } from "@/components/SelectBusca";
 import { supabase } from "@/integrations/supabase/client";
 import { usePrivacidadeValores } from "@/hooks/usePrivacidadeValores";
 import { formatDate, monthLabelLong } from "@/lib/format";
@@ -123,21 +123,6 @@ export function contarSugestoesReceita(
   return lista.filter(
     (p) => p.situacao === "pendente" && sugerirParaPix(p, candidatosReceita(receitas, p.data)),
   ).length;
-}
-
-function useCriarCategoria(tipo: "receita" | "despesa") {
-  const qc = useQueryClient();
-  return async (nome: string) => {
-    const limpo = nome.replace(/\s+/g, " ").trim();
-    if (limpo.length < 2) return null;
-    const { error } = await supabase.from("categorias").insert({ nome: limpo, tipo } as any);
-    if (error && !String(error.message).includes("duplicate")) {
-      toast.error("Não foi possível criar a categoria.");
-      return null;
-    }
-    qc.invalidateQueries({ queryKey: ["categorias", tipo] });
-    return limpo;
-  };
 }
 
 /** Mês da tela (AAAA-MM) ou null para todos os meses. */
@@ -437,7 +422,6 @@ function DialogPixReceita({
   const qc = useQueryClient();
   const { formatar } = usePrivacidadeValores();
   const lancar = useServerFn(lancarPixComoReceita);
-  const criarCategoria = useCriarCategoria("receita");
   const candidatos = useMemo(() => candidatosReceita(receitas, pix.data), [receitas, pix.data]);
   const sugestao = useMemo(() => sugerirParaPix(pix, candidatos), [pix, candidatos]);
 
@@ -566,17 +550,12 @@ function DialogPixReceita({
               </div>
               <div className="space-y-1.5">
                 <Label>Categoria</Label>
-                <SelectBusca
+                <CampoCategoria
+                  tipo="receita"
                   ariaLabel="Categoria da receita"
-                  placeholder="Escolha ou crie uma categoria"
-                  valor={categoria || null}
-                  opcoes={categorias.map((c: any) => ({ valor: String(c.nome), rotulo: String(c.nome) }))}
-                  onEscolher={setCategoria}
-                  onCriar={async (texto) => {
-                    const nome = await criarCategoria(texto);
-                    if (nome) setCategoria(nome);
-                  }}
-                  rotuloCriar="Criar categoria"
+                  valor={categoria}
+                  categorias={categorias.map((c: any) => ({ nome: String(c.nome), cor: c.cor ?? null }))}
+                  onChange={setCategoria}
                 />
               </div>
               {tipoNova === "fixa" && (
@@ -717,7 +696,6 @@ function DialogPixDespesa({
   const qc = useQueryClient();
   const { formatar } = usePrivacidadeValores();
   const lancar = useServerFn(lancarPixComoDespesa);
-  const criarCategoria = useCriarCategoria("despesa");
   const candidatos = useMemo(() => candidatosDespesa(despesas, pix.data), [despesas, pix.data]);
   const sugestao = useMemo(() => sugerirParaPix(pix, candidatos), [pix, candidatos]);
   const [escolha, setEscolha] = useState<string>(sugestao ? sugestao.item.id : "nova");
@@ -808,17 +786,12 @@ function DialogPixDespesa({
               </div>
               <div className="space-y-1.5">
                 <Label>Categoria</Label>
-                <SelectBusca
+                <CampoCategoria
+                  tipo="despesa"
                   ariaLabel="Categoria da despesa"
-                  placeholder="Escolha ou crie uma categoria"
-                  valor={categoria || null}
-                  opcoes={categorias.map((c: any) => ({ valor: String(c.nome), rotulo: String(c.nome) }))}
-                  onEscolher={setCategoria}
-                  onCriar={async (texto) => {
-                    const nome = await criarCategoria(texto);
-                    if (nome) setCategoria(nome);
-                  }}
-                  rotuloCriar="Criar categoria"
+                  valor={categoria}
+                  categorias={categorias.map((c: any) => ({ nome: String(c.nome), cor: c.cor ?? null }))}
+                  onChange={setCategoria}
                 />
               </div>
             </div>

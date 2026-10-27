@@ -17,12 +17,18 @@ const BANCOS: { teste: RegExp; sigla: string; cor: string; texto?: string }[] = 
   { teste: /\bxp\b/i, sigla: "XP", cor: "#111111" },
   { teste: /sicoob/i, sigla: "Sc", cor: "#00A091" },
   { teste: /sicredi/i, sigla: "Si", cor: "#3FA110" },
+  { teste: /pernambucanas/i, sigla: "Pe", cor: "#E30613" },
+  { teste: /riachuelo|midway|\brcl\b/i, sigla: "Ri", cor: "#1A1A1A" },
+  { teste: /neon/i, sigla: "Ne", cor: "#00E5FF", texto: "#0B1F33" },
+  { teste: /pagbank|pagseguro/i, sigla: "Pg", cor: "#1BB99A" },
+  { teste: /safra/i, sigla: "Sf", cor: "#0B2240" },
+  { teste: /original/i, sigla: "Or", cor: "#00A859" },
 ];
 
-export function visualDoBanco(nome: string | null | undefined): { sigla: string; cor: string; texto: string } {
+export function visualDoBanco(nome: string | null | undefined): { sigla: string; cor: string; texto: string; conhecido: boolean } {
   const n = String(nome ?? "");
   const b = BANCOS.find((x) => x.teste.test(n));
-  if (b) return { sigla: b.sigla, cor: b.cor, texto: b.texto ?? "#FFFFFF" };
+  if (b) return { sigla: b.sigla, cor: b.cor, texto: b.texto ?? "#FFFFFF", conhecido: true };
   const sigla = n.replace(/[^A-Za-zÀ-ÿ0-9 ]/g, "").trim().slice(0, 2) || "$";
-  return { sigla, cor: "#64748B", texto: "#FFFFFF" };
+  return { sigla, cor: "#64748B", texto: "#FFFFFF", conhecido: false };
 }

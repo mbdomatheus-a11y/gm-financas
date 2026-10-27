@@ -511,3 +511,43 @@ export const excluirRegraPix = createServerFn({ method: "POST" })
     if (!apagada?.length) throw new Error("Regra não encontrada.");
     return { ok: true as const };
   });
+
+/**
+ * Logos oficiais dos bancos conectados do grupo (imagem do conector na Pluggy), para o
+ * ícone de banco do site inteiro (cartões, despesas, conferência). 27/10/2026.
+ * Só devolve bancos do grupo de quem pede.
+ */
+export const logosDosBancos = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<{ bancoId: string | null; nome: string; logo: string }[]> => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const db = supabaseAdmin as any;
+    const grupoId = await grupoDe(db, context.userId);
+    if (!grupoId) return [];
+    const { data: contas } = await db
+      .from("pluggy_contas")
+      .select("banco_id, item_id, nome")
+      .eq("grupo_id", grupoId)
+      .eq("ativo", true);
+    const lista = (contas ?? []) as { banco_id: string | null; item_id: string; nome: string | null }[];
+    if (!lista.length) return [];
+    const bancoIds = [...new Set(lista.map((c) => c.banco_id).filter(Boolean))] as string[];
+    const nomes = new Map<string, string>();
+    if (bancoIds.length) {
+      const { data: bancos } = await db.from("bancos").select("id, nome").in("id", bancoIds);
+      for (const b of bancos ?? []) nomes.set(String(b.id), String(b.nome));
+    }
+    const logos = await logosDosItens(lista.map((c) => c.item_id));
+    const vistos = new Set<string>();
+    const out: { bancoId: string | null; nome: string; logo: string }[] = [];
+    for (const c of lista) {
+      const logo = logos.get(c.item_id);
+      if (!logo) continue;
+      const nome = (c.banco_id && nomes.get(c.banco_id)) || c.nome || "";
+      const chave = `${c.banco_id ?? ""}|${nome}`;
+      if (vistos.has(chave)) continue;
+      vistos.add(chave);
+      out.push({ bancoId: c.banco_id, nome, logo });
+    }
+    return out;
+  });
