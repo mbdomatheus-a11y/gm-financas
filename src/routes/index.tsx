@@ -1,5 +1,5 @@
 import { AppEmBreve } from "@/components/AppEmBreve";
-import { DestaqueAndroid } from "@/components/BetaTestFlight";
+import { DestaquesBeta } from "@/components/BetaTestFlight";
 import { BannerOfertaHome } from "@/components/BannerOfertaHome";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
@@ -430,8 +430,8 @@ function LandingPage() {
       />
       <BannerOfertaHome />
       <SiteHeader home />
-      <div className="mx-auto max-w-6xl px-4 pt-4 empty:hidden">
-        <DestaqueAndroid />
+      <div className="mx-auto max-w-6xl px-4 pt-4">
+        <DestaquesBeta />
       </div>
       <EconomiaTotalBanner />
 

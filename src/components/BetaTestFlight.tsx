@@ -167,57 +167,145 @@ export function InstrucoesAndroid({ aberto, onOpenChange }: { aberto: boolean; o
   );
 }
 
+/** Faixa de destaque de um beta (28/10/2026): mesmo desenho para Android e iPhone. */
+function FaixaBeta({
+  className,
+  fundo,
+  icone,
+  selo,
+  titulo,
+  texto,
+  rotuloBotao,
+  iconeBotao,
+  corBotao,
+  href,
+  onAbrir,
+  esgotado,
+  evento,
+}: {
+  className?: string | undefined;
+  fundo: string;
+  icone: React.ReactNode;
+  selo: string;
+  titulo: string;
+  texto: string;
+  rotuloBotao: string;
+  iconeBotao: React.ReactNode;
+  corBotao: string;
+  href: string;
+  onAbrir?: (() => void) | undefined;
+  esgotado?: boolean | undefined;
+  evento: string;
+}) {
+  const classeBotao = cn(
+    "inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold shadow-sm transition hover:bg-white/90 disabled:opacity-60",
+    corBotao,
+  );
+  const conteudoBotao = (
+    <>
+      {iconeBotao} {esgotado ? "Vagas esgotadas" : rotuloBotao}
+    </>
+  );
+  return (
+    <section className={cn("native:hidden relative flex-1 overflow-hidden rounded-2xl p-4 text-white shadow-lg", fundo, className)}>
+      <div className="pointer-events-none absolute -right-10 -top-10 size-40 rounded-full bg-white/10 blur-2xl" />
+      <div className="relative flex h-full flex-col gap-3 sm:flex-row sm:items-center">
+        <span className="relative flex size-14 shrink-0 items-center justify-center self-start rounded-2xl bg-white shadow-md ring-2 ring-white/60 sm:self-center">
+          <span className="absolute inset-0 animate-ping rounded-2xl bg-white/40 [animation-duration:2.5s]" />
+          {icone}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-white/75">{selo}</p>
+          <p className="text-base font-semibold leading-snug">{titulo}</p>
+          <p className="text-sm text-white/85">{texto}</p>
+        </div>
+        {onAbrir ? (
+          <button
+            type="button"
+            className={classeBotao}
+            disabled={esgotado}
+            onClick={() => {
+              registrarEventoUso(evento);
+              onAbrir();
+            }}
+          >
+            {conteudoBotao}
+          </button>
+        ) : esgotado ? (
+          <span className={classeBotao}>{conteudoBotao}</span>
+        ) : (
+          <a href={href} className={classeBotao} onClick={() => registrarEventoUso(evento)}>
+            {conteudoBotao}
+          </a>
+        )}
+      </div>
+    </section>
+  );
+}
+
 /**
  * Destaque do beta Android (28/10/2026): faixa verde no topo da página inicial pública e do Início,
  * só quando o admin abre as vagas (configuracoes_acesso_site.beta_android_aberto).
  * Na página pública leva para /inicio?beta=android (o login devolve para lá); no Início abre o passo a passo.
  */
-export function DestaqueAndroid({ className, href, onAbrir }: { className?: string; href?: string; onAbrir?: () => void }) {
+export function DestaqueAndroid({ className, onAbrir }: { className?: string; onAbrir?: () => void }) {
   const obterConfig = useServerFn(obterConfiguracaoAcesso);
   const { data: config } = useQuery({ queryKey: ["configuracao-acesso-publica"], queryFn: () => obterConfig(), staleTime: 60_000 });
   const aberto = Boolean(config?.beta_android_aberto);
   const { data: usadas } = useQuery({ queryKey: ["vagas-beta-android"], queryFn: vagasUsadasAndroid, enabled: aberto, staleTime: 60_000 });
   if (!aberto) return null;
   const restantes = usadas == null ? null : Math.max(0, LIMITE_BETA_ANDROID - usadas);
-  const textoVagas = restantes == null ? `${LIMITE_BETA_ANDROID} vagas` : restantes > 0 ? `${restantes} de ${LIMITE_BETA_ANDROID} vagas livres` : "Vagas esgotadas";
-  const botao = (
-    <>
-      <IconeAndroid className="size-5" /> Quero testar no Android
-    </>
-  );
-  const classeBotao =
-    "inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-emerald-700 shadow-sm transition hover:bg-emerald-50";
+  const vagas = restantes == null ? `${LIMITE_BETA_ANDROID} vagas` : restantes > 0 ? `${restantes} de ${LIMITE_BETA_ANDROID} vagas livres` : "Vagas esgotadas";
   return (
-    <section
-      className={cn(
-        "native:hidden relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-600 via-emerald-500 to-green-500 p-4 text-white shadow-lg shadow-emerald-500/20",
-        className,
-      )}
-    >
-      <div className="pointer-events-none absolute -right-10 -top-10 size-40 rounded-full bg-white/10 blur-2xl" />
-      <div className="relative flex flex-col gap-3 sm:flex-row sm:items-center">
-        <span className="relative flex size-14 shrink-0 items-center justify-center self-start rounded-2xl bg-white shadow-md ring-2 ring-white/60 sm:self-center">
-          <span className="absolute inset-0 animate-ping rounded-2xl bg-white/40 [animation-duration:2.5s]" />
-          <IconeAndroid className="relative size-9 text-[#3DDC84]" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-100">Novo · Beta aberto</p>
-          <p className="text-base font-semibold sm:text-lg">O app Control ALL para Android está disponível para testar</p>
-          <p className="text-sm text-emerald-50">
-            Instale pela Google Play, use no dia a dia e ajude a lançar o app para todos. {textoVagas}.
-          </p>
-        </div>
-        {onAbrir ? (
-          <button type="button" className={classeBotao} disabled={restantes === 0} onClick={onAbrir}>
-            {botao}
-          </button>
-        ) : (
-          <a href={href ?? "/inicio?beta=android"} className={classeBotao} onClick={() => registrarEventoUso("aviso-beta/android-home")}>
-            {botao}
-          </a>
-        )}
-      </div>
-    </section>
+    <FaixaBeta
+      className={className}
+      fundo="bg-gradient-to-r from-emerald-600 via-emerald-500 to-green-500 shadow-emerald-500/20"
+      icone={<IconeAndroid className="relative size-9 text-[#3DDC84]" />}
+      selo="Novo · Beta aberto no Android"
+      titulo="O app Control ALL para Android está disponível para testar"
+      texto={`Instale pela Google Play e ajude a lançar o app para todos. ${vagas}.`}
+      rotuloBotao="Quero testar no Android"
+      iconeBotao={<IconeAndroid className="size-5" />}
+      corBotao="text-emerald-700"
+      href="/inicio?beta=android"
+      onAbrir={onAbrir}
+      esgotado={restantes === 0}
+      evento={onAbrir ? "aviso-beta/android-destaque-inicio" : "aviso-beta/android-home"}
+    />
+  );
+}
+
+/** Destaque do beta do iPhone, iPad e Mac (TestFlight), no mesmo desenho da faixa do Android. */
+export function DestaqueIos({ className, onAbrir }: { className?: string; onAbrir?: () => void }) {
+  const { data } = useQuery({ queryKey: ["vagas-beta-testflight"], queryFn: () => vagasDoBeta(), staleTime: 10 * 60 * 1000 });
+  const limite = data?.limite ?? 50;
+  const lotado = data?.estado === "lotado";
+  return (
+    <FaixaBeta
+      className={className}
+      fundo="bg-gradient-to-r from-zinc-900 via-slate-800 to-sky-800 shadow-sky-900/20"
+      icone={<Apple className="relative size-8 text-zinc-900" />}
+      selo="Novo · Beta aberto no iPhone, iPad e Mac"
+      titulo="O app Control ALL para iPhone está disponível para testar"
+      texto={`Instale pelo TestFlight da Apple e ajude a lançar o app na App Store. Limite de ${limite} testadores.`}
+      rotuloBotao="Quero testar no iPhone"
+      iconeBotao={<Apple className="size-5" />}
+      corBotao="text-zinc-900"
+      href="/inicio?beta=ios"
+      onAbrir={onAbrir}
+      esgotado={lotado}
+      evento={onAbrir ? "aviso-beta/ios-destaque-inicio" : "aviso-beta/ios-home"}
+    />
+  );
+}
+
+/** As duas faixas lado a lado (no celular, uma embaixo da outra). */
+export function DestaquesBeta({ className, onIos, onAndroid }: { className?: string; onIos?: () => void; onAndroid?: () => void }) {
+  return (
+    <div className={cn("native:hidden flex flex-col gap-3 lg:flex-row", className)}>
+      <DestaqueAndroid {...(onAndroid ? { onAbrir: onAndroid } : {})} />
+      <DestaqueIos {...(onIos ? { onAbrir: onIos } : {})} />
+    </div>
   );
 }
 
@@ -285,13 +373,7 @@ export function BetaTestFlight({ className }: { className?: string }) {
   }, []);
   return (
     <>
-      <DestaqueAndroid
-        className="mb-4"
-        onAbrir={() => {
-          registrarEventoUso("aviso-beta/android-destaque-inicio");
-          setAndroid(true);
-        }}
-      />
+      <DestaquesBeta className="mb-4" onAndroid={() => setAndroid(true)} onIos={() => setAberto(true)} />
       <CardBeta
         className={cn("native:hidden", className)}
         onQueroTestar={() => {
