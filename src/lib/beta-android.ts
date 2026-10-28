@@ -8,8 +8,8 @@ import { supabase } from "@/integrations/supabase/client";
  * Administração > Avisos dispensáveis (coluna configuracoes_acesso_site.beta_android_aberto).
  */
 export const LIMITE_BETA_ANDROID = 50;
-export const LINK_GRUPO_ANDROID = "https://groups.google.com/g/controlall-testadores";
-export const LINK_TESTE_ANDROID = "https://play.google.com/apps/testing/com.matheus.controlall";
+export const LINK_GRUPO_ANDROID = "https://groups.google.com/g/controlall-testadores?hl=pt-BR";
+export const LINK_TESTE_ANDROID = "https://play.google.com/apps/testing/com.matheus.controlall?hl=pt-BR";
 
 export async function vagasUsadasAndroid(): Promise<number | null> {
   const { data, error } = await (supabase as any).rpc("vagas_beta_android");
