@@ -1,13 +1,16 @@
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { Play, Smartphone } from "lucide-react";
+import { obterConfiguracaoAcesso } from "@/lib/configuracoes-site.functions";
 import { LINK_TESTFLIGHT } from "@/lib/testflight.functions";
 import { MacaBeta } from "@/components/BetaTestFlight";
 import { cn } from "@/lib/utils";
 
-function Loja({ icone, pequeno, nome, href }: { icone: React.ReactNode; pequeno: string; nome: string; href?: string }) {
+function Loja({ icone, pequeno, nome, href, mesmaAba }: { icone: React.ReactNode; pequeno: string; nome: string; href?: string; mesmaAba?: boolean }) {
   const Tag: any = href ? "a" : "div";
   return (
     <Tag
-      {...(href ? { href, target: "_blank", rel: "noreferrer" } : {})}
+      {...(href ? (mesmaAba ? { href } : { href, target: "_blank", rel: "noreferrer" }) : {})}
       className={cn("flex items-center gap-2.5 rounded-xl border border-border bg-foreground px-4 py-2 text-background", href ? "transition-opacity hover:opacity-80" : "opacity-90")}
       aria-label={href ? `${nome}: abrir convite do beta` : `${nome}: em breve`}
     >
@@ -22,6 +25,9 @@ function Loja({ icone, pequeno, nome, href }: { icone: React.ReactNode; pequeno:
 
 /** Aviso de que o aplicativo do Control ALL para celular está a caminho. */
 export function AppEmBreve({ className }: { className?: string }) {
+  const obterConfig = useServerFn(obterConfiguracaoAcesso);
+  const { data: config } = useQuery({ queryKey: ["configuracao-acesso-publica"], queryFn: () => obterConfig(), staleTime: 60_000 });
+  const android = Boolean(config?.beta_android_aberto);
   return (
     <section
       className={cn(
@@ -33,15 +39,21 @@ export function AppEmBreve({ className }: { className?: string }) {
         <Smartphone className="size-6" />
       </span>
       <div className="flex-1">
-        <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">Beta aberto no iPhone, iPad e Mac</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">{android ? "Beta aberto no iPhone, iPad, Mac e Android" : "Beta aberto no iPhone, iPad e Mac"}</p>
         <h2 className="text-lg font-semibold">Um novo app para você</h2>
         <p className="text-sm text-muted-foreground">
-          O app do Control ALL já está em teste pelo TestFlight. Android em breve.
+          {android
+            ? "O app do Control ALL já está em teste pelo TestFlight e pela Google Play (50 vagas em cada)."
+            : "O app do Control ALL já está em teste pelo TestFlight. Android em breve."}
         </p>
       </div>
       <div className="flex flex-wrap justify-center gap-2">
         <Loja icone={<MacaBeta className="size-8" />} pequeno="Beta no" nome="TestFlight" href={LINK_TESTFLIGHT} />
-        <Loja icone={<Play className="size-5" />} pequeno="Em breve no" nome="Google Play" />
+        {android ? (
+          <Loja icone={<Play className="size-5" />} pequeno="Beta no" nome="Google Play" href="/inicio?beta=android" mesmaAba />
+        ) : (
+          <Loja icone={<Play className="size-5" />} pequeno="Em breve no" nome="Google Play" />
+        )}
       </div>
     </section>
   );

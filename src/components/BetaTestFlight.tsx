@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Apple, ExternalLink, Laptop, Smartphone, Tablet, X } from "lucide-react";
+import { Apple, ExternalLink, Laptop, Loader2, Smartphone, Tablet, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,14 @@ import { useAvisoDispensado } from "@/lib/avisos-dispensados";
 import { obterConfiguracaoAcesso } from "@/lib/configuracoes-site.functions";
 import { registrarEventoUso } from "@/lib/registrar-uso";
 import { LINK_TESTFLIGHT, vagasDoBeta } from "@/lib/testflight.functions";
+import {
+  LIMITE_BETA_ANDROID,
+  LINK_GRUPO_ANDROID,
+  LINK_TESTE_ANDROID,
+  reservarVagaAndroid,
+  vagasUsadasAndroid,
+  type ResultadoReserva,
+} from "@/lib/beta-android";
 import { cn } from "@/lib/utils";
 
 const LOJA_TESTFLIGHT = "https://apps.apple.com/br/app/testflight/id899247664";
@@ -79,15 +87,98 @@ export function InstrucoesBeta({ aberto, onOpenChange }: { aberto: boolean; onOp
   );
 }
 
+/** Robô verde do Android (desenho simples, sem marca). */
+function IconeAndroid({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={cn("size-4", className)} aria-hidden="true" fill="currentColor">
+      <path d="M6 9h12v8a1 1 0 0 1-1 1h-1v3h-2v-3h-4v3H8v-3H7a1 1 0 0 1-1-1V9Zm-3 0h2v6H3V9Zm16 0h2v6h-2V9ZM7.5 3.2l1 1.6A6 6 0 0 1 12 4a6 6 0 0 1 3.5.8l1-1.6.8.5-1 1.6A5.5 5.5 0 0 1 18 8H6a5.5 5.5 0 0 1 1.7-2.7l-1-1.6.8-.5ZM9.5 6a.6.6 0 1 0 0 1.2.6.6 0 0 0 0-1.2Zm5 0a.6.6 0 1 0 0 1.2.6.6 0 0 0 0-1.2Z" />
+    </svg>
+  );
+}
+
+/** Passo a passo do beta no Android (Google Play), com reserva de vaga (limite de 50). */
+export function InstrucoesAndroid({ aberto, onOpenChange }: { aberto: boolean; onOpenChange: (v: boolean) => void }) {
+  const obterConfig = useServerFn(obterConfiguracaoAcesso);
+  const { data: config } = useQuery({ queryKey: ["configuracao-acesso-publica"], queryFn: () => obterConfig(), staleTime: 60_000, enabled: aberto });
+  const BETA_ANDROID_ABERTO = Boolean(config?.beta_android_aberto);
+  const { data: usadas, refetch } = useQuery({ queryKey: ["vagas-beta-android"], queryFn: vagasUsadasAndroid, enabled: aberto, staleTime: 60_000 });
+  const [reserva, setReserva] = useState<ResultadoReserva | null>(null);
+  const [reservando, setReservando] = useState(false);
+  const restantes = usadas == null ? null : Math.max(0, LIMITE_BETA_ANDROID - usadas);
+  const liberado = reserva === "reservada" || reserva === "ja_reservada";
+
+  async function reservar() {
+    setReservando(true);
+    const r = await reservarVagaAndroid();
+    setReserva(r);
+    setReservando(false);
+    registrarEventoUso(`aviso-beta/android-${r}`);
+    void refetch();
+  }
+
+  return (
+    <Dialog open={aberto} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Control All Beta no Android</DialogTitle>
+          <DialogDescription>Teste o app no celular Android pela Google Play.</DialogDescription>
+        </DialogHeader>
+        {!BETA_ANDROID_ABERTO ? (
+          <p className="rounded-lg bg-muted/50 p-3 text-sm">
+            O teste no Android está em análise no Google. Assim que for liberado, as vagas abrem aqui.
+          </p>
+        ) : (
+          <>
+            <p className="text-sm text-muted-foreground">
+              {restantes == null ? `Limite de ${LIMITE_BETA_ANDROID} testadores.` : restantes > 0 ? `${restantes} de ${LIMITE_BETA_ANDROID} vagas disponíveis.` : "Vagas esgotadas."}
+            </p>
+            <ol className="list-decimal space-y-2 pl-5 text-sm">
+              <li>Reserve a sua vaga (uma por conta do Control ALL).</li>
+              <li>
+                Entre no grupo de testadores com a <strong>mesma conta Google</strong> do seu celular Android (toque em "Participar do grupo").
+              </li>
+              <li>Abra o link do teste, toque em <strong>Tornar-se testador</strong> e depois em <strong>baixar na Google Play</strong>.</li>
+              <li>Fique no teste por pelo menos 14 dias: é o que libera o app para todos.</li>
+            </ol>
+            {reserva === "lotado" && <p className="text-sm font-medium text-red-600">As 50 vagas acabaram. Avisaremos quando abrir para todos.</p>}
+            {(reserva === "erro" || reserva === "sem_login") && <p className="text-sm text-red-600">Não consegui reservar agora. Entre na sua conta e tente de novo.</p>}
+            {!liberado ? (
+              <Button className="bg-emerald-600 text-white hover:bg-emerald-700" disabled={reservando || restantes === 0} onClick={() => void reservar()}>
+                {reservando ? <Loader2 className="size-4 animate-spin" /> : null} Reservar minha vaga
+              </Button>
+            ) : (
+              <div className="grid gap-2 sm:grid-cols-2">
+                <Button asChild variant="outline">
+                  <a href={LINK_GRUPO_ANDROID} target="_blank" rel="noreferrer" onClick={() => registrarEventoUso("aviso-beta/android-grupo")}>
+                    1. Entrar no grupo <ExternalLink className="size-4" />
+                  </a>
+                </Button>
+                <Button asChild className="bg-emerald-600 text-white hover:bg-emerald-700">
+                  <a href={LINK_TESTE_ANDROID} target="_blank" rel="noreferrer" onClick={() => registrarEventoUso("aviso-beta/android-teste")}>
+                    2. Aceitar o teste <ExternalLink className="size-4" />
+                  </a>
+                </Button>
+              </div>
+            )}
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 /** Card do beta (o formato que aparece para o usuário). */
 export function CardBeta({
   className,
   onQueroTestar,
+  onAndroid,
   rodape,
   onFechar,
 }: {
   className?: string;
   onQueroTestar: () => void;
+  /** Botão do Android (abre o passo a passo do Google Play). */
+  onAndroid?: () => void;
   rodape?: React.ReactNode;
   onFechar?: () => void;
 }) {
@@ -103,12 +194,21 @@ export function CardBeta({
         <MacaBeta />
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold">Control All Beta</p>
-          <p className="text-xs text-muted-foreground">Teste o app no iPhone, iPad e Mac pelo TestFlight. Limite de {limite} testadores.</p>
+          <p className="text-xs text-muted-foreground">
+            Teste o app no iPhone, iPad e Mac pelo TestFlight{onAndroid ? " ou no Android pela Google Play" : ""}. Limite de {limite} testadores{onAndroid ? " em cada" : ""}.
+          </p>
           <span className={cn("mt-1.5 inline-block rounded-full px-2 py-0.5 text-[11px] font-medium", cor)}>{rotulo}</span>
         </div>
-        <Button className="shrink-0 bg-emerald-600 text-white hover:bg-emerald-700" onClick={onQueroTestar}>
-          Quero testar
-        </Button>
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <Button className="bg-emerald-600 text-white hover:bg-emerald-700" onClick={onQueroTestar}>
+            <Apple className="size-4" /> {onAndroid ? "iPhone" : "Quero testar"}
+          </Button>
+          {onAndroid && (
+            <Button variant="outline" className="border-emerald-600/50 text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400" onClick={onAndroid}>
+              <IconeAndroid /> Android
+            </Button>
+          )}
+        </div>
       </div>
       {rodape}
     </section>
@@ -118,6 +218,17 @@ export function CardBeta({
 /** Card fixo do beta na Início do site. No app não aparece (lá o próprio app já é o beta). */
 export function BetaTestFlight({ className }: { className?: string }) {
   const [aberto, setAberto] = useState(false);
+  const [android, setAndroid] = useState(false);
+  // Link da página inicial pública ("Beta no Google Play") traz ?beta=android: abre o passo a passo direto.
+  useEffect(() => {
+    try {
+      const p = new URLSearchParams(window.location.search);
+      if (p.get("beta") === "android") setAndroid(true);
+      else if (p.get("beta") === "ios") setAberto(true);
+    } catch {
+      // sem URL (render no servidor)
+    }
+  }, []);
   return (
     <>
       <CardBeta
@@ -126,8 +237,13 @@ export function BetaTestFlight({ className }: { className?: string }) {
           registrarEventoUso("aviso-beta/quero-testar");
           setAberto(true);
         }}
+        onAndroid={() => {
+          registrarEventoUso("aviso-beta/quero-testar-android");
+          setAndroid(true);
+        }}
       />
       <InstrucoesBeta aberto={aberto} onOpenChange={setAberto} />
+      <InstrucoesAndroid aberto={android} onOpenChange={setAndroid} />
     </>
   );
 }
@@ -144,6 +260,7 @@ export function AvisoBetaApp({ bloqueado = false, onVisibilityChange }: { bloque
   const [visivel, setVisivel] = useState(false);
   const [naoMostrar, setNaoMostrar] = useState(false);
   const [instrucoes, setInstrucoes] = useState(false);
+  const [android, setAndroid] = useState(false);
   const rodada = Number(config?.rodada_aviso_beta ?? 0);
 
   useEffect(() => {
@@ -182,6 +299,12 @@ export function AvisoBetaApp({ bloqueado = false, onVisibilityChange }: { bloque
               setVisivel(false);
               setInstrucoes(true);
             }}
+            onAndroid={() => {
+              registrarEventoUso("aviso-beta/quero-testar-android");
+              if (naoMostrar) void dispensar(rodada);
+              setVisivel(false);
+              setAndroid(true);
+            }}
             rodape={
               <label className="mt-3 flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
                 <Checkbox checked={naoMostrar} onCheckedChange={(v) => setNaoMostrar(v === true)} />
@@ -192,6 +315,7 @@ export function AvisoBetaApp({ bloqueado = false, onVisibilityChange }: { bloque
         </div>
       )}
       <InstrucoesBeta aberto={instrucoes} onOpenChange={setInstrucoes} />
+      <InstrucoesAndroid aberto={android} onOpenChange={setAndroid} />
     </>
   );
 }

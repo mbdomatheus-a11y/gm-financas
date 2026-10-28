@@ -28,7 +28,7 @@ export const obterConfiguracaoAcesso = createServerFn({ method: "GET" }).handler
   const { data, error } = await (supabaseAdmin as any)
     .from("configuracoes_acesso_site")
     .select(
-      "modo_login,segundo_fator_email,sessao_maxima_minutos,cota_convites,google_drive_habilitado,cadastro_livre_habilitado,tela_inicial_padrao,rodada_aviso_convite,rodada_aviso_privacidade,rodada_aviso_beta",
+      "modo_login,segundo_fator_email,sessao_maxima_minutos,cota_convites,google_drive_habilitado,cadastro_livre_habilitado,tela_inicial_padrao,rodada_aviso_convite,rodada_aviso_privacidade,rodada_aviso_beta,beta_android_aberto",
     )
     .eq("id", true)
     .single();
@@ -36,7 +36,10 @@ export const obterConfiguracaoAcesso = createServerFn({ method: "GET" }).handler
   return {
     ...data,
     cadastro_livre_habilitado: data.cadastro_livre_habilitado ?? true,
+    beta_android_aberto: data.beta_android_aberto ?? false,
   } as {
+    /** Vagas do beta Android abertas no site (o admin liga quando o Google aprova o teste fechado). */
+    beta_android_aberto: boolean;
     modo_login: "cpf" | "email" | "ambos";
     segundo_fator_email: boolean;
     sessao_maxima_minutos: number;
@@ -131,6 +134,23 @@ export const adminAlternarGoogleDriveNotas = createServerFn({ method: "POST" })
       acao: "google_drive_notas_alternado",
       detalhes: { habilitado: data.habilitado },
     });
+    return { ok: true as const };
+  });
+
+/** Abre ou fecha as vagas do beta Android no site (28/10/2026). */
+export const adminAlternarBetaAndroid = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((v: unknown) => z.object({ aberto: z.boolean() }).parse(v))
+  .handler(async ({ data, context }) => {
+    await exigirAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const db = supabaseAdmin as any;
+    const { error } = await db
+      .from("configuracoes_acesso_site")
+      .update({ beta_android_aberto: data.aberto, atualizado_em: new Date().toISOString(), atualizado_por: context.userId })
+      .eq("id", true);
+    if (error) throw new Error(error.message);
+    await db.from("admin_audit_logs").insert({ ator_id: context.userId, acao: "beta_android_alternado", detalhes: { aberto: data.aberto } });
     return { ok: true as const };
   });
 

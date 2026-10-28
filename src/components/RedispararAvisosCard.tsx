@@ -5,7 +5,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { adminRedispararAviso, obterConfiguracaoAcesso } from "@/lib/configuracoes-site.functions";
+import { adminAlternarBetaAndroid, adminRedispararAviso, obterConfiguracaoAcesso } from "@/lib/configuracoes-site.functions";
 
 /**
  * Avisos que a pessoa dispensa uma vez e não vê mais (convite de amigos e aviso de cookies).
@@ -15,6 +15,15 @@ export function RedispararAvisosCard() {
   const qc = useQueryClient();
   const obterFn = useServerFn(obterConfiguracaoAcesso);
   const redispararFn = useServerFn(adminRedispararAviso);
+  const betaAndroidFn = useServerFn(adminAlternarBetaAndroid);
+  const betaAndroid = useMutation({
+    mutationFn: (aberto: boolean) => betaAndroidFn({ data: { aberto } }),
+    onSuccess: (_r, aberto) => {
+      toast.success(aberto ? "Vagas do beta Android abertas no site (limite de 50)." : "Beta Android fechado no site.");
+      void qc.invalidateQueries({ queryKey: ["configuracao-acesso-publica"] });
+    },
+    onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Não foi possível alterar."),
+  });
   const { data: config } = useQuery({
     queryKey: ["configuracao-acesso-publica"],
     queryFn: () => obterFn(),
@@ -56,6 +65,13 @@ export function RedispararAvisosCard() {
             {Number(config?.rodada_aviso_beta ?? 0) > 0
               ? `Disparar de novo o aviso do app beta (rodada atual ${config?.rodada_aviso_beta})`
               : "Disparar aviso do app beta (TestFlight)"}
+          </Button>
+          <Button
+            variant={config?.beta_android_aberto ? "outline" : "default"}
+            disabled={betaAndroid.isPending}
+            onClick={() => betaAndroid.mutate(!config?.beta_android_aberto)}
+          >
+            {config?.beta_android_aberto ? "Fechar vagas do beta Android" : "Abrir vagas do beta Android (Google Play, 50 vagas)"}
           </Button>
           <Button
             variant="outline"
