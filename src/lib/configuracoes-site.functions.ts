@@ -377,3 +377,33 @@ export const verificarPinAdmin = createServerFn({ method: "POST" })
     const valido = digitadoHash === row.valor;
     return { valido, semPinConfigurado: false };
   });
+
+/**
+ * Admin: redefine os avisos de um usuário (ou de todos) para aparecerem de novo (28/10/2026, para
+ * gravar vídeos). Apaga o que fica na conta (avisos dispensados e tour concluído) e registra um
+ * pedido em avisos_redefinicoes; o site e o app limpam o que fica no aparelho na próxima abertura.
+ */
+export const adminRedefinirAvisosUsuario = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((v: unknown) => z.object({ alvo: z.union([z.literal("todos"), z.string().uuid()]) }).parse(v))
+  .handler(async ({ data, context }) => {
+    await exigirAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const db = supabaseAdmin as any;
+    const todos = data.alvo === "todos";
+    const filtrar = (q: any) => (todos ? q.not("user_id", "is", null) : q.eq("user_id", data.alvo));
+    const { error: erroDispensados } = await filtrar(db.from("avisos_dispensados").delete());
+    if (erroDispensados) throw new Error(erroDispensados.message);
+    const { error: erroTour } = await filtrar(db.from("tour_concluido").delete());
+    if (erroTour) throw new Error(erroTour.message);
+    const { error } = await db
+      .from("avisos_redefinicoes")
+      .insert({ alvo_user_id: todos ? null : data.alvo, criado_por: context.userId });
+    if (error) throw new Error(error.message);
+    await db.from("admin_audit_logs").insert({
+      ator_id: context.userId,
+      acao: "avisos_redefinidos",
+      detalhes: { alvo: data.alvo },
+    });
+    return { ok: true as const };
+  });

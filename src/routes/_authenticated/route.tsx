@@ -16,7 +16,8 @@ import { IdiomaProvider } from "@/hooks/useIdioma";
 import { ExclusaoAgendadaModal } from "@/components/ExclusaoAgendadaModal";
 import { BoasVindasExemplos } from "@/components/BoasVindasExemplos";
 import { PrimeirosPassos } from "@/components/retencao/PrimeirosPassos";
-import { useModulosGlobais, type ModuloGlobal } from "@/hooks/useAuthData";
+import { useModulosGlobais, useSession, type ModuloGlobal } from "@/hooks/useAuthData";
+import { useAplicarRedefinicaoAvisos } from "@/lib/redefinir-avisos";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -75,6 +76,9 @@ function Protegido() {
   const [exemplosAberto, setExemplosAberto] = useState(false);
   const [primeirosPassos, setPrimeirosPassos] = useState(false);
   const [betaAberto, setBetaAberto] = useState(false);
+  const { user } = useSession();
+  // Admin pode redefinir os avisos (para gravar vídeos): limpa o "já vi" guardado neste navegador.
+  useAplicarRedefinicaoAvisos(user?.id);
   useEffect(() => {
     const modulo = MODULO_POR_ROTA[pathname];
     if (!isLoading && modulo && !habilitado(modulo))
