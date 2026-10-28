@@ -88,7 +88,7 @@ export function InstrucoesBeta({ aberto, onOpenChange }: { aberto: boolean; onOp
 }
 
 /** Robô verde do Android (desenho simples, sem marca). */
-function IconeAndroid({ className }: { className?: string }) {
+export function IconeAndroid({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={cn("size-4", className)} aria-hidden="true" fill="currentColor">
       <path d="M6 9h12v8a1 1 0 0 1-1 1h-1v3h-2v-3h-4v3H8v-3H7a1 1 0 0 1-1-1V9Zm-3 0h2v6H3V9Zm16 0h2v6h-2V9ZM7.5 3.2l1 1.6A6 6 0 0 1 12 4a6 6 0 0 1 3.5.8l1-1.6.8.5-1 1.6A5.5 5.5 0 0 1 18 8H6a5.5 5.5 0 0 1 1.7-2.7l-1-1.6.8-.5ZM9.5 6a.6.6 0 1 0 0 1.2.6.6 0 0 0 0-1.2Zm5 0a.6.6 0 1 0 0 1.2.6.6 0 0 0 0-1.2Z" />
@@ -167,6 +167,60 @@ export function InstrucoesAndroid({ aberto, onOpenChange }: { aberto: boolean; o
   );
 }
 
+/**
+ * Destaque do beta Android (28/10/2026): faixa verde no topo da página inicial pública e do Início,
+ * só quando o admin abre as vagas (configuracoes_acesso_site.beta_android_aberto).
+ * Na página pública leva para /inicio?beta=android (o login devolve para lá); no Início abre o passo a passo.
+ */
+export function DestaqueAndroid({ className, href, onAbrir }: { className?: string; href?: string; onAbrir?: () => void }) {
+  const obterConfig = useServerFn(obterConfiguracaoAcesso);
+  const { data: config } = useQuery({ queryKey: ["configuracao-acesso-publica"], queryFn: () => obterConfig(), staleTime: 60_000 });
+  const aberto = Boolean(config?.beta_android_aberto);
+  const { data: usadas } = useQuery({ queryKey: ["vagas-beta-android"], queryFn: vagasUsadasAndroid, enabled: aberto, staleTime: 60_000 });
+  if (!aberto) return null;
+  const restantes = usadas == null ? null : Math.max(0, LIMITE_BETA_ANDROID - usadas);
+  const textoVagas = restantes == null ? `${LIMITE_BETA_ANDROID} vagas` : restantes > 0 ? `${restantes} de ${LIMITE_BETA_ANDROID} vagas livres` : "Vagas esgotadas";
+  const botao = (
+    <>
+      <IconeAndroid className="size-5" /> Quero testar no Android
+    </>
+  );
+  const classeBotao =
+    "inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-emerald-700 shadow-sm transition hover:bg-emerald-50";
+  return (
+    <section
+      className={cn(
+        "native:hidden relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-600 via-emerald-500 to-green-500 p-4 text-white shadow-lg shadow-emerald-500/20",
+        className,
+      )}
+    >
+      <div className="pointer-events-none absolute -right-10 -top-10 size-40 rounded-full bg-white/10 blur-2xl" />
+      <div className="relative flex flex-col gap-3 sm:flex-row sm:items-center">
+        <span className="relative flex size-14 shrink-0 items-center justify-center self-start rounded-2xl bg-white shadow-md ring-2 ring-white/60 sm:self-center">
+          <span className="absolute inset-0 animate-ping rounded-2xl bg-white/40 [animation-duration:2.5s]" />
+          <IconeAndroid className="relative size-9 text-[#3DDC84]" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-100">Novo · Beta aberto</p>
+          <p className="text-base font-semibold sm:text-lg">O app Control ALL para Android está disponível para testar</p>
+          <p className="text-sm text-emerald-50">
+            Instale pela Google Play, use no dia a dia e ajude a lançar o app para todos. {textoVagas}.
+          </p>
+        </div>
+        {onAbrir ? (
+          <button type="button" className={classeBotao} disabled={restantes === 0} onClick={onAbrir}>
+            {botao}
+          </button>
+        ) : (
+          <a href={href ?? "/inicio?beta=android"} className={classeBotao} onClick={() => registrarEventoUso("aviso-beta/android-home")}>
+            {botao}
+          </a>
+        )}
+      </div>
+    </section>
+  );
+}
+
 /** Card do beta (o formato que aparece para o usuário). */
 export function CardBeta({
   className,
@@ -231,6 +285,13 @@ export function BetaTestFlight({ className }: { className?: string }) {
   }, []);
   return (
     <>
+      <DestaqueAndroid
+        className="mb-4"
+        onAbrir={() => {
+          registrarEventoUso("aviso-beta/android-destaque-inicio");
+          setAndroid(true);
+        }}
+      />
       <CardBeta
         className={cn("native:hidden", className)}
         onQueroTestar={() => {

@@ -3,7 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { Play, Smartphone } from "lucide-react";
 import { obterConfiguracaoAcesso } from "@/lib/configuracoes-site.functions";
 import { LINK_TESTFLIGHT } from "@/lib/testflight.functions";
-import { MacaBeta } from "@/components/BetaTestFlight";
+import { IconeAndroid, MacaBeta } from "@/components/BetaTestFlight";
 import { cn } from "@/lib/utils";
 
 function Loja({ icone, pequeno, nome, href, mesmaAba }: { icone: React.ReactNode; pequeno: string; nome: string; href?: string; mesmaAba?: boolean }) {
@@ -50,7 +50,7 @@ export function AppEmBreve({ className }: { className?: string }) {
       <div className="flex flex-wrap justify-center gap-2">
         <Loja icone={<MacaBeta className="size-8" />} pequeno="Beta no" nome="TestFlight" href={LINK_TESTFLIGHT} />
         {android ? (
-          <Loja icone={<Play className="size-5" />} pequeno="Beta no" nome="Google Play" href="/inicio?beta=android" mesmaAba />
+          <Loja icone={<IconeAndroid className="size-7 text-[#3DDC84]" />} pequeno="Beta no" nome="Google Play" href="/inicio?beta=android" mesmaAba />
         ) : (
           <Loja icone={<Play className="size-5" />} pequeno="Em breve no" nome="Google Play" />
         )}
