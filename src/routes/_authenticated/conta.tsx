@@ -23,6 +23,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { ExcluirContaCard } from "@/components/ExcluirContaCard";
+import { MostrarAvisosDeNovoCard } from "@/components/MostrarAvisosDeNovoCard";
 import { useProfile, usePermissoes, useModulosGlobais } from "@/hooks/useAuthData";
 import { maskCpf, onlyDigits } from "@/lib/cpf";
 import { useServerFn } from "@tanstack/react-start";
@@ -571,6 +572,7 @@ function ContaPage() {
         </Card>
 
         <ConvitesCard />
+        <MostrarAvisosDeNovoCard />
         {isSiteAdmin && <PermissoesUsuariosCard compact />}
 
         <ExcluirContaCard className="border-destructive/30 lg:col-span-2" />
