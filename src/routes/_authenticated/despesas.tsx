@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { guardarMesSite, mesEscolhidoSite } from "@/lib/mes-escolhido";
 import { CampoCategoria } from "@/components/CampoCategoria";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -237,7 +238,11 @@ function DespesasPage() {
   // `mes=todos` na URL (ex.: vindo do card "Dívida total em aberto" do
   // dashboard) abre a página já mostrando a dívida completa, não só a do
   // mês atual.
-  const [filtroMes, setFiltroMes] = useState(search.mes ?? monthKey(new Date()));
+  const [filtroMes, setFiltroMes] = useState(search.mes ?? mesEscolhidoSite() ?? monthKey(new Date()));
+  // 28/10/2026: o mês escolhido fica salvo e vale também em Receitas e Calendário.
+  useEffect(() => {
+    guardarMesSite(filtroMes);
+  }, [filtroMes]);
   // Aba PIX (24/10/2026): PIX enviados pelo Open Finance esperando decisão.
   const { data: pixSaida } = usePix("saida");
   const pixPendentes = (pixSaida?.itens ?? []).filter(

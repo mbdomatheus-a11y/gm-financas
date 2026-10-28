@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { guardarMesSite, mesEscolhidoSite } from "@/lib/mes-escolhido";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -96,7 +97,11 @@ function CalendarioPage() {
   const qc = useQueryClient();
   const cotacao = useCotacao();
   const hojeISO = toISODate(new Date());
-  const [mes, setMes] = useState(monthKey(new Date()));
+  const [mes, setMes] = useState(() => mesEscolhidoSite() ?? monthKey(new Date()));
+  // 28/10/2026: o mês escolhido fica salvo e vale também em Despesas e Receitas.
+  useEffect(() => {
+    guardarMesSite(mes);
+  }, [mes]);
   const [diaSel, setDiaSel] = useState<string>(hojeISO);
   const [ativos, setAtivos] = usePersistedState<Tipo[]>("calendario.filtros", [
     "fatura",

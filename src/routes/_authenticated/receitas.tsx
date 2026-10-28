@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { guardarMesSite, mesEscolhidoSite } from "@/lib/mes-escolhido";
 import { CampoCategoria } from "@/components/CampoCategoria";
 import { SelectBusca } from "@/components/SelectBusca";
 import { useEffect, useMemo, useState } from "react";
@@ -158,7 +159,11 @@ function ReceitasPage() {
   // Item 3 (backlog 2026-09-27): filtros e modo de exibição lembrados por
   // sessão (localStorage) e restaurados quando o usuário volta pra tela.
   const [tab, setTab] = usePersistedState<"total" | "fixa" | "variavel" | "pix">("receitas.tab", "total");
-  const [filtroMes, setFiltroMes] = usePersistedState("receitas.filtroMes", currentMonthKey());
+  // 28/10/2026: mês compartilhado com Despesas e Calendário (antes cada tela guardava o seu).
+  const [filtroMes, setFiltroMes] = useState<string>(() => mesEscolhidoSite() ?? currentMonthKey());
+  useEffect(() => {
+    guardarMesSite(filtroMes);
+  }, [filtroMes]);
   const [filtroMesCustom, setFiltroMesCustom] = usePersistedState("receitas.filtroMesCustom", currentMonthKey());
   // Aba PIX (24/10/2026): PIX recebidos pelo Open Finance esperando decisão.
   const { data: pixEntrada } = usePix("entrada");
