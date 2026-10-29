@@ -771,11 +771,12 @@ export function AppLayout({
         Ajustes do app
       </Link>
       <NavLinks onNavigate={onNavigate} />
-      {/* Configurações (28/10/2026, igual ao app): botão grande no fim do menu, onde as pessoas procuram. */}
+      {/* Configurações (28/10/2026, igual ao Mais do app): só no menu do celular. No computador já fica no
+          menu da foto, no canto de cima, e repetir aqui era redundante. */}
       <Link
         to="/configuracoes"
         onClick={onNavigate}
-        className="flex items-center gap-3 rounded-xl border bg-card px-3 py-3 text-sm transition-colors hover:bg-muted"
+        className="flex items-center gap-3 rounded-xl border bg-card px-3 py-3 text-sm transition-colors hover:bg-muted lg:hidden"
       >
         <span className="flex size-9 items-center justify-center rounded-lg bg-slate-600 text-white">
           <Settings className="size-5" aria-hidden="true" />
