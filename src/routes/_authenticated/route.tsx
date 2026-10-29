@@ -11,6 +11,7 @@ import { InactivityGuard } from "@/components/InactivityGuard";
 import { ComunicadosModal } from "@/components/ComunicadosModal";
 import { ConviteAposTresDias } from "@/components/ConviteAmigosBanner";
 import { AvisoBetaApp } from "@/components/BetaTestFlight";
+import { AtualizacaoSite } from "@/components/AtualizacaoSite";
 import { TourGuiado } from "@/components/TourGuiado";
 import { IdiomaProvider } from "@/hooks/useIdioma";
 import { ExclusaoAgendadaModal } from "@/components/ExclusaoAgendadaModal";
@@ -87,6 +88,7 @@ function Protegido() {
   return (
     <InactivityGuard>
       <IdiomaProvider>
+      <AtualizacaoSite />
       <ExclusaoAgendadaModal />
       <ComunicadosModal onVisibilityChange={setAvisoAberto} />
       <BoasVindasExemplos bloqueado={avisoAberto} onVisibilityChange={setExemplosAberto} />

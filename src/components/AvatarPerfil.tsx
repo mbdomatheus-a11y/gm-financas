@@ -40,10 +40,13 @@ export function AvatarPerfil({
   tamanho = "size-9",
   permitirTroca = true,
   className,
+  modo = "menu",
 }: {
   tamanho?: string;
   permitirTroca?: boolean;
   className?: string;
+  /** "cartao" (28/10/2026): foto grande em Minha conta, com botões Trocar e Remover. */
+  modo?: "menu" | "cartao";
 }) {
   const { user } = useSession();
   const { data: perfil } = useProfile();
@@ -78,6 +81,21 @@ export function AvatarPerfil({
     }
   }
 
+  async function remover() {
+    if (!user?.id) return;
+    setEnviando(true);
+    try {
+      const { error } = await supabase.from("profiles").update({ foto_url: null } as never).eq("id", user.id);
+      if (error) throw error;
+      await qc.invalidateQueries({ queryKey: ["profile"] });
+      toast.success("Foto removida.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Não foi possível remover a foto.");
+    } finally {
+      setEnviando(false);
+    }
+  }
+
   function escolher(arquivo: File | undefined) {
     if (!arquivo) return;
     if (!arquivo.type.startsWith("image/")) {
@@ -86,6 +104,48 @@ export function AvatarPerfil({
     }
     setOrigem(URL.createObjectURL(arquivo));
     if (input.current) input.current.value = "";
+  }
+
+  const conteudoFoto = foto ? (
+    <img src={foto} alt="" className="size-full object-cover" />
+  ) : inicial(perfil?.nome) ? (
+    <span aria-hidden="true">{inicial(perfil?.nome)}</span>
+  ) : (
+    <User className="size-1/2" aria-hidden="true" />
+  );
+
+  if (modo === "cartao") {
+    return (
+      <div className={cn("flex flex-col items-center gap-3", className)}>
+        <button
+          type="button"
+          onClick={() => input.current?.click()}
+          disabled={enviando}
+          aria-label="Trocar foto do perfil"
+          className={cn(
+            "relative flex items-center justify-center overflow-hidden rounded-full border-2 bg-muted text-3xl font-semibold text-muted-foreground transition-opacity hover:opacity-90",
+            tamanho,
+          )}
+        >
+          {conteudoFoto}
+          <span className="absolute inset-x-0 bottom-0 flex justify-center bg-black/45 py-1 text-white">
+            {enviando ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <Camera className="size-4" aria-hidden="true" />}
+          </span>
+        </button>
+        <div className="flex gap-2">
+          <Button size="sm" onClick={() => input.current?.click()} disabled={enviando}>
+            {foto ? "Trocar foto" : "Pôr foto"}
+          </Button>
+          {foto && (
+            <Button size="sm" variant="outline" onClick={() => void remover()} disabled={enviando}>
+              Remover
+            </Button>
+          )}
+        </div>
+        <input ref={input} type="file" accept="image/*" className="hidden" onChange={(e) => escolher(e.target.files?.[0])} />
+        <AjusteFoto origem={origem} enviando={enviando} onCancelar={() => setOrigem(null)} onConfirmar={salvar} />
+      </div>
+    );
   }
 
   return (

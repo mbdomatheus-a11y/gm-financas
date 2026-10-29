@@ -4,7 +4,6 @@ import { Apple, ExternalLink, Laptop, Loader2, Smartphone, Tablet, X } from "luc
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAvisoDispensado } from "@/lib/avisos-dispensados";
 import { obterConfiguracaoAcesso } from "@/lib/configuracoes-site.functions";
@@ -19,6 +18,27 @@ import {
   type ResultadoReserva,
 } from "@/lib/beta-android";
 import { cn } from "@/lib/utils";
+
+/**
+ * Onde a pessoa está (28/10/2026): no iPhone só faz sentido o beta do iPhone, no Android só o do
+ * Android, no computador os dois, e dentro do próprio app nenhum ("baixe o app" não faz sentido lá).
+ */
+export type PlataformaVisitante = "ios" | "android" | "desktop" | "app";
+export function usePlataformaVisitante(): PlataformaVisitante {
+  const [p, setP] = useState<PlataformaVisitante>("desktop");
+  useEffect(() => {
+    try {
+      const w = window as unknown as { __controlAllApp?: unknown };
+      if (w.__controlAllApp || document.documentElement.classList.contains("native-app")) return setP("app");
+      const ua = navigator.userAgent;
+      if (/android/i.test(ua)) return setP("android");
+      if (/iphone|ipad|ipod/i.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)) return setP("ios");
+    } catch {
+      // sem navegador (servidor): fica "desktop"
+    }
+  }, []);
+  return p;
+}
 
 const LOJA_TESTFLIGHT = "https://apps.apple.com/br/app/testflight/id899247664";
 
@@ -182,6 +202,7 @@ function FaixaBeta({
   onAbrir,
   esgotado,
   evento,
+  onFechar,
 }: {
   className?: string | undefined;
   fundo: string;
@@ -196,6 +217,7 @@ function FaixaBeta({
   onAbrir?: (() => void) | undefined;
   esgotado?: boolean | undefined;
   evento: string;
+  onFechar?: (() => void) | undefined;
 }) {
   const classeBotao = cn(
     "inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold shadow-sm transition hover:bg-white/90 disabled:opacity-60",
@@ -209,6 +231,16 @@ function FaixaBeta({
   return (
     <section className={cn("native:hidden relative flex-1 overflow-hidden rounded-2xl p-4 text-white shadow-lg", fundo, className)}>
       <div className="pointer-events-none absolute -right-10 -top-10 size-40 rounded-full bg-white/10 blur-2xl" />
+      {onFechar && (
+        <button
+          type="button"
+          onClick={onFechar}
+          aria-label="Fechar aviso"
+          className="absolute right-2 top-2 z-10 rounded-md p-1 text-white/80 hover:bg-white/15 hover:text-white"
+        >
+          <X className="size-4" />
+        </button>
+      )}
       <div className="relative flex h-full flex-col gap-3 sm:flex-row sm:items-center">
         <span className="relative flex size-14 shrink-0 items-center justify-center self-start rounded-2xl bg-white shadow-md ring-2 ring-white/60 sm:self-center">
           <span className="absolute inset-0 animate-ping rounded-2xl bg-white/40 [animation-duration:2.5s]" />
@@ -248,7 +280,7 @@ function FaixaBeta({
  * só quando o admin abre as vagas (configuracoes_acesso_site.beta_android_aberto).
  * Na página pública leva para /inicio?beta=android (o login devolve para lá); no Início abre o passo a passo.
  */
-export function DestaqueAndroid({ className, onAbrir }: { className?: string; onAbrir?: () => void }) {
+export function DestaqueAndroid({ className, onAbrir, onFechar }: { className?: string; onAbrir?: () => void; onFechar?: () => void }) {
   const obterConfig = useServerFn(obterConfiguracaoAcesso);
   const { data: config } = useQuery({ queryKey: ["configuracao-acesso-publica"], queryFn: () => obterConfig(), staleTime: 60_000 });
   const aberto = Boolean(config?.beta_android_aberto);
@@ -271,12 +303,13 @@ export function DestaqueAndroid({ className, onAbrir }: { className?: string; on
       onAbrir={onAbrir}
       esgotado={restantes === 0}
       evento={onAbrir ? "aviso-beta/android-destaque-inicio" : "aviso-beta/android-home"}
+      onFechar={onFechar}
     />
   );
 }
 
 /** Destaque do beta do iPhone, iPad e Mac (TestFlight), no mesmo desenho da faixa do Android. */
-export function DestaqueIos({ className, onAbrir }: { className?: string; onAbrir?: () => void }) {
+export function DestaqueIos({ className, onAbrir, onFechar }: { className?: string; onAbrir?: () => void; onFechar?: () => void }) {
   const { data } = useQuery({ queryKey: ["vagas-beta-testflight"], queryFn: () => vagasDoBeta(), staleTime: 10 * 60 * 1000 });
   const limite = data?.limite ?? 50;
   const lotado = data?.estado === "lotado";
@@ -295,16 +328,44 @@ export function DestaqueIos({ className, onAbrir }: { className?: string; onAbri
       onAbrir={onAbrir}
       esgotado={lotado}
       evento={onAbrir ? "aviso-beta/ios-destaque-inicio" : "aviso-beta/ios-home"}
+      onFechar={onFechar}
     />
   );
 }
 
-/** As duas faixas lado a lado (no celular, uma embaixo da outra). */
-export function DestaquesBeta({ className, onIos, onAndroid }: { className?: string; onIos?: () => void; onAndroid?: () => void }) {
+/**
+ * As faixas do beta (28/10/2026): mostra só a da plataforma de quem está vendo (as duas no computador)
+ * e nenhuma dentro do app. Com `dispensavel`, o X esconde as faixas para esta conta até o admin disparar
+ * uma rodada nova do aviso do beta.
+ */
+export function DestaquesBeta({
+  className,
+  onIos,
+  onAndroid,
+  dispensavel = false,
+}: {
+  className?: string;
+  onIos?: () => void;
+  onAndroid?: () => void;
+  dispensavel?: boolean;
+}) {
+  const plataforma = usePlataformaVisitante();
+  const obterConfig = useServerFn(obterConfiguracaoAcesso);
+  const { data: config } = useQuery({ queryKey: ["configuracao-acesso-publica"], queryFn: () => obterConfig(), staleTime: 60_000 });
+  const rodada = Math.max(1, Number(config?.rodada_aviso_beta ?? 0));
+  const aviso = useAvisoDispensado("beta");
+  if (plataforma === "app") return null;
+  if (dispensavel && (aviso.carregando || aviso.rodadaDispensada >= rodada)) return null;
+  const fechar = dispensavel
+    ? () => {
+        registrarEventoUso("aviso-beta/faixa-fechada");
+        void aviso.dispensar(rodada);
+      }
+    : undefined;
   return (
-    <div className={cn("native:hidden flex flex-col gap-3 lg:flex-row", className)}>
-      <DestaqueAndroid {...(onAndroid ? { onAbrir: onAndroid } : {})} />
-      <DestaqueIos {...(onIos ? { onAbrir: onIos } : {})} />
+    <div className={cn("native:hidden flex flex-col gap-3 lg:flex-row empty:hidden", className)}>
+      {plataforma !== "ios" && <DestaqueAndroid {...(onAndroid ? { onAbrir: onAndroid } : {})} onFechar={fechar} />}
+      {plataforma !== "android" && <DestaqueIos {...(onIos ? { onAbrir: onIos } : {})} onFechar={fechar} />}
     </div>
   );
 }
@@ -373,18 +434,8 @@ export function BetaTestFlight({ className }: { className?: string }) {
   }, []);
   return (
     <>
-      <DestaquesBeta className="mb-4" onAndroid={() => setAndroid(true)} onIos={() => setAberto(true)} />
-      <CardBeta
-        className={cn("native:hidden", className)}
-        onQueroTestar={() => {
-          registrarEventoUso("aviso-beta/quero-testar");
-          setAberto(true);
-        }}
-        onAndroid={() => {
-          registrarEventoUso("aviso-beta/quero-testar-android");
-          setAndroid(true);
-        }}
-      />
+      {/* 28/10/2026: só as faixas (o card de baixo repetia a mesma coisa). */}
+      <DestaquesBeta className={cn("mb-4", className)} dispensavel onAndroid={() => setAndroid(true)} onIos={() => setAberto(true)} />
       <InstrucoesBeta aberto={aberto} onOpenChange={setAberto} />
       <InstrucoesAndroid aberto={android} onOpenChange={setAndroid} />
     </>
@@ -400,61 +451,54 @@ export function AvisoBetaApp({ bloqueado = false, onVisibilityChange }: { bloque
   const obterConfig = useServerFn(obterConfiguracaoAcesso);
   const { data: config } = useQuery({ queryKey: ["configuracao-acesso-publica"], queryFn: () => obterConfig(), staleTime: 60_000 });
   const { rodadaDispensada, carregando, dispensar } = useAvisoDispensado("beta");
+  const plataforma = usePlataformaVisitante();
   const [visivel, setVisivel] = useState(false);
-  const [naoMostrar, setNaoMostrar] = useState(false);
   const [instrucoes, setInstrucoes] = useState(false);
   const [android, setAndroid] = useState(false);
   const rodada = Number(config?.rodada_aviso_beta ?? 0);
 
+  // 28/10/2026: antes aparecia em toda sessão até marcar "não mostrar". Agora aparece UMA vez por
+  // rodada (por conta, em qualquer aparelho), nunca dentro do app, e só com o beta da plataforma.
   useEffect(() => {
     if (bloqueado || carregando || !config || rodada <= 0 || rodadaDispensada >= rodada) return;
-    if ((window as unknown as { __controlAllApp?: unknown }).__controlAllApp) return;
-    try {
-      if (sessionStorage.getItem(`control-all-aviso-beta-${rodada}`)) return;
-      sessionStorage.setItem(`control-all-aviso-beta-${rodada}`, "1");
-    } catch {
-      // sem armazenamento: mostra mesmo assim
-    }
+    if (plataforma === "app") return;
+    void dispensar(rodada);
     setVisivel(true);
     registrarEventoUso("aviso-beta/exibido");
-  }, [bloqueado, carregando, config, rodada, rodadaDispensada]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bloqueado, carregando, config, rodada, rodadaDispensada, plataforma]);
 
   useEffect(() => onVisibilityChange?.(visivel), [visivel, onVisibilityChange]);
-
-  function fechar() {
-    if (naoMostrar) {
-      void dispensar(rodada);
-      registrarEventoUso("aviso-beta/nao-mostrar-mais");
-    } else registrarEventoUso("aviso-beta/fechou");
-    setVisivel(false);
-  }
 
   return (
     <>
       {visivel && (
-        <div className="fixed inset-x-3 top-3 z-50 mx-auto max-w-xl animate-in fade-in slide-in-from-top-4">
-          <CardBeta
-            className="shadow-xl"
-            onFechar={fechar}
-            onQueroTestar={() => {
-              registrarEventoUso("aviso-beta/quero-testar");
-              if (naoMostrar) void dispensar(rodada);
-              setVisivel(false);
-              setInstrucoes(true);
-            }}
-            onAndroid={() => {
-              registrarEventoUso("aviso-beta/quero-testar-android");
-              if (naoMostrar) void dispensar(rodada);
-              setVisivel(false);
-              setAndroid(true);
-            }}
-            rodape={
-              <label className="mt-3 flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
-                <Checkbox checked={naoMostrar} onCheckedChange={(v) => setNaoMostrar(v === true)} />
-                Não mostrar este aviso de novo
-              </label>
-            }
-          />
+        <div className="fixed inset-x-3 top-3 z-50 mx-auto max-w-3xl animate-in fade-in slide-in-from-top-4">
+          <div className="relative rounded-2xl bg-background/95 p-2 shadow-xl backdrop-blur">
+            <button
+              type="button"
+              onClick={() => {
+                registrarEventoUso("aviso-beta/fechou");
+                setVisivel(false);
+              }}
+              aria-label="Fechar aviso"
+              className="absolute -right-2 -top-2 z-20 rounded-full border bg-background p-1 text-muted-foreground shadow hover:text-foreground"
+            >
+              <X className="size-4" />
+            </button>
+            <DestaquesBeta
+              onIos={() => {
+                registrarEventoUso("aviso-beta/quero-testar");
+                setVisivel(false);
+                setInstrucoes(true);
+              }}
+              onAndroid={() => {
+                registrarEventoUso("aviso-beta/quero-testar-android");
+                setVisivel(false);
+                setAndroid(true);
+              }}
+            />
+          </div>
         </div>
       )}
       <InstrucoesBeta aberto={instrucoes} onOpenChange={setInstrucoes} />

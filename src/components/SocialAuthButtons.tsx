@@ -5,6 +5,23 @@ import { supabase } from "@/integrations/supabase/client";
 import { ehAppNativo, ponteNativa } from "@/lib/app-nativo";
 import { Button } from "@/components/ui/button";
 
+/**
+ * Provedores ligados no Supabase (28/10/2026): o botão da Apple só aparece quando o login com Apple
+ * estiver ativo (antes aparecia sempre e dava "provider is not enabled").
+ */
+function useProvedoresAtivos() {
+  const [ativos, setAtivos] = useState<Record<string, boolean> | null>(null);
+  useEffect(() => {
+    const cliente = supabase as unknown as { supabaseUrl?: string; supabaseKey?: string };
+    if (!cliente.supabaseUrl || !cliente.supabaseKey) return;
+    fetch(`${cliente.supabaseUrl}/auth/v1/settings`, { headers: { apikey: cliente.supabaseKey } })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j: { external?: Record<string, boolean> } | null) => setAtivos(j?.external ?? null))
+      .catch(() => setAtivos(null));
+  }, []);
+  return ativos;
+}
+
 interface SocialAuthButtonsProps {
   labelPrefix?: "Entrar com" | "Continuar com" | "Cadastrar com" | undefined;
   className?: string | undefined;
@@ -17,6 +34,8 @@ export function SocialAuthButtons({
   next,
 }: SocialAuthButtonsProps) {
   const [loadingProvider, setLoadingProvider] = useState<string | null>(null);
+  const provedores = useProvedoresAtivos();
+  const appleAtivo = provedores?.["apple"] === true;
   // Navegadores embutidos (Instagram, Facebook, TikTok...) são bloqueados pelo Google
   // no login social. Avisamos para abrir no Chrome ou Safari.
   const [navegadorEmbutido, setNavegadorEmbutido] = useState(false);
@@ -85,7 +104,12 @@ export function SocialAuthButtons({
       if (ponte) {
         const { data, error } = await supabase.auth.signInWithOAuth({
           provider,
-          options: { redirectTo: "controlall://auth-callback", skipBrowserRedirect: true },
+          options: {
+            redirectTo: "controlall://auth-callback",
+            skipBrowserRedirect: true,
+            // Microsoft só devolve o e-mail com o escopo "email" (sem ele o login falha no retorno).
+            ...(provider === "azure" ? { scopes: "email" } : {}),
+          },
         });
         if (error || !data?.url) {
           toast.error(error ? `Falha na autenticação: ${error.message}` : "Não foi possível iniciar o login.");
@@ -105,6 +129,8 @@ export function SocialAuthButtons({
         provider,
         options: {
           redirectTo: redirectUrl,
+          // Microsoft só devolve o e-mail com o escopo "email" (sem ele o login falha no retorno).
+          ...(provider === "azure" ? { scopes: "email" } : {}),
         },
       });
 
@@ -196,7 +222,8 @@ export function SocialAuthButtons({
           <span>{labelPrefix} Microsoft</span>
         </Button>
 
-        {/* Apple */}
+        {/* Apple: só quando o provedor estiver ligado no Supabase */}
+        {appleAtivo && (
         <Button
           type="button"
           variant="outline"
@@ -216,6 +243,7 @@ export function SocialAuthButtons({
           )}
           <span>{labelPrefix} Apple</span>
         </Button>
+        )}
       </div>
       <p className="text-center text-[11px] text-muted-foreground">
         Ao continuar com Google, Microsoft ou Apple você concorda com os Termos de Uso e o Aviso de

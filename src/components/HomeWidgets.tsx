@@ -197,7 +197,7 @@ function Atalhos() {
 function AdminBloco() {
   const { isAdmin, isSiteAdmin } = usePermissoes();
   const itens = [
-    { to: "/usuarios" as const, label: "Meu grupo e permissões", icon: Users, ok: isAdmin },
+    { to: "/usuarios" as const, label: "Usuários e privilégios", icon: Users, ok: isSiteAdmin },
     { to: "/backup" as const, label: "Backup e Reset", icon: DatabaseBackup, ok: isAdmin },
     { to: "/administracao" as const, label: "Administração do site", icon: ShieldCheck, ok: isSiteAdmin },
   ].filter((a) => a.ok);

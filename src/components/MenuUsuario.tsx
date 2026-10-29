@@ -112,10 +112,18 @@ export function MenuUsuario({
         {grupoAdmin && (
           <>
             <DropdownMenuSeparator />
+            {/* 28/10/2026: /usuarios é a gestão de usuários do site (só admin do site). Para o admin do
+                grupo, convites e pessoas do grupo ficam em Minha conta. */}
             <DropdownMenuItem asChild>
-              <Link to="/usuarios" className="flex items-center gap-2">
-                <Users className="size-4" aria-hidden="true" /> Meu grupo e permissões
-              </Link>
+              {siteAdmin ? (
+                <Link to="/usuarios" className="flex items-center gap-2">
+                  <Users className="size-4" aria-hidden="true" /> Usuários e privilégios
+                </Link>
+              ) : (
+                <Link to="/conta" hash="grupo" className="flex items-center gap-2">
+                  <Users className="size-4" aria-hidden="true" /> Meu grupo e convites
+                </Link>
+              )}
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
               <Link to="/backup" className="flex items-center gap-2">

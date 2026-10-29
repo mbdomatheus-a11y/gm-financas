@@ -1,5 +1,5 @@
 import { adminReativarUsuario } from "@/lib/admin.functions";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -220,11 +220,17 @@ function UsuariosPage() {
     return (
       <AppLayout title="Usuários e Privilégios">
         <Card>
-          <CardContent className="flex flex-col items-center gap-2 py-16 text-center">
+          <CardContent className="flex flex-col items-center gap-3 py-16 text-center">
             <ShieldCheck className="size-8 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">
-              Esta área é restrita aos administradores do casal.
+            <p className="max-w-sm text-sm text-muted-foreground">
+              Esta tela é da administração do site. Para controlar as finanças junto com alguém, convide a
+              pessoa para o seu grupo: vocês veem os mesmos lançamentos e você escolhe o que cada um pode fazer.
             </p>
+            <Button asChild>
+              <Link to="/conta" hash="grupo">
+                <UserPlus className="size-4" /> Convidar alguém para o meu grupo
+              </Link>
+            </Button>
           </CardContent>
         </Card>
       </AppLayout>

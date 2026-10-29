@@ -24,6 +24,7 @@ import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { ExcluirContaCard } from "@/components/ExcluirContaCard";
 import { MostrarAvisosDeNovoCard } from "@/components/MostrarAvisosDeNovoCard";
+import { AvatarPerfil } from "@/components/AvatarPerfil";
 import { useProfile, usePermissoes, useModulosGlobais } from "@/hooks/useAuthData";
 import { maskCpf, onlyDigits } from "@/lib/cpf";
 import { useServerFn } from "@tanstack/react-start";
@@ -254,6 +255,20 @@ function ContaPage() {
         onFechar={() => setCodigoTrocaAberto(false)}
       />
       <div className="grid gap-4 lg:grid-cols-2">
+        {/* "Minha conta e foto" (28/10/2026): a foto abre em cima, com trocar e remover, e os dados ao lado. */}
+        <Card className="lg:col-span-2">
+          <CardContent className="flex flex-col items-center gap-5 py-6 sm:flex-row sm:items-center">
+            <AvatarPerfil modo="cartao" tamanho="size-28" />
+            <div className="min-w-0 flex-1 space-y-1 text-center sm:text-left">
+              <p className="truncate text-xl font-semibold">{(perfil as { nome?: string } | undefined)?.nome || "Minha conta"}</p>
+              <p className="truncate text-sm text-muted-foreground">{(perfil as { email?: string } | undefined)?.email ?? ""}</p>
+              {(perfil as { telefone?: string | null } | undefined)?.telefone ? (
+                <p className="text-sm text-muted-foreground">{(perfil as { telefone?: string | null }).telefone}</p>
+              ) : null}
+              <p className="pt-1 text-xs text-muted-foreground">Toque na foto para trocar. Os dados você edita logo abaixo.</p>
+            </div>
+          </CardContent>
+        </Card>
         <ConviteAmigosBanner className="lg:col-span-2" />
         {conviteGrupo && (
           <Card className="border-primary lg:col-span-2">
@@ -571,6 +586,8 @@ function ContaPage() {
           </CardContent>
         </Card>
 
+        {/* Âncora do menu "Meu grupo e convites" (28/10/2026). */}
+        <div id="grupo" className="-mb-4 scroll-mt-24 lg:col-span-2" aria-hidden="true" />
         <ConvitesCard />
         <MostrarAvisosDeNovoCard />
         {isSiteAdmin && <PermissoesUsuariosCard compact />}

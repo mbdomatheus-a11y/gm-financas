@@ -15,9 +15,9 @@ import {
   Share2,
   Users,
   Settings,
+  ChevronRight,
   LogOut,
   Menu,
-  Wallet,
   Tags,
   FileUp,
   Home,
@@ -40,7 +40,6 @@ import {
   PieChart,
 } from "lucide-react";
 
-import type { LucideIcon } from "lucide-react";
 import { Plus } from "lucide-react";
 import { Fragment } from "react";
 import { MenuUsuario } from "@/components/MenuUsuario";
@@ -387,10 +386,10 @@ const GLOBAL: NavItem[] = [
   },
   {
     to: "/usuarios",
-    label: "Meu grupo e permissões",
-    short: "Grupo",
+    label: "Usuários e privilégios",
+    short: "Usuários",
     icon: Users,
-    grupoAdmin: true,
+    adminOnly: true,
   },
   {
     to: "/pluggy",
@@ -438,11 +437,6 @@ function VersaoDoApp() {
   );
 }
 
-const ATALHOS_MOBILE: { id: MundoId; rotulo: string; icon: LucideIcon }[] = [
-  { id: "financas", rotulo: "Finanças", icon: Wallet },
-  { id: "notas", rotulo: "Notas", icon: ReceiptText },
-  { id: "lista", rotulo: "Lista", icon: ShoppingCart },
-];
 
 const CALENDARIO: NavItem = {
   to: "/calendario",
@@ -565,11 +559,10 @@ export function AppLayout({
         ? { rotulo: "Novo item", curto: "Item", evento: "abrir-novo-item-onde-esta" }
         : pathname.startsWith("/veiculos")
           ? { rotulo: "Novo veículo", curto: "Veículo", evento: "abrir-novo-veiculo" }
-          : mundoId === "financas" && !pathname.startsWith("/despesas") && podeLancar
-            ? { rotulo: "Lançar", curto: "Lançar", evento: "abrir-lancamento-rapido" }
-            : mundoId === "financas" || pathname === "/inicio"
-              ? null
-              : { rotulo: "ControlIA", curto: "IA", evento: "abrir-controlia" };
+          : podeLancar
+            ? // 28/10/2026 (igual ao app): fora de Notas/Lista o + sempre lança (despesa, receita ou IA).
+              { rotulo: "Lançar", curto: "Lançar", evento: "abrir-lancamento-rapido" }
+            : { rotulo: "ControlIA", curto: "IA", evento: "abrir-controlia" };
   // No modo usuário comum, páginas exclusivas de admin mostram aviso em vez do conteúdo.
   const rotaAdminBloqueada =
     modoCliente &&
@@ -778,6 +771,21 @@ export function AppLayout({
         Ajustes do app
       </Link>
       <NavLinks onNavigate={onNavigate} />
+      {/* Configurações (28/10/2026, igual ao app): botão grande no fim do menu, onde as pessoas procuram. */}
+      <Link
+        to="/configuracoes"
+        onClick={onNavigate}
+        className="flex items-center gap-3 rounded-xl border bg-card px-3 py-3 text-sm transition-colors hover:bg-muted"
+      >
+        <span className="flex size-9 items-center justify-center rounded-lg bg-slate-600 text-white">
+          <Settings className="size-5" aria-hidden="true" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block font-semibold">Configurações</span>
+          <span className="block truncate text-xs text-muted-foreground">Conta, segurança, aparência e notificações</span>
+        </span>
+        <ChevronRight className="size-4 text-muted-foreground" aria-hidden="true" />
+      </Link>
       <Button
         variant="ghost"
         className="justify-start gap-3 text-muted-foreground"
@@ -1022,92 +1030,65 @@ export function AppLayout({
         </SheetContent>
       </Sheet>
 
+      {/* Barra de baixo no celular (28/10/2026, igual ao app): Início | Notas | + | Lista | Menu.
+          Calendário e Finanças ficam no Menu; o + sempre lança (ou cria o item da tela de Notas/Lista). */}
       <nav
         aria-label="Navegação principal"
         className={cn(
-          "barra-app fixed inset-x-2 bottom-[calc(env(safe-area-inset-bottom)+0.5rem)] z-30 grid h-16 grid-cols-6 items-end rounded-2xl border border-border bg-background px-1.5 shadow-lg lg:hidden",
-          // No app iOS: barra colada embaixo, cobrindo a área do indicador de início.
+          "barra-app fixed inset-x-2 bottom-[calc(env(safe-area-inset-bottom)+0.5rem)] z-30 grid h-16 grid-cols-5 items-end rounded-2xl border border-border bg-background px-1.5 shadow-lg lg:hidden",
           "native:inset-x-0 native:bottom-0 native:h-[calc(3.5rem+var(--app-inset-bottom,0px))] native:items-stretch native:rounded-none native:border-x-0 native:border-b-0 native:bg-background/90 native:px-1 native:pb-[var(--app-inset-bottom,0px)] native:shadow-none native:backdrop-blur-xl",
-          // Com o botão + no centro, ele ganha coluna própria (não fica por cima dos vizinhos).
-          acaoCentral && "native:grid-cols-7",
         )}
       >
-        <Link
-          to="/inicio"
-          className={cn(
-            "flex h-full flex-col items-center justify-end gap-0.5 pb-1.5 text-[10px] font-medium leading-none native:justify-center native:gap-1 native:pb-0 native:[&>svg]:size-6",
-            pathname === "/inicio" ? "text-primary" : "text-muted-foreground",
-          )}
-        >
-          <Home className="size-5" />
-          Início
-        </Link>
-        <Link
-          to="/calendario"
-          className={cn(
-            "flex h-full flex-col items-center justify-end gap-0.5 pb-1.5 text-[10px] font-medium leading-none native:justify-center native:gap-1 native:pb-0 native:[&>svg]:size-6",
-            pathname === "/calendario" ? "text-primary" : "text-muted-foreground",
-          )}
-        >
-          <CalendarDays className="size-5" />
-          Calendário
-        </Link>
         {(() => {
-          const visiveis = ATALHOS_MOBILE.filter((m) => mundoVisivel(m.id));
-          const renderAtalho = (m: (typeof ATALHOS_MOBILE)[number]) => {
-            const Icon = m.icon;
-            return (
-              <Link
-                key={m.id}
-                to={MUNDOS[m.id].home}
-                className={cn(
-                  "flex h-full flex-col items-center justify-end gap-0.5 pb-1.5 text-[10px] font-medium leading-none native:justify-center native:gap-1 native:pb-0 native:[&>svg]:size-6",
-                  mundoId === m.id ? "text-primary" : "text-muted-foreground",
-                )}
-              >
-                <Icon className="size-5" />
-                {m.rotulo}
-              </Link>
+          const classe = (ativo: boolean) =>
+            cn(
+              "flex h-full flex-col items-center justify-end gap-0.5 pb-1.5 text-[10px] font-medium leading-none native:justify-center native:gap-1 native:pb-0 native:[&>svg]:size-6",
+              ativo ? "text-primary" : "text-muted-foreground",
             );
-          };
+          const verNotas = mundoVisivel("notas");
+          const verLista = mundoVisivel("lista");
           return (
             <Fragment>
-              {visiveis.slice(0, 1).map(renderAtalho)}
-              {acaoCentral && (
-                <div className="hidden items-center justify-center native:flex">
+              <Link to="/inicio" className={classe(pathname === "/inicio")}>
+                <Home className="size-5" />
+                Início
+              </Link>
+              {verNotas ? (
+                <Link to={MUNDOS.notas.home} className={classe(mundoId === "notas")}>
+                  <ReceiptText className="size-5" />
+                  Notas
+                </Link>
+              ) : (
+                <span />
+              )}
+              <div className="flex items-center justify-center">
+                {acaoCentral && (
                   <button
                     type="button"
                     aria-label={acaoCentral.rotulo}
                     onClick={() => window.dispatchEvent(new Event(acaoCentral.evento))}
-                    className="flex size-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md transition-transform active:scale-95"
+                    className="-mt-8 flex size-14 flex-col items-center justify-center gap-0.5 rounded-full bg-primary text-primary-foreground shadow-lg ring-4 ring-background transition-transform active:scale-95 native:mt-0 native:size-12 native:ring-0"
                   >
                     <Plus className="size-6" />
+                    <span className="text-[10px] font-semibold leading-none native:hidden">{acaoCentral.curto}</span>
                   </button>
-                </div>
+                )}
+              </div>
+              {verLista ? (
+                <Link to={MUNDOS.lista.home} className={classe(mundoId === "lista")}>
+                  <ShoppingCart className="size-5" />
+                  Lista
+                </Link>
+              ) : (
+                <span />
               )}
-              {visiveis.slice(1).map(renderAtalho)}
+              <button type="button" onClick={() => setOpen(true)} className={classe(false)}>
+                <Menu className="size-5" />
+                Menu
+              </button>
             </Fragment>
           );
         })()}
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          className="flex h-full flex-col items-center justify-end gap-0.5 pb-1.5 text-[10px] font-medium leading-none native:justify-center native:gap-1 native:pb-0 native:[&>svg]:size-6 text-muted-foreground"
-        >
-          <Menu className="size-5" />
-          Menu
-        </button>
-        {acaoCentral && (
-          <button
-            type="button"
-            aria-label={acaoCentral.rotulo}
-            onClick={() => window.dispatchEvent(new Event(acaoCentral.evento))}
-            className="absolute left-1/2 -top-8 flex size-14 -translate-x-1/2 flex-col items-center justify-center gap-0.5 rounded-full bg-primary text-primary-foreground shadow-lg ring-4 ring-background transition-transform active:scale-95 native:hidden"
-          >
-            <Plus className="size-6" />
-            <span className="text-[10px] font-semibold leading-none">{acaoCentral.curto}</span>
-          </button>
-        )}
       </nav>
 
       {/* Lançamento rápido por texto/áudio (IA) — pedido explícito do usuário

@@ -3,7 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { Play, Smartphone } from "lucide-react";
 import { obterConfiguracaoAcesso } from "@/lib/configuracoes-site.functions";
 import { LINK_TESTFLIGHT } from "@/lib/testflight.functions";
-import { IconeAndroid, MacaBeta } from "@/components/BetaTestFlight";
+import { IconeAndroid, MacaBeta, usePlataformaVisitante } from "@/components/BetaTestFlight";
 import { cn } from "@/lib/utils";
 
 function Loja({ icone, pequeno, nome, href, mesmaAba }: { icone: React.ReactNode; pequeno: string; nome: string; href?: string; mesmaAba?: boolean }) {
@@ -28,6 +28,11 @@ export function AppEmBreve({ className }: { className?: string }) {
   const obterConfig = useServerFn(obterConfiguracaoAcesso);
   const { data: config } = useQuery({ queryKey: ["configuracao-acesso-publica"], queryFn: () => obterConfig(), staleTime: 60_000 });
   const android = Boolean(config?.beta_android_aberto);
+  // 28/10/2026: no iPhone só o TestFlight, no Android só a Google Play, dentro do app nada.
+  const plataforma = usePlataformaVisitante();
+  if (plataforma === "app") return null;
+  const verIos = plataforma !== "android";
+  const verAndroid = plataforma !== "ios";
   return (
     <section
       className={cn(
@@ -39,17 +44,25 @@ export function AppEmBreve({ className }: { className?: string }) {
         <Smartphone className="size-6" />
       </span>
       <div className="flex-1">
-        <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">{android ? "Beta aberto no iPhone, iPad, Mac e Android" : "Beta aberto no iPhone, iPad e Mac"}</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">
+          {plataforma === "android" ? (android ? "Beta aberto no Android" : "Android em breve") : plataforma === "ios" ? "Beta aberto no iPhone e iPad" : android ? "Beta aberto no iPhone, iPad, Mac e Android" : "Beta aberto no iPhone, iPad e Mac"}
+        </p>
         <h2 className="text-lg font-semibold">Um novo app para você</h2>
         <p className="text-sm text-muted-foreground">
-          {android
-            ? "O app do Control ALL já está em teste pelo TestFlight e pela Google Play (50 vagas em cada)."
-            : "O app do Control ALL já está em teste pelo TestFlight. Android em breve."}
+          {plataforma === "android"
+            ? android
+              ? "O app do Control ALL já está em teste pela Google Play (50 vagas)."
+              : "O app do Control ALL para Android está quase pronto."
+            : plataforma === "ios"
+              ? "O app do Control ALL já está em teste pelo TestFlight (50 vagas)."
+              : android
+                ? "O app do Control ALL já está em teste pelo TestFlight e pela Google Play (50 vagas em cada)."
+                : "O app do Control ALL já está em teste pelo TestFlight. Android em breve."}
         </p>
       </div>
       <div className="flex flex-wrap justify-center gap-2">
-        <Loja icone={<MacaBeta className="size-8" />} pequeno="Beta no" nome="TestFlight" href={LINK_TESTFLIGHT} />
-        {android ? (
+        {verIos && <Loja icone={<MacaBeta className="size-8" />} pequeno="Beta no" nome="TestFlight" href={LINK_TESTFLIGHT} />}
+        {!verAndroid ? null : android ? (
           <Loja icone={<IconeAndroid className="size-7 text-[#3DDC84]" />} pequeno="Beta no" nome="Google Play" href="/inicio?beta=android" mesmaAba />
         ) : (
           <Loja icone={<Play className="size-5" />} pequeno="Em breve no" nome="Google Play" />
