@@ -241,11 +241,16 @@ export function vencimentoDaCompetencia(inicio: string, competencia: string): st
 export function lancamentosPorCompetencias(
   despesas: any[],
   competencias: string[],
+  opcoes: { incluirEconomia?: boolean } = {},
 ): LancamentoCompetencia[] {
   const desejadas = new Set(competencias.map(competenciaDe));
   const out: LancamentoCompetencia[] = [];
 
   for (const despesa of despesas) {
+    // 28/10/2026: "Despesa Ajustada / Economia Conquistada" é um gasto que deixou de existir. Fica no
+    // histórico (riscado na tela de Despesas, que pede incluirEconomia), mas não soma em nenhum total:
+    // Finanças, Início, previsão, calendário, gráficos e ControlIA (site e app).
+    if (despesa?.economia_conquistada && !opcoes.incluirEconomia) continue;
     const parcelas = (despesa.parcelas ?? []) as any[];
     const recorrencia = despesa.recorrencia_inicio ? recorrenciaDaDespesa(despesa) : null;
 

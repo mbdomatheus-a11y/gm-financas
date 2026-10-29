@@ -17,6 +17,7 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { excluirReceitaSerie } from "@/lib/exclusao-recorrente";
 import { diasAntesPadrao, vencimentoDaFatura } from "@/lib/fatura-ciclo";
+import { categoriaAutomatica, reclassificarPendentesOpenFinance } from "@/lib/pluggy-categoria.server";
 
 const BASE = "https://api.pluggy.ai";
 const DIAS_HISTORICO_INICIAL = 3650;
@@ -465,13 +466,16 @@ async function importarParcelado(
     }
   }
 
+  // 28/10/2026: categoria automática (de-para do grupo, categoria da Pluggy, marcas conhecidas).
+  const cat = await categoriaAutomatica(db, { grupoId: p.grupoId, descricao: p.t.description ?? nucleo, valor: valorParcela, categoriaPluggy: p.t.category ?? null });
   const { data: nova, error } = await db
     .from("despesas")
     .insert({
       descricao: nucleo || p.t.description,
       valor_total: meta?.totalAmount && Math.abs(Number(meta.totalAmount)) > 0 ? Math.abs(Number(meta.totalAmount)) : valorParcela * t,
       moeda: "BRL",
-      categoria: "Categoria a confirmar",
+      categoria: cat.categoria,
+      subcategoria: cat.subcategoria,
       tipo: "variavel",
       data_compra: primeira,
       total_parcelas: t,
@@ -665,13 +669,16 @@ async function importarDespesa(
   }
   const mesmoValor = (candidatos ?? []).length > 0;
 
+  // 28/10/2026: categoria automática (de-para do grupo, categoria da Pluggy, marcas conhecidas).
+  const cat = await categoriaAutomatica(db, { grupoId: p.grupoId, descricao: p.t.description ?? null, valor, categoriaPluggy: p.t.category ?? null });
   const { data: nova, error } = await db
     .from("despesas")
     .insert({
       descricao: p.t.description,
       valor_total: valor,
       moeda: "BRL",
-      categoria: "Categoria a confirmar",
+      categoria: cat.categoria,
+      subcategoria: cat.subcategoria,
       tipo: "variavel",
       data_compra: p.t.date,
       total_parcelas: 1,
@@ -1239,6 +1246,12 @@ async function executarSincronizacao(
   if (!soRepetida) {
     await sincronizarInvestimentos(db, key, itemId, meu.user_id);
     await sincronizarEmprestimos(db, key, itemId, meu.user_id);
+  }
+  // Despesas do Open Finance ainda "a confirmar" ganham a categoria pelo de-para (inclui as antigas).
+  try {
+    await reclassificarPendentesOpenFinance(db, grupoId);
+  } catch (e) {
+    console.error("pluggy: falha ao reclassificar", e instanceof Error ? e.message : String(e));
   }
   await db.from("pluggy_items").update({ sincronizado_em: new Date().toISOString() }).eq("item_id", itemId);
   return { ignorado: false, transacoes: total, primeira, criadas };

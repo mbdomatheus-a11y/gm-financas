@@ -3,6 +3,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 
 import { visualDoBanco } from "@/lib/banco-visual";
+import { logoDoCatalogo } from "@/lib/bancos-logos";
+import { catalogoLogosBancos } from "@/lib/bancos-logos.functions";
 import { logosDosBancos } from "@/lib/pix.functions";
 import { cn } from "@/lib/utils";
 
@@ -16,6 +18,18 @@ export function useLogosBancos() {
     queryFn: () => buscar(),
     staleTime: 12 * 3600_000,
     gcTime: 24 * 3600_000,
+    retry: false,
+  });
+}
+
+/** Catálogo de logos oficiais de todos os bancos (28/10/2026), guardado por 24 horas. */
+export function useCatalogoLogos() {
+  const buscar = useServerFn(catalogoLogosBancos);
+  return useQuery({
+    queryKey: ["catalogo-logos-bancos"],
+    queryFn: () => buscar(),
+    staleTime: 24 * 3600_000,
+    gcTime: 48 * 3600_000,
     retry: false,
   });
 }
@@ -38,12 +52,15 @@ export function IconeBanco({
 }) {
   const [falhou, setFalhou] = useState(false);
   const { data: logos = [] } = useLogosBancos();
+  const { data: catalogo = [] } = useCatalogoLogos();
   const v = visualDoBanco(nome);
   const achado =
     logo ??
     (bancoId ? logos.find((l) => l.bancoId === bancoId)?.logo : undefined) ??
     logos.find((l) => normal(l.nome) === normal(nome))?.logo ??
     (v.conhecido ? logos.find((l) => visualDoBanco(l.nome).sigla === v.sigla && visualDoBanco(l.nome).conhecido)?.logo : undefined) ??
+    // 28/10/2026: qualquer banco cadastrado, mesmo sem Open Finance, usa o logo oficial do catálogo.
+    logoDoCatalogo(nome, catalogo) ??
     null;
 
   if (achado && !falhou)

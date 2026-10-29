@@ -741,7 +741,7 @@ function DespesasPage() {
   }, []);
 
   const lancamentosDoFiltro = useMemo(
-    () => (filtroMes === "todos" ? [] : lancamentosPorCompetencias(despesas as any[], [filtroMes])),
+    () => (filtroMes === "todos" ? [] : lancamentosPorCompetencias(despesas as any[], [filtroMes], { incluirEconomia: true })),
     [despesas, filtroMes],
   );
   const lancamentoPorDespesa = useMemo(
