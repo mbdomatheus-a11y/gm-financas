@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { aplicarRegrasFaturaMes } from "@/lib/fatura-mes";
 import { monthKey, toBRL } from "@/lib/format";
 import { useCompetenciaVigente } from "@/lib/periodo-vigente";
+import { usePreferencias } from "@/hooks/usePreferencias";
 import { listarCaixinhas, metaDoMes } from "@/lib/poupar";
 import { calcularPrevisaoMes } from "@/lib/previsao-mes";
 import { lancamentosPorCompetencias } from "@/lib/recorrencia";
@@ -237,6 +238,7 @@ export function ControlIA({ flutuante = true }: { flutuante?: boolean }) {
 function useContexto(ativo: boolean) {
   const cotacao = useCotacao();
   const mes = useCompetenciaVigente();
+  const { prefs: prefsVirada } = usePreferencias();
   const { data: despesas = [] } = useDespesas();
   const { data: receitas = [] } = useReceitas();
   const { data: faturas = [] } = useFaturasMes();
@@ -252,7 +254,7 @@ function useContexto(ativo: boolean) {
   });
   return useMemo(() => {
     if (!ativo) return null;
-    const prev = calcularPrevisaoMes({ despesas: despesas as any[], receitas: receitas as any[], faturas: faturas as any[], cotacao }, mes, metaDoMes(caixinhas, mes));
+    const prev = calcularPrevisaoMes({ despesas: despesas as any[], receitas: receitas as any[], faturas: faturas as any[], cotacao }, mes, metaDoMes(caixinhas, mes), prefsVirada.dia_virada);
     const hoje = new Date().toISOString().slice(0, 10);
     const em30 = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
     const proximoMes = monthKey(new Date(Date.now() + 31 * 86400000));
@@ -286,5 +288,5 @@ function useContexto(ativo: boolean) {
         listaDeComprasPendente: compras.map((i: any) => ({ item: i.nome, quantidade: i.quantidade })),
       },
     };
-  }, [ativo, despesas, receitas, faturas, cartoes, caixinhas, compras, cotacao, mes]);
+  }, [ativo, despesas, receitas, faturas, cartoes, caixinhas, compras, cotacao, mes, prefsVirada.dia_virada]);
 }

@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { usePreferencias } from "@/hooks/usePreferencias";
 import { Link } from "@tanstack/react-router";
 import { AlertTriangle, CheckCircle2, PiggyBank } from "lucide-react";
 import { useMemo } from "react";
@@ -28,6 +29,7 @@ export function ResumoPrevisaoHome({ mes: mesEscolhido, className }: { mes?: str
   const { data: caixinhas = [] } = useQuery({ queryKey: ["caixinhas"], queryFn: listarCaixinhas, retry: false });
   const { formatar } = usePrivacidadeValores("resumo-previsao-home");
   const mesVigente = useCompetenciaVigente();
+  const { prefs } = usePreferencias();
   // Na tela Finanças segue o mês escolhido no filtro; no Início, a competência vigente.
   const mes = mesEscolhido ?? mesVigente;
 
@@ -37,11 +39,13 @@ export function ResumoPrevisaoHome({ mes: mesEscolhido, className }: { mes?: str
         { despesas: despesas as any[], receitas: receitas as any[], faturas: faturasMes as any[], cotacao },
         mes,
         metaDoMes(caixinhas, mes),
+        prefs.dia_virada,
       ),
-    [despesas, receitas, faturasMes, cotacao, mes, caixinhas],
+    [despesas, receitas, faturasMes, cotacao, mes, caixinhas, prefs.dia_virada],
   );
   const serie = p.serie.map((s) => ({
     dia: s.dia,
+    rotulo: s.rotulo,
     real: s.projetado ? null : s.saldo,
     previsto: s.dia >= p.diaHoje ? s.saldo : null,
   }));
@@ -117,7 +121,7 @@ export function ResumoPrevisaoHome({ mes: mesEscolhido, className }: { mes?: str
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={serie} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
-              <XAxis dataKey="dia" tick={{ fontSize: 11 }} interval="preserveStartEnd" />
+              <XAxis dataKey="rotulo" tick={{ fontSize: 11 }} interval="preserveStartEnd" />
               <YAxis hide />
               <ReferenceLine y={0} stroke="var(--muted-foreground)" strokeDasharray="2 2" />
               {temMeta && <ReferenceLine y={p.meta} stroke="#10b981" strokeDasharray="4 4" />}
