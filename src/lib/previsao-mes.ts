@@ -99,6 +99,20 @@ export function datasDoCiclo(mes: string, diaVirada?: number | null): string[] {
   return out;
 }
 
+/** Ciclo em que a receita conta: o da data ou, com a opção ligada e na faixa "dia N até a virada", o seguinte. */
+export function cicloDaReceita(iso: string, diaVirada?: number | null, aPartirDoDia?: number | null): string {
+  const ciclo = competenciaDaData(iso, diaVirada);
+  const n = aPartirDoDia && aPartirDoDia >= 1 && aPartirDoDia <= 31 ? aPartirDoDia : null;
+  if (!n) return ciclo;
+  const d = diaVirada && diaVirada >= 2 && diaVirada <= 28 ? diaVirada : 1;
+  const dia = Number(iso.slice(8, 10));
+  const naFaixa = n >= d ? dia >= n || dia < d : dia >= n && dia < d;
+  if (!naFaixa) return ciclo;
+  const [a, m] = ciclo.split("-").map(Number);
+  const prox = new Date(a, m, 1);
+  return `${prox.getFullYear()}-${String(prox.getMonth() + 1).padStart(2, "0")}`;
+}
+
 /** Competência (AAAA-MM) em que a data cai, pelo dia de virada. */
 function competenciaDaData(iso: string, diaVirada?: number | null): string {
   const d = diaVirada && diaVirada >= 2 && diaVirada <= 28 ? diaVirada : 1;
@@ -113,6 +127,7 @@ export function calcularPrevisaoMes(
   mes: string,
   metaPoupar = 0,
   diaVirada?: number | null,
+  receitasProximoCicloDia?: number | null,
 ): PrevisaoMes {
   const { despesas, receitas, faturas, cotacao } = dados;
   const hoje = new Date();
@@ -135,9 +150,13 @@ export function calcularPrevisaoMes(
   const diaHoje = indice.get(hojeIso) ?? (encerrado ? diasNoMes : 0);
   const ent = new Array(diasNoMes + 1).fill(0);
   const sai = new Array(diasNoMes + 1).fill(0);
+  // Receita conta no ciclo da data; com a opção "a partir do dia N", a que cai entre o dia N e a virada
+  // vai para o próximo ciclo (ex.: salário do dia 30 paga o ciclo que começa na próxima virada).
   for (const r of recProj as any[]) {
-    const i = indice.get(String(r.data_recebimento ?? "").slice(0, 10));
-    if (i) ent[i] += vr(r);
+    const iso = String(r.data_recebimento ?? "").slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) continue;
+    if (cicloDaReceita(iso, diaVirada, receitasProximoCicloDia) !== mes) continue;
+    ent[indice.get(iso) ?? 1] += vr(r);
   }
   for (const p of parcelas as any[]) {
     const i = indice.get(String(p.vencimento ?? "").slice(0, 10));

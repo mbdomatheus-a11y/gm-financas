@@ -40,8 +40,9 @@ export function ResumoPrevisaoHome({ mes: mesEscolhido, className }: { mes?: str
         mes,
         metaDoMes(caixinhas, mes),
         prefs.dia_virada,
+        prefs.receitas_proximo_ciclo_dia,
       ),
-    [despesas, receitas, faturasMes, cotacao, mes, caixinhas, prefs.dia_virada],
+    [despesas, receitas, faturasMes, cotacao, mes, caixinhas, prefs.dia_virada, prefs.receitas_proximo_ciclo_dia],
   );
   const serie = p.serie.map((s) => ({
     dia: s.dia,

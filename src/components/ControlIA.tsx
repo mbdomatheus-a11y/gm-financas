@@ -254,7 +254,7 @@ function useContexto(ativo: boolean) {
   });
   return useMemo(() => {
     if (!ativo) return null;
-    const prev = calcularPrevisaoMes({ despesas: despesas as any[], receitas: receitas as any[], faturas: faturas as any[], cotacao }, mes, metaDoMes(caixinhas, mes), prefsVirada.dia_virada);
+    const prev = calcularPrevisaoMes({ despesas: despesas as any[], receitas: receitas as any[], faturas: faturas as any[], cotacao }, mes, metaDoMes(caixinhas, mes), prefsVirada.dia_virada, prefsVirada.receitas_proximo_ciclo_dia);
     const hoje = new Date().toISOString().slice(0, 10);
     const em30 = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
     const proximoMes = monthKey(new Date(Date.now() + 31 * 86400000));
@@ -288,5 +288,5 @@ function useContexto(ativo: boolean) {
         listaDeComprasPendente: compras.map((i: any) => ({ item: i.nome, quantidade: i.quantidade })),
       },
     };
-  }, [ativo, despesas, receitas, faturas, cartoes, caixinhas, compras, cotacao, mes, prefsVirada.dia_virada]);
+  }, [ativo, despesas, receitas, faturas, cartoes, caixinhas, compras, cotacao, mes, prefsVirada.dia_virada, prefsVirada.receitas_proximo_ciclo_dia]);
 }

@@ -11,6 +11,8 @@ export type Preferencias = {
   layout_menu: string;
   /** Item 5 do backlog 2026-09-27: dia de virada do "mês do sistema" (1-28), ou null para mês calendário normal. */
   dia_virada: number | null;
+  /** 30/10/2026: receita recebida a partir deste dia (até a virada) conta para o próximo ciclo. null = pela data. */
+  receitas_proximo_ciclo_dia: number | null;
   /** Bloco 7 (plano-mega-2026-09-14.md): destaca a soma do módulo Veículo no card "Veículo" da Início. */
   destacar_veiculo_inicio: boolean;
   /** Widgets da tela Início (ordem, tamanho). null = layout automático. */
@@ -29,6 +31,7 @@ export const DEFAULT_PREFS: Omit<Preferencias, "user_id"> = {
   fonte: "Plus Jakarta Sans",
   layout_menu: "lateral",
   dia_virada: null,
+  receitas_proximo_ciclo_dia: null,
   destacar_veiculo_inicio: false,
   home_widgets: null,
   idioma: null,

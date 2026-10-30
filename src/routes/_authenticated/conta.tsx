@@ -103,6 +103,13 @@ function ContaPage() {
   const { prefs: preferencias, save: salvarPreferencias } = usePreferencias();
   const [usarDiaVirada, setUsarDiaVirada] = useState(false);
   const [diaViradaInput, setDiaViradaInput] = useState("");
+  // 30/10/2026: receitas do fim do ciclo (ex.: salário do dia 30) contam para o próximo ciclo.
+  const [usarReceitasProx, setUsarReceitasProx] = useState(false);
+  const [diaReceitasInput, setDiaReceitasInput] = useState("");
+  useEffect(() => {
+    setUsarReceitasProx(preferencias.receitas_proximo_ciclo_dia != null);
+    setDiaReceitasInput(preferencias.receitas_proximo_ciclo_dia != null ? String(preferencias.receitas_proximo_ciclo_dia) : "");
+  }, [preferencias.receitas_proximo_ciclo_dia]);
 
   useEffect(() => {
     setUsarDiaVirada(preferencias.dia_virada != null);
@@ -110,9 +117,18 @@ function ContaPage() {
   }, [preferencias.dia_virada]);
 
   const salvarMesSistema = () => {
+    let receitasDia: number | null = null;
+    if (usarReceitasProx) {
+      const n = Number(diaReceitasInput);
+      if (!Number.isInteger(n) || n < 1 || n > 31) {
+        toast.error("Informe o dia das receitas entre 1 e 31.");
+        return;
+      }
+      receitasDia = n;
+    }
     if (!usarDiaVirada) {
       salvarPreferencias.mutate(
-        { dia_virada: null },
+        { dia_virada: null, receitas_proximo_ciclo_dia: receitasDia },
         { onSuccess: () => toast.success("Mês do sistema voltou ao calendário normal.") },
       );
       return;
@@ -123,7 +139,7 @@ function ContaPage() {
       return;
     }
     salvarPreferencias.mutate(
-      { dia_virada: dia },
+      { dia_virada: dia, receitas_proximo_ciclo_dia: receitasDia },
       { onSuccess: () => toast.success("Mês do sistema atualizado.") },
     );
   };
@@ -516,6 +532,28 @@ function ContaPage() {
                 {proximaVirada(new Date(), preferencias.dia_virada).toLocaleDateString("pt-BR")}
               </p>
             )}
+            <div className="space-y-2 rounded-lg border p-3">
+              <label className="flex cursor-pointer items-center gap-2 font-medium">
+                <Switch checked={usarReceitasProx} onCheckedChange={setUsarReceitasProx} />
+                Receitas do fim do ciclo contam para o próximo
+              </label>
+              <p className="text-xs text-muted-foreground">
+                Ex.: com virada no dia 8 e "a partir do dia 25", o salário do dia 30 entra na previsão do ciclo que
+                começa no dia 8 seguinte. Receitas antes do dia 25 (como as do dia 15) continuam no ciclo atual.
+              </p>
+              {usarReceitasProx && (
+                <Field label="A partir do dia (1 a 31)">
+                  <Input
+                    type="number"
+                    min={1}
+                    max={31}
+                    value={diaReceitasInput}
+                    onChange={(e) => setDiaReceitasInput(e.target.value)}
+                    className="max-w-[120px]"
+                  />
+                </Field>
+              )}
+            </div>
             <p className="text-xs text-muted-foreground">
               Vale por enquanto apenas para o Dashboard e a Início — as demais telas continuam
               considerando o mês calendário.
