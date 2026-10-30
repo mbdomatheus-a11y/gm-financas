@@ -35,5 +35,11 @@ export function logoDoCatalogo(nome: string | null | undefined, catalogo: LogoBa
   const contrario = catalogo
     .filter((c) => k.length >= 2 && c.chave.startsWith(`${k} `))
     .sort((a, b) => a.chave.length - b.chave.length)[0];
-  return contrario?.logo_url ?? null;
+  if (contrario) return contrario.logo_url;
+  // Nome composto ("Riachuelo / Midway", "Cartão Pernambucanas"): qualquer palavra que seja um banco do catálogo.
+  const palavras = new Set(k.split(" ").filter((w) => w.length >= 3));
+  const porPalavra = catalogo
+    .filter((c) => !c.chave.includes(" ") && palavras.has(c.chave))
+    .sort((a, b) => b.chave.length - a.chave.length)[0];
+  return porPalavra?.logo_url ?? null;
 }

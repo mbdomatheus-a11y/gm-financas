@@ -4,6 +4,29 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { chaveBanco, type LogoBanco } from "@/lib/bancos-logos";
 
 const VALIDADE_MS = 7 * 24 * 3600_000;
+
+/**
+ * Cartões de loja e bancos que a Pluggy não lista: logo oficial do site da empresa (ícone publicado
+ * no próprio domínio, servido pelo Google). Acrescente aqui quando faltar algum.
+ */
+const EXTRAS: { nome: string; dominio: string }[] = [
+  { nome: "Pernambucanas", dominio: "pernambucanas.com.br" },
+  { nome: "Riachuelo", dominio: "riachuelo.com.br" },
+  { nome: "Renner", dominio: "lojasrenner.com.br" },
+  { nome: "C&A", dominio: "cea.com.br" },
+  { nome: "Marisa", dominio: "marisa.com.br" },
+  { nome: "Havan", dominio: "havan.com.br" },
+  { nome: "Magazine Luiza", dominio: "magazineluiza.com.br" },
+  { nome: "Casas Bahia", dominio: "casasbahia.com.br" },
+  { nome: "Americanas", dominio: "americanas.com.br" },
+  { nome: "Porto Seguro", dominio: "portoseguro.com.br" },
+  { nome: "Will Bank", dominio: "willbank.com.br" },
+  { nome: "Neon", dominio: "neon.com.br" },
+  { nome: "PagBank", dominio: "pagbank.com.br" },
+  { nome: "Banco Original", dominio: "original.com.br" },
+  { nome: "Agibank", dominio: "agibank.com.br" },
+];
+const logoDoDominio = (d: string) => `https://www.google.com/s2/favicons?domain=${d}&sz=128`;
 const ORDEM_TIPO: Record<string, number> = { PERSONAL_BANK: 0, BUSINESS_BANK: 1, INVESTMENT: 2 };
 
 /**
@@ -44,6 +67,12 @@ export const catalogoLogosBancos = createServerFn({ method: "GET" })
           tipo: c.type ?? null,
           ordem,
         });
+      }
+      for (const e of EXTRAS) {
+        const chave = chaveBanco(e.nome);
+        if (chave && !porChave.has(chave)) {
+          porChave.set(chave, { chave, nome: e.nome, logo_url: logoDoDominio(e.dominio), cor: null, tipo: "LOJA", ordem: 5 });
+        }
       }
       const linhas = [...porChave.values()].map(({ ordem: _o, ...l }) => ({ ...l, atualizado_em: new Date().toISOString() }));
       if (linhas.length) await db.from("bancos_logos").upsert(linhas, { onConflict: "chave" });
