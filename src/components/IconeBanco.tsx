@@ -54,13 +54,15 @@ export function IconeBanco({
   const { data: logos = [] } = useLogosBancos();
   const { data: catalogo = [] } = useCatalogoLogos();
   const v = visualDoBanco(nome);
+  // 30/10/2026: o logo do catálogo (pelo nome do banco) vem primeiro. O logo da conexão de Open Finance
+  // é o do conector usado (ex.: Meu Pluggy, igual para todos os bancos) e só entra se o banco não estiver
+  // no catálogo. Antes ele substituía o logo certo assim que carregava ("aparece e some").
   const achado =
+    logoDoCatalogo(nome, catalogo) ??
     logo ??
     (bancoId ? logos.find((l) => l.bancoId === bancoId)?.logo : undefined) ??
     logos.find((l) => normal(l.nome) === normal(nome))?.logo ??
     (v.conhecido ? logos.find((l) => visualDoBanco(l.nome).sigla === v.sigla && visualDoBanco(l.nome).conhecido)?.logo : undefined) ??
-    // 28/10/2026: qualquer banco cadastrado, mesmo sem Open Finance, usa o logo oficial do catálogo.
-    logoDoCatalogo(nome, catalogo) ??
     null;
 
   if (achado && !falhou)
