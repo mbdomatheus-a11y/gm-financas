@@ -175,6 +175,15 @@ export const Route = createFileRoute("/_authenticated/administracao")({
   component: Admin,
 });
 
+/** De onde veio a tentativa de login, pelo navegador/app gravado no log. */
+function origemLogin(ua: string | null | undefined): string {
+  const t = String(ua ?? "");
+  if (/ControlALL\/|CFNetwork|Darwin/i.test(t)) return "App iPhone";
+  if (/okhttp|Expo|Dalvik/i.test(t)) return "App Android";
+  if (/ControlALLApp/i.test(t)) return "App (site no app)";
+  return t ? "Site" : "n/d";
+}
+
 const MOTIVOS_FALHA_LOGIN: Record<string, string> = {
   usuario_nao_cadastrado: "Usuário não cadastrado",
   senha_incorreta: "Senha incorreta",
@@ -304,7 +313,7 @@ function Admin() {
   const [novoPinInput, setNovoPinInput] = useState("");
   const [tipoProtecaoInput, setTipoProtecaoInput] = useState<"nenhuma" | "senha" | "pin">("senha");
 
-  const { data: protecaoAdmin } = useQuery({
+  const { data: protecaoAdmin, isLoading: carregandoProtecao } = useQuery({
     queryKey: ["admin-protecao"],
     enabled: isSiteAdmin,
     queryFn: () => obterProtecaoAdmin(),
@@ -792,6 +801,14 @@ function Admin() {
   // - "nenhuma": entra direto sem bloqueio
   // - "pin": exige o PIN de 4 dígitos
   // - "senha": exige a senha da conta
+  // 31/10/2026: enquanto a configuração da proteção carrega, mostra "Carregando" em vez da tela de senha
+  // (antes a tela de senha piscava e sumia para quem usa "Sem senha").
+  if (carregandoProtecao && !consultaDesbloqueada)
+    return (
+      <AppLayout title="Administração do site" description="Painel de controle administrativo">
+        <Card><CardContent className="p-8 text-center text-muted-foreground">Carregando a administração...</CardContent></Card>
+      </AppLayout>
+    );
   const tipoProtecao = protecaoAdmin?.tipo ?? "senha";
   const emModoPin = tipoProtecao === "pin" && !preferirSenhaConta;
 
@@ -1340,55 +1357,6 @@ function Admin() {
           <IaLancamentoModoSiteCard />
           <TelaInicialPadraoCard />
           <RedispararAvisosCard />
-          <Card>
-            <CardHeader><CardTitle className="text-sm">Log de tentativas de login</CardTitle></CardHeader>
-            <CardContent className="space-y-3">
-              <p className="text-xs text-muted-foreground">
-                Toda tentativa de login com erro é registrada (mesmo a primeira), com o que foi digitado
-                (nunca a senha), o motivo, o IP e a localização aproximada. Bloqueios automáticos ocorrem
-                após 3 tentativas falhas consecutivas (15 min).
-              </p>
-              <LogPainel
-                itens={falhasLogin as any[]}
-                getData={(f: any) => f.criado_em}
-                getChave={(f: any) => f.id}
-                nomeArquivo="falhas-de-login"
-                vazio="Nenhuma tentativa de login com erro registrada."
-                colunas={[
-                  { titulo: "Data/hora", valor: (f: any) => new Date(f.criado_em).toLocaleString("pt-BR") },
-                  { titulo: "Identificador digitado", valor: (f: any) => f.identificador },
-                  { titulo: "Tipo", valor: (f: any) => f.tipo_identificador },
-                  { titulo: "Motivo", valor: (f: any) => MOTIVOS_FALHA_LOGIN[f.motivo] ?? f.motivo },
-                  { titulo: "IP", valor: (f: any) => f.ip },
-                  { titulo: "Cidade", valor: (f: any) => f.cidade },
-                  { titulo: "Região", valor: (f: any) => f.regiao },
-                  { titulo: "País", valor: (f: any) => f.pais },
-                  { titulo: "Tentativas seguidas", valor: (f: any) => f.tentativas },
-                  { titulo: "Bloqueou a conta", valor: (f: any) => (f.bloqueou ? "Sim" : "Não") },
-                  { titulo: "Navegador", valor: (f: any) => f.user_agent },
-                ]}
-                renderItem={(f: any) => (
-                  <div className="rounded-lg border px-3 py-2 text-xs">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded bg-rose-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-rose-600">
-                        {MOTIVOS_FALHA_LOGIN[f.motivo] ?? f.motivo}
-                      </span>
-                      <span className="font-mono">{f.identificador}</span>
-                      {f.bloqueou && (
-                        <span className="rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-amber-600">
-                          Conta bloqueada
-                        </span>
-                      )}
-                    </div>
-                    <p className="mt-1 text-muted-foreground">
-                      {new Date(f.criado_em).toLocaleString("pt-BR")} · IP {f.ip ?? "n/d"}
-                      {f.cidade ? ` · ${f.cidade}${f.regiao ? `/${f.regiao}` : ""}${f.pais ? ` (${f.pais})` : ""}` : ""}
-                    </p>
-                  </div>
-                )}
-              />
-            </CardContent>
-          </Card>
         </TabsContent>
 
         {/* ─── ABA 4: MÓDULOS ─── */}
@@ -2141,6 +2109,58 @@ function Admin() {
 
         {/* ─── ABA 9: LOGS DE AUDITORIA ─── */}
         <TabsContent value="logs" className="space-y-4">
+          {/* 31/10/2026: as falhas de login (e-mail ou senha errados) ficam aqui, na auditoria (pedido do Matheus). */}
+          <Card>
+            <CardHeader><CardTitle className="text-sm">Tentativas de login com erro (site e app)</CardTitle></CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-xs text-muted-foreground">
+                Toda tentativa de login com erro é registrada (mesmo a primeira), com o que foi digitado
+                (nunca a senha), o motivo, o IP e a localização aproximada. Bloqueios automáticos ocorrem
+                após 3 tentativas falhas consecutivas (15 min).
+              </p>
+              <LogPainel
+                itens={falhasLogin as any[]}
+                getData={(f: any) => f.criado_em}
+                getChave={(f: any) => f.id}
+                nomeArquivo="falhas-de-login"
+                vazio="Nenhuma tentativa de login com erro registrada."
+                colunas={[
+                  { titulo: "Data/hora", valor: (f: any) => new Date(f.criado_em).toLocaleString("pt-BR") },
+                  { titulo: "Identificador digitado", valor: (f: any) => f.identificador },
+                  { titulo: "Tipo", valor: (f: any) => f.tipo_identificador },
+                  { titulo: "Motivo", valor: (f: any) => MOTIVOS_FALHA_LOGIN[f.motivo] ?? f.motivo },
+                  { titulo: "IP", valor: (f: any) => f.ip },
+                  { titulo: "Cidade", valor: (f: any) => f.cidade },
+                  { titulo: "Região", valor: (f: any) => f.regiao },
+                  { titulo: "País", valor: (f: any) => f.pais },
+                  { titulo: "Tentativas seguidas", valor: (f: any) => f.tentativas },
+                  { titulo: "Bloqueou a conta", valor: (f: any) => (f.bloqueou ? "Sim" : "Não") },
+                  { titulo: "Origem", valor: (f: any) => origemLogin(f.user_agent) },
+                  { titulo: "Navegador", valor: (f: any) => f.user_agent },
+                ]}
+                renderItem={(f: any) => (
+                  <div className="rounded-lg border px-3 py-2 text-xs">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="rounded bg-rose-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-rose-600">
+                        {MOTIVOS_FALHA_LOGIN[f.motivo] ?? f.motivo}
+                      </span>
+                      <span className="font-mono">{f.identificador}</span>
+                      <span className="rounded bg-muted px-1.5 py-0.5 text-[10px]">{origemLogin(f.user_agent)}</span>
+                      {f.bloqueou && (
+                        <span className="rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-amber-600">
+                          Conta bloqueada
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-1 text-muted-foreground">
+                      {new Date(f.criado_em).toLocaleString("pt-BR")} · IP {f.ip ?? "n/d"}
+                      {f.cidade ? ` · ${f.cidade}${f.regiao ? `/${f.regiao}` : ""}${f.pais ? ` (${f.pais})` : ""}` : ""}
+                    </p>
+                  </div>
+                )}
+              />
+            </CardContent>
+          </Card>
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between gap-2">

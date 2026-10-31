@@ -48,6 +48,7 @@ import { SincronizadorAgendaApp } from "@/components/SincronizadorAgendaApp";
 import { useIdioma } from "@/hooks/useIdioma";
 import type { ChaveTraducao } from "@/lib/i18n/traducoes";
 import { supabase } from "@/integrations/supabase/client";
+import { PesquisaTela } from "@/components/PesquisaTela";
 import {
   useModulosGlobais,
   useProfile,
@@ -1005,6 +1006,8 @@ export function AppLayout({
           ) : (
             <Fragment key={ocultarValores ? "valores-ocultos" : "valores-visiveis"}>{children}</Fragment>
           )}
+          {/* 31/10/2026: pesquisa de satisfação (joinha) no fim das páginas, igual ao app. */}
+          {!rotaAdminBloqueada && <PesquisaTela />}
           <SincronizadorAgendaApp />
         </main>
       </div>
