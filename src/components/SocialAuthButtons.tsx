@@ -109,6 +109,8 @@ export function SocialAuthButtons({
             skipBrowserRedirect: true,
             // Microsoft só devolve o e-mail com o escopo "email" (sem ele o login falha no retorno).
             ...(provider === "azure" ? { scopes: "email" } : {}),
+            // 31/10/2026: sempre pergunta qual conta usar (evita entrar sem querer com a conta do trabalho).
+            ...(provider === "azure" || provider === "google" ? { queryParams: { prompt: "select_account" } } : {}),
           },
         });
         if (error || !data?.url) {
@@ -131,6 +133,8 @@ export function SocialAuthButtons({
           redirectTo: redirectUrl,
           // Microsoft só devolve o e-mail com o escopo "email" (sem ele o login falha no retorno).
           ...(provider === "azure" ? { scopes: "email" } : {}),
+          // 31/10/2026: sempre pergunta qual conta usar (evita entrar sem querer com a conta do trabalho).
+          ...(provider === "azure" || provider === "google" ? { queryParams: { prompt: "select_account" } } : {}),
         },
       });
 

@@ -24,7 +24,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useProfile } from "@/hooks/useAuthData";
+import { useProfile, useSession } from "@/hooks/useAuthData";
 import { useIdioma } from "@/hooks/useIdioma";
 import { IDIOMAS, infoIdioma } from "@/lib/i18n/idiomas";
 import { traduzir } from "@/lib/i18n/traducoes";
@@ -52,6 +52,8 @@ export function MenuUsuario({
   const { idioma, definir } = useIdioma();
   const foto = (perfil as { foto_url?: string | null } | undefined)?.foto_url ?? null;
   const nome = (perfil as { nome?: string | null } | undefined)?.nome ?? "";
+  // 31/10/2026: mostra com qual e-mail a pessoa entrou (igual ao app).
+  const { user: usuarioSessao } = useSession();
   const inicial = nome.trim() ? nome.trim()[0]!.toLocaleUpperCase("pt-BR") : "";
   const grupoAdmin = isAdmin && !modoCliente;
   const siteAdmin = isSiteAdmin && !modoCliente;
@@ -75,7 +77,12 @@ export function MenuUsuario({
         )}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64">
-        <DropdownMenuLabel className="truncate">{nome || "Minha conta"}</DropdownMenuLabel>
+        <DropdownMenuLabel className="truncate">
+          {nome || "Minha conta"}
+          {usuarioSessao?.email ? (
+            <span className="block truncate text-xs font-normal text-muted-foreground">Conectado como {usuarioSessao.email}</span>
+          ) : null}
+        </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
           <Link to="/conta" className="flex items-center gap-2">
