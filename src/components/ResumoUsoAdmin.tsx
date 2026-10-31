@@ -6,6 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { adminListarAcessos, type AcessoSite } from "@/lib/acessos-site.functions";
+import { TabelaOrdenavel } from "@/components/TabelaOrdenavel";
+
+const maisUsado = (m: Map<string, number>) => [...m.entries()].sort((x, y) => y[1] - x[1])[0]?.[0] ?? "";
 
 /** Nome do menu para cada caminho (site e app). */
 const MENUS: Record<string, string> = {
@@ -158,43 +161,38 @@ export function ResumoUsoAdmin() {
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm">Menus mais acessados</CardTitle></CardHeader>
           <CardContent className="max-h-96 overflow-auto">
-            <table className="w-full text-left text-xs">
-              <thead><tr className="border-b text-muted-foreground"><th className="p-1.5">Menu</th><th className="p-1.5">Acessos</th><th className="p-1.5">Pessoas</th><th className="p-1.5">Site / App</th><th className="p-1.5">Último</th></tr></thead>
-              <tbody>
-                {porMenu.map((r) => (
-                  <tr key={r.menu} className="border-b last:border-0">
-                    <td className="p-1.5 font-medium">{r.menu}</td>
-                    <td className="p-1.5">{r.acessos}</td>
-                    <td className="p-1.5">{r.pessoas.size}</td>
-                    <td className="p-1.5">{r.site} / {r.app}</td>
-                    <td className="p-1.5 text-muted-foreground">{dataBr(r.ultimo)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <TabelaOrdenavel
+              itens={porMenu}
+              getChave={(r) => r.menu}
+              className="text-xs"
+              celulaClassName="p-1.5"
+              colunas={[
+                { titulo: "Menu", celula: (r) => <span className="font-medium">{r.menu}</span>, ordenar: (r) => r.menu },
+                { titulo: "Acessos", celula: (r) => r.acessos, ordenar: (r) => r.acessos },
+                { titulo: "Pessoas", celula: (r) => r.pessoas.size, ordenar: (r) => r.pessoas.size },
+                { titulo: "Site / App", celula: (r) => `${r.site} / ${r.app}`, ordenar: (r) => r.site + r.app },
+                { titulo: "Último", celula: (r) => <span className="text-muted-foreground">{dataBr(r.ultimo)}</span>, ordenar: (r) => new Date(r.ultimo) },
+              ]}
+            />
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm">Por pessoa</CardTitle></CardHeader>
           <CardContent className="max-h-96 overflow-auto">
-            <table className="w-full text-left text-xs">
-              <thead><tr className="border-b text-muted-foreground"><th className="p-1.5">Pessoa</th><th className="p-1.5">Acessos</th><th className="p-1.5">Menus</th><th className="p-1.5">Mais usado</th><th className="p-1.5">Último</th></tr></thead>
-              <tbody>
-                {porPessoa.map((r) => {
-                  const preferido = [...r.preferido.entries()].sort((x, y) => y[1] - x[1])[0]?.[0] ?? "";
-                  return (
-                    <tr key={r.nome + r.ultimo} className="border-b last:border-0">
-                      <td className="p-1.5 font-medium">{r.nome}</td>
-                      <td className="p-1.5">{r.acessos}</td>
-                      <td className="p-1.5">{r.menus.size}</td>
-                      <td className="p-1.5">{preferido}</td>
-                      <td className="p-1.5 text-muted-foreground">{dataBr(r.ultimo)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            <TabelaOrdenavel
+              itens={porPessoa}
+              getChave={(r) => r.nome + r.ultimo}
+              className="text-xs"
+              celulaClassName="p-1.5"
+              colunas={[
+                { titulo: "Pessoa", celula: (r) => <span className="font-medium">{r.nome}</span>, ordenar: (r) => r.nome },
+                { titulo: "Acessos", celula: (r) => r.acessos, ordenar: (r) => r.acessos },
+                { titulo: "Menus", celula: (r) => r.menus.size, ordenar: (r) => r.menus.size },
+                { titulo: "Mais usado", celula: (r) => maisUsado(r.preferido), ordenar: (r) => maisUsado(r.preferido) },
+                { titulo: "Último", celula: (r) => <span className="text-muted-foreground">{dataBr(r.ultimo)}</span>, ordenar: (r) => new Date(r.ultimo) },
+              ]}
+            />
           </CardContent>
         </Card>
       </div>

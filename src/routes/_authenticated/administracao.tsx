@@ -105,6 +105,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { TabelaOrdenavel } from "@/components/TabelaOrdenavel";
 
 // Item 8: `?aba=` permite que o botão "Tratar solicitação" dos e-mails de
 // notificação abra a Administração já na aba certa (privacidade/central).
@@ -182,6 +183,42 @@ function origemLogin(ua: string | null | undefined): string {
   if (/okhttp|Expo|Dalvik/i.test(t)) return "App Android";
   if (/ControlALLApp/i.test(t)) return "App (site no app)";
   return t ? "Site" : "n/d";
+}
+
+/** "Atividade e espaço por usuário": títulos clicáveis para ordenar (31/10/2026). */
+function TabelaAtividadeUsuarios({ usuarios }: { usuarios: any[] }) {
+  return (
+    <TabelaOrdenavel
+      itens={usuarios}
+      getChave={(u: any) => u.id}
+      className="text-sm"
+      colunas={[
+        { titulo: "Usuário", celula: (u: any) => u.nome, ordenar: (u: any) => u.nome },
+        {
+          titulo: "Situação",
+          celula: (u: any) =>
+            u.ativo ? (
+              <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-700">Ativa</Badge>
+            ) : (
+              <Badge variant="secondary" className="bg-rose-500/10 text-rose-700">Inativa</Badge>
+            ),
+          ordenar: (u: any) => (u.ativo ? "Ativa" : "Inativa"),
+        },
+        {
+          titulo: "Última atividade",
+          celula: (u: any) => (
+            <span className="text-xs text-muted-foreground">
+              {u.ultimaAtividadeEm ? new Date(u.ultimaAtividadeEm).toLocaleString("pt-BR") : "Sem acesso"}
+            </span>
+          ),
+          ordenar: (u: any) => (u.ultimaAtividadeEm ? new Date(u.ultimaAtividadeEm) : null),
+        },
+        { titulo: "Arquivos", celula: (u: any) => u.arquivos, ordenar: (u: any) => Number(u.arquivos ?? 0) },
+        { titulo: "Espaço", celula: (u: any) => formatarTamanho(u.bytesArmazenados), ordenar: (u: any) => Number(u.bytesArmazenados ?? 0) },
+        { titulo: "Grupo", celula: (u: any) => <span className="text-xs text-muted-foreground">{u.grupoNome}</span>, ordenar: (u: any) => u.grupoNome },
+      ]}
+    />
+  );
 }
 
 const MOTIVOS_FALHA_LOGIN: Record<string, string> = {
@@ -1027,30 +1064,7 @@ function Admin() {
             </CardHeader>
             <CardContent>
             <div className="max-h-96 overflow-auto">
-              <table className="w-full text-left text-sm">
-                <thead>
-                  <tr className="border-b">
-                    <th className="p-2">Usuário</th>
-                    <th className="p-2">Situação</th>
-                    <th className="p-2">Última atividade</th>
-                    <th className="p-2">Arquivos</th>
-                    <th className="p-2">Espaço</th>
-                    <th className="p-2">Grupo</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(metricas?.usuarios ?? []).map((u: any) => (
-                    <tr key={u.id} className="border-b last:border-0">
-                      <td className="p-2">{u.nome}</td>
-                      <td className="p-2">{u.ativo ? <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-700">Ativa</Badge> : <Badge variant="secondary" className="bg-rose-500/10 text-rose-700">Inativa</Badge>}</td>
-                      <td className="p-2 text-xs text-muted-foreground">{u.ultimaAtividadeEm ? new Date(u.ultimaAtividadeEm).toLocaleString("pt-BR") : "Sem acesso"}</td>
-                      <td className="p-2">{u.arquivos}</td>
-                      <td className="p-2">{formatarTamanho(u.bytesArmazenados)}</td>
-                      <td className="p-2 text-xs text-muted-foreground">{u.grupoNome}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <TabelaAtividadeUsuarios usuarios={(metricas?.usuarios ?? []) as any[]} />
             </div>
             <p className="mt-2 text-xs text-muted-foreground">
               Sem CPF exibido por segurança. Armazenamento não atribuído: {formatarTamanho(metricas?.armazenamentoNaoAtribuidoBytes ?? 0)}.
@@ -1079,23 +1093,26 @@ function Admin() {
                 "Acesso e Auth"). Você, como admin do site, tem limite ilimitado.
               </p>
               <div className="mt-3 max-h-60 overflow-auto">
-                <table className="w-full text-left text-xs">
-                  <thead><tr className="border-b"><th className="p-1.5">Criador</th><th className="p-1.5">Status</th><th className="p-1.5">Criado em</th><th className="p-1.5">Expira em</th></tr></thead>
-                  <tbody>
-                    {(convites as any[]).map((c: any) => (
-                      <tr key={c.id} className="border-b last:border-0">
-                        <td className="p-1.5">{c.criador_nome}</td>
-                        <td className="p-1.5">
-                          <span className={`rounded px-2 py-0.5 text-xs font-semibold ${STATUS_CONVITE[c.status]?.color ?? ""}`}>
-                            {STATUS_CONVITE[c.status]?.label ?? c.status}
-                          </span>
-                        </td>
-                        <td className="p-1.5">{new Date(c.criado_em).toLocaleDateString("pt-BR")}</td>
-                        <td className="p-1.5">{new Date(c.expira_em).toLocaleDateString("pt-BR")}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <TabelaOrdenavel
+                  itens={convites as any[]}
+                  getChave={(c: any) => c.id}
+                  className="text-xs"
+                  celulaClassName="p-1.5"
+                  colunas={[
+                    { titulo: "Criador", celula: (c: any) => c.criador_nome, ordenar: (c: any) => c.criador_nome },
+                    {
+                      titulo: "Status",
+                      celula: (c: any) => (
+                        <span className={`rounded px-2 py-0.5 text-xs font-semibold ${STATUS_CONVITE[c.status]?.color ?? ""}`}>
+                          {STATUS_CONVITE[c.status]?.label ?? c.status}
+                        </span>
+                      ),
+                      ordenar: (c: any) => STATUS_CONVITE[c.status]?.label ?? c.status,
+                    },
+                    { titulo: "Criado em", celula: (c: any) => new Date(c.criado_em).toLocaleDateString("pt-BR"), ordenar: (c: any) => new Date(c.criado_em) },
+                    { titulo: "Expira em", celula: (c: any) => new Date(c.expira_em).toLocaleDateString("pt-BR"), ordenar: (c: any) => new Date(c.expira_em) },
+                  ]}
+                />
               </div>
             </CardContent>
           </Card>
@@ -1141,30 +1158,7 @@ function Admin() {
             </CardHeader>
             <CardContent>
             <div className="max-h-96 overflow-auto">
-              <table className="w-full text-left text-sm">
-                <thead>
-                  <tr className="border-b">
-                    <th className="p-2">Usuário</th>
-                    <th className="p-2">Situação</th>
-                    <th className="p-2">Última atividade</th>
-                    <th className="p-2">Arquivos</th>
-                    <th className="p-2">Espaço</th>
-                    <th className="p-2">Grupo</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(metricas?.usuarios ?? []).map((u: any) => (
-                    <tr key={u.id} className="border-b last:border-0">
-                      <td className="p-2">{u.nome}</td>
-                      <td className="p-2">{u.ativo ? <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-700">Ativa</Badge> : <Badge variant="secondary" className="bg-rose-500/10 text-rose-700">Inativa</Badge>}</td>
-                      <td className="p-2 text-xs text-muted-foreground">{u.ultimaAtividadeEm ? new Date(u.ultimaAtividadeEm).toLocaleString("pt-BR") : "Sem acesso"}</td>
-                      <td className="p-2">{u.arquivos}</td>
-                      <td className="p-2">{formatarTamanho(u.bytesArmazenados)}</td>
-                      <td className="p-2 text-xs text-muted-foreground">{u.grupoNome}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <TabelaAtividadeUsuarios usuarios={(metricas?.usuarios ?? []) as any[]} />
             </div>
             <p className="mt-2 text-xs text-muted-foreground">
               Sem CPF exibido por segurança. Armazenamento não atribuído: {formatarTamanho(metricas?.armazenamentoNaoAtribuidoBytes ?? 0)}.

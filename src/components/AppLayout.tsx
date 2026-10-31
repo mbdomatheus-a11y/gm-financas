@@ -394,8 +394,8 @@ const GLOBAL: NavItem[] = [
   },
   {
     to: "/pluggy",
-    label: "Bancos (teste)",
-    short: "Bancos",
+    label: "Open Finance (bancos)",
+    short: "Open Finance",
     icon: Landmark,
     adminOnly: true,
   },

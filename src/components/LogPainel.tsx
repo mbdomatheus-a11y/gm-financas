@@ -2,10 +2,18 @@ import { useMemo, useState, type ReactNode } from "react";
 import { Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { baixarTxt, baixarXlsx } from "@/lib/exportar-planilha";
+import { BotaoOrdenar, ordenarPor, useOrdenacao, type ValorOrdem } from "@/components/TabelaOrdenavel";
 
 type Celula = string | number | null | undefined;
 
-export type ColunaLog<T> = { titulo: string; valor: (item: T) => Celula };
+/** Número quando o texto é só número (ex.: "12"), senão o próprio texto. */
+function numeroOuTexto(v: Celula): ValorOrdem {
+  if (typeof v === "number") return v;
+  const t = String(v ?? "").trim();
+  return /^-?\d+([.,]\d+)?$/.test(t) ? Number(t.replace(",", ".")) : t;
+}
+
+export type ColunaLog<T> = { titulo: string; valor: (item: T) => Celula; ordenar?: (item: T) => ValorOrdem };
 
 /**
  * Painel padrão das telas de log: mostra só os primeiros `limite` registros
@@ -32,8 +40,20 @@ export function LogPainel<T>({
   limite?: number;
 }) {
   const [abertoTudo, setAbertoTudo] = useState(false);
-  const recentes = itens.slice(0, limite);
-  const restantes = itens.slice(limite);
+  // 31/10/2026: ordenar por qualquer coluna (clique no nome; de novo inverte). Sem escolha: mais recentes primeiro.
+  const { ordem, alternar, limpar } = useOrdenacao<string>();
+  const ordenados = useMemo(() => {
+    if (!ordem) return itens;
+    const col = colunas.find((c) => c.titulo === ordem.chave);
+    if (!col) return itens;
+    const valor: (i: T) => ValorOrdem =
+      col.ordenar ?? (/^data/i.test(col.titulo) ? (i: T) => new Date(getData(i)) : (i: T) => numeroOuTexto(col.valor(i)));
+    return ordenarPor(itens, valor, ordem.direcao);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [itens, ordem]);
+  // Com uma ordenação escolhida, mostra a lista inteira na ordem (sem agrupar por dia).
+  const recentes = ordem ? ordenados : itens.slice(0, limite);
+  const restantes = ordem ? [] : itens.slice(limite);
 
   const porDia = useMemo(() => {
     const mapa = new Map<string, T[]>();
@@ -84,6 +104,26 @@ export function LogPainel<T>({
           </Button>
         </div>
       </div>
+
+      {itens.length > 1 && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+          <span>Ordenar por:</span>
+          {colunas.map((c) => (
+            <BotaoOrdenar
+              key={c.titulo}
+              rotulo={c.titulo}
+              ativo={ordem?.chave === c.titulo}
+              direcao={ordem?.direcao}
+              onClick={() => alternar(c.titulo)}
+            />
+          ))}
+          {ordem && (
+            <button type="button" className="underline-offset-2 hover:underline" onClick={limpar}>
+              Padrão (mais recentes)
+            </button>
+          )}
+        </div>
+      )}
 
       {itens.length === 0 ? (
         <p className="text-sm text-muted-foreground">{vazio}</p>

@@ -17,6 +17,7 @@ import { IdiomaProvider } from "@/hooks/useIdioma";
 import { ExclusaoAgendadaModal } from "@/components/ExclusaoAgendadaModal";
 import { BoasVindasExemplos } from "@/components/BoasVindasExemplos";
 import { PrimeirosPassos } from "@/components/retencao/PrimeirosPassos";
+import { useUltimaTela } from "@/lib/ultima-tela";
 import { useModulosGlobais, useSession, type ModuloGlobal } from "@/hooks/useAuthData";
 import { useAplicarRedefinicaoAvisos } from "@/lib/redefinir-avisos";
 
@@ -80,6 +81,8 @@ function Protegido() {
   const { user } = useSession();
   // Admin pode redefinir os avisos (para gravar vídeos): limpa o "já vi" guardado neste navegador.
   useAplicarRedefinicaoAvisos(user?.id);
+  // 31/10/2026: reabre na última tela em que a pessoa estava (igual ao app).
+  useUltimaTela(user?.id);
   useEffect(() => {
     const modulo = MODULO_POR_ROTA[pathname];
     if (!isLoading && modulo && !habilitado(modulo))
