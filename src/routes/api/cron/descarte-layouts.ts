@@ -119,7 +119,7 @@ export const Route = createFileRoute("/api/cron/descarte-layouts")({
         const exclusoes = await concluirExclusoesVencidas();
         // Plano de retenção (2026-10-17): lembrete de vencimento todo dia e resumo semanal na segunda.
         const { rodarEmailsRetencao } = await import("@/lib/retencao-emails.server");
-        const emails = await rodarEmailsRetencao(db).catch(() => ({ lembretes: 0, semanais: 0 }));
+        const emails = await rodarEmailsRetencao(db).catch(() => ({ lembretes: 0, ativacao: 0, semanais: 0 }));
 
         return Response.json({ descartados, conciliadas, rateLimitLimpo, exclusoes, emails });
       },

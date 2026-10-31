@@ -10,6 +10,7 @@
  */
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { enviarEmail, obterUrlBaseSite } from "@/lib/email.server";
+import { lancamentosPorCompetencias, receitasPorCompetencias } from "@/lib/recorrencia";
 
 const brl = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v || 0);
 const dataBR = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
@@ -194,7 +195,9 @@ export async function enviarResumosSemanais(db: any, hoje = new Date()): Promise
         const porCat = new Map<string, number>();
         for (const d of gastos) porCat.set(d.categoria || "Sem categoria", (porCat.get(d.categoria || "Sem categoria") ?? 0) + Number(d.valor_total ?? 0));
         const maior = [...porCat.entries()].sort((a, b) => b[1] - a[1])[0];
+        const saldo = await saldoDoMes(db, p.grupo_id, iniMes.slice(0, 7));
         g = {
+          saldo,
           totalSemana: gastos.reduce((s: number, d: any) => s + Number(d.valor_total ?? 0), 0),
           qtdSemana: gastos.length,
           maior,
@@ -203,11 +206,15 @@ export async function enviarResumosSemanais(db: any, hoje = new Date()): Promise
         };
         cacheGrupo.set(p.grupo_id, g);
       }
-      if (g.qtdSemana === 0 && g.aVencer === 0) continue; // nada a contar esta semana
+      // 31/10/2026: o resumo também mostra o saldo previsto do mês (motivo para voltar).
+      const temSaldo = !!g.saldo && (g.saldo.receitas > 0 || g.saldo.despesas > 0);
+      if (g.qtdSemana === 0 && g.aVencer === 0 && !temSaldo) continue; // nada a contar esta semana
       assunto = g.qtdSemana > 0 ? `Sua semana: ${brl(g.totalSemana)} em gastos` : `A vencer nesta semana: ${brl(g.aVencer)}`;
       html = moldura(
         `${nome}, seu resumo da semana`,
         `<table style="width:100%;border-collapse:collapse;font-size:14px">
+${temSaldo ? linha("Saldo previsto do mês", brl(g.saldo.receitas - g.saldo.despesas)) : ""}
+${temSaldo ? linha("Receitas do mês / despesas do mês", `${brl(g.saldo.receitas)} / ${brl(g.saldo.despesas)}`) : ""}
 ${linha("Gastos lançados nos últimos 7 dias", `${brl(g.totalSemana)} (${g.qtdSemana})`)}
 ${g.maior ? linha("Maior categoria", `${g.maior[0]}: ${brl(g.maior[1])}`) : ""}
 ${linha("A vencer nos próximos 7 dias", brl(g.aVencer))}
@@ -226,10 +233,64 @@ ${g.terminam > 0 ? linha("Parcelamentos que terminam este mês", String(g.termin
   return enviados;
 }
 
+/**
+ * Ativação no dia 1 e no dia 3 (31/10/2026, análise de retenção: só 4 de 16 fizeram o 1º lançamento).
+ * Para quem criou a conta e ainda não lançou nada. Cada um vai uma vez só (tipo "ativacao", referência d1/d3).
+ */
+export async function enviarAtivacao(db: any, hoje = new Date()): Promise<number> {
+  let enviados = 0;
+  for (const p of await perfisAtivos(db)) {
+    const dias = Math.floor((hoje.getTime() - new Date(p.created_at).getTime()) / 86_400_000);
+    const ref = dias === 1 ? "d1" : dias === 3 ? "d3" : null;
+    if (!ref) continue;
+    if (await jaEnviado(db, p.id, "ativacao", ref)) continue;
+    if (await fezPrimeiroLancamento(db, p)) continue;
+    const nome = (p.nome ?? "").split(" ")[0] || "Olá";
+    const assunto =
+      ref === "d1" ? "Faltam 30 segundos para ver para onde vai seu dinheiro" : `${nome}, seu controle ainda está vazio`;
+    const corpo =
+      ref === "d1"
+        ? `<p style="margin:0 0 10px;line-height:1.6">Ontem você criou sua conta no Control ALL. Falta só o primeiro gasto: digite ou fale algo como <i>"mercado, 85 reais"</i> e pronto.</p>
+<p style="margin:0;line-height:1.6">É grátis e você confere tudo antes de salvar.</p>${botao("Lançar meu primeiro gasto", "/inicio")}`
+        : `<p style="margin:0 0 10px;line-height:1.6">Um jeito rápido de começar: envie o PDF da fatura do cartão. Você vê todas as compras separadas por categoria e em que mês cada parcela termina.</p>
+<p style="margin:0;line-height:1.6">Prefere à mão? Um gasto já mostra o resumo do mês.</p>${botao("Enviar a fatura do cartão", "/importar")}`;
+    const r = await enviarEmail({ to: p.email!, subject: assunto, html: moldura(ref === "d1" ? `${nome}, falta só 1 passo` : "Comece pela fatura do cartão", corpo, p.id) });
+    if (r.ok) {
+      await registrar(db, p.id, "ativacao", ref);
+      enviados++;
+    }
+    await esperar(600);
+  }
+  return enviados;
+}
+
+/** Saldo previsto do mês do grupo (receitas menos despesas, mesma regra de competência do site). */
+async function saldoDoMes(db: any, grupoId: string, mes: string): Promise<{ receitas: number; despesas: number } | null> {
+  try {
+    const [{ data: despesas }, { data: receitas }] = await Promise.all([
+      db.from("despesas").select("*, parcelas(*)").eq("grupo_id", grupoId).limit(10000),
+      db.from("receitas").select("*").eq("grupo_id", grupoId).limit(5000),
+    ]);
+    const emReal = (v: number, moeda?: string | null) => (moeda && moeda !== "BRL" ? v * 5.4 : v);
+    const desp = lancamentosPorCompetencias(despesas ?? [], [mes]).reduce(
+      (s: number, l: any) => s + emReal(Number(l.valor) || 0, l.moeda),
+      0,
+    );
+    const rec = receitasPorCompetencias(receitas ?? [], [mes]).reduce(
+      (s: number, r: any) => s + emReal(Number(r.valor) || 0, r.moeda),
+      0,
+    );
+    return { receitas: rec, despesas: desp };
+  } catch {
+    return null;
+  }
+}
+
 /** Chamado pelo cron diário. Horário do Brasil para decidir se é segunda-feira. */
-export async function rodarEmailsRetencao(db: any): Promise<{ lembretes: number; semanais: number }> {
+export async function rodarEmailsRetencao(db: any): Promise<{ lembretes: number; ativacao: number; semanais: number }> {
   const agoraBR = new Date(Date.now() - 3 * 3_600_000);
   const lembretes = await enviarLembretesVencimento(db, agoraBR).catch(() => 0);
+  const ativacao = await enviarAtivacao(db, agoraBR).catch(() => 0);
   const semanais = agoraBR.getUTCDay() === 1 ? await enviarResumosSemanais(db, agoraBR).catch(() => 0) : 0;
-  return { lembretes, semanais };
+  return { lembretes, ativacao, semanais };
 }

@@ -33,7 +33,7 @@ import { TURNSTILE_ATIVO } from "@/lib/turnstile-config";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BrandMark } from "@/components/BrandMark";
 import { SiteHeader } from "@/components/SiteHeader";
-import { EntrarForm } from "@/components/EntrarForm";
+import { EMAIL_PARA_CRIAR, EntrarForm } from "@/components/EntrarForm";
 import { SocialAuthButtons } from "@/components/SocialAuthButtons";
 import { obterConfiguracaoAcesso } from "@/lib/configuracoes-site.functions";
 import { rotaDaTelaInicial } from "@/lib/tela-inicial-padrao";
@@ -71,6 +71,14 @@ export const Route = createFileRoute("/entrar")({
 function LoginPage() {
   const navigate = useNavigate();
   const search = Route.useSearch();
+  // Aba controlada: o botão "Criar conta grátis" depois de um erro de login troca para "Criar conta".
+  const [aba, setAba] = useState(search.criar || search.convite ? "criar" : "entrar");
+  useEffect(() => {
+    if (search.criar) setAba("criar");
+    const trocar = () => setAba("criar");
+    window.addEventListener(EMAIL_PARA_CRIAR, trocar);
+    return () => window.removeEventListener(EMAIL_PARA_CRIAR, trocar);
+  }, [search.criar]);
   const garantirPerfilOAuth = useServerFn(garantirPerfilUsuarioOAuth);
   const obterConfigInicial = useServerFn(obterConfiguracaoAcesso);
   const { data: configInicial } = useQuery({
@@ -147,7 +155,7 @@ function LoginPage() {
             </p>
           </div>
 
-          <Tabs defaultValue={search.criar || search.convite ? "criar" : "entrar"} className="w-full">
+          <Tabs value={aba} onValueChange={setAba} className="w-full">
             <TabsList className="mb-4 grid w-full grid-cols-2">
               <TabsTrigger value="entrar" className="gap-1.5">
                 <LogInIcon className="size-3.5" /> Entrar
@@ -195,6 +203,23 @@ function CriarContaForm({ token }: { token: string | undefined }) {
   const cadastroLivre = config ? config.cadastro_livre_habilitado !== false : true;
 
   const [form, setForm] = useState(emptyCadastro);
+  // E-mail digitado no login que falhou (31/10/2026): preenche o cadastro.
+  useEffect(() => {
+    const preencher = () => {
+      try {
+        const e = sessionStorage.getItem(EMAIL_PARA_CRIAR);
+        if (e) {
+          sessionStorage.removeItem(EMAIL_PARA_CRIAR);
+          setForm((f) => ({ ...f, email: e }));
+        }
+      } catch {
+        /* indisponível */
+      }
+    };
+    preencher();
+    window.addEventListener(EMAIL_PARA_CRIAR, preencher);
+    return () => window.removeEventListener(EMAIL_PARA_CRIAR, preencher);
+  }, []);
   const [tokenInput, setTokenInput] = useState(token ?? "");
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);

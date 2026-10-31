@@ -17,6 +17,10 @@ import { obterConfiguracaoAcesso } from "@/lib/configuracoes-site.functions";
 import { confirmarSegundoFator, iniciarLoginSeguro } from "@/lib/seguranca-conta.functions";
 import { rotaDaTelaInicial } from "@/lib/tela-inicial-padrao";
 import { SocialAuthButtons } from "@/components/SocialAuthButtons";
+import { rastrearEvento } from "@/lib/funil-cliente";
+
+/** Chave da sessão do navegador com o e-mail digitado no login, para preencher o "Criar conta". */
+export const EMAIL_PARA_CRIAR = "control-all.criar-conta-email";
 
 /**
  * Formulário de login por e-mail (contas novas) OU CPF (contas antigas,
@@ -58,6 +62,9 @@ export function EntrarForm({
     minutos: number;
   } | null>(null);
   const [codigo2fa, setCodigo2fa] = useState("");
+  // 31/10/2026: depois de um erro de login, oferece criar a conta (14 pessoas tentaram entrar sem ter conta
+  // e foram embora). A mensagem é a mesma para quem tem ou não tem conta, para não revelar e-mails.
+  const [errouLogin, setErrouLogin] = useState(false);
   const obterConfig = useServerFn(obterConfiguracaoAcesso);
   const loginSeguro = useServerFn(iniciarLoginSeguro);
   const confirmar2fa = useServerFn(confirmarSegundoFator);
@@ -135,8 +142,9 @@ export function EntrarForm({
             ? "O acesso está configurado somente por CPF."
             : mensagem.includes("LOGIN_MODO_EMAIL")
               ? "O acesso está configurado somente por e-mail."
-              : "Credenciais incorretas",
+              : "E-mail ou senha incorretos",
       );
+      if (!mensagem.includes("LOGIN_MODO")) setErrouLogin(true);
       return;
     }
     if (resultado.exige2fa) {
@@ -344,6 +352,32 @@ export function EntrarForm({
         {loading && <Loader2 className="mr-2 size-4 animate-spin" />}
         Entrar
       </Button>
+
+      {errouLogin && (
+        <div className="space-y-2 rounded-xl border border-primary/30 bg-primary/5 p-3 text-center text-sm">
+          <p className="font-medium">Ainda não tem conta? É grátis.</p>
+          <Button
+            type="button"
+            className="h-10 w-full"
+            onClick={() => {
+              // O e-mail vai pela sessão do navegador, nunca pela URL (não fica em histórico nem em logs).
+              try {
+                if (ehEmail && identificador.trim()) sessionStorage.setItem(EMAIL_PARA_CRIAR, identificador.trim());
+              } catch {
+                /* indisponível */
+              }
+              window.dispatchEvent(new Event(EMAIL_PARA_CRIAR));
+              rastrearEvento("login_erro_criar_conta");
+              navigate({ to: "/entrar", search: { criar: true } });
+            }}
+          >
+            Criar conta grátis{ehEmail && identificador.trim() ? " com este e-mail" : ""}
+          </Button>
+          <p className="text-xs text-muted-foreground">
+            Já tem conta? Use "Esqueci minha senha" ou entre com Google abaixo.
+          </p>
+        </div>
+      )}
 
       <SocialAuthButtons next={next} labelPrefix="Entrar com" />
 

@@ -21,6 +21,9 @@ export const EVENTOS_FUNIL = [
   "primeiros_passos_visto",
   "primeiros_passos_concluido",
   "instalar_app_clique",
+  // 31/10/2026: lembrete fixo do 1º lançamento e "Criar conta" depois de errar o login.
+  "primeiros_passos_lembrete",
+  "login_erro_criar_conta",
 ] as const;
 
 export const registrarEventoFunil = createServerFn({ method: "POST" })

@@ -102,13 +102,33 @@ export function PrimeirosPassos({ bloqueado, onPendenteChange }: { bloqueado: bo
     setAberto(false);
   }
 
+  // 31/10/2026 (análise de retenção): depois do "Agora não", um lembrete fixo até o primeiro lançamento.
+  const mostrarLembrete = pendente && !aberto && !bloqueado && !ia && !sucesso;
+
   return (
     <>
+      {mostrarLembrete && (
+        <button
+          type="button"
+          onClick={() => {
+            setAberto(true);
+            rastrearEvento("primeiros_passos_lembrete");
+          }}
+          className="fixed inset-x-4 bottom-24 z-40 mx-auto flex max-w-sm items-center gap-3 rounded-2xl border border-primary/40 bg-card px-4 py-3 text-left text-sm shadow-lg lg:bottom-6 lg:right-6 lg:left-auto lg:mx-0"
+        >
+          <Sparkles className="size-5 shrink-0 text-primary" />
+          <span className="flex-1">
+            <span className="block font-semibold">Falta 1 passo</span>
+            <span className="block text-xs text-muted-foreground">Lance seu primeiro gasto: leva 30 segundos.</span>
+          </span>
+          <span className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground">Começar</span>
+        </button>
+      )}
       <Dialog open={aberto && !bloqueado} onOpenChange={(o) => !o && adiar()}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Vamos ver quanto sobra no seu mês?</DialogTitle>
-            <DialogDescription>Escolha um jeito de começar. Leva menos de 2 minutos e você confere tudo antes de salvar.</DialogDescription>
+            <DialogTitle>Seu primeiro gasto em 30 segundos</DialogTitle>
+            <DialogDescription>Um lançamento já mostra para onde vai seu dinheiro. Você confere tudo antes de salvar.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-2">
             <Button className="h-auto justify-start gap-3 py-3 text-left" onClick={() => escolher("ia")}>
