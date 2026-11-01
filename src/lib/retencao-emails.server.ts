@@ -11,6 +11,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { enviarEmail, obterUrlBaseSite } from "@/lib/email.server";
 import { lancamentosPorCompetencias, receitasPorCompetencias } from "@/lib/recorrencia";
+import { enviarPush } from "@/lib/push.server";
 
 const brl = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v || 0);
 const dataBR = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
@@ -152,11 +153,13 @@ export async function enviarResumosSemanais(db: any, hoje = new Date()): Promise
     const nome = (p.nome ?? "").split(" ")[0] || "Olá";
     let assunto: string;
     let html: string;
+    let textoPushSemanal = "Veja o resumo do seu mês.";
 
     if (!(await fezPrimeiroLancamento(db, p))) {
       const semanasDeConta = (hoje.getTime() - new Date(p.created_at).getTime()) / (7 * 86_400_000);
       if (semanasDeConta > 3) continue; // não insiste com quem nunca começou
       assunto = "Seu primeiro passo leva 1 minuto";
+      textoPushSemanal = "Lance seu primeiro gasto e veja para onde vai seu dinheiro.";
       html = moldura(
         `${nome}, falta só o primeiro gasto`,
         `<p style="margin:0 0 10px;line-height:1.6">Fale ou digite um gasto, por exemplo <i>"mercado, 85 reais no cartão"</i>, e a IA monta o lançamento para você conferir.</p>
@@ -210,6 +213,9 @@ export async function enviarResumosSemanais(db: any, hoje = new Date()): Promise
       const temSaldo = !!g.saldo && (g.saldo.receitas > 0 || g.saldo.despesas > 0);
       if (g.qtdSemana === 0 && g.aVencer === 0 && !temSaldo) continue; // nada a contar esta semana
       assunto = g.qtdSemana > 0 ? `Sua semana: ${brl(g.totalSemana)} em gastos` : `A vencer nesta semana: ${brl(g.aVencer)}`;
+      textoPushSemanal = temSaldo
+        ? `Saldo previsto do mês: ${brl(g.saldo.receitas - g.saldo.despesas)}. A vencer em 7 dias: ${brl(g.aVencer)}.`
+        : `A vencer nos próximos 7 dias: ${brl(g.aVencer)}.`;
       html = moldura(
         `${nome}, seu resumo da semana`,
         `<table style="width:100%;border-collapse:collapse;font-size:14px">
@@ -224,7 +230,13 @@ ${g.terminam > 0 ? linha("Parcelamentos que terminam este mês", String(g.termin
       );
     }
     const r = await enviarEmail({ to: p.email!, subject: assunto, html });
-    if (r.ok) {
+    // Push no celular (01/11/2026): o mesmo resumo em uma linha.
+    const push = await enviarPush(db, [p.id], {
+      titulo: assunto,
+      corpo: textoPushSemanal,
+      destino: "/",
+    }).catch(() => ({ enviados: 0, falhas: 0 }));
+    if (r.ok || push.enviados > 0) {
       await registrar(db, p.id, "semanal", semana);
       enviados++;
     }
@@ -255,7 +267,13 @@ export async function enviarAtivacao(db: any, hoje = new Date()): Promise<number
         : `<p style="margin:0 0 10px;line-height:1.6">Um jeito rápido de começar: envie o PDF da fatura do cartão. Você vê todas as compras separadas por categoria e em que mês cada parcela termina.</p>
 <p style="margin:0;line-height:1.6">Prefere à mão? Um gasto já mostra o resumo do mês.</p>${botao("Enviar a fatura do cartão", "/importar")}`;
     const r = await enviarEmail({ to: p.email!, subject: assunto, html: moldura(ref === "d1" ? `${nome}, falta só 1 passo` : "Comece pela fatura do cartão", corpo, p.id) });
-    if (r.ok) {
+    // Push no celular (01/11/2026), para quem tem o app com notificações ligadas.
+    const push = await enviarPush(db, [p.id], {
+      titulo: ref === "d1" ? "Falta só 1 passo" : "Seu controle ainda está vazio",
+      corpo: ref === "d1" ? "Lance seu primeiro gasto: leva 30 segundos." : "Importe a fatura do cartão e veja para onde vai seu dinheiro.",
+      destino: ref === "d1" ? "/novo" : "/explore",
+    }).catch(() => ({ enviados: 0, falhas: 0 }));
+    if (r.ok || push.enviados > 0) {
       await registrar(db, p.id, "ativacao", ref);
       enviados++;
     }

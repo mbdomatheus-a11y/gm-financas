@@ -106,6 +106,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { TabelaOrdenavel } from "@/components/TabelaOrdenavel";
+import { EnviarPushCard } from "@/components/EnviarPushCard";
 
 // Item 8: `?aba=` permite que o botão "Tratar solicitação" dos e-mails de
 // notificação abra a Administração já na aba certa (privacidade/central).
@@ -1351,6 +1352,7 @@ function Admin() {
           <IaLancamentoModoSiteCard />
           <TelaInicialPadraoCard />
           <RedispararAvisosCard />
+          <EnviarPushCard />
         </TabsContent>
 
         {/* ─── ABA 4: MÓDULOS ─── */}
