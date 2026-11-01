@@ -38,3 +38,7 @@ dist-ssr
 *.sln
 *.sw?
 .env*
+
+# Arquivos do Firebase do app (01/11/2026): pertencem ao projeto controlall e a chave privada nunca vai para o git.
+google-services.json
+*-firebase-adminsdk-*.json
