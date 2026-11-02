@@ -4,7 +4,6 @@
 .brand-mark { position: relative; display: inline-flex; overflow: hidden; isolation: isolate; border-radius: 0.8rem; background: #eaf4fb; }
 .brand-mark-image { display: block; width: 100%; height: 100%; object-fit: cover; object-position: center; }
 .brand-mark-flow { position: absolute; inset: -35%; z-index: 1; pointer-events: none; opacity: .23; mix-blend-mode: screen; background: linear-gradient(115deg, transparent 40%, rgba(125,220,255,.05) 45%, rgba(180,241,255,.9) 50%, rgba(125,220,255,.05) 55%, transparent 60%); animation: brand-network-flow 7s ease-in-out infinite; }
-@keyframes halo { 0% { transform: scale(.97); opacity: .85; } 70% { transform: scale(1.07); opacity: 0; } 100% { transform: scale(1.07); opacity: 0; } }
 @keyframes brand-network-flow { 0%,100% { transform: translateX(-26%) translateY(6%); opacity: .10; } 50% { transform: translateX(25%) translateY(-6%); opacity: .34; } }
 @media (prefers-reduced-motion: reduce) { .brand-mark-flow { animation: none; opacity: .14; } }
 @source "../src";
@@ -61,7 +60,6 @@
   --color-sidebar-ring: var(--sidebar-ring);
   --shadow-soft: 0 1px 2px oklch(0.2 0.03 250 / 0.05), 0 12px 32px -8px oklch(0.2 0.03 250 / 0.14);
   --shadow-card: 0 1px 2px oklch(0.2 0.03 250 / 0.04), 0 6px 18px -6px oklch(0.2 0.03 250 / 0.10);
-  --shadow-glow: 0 8px 24px -8px color-mix(in oklab, var(--brand) 55%, transparent);
 }
 
 :root {
@@ -225,16 +223,6 @@
   }
 }
 
-@utility gradient-brand {
-  background-image: linear-gradient(135deg, var(--brand) 0%, var(--brand-strong) 100%);
-}
-
-@utility text-gradient-brand {
-  background-image: linear-gradient(135deg, var(--brand) 0%, var(--brand-strong) 100%);
-  background-clip: text;
-  color: transparent;
-}
-
 /* Superfícies de vidro (cabeçalho, barras flutuantes). */
 @utility glass {
   background-color: color-mix(in oklab, var(--background) 72%, transparent);
@@ -249,25 +237,6 @@
     transform: translateY(-2px);
     box-shadow: var(--shadow-soft);
     border-color: color-mix(in oklab, var(--brand) 35%, var(--border));
-  }
-}
-
-/* Etiqueta de seção em caixa alta com traço da cor da marca. */
-@utility eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--brand);
-  &::before {
-    content: "";
-    width: 1.25rem;
-    height: 2px;
-    border-radius: 2px;
-    background: currentColor;
   }
 }
 

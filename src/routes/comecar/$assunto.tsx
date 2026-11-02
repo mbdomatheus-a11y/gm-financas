@@ -123,7 +123,7 @@ function PaginaAssunto() {
             <Icone className="size-6" />
           </span>
           <h1 className="mt-4 text-[2.1rem] font-extrabold leading-[1.08] tracking-tight sm:text-5xl">
-            {a.titulo} <span className="text-gradient-brand">{a.destaque}</span>
+            {a.titulo} <span className="text-primary">{a.destaque}</span>
           </h1>
           <p className="mt-4 text-base leading-7 text-muted-foreground">{a.subtitulo}</p>
           <Button asChild size="lg" className="mt-6 h-12 w-full text-base font-semibold sm:w-auto">
@@ -147,7 +147,7 @@ function PaginaAssunto() {
         </div>
       </section>
       <section className="mx-auto max-w-3xl px-4 py-10">
-        <p className="eyebrow">Como funciona</p>
+        <h2 className="text-xl font-bold tracking-tight">Como funciona</h2>
         <ol className="mt-4 grid gap-3 sm:grid-cols-3">
           {a.passos.map((p, i) => (
             <li key={p} className="rounded-xl border bg-card p-4 text-sm">

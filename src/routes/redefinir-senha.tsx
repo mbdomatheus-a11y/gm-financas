@@ -69,7 +69,7 @@ function RedefinirSenhaPage() {
         </Link>
 
         <div className="mb-8 flex flex-col items-center text-center">
-          <div className="gradient-brand mb-4 flex size-14 items-center justify-center rounded-2xl shadow-soft">
+          <div className="bg-primary mb-4 flex size-14 items-center justify-center rounded-2xl shadow-soft">
             <KeyRound className="size-7 text-primary-foreground" />
           </div>
           <h1 className="text-2xl font-bold tracking-tight">Nova senha</h1>

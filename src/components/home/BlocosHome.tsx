@@ -12,10 +12,8 @@ import { rastrearEvento } from "@/lib/funil-cliente";
 const cliqueCadastrar = (origem: string) => () =>
   rastrearEvento("clique_cadastrar", { caminho: `/#${origem}` });
 
-/** Cabeçalho editorial das seções: número + rótulo, título e subtítulo. */
+/** Cabeçalho das seções: título e subtítulo (número e rótulo ficam só como dados). */
 function CabecalhoSecao({
-  numero,
-  rotulo,
   titulo,
   subtitulo,
 }: {
@@ -26,10 +24,7 @@ function CabecalhoSecao({
 }) {
   return (
     <div className="mb-8 max-w-2xl">
-      <p className="eyebrow">
-        Nº {numero} · {rotulo}
-      </p>
-      <h2 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">{titulo}</h2>
+      <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">{titulo}</h2>
       {subtitulo && <p className="mt-3 text-base leading-7 text-muted-foreground">{subtitulo}</p>}
     </div>
   );

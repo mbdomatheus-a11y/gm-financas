@@ -128,7 +128,7 @@ function AreaCard({ id }: { id: AreaId }) {
     <Card className={cn("lift h-full", soAdminArea && ADMIN_ONLY_CARD)}>
       <CardContent className="flex h-full flex-col gap-4 p-5">
         <Link to={area.to} className="flex items-center gap-4">
-          <div className="gradient-brand flex size-12 shrink-0 items-center justify-center rounded-2xl shadow-[var(--shadow-glow)]">
+          <div className="bg-primary flex size-12 shrink-0 items-center justify-center rounded-2xl">
             <Icon className="size-6 text-primary-foreground" aria-hidden="true" />
           </div>
           <div className="min-w-0 flex-1">

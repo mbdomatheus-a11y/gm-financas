@@ -24,7 +24,7 @@ export function AreaHub({ area }: { area: AreaId }) {
             <Link key={m} to={mod.to}>
               <Card className={cn("lift h-full", soAdmin && ADMIN_ONLY_CARD)}>
                 <CardContent className="flex h-full min-h-32 items-center gap-4 p-5">
-                  <div className="gradient-brand flex size-12 shrink-0 items-center justify-center rounded-2xl shadow-[var(--shadow-glow)]">
+                  <div className="bg-primary flex size-12 shrink-0 items-center justify-center rounded-2xl">
                     <Icon className="size-6 text-primary-foreground" />
                   </div>
                   <div className="min-w-0 flex-1">

@@ -62,7 +62,7 @@ function ConfiguracoesPage() {
             <Link key={item.to} to={item.to}>
               <Card className="h-full transition-all hover:-translate-y-0.5 hover:shadow-lg">
                 <CardContent className="flex items-center gap-4 p-5">
-                  <div className="gradient-brand flex size-12 shrink-0 items-center justify-center rounded-xl">
+                  <div className="bg-primary flex size-12 shrink-0 items-center justify-center rounded-xl">
                     <Icon className="size-6 text-primary-foreground" />
                   </div>
                   <div className="min-w-0 flex-1">

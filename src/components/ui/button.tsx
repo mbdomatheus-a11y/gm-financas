@@ -9,14 +9,13 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default:
-          "relative bg-gradient-to-b from-primary to-[var(--brand-strong)] text-primary-foreground shadow-[var(--shadow-glow)] after:pointer-events-none after:absolute after:-inset-1 after:hidden after:rounded-[inherit] after:border-2 after:border-amber-300/50 hover:after:block hover:after:animate-[halo_1.8s_ease-out_infinite] motion-reduce:hover:after:animate-none hover:from-[color-mix(in_oklab,var(--primary),white_38%)] hover:to-[color-mix(in_oklab,var(--brand-strong),white_30%)]",
+        default: "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90",
         destructive: "bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90",
         outline:
           "border border-input bg-background/80 shadow-sm hover:border-primary/40 hover:bg-accent hover:text-accent-foreground",
         secondary: "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80",
         ghost: "hover:bg-accent hover:text-accent-foreground",
-        link: "text-primary underline-offset-4 hover:underline after:!hidden",
+        link: "text-primary underline-offset-4 hover:underline",
       },
       size: {
         default: "h-9 px-4 py-2",

@@ -70,7 +70,7 @@ function NovaSenhaPage() {
         className="w-full max-w-sm space-y-4 rounded-2xl border bg-card p-6 shadow-card"
       >
         <div className="flex flex-col items-center text-center">
-          <div className="gradient-brand mb-3 flex size-12 items-center justify-center rounded-2xl">
+          <div className="bg-primary mb-3 flex size-12 items-center justify-center rounded-2xl">
             <KeyRound className="size-6 text-primary-foreground" />
           </div>
           <h1 className="text-xl font-bold">Crie sua nova senha</h1>

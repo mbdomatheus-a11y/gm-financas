@@ -94,8 +94,7 @@ function SobrePage() {
       <section className="relative overflow-hidden border-b">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_80%_at_50%_0%,color-mix(in_oklab,var(--primary)_14%,transparent),transparent)]" />
         <div className="relative mx-auto max-w-3xl px-4 pb-14 pt-16 text-center sm:pt-20">
-          <p className="eyebrow justify-center">Nossa história</p>
-          <h1 className="mt-3 text-balance text-4xl font-extrabold tracking-tight sm:text-5xl">
+          <h1 className="text-balance text-4xl font-extrabold tracking-tight sm:text-5xl">
             Começou numa planilha. Cabe no seu bolso.
           </h1>
           <p className="mx-auto mt-5 max-w-2xl text-pretty text-lg leading-8 text-muted-foreground">

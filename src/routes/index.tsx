@@ -453,7 +453,7 @@ function LandingPage() {
 
             <h1 className="text-[2.1rem] font-extrabold leading-[1.08] tracking-tight sm:text-5xl lg:text-6xl">
               Saiba quanto sobra no fim do mês,{" "}
-              <span className="text-gradient-brand">sem planilha.</span>
+              <span className="text-primary">sem planilha.</span>
             </h1>
 
             <p className="mt-4 max-w-xl text-base leading-7 text-muted-foreground">
@@ -594,8 +594,7 @@ function LandingPage() {
       {/* Recursos */}
       <section id="recursos" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-16">
         <div className="mb-10 max-w-2xl">
-          <p className="eyebrow">Recursos</p>
-          <h2 className="mt-2 text-3xl font-bold tracking-tight">Organização que acompanha a vida real.</h2>
+          <h2 className="text-3xl font-bold tracking-tight">Organização que acompanha a vida real.</h2>
         </div>
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {recursos.map(({ icon: Icon, titulo, texto }) => (
@@ -616,8 +615,7 @@ function LandingPage() {
       <section id="modulos" className="scroll-mt-20 border-y bg-muted/30">
         <div className="mx-auto max-w-6xl px-4 py-16">
           <div className="mx-auto mb-12 max-w-2xl text-center">
-            <p className="eyebrow">Módulos</p>
-            <h2 className="mt-2 text-3xl font-extrabold tracking-tight sm:text-4xl">
+            <h2 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
               Use só o que fizer sentido para a sua casa.
             </h2>
             <p className="mt-3 text-sm text-muted-foreground">
@@ -686,8 +684,7 @@ function LandingPage() {
       <section id="demonstracao" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-16">
         <div className="grid items-center gap-8 md:grid-cols-2">
           <div>
-            <p className="eyebrow">Demonstração</p>
-            <h2 className="mt-2 text-3xl font-bold tracking-tight">Veja antes de decidir.</h2>
+            <h2 className="text-3xl font-bold tracking-tight">Veja antes de decidir.</h2>
             <p className="mt-4 text-muted-foreground">
               Uma apresentação rápida com dados fictícios, sem expor informações de ninguém.
             </p>
@@ -720,8 +717,7 @@ function LandingPage() {
           <div className="mb-8 grid items-center gap-8 md:grid-cols-2">
             <IlustracaoFamilia className="mx-auto w-full max-w-md" />
             <div>
-              <p className="eyebrow">Para toda a família</p>
-              <h2 className="mt-2 text-3xl font-bold tracking-tight">
+              <h2 className="text-3xl font-bold tracking-tight">
                 Educação financeira para todas as idades.
               </h2>
               <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
@@ -740,8 +736,7 @@ function LandingPage() {
 
       <section id="precos" className="scroll-mt-20 border-t bg-primary/5">
         <div className="mx-auto max-w-6xl px-4 py-16 text-center">
-          <p className="eyebrow justify-center">Preços</p>
-          <h2 className="mt-2 text-3xl font-extrabold tracking-tight sm:text-4xl">
+          <h2 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
             Gratuito para usar.
           </h2>
           <Card className="mx-auto mt-8 max-w-sm border-primary shadow-xl">
