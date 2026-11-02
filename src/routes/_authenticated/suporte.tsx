@@ -209,6 +209,19 @@ function SuportePage() {
             )}
             {!protocolo && (
               <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-full text-xs"
+                  onClick={() => {
+                    setAssunto("Solicitação de exclusão de conta");
+                    setDescricao("Peço a exclusão da minha conta e dos meus dados pessoais, conforme a LGPD.");
+                    setPrioridade("duvida");
+                  }}
+                >
+                  Solicitar exclusão da conta
+                </Button>
                 <div className="space-y-1.5">
                   <Label>Assunto <span className="text-rose-500">*</span></Label>
                   <Input

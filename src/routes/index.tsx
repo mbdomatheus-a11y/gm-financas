@@ -487,6 +487,9 @@ function LandingPage() {
                     <Calculator className="mr-2 size-4 text-primary" /> Calculadoras
                   </Link>
                 </Button>
+                <Button asChild size="lg" variant="ghost" className="h-12 flex-1 px-5 text-sm text-muted-foreground sm:flex-none">
+                  <Link to="/privacidade">Solicitar exclusão da conta</Link>
+                </Button>
               </div>
             </div>
             <ContadorUsuarios className="mt-4" />
