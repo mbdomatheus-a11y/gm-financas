@@ -247,6 +247,7 @@ function DashboardPage() {
   // parcela real, só o custo FIXO (recorrente) é projetado dali em diante,
   // nunca parcelas variáveis inventadas.
   const [mesLimiteDividaOverride, setMesLimiteDividaOverride] = useState<string | null>(null);
+  const DIVIDA_DESDE = "2026-10";
 
   // Item 10 (backlog 2026-09-27): agrupamentos nascem recolhidos por padrão;
   // a escolha do usuário (expandido/recolhido) é lembrada entre sessões.
@@ -639,7 +640,9 @@ function DashboardPage() {
 
   const mesesParaDivida = useMemo(() => {
     const now = new Date();
-    const inicioPadrao = mesDoCiclo(- 12);
+    // Dívida só conta parcelas a partir de DIVIDA_DESDE (pedido 2026-11-02: antes de outubro não entra).
+    const padrao12 = mesDoCiclo(-12);
+    const inicioPadrao = padrao12 > DIVIDA_DESDE ? padrao12 : DIVIDA_DESDE;
     const fim = mesLimiteDivida > ultimaParcelaRealDivida ? mesLimiteDivida : ultimaParcelaRealDivida;
     return monthRange(inicioPadrao, fim);
   }, [mesLimiteDivida, ultimaParcelaRealDivida]);
