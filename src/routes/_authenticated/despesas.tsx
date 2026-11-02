@@ -762,7 +762,11 @@ function DespesasPage() {
     }
     if (filtroBanco !== "todos" && d.banco_id !== filtroBanco) return false;
     if (filtroCategoria !== "todos" && d.categoria !== filtroCategoria) return false;
-    if (filtroResponsavel !== "todos" && d.responsavel !== filtroResponsavel) return false;
+    if (filtroResponsavel === "pessoais") {
+      if (d.responsavel === RESPONSAVEIS_EXTRA) return false;
+    } else if (filtroResponsavel !== "todos" && d.responsavel !== filtroResponsavel) {
+      return false;
+    }
     if (filtroOrigem === "diretos" && d.origem && d.origem !== "manual") return false;
     if (filtroOrigem === "fatura" && (!d.origem || d.origem === "manual")) return false;
     if (filtroEconomia && !d.economia_conquistada) return false;
@@ -883,6 +887,28 @@ function DespesasPage() {
       : receitasPorCompetencias(receitas as any[], [filtroMes]);
     return lancadas.reduce((s, r) => s + toBRL(Number(r.valor) || 0, r.moeda ?? "BRL", cotacao), 0);
   }, [receitas, filtroMes, cotacao]);
+  // Divisão justa (proposta duo-fi, 2026-11-02): os gastos "Casal / Compartilhado" do mês são divididos
+  // na proporção da renda de cada pessoa no mesmo mês. Só aparece com um mês escolhido.
+  const divisaoJusta = useMemo(() => {
+    if (filtroMes === "todos") return null;
+    const nossos = lancamentosDoFiltro.filter(
+      (p: any) => p.despesa?.responsavel === RESPONSAVEIS_EXTRA && !p.despesa?.economia_conquistada,
+    );
+    const total = nossos.reduce((s: number, p: any) => s + toBRL(Number(p.valor) || 0, p.moeda ?? p.despesa?.moeda ?? "BRL", cotacao), 0);
+    if (total <= 0) return null;
+    const pessoas = (perfis as any[]).map((p) => p.nome as string).filter(Boolean);
+    const recs = receitasPorCompetencias(receitas as any[], [filtroMes]);
+    const rendaDe = (nome: string) =>
+      recs.filter((r) => r.responsavel === nome).reduce((s, r) => s + toBRL(Number(r.valor) || 0, r.moeda ?? "BRL", cotacao), 0);
+    const rendas = pessoas.map((nome) => ({ nome, renda: rendaDe(nome) }));
+    const rendaTotal = rendas.reduce((s, x) => s + x.renda, 0);
+    if (rendaTotal <= 0) return { total, linhas: [] as { nome: string; pct: number; valor: number }[] };
+    return {
+      total,
+      linhas: rendas.map((x) => ({ nome: x.nome, pct: x.renda / rendaTotal, valor: total * (x.renda / rendaTotal) })),
+    };
+  }, [filtroMes, lancamentosDoFiltro, perfis, receitas, cotacao]);
+
   // O saldo só faz sentido com a lista completa do período; com filtros, a despesa mostrada é parcial.
   const semFiltrosDeLista =
     tab === "total" &&
@@ -966,7 +992,7 @@ function DespesasPage() {
       clear: () => setFiltroCategoria("todos"),
     },
     filtroResponsavel !== "todos" && {
-      label: filtroResponsavel,
+      label: filtroResponsavel === "pessoais" ? "Pessoais" : filtroResponsavel,
       clear: () => setFiltroResponsavel("todos"),
     },
     filtroOrigem !== "todos" && {
@@ -1023,6 +1049,30 @@ function DespesasPage() {
         </div>
       }
     >
+      {divisaoJusta && (
+        <Card className="mb-3">
+          <CardContent className="space-y-2 p-4">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">Divisão justa do compartilhado</p>
+            <p className="text-sm text-muted-foreground">
+              Gastos do grupo no mês: <b className="text-foreground">{formatar(divisaoJusta.total)}</b>. Cada um paga na
+              proporção da renda do mês.
+            </p>
+            {divisaoJusta.linhas.length === 0 || divisaoJusta.linhas.every((l) => l.valor === 0) ? (
+              <p className="text-sm text-muted-foreground">Cadastre as receitas de cada pessoa neste mês para calcular.</p>
+            ) : (
+              divisaoJusta.linhas.map((l) => (
+                <div key={l.nome} className="flex items-center justify-between text-sm">
+                  <span>{l.nome}</span>
+                  <span className="font-semibold">
+                    {Math.round(l.pct * 100)}% · {formatar(l.valor)}
+                  </span>
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       <div className="mb-3 grid grid-cols-2 gap-2 lg:grid-cols-3">
         {[
           { filtro: "total" as const, label: "Total despesas", valor: formatar(resumo.total), cor: "text-destructive", hint: "" },
@@ -1191,6 +1241,20 @@ function DespesasPage() {
           </Tabs>
         </div>
 
+        {/* Atalho Todos / Nossos / Pessoais (duo-fi, proposta 2026-11-02): "Nossos" é o compartilhado do grupo. */}
+        <Tabs
+          value={filtroResponsavel === RESPONSAVEIS_EXTRA ? "nossos" : filtroResponsavel === "pessoais" ? "pessoais" : "todos"}
+          onValueChange={(v) =>
+            setFiltroResponsavel(v === "nossos" ? RESPONSAVEIS_EXTRA : v === "pessoais" ? "pessoais" : "todos")
+          }
+        >
+          <TabsList className="h-10">
+            <TabsTrigger value="todos" className="px-3.5 py-2 text-xs">Todos</TabsTrigger>
+            <TabsTrigger value="nossos" className="px-3.5 py-2 text-xs">Nossos</TabsTrigger>
+            <TabsTrigger value="pessoais" className="px-3.5 py-2 text-xs">Pessoais</TabsTrigger>
+          </TabsList>
+        </Tabs>
+
         <NavegadorMes
           valor={filtroMes === "todos" ? null : filtroMes}
           onChange={setFiltroMes}
@@ -1243,6 +1307,7 @@ function DespesasPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="todos">Todos os responsáveis</SelectItem>
+              <SelectItem value="pessoais">Só pessoais (sem o compartilhado)</SelectItem>
               {responsaveis.map((r) => (
                 <SelectItem key={r} value={r}>
                   {r}
