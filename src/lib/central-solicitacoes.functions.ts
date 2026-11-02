@@ -321,7 +321,13 @@ export const adminListarChamados = createServerFn({ method: "GET" })
       .order("criado_em", { ascending: false })
       .limit(100);
     if (error) throw new Error(error.message);
-    return data ?? [];
+    // Marca se a conta do chamado ainda está bloqueada (o botão Reativar só aparece nesse caso).
+    const ids = [...new Set((data ?? []).map((c: any) => c.user_id).filter(Boolean))];
+    const { data: perfis } = ids.length
+      ? await (supabaseAdmin as any).from("profiles").select("id,ativo").in("id", ids)
+      : { data: [] as any[] };
+    const ativos = new Map((perfis ?? []).map((p: any) => [p.id, p.ativo !== false]));
+    return (data ?? []).map((c: any) => ({ ...c, contaBloqueada: c.user_id ? !ativos.get(c.user_id) : false }));
   });
 
 export const adminAtualizarChamado = createServerFn({ method: "POST" })

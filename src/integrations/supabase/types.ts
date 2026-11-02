@@ -3446,6 +3446,30 @@ export type Database = {
           },
         ]
       }
+      notas_grupos: {
+        Row: {
+          criado_em: string
+          grupo_id: string | null
+          id: string
+          nome: string
+          ordem: number
+        }
+        Insert: {
+          criado_em?: string
+          grupo_id?: string | null
+          id?: string
+          nome: string
+          ordem?: number
+        }
+        Update: {
+          criado_em?: string
+          grupo_id?: string | null
+          id?: string
+          nome?: string
+          ordem?: number
+        }
+        Relationships: []
+      }
       notas_fiscais: {
         Row: {
           categoria: string
@@ -3459,7 +3483,12 @@ export type Database = {
           garantia_dias: number | null
           garantia_fim: string | null
           garantia_meses: number | null
-          grupo_id: string | null
+                    arquivada: boolean
+          arquivada_soma: boolean
+          arquivada_em: string | null
+          nota_grupo_id: string | null
+          so_guardar: boolean
+grupo_id: string | null
           id: string
           observacoes: string | null
           pagamento_id: string | null
@@ -3482,7 +3511,12 @@ export type Database = {
           garantia_dias?: number | null
           garantia_fim?: string | null
           garantia_meses?: number | null
-          grupo_id?: string | null
+                    arquivada?: boolean
+          arquivada_soma?: boolean
+          arquivada_em?: string | null
+          nota_grupo_id?: string | null
+          so_guardar?: boolean
+grupo_id?: string | null
           id?: string
           observacoes?: string | null
           pagamento_id?: string | null
@@ -3505,7 +3539,12 @@ export type Database = {
           garantia_dias?: number | null
           garantia_fim?: string | null
           garantia_meses?: number | null
-          grupo_id?: string | null
+                    arquivada?: boolean
+          arquivada_soma?: boolean
+          arquivada_em?: string | null
+          nota_grupo_id?: string | null
+          so_guardar?: boolean
+grupo_id?: string | null
           id?: string
           observacoes?: string | null
           pagamento_id?: string | null

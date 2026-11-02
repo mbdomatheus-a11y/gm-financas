@@ -5,6 +5,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   AlertTriangle,
+  Archive,
+  ArchiveRestore,
+  Tags,
   Camera,
   Copy,
   ExternalLink,
@@ -26,6 +29,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
 import { classificarItemNota, calcularDepreciacao } from "@/lib/nota-itens-classificacao";
 import { DepreciacaoItem, PresetsVidaUtil } from "@/components/notas/DepreciacaoItem";
 import { LISTA_CATEGORIAS } from "@/lib/categorizacao";
@@ -97,7 +101,7 @@ const CATEGORIAS = [
   "outros",
 ];
 
-type Filtro = "todas" | "ativa" | "expirando" | "expirada";
+type Filtro = "todas" | "ativa" | "expirando" | "expirada" | "arquivadas";
 
 type NotaForm = {
   estabelecimento: string;
@@ -113,6 +117,10 @@ type NotaForm = {
   url_consulta: string;
   uf: string;
   status_captura: string;
+  /** 02/11/2026: agrupamento da nota (tabela notas_grupos). */
+  nota_grupo_id: string;
+  /** 02/11/2026: só guardar a nota, sem garantia nem alertas. */
+  so_guardar: boolean;
 };
 
 const FORM_VAZIO: NotaForm = {
@@ -128,7 +136,25 @@ const FORM_VAZIO: NotaForm = {
   url_consulta: "",
   uf: "",
   status_captura: "manual",
+  nota_grupo_id: "",
+  so_guardar: false,
 };
+
+/** 02/11/2026: agrupamentos próprios das notas. Não entram em despesas nem no financeiro. */
+function useNotasGrupos() {
+  return useQuery({
+    queryKey: ["notas-grupos"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("notas_grupos")
+        .select("id, nome, ordem")
+        .order("ordem")
+        .order("nome");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+}
 
 function useNotas() {
   return useQuery({
@@ -238,6 +264,11 @@ function NotasPage() {
   const qc = useQueryClient();
   const { data: notas = [], isLoading } = useNotas();
   const [filtro, setFiltro] = useState<Filtro>("todas");
+  const { data: grupos = [] } = useNotasGrupos();
+  const [grupoFiltro, setGrupoFiltro] = useState<string>("todos");
+  const [gerirGrupos, setGerirGrupos] = useState(false);
+  const [novoGrupo, setNovoGrupo] = useState("");
+  const [perguntaArquivo, setPerguntaArquivo] = useState<string | null>(null);
   const [busca, setBusca] = useState("");
   const [escolha, setEscolha] = useState(false);
   useEffect(() => {
@@ -383,7 +414,7 @@ function NotasPage() {
 
   const salvar = useMutation({
     mutationFn: async (dados: NotaForm) => {
-      const meses = Number(dados.garantia_meses) || 0;
+      const meses = dados.so_guardar ? 0 : Number(dados.garantia_meses) || 0;
       const payload = {
         estabelecimento: dados.estabelecimento || null,
         descricao: dados.descricao || null,
@@ -399,6 +430,8 @@ function NotasPage() {
         url_consulta: dados.url_consulta || null,
         uf: dados.uf || null,
         status_captura: dados.status_captura,
+        nota_grupo_id: dados.nota_grupo_id || null,
+        so_guardar: dados.so_guardar,
       };
 
       let notaId = editandoId;
@@ -569,10 +602,74 @@ function NotasPage() {
     }
   }
 
+  const nomeDoGrupo = (id: string | null | undefined) =>
+    (grupos as any[]).find((g) => g.id === id)?.nome ?? "";
+
+  const atualizarNota = useMutation({
+    mutationFn: async (p: { id: string; patch: Record<string, unknown> }) => {
+      const { error } = await supabase.from("notas_fiscais").update(p.patch as any).eq("id", p.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["notas-fiscais"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const criarGrupo = useMutation({
+    mutationFn: async (nome: string) => {
+      const { error } = await supabase.from("notas_grupos").insert({ nome, ordem: grupos.length } as any);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      setNovoGrupo("");
+      void qc.invalidateQueries({ queryKey: ["notas-grupos"] });
+    },
+    onError: (e: Error) =>
+      toast.error(
+        /duplicate|unique/i.test(e.message) ? "Já existe um agrupamento com esse nome." : e.message,
+      ),
+  });
+
+  const excluirGrupo = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("notas_grupos").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      setGrupoFiltro("todos");
+      toast.success("Agrupamento excluído. As notas continuam guardadas.");
+      void qc.invalidateQueries({ queryKey: ["notas-grupos"] });
+      void qc.invalidateQueries({ queryKey: ["notas-fiscais"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  /** Notas arquivadas só contam nos totais se o usuário escolheu continuar somando ao arquivar. */
+  const contaNosTotais = (n: { arquivada?: boolean | null; arquivada_soma?: boolean | null }) =>
+    !n.arquivada || !!n.arquivada_soma;
+
+  const arquivarNota = (id: string | null, somar: boolean) => {
+    if (!id) return;
+    atualizarNota.mutate({
+      id,
+      patch: { arquivada: true, arquivada_em: new Date().toISOString(), arquivada_soma: somar },
+    });
+    setPerguntaArquivo(null);
+    setDetalhe(null);
+    toast.success(
+      somar ? "Nota arquivada. Ela continua nos totais." : "Nota arquivada. Ela sai dos totais.",
+    );
+  };
+
   const lista = useMemo(() => {
     const termo = busca.trim().toLowerCase();
     return notas.filter((n) => {
       const st = statusGarantia(n.garantia_fim);
+      const arquivada = !!(n as any).arquivada;
+      if (filtro === "arquivadas" ? !arquivada : arquivada) return false;
+      if (grupoFiltro === "sem" && (n as any).nota_grupo_id) return false;
+      if (grupoFiltro !== "todos" && grupoFiltro !== "sem" && (n as any).nota_grupo_id !== grupoFiltro) return false;
       if (filtro === "ativa" && (st === "expirada" || st === "sem")) return false;
       if (filtro === "expirada" && st !== "expirada") return false;
       if (filtro === "expirando" && st !== "critica" && st !== "atencao") return false;
@@ -582,7 +679,7 @@ function NotasPage() {
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(termo));
     });
-  }, [notas, filtro, busca]);
+  }, [notas, filtro, busca, grupoFiltro]);
 
   const aVencer = notas.filter((n) => {
     const st = statusGarantia(n.garantia_fim);
@@ -774,6 +871,31 @@ function NotasPage() {
                   {label}
                 </Button>
               ))}
+              <Button
+                size="sm"
+                variant={filtro === "arquivadas" ? "default" : "outline"}
+                onClick={() => setFiltro("arquivadas")}
+              >
+                <Archive className="mr-1 size-3.5" /> Arquivadas
+              </Button>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {(
+                [["todos", "Todas as notas"], ["sem", "Sem agrupamento"], ...(grupos as any[]).map((g) => [g.id, g.nome])] as [string, string][]
+              ).map(([id, label]) => (
+                <Button
+                  key={id}
+                  size="sm"
+                  variant={grupoFiltro === id ? "secondary" : "ghost"}
+                  className="h-7 text-xs"
+                  onClick={() => setGrupoFiltro(id)}
+                >
+                  {label}
+                </Button>
+              ))}
+              <Button size="sm" variant="outline" className="ml-auto h-7 text-xs" onClick={() => setGerirGrupos(true)}>
+                <Tags className="mr-1 size-3.5" /> Agrupamentos
+              </Button>
             </div>
 
             {isLoading ? (
@@ -813,7 +935,9 @@ function NotasPage() {
                             <p className="truncate text-sm font-semibold">
                               {n.estabelecimento || n.descricao || "Nota fiscal"}
                             </p>
-                            {temGarantia ? (
+                            {(n as any).so_guardar ? (
+                              <Badge variant="outline" className="shrink-0 h-4 text-[10px] px-1.5">Só guardar</Badge>
+                            ) : temGarantia ? (
                               <Badge variant="default" className="shrink-0 h-4 text-[10px] px-1.5 bg-emerald-600 hover:bg-emerald-600">
                                 <ShieldCheck className="size-2.5 mr-0.5" />
                                 Garantia
@@ -826,8 +950,9 @@ function NotasPage() {
                           </div>
                           <p className="text-xs text-muted-foreground">
                             {formatDate(n.data_compra)} · {formatBRL(Number(n.valor_total))}
+                            {nomeDoGrupo((n as any).nota_grupo_id) ? ` · ${nomeDoGrupo((n as any).nota_grupo_id)}` : ""}
                           </p>
-                          <SeloGarantia fim={n.garantia_fim} />
+                          {!(n as any).so_guardar && <SeloGarantia fim={n.garantia_fim} />}
                         </div>
                       </CardContent>
                     </Card>
@@ -840,7 +965,7 @@ function NotasPage() {
           {/* === ABA 2: gastos por tipo / segmentos === */}
           <TabsContent value="segmentos" className="space-y-3">
             {(() => {
-              const todosItens = notas.flatMap((n) =>
+              const todosItens = notas.filter(contaNosTotais).flatMap((n) =>
                 (n.nota_itens ?? []).map((i) => ({
                   ...i,
                   data_compra: n.data_compra,
@@ -909,7 +1034,7 @@ function NotasPage() {
           {/* === ABA 3: módulo de depreciação === */}
           <TabsContent value="depreciacao" className="space-y-3">
             {(() => {
-              const bensDepreciaveis = notas.flatMap((n) =>
+              const bensDepreciaveis = notas.filter(contaNosTotais).flatMap((n) =>
                 (n.nota_itens ?? [])
                   .filter((i) => !!(i as any).deprecia && (i as any).meses_depreciacao)
                   .map((i) => ({
@@ -1188,6 +1313,37 @@ function NotasPage() {
                 <Input
                   value={form.descricao}
                   onChange={(e) => setForm({ ...form, descricao: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Agrupamento</Label>
+                <Select
+                  value={form.nota_grupo_id || "nenhum"}
+                  onValueChange={(v) => setForm({ ...form, nota_grupo_id: v === "nenhum" ? "" : v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sem agrupamento" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="nenhum">Sem agrupamento</SelectItem>
+                    {(grupos as any[]).map((g) => (
+                      <SelectItem key={g.id} value={g.id}>
+                        {g.nome}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-start justify-between gap-3 rounded-xl border p-3">
+                <div>
+                  <Label>Só guardar</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Guarda a nota sem garantia e sem alertas. Não afeta despesas nem o financeiro.
+                  </p>
+                </div>
+                <Switch
+                  checked={form.so_guardar}
+                  onCheckedChange={(v) => setForm({ ...form, so_guardar: v })}
                 />
               </div>
               <div className="space-y-1.5">
@@ -1471,6 +1627,51 @@ function NotasPage() {
                   <p className="text-xs text-muted-foreground">{notaDetalhe.observacoes}</p>
                 )}
 
+                <div className="space-y-1.5">
+                  <Label>Agrupamento</Label>
+                  <Select
+                    value={(notaDetalhe as any).nota_grupo_id ?? "nenhum"}
+                    onValueChange={(v) =>
+                      atualizarNota.mutate({
+                        id: notaDetalhe.id,
+                        patch: { nota_grupo_id: v === "nenhum" ? null : v },
+                      })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Sem agrupamento" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="nenhum">Sem agrupamento</SelectItem>
+                      {(grupos as any[]).map((g) => (
+                        <SelectItem key={g.id} value={g.id}>
+                          {g.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button
+                  variant="outline"
+                  className="w-full gap-2"
+                  disabled={atualizarNota.isPending}
+                  onClick={() => {
+                    if ((notaDetalhe as any).arquivada) {
+                      atualizarNota.mutate({
+                        id: notaDetalhe.id,
+                        patch: { arquivada: false, arquivada_em: null, arquivada_soma: false },
+                      });
+                      setDetalhe(null);
+                      toast.success("Nota desarquivada.");
+                    } else {
+                      setPerguntaArquivo(notaDetalhe.id);
+                    }
+                  }}
+                >
+                  {(notaDetalhe as any).arquivada ? <ArchiveRestore className="size-4" /> : <Archive className="size-4" />}
+                  {(notaDetalhe as any).arquivada ? "Desarquivar" : "Arquivar"}
+                </Button>
+
                 <div className="flex gap-2">
                   <Button
                     variant="outline"
@@ -1493,6 +1694,8 @@ function NotasPage() {
                         url_consulta: notaDetalhe.url_consulta ?? "",
                         uf: notaDetalhe.uf ?? "",
                         status_captura: notaDetalhe.status_captura ?? "manual",
+                        nota_grupo_id: (notaDetalhe as any).nota_grupo_id ?? "",
+                        so_guardar: !!(notaDetalhe as any).so_guardar,
                       });
                     }}
                   >
@@ -1509,6 +1712,70 @@ function NotasPage() {
               </div>
             </>
           )}
+        </DialogContent>
+      </Dialog>
+      <Dialog open={!!perguntaArquivo} onOpenChange={(v) => !v && setPerguntaArquivo(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Arquivar nota</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            A nota sai da lista principal e dos alertas. Ela deve continuar entrando nos totais de Gastos por tipo?
+          </p>
+          <div className="grid gap-2">
+            <Button onClick={() => arquivarNota(perguntaArquivo, false)}>Parar de somar</Button>
+            <Button variant="outline" onClick={() => arquivarNota(perguntaArquivo, true)}>
+              Continuar somando
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={gerirGrupos} onOpenChange={setGerirGrupos}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Agrupamentos de notas</DialogTitle>
+          </DialogHeader>
+          <p className="text-xs text-muted-foreground">
+            Separe as notas por assunto, como Casa, Carro ou Eletrônicos. Isso não mexe em despesas nem no financeiro.
+          </p>
+          <div className="flex gap-2">
+            <Input
+              value={novoGrupo}
+              onChange={(e) => setNovoGrupo(e.target.value)}
+              placeholder="Novo agrupamento"
+              className="h-9"
+              maxLength={40}
+            />
+            <Button
+              size="sm"
+              disabled={!novoGrupo.trim() || criarGrupo.isPending}
+              onClick={() => criarGrupo.mutate(novoGrupo.trim())}
+            >
+              Criar
+            </Button>
+          </div>
+          <div className="space-y-2">
+            {(grupos as any[]).length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nenhum agrupamento ainda.</p>
+            ) : (
+              (grupos as any[]).map((g) => (
+                <div key={g.id} className="flex items-center justify-between rounded-lg border p-2">
+                  <span className="text-sm">{g.nome}</span>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-destructive"
+                    onClick={() => {
+                      if (window.confirm(`Excluir o agrupamento "${g.nome}"? As notas continuam guardadas, só saem do grupo.`))
+                        excluirGrupo.mutate(g.id);
+                    }}
+                  >
+                    <Trash2 className="size-4" />
+                  </Button>
+                </div>
+              ))
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </AppLayout>

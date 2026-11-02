@@ -48,7 +48,9 @@ export function useNotasAgenda() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("notas_fiscais")
-        .select("id,estabelecimento,descricao,data_compra,garantia_fim,valor_total");
+        .select("id,estabelecimento,descricao,data_compra,garantia_fim,valor_total")
+        .eq("arquivada", false)
+        .eq("so_guardar", false);
       if (error) throw error;
       return data ?? [];
     },

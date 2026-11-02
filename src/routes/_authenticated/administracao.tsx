@@ -2114,7 +2114,7 @@ function Admin() {
                         Gerar dados e enviar por e-mail
                       </Button>
                     )}
-                    {c.user_id && /bloqueada/i.test(c.assunto ?? "") && (
+                    {c.user_id && c.contaBloqueada && (
 
                       <Button
                         size="sm"

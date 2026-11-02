@@ -45,6 +45,8 @@ export function AssistenteHome() {
         supabase
           .from("notas_fiscais")
           .select("estabelecimento,descricao,data_compra,garantia_fim,valor_total")
+          .eq("arquivada", false)
+          .eq("so_guardar", false)
           .order("data_compra", { ascending: false })
           .limit(30),
       ]);

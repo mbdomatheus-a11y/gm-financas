@@ -40,6 +40,8 @@ export function useResumoFinanceiroMes(): {
       const { data } = await supabase
         .from("notas_fiscais")
         .select("descricao,emitente,valor_total,data_compra,garantia_ate")
+        .eq("arquivada", false)
+        .eq("so_guardar", false)
         .order("created_at", { ascending: false })
         .limit(60);
       return data ?? [];
