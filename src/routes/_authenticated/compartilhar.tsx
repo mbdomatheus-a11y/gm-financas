@@ -431,7 +431,7 @@ function FinancasShareCard() {
           /* cancelado pelo usuário */
         }
       } else {
-        const texto = `Resumo ${monthLabel(mes)}%0AReceitas: ${formatBRL(resumo.rec)}%0ADespesas: ${formatBRL(resumo.desp)}%0ASaldo: ${formatBRL(resumo.saldo)}`;
+        const texto = `Resumo ${monthLabel(mes)}%0AReceitas: ${formatBRL(resumo.rec)}%0ADespesas: ${formatBRL(resumo.desp)}%0ASaldo do mês: ${formatBRL(resumo.saldo)}`;
         window.open(`https://wa.me/?text=${texto}`, "_blank", "noopener");
       }
     }, "image/png");
@@ -496,7 +496,7 @@ function FinancasShareCard() {
             <Preview label="Receitas" value={formatBRL(resumo.rec)} tone="text-success" />
             <Preview label="Despesas" value={formatBRL(resumo.desp)} tone="text-destructive" />
             <Preview
-              label="Saldo"
+              label="Saldo do mês"
               value={formatBRL(resumo.saldo)}
               tone={resumo.saldo >= 0 ? "text-primary" : "text-destructive"}
             />
@@ -1072,7 +1072,7 @@ function ResumoInteligenteShareCard() {
       "",
       `💰 Receitas: ${formatBRL(resumo.rec)}`,
       `💸 Despesas: ${formatBRL(resumo.desp)}`,
-      `${resumo.saldo >= 0 ? "✅" : "🔴"} Saldo: ${formatBRL(resumo.saldo)}`,
+      `${resumo.saldo >= 0 ? "✅" : "🔴"} Saldo do mês: ${formatBRL(resumo.saldo)}`,
     ];
     if (habilitado("lista")) {
       linhas.push(

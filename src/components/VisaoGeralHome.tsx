@@ -43,7 +43,7 @@ import {
 import { useCompetenciaVigente } from "@/lib/periodo-vigente";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { abreviarValor } from "@/lib/format";
-import { lancamentosPorCompetencias } from "@/lib/recorrencia";
+import { lancamentosPorCompetencias, receitasPorCompetencias } from "@/lib/recorrencia";
 import { opacidadePorPosicao, posicaoTemporalDoMes } from "@/lib/tempo-visual";
 
 type Agrupamento = "cartao" | "categoria" | "responsavel" | "tipo";
@@ -192,8 +192,7 @@ export function VisaoGeralHome({ ocultarValores }: { ocultarValores?: boolean } 
       const des = parcelas
         .filter((p) => monthKey(p.vencimento) === key)
         .reduce((s, p) => s + toBRL(Number(p.valor), p.despesa.moeda, cotacao), 0);
-      const rec = (receitas as any[])
-        .filter((r) => monthKey(r.data_recebimento) === key)
+      const rec = receitasPorCompetencias(receitas as any[], [key])
         .reduce((s, r) => s + toBRL(Number(r.valor), r.moeda, cotacao), 0);
       return {
         key,

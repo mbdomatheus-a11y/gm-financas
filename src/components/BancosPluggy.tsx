@@ -461,7 +461,7 @@ export function ConteudoBancosPluggy({ embutido = false }: { embutido?: boolean 
                     </ul>
                   ) : (
                     <p className="mt-1 text-xs text-muted-foreground">
-                      Saldo: {c.saldo != null ? formatBRL(c.saldo) : "não informado"}
+                      Saldo em conta: {c.saldo != null ? formatBRL(c.saldo) : "não informado"}
                     </p>
                   )}
                 </div>

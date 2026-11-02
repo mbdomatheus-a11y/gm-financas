@@ -96,6 +96,7 @@ import {
   lancamentosPorCompetencias,
   PERIODICIDADES,
   projetarCompetencias,
+  receitasPorCompetencias,
   somarMeses,
   type Periodicidade,
   type RecorrenciaFixa,
@@ -886,13 +887,13 @@ function DespesasPage() {
   const somaDoResumo = lancamentosDoResumo.reduce((s, i) => s + i.valor, 0);
 
   // Receitas do período, do mesmo jeito que a Home: pela data de recebimento e convertidas para BRL.
-  const receitaDoFiltro = useMemo(
-    () =>
-      (receitas as any[])
-        .filter((r) => filtroMes === "todos" || String(r.data_recebimento ?? "").slice(0, 7) === filtroMes)
-        .reduce((s, r) => s + toBRL(Number(r.valor) || 0, r.moeda ?? "BRL", cotacao), 0),
-    [receitas, filtroMes, cotacao],
-  );
+  // Igual à tela Receitas e ao Dashboard: inclui as receitas fixas projetadas para o mês.
+  const receitaDoFiltro = useMemo(() => {
+    const lancadas = filtroMes === "todos"
+      ? (receitas as any[])
+      : receitasPorCompetencias(receitas as any[], [filtroMes]);
+    return lancadas.reduce((s, r) => s + toBRL(Number(r.valor) || 0, r.moeda ?? "BRL", cotacao), 0);
+  }, [receitas, filtroMes, cotacao]);
   // O saldo só faz sentido com a lista completa do período; com filtros, a despesa mostrada é parcial.
   const semFiltrosDeLista =
     tab === "total" &&
@@ -1032,7 +1033,7 @@ function DespesasPage() {
           { filtro: null, label: "Receitas", valor: formatar(receitaDoFiltro), cor: "text-success", hint: "" },
           {
             filtro: null,
-            label: "Saldo",
+            label: "Saldo do mês",
             valor: semFiltrosDeLista
               ? `${saldoDoFiltro >= 0 ? "+" : "-"} ${formatar(Math.abs(saldoDoFiltro))}`
               : "—",
