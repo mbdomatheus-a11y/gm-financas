@@ -1,4 +1,4 @@
-import { monthKey } from "@/lib/format";
+import { competenciaDaReceita, competenciaDoDia, diaViradaDefinida } from "@/lib/format";
 
 export type Periodicidade = "mensal" | "semestral" | "anual";
 
@@ -50,8 +50,7 @@ export interface RecorrenciaFixa {
 
 /** Normaliza uma data ISO ou competência "AAAA-MM" para a chave de competência. */
 export function competenciaDe(value: string | Date): string {
-  if (typeof value === "string" && /^\d{4}-\d{2}$/.test(value)) return value;
-  return monthKey(value);
+  return competenciaDoDia(value);
 }
 
 /** Diferença em meses entre duas competências (b - a). */
@@ -228,9 +227,17 @@ export interface LancamentoCompetencia {
   despesa: any;
 }
 
+/** Data de vencimento do dia do início dentro da competência (ciclo): dias antes da virada caem no mês seguinte. */
 export function vencimentoDaCompetencia(inicio: string, competencia: string): string {
   const dia = Math.min(28, Number(inicio.slice(8, 10)) || 1);
-  return `${competencia}-${String(dia).padStart(2, "0")}`;
+  const virada = diaViradaDefinida();
+  let [ano, mes] = competencia.split("-").map(Number) as [number, number];
+  if (virada && dia < virada) {
+    const prox = new Date(ano, mes, 1);
+    ano = prox.getFullYear();
+    mes = prox.getMonth() + 1;
+  }
+  return `${ano}-${String(mes).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
 }
 
 /**
@@ -416,7 +423,7 @@ export function receitasPorCompetencias(
   for (const competencia of desejadas) {
     // 1. Lançamentos que realmente existem no banco nesta competência
     const noBancoDesteMes = receitas.filter(
-      (r) => competenciaDe(r.data_recebimento) === competencia,
+      (r) => competenciaDaReceita(r.data_recebimento) === competencia,
     );
 
     const chavesNoMes = new Set<string>();

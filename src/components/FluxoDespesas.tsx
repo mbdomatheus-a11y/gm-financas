@@ -9,7 +9,7 @@ import { useDespesas, useFaturasMes } from "@/hooks/useFinance";
 import { useEstruturaCategorias } from "@/hooks/useEstruturaCategorias";
 import { usePrivacidadeValores } from "@/hooks/usePrivacidadeValores";
 import { aplicarRegrasFaturaMes } from "@/lib/fatura-mes";
-import { monthKey, toBRL } from "@/lib/format";
+import { monthKey, toBRL, competenciaDoDia } from "@/lib/format";
 import { useCompetenciaVigente } from "@/lib/periodo-vigente";
 import { lancamentosPorCompetencias } from "@/lib/recorrencia";
 
@@ -58,7 +58,7 @@ export function FluxoDespesas() {
     const doCiclo = new Map<string, number>();
     const aVencer = new Map<string, number>();
     for (const p of parcelas) {
-      const key = monthKey(p.vencimento);
+      const key = competenciaDoDia(p.vencimento);
       const valor = toBRL(Number(p.valor), p.despesa.moeda, cotacao);
       const categoria = macroDe((p.despesa as any).categoria);
       if (key === vigente) doCiclo.set(categoria, (doCiclo.get(categoria) ?? 0) + valor);

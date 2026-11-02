@@ -10,7 +10,7 @@ import { useCotacao } from "@/hooks/useCotacao";
 import { useCartoes, useDespesas, useFaturasMes, useReceitas } from "@/hooks/useFinance";
 import { supabase } from "@/integrations/supabase/client";
 import { aplicarRegrasFaturaMes } from "@/lib/fatura-mes";
-import { monthKey, toBRL } from "@/lib/format";
+import { monthKey, toBRL, competenciaDoDia, mesDoCiclo } from "@/lib/format";
 import { useCompetenciaVigente } from "@/lib/periodo-vigente";
 import { usePreferencias } from "@/hooks/usePreferencias";
 import { listarCaixinhas, metaDoMes } from "@/lib/poupar";
@@ -257,9 +257,9 @@ function useContexto(ativo: boolean) {
     const prev = calcularPrevisaoMes({ despesas: despesas as any[], receitas: receitas as any[], faturas: faturas as any[], cotacao }, mes, metaDoMes(caixinhas, mes), prefsVirada.dia_virada, prefsVirada.receitas_proximo_ciclo_dia);
     const hoje = new Date().toISOString().slice(0, 10);
     const em30 = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
-    const proximoMes = monthKey(new Date(Date.now() + 31 * 86400000));
+    const proximoMes = mesDoCiclo(1);
     const parcelas = aplicarRegrasFaturaMes(lancamentosPorCompetencias(despesas as any[], [mes, proximoMes]), faturas as any[]);
-    const doMes = parcelas.filter((p: any) => monthKey(p.vencimento) === mes);
+    const doMes = parcelas.filter((p: any) => competenciaDoDia(p.vencimento) === mes);
     const porCat = new Map<string, number>();
     for (const p of doMes as any[]) porCat.set(p.despesa.categoria ?? "Outros", (porCat.get(p.despesa.categoria ?? "Outros") ?? 0) + toBRL(Number(p.valor), p.despesa.moeda, cotacao));
     const proximos = (parcelas as any[])

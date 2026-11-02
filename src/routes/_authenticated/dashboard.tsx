@@ -59,16 +59,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-import {
-  formatBRL,
-  formatDate,
-  formatUSD,
-  identificacaoDespesa,
-  monthKey,
-  monthLabel,
-  monthLabelLong,
-  toBRL,
-} from "@/lib/format";
+import { formatBRL, formatDate, formatUSD, identificacaoDespesa, monthKey, monthLabel, monthLabelLong, toBRL, competenciaDoDia, mesDoCiclo } from "@/lib/format";
 import { useCompetenciaVigente } from "@/lib/periodo-vigente";
 import { lancamentosPorCompetencias, receitasPorCompetencias } from "@/lib/recorrencia";
 import { usePrivacidadeValores } from "@/hooks/usePrivacidadeValores";
@@ -122,20 +113,20 @@ function monthWindow(janela: string): string[] {
   // Item 10 (2026-10-05): padrão do site = mês anterior, o atual e os 5 seguintes.
   if (janela === "m1p1") {
     for (let i = -1; i <= 1; i++)
-      out.push(monthKey(new Date(now.getFullYear(), now.getMonth() + i, 1)));
+      out.push(mesDoCiclo(+ i));
     return out;
   }
   if (janela === "m1p5") {
     for (let i = -1; i <= 5; i++)
-      out.push(monthKey(new Date(now.getFullYear(), now.getMonth() + i, 1)));
+      out.push(mesDoCiclo(+ i));
     return out;
   }
   if (n < 0) {
     for (let i = -n - 1; i >= 0; i--)
-      out.push(monthKey(new Date(now.getFullYear(), now.getMonth() - i, 1)));
+      out.push(mesDoCiclo(- i));
   } else {
     for (let i = 0; i < n; i++)
-      out.push(monthKey(new Date(now.getFullYear(), now.getMonth() + i, 1)));
+      out.push(mesDoCiclo(+ i));
   }
   return out;
 }
@@ -292,7 +283,7 @@ function DashboardPage() {
     const now = new Date();
     const base: string[] = [];
     for (let i = -12; i <= 24; i++)
-      base.push(monthKey(new Date(now.getFullYear(), now.getMonth() + i, 1)));
+      base.push(mesDoCiclo(+ i));
     if (meses.length === 0) return base;
     const uniao = new Set([...base, ...meses]);
     return Array.from(uniao).sort();
@@ -334,7 +325,7 @@ function DashboardPage() {
       .filter((r: any) => r.moeda === "USD")
       .reduce((s: number, r: any) => s + Number(r.valor), 0);
 
-    const parcelasMes = parcelas.filter((p: any) => monthKey(p.vencimento) === mesAtual);
+    const parcelasMes = parcelas.filter((p: any) => competenciaDoDia(p.vencimento) === mesAtual);
     const totalDespesas = parcelasMes.reduce(
       (s: number, p: any) => s + toBRL(Number(p.valor), p.despesa.moeda, cotacao),
       0,
@@ -363,7 +354,7 @@ function DashboardPage() {
       .reduce((s: number, p: any) => s + toBRL(Number(p.valor), p.despesa.moeda, cotacao), 0);
 
     const porCategoria = new Map<string, number>();
-    for (const p of parcelas.filter((p: any) => monthKey(p.vencimento) === mesPie)) {
+    for (const p of parcelas.filter((p: any) => competenciaDoDia(p.vencimento) === mesPie)) {
       // Uma fatia por categoria mãe (fixa e variável somadas).
       const key = soMacro(macroDeCategoria(p.despesa.categoria));
       porCategoria.set(
@@ -375,7 +366,7 @@ function DashboardPage() {
     // Grupos com maior peso na janela, para as barras empilhadas.
     const pesoGrupo = new Map<string, number>();
     for (const p of parcelas) {
-      if (!meses.includes(monthKey(p.vencimento))) continue;
+      if (!meses.includes(competenciaDoDia(p.vencimento))) continue;
       const g = grupoDe(p);
       pesoGrupo.set(g, (pesoGrupo.get(g) ?? 0) + toBRL(Number(p.valor), p.despesa.moeda, cotacao));
     }
@@ -392,7 +383,7 @@ function DashboardPage() {
       let des = 0;
       for (const g of grupos) linha[g] = 0;
       linha["Outros grupos"] = 0;
-      for (const p of parcelas.filter((p: any) => monthKey(p.vencimento) === key)) {
+      for (const p of parcelas.filter((p: any) => competenciaDoDia(p.vencimento) === key)) {
         const v = toBRL(Number(p.valor), p.despesa.moeda, cotacao);
         des += v;
         const g = grupoDe(p);
@@ -441,12 +432,12 @@ function DashboardPage() {
 
     // Mês anterior, para variação percentual nos indicadores.
     const ref = new Date(`${mesAtual}-01T12:00:00`);
-    const mesAnterior = monthKey(new Date(ref.getFullYear(), ref.getMonth() - 1, 1));
+    const mesAnterior = mesDoCiclo(- 1);
     const receitasAnt = receitasProjetadas
       .filter((r) => r.competencia === mesAnterior)
       .reduce((s: number, r: any) => s + toBRL(Number(r.valor), r.moeda, cotacao), 0);
     const despesasAnt = parcelas
-      .filter((p: any) => monthKey(p.vencimento) === mesAnterior)
+      .filter((p: any) => competenciaDoDia(p.vencimento) === mesAnterior)
       .reduce((s: number, p: any) => s + toBRL(Number(p.valor), p.despesa.moeda, cotacao), 0);
 
     // Uso por cartão no mês corrente.
@@ -485,12 +476,12 @@ function DashboardPage() {
 
     // Categoria: mês atual x média dos 3 meses anteriores.
     const tresMeses = [1, 2, 3].map((i) =>
-      monthKey(new Date(ref.getFullYear(), ref.getMonth() - i, 1)),
+      mesDoCiclo(- i),
     );
     const atualCat = new Map<string, number>();
     const mediaCat = new Map<string, number>();
     for (const p of parcelas) {
-      const mk = monthKey(p.vencimento);
+      const mk = competenciaDoDia(p.vencimento);
       const cat = soMacro(macroDeCategoria(p.despesa.categoria));
       const v = toBRL(Number(p.valor), p.despesa.moeda, cotacao);
       if (mk === mesAtual) atualCat.set(cat, (atualCat.get(cat) ?? 0) + v);
@@ -560,7 +551,7 @@ function DashboardPage() {
       // Só considera se a parcela final existe e ainda não foi paga
       if (!parcelaFinal || parcelaFinal.paga) continue;
 
-      const mesFim = monthKey(parcelaFinal.vencimento);
+      const mesFim = competenciaDoDia(parcelaFinal.vencimento);
       const valorParcela = toBRL(Number(parcelaFinal.valor ?? d.valor_parcela ?? d.valor), d.moeda, cotacao);
 
       if (!alivioMap.has(mesFim)) {
@@ -636,7 +627,7 @@ function DashboardPage() {
     for (const d of despesas as any[]) {
       if (d.tipo === "fixa") continue;
       for (const p of d.parcelas ?? []) {
-        const chave = monthKey(p.vencimento);
+        const chave = competenciaDoDia(p.vencimento);
         if (!maior || chave > maior) maior = chave;
       }
     }
@@ -648,7 +639,7 @@ function DashboardPage() {
 
   const mesesParaDivida = useMemo(() => {
     const now = new Date();
-    const inicioPadrao = monthKey(new Date(now.getFullYear(), now.getMonth() - 12, 1));
+    const inicioPadrao = mesDoCiclo(- 12);
     const fim = mesLimiteDivida > ultimaParcelaRealDivida ? mesLimiteDivida : ultimaParcelaRealDivida;
     return monthRange(inicioPadrao, fim);
   }, [mesLimiteDivida, ultimaParcelaRealDivida]);
@@ -664,10 +655,10 @@ function DashboardPage() {
     const limiteVariavel =
       mesLimiteDivida < ultimaParcelaRealDivida ? mesLimiteDivida : ultimaParcelaRealDivida;
     const variavel = parcelasDivida
-      .filter((p: any) => p.despesa.tipo !== "fixa" && !p.paga && monthKey(p.vencimento) <= limiteVariavel)
+      .filter((p: any) => p.despesa.tipo !== "fixa" && !p.paga && competenciaDoDia(p.vencimento) <= limiteVariavel)
       .reduce((s: number, p: any) => s + toBRL(Number(p.valor), p.despesa.moeda, cotacao), 0);
     const fixa = parcelasDivida
-      .filter((p: any) => p.despesa.tipo === "fixa" && !p.paga && monthKey(p.vencimento) <= mesLimiteDivida)
+      .filter((p: any) => p.despesa.tipo === "fixa" && !p.paga && competenciaDoDia(p.vencimento) <= mesLimiteDivida)
       .reduce((s: number, p: any) => s + toBRL(Number(p.valor), p.despesa.moeda, cotacao), 0);
     return {
       total: variavel + fixa,
@@ -694,7 +685,7 @@ function DashboardPage() {
   const detalhe = useMemo(() => {
     if (!drill) return [];
     return parcelas
-      .filter((p: any) => monthKey(p.vencimento) === drill.mes)
+      .filter((p: any) => competenciaDoDia(p.vencimento) === drill.mes)
       .filter((p: any) => {
         if (!drill.grupo) return true;
         const g = grupoDe(p);
@@ -717,7 +708,7 @@ function DashboardPage() {
   /** Agrupamentos do mês selecionado, do maior para o menor. */
   const agrupamentosMes = useMemo(() => {
     const map = new Map<string, { total: number; itens: number }>();
-    for (const p of parcelas.filter((p: any) => monthKey(p.vencimento) === mesPie)) {
+    for (const p of parcelas.filter((p: any) => competenciaDoDia(p.vencimento) === mesPie)) {
       const g = grupoDe(p);
       const atual = map.get(g) ?? { total: 0, itens: 0 };
       atual.total += toBRL(Number(p.valor), p.despesa.moeda, cotacao);

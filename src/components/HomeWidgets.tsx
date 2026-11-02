@@ -50,7 +50,7 @@ import {
   MODULOS_INFO,
   type AreaId,
 } from "@/lib/areas";
-import { currentMonthKey, formatBRL, monthKey } from "@/lib/format";
+import { currentMonthKey, formatBRL, monthKey, competenciaDoDia } from "@/lib/format";
 import {
   WIDGETS,
   classeTamanho,
@@ -81,7 +81,7 @@ function AreaCard({ id }: { id: AreaId }) {
     let soma = 0;
     for (const v of veiculos as any[]) {
       for (const e of v.veiculo_eventos ?? []) {
-        if (e.custo != null && monthKey(e.data) === mesAtual) soma += Number(e.custo);
+        if (e.custo != null && competenciaDoDia(e.data) === mesAtual) soma += Number(e.custo);
       }
     }
     return soma;

@@ -23,7 +23,7 @@ import { useDespesas, useFaturasMes, useReceitas } from "@/hooks/useFinance";
 import { useEstruturaCategorias } from "@/hooks/useEstruturaCategorias";
 import { usePrivacidadeValores } from "@/hooks/usePrivacidadeValores";
 import { aplicarRegrasFaturaMes } from "@/lib/fatura-mes";
-import { formatBRL, monthKey, monthLabel, toBRL } from "@/lib/format";
+import { formatBRL, monthKey, monthLabel, toBRL, competenciaDaReceita, competenciaDoDia, mesDoCiclo } from "@/lib/format";
 import { useCompetenciaVigente } from "@/lib/periodo-vigente";
 import { lancamentosPorCompetencias } from "@/lib/recorrencia";
 
@@ -57,7 +57,7 @@ export function GraficoHome({
 
   const meses = useMemo(() => {
     const now = new Date();
-    return [-1, 0, 1].map((i) => monthKey(new Date(now.getFullYear(), now.getMonth() + i, 1)));
+    return [-1, 0, 1].map((i) => mesDoCiclo(+ i));
   }, []);
 
   const parcelas = useMemo(
@@ -70,10 +70,10 @@ export function GraficoHome({
     () =>
       meses.map((key) => {
         const des = parcelas
-          .filter((p) => monthKey(p.vencimento) === key)
+          .filter((p) => competenciaDoDia(p.vencimento) === key)
           .reduce((s, p) => s + toBRL(Number(p.valor), p.despesa.moeda, cotacao), 0);
         const rec = (receitas as any[])
-          .filter((r) => monthKey(r.data_recebimento) === key)
+          .filter((r) => competenciaDaReceita(r.data_recebimento) === key)
           .reduce((s, r) => s + toBRL(Number(r.valor), r.moeda, cotacao), 0);
         return {
           mes: monthLabel(key),
@@ -89,7 +89,7 @@ export function GraficoHome({
   const categorias = useMemo(() => {
     const mapa = new Map<string, number>();
     for (const p of parcelas) {
-      if (monthKey(p.vencimento) !== vigente) continue;
+      if (competenciaDoDia(p.vencimento) !== vigente) continue;
       const cat = macroDeCategoria((p.despesa as any).categoria);
       mapa.set(cat, (mapa.get(cat) ?? 0) + toBRL(Number(p.valor), p.despesa.moeda, cotacao));
     }

@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useDespesas, useReceitas } from "@/hooks/useFinance";
 import { useCotacao } from "@/hooks/useCotacao";
-import { monthKey, toBRL } from "@/lib/format";
+import { monthKey, toBRL, competenciaDoDia } from "@/lib/format";
 import { competenciaDe, lancamentosPorCompetencias } from "@/lib/recorrencia";
 import type { ResumoFinanceiroContexto } from "@/lib/lancamento-ia";
 import { supabase } from "@/integrations/supabase/client";
@@ -109,7 +109,7 @@ export function useResumoFinanceiroMes(): {
       const naoPagas = (d.parcelas as any[]).filter((p) => !p.paga);
       if (!naoPagas.length) continue;
       const ultima = naoPagas.reduce((m, p) => (p.vencimento > m.vencimento ? p : m));
-      const mesFim = monthKey(ultima.vencimento);
+      const mesFim = competenciaDoDia(ultima.vencimento);
       const valorParcela = toBRL(Number(ultima.valor ?? d.valor_parcela ?? d.valor), d.moeda, cotacao);
       parcelamentosFuturos.push({
         descricao: d.descricao,

@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import { monthKey } from "@/lib/format";
+import { monthKey, competenciaAtual } from "@/lib/format";
 import { somarMeses } from "@/lib/recorrencia";
 
 /**
@@ -97,7 +97,7 @@ export function aportadoNoMes(lista: Caixinha[], mes: string): number {
 export function totalGuardado(c: Caixinha): number {
   return Object.values(c.aportes).reduce((s, v) => s + (Number(v) || 0), 0);
 }
-export function linhaDoTempo(c: Caixinha, hoje = monthKey(new Date()), aFrente = 2): MesCaixinha[] {
+export function linhaDoTempo(c: Caixinha, hoje = competenciaAtual(), aFrente = 2): MesCaixinha[] {
   const limite = c.fim ?? somarMeses(hoje > c.inicio ? hoje : c.inicio, aFrente);
   const out: MesCaixinha[] = [];
   let mes = c.inicio;

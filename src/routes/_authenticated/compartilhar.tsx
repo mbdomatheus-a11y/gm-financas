@@ -36,7 +36,7 @@ import { useCotacao } from "@/hooks/useCotacao";
 import { useModulosGlobais, useProfile } from "@/hooks/useAuthData";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
-import { currentMonthKey, formatBRL, formatDate, monthKey, monthLabel, toBRL } from "@/lib/format";
+import { currentMonthKey, formatBRL, formatDate, monthKey, monthLabel, toBRL, competenciaDaReceita, competenciaDoDia } from "@/lib/format";
 import { alertasDosVeiculos } from "@/lib/veiculo-alertas";
 
 export const Route = createFileRoute("/_authenticated/compartilhar")({
@@ -315,19 +315,19 @@ function FinancasShareCard() {
 
   const meses = useMemo(() => {
     const set = new Set<string>([currentMonthKey()]);
-    receitas.forEach((r: any) => set.add(monthKey(r.data_recebimento)));
-    despesas.forEach((d: any) => set.add(monthKey(d.data_compra)));
+    receitas.forEach((r: any) => set.add(competenciaDaReceita(r.data_recebimento)));
+    despesas.forEach((d: any) => set.add(competenciaDoDia(d.data_compra)));
     return [...set].sort().reverse();
   }, [receitas, despesas]);
 
   const resumo = useMemo(() => {
     const rec = receitas
-      .filter((r: any) => monthKey(r.data_recebimento) === mes)
+      .filter((r: any) => competenciaDaReceita(r.data_recebimento) === mes)
       .reduce((s: number, r: any) => s + toBRL(Number(r.valor), r.moeda, cotacao), 0);
 
     const parcelasMes = despesas.flatMap((d: any) =>
       (d.parcelas ?? [])
-        .filter((p: any) => monthKey(p.vencimento) === mes)
+        .filter((p: any) => competenciaDoDia(p.vencimento) === mes)
         .map((p: any) => ({ ...p, categoria: d.categoria, moeda: d.moeda })),
     );
     const desp = parcelasMes.reduce(
@@ -597,12 +597,12 @@ function NotasFiscaisShareCard() {
 
   const meses = useMemo(() => {
     const set = new Set<string>([currentMonthKey()]);
-    (notas as any[]).forEach((n) => set.add(monthKey(n.data_compra)));
+    (notas as any[]).forEach((n) => set.add(competenciaDoDia(n.data_compra)));
     return [...set].sort().reverse();
   }, [notas]);
 
   const doMes = useMemo(
-    () => (notas as any[]).filter((n) => monthKey(n.data_compra) === mes),
+    () => (notas as any[]).filter((n) => competenciaDoDia(n.data_compra) === mes),
     [notas, mes],
   );
   const total = useMemo(
@@ -1054,11 +1054,11 @@ function ResumoInteligenteShareCard() {
 
   const resumo = useMemo(() => {
     const rec = (receitas as any[])
-      .filter((r) => monthKey(r.data_recebimento) === mes)
+      .filter((r) => competenciaDaReceita(r.data_recebimento) === mes)
       .reduce((s, r) => s + toBRL(Number(r.valor), r.moeda, cotacao), 0);
     const parcelasMes = (despesas as any[]).flatMap((d) =>
       (d.parcelas ?? [])
-        .filter((p: any) => monthKey(p.vencimento) === mes)
+        .filter((p: any) => competenciaDoDia(p.vencimento) === mes)
         .map((p: any) => ({ ...p, moeda: d.moeda })),
     );
     const desp = parcelasMes.reduce((s, p: any) => s + toBRL(Number(p.valor), p.moeda, cotacao), 0);

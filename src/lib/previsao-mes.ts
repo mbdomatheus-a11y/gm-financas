@@ -1,5 +1,5 @@
 import { aplicarRegrasFaturaMes } from "@/lib/fatura-mes";
-import { monthKey, toBRL } from "@/lib/format";
+import { monthKey, toBRL, competenciaAtual } from "@/lib/format";
 import { lancamentosPorCompetencias, receitasPorCompetencias, somarMeses } from "@/lib/recorrencia";
 
 /**
@@ -131,7 +131,7 @@ export function calcularPrevisaoMes(
 ): PrevisaoMes {
   const { despesas, receitas, faturas, cotacao } = dados;
   const hoje = new Date();
-  const mesHoje = monthKey(hoje);
+  const mesHoje = competenciaAtual(hoje);
   const janela = new Set<string>();
   for (let i = -12; i <= 24; i++) janela.add(somarMeses(mesHoje, i));
   for (let i = -3; i <= 1; i++) janela.add(somarMeses(mes, i));

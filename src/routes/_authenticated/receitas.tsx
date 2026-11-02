@@ -75,17 +75,7 @@ import {
 } from "@/hooks/useFinance";
 import { usePermissoes, useSession } from "@/hooks/useAuthData";
 import { useCotacao } from "@/hooks/useCotacao";
-import {
-  addMonths,
-  currentMonthKey,
-  formatBRL,
-  formatDate,
-  formatMoeda,
-  monthKey,
-  monthLabelLong,
-  toBRL,
-  toISODate,
-} from "@/lib/format";
+import { addMonths, currentMonthKey, formatBRL, formatDate, formatMoeda, monthKey, monthLabelLong, toBRL, toISODate, competenciaDaReceita, mesDoCiclo } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/receitas")({
@@ -198,7 +188,7 @@ function ReceitasPage() {
   const meses = useMemo(() => {
     const now = new Date();
     return Array.from({ length: 61 }, (_, i) =>
-      monthKey(new Date(now.getFullYear(), now.getMonth() + 36 - i, 1)),
+      mesDoCiclo(+ 36 - i),
     );
   }, []);
 
@@ -284,7 +274,7 @@ function ReceitasPage() {
     const map = new Map<string, any[]>();
     for (const r of lista as any[]) {
       // usa r.competencia para agrupamento (já vem preenchido pela projeção dinâmica)
-      const k = modoLista === "cartao" ? r.cartao_id ?? "sem" : (r.competencia ?? monthKey(r.data_recebimento));
+      const k = modoLista === "cartao" ? r.cartao_id ?? "sem" : (r.competencia ?? competenciaDaReceita(r.data_recebimento));
       if (!map.has(k)) map.set(k, []);
       map.get(k)!.push(r);
     }

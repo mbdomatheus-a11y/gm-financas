@@ -61,7 +61,7 @@ import { useDespesas, useFaturasMes, useProfilesList, useReceitas } from "@/hook
 import { useCotacao } from "@/hooks/useCotacao";
 import { lancamentosPorCompetencias } from "@/lib/recorrencia";
 import { aplicarRegrasFaturaMes } from "@/lib/fatura-mes";
-import { addMonths, formatDate, formatBRL, monthKey, toBRL, toISODate } from "@/lib/format";
+import { addMonths, formatDate, formatBRL, monthKey, toBRL, toISODate, competenciaAtual } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/lista-compras")({
   head: () => ({
@@ -142,7 +142,7 @@ function ListaComprasPage() {
   const pessoasComAcesso = useMemo(() => (profiles as any[]).filter((p) => p.ativo), [profiles]);
   const maxAprovacoes = Math.max(0, pessoasComAcesso.length - 1);
 
-  const mesAtualKey = useMemo(() => monthKey(new Date()), []);
+  const mesAtualKey = useMemo(() => competenciaAtual(), []);
 
   // Gamificação alimentada pelas RESPOSTAS do usuário (card no Início), não pelos
   // dados lançados: usuário novo começa zerado e responde 3 perguntas.

@@ -42,8 +42,78 @@ export function monthKey(date: Date | string): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
+// Mês do sistema (ciclo): com dia de virada D, a competência "AAAA-MM" vai de D/MM até D-1 do mês
+// seguinte e é rotulada pelo mês em que começa. Sem virada, é o mês do calendário.
+// Uma preferência global (definida pelas preferências do usuário) faz todas as telas usarem a mesma regra.
+let diaViradaCiclo: number | null = null;
+let diaReceitaProximoCiclo: number | null = null;
+
+const pad2 = (n: number) => String(n).padStart(2, "0");
+
+function viradaValida(d: number | null | undefined): number | null {
+  return d && d >= 2 && d <= 28 ? d : null;
+}
+
+export function definirCicloDoUsuario(diaVirada: number | null | undefined, receitasProximoCicloDia?: number | null) {
+  diaViradaCiclo = viradaValida(diaVirada);
+  diaReceitaProximoCiclo = receitasProximoCicloDia && receitasProximoCicloDia >= 1 && receitasProximoCicloDia <= 31
+    ? receitasProximoCicloDia
+    : null;
+}
+
+export function diaViradaDefinida(): number | null {
+  return viradaValida(diaViradaCiclo);
+}
+
+/** Competência (AAAA-MM) do ciclo em que a data cai. Aceita "AAAA-MM-DD", Date ou "AAAA-MM" (devolve igual). */
+export function competenciaDoDia(value: Date | string): string {
+  if (typeof value === "string" && /^\d{4}-\d{2}$/.test(value)) return value;
+  let y: number;
+  let m: number;
+  let dia: number;
+  if (typeof value === "string") {
+    const [a, b, c] = value.slice(0, 10).split("-").map(Number);
+    if (!a || !b || !c) return monthKey(value);
+    y = a;
+    m = b;
+    dia = c;
+  } else {
+    y = value.getFullYear();
+    m = value.getMonth() + 1;
+    dia = value.getDate();
+  }
+  const v = viradaValida(diaViradaCiclo);
+  if (!v || dia >= v) return `${y}-${pad2(m)}`;
+  const anterior = new Date(y, m - 2, 1);
+  return `${anterior.getFullYear()}-${pad2(anterior.getMonth() + 1)}`;
+}
+
+/** Competência da receita: igual à do ciclo, salvo a opção "recebida a partir do dia N" (vai para o próximo ciclo). */
+export function competenciaDaReceita(value: Date | string): string {
+  const base = competenciaDoDia(value);
+  const n = diaReceitaProximoCiclo;
+  if (!n || (typeof value === "string" && /^\d{4}-\d{2}$/.test(value))) return base;
+  const dia = typeof value === "string" ? Number(value.slice(8, 10)) : value.getDate();
+  const d = viradaValida(diaViradaCiclo) ?? 1;
+  const naFaixa = n >= d ? dia >= n || dia < d : dia >= n && dia < d;
+  if (!naFaixa) return base;
+  const [a, m] = base.split("-").map(Number);
+  return monthKey(new Date(a!, m!, 1));
+}
+
+/** Competência do mês do sistema que contém a data de referência (padrão: hoje). */
+export function competenciaAtual(ref: Date = new Date()): string {
+  return competenciaDoDia(ref);
+}
+
 export function currentMonthKey(): string {
-  return monthKey(new Date());
+  return competenciaAtual();
+}
+
+/** Competência deslocada N meses a partir da atual (N negativo volta no tempo). */
+export function mesDoCiclo(offset: number): string {
+  const [y, m] = currentMonthKey().split("-").map(Number);
+  return monthKey(new Date(y!, m! - 1 + offset, 1));
 }
 
 export function monthLabel(key: string): string {
@@ -54,10 +124,8 @@ export function monthLabel(key: string): string {
 
 export function lastMonths(count: number): string[] {
   const out: string[] = [];
-  const now = new Date();
   for (let i = count - 1; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    out.push(monthKey(d));
+    out.push(mesDoCiclo(-i));
   }
   return out;
 }

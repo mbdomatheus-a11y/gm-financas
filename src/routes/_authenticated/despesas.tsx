@@ -103,19 +103,7 @@ import {
   type RecorrenciaFixa,
 } from "@/lib/recorrencia";
 import { useCotacao } from "@/hooks/useCotacao";
-import {
-  addMonths,
-  dividirParcelas,
-  formatBRL,
-  formatDate,
-  formatUSD,
-  identificacaoDespesa,
-  monthKey,
-  monthLabelLong,
-  parseDate,
-  toBRL,
-  toISODate,
-} from "@/lib/format";
+import { addMonths, dividirParcelas, formatBRL, formatDate, formatUSD, identificacaoDespesa, monthKey, monthLabelLong, parseDate, toBRL, toISODate, competenciaAtual, competenciaDoDia, mesDoCiclo } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { PixDespesas, usePix } from "@/components/pix/AbaPix";
 
@@ -240,7 +228,7 @@ function DespesasPage() {
   // `mes=todos` na URL (ex.: vindo do card "Dívida total em aberto" do
   // dashboard) abre a página já mostrando a dívida completa, não só a do
   // mês atual.
-  const [filtroMes, setFiltroMes] = useState(search.mes ?? mesEscolhidoSite() ?? monthKey(new Date()));
+  const [filtroMes, setFiltroMes] = useState(search.mes ?? mesEscolhidoSite() ?? competenciaAtual());
   // 28/10/2026: o mês escolhido fica salvo e vale também em Receitas e Calendário.
   useEffect(() => {
     guardarMesSite(filtroMes);
@@ -579,7 +567,7 @@ function DespesasPage() {
 
   const [despesaParaExcluir, setDespesaParaExcluir] = useState<any | null>(null);
   const [despesaFixaParaExcluir, setDespesaFixaParaExcluir] = useState<any | null>(null);
-  const competenciaFiltrada = filtroMes !== "todos" ? filtroMes : monthKey(new Date());
+  const competenciaFiltrada = filtroMes !== "todos" ? filtroMes : competenciaAtual();
 
   async function executarExclusaoComUndo(d: any) {
     const faturaVinculada = (faturasMes as any[]).find((f) => f.despesa_avulsa_id === d.id);
@@ -738,7 +726,7 @@ function DespesasPage() {
   const meses = useMemo(() => {
     const now = new Date();
     return Array.from({ length: 61 }, (_, i) =>
-      monthKey(new Date(now.getFullYear(), now.getMonth() + 36 - i, 1)),
+      mesDoCiclo(+ 36 - i),
     );
   }, []);
 
@@ -1570,14 +1558,14 @@ function DespesasPage() {
                                   Total manual ativo
                                   {faturaAvulsa.tipo_lancamento === "temporario" &&
                                     faturaAvulsa.data_limite &&
-                                    ` · até ${monthLabelLong(monthKey(faturaAvulsa.data_limite))}`}
+                                    ` · até ${monthLabelLong(competenciaDoDia(faturaAvulsa.data_limite))}`}
                                 </Badge>
                               )}
                               {ehTotalManual &&
                                 faturaAvulsa?.status === "aberta" &&
                                 faturaAvulsa.tipo_lancamento === "temporario" &&
                                 faturaAvulsa.data_limite &&
-                                monthKey(faturaAvulsa.data_limite) < monthKey(new Date()) && (
+                                competenciaDoDia(faturaAvulsa.data_limite) < competenciaAtual() && (
                                   <Badge
                                     variant="outline"
                                     className="border-destructive/40 text-[10px] text-destructive"
@@ -1804,7 +1792,7 @@ function DespesasPage() {
                                 >
                                   {p.paga && <CheckCircle2 className="size-3" />}
                                   {d.tipo === "fixa"
-                                    ? monthLabelLong(monthKey(p.vencimento))
+                                    ? monthLabelLong(competenciaDoDia(p.vencimento))
                                     : `${p.numero}/${p.total}`}{" "}
                                   · {formatBRL(Number(p.valor))}
                                 </button>

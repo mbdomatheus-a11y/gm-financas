@@ -7,7 +7,7 @@ import { useCotacao } from "@/hooks/useCotacao";
 import { useDespesas, useFaturasMes } from "@/hooks/useFinance";
 import { usePrivacidadeValores } from "@/hooks/usePrivacidadeValores";
 import { aplicarRegrasFaturaMes } from "@/lib/fatura-mes";
-import { monthKey, toBRL } from "@/lib/format";
+import { monthKey, toBRL, competenciaDoDia } from "@/lib/format";
 import { useCompetenciaVigente } from "@/lib/periodo-vigente";
 import { lancamentosPorCompetencias } from "@/lib/recorrencia";
 
@@ -31,7 +31,7 @@ export function GastosPorCategoria() {
     const lancamentos = aplicarRegrasFaturaMes(
       lancamentosPorCompetencias(despesas as any[], [competencia]),
       faturasMes as any[],
-    ).filter((l) => monthKey(l.vencimento) === competencia);
+    ).filter((l) => competenciaDoDia(l.vencimento) === competencia);
 
     const mapa = new Map<string, { nome: string; total: number; pago: number; aindaVai: number }>();
     for (const l of lancamentos) {

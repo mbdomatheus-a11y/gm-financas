@@ -24,7 +24,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/hooks/useAuthData";
 import { useCartoes, useDespesas } from "@/hooks/useFinance";
-import { currentMonthKey, formatBRL, monthKey, monthLabelLong } from "@/lib/format";
+import { currentMonthKey, formatBRL, monthKey, monthLabelLong, competenciaDoDia, mesDoCiclo } from "@/lib/format";
 
 /** Último dia do mês da competência, ou o dia de vencimento do cartão quando houver. */
 function vencimentoDoMes(competencia: string, dia?: number | null): string {
@@ -82,7 +82,7 @@ export function FaturaMesDialog({ trigger }: { trigger?: React.ReactNode }) {
       if (d.cartao_id !== cartaoId) continue;
       if (d.id === avulsaId || d.origem === "fatura_rapida" || d.origem === "fatura_total_manual") continue;
       for (const p of d.parcelas ?? [])
-        if (monthKey(p.vencimento) === competencia) total += Number(p.valor);
+        if (competenciaDoDia(p.vencimento) === competencia) total += Number(p.valor);
     }
     return total;
   }, [despesas, cartaoId, competencia, fatura.data]);
@@ -196,7 +196,7 @@ export function FaturaMesDialog({ trigger }: { trigger?: React.ReactNode }) {
   const meses = useMemo(() => {
     const now = new Date();
     return Array.from({ length: 15 }, (_, i) =>
-      monthKey(new Date(now.getFullYear(), now.getMonth() - 12 + i, 1)),
+      mesDoCiclo(- 12 + i),
     );
   }, []);
 

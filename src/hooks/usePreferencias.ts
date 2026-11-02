@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { definirCicloDoUsuario, diaViradaDefinida } from "@/lib/format";
 import { useSession } from "./useAuthData";
 
 export type Preferencias = {
@@ -65,6 +66,18 @@ export function usePreferencias() {
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["preferencias"] }),
   });
+
+  // Mês do sistema: aplica o dia de virada em todo o cálculo. Se mudou, recarrega as consultas financeiras
+  // para que os totais já calculados sejam refeitos com a regra nova.
+  useEffect(() => {
+    if (!query.data) return;
+    const novo = query.data.dia_virada ?? null;
+    const antes = diaViradaDefinida();
+    definirCicloDoUsuario(novo, query.data.receitas_proximo_ciclo_dia ?? null);
+    if ((antes ?? null) !== (novo && novo >= 2 && novo <= 28 ? novo : null)) {
+      qc.resetQueries({ predicate: (q) => q.queryKey[0] !== "preferencias" });
+    }
+  }, [query.data, qc]);
 
   return { prefs: query.data ?? { user_id: "", ...DEFAULT_PREFS }, save };
 }

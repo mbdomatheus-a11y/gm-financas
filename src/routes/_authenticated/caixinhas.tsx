@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { usePrivacidadeValores } from "@/hooks/usePrivacidadeValores";
-import { monthKey, monthLabelLong } from "@/lib/format";
+import { monthKey, monthLabelLong, competenciaAtual } from "@/lib/format";
 import { useCompetenciaVigente } from "@/lib/periodo-vigente";
 import {
   type Caixinha,
@@ -105,7 +105,7 @@ function CaixinhasPage() {
 
       <div className="grid gap-3 md:grid-cols-2">
         {caixinhas.map((c) => {
-          const meses = linhaDoTempo(c, monthKey(new Date()));
+          const meses = linhaDoTempo(c, competenciaAtual());
           const total = totalGuardado(c);
           const objetivo = c.fim ? meses.length * c.valorMensal : null;
           const doMes = c.aportes[mes] ?? 0;
@@ -189,7 +189,7 @@ function FormCaixinha({ caixinha, onFechar }: { caixinha: Caixinha | null; onFec
   const qc = useQueryClient();
   const [nome, setNome] = useState(caixinha?.nome ?? "");
   const [valor, setValor] = useState(caixinha ? String(caixinha.valorMensal).replace(".", ",") : "");
-  const [inicio, setInicio] = useState(caixinha?.inicio ?? monthKey(new Date()));
+  const [inicio, setInicio] = useState(caixinha?.inicio ?? competenciaAtual());
   const [fim, setFim] = useState(caixinha?.fim ?? "");
   const salvar = useMutation({
     mutationFn: () =>

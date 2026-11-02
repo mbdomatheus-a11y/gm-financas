@@ -1,4 +1,4 @@
-import { monthKey } from "@/lib/format";
+import { monthKey, competenciaDoDia } from "@/lib/format";
 
 export type RegraFaturaMes = {
   cartao_id: string;
@@ -20,7 +20,7 @@ export function aplicarRegrasFaturaMes<
   return lancamentos.filter((p) => {
     const cartaoId = p.despesa?.cartao_id;
     if (!cartaoId) return true;
-    const regra = mapa.get(`${cartaoId}:${monthKey(p.vencimento)}`);
+    const regra = mapa.get(`${cartaoId}:${competenciaDoDia(p.vencimento)}`);
     if (!regra) return true;
     // Aberta: só o resumo manual entra no total. Concluída: só os itens importados entram.
     return regra.status === "aberta"

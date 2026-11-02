@@ -51,7 +51,7 @@ import { usePrivacidadeValores } from "@/hooks/usePrivacidadeValores";
 import { criarCorPorCategoria } from "@/lib/categorias-cor";
 import { chaveEstabelecimento } from "@/lib/categorizacao";
 import { aplicarRegrasFaturaMes } from "@/lib/fatura-mes";
-import { formatBRL, monthKey, monthLabel, monthLabelLong, toBRL } from "@/lib/format";
+import { formatBRL, monthKey, monthLabel, monthLabelLong, toBRL, competenciaDaReceita, competenciaDoDia } from "@/lib/format";
 import { useCompetenciaVigente } from "@/lib/periodo-vigente";
 import { lancamentosPorCompetencias } from "@/lib/recorrencia";
 import {
@@ -190,7 +190,7 @@ function ParaOndeVaiPage() {
           const macro = macroDe(categoria, macros);
           const sub = p.despesa?.subcategoria || subDe(categoria, macro);
           return {
-            competencia: monthKey(p.vencimento),
+            competencia: competenciaDoDia(p.vencimento),
             categoria,
             descricao: p.despesa?.descricao ?? "Sem descrição",
             chave: chaveEstabelecimento(
@@ -246,7 +246,7 @@ function ParaOndeVaiPage() {
 
   const rendaMensal = useMemo(() => {
     const doMes = (receitas as any[]).filter(
-      (r) => monthKey(r.data_recebimento) === mesReferencia,
+      (r) => competenciaDaReceita(r.data_recebimento) === mesReferencia,
     );
     return doMes.reduce((s, r) => s + toBRL(Number(r.valor), r.moeda ?? "BRL", cotacao), 0);
   }, [receitas, mesReferencia, cotacao]);

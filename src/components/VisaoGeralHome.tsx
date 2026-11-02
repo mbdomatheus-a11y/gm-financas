@@ -31,15 +31,7 @@ import { useCotacao } from "@/hooks/useCotacao";
 import { useDespesas, useFaturasMes, useReceitas } from "@/hooks/useFinance";
 import { usePrivacidadeValores } from "@/hooks/usePrivacidadeValores";
 import { aplicarRegrasFaturaMes } from "@/lib/fatura-mes";
-import {
-  formatBRL,
-  formatDate,
-  identificacaoDespesa,
-  monthKey,
-  monthLabel,
-  monthLabelLong,
-  toBRL,
-} from "@/lib/format";
+import { formatBRL, formatDate, identificacaoDespesa, monthKey, monthLabel, monthLabelLong, toBRL, competenciaDoDia, mesDoCiclo } from "@/lib/format";
 import { useCompetenciaVigente } from "@/lib/periodo-vigente";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { abreviarValor } from "@/lib/format";
@@ -174,7 +166,7 @@ export function VisaoGeralHome({ ocultarValores }: { ocultarValores?: boolean } 
   const meses = useMemo(() => {
     const now = new Date();
     return Array.from({ length: 7 }, (_, i) =>
-      monthKey(new Date(now.getFullYear(), now.getMonth() - 1 + i, 1)),
+      mesDoCiclo(- 1 + i),
     );
   }, []);
 
@@ -190,7 +182,7 @@ export function VisaoGeralHome({ ocultarValores }: { ocultarValores?: boolean } 
   const serie = useMemo(() => {
     return meses.map((key) => {
       const des = parcelas
-        .filter((p) => monthKey(p.vencimento) === key)
+        .filter((p) => competenciaDoDia(p.vencimento) === key)
         .reduce((s, p) => s + toBRL(Number(p.valor), p.despesa.moeda, cotacao), 0);
       const rec = receitasPorCompetencias(receitas as any[], [key])
         .reduce((s, r) => s + toBRL(Number(r.valor), r.moeda, cotacao), 0);
@@ -222,7 +214,7 @@ export function VisaoGeralHome({ ocultarValores }: { ocultarValores?: boolean } 
     const atualMap = new Map<string, { total: number; itens: any[] }>();
     const antMap = new Map<string, number>();
     for (const p of parcelas) {
-      const mk = monthKey(p.vencimento);
+      const mk = competenciaDoDia(p.vencimento);
       const v = toBRL(Number(p.valor), p.despesa.moeda, cotacao);
       const g = grupoDe(p.despesa);
       if (mk === mes) {
