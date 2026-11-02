@@ -546,10 +546,9 @@ export function AppLayout({
       : []
   ).filter(podeVer);
   // 27/10/2026: conta, configurações, idioma, grupo, backup e suporte foram para o menu da foto.
-  // O menu lateral fica só com o que é navegação do dia a dia e uma entrada da Administração.
+  // O menu lateral e a barra de cima ficam só com a navegação do dia a dia. A Administração fica no menu da foto.
   const NO_MENU_DA_FOTO = new Set(["/usuarios", "/backup", "/configuracoes", "/suporte", "/pluggy"]);
   const itensGlobais = GLOBAL.filter(podeVer).filter((i) => !i.adminOnly && !NO_MENU_DA_FOTO.has(i.to));
-  const itensAdmin = GLOBAL.filter(podeVer).filter((i) => i.adminOnly && !NO_MENU_DA_FOTO.has(i.to));
   // Botão central da barra do celular: ação principal de cada área (só onde existe uma ação única).
   const podeLancar = can("despesas", "editar") || can("receitas", "editar");
   const acaoCentral: { rotulo: string; curto: string; evento: string } | null = pathname.startsWith("/notas")
@@ -736,16 +735,6 @@ export function AppLayout({
         <NavLink key={item.to} item={item} onNavigate={onNavigate} />
       ))}
 
-      {itensAdmin.length > 0 && (
-        <>
-          <p className="mt-3 px-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/70">
-            Administração
-          </p>
-          {itensAdmin.map((item) => (
-            <NavLink key={item.to} item={item} onNavigate={onNavigate} soAdmin />
-          ))}
-        </>
-      )}
     </nav>
   );
 
@@ -862,14 +851,6 @@ export function AppLayout({
         );
       })}
       <div className="ml-auto flex items-center gap-1">
-        {itensAdmin.map((item) => {
-          const IconeItem = item.icon;
-          return (
-            <Link key={item.to} to={item.to} className={cn(linkTopo(pathname === item.to), "bg-violet-500/[0.07]")}>
-              <IconeItem className="size-4" aria-hidden="true" /> {rotuloNav(item)}
-            </Link>
-          );
-        })}
       </div>
     </div>
   );

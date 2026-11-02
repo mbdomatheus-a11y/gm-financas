@@ -20,6 +20,7 @@ import {
   X,
   Receipt,
   RotateCcw,
+  Landmark,
 } from "lucide-react";
 import { FaturaMesDialog } from "@/components/FaturaMesDialog";
 import { IndiceReajusteField } from "@/components/IndiceReajusteField";
@@ -203,7 +204,7 @@ function DespesasPage() {
   const qc = useQueryClient();
   const cotacao = useCotacao();
   const { user } = useSession();
-  const { can } = usePermissoes();
+  const { can, isSiteAdmin } = usePermissoes();
   const { data: despesas = [] } = useDespesas();
   const { data: receitas = [] } = useReceitas();
   const { data: faturasMes = [] } = useFaturasMes();
@@ -1011,8 +1012,14 @@ function DespesasPage() {
       title="Despesas"
       description={`${lista.length} lançamento(s) · ${formatar(resumo.total)}`}
       actions={
-        can("despesas", "editar") && (
-          <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2">
+          {isSiteAdmin && (
+            <Button size="sm" variant="outline" onClick={() => void navigate({ to: "/pluggy" })}>
+              <Landmark className="size-4" /> Open Finance
+            </Button>
+          )}
+          {can("despesas", "editar") && (
+            <>
             <FaturaMesDialog
               trigger={
                 <Button size="sm" variant="outline">
@@ -1023,8 +1030,9 @@ function DespesasPage() {
             <Button size="sm" onClick={abrirNova} data-tour="nova-despesa">
               <Plus className="size-4" /> Nova
             </Button>
-          </div>
-        )
+            </>
+          )}
+        </div>
       }
     >
       <div className="mb-3 grid grid-cols-2 gap-2 lg:grid-cols-3">
