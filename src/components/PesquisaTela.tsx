@@ -71,6 +71,9 @@ export function PesquisaTela() {
     setEstado(v === 1 ? "obrigado" : "comentar");
   }
 
+  // Depois da opinião, a pesquisa some (pedido do Matheus, 02/11/2026).
+  if (estado === "obrigado") return null;
+
   return (
     <div className="mx-auto mt-8 flex max-w-md flex-col items-center gap-3 rounded-xl border bg-card px-4 py-3 text-sm">
       {estado === "perguntar" ? (
@@ -105,15 +108,7 @@ export function PesquisaTela() {
             {comentario.trim() ? "Enviar" : "Pular"}
           </Button>
         </>
-      ) : (
-        <div className="flex items-center gap-3 text-muted-foreground">
-          {voto === 1 ? <ThumbsUp className="size-4" /> : <ThumbsDown className="size-4" />}
-          <span>Obrigado pela sua opinião!</span>
-          <button type="button" className="font-medium text-primary hover:underline" onClick={() => setEstado("perguntar")}>
-            Mudar
-          </button>
-        </div>
-      )}
+      ) : null}
     </div>
   );
 }
