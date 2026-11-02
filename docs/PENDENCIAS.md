@@ -487,3 +487,31 @@ Pendente: campo "inteligente" da importação ainda sem definição; revisão vi
 3. Preferência "Como nomear categorias" (só categoria, só subcategoria ou completo), salva na conta (preferencias_usuario.exibicao_categoria).
 4. Para onde vai: retângulo com filtros clicáveis de contas (cartões/bancos) e categorias; percentuais recalculados sobre o que está selecionado.
 
+### Pendência futura: teste de carga com k6 (registrada em 2026-11-01)
+Status: só registrado, não iniciado. Fazer quando o Matheus pedir.
+1. Ferramenta: k6 de código aberto, rodando no PC (sem custo). Grafana Cloud k6 só se precisar de execução em escala ou painel online (plano Free: 500 VUh por mês; Pro a partir de US$ 0,15 por VUh com taxa de US$ 19 por mês).
+2. Escopo site: fluxos de API (login, leitura de despesas, lançamentos) e, se necessário, páginas com o módulo de browser do k6 para medir carregamento.
+3. Escopo app: o k6 não testa a tela nativa. Testa as APIs que o app usa (Supabase e Edge Functions). Para fluxos de tela, avaliar Maestro, Detox ou Appium à parte.
+4. Ambiente: nunca contra produção. Usar branch ou projeto de teste do Supabase. Simular as Edge Functions que cobram: assistente-ia (IA paga), pluggy-leitura e pluggy-connect (Pluggy).
+5. Contas de teste: criar usuários de teste dedicados, sem dados reais, e remover depois.
+6. Antes de começar: definir metas (usuários simultâneos, tempo de resposta aceitável, taxa de erro) e confirmar com o Matheus o ambiente e o orçamento.
+
+### Segurança: achados da auditoria de 01/11/2026
+Detalhes em docs/AUDITORIA-SEGURANCA-2026-11-01.md. Pendente de decisão ou ação:
+1. Subcategorias sem grupo (política aberta para qualquer logado): decidir se o catálogo é compartilhado.
+2. Ativar proteção de senha vazada (Supabase Auth, painel).
+3. Trocar o token do webhook da Pluggy (já registrado antes).
+4. Backups com dados pessoais no schema public: mover ou apagar, com aprovação.
+5. Segredo dedicado para o HMAC do calendario-ics (hoje usa a service role).
+6. Confirmar limite de tentativas no login-seguro.
+7. Remover zz_teste_fn e revogar execução de anon em increment_parceria_cliques.
+
+### Pendências da auditoria de 01/11/2026 (andamento)
+1. [FEITO no banco] Subcategorias: só o dono edita e apaga. Falta conferir no site e no app.
+2. [AÇÃO] Proteção de senha vazada: só falta habilitar em Authentication > Attack protection (exige plano Pro, ainda não contratado). Também configurar o email provider em Authentication.
+3. [DECISÃO] Backups no schema public (38 tabelas, cerca de 4,9 MB): ver opções na auditoria.
+4. [FALTA DEPLOY] Segredo próprio do calendário (CALENDARIO_HMAC_SECRET): criar o segredo e publicar calendario-ics.
+5. [ADIADO] Trocar o token do webhook da Pluggy. Só o dono usa o sistema, então fica para depois.
+6. [FALTA DEPLOY] Login escalonado por conta e por IP: publicar login-seguro. O site (seguranca-conta.functions.ts) já usa o escalonamento por conta, mas ainda não tem o bloqueio por IP.
+7. [PENDENTE] Remover zz_teste_fn; revogar EXECUTE de anon em increment_parceria_cliques.
+

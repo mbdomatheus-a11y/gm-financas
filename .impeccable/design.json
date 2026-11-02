@@ -1,0 +1,332 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-02T00:00:00Z",
+  "title": "Design System: Control ALL",
+  "extensions": {
+    "colorMeta": {
+      "brand": {
+        "role": "primary",
+        "displayName": "Azul Sereno",
+        "canonical": "oklch(0.55 0.15 240)",
+        "tonalRamp": [
+          "oklch(0.15 0.05 240)",
+          "oklch(0.27 0.09 240)",
+          "oklch(0.38 0.12 240)",
+          "oklch(0.46 0.16 245)",
+          "oklch(0.55 0.15 240)",
+          "oklch(0.68 0.11 240)",
+          "oklch(0.82 0.06 240)",
+          "oklch(0.95 0.02 240)"
+        ]
+      },
+      "brand-strong": {
+        "role": "primary",
+        "displayName": "Azul Profundo (reservado)",
+        "canonical": "oklch(0.46 0.16 245)"
+      },
+      "chart-2": {
+        "role": "secondary",
+        "displayName": "Verde Hortelã",
+        "canonical": "oklch(0.65 0.15 165)",
+        "tonalRamp": [
+          "oklch(0.15 0.04 165)",
+          "oklch(0.27 0.08 165)",
+          "oklch(0.4 0.11 165)",
+          "oklch(0.52 0.14 165)",
+          "oklch(0.65 0.15 165)",
+          "oklch(0.75 0.11 165)",
+          "oklch(0.86 0.06 165)",
+          "oklch(0.95 0.02 165)"
+        ]
+      },
+      "background": {
+        "role": "neutral",
+        "displayName": "Névoa Clara",
+        "canonical": "oklch(0.984 0.005 250)"
+      },
+      "foreground": {
+        "role": "neutral",
+        "displayName": "Grafite Azulado",
+        "canonical": "oklch(0.22 0.03 255)",
+        "tonalRamp": [
+          "oklch(0.15 0.02 255)",
+          "oklch(0.22 0.03 255)",
+          "oklch(0.3 0.03 255)",
+          "oklch(0.42 0.025 255)",
+          "oklch(0.52 0.02 255)",
+          "oklch(0.72 0.015 255)",
+          "oklch(0.91 0.008 250)",
+          "oklch(0.984 0.005 250)"
+        ]
+      },
+      "card": {
+        "role": "neutral",
+        "displayName": "Papel Branco",
+        "canonical": "oklch(1 0 0)"
+      },
+      "secondary": {
+        "role": "neutral",
+        "displayName": "Bruma",
+        "canonical": "oklch(0.955 0.008 250)"
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Bruma Suave",
+        "canonical": "oklch(0.958 0.006 250)"
+      },
+      "muted-foreground": {
+        "role": "neutral",
+        "displayName": "Cinza Ardósia",
+        "canonical": "oklch(0.52 0.02 255)"
+      },
+      "accent": {
+        "role": "neutral",
+        "displayName": "Bruma Azulada",
+        "canonical": "oklch(0.945 0.02 250)"
+      },
+      "border": {
+        "role": "neutral",
+        "displayName": "Linha Fria",
+        "canonical": "oklch(0.91 0.008 250)"
+      },
+      "destructive": {
+        "role": "semantic",
+        "displayName": "Vermelho Alerta",
+        "canonical": "oklch(0.58 0.21 25)"
+      },
+      "success": {
+        "role": "semantic",
+        "displayName": "Verde Saldo",
+        "canonical": "oklch(0.6 0.14 155)"
+      },
+      "warning": {
+        "role": "semantic",
+        "displayName": "Âmbar Aviso",
+        "canonical": "oklch(0.78 0.15 80)"
+      },
+      "warning-foreground": {
+        "role": "semantic",
+        "displayName": "Âmbar Escuro",
+        "canonical": "oklch(0.25 0.05 80)"
+      },
+      "chart-3": {
+        "role": "data",
+        "displayName": "Âmbar Gráfico",
+        "canonical": "oklch(0.72 0.15 60)"
+      },
+      "chart-4": {
+        "role": "data",
+        "displayName": "Magenta Gráfico",
+        "canonical": "oklch(0.6 0.2 320)"
+      },
+      "chart-5": {
+        "role": "data",
+        "displayName": "Coral Gráfico",
+        "canonical": "oklch(0.62 0.19 20)"
+      },
+      "dark-background": {
+        "role": "neutral",
+        "displayName": "Noite Azulada",
+        "canonical": "oklch(0.19 0.02 258)"
+      },
+      "dark-card": {
+        "role": "neutral",
+        "displayName": "Ardósia Noturna",
+        "canonical": "oklch(0.235 0.022 258)"
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Número ou título de destaque em telas de abertura e login."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Título de página."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Título de seção e de cartão; o tamanho mais usado."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Texto de interface, com algarismos tabulares."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Nomes dos itens da barra de baixo."
+      }
+    },
+    "shadows": [
+      {
+        "name": "card",
+        "value": "0 1px 2px oklch(0.2 0.03 250 / 0.04), 0 6px 18px -6px oklch(0.2 0.03 250 / 0.10)",
+        "purpose": "Repouso de todo cartão."
+      },
+      {
+        "name": "soft",
+        "value": "0 1px 2px oklch(0.2 0.03 250 / 0.05), 0 12px 32px -8px oklch(0.2 0.03 250 / 0.14)",
+        "purpose": "Hover de blocos clicáveis (lift)."
+      }
+    ],
+    "motion": [
+      {
+        "name": "press",
+        "value": "scale(0.98)",
+        "purpose": "Aperto de botão ao tocar."
+      },
+      {
+        "name": "lift",
+        "value": "0.18s ease; translateY(-2px)",
+        "purpose": "Hover de cartão clicável."
+      },
+      {
+        "name": "screen-in",
+        "value": "240ms cubic-bezier(.2,.8,.2,1)",
+        "purpose": "Entrada de tela no app nativo (deslize de 24px)."
+      },
+      {
+        "name": "screen-back",
+        "value": "200ms cubic-bezier(.2,.8,.2,1)",
+        "purpose": "Voltar no app nativo (entra pela esquerda, 16px)."
+      },
+      {
+        "name": "screen-out",
+        "value": "160ms ease-in",
+        "purpose": "Saída de tela (fade)."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "md",
+        "value": "768px"
+      },
+      {
+        "name": "lg",
+        "value": "1024px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Botão principal",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Ação principal da tela; cor da marca chapada, sem brilho.",
+      "html": "<button class=\"ds-btn-primary\">Salvar gasto</button>",
+      "css": ".ds-btn-primary { display:inline-flex; align-items:center; gap:8px; height:36px; padding:8px 16px; border:none; border-radius:20px; font:500 14px/1 'Plus Jakarta Sans', system-ui, sans-serif; color:oklch(0.99 0.005 250); background:var(--brand, oklch(0.55 0.15 240)); box-shadow:0 1px 2px oklch(0.2 0.03 250 / 0.08); cursor:pointer; transition:background .15s, transform .15s; } .ds-btn-primary:hover { background:color-mix(in oklab, var(--brand, oklch(0.55 0.15 240)) 90%, transparent); } .ds-btn-primary:active { transform:scale(0.98); } .ds-btn-primary:focus-visible { outline:none; box-shadow:0 0 0 2px color-mix(in oklab, var(--brand, oklch(0.55 0.15 240)) 50%, transparent); }"
+    },
+    {
+      "name": "Botão contorno",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Ação secundária, opções e filtros.",
+      "html": "<button class=\"ds-btn-outline\">Cancelar</button>",
+      "css": ".ds-btn-outline { height:36px; padding:8px 16px; border-radius:20px; border:1px solid oklch(0.91 0.008 250); background:color-mix(in oklab, oklch(0.984 0.005 250) 80%, transparent); color:oklch(0.22 0.03 255); font:500 14px/1 'Plus Jakarta Sans', system-ui, sans-serif; box-shadow:0 1px 2px oklch(0.2 0.03 250 / 0.05); cursor:pointer; transition:all .15s; } .ds-btn-outline:hover { border-color:color-mix(in oklab, oklch(0.55 0.15 240) 40%, transparent); background:oklch(0.945 0.02 250); color:oklch(0.28 0.04 255); } .ds-btn-outline:active { transform:scale(0.98); } .ds-btn-outline:focus-visible { outline:none; box-shadow:0 0 0 2px color-mix(in oklab, oklch(0.55 0.15 240) 50%, transparent); }"
+    },
+    {
+      "name": "Botão secundário",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Ação de apoio sem borda.",
+      "html": "<button class=\"ds-btn-secondary\">Ver detalhes</button>",
+      "css": ".ds-btn-secondary { height:36px; padding:8px 16px; border:none; border-radius:20px; background:oklch(0.955 0.008 250); color:oklch(0.3 0.03 255); font:500 14px/1 'Plus Jakarta Sans', system-ui, sans-serif; cursor:pointer; transition:all .15s; } .ds-btn-secondary:hover { background:oklch(0.93 0.01 250); } .ds-btn-secondary:active { transform:scale(0.98); } .ds-btn-secondary:focus-visible { outline:none; box-shadow:0 0 0 2px color-mix(in oklab, oklch(0.55 0.15 240) 50%, transparent); }"
+    },
+    {
+      "name": "Campo de texto",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Campo padrão; 16px no celular para não dar zoom no iPhone.",
+      "html": "<input class=\"ds-input\" placeholder=\"Descrição do gasto\" />",
+      "css": ".ds-input { height:36px; width:260px; padding:4px 12px; border-radius:14px; border:1px solid oklch(0.91 0.008 250); background:transparent; color:oklch(0.22 0.03 255); font:400 14px/1.5 'Plus Jakarta Sans', system-ui, sans-serif; box-shadow:0 1px 2px oklch(0.2 0.03 250 / 0.05); transition:box-shadow .15s; } .ds-input::placeholder { color:oklch(0.52 0.02 255); } .ds-input:focus-visible { outline:none; box-shadow:0 0 0 1px oklch(0.55 0.15 240); }"
+    },
+    {
+      "name": "Cartão",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Bloco padrão de conteúdo, com lift quando clicável.",
+      "html": "<div class=\"ds-card\" tabindex=\"0\"><div class=\"ds-card-title\">Saldo previsto</div><div class=\"ds-card-value\">R$ 2.480,00</div></div>",
+      "css": ".ds-card { width:280px; padding:24px; border-radius:24px; border:1px solid color-mix(in oklab, oklch(0.91 0.008 250) 70%, transparent); background:oklch(1 0 0); color:oklch(0.22 0.03 255); font-family:'Plus Jakarta Sans', system-ui, sans-serif; font-feature-settings:'tnum' 1; box-shadow:0 1px 2px oklch(0.2 0.03 250 / 0.04), 0 6px 18px -6px oklch(0.2 0.03 250 / 0.10); transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease; } .ds-card:hover, .ds-card:focus-visible { outline:none; transform:translateY(-2px); box-shadow:0 1px 2px oklch(0.2 0.03 250 / 0.05), 0 12px 32px -8px oklch(0.2 0.03 250 / 0.14); border-color:color-mix(in oklab, oklch(0.55 0.15 240) 35%, oklch(0.91 0.008 250)); } .ds-card-title { font-size:14px; color:oklch(0.52 0.02 255); } .ds-card-value { margin-top:4px; font-size:28px; font-weight:800; letter-spacing:-0.02em; }"
+    },
+    {
+      "name": "Etiqueta",
+      "kind": "chip",
+      "refersTo": "badge",
+      "description": "Status curto ou categoria.",
+      "html": "<span class=\"ds-badge\">Recorrente</span> <span class=\"ds-badge ds-badge-soft\">Mercado</span>",
+      "css": ".ds-badge { display:inline-flex; align-items:center; padding:2px 10px; border-radius:14px; background:oklch(0.55 0.15 240); color:oklch(0.99 0.005 250); font:600 12px/1.5 'Plus Jakarta Sans', system-ui, sans-serif; } .ds-badge-soft { background:oklch(0.955 0.008 250); color:oklch(0.3 0.03 255); }"
+    },
+    {
+      "name": "Barra de baixo",
+      "kind": "nav",
+      "refersTo": "bottom-bar",
+      "description": "Navegação do celular: Início, Notas, +, Lista, Menu.",
+      "html": "<nav class=\"ds-bar\"><a class=\"ds-bar-item ds-on\" href=\"#\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 10l9-7 9 7v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z\"/></svg>Início</a><a class=\"ds-bar-item\" href=\"#\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1z\"/><path d=\"M8 8h8M8 12h8\"/></svg>Notas</a><span class=\"ds-bar-mid\"><button class=\"ds-plus\" aria-label=\"Lançar\"><svg width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"><path d=\"M12 5v14M5 12h14\"/></svg></button></span><a class=\"ds-bar-item\" href=\"#\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"8\" cy=\"21\" r=\"1\"/><circle cx=\"19\" cy=\"21\" r=\"1\"/><path d=\"M2 2h3l2.7 12.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6\"/></svg>Lista</a><a class=\"ds-bar-item\" href=\"#\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"><path d=\"M4 6h16M4 12h16M4 18h16\"/></svg>Menu</a></nav>",
+      "css": ".ds-bar { display:grid; grid-template-columns:repeat(5,1fr); align-items:end; width:360px; height:64px; padding:0 6px; margin-top:32px; border-radius:24px; border:1px solid oklch(0.91 0.008 250); background:oklch(0.984 0.005 250); box-shadow:0 10px 15px -3px oklch(0.2 0.03 250 / 0.1), 0 4px 6px -4px oklch(0.2 0.03 250 / 0.1); font-family:'Plus Jakarta Sans', system-ui, sans-serif; } .ds-bar-item { display:flex; flex-direction:column; align-items:center; justify-content:flex-end; gap:2px; height:100%; padding-bottom:6px; font-size:10px; font-weight:500; line-height:1; color:oklch(0.52 0.02 255); text-decoration:none; } .ds-bar-item:hover { color:oklch(0.22 0.03 255); } .ds-bar-item:focus-visible { outline:2px solid oklch(0.55 0.15 240); outline-offset:-4px; border-radius:12px; } .ds-on { color:oklch(0.55 0.15 240); } .ds-bar-mid { display:flex; align-items:center; justify-content:center; } .ds-plus { display:flex; align-items:center; justify-content:center; width:56px; height:56px; margin-top:-32px; border:none; border-radius:9999px; background:oklch(0.55 0.15 240); color:oklch(0.99 0.005 250); box-shadow:0 0 0 4px oklch(0.984 0.005 250), 0 10px 15px -3px oklch(0.2 0.03 250 / 0.15); cursor:pointer; transition:transform .15s; } .ds-plus:active { transform:scale(0.95); } .ds-plus:focus-visible { outline:2px solid oklch(0.46 0.16 245); outline-offset:4px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "O Painel Sereno",
+    "overview": "O Control ALL é o lugar onde a família olha para o dinheiro sem ansiedade. A tela é clara e calma: fundo quase branco tingido de azul, duas luzes suaves da cor da marca no topo (o fundo \"aurora\"), cartões brancos com sombra difusa e números com algarismos tabulares para que valores se alinhem e se leiam de relance. Nada grita; a cor da marca aparece onde há ação, não como decoração.\n\nÉ acolhedor e pessoal porque é da casa: o grupo escolhe tema claro ou escuro, uma de 14 paletas de marca e a fonte (Plus Jakarta Sans por padrão). O sistema é construído para que tudo derive de `--brand`, então qualquer paleta escolhida continua coerente. A densidade é de app de uso diário no celular: blocos grandes, alvos de toque generosos, barra de baixo fixa com o \"+\" no centro.\n\nOs componentes são limpos e contidos: a forma macia e arredondada fica, sem brilho, halo ou gradiente. O botão principal é uma superfície chapada na cor da marca, igual no site e no app.",
+    "keyCharacteristics": [
+      "Neutros frios em OKLCH (matiz 250 a 258) com uma única cor de marca trocável.",
+      "Cantos bem arredondados (base de 16px) em tudo, de botão a barra de navegação.",
+      "Profundidade por sombras difusas e azuladas, nunca pretas e duras.",
+      "Algarismos tabulares em todo o texto, para valores alinhados.",
+      "Mobile primeiro: barra de baixo flutuante no site, encostada no app nativo."
+    ],
+    "rules": [
+      {
+        "name": "The Brand Derivation Rule",
+        "body": "Toda cor de destaque nova deriva de `--brand` ou `--brand-strong` (direto ou via `color-mix`). Nunca fixar um azul literal: a família pode ter escolhido rosa.",
+        "section": "colors"
+      },
+      {
+        "name": "The Meaning Colors Rule",
+        "body": "Verde, âmbar e vermelho só significam saldo, aviso e erro. Nunca usá-los como enfeite.",
+        "section": "colors"
+      },
+      {
+        "name": "The Bare Heading Rule",
+        "body": "Título não leva etiqueta, número de seção nem gradiente acima ou dentro dele; destaque é peso, tamanho ou a cor da marca chapada.",
+        "section": "typography"
+      },
+      {
+        "name": "The Tabular Money Rule",
+        "body": "Todo valor em reais usa algarismos tabulares; não desligar `tnum` em tabelas, totais ou listas.",
+        "section": "typography"
+      },
+      {
+        "name": "The Tight Heading Rule",
+        "body": "h1, h2 e h3 usam tracking de -0.02em e `text-wrap: balance`.",
+        "section": "typography"
+      },
+      {
+        "name": "The Cool Shadow Rule",
+        "body": "Sombras são sempre azuladas e difusas. Nenhuma sombra preta, dura ou com deslocamento grande.",
+        "section": "elevation"
+      },
+      {
+        "name": "The No Glow Rule",
+        "body": "Nenhum componente tem brilho colorido ou halo. A marca aparece pela cor chapada, não por luz em volta.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** derivar todo destaque de `--brand` e `--brand-strong` para funcionar nas 14 paletas e no tema escuro.",
+      "**Do** manter algarismos tabulares em valores e o raio base de 16px.",
+      "**Do** usar sombras frias e difusas (Card em repouso, Soft no hover) e `lift` só em blocos clicáveis.",
+      "**Do** garantir alvos de toque grandes e texto de input com 16px no celular.",
+      "**Do** respeitar `prefers-reduced-motion` em toda animação nova, como já fazem a marca e as transições de tela.",
+      "**Do** espelhar qualquer mudança visual no app iOS e Android."
+    ],
+    "donts": [
+      "**Don't** fixar cores literais de marca (um azul em hex) no lugar dos tokens.",
+      "**Don't** usar verde, âmbar ou vermelho como decoração.",
+      "**Don't** usar sombras pretas ou duras, nem cantos retos em cartões e botões.",
+      "**Don't** usar travessão em textos de interface.",
+      "**Don't** usar glow, halo pulsante ou gradiente em botões, ícones, títulos e componentes: eles são limpos e contidos. Destaque em título é a cor da marca chapada.",
+      "**Don't** colocar etiqueta em caixa alta (\"eyebrow\") nem numeração de seção acima de títulos: o título fala sozinho."
+    ]
+  }
+}

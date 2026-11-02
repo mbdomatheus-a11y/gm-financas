@@ -42,3 +42,8 @@ dist-ssr
 # Arquivos do Firebase do app (01/11/2026): pertencem ao projeto controlall e a chave privada nunca vai para o git.
 google-services.json
 *-firebase-adminsdk-*.json
+
+.claude/skills/impeccable/scripts/bin/
+.github/skills/impeccable/scripts/bin/
+.claude/settings.local.json
+.claude/settings.local.json
