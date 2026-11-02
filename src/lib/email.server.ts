@@ -26,6 +26,8 @@ export async function enviarEmail(params: {
   to: string;
   subject: string;
   html: string;
+  /** Anexos em base64 (ex.: exportação de dados em JSON). */
+  anexos?: { filename: string; content: string }[];
 }): Promise<{ ok: true } | { ok: false; erro: string }> {
   const apiKey = process.env["RESEND_API_KEY"];
   if (!apiKey) {
@@ -42,7 +44,7 @@ export async function enviarEmail(params: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ from, to: [params.to], subject: params.subject, html: params.html }),
+      body: JSON.stringify({ from, to: [params.to], subject: params.subject, html: params.html, ...(params.anexos?.length ? { attachments: params.anexos } : {}) }),
     });
 
     if (!res.ok) {

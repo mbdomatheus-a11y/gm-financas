@@ -35,6 +35,7 @@ import { useCategorias } from "@/hooks/useFinance";
 import { useEstruturaCategorias } from "@/hooks/useEstruturaCategorias";
 import { useCategoriasPadrao } from "@/hooks/useCategoriasPadrao";
 import { usePermissoes } from "@/hooks/useAuthData";
+import { espelharCategoriaNoPadrao } from "@/lib/categorias-padrao-admin";
 import { baixarTxt, baixarXlsx } from "@/lib/exportar-planilha";
 import {
   CABECALHO_CATEGORIAS,
@@ -82,7 +83,7 @@ const schema = z.object({
 
 function CategoriasPage() {
   const qc = useQueryClient();
-  const { can, exclusaoBloqueada } = usePermissoes();
+  const { can, exclusaoBloqueada, isSiteAdmin } = usePermissoes();
   const { mapa: padraoMapa } = useCategoriasPadrao();
   const [tipo, setTipo] = useState<"despesa" | "receita">("despesa");
   const { data: categorias = [] } = useCategorias(tipo);
@@ -122,6 +123,7 @@ function CategoriasPage() {
       }
       const { error } = await supabase.from("categorias").insert(novas);
       if (error) throw error;
+      if (isSiteAdmin) await espelharCategoriaNoPadrao(novas.filter((n) => n.tipo === "despesa").map((n) => n.nome));
       qc.invalidateQueries({ queryKey: ["categorias"] });
       toast.success(`${novas.length} categoria(s) criada(s). ${linhas.length - novas.length} já existiam.`);
     } catch (e: any) {
@@ -150,6 +152,8 @@ function CategoriasPage() {
         ? await supabase.from("categorias").update(parsed).eq("id", editId)
         : await supabase.from("categorias").insert(parsed);
       if (error) throw error;
+      // Criada pelo admin master: vira sugestão padrão para todos os clientes.
+      if (!editId && isSiteAdmin && tipo === "despesa") await espelharCategoriaNoPadrao([parsed.nome]);
     },
     onSuccess: () => {
       toast.success(editId ? "Categoria atualizada" : "Categoria criada");
@@ -446,7 +450,8 @@ function CategoriasPage() {
                     <Pencil className="size-4" />
                   </Button>
                 )}
-                {podeEditar && (
+                {/* Categorias padrão do admin não podem ser apagadas por usuários comuns. */}
+                {podeEditar && !padraoMapa[c.nome] && (
                   <Button
                     variant="ghost"
                     size="icon"

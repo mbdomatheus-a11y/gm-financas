@@ -114,6 +114,15 @@ export const Route = createFileRoute("/api/cron/descarte-layouts")({
         // Só afeta parcelas com vencimento a partir de quando o modo foi
         // ativado (não retroage sobre dívida que já existia antes disso).
         const conciliadas = await conciliarFaturasAutomaticas(db);
+        // Convites não usados e vencidos saem das listas (marcados com expirado_em).
+        const { data: convitesExpirados } = await db
+          .from("convites")
+          .update({ expirado_em: new Date().toISOString() })
+          .eq("usado", false)
+          .is("expirado_em", null)
+          .lt("expira_em", new Date().toISOString())
+          .select("id");
+        const convitesMarcados = convitesExpirados?.length ?? 0;
         const rateLimitLimpo = await limparRateLimitAntigo(db);
         const { concluirExclusoesVencidas } = await import("@/lib/conta-exclusao.server");
         const exclusoes = await concluirExclusoesVencidas();
@@ -121,7 +130,7 @@ export const Route = createFileRoute("/api/cron/descarte-layouts")({
         const { rodarEmailsRetencao } = await import("@/lib/retencao-emails.server");
         const emails = await rodarEmailsRetencao(db).catch(() => ({ lembretes: 0, ativacao: 0, semanais: 0 }));
 
-        return Response.json({ descartados, conciliadas, rateLimitLimpo, exclusoes, emails });
+        return Response.json({ descartados, conciliadas, rateLimitLimpo, exclusoes, emails, convitesMarcados });
       },
     },
   },

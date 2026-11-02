@@ -99,13 +99,15 @@ export const solicitarRecuperacaoSenha = createServerFn({ method: "POST" })
     // Dados de quem pediu (aparelho, data, local) e o link "Não fui eu" para bloquear a conta.
     const pedido = seg.contextoDaRequisicao();
     const linkBloqueio = await seg.criarLinkBloqueio(db, usuario.id);
+    const { data: perfilConta } = await supabaseAdmin.from("profiles").select("nome").eq("id", usuario.id).maybeSingle();
+    const nomeConta = (perfilConta as { nome?: string | null } | null)?.nome ?? null;
     const envio = await enviarEmail({
       to: usuario.email ?? email,
       subject: "Redefinição de senha do Control ALL",
       html: seg.layoutEmailSeguranca(
         "Pedido de redefinição de senha",
         `<p>Recebemos um pedido para redefinir a senha da sua conta. Confira de onde ele veio:</p>
-${seg.blocoDoPedido(pedido)}
+${seg.blocoDoPedido(pedido, { nome: nomeConta, email: usuario.email ?? email })}
 <p><strong>Foi você?</strong> Crie a nova senha pelo botão abaixo. O link vale ${EXPIRACAO_MINUTOS} minutos e pode ser usado uma vez.</p>
 ${seg.botaoEmail(link, "Criar nova senha")}
 <p><strong>Não foi você?</strong> Sua senha continua a mesma. Se achar que alguém está tentando entrar na sua conta, bloqueie agora. O bloqueio encerra todos os acessos, cancela este link e abre um chamado no suporte; só o suporte desbloqueia, depois de confirmar sua identidade.</p>

@@ -18,6 +18,9 @@ import { cn } from "@/lib/utils";
 import { ADMIN_ONLY_CARD, ADMIN_ONLY_TAG } from "@/lib/areas";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LinksAdminHabilitar } from "@/components/LinksAdminHabilitar";
+import { GestaoUsuariosAdmin } from "@/components/usuarios/GestaoUsuariosAdmin";
+import { adminReativarUsuario } from "@/lib/admin.functions";
+import { adminEnviarExportacaoEncerramento } from "@/lib/exportacao-conta.functions";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { usePermissoes } from "@/hooks/useAuthData";
@@ -133,6 +136,7 @@ const GRUPOS_ADMIN: {
     titulo: "2. Pessoas e pedidos",
     descricao: "Acesso, solicitações e privacidade",
     abas: [
+      { id: "usuarios", rotulo: "Usuários (contas e convites)" },
       { id: "acesso", rotulo: "Acesso e Auth" },
       { id: "central", rotulo: "Central de Solicitações" },
       { id: "privacidade", rotulo: "Privacidade LGPD" },
@@ -310,6 +314,10 @@ function Admin() {
   const privFn = useServerFn(adminListarSolicitacoesPrivacidade);
   const tratarPrivFn = useServerFn(adminTratarSolicitacaoPrivacidade);
   const chamadosFn = useServerFn(adminListarChamados);
+  const reativarFn = useServerFn(adminReativarUsuario);
+  const [reativandoConta, setReativandoConta] = useState<string | null>(null);
+  const enviarExportacaoFn = useServerFn(adminEnviarExportacaoEncerramento);
+  const [enviandoExportacao, setEnviandoExportacao] = useState<string | null>(null);
   const atualizarChamadoFn = useServerFn(adminAtualizarChamado);
   const criarUploadAnexoFn = useServerFn(criarUploadAnexoChamado);
   const mensagensChamadoFn = useServerFn(listarMensagensChamado);
@@ -1169,6 +1177,10 @@ function Admin() {
         </TabsContent>
 
         {/* ─── ABA 3: ACESSO E AUTENTICAÇÃO ─── */}
+        <TabsContent value="usuarios" className="space-y-4">
+          <GestaoUsuariosAdmin />
+        </TabsContent>
+
         <TabsContent value="acesso" className="space-y-4">
           {/* Card Proteção de Entrada na Administração (Pedido 7) */}
           <Card>
@@ -2080,6 +2092,51 @@ function Admin() {
                       </span>
                     </div>
                     {c.resposta_admin && <p className="text-xs italic text-muted-foreground">Resposta: {c.resposta_admin}</p>}
+                    {c.user_id && /exclus|encerr/i.test(c.assunto ?? "") && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={enviandoExportacao === c.id}
+                        onClick={async () => {
+                          const destino = window.prompt("E-mail que vai receber o arquivo de dados (JSON):", c.email ?? "");
+                          if (!destino) return;
+                          setEnviandoExportacao(c.id);
+                          try {
+                            await enviarExportacaoFn({ data: { chamadoId: c.id, email: destino.trim() } });
+                            toast.success("Arquivo de dados enviado para o e-mail informado.");
+                          } catch (e: any) {
+                            toast.error(e.message ?? "Não foi possível enviar o arquivo.");
+                          } finally {
+                            setEnviandoExportacao(null);
+                          }
+                        }}
+                      >
+                        Gerar dados e enviar por e-mail
+                      </Button>
+                    )}
+                    {c.user_id && /bloqueada/i.test(c.assunto ?? "") && (
+
+                      <Button
+                        size="sm"
+                        variant="default"
+                        disabled={reativandoConta === c.user_id}
+                        onClick={async () => {
+                          if (!window.confirm("Confirme a identidade da pessoa antes de reativar. Reativar a conta agora?")) return;
+                          setReativandoConta(c.user_id);
+                          try {
+                            await reativarFn({ data: { userId: c.user_id, ativo: true } });
+                            toast.success("Conta reativada. A pessoa já pode entrar.");
+                            qc.invalidateQueries({ queryKey: ["admin-chamados"] });
+                          } catch (e: any) {
+                            toast.error(e.message ?? "Não foi possível reativar a conta.");
+                          } finally {
+                            setReativandoConta(null);
+                          }
+                        }}
+                      >
+                        Reativar conta
+                      </Button>
+                    )}
                     {c.status === "cancelado" ? (
                       // Item 9 (parte 2): chamado cancelado (pelo usuário ou pelo
                       // admin) nunca é excluído — fica visível aqui pra

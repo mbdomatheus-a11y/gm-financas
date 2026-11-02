@@ -39,6 +39,7 @@ import {
   revogarAcessoMembro,
 } from "@/lib/grupos.functions";
 import { usePreferencias } from "@/hooks/usePreferencias";
+import { exportarMinhaConta } from "@/lib/exportacao-conta.functions";
 import { proximaVirada } from "@/lib/periodo-vigente";
 import {
   Dialog,
@@ -69,10 +70,12 @@ export const Route = createFileRoute("/_authenticated/conta")({
 /** LGPD, art. 18 (acesso e portabilidade): baixa em JSON os dados do grupo que a pessoa enxerga. */
 function MeusDadosCard() {
   const [baixando, setBaixando] = useState(false);
+  const exportar = useServerFn(exportarMinhaConta);
   async function baixar() {
     setBaixando(true);
     try {
-      const dados = await baixarTodosOsDados();
+      // Exportação completa da conta (cadastro, preferências, chamados e dados do grupo), feita no servidor.
+      const dados = await exportar();
       const blob = new Blob([JSON.stringify(dados, null, 2)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");

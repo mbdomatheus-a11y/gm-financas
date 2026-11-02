@@ -91,6 +91,8 @@ import { lembrarClassificacao } from "@/lib/classificacao-lembrada";
 import { SelectBusca } from "@/components/SelectBusca";
 import { NavegadorMes } from "@/components/NavegadorMes";
 import { IconeBanco } from "@/components/IconeBanco";
+import { visualDoBanco } from "@/lib/banco-visual";
+import { formatarNomeExibicao } from "@/lib/nome-exibicao";
 import { usePermissoes, useSession } from "@/hooks/useAuthData";
 import {
   competenciaDe,
@@ -954,7 +956,7 @@ function DespesasPage() {
       const ehRecorrenteFora = !d.cartao_id && (d.tipo === "fixa" || d.tipo === "recorrente");
       const key = d.cartao_id ? `cartao:${d.cartao_id}` : (ehRecorrenteFora ? "recorrente_fora" : "sem");
       const label = d.cartoes
-        ? `${d.cartoes.apelido || d.cartoes.bandeira || "Cartão"} •${d.cartoes.final ?? ""} · ${primeiroNome(d.cartoes.titular)}`
+        ? `${formatarNomeExibicao(d.cartoes.apelido || d.cartoes.bandeira || "Cartão")} •${d.cartoes.final ?? ""} · ${primeiroNome(d.cartoes.titular)}`
         : (ehRecorrenteFora ? "Recorrente fora do cartão" : "Sem atribuição");
       const cor = d.cartoes?.cor ?? "var(--muted-foreground)";
       const banco = String(d.bancos?.nome ?? d.banco_nome ?? d.cartoes?.apelido ?? "");
@@ -1477,6 +1479,7 @@ function DespesasPage() {
                     <Progress
                       value={resumo.total > 0 ? (grupo.total / resumo.total) * 100 : 0}
                       className="mt-1 h-1.5"
+                      corIndicador={visualDoBanco(grupo.banco).conhecido ? visualDoBanco(grupo.banco).cor : grupo.cor}
                     />
                   </div>
                   <div className="shrink-0 text-right">

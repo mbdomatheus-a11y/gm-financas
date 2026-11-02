@@ -66,10 +66,13 @@ export function contextoDaRequisicao(): ContextoRequisicao {
 }
 
 /** Bloco com os dados de quem fez o pedido, para o usuário reconhecer (ou não). */
-export function blocoDoPedido(c: ContextoRequisicao): string {
+export function blocoDoPedido(c: ContextoRequisicao, conta?: { nome?: string | null; email?: string | null }): string {
   const linha = (rotulo: string, valor: string) =>
     `<tr><td style="padding:4px 12px 4px 0;color:#6b7280;font-size:13px">${rotulo}</td><td style="padding:4px 0;font-size:13px;color:#111827"><strong>${escapar(valor)}</strong></td></tr>`;
+  // Quem é a conta e qual e-mail foi usado: a pessoa vê de quem é o pedido antes de agir.
   return `<table role="presentation" style="border-collapse:collapse;margin:16px 0;background:#f3f6f9;border-radius:10px;padding:8px 14px;display:block">
+${conta?.nome ? linha("Nome da conta", conta.nome) : ""}
+${conta?.email ? linha("E-mail solicitante", conta.email) : ""}
 ${linha("Aparelho", c.aparelho)}
 ${linha("Data e hora", c.dataHora)}
 ${linha("Local aproximado", c.local)}

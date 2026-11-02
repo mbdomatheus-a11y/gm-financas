@@ -151,6 +151,7 @@ export const listarMeusConvites = createServerFn({ method: "GET" })
       .from("convites")
       .select("id, token, usado, usado_por, criado_em, expira_em")
       .eq("criado_por", context.userId)
+      .is("expirado_em", null)
       .order("criado_em", { ascending: true });
     if (error) throw new Error(error.message);
     return (data ?? []) as {

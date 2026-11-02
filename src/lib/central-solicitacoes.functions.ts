@@ -317,7 +317,7 @@ export const adminListarChamados = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data, error } = await (supabaseAdmin as any)
       .from("chamados_suporte")
-      .select("id,protocolo,email,nome,assunto,descricao,status,prioridade,resposta_admin,anexo_path,anexo_nome,anexo_tipo,criado_em,atualizado_em")
+      .select("id,user_id,protocolo,email,nome,assunto,descricao,status,prioridade,resposta_admin,anexo_path,anexo_nome,anexo_tipo,criado_em,atualizado_em")
       .order("criado_em", { ascending: false })
       .limit(100);
     if (error) throw new Error(error.message);

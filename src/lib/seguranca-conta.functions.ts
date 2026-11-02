@@ -279,6 +279,7 @@ async function enviarAlertaSenha(userId: string) {
   const db = supabaseAdmin as any;
   const { data: auth } = await supabaseAdmin.auth.admin.getUserById(userId);
   if (!auth.user?.email || auth.user.email.endsWith("@financascasal.app")) return;
+  const { data: perfilAlerta } = await db.from("profiles").select("nome").eq("id", userId).maybeSingle();
   const seg = await import("@/lib/seguranca-email.server");
   const linkBloqueio = await seg.criarLinkBloqueio(db, userId);
   const { enviarEmail } = await import("@/lib/email.server");
@@ -288,7 +289,7 @@ async function enviarAlertaSenha(userId: string) {
     html: seg.layoutEmailSeguranca(
       "Sua senha foi alterada",
       `<p>A senha da sua conta foi alterada. Dados da alteração:</p>
-${seg.blocoDoPedido(seg.contextoDaRequisicao())}
+${seg.blocoDoPedido(seg.contextoDaRequisicao(), { nome: perfilAlerta?.nome, email: auth.user.email })}
 <p>Se foi você, nenhuma ação é necessária.</p>
 <p>Se você <strong>não reconhece</strong> esta alteração, bloqueie a conta agora. O bloqueio encerra todos os acessos e abre um chamado no suporte; só o suporte desbloqueia, depois de confirmar sua identidade.</p>
 ${seg.botaoEmail(linkBloqueio, "Não fui eu, bloquear minha conta", "#DB2B33")}
@@ -678,7 +679,7 @@ export const bloquearContaPorToken = createServerFn({ method: "POST" })
         html: seg.layoutEmailSeguranca(
           "Conta bloqueada",
           `<p>Sua conta foi bloqueada a seu pedido. Ninguém consegue fazer um novo acesso, nem com a senha, e os links de troca de senha foram cancelados. Um acesso que já estava aberto em outro aparelho pode continuar por até 1 hora, até a sessão expirar.</p>
-${seg.blocoDoPedido(pedido)}
+${seg.blocoDoPedido(pedido, { nome: perfil?.nome, email })}
 <p>Abrimos um chamado no suporte${chamado?.protocolo ? ` (protocolo <strong>${chamado.protocolo}</strong>)` : ""}. Para desbloquear, o suporte vai confirmar sua identidade. Responda este e-mail ou escreva para <a href="mailto:privacidade@controlall.com.br">privacidade@controlall.com.br</a>.</p>`,
         ),
       });

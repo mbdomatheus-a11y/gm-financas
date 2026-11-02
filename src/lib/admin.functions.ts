@@ -168,6 +168,7 @@ export const adminListarConvites = createServerFn({ method: "GET" })
       .select(
         "id, token, usado, usado_por, criado_em, expira_em, criado_por, criador:criado_por(nome)",
       )
+      .is("expirado_em", null)
       .order("criado_em", { ascending: false });
     if (error) throw new Error(error.message);
     return (data ?? []).map((c: any) => ({
@@ -331,10 +332,12 @@ export const adminReativarUsuario = createServerFn({ method: "POST" })
     await assertAdmin(context as any);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const db = supabaseAdmin as any;
-    if (data.ativo) {
-      const { error } = await supabaseAdmin.auth.admin.updateUserById(data.userId, { ban_duration: "none" });
-      if (error) throw new Error("Não foi possível liberar o acesso.");
-    }
+    // Ativar libera o login; desativar bloqueia o login de fato (ban no Auth), não só o perfil.
+    const { error: erroBan } = await supabaseAdmin.auth.admin.updateUserById(data.userId, {
+      ban_duration: data.ativo ? "none" : "876000h",
+    });
+    if (erroBan)
+      throw new Error(data.ativo ? "Não foi possível liberar o acesso." : "Não foi possível bloquear o acesso.");
     const { error: e2 } = await db.from("profiles").update({ ativo: data.ativo }).eq("id", data.userId);
     if (e2) throw new Error("Não foi possível atualizar o usuário.");
     await db.from("admin_audit_logs").insert({
