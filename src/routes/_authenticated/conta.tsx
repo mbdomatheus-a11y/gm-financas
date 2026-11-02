@@ -4,7 +4,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { PreferenciaEmails } from "@/components/retencao/PreferenciaEmails";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { CalendarClock, Car, LogOut, Pencil, ShieldCheck, Trash2 } from "lucide-react";
+import { CalendarClock, Car, Download, LogOut, Pencil, ShieldCheck, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
@@ -18,6 +18,7 @@ import { IaLancamentoModoGrupoCard } from "@/components/IaLancamentoModoGrupoCar
 import { Field } from "@/routes/_authenticated/receitas";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { baixarTodosOsDados } from "@/lib/exportar-dados";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
@@ -64,6 +65,47 @@ export const Route = createFileRoute("/_authenticated/conta")({
   }),
   component: ContaPage,
 });
+
+/** LGPD, art. 18 (acesso e portabilidade): baixa em JSON os dados do grupo que a pessoa enxerga. */
+function MeusDadosCard() {
+  const [baixando, setBaixando] = useState(false);
+  async function baixar() {
+    setBaixando(true);
+    try {
+      const dados = await baixarTodosOsDados();
+      const blob = new Blob([JSON.stringify(dados, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `controll-all-meus-dados-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Seus dados foram baixados");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Não foi possível gerar o arquivo");
+    } finally {
+      setBaixando(false);
+    }
+  }
+  return (
+    <Card className="lg:col-span-2">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-sm">
+          <Download className="size-4" /> Baixar meus dados
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-muted-foreground">
+          Receba em um arquivo JSON tudo o que você registrou no grupo: receitas, despesas, cartões, categorias,
+          caixinhas e demais módulos. Você pode guardar o arquivo ou levá-lo para outro serviço.
+        </p>
+        <Button variant="outline" onClick={baixar} disabled={baixando} className="shrink-0">
+          <Download className="size-4" /> {baixando ? "Gerando..." : "Baixar JSON"}
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
 
 function ContaPage() {
   const navigate = useNavigate();
@@ -629,6 +671,8 @@ function ContaPage() {
         <ConvitesCard />
         <MostrarAvisosDeNovoCard />
         {isSiteAdmin && <PermissoesUsuariosCard compact />}
+
+        <MeusDadosCard />
 
         <ExcluirContaCard className="border-destructive/30 lg:col-span-2" />
       </div>
