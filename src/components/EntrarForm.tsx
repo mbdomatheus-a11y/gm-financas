@@ -371,7 +371,7 @@ export function EntrarForm({
               navigate({ to: "/entrar", search: { criar: true } });
             }}
           >
-            Criar conta grátis{ehEmail && identificador.trim() ? " com este e-mail" : ""}
+            {`Criar conta grátis${ehEmail && identificador.trim() ? " com este e-mail" : ""}`}
           </Button>
           <p className="text-xs text-muted-foreground">
             Já tem conta? Use "Esqueci minha senha" ou entre com Google abaixo.
