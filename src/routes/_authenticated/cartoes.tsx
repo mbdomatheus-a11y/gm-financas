@@ -1,3 +1,4 @@
+import { formatarNomeExibicao } from "@/lib/nome-exibicao";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -297,7 +298,7 @@ function CartoesPage() {
         key,
         banco,
         label: cartao
-          ? `${cartao.apelido || cartao.bandeira || "Cartão"} •${cartao.final ?? ""} · ${primeiroNome(cartao.titular)}`
+          ? `${formatarNomeExibicao(cartao.apelido || cartao.bandeira || "Cartão")} •${cartao.final ?? ""} · ${primeiroNome(cartao.titular)}`
           : `${BANCO_LABEL[banco] ?? banco} · cartão não identificado`,
         competencia: atual.competencia ?? null,
         limite_total: total,
@@ -371,7 +372,7 @@ function CartoesPage() {
                     <div className="flex min-w-0 items-center gap-3">
                       <IconeBanco nome={String(c.bancos?.nome ?? c.apelido ?? "")} bancoId={c.banco_id ?? null} className="size-10" />
                       <div className="min-w-0">
-                      <p className="text-sm font-semibold">{c.apelido}</p>
+                      <p className="text-sm font-semibold">{formatarNomeExibicao(c.apelido)}</p>
                       <p className="text-xs text-muted-foreground">
                         {c.bandeira} •••• {c.final} · {primeiroNome(c.titular)}
                         {c.bancos ? ` · ${c.bancos.nome}` : ""}

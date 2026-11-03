@@ -3446,6 +3446,24 @@ export type Database = {
           },
         ]
       }
+      alertas_ocultos: {
+        Row: {
+          chave: string
+          ocultado_em: string
+          user_id: string
+        }
+        Insert: {
+          chave: string
+          ocultado_em?: string
+          user_id?: string
+        }
+        Update: {
+          chave?: string
+          ocultado_em?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       notas_grupos: {
         Row: {
           criado_em: string

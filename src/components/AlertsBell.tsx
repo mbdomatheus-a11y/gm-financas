@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Bell } from "lucide-react";
+import { Bell, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { alertasDosVeiculos } from "@/lib/veiculo-alertas";
 import { diasRestantes } from "@/lib/nfe";
@@ -50,7 +50,8 @@ export function AlertsBell() {
   const chavesFn = useServerFn(minhasChavesAlertasLidos);
   const marcarLoteFn = useServerFn(marcarAlertasLidosLote);
   const [aberto, setAberto] = useState(false);
-  const [vistos, setVistos] = useState<Aviso[]>([]);
+  const [selecionando, setSelecionando] = useState(false);
+  const [selecionados, setSelecionados] = useState<string[]>([]);
   const versoesFn = useServerFn(versoesAtivasSite);
   const limparFn = useServerFn(limparVersoesSite);
   const { data: isSiteAdminRaw } = useIsSiteAdmin();
@@ -251,27 +252,71 @@ export function AlertsBell() {
       texto: `Nova versão publicada: build ${v.versao} · ${new Date(v.build_em ?? v.criado_em).toLocaleString("pt-BR")}`,
     })),
   ];
-  const naoLidos = avisosComVersao.filter((aviso) => !chavesLidas.includes(aviso.chave));
-  // Ao abrir o sino, os avisos novos ficam visíveis enquanto ele está aberto e
-  // já contam como vistos: ao fechar, somem e vão para o histórico de 7 dias.
-  // Só reaparece algo se chegar um aviso novo.
-  const lista = aberto ? vistos : naoLidos;
+  // 03/11/2026: alertas limpos pelo usuário (tabela alertas_ocultos, RLS por usuário) saem da lista.
+  // Lidos e limpos são independentes: ler não tira da lista, limpar tira.
+  const { data: ocultos = [], refetch: refetchOcultos } = useQuery({
+    queryKey: ["alertas-ocultos"],
+    queryFn: async (): Promise<string[]> => {
+      const { data, error } = await supabase.from("alertas_ocultos").select("chave");
+      if (error) throw error;
+      return (data ?? []).map((r) => r.chave);
+    },
+  });
+  const visiveis = avisosComVersao.filter((aviso) => !ocultos.includes(aviso.chave));
+  const naoLidos = visiveis.filter((aviso) => !chavesLidas.includes(aviso.chave));
+  const itensSelecionados = visiveis.filter((aviso) => selecionados.includes(aviso.chave));
+
+  async function marcarLidos(itens: Aviso[]) {
+    const pendentes = itens.filter((aviso) => !chavesLidas.includes(aviso.chave));
+    if (pendentes.length === 0) return;
+    await marcarLoteFn({
+      data: {
+        itens: pendentes.slice(0, 60).map((a) => ({
+          chave: a.chave,
+          titulo: a.chave.startsWith("versao:") ? "Atualização do Control ALL" : "Alerta do Control ALL",
+          mensagem: a.texto,
+        })),
+      },
+    });
+    await refetchLidas();
+  }
+
+  async function limpar(itens: Aviso[]) {
+    if (itens.length === 0) return;
+    const { data: sess } = await supabase.auth.getUser();
+    const uid = sess.user?.id;
+    if (!uid) {
+      toast.error("Entre de novo para limpar os alertas.");
+      return;
+    }
+    const { error } = await supabase
+      .from("alertas_ocultos")
+      .upsert(itens.map((a) => ({ user_id: uid, chave: a.chave })), { onConflict: "user_id,chave" });
+    if (error) {
+      toast.error("Não consegui limpar os alertas. Tente de novo.");
+      return;
+    }
+    setSelecionados([]);
+    setSelecionando(false);
+    await refetchOcultos();
+  }
+
+  function confirmarLimpeza(itens: Aviso[]) {
+    if (itens.length === 0) return;
+    const quantos = `${itens.length} alerta${itens.length === 1 ? "" : "s"}`;
+    if (!window.confirm(`Tirar ${quantos} da lista? O histórico continua salvo.`)) return;
+    void limpar(itens);
+  }
+
+  function alternarSelecao(chave: string) {
+    setSelecionados((s) => (s.includes(chave) ? s.filter((x) => x !== chave) : [...s, chave]));
+  }
 
   function aoAbrir(valor: boolean) {
     setAberto(valor);
-    if (valor) {
-      setVistos(naoLidos);
-      if (naoLidos.length > 0) {
-        void marcarLoteFn({
-          data: {
-            itens: naoLidos.slice(0, 60).map((a) => ({
-              chave: a.chave,
-              titulo: a.chave.startsWith("versao:") ? "Atualização do Control ALL" : "Alerta do Control ALL",
-              mensagem: a.texto,
-            })),
-          },
-        }).then(() => refetchLidas());
-      }
+    if (!valor) {
+      setSelecionando(false);
+      setSelecionados([]);
     }
   }
 
@@ -292,30 +337,108 @@ export function AlertsBell() {
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="max-h-96 w-80 overflow-y-auto p-2">
-        <p className="px-2 py-1 text-sm font-semibold">Alertas novos ({lista.length})</p>
-        {lista.length === 0 ? (
-          <p className="px-2 py-3 text-sm text-muted-foreground">Nenhum alerta no momento.</p>
-        ) : (
-          lista.map((aviso, indice) =>
-            aviso.destino ? (
-              <Link
-                key={`${aviso.destino}-${indice}`}
-                to={aviso.destino}
-                onClick={() => setAberto(false)}
-                className="block rounded-md px-2 py-2 text-sm hover:bg-accent"
-              >
-                {aviso.texto}
-              </Link>
-            ) : (
-              <button
-                key={aviso.chave}
-                className="block w-full rounded-md px-2 py-2 text-left text-sm hover:bg-accent"
-              >
-                {aviso.texto}
+      <PopoverContent align="end" className="flex max-h-96 w-80 flex-col overflow-hidden p-2">
+        <div className="flex items-center justify-between px-2 py-1">
+          <p className="text-sm font-semibold">Alertas ({visiveis.length})</p>
+          {visiveis.length > 0 && (
+            <button
+              type="button"
+              className="text-xs text-primary hover:underline"
+              onClick={() => {
+                setSelecionando((s) => !s);
+                setSelecionados([]);
+              }}
+            >
+              {selecionando ? "Cancelar" : "Selecionar"}
+            </button>
+          )}
+        </div>
+        {visiveis.length > 0 && !selecionando && (
+          <div className="flex flex-wrap gap-3 px-2 pb-2 text-xs">
+            {naoLidos.length > 0 && (
+              <button type="button" className="text-primary hover:underline" onClick={() => void marcarLidos(visiveis)}>
+                Marcar todos como lidos
               </button>
-            ),
-          )
+            )}
+            <button type="button" className="text-destructive hover:underline" onClick={() => confirmarLimpeza(visiveis)}>
+              Limpar todos
+            </button>
+          </div>
+        )}
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          {visiveis.length === 0 ? (
+            <p className="px-2 py-3 text-sm text-muted-foreground">Nenhum alerta no momento.</p>
+          ) : (
+            visiveis.map((aviso) => {
+              const lido = chavesLidas.includes(aviso.chave);
+              const marcado = selecionados.includes(aviso.chave);
+              return (
+                <div key={aviso.chave} className="flex items-start gap-2 rounded-md px-2 py-2 text-sm hover:bg-accent">
+                  {selecionando && (
+                    <input
+                      type="checkbox"
+                      className="mt-1"
+                      checked={marcado}
+                      onChange={() => alternarSelecao(aviso.chave)}
+                      aria-label="Selecionar alerta"
+                    />
+                  )}
+                  <div className={`min-w-0 flex-1 ${lido ? "text-muted-foreground" : ""}`}>
+                    {aviso.destino && !selecionando ? (
+                      <Link
+                        to={aviso.destino}
+                        onClick={() => {
+                          void marcarLidos([aviso]);
+                          setAberto(false);
+                        }}
+                        className="block"
+                      >
+                        {aviso.texto}
+                      </Link>
+                    ) : (
+                      <button
+                        type="button"
+                        className="block w-full text-left"
+                        onClick={() => (selecionando ? alternarSelecao(aviso.chave) : void marcarLidos([aviso]))}
+                      >
+                        {aviso.texto}
+                      </button>
+                    )}
+                  </div>
+                  {!lido && <span className="mt-1.5 size-2 shrink-0 rounded-full bg-primary" aria-label="não lido" />}
+                  {!selecionando && (
+                    <button
+                      type="button"
+                      aria-label="Limpar alerta"
+                      className="text-muted-foreground hover:text-foreground"
+                      onClick={() => confirmarLimpeza([aviso])}
+                    >
+                      <X className="size-4" />
+                    </button>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+        {selecionando && itensSelecionados.length > 0 && (
+          <div className="mt-2 flex gap-2 border-t pt-2">
+            <Button
+              size="sm"
+              variant="outline"
+              className="flex-1"
+              onClick={() => {
+                void marcarLidos(itensSelecionados);
+                setSelecionados([]);
+                setSelecionando(false);
+              }}
+            >
+              Marcar lidos ({itensSelecionados.length})
+            </Button>
+            <Button size="sm" variant="destructive" className="flex-1" onClick={() => confirmarLimpeza(itensSelecionados)}>
+              Limpar ({itensSelecionados.length})
+            </Button>
+          </div>
         )}
         {isSiteAdminUser && versoes.length > 0 && (
           <Button
