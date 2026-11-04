@@ -1069,7 +1069,7 @@ function DespesasPage() {
       {divisaoJusta && (
         <Card className="mb-3">
           <CardContent className="space-y-2 p-4">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">Divisão justa do compartilhado</p>
+            <h2 className="text-base font-bold tracking-tight">Divisão justa do compartilhado</h2>
             <p className="text-sm text-muted-foreground">
               Gastos do grupo no mês: <b className="text-foreground">{formatar(divisaoJusta.total)}</b>. Cada um paga na
               proporção da renda do mês.
@@ -1080,7 +1080,7 @@ function DespesasPage() {
               divisaoJusta.linhas.map((l) => (
                 <div key={l.nome} className="flex items-center justify-between text-sm">
                   <span>{l.nome}</span>
-                  <span className="font-semibold">
+                  <span className="font-semibold tabular-nums">
                     {Math.round(l.pct * 100)}% · {formatar(l.valor)}
                   </span>
                 </div>
@@ -1090,7 +1090,7 @@ function DespesasPage() {
         </Card>
       )}
 
-      <div className="mb-3 grid grid-cols-2 gap-2 lg:grid-cols-3">
+      <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-3">
         {[
           { filtro: "total" as const, label: "Total despesas", valor: formatar(resumo.total), cor: "text-destructive", hint: "" },
           { filtro: null, label: "Receitas", valor: formatar(receitaDoFiltro), cor: "text-success", hint: "" },
@@ -1123,14 +1123,14 @@ function DespesasPage() {
         ].map((k) => {
           const conteudo = (
             <>
-              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{k.label}</p>
-              <p className={cn("text-sm font-bold tabular-nums", k.cor)}>{k.valor}</p>
-              {k.hint && <p className="text-[10px] text-muted-foreground">{k.hint}</p>}
+              <p className="text-xs font-medium text-muted-foreground">{k.label}</p>
+              <p className={cn("mt-0.5 text-lg font-extrabold tabular-nums tracking-tight", k.cor)}>{k.valor}</p>
+              {k.hint && <p className="mt-0.5 text-xs text-muted-foreground">{k.hint}</p>}
             </>
           );
           if (!k.filtro)
             return (
-              <div key={k.label} className="rounded-xl border bg-card px-3 py-2">
+              <div key={k.label} className="rounded-2xl border bg-card px-4 py-3 shadow-[var(--shadow-card)]">
                 {conteudo}
               </div>
             );
@@ -1146,7 +1146,7 @@ function DespesasPage() {
                 )
               }
               className={cn(
-                "rounded-xl border bg-card px-3 py-2 text-left transition-colors hover:bg-muted/50",
+                "rounded-2xl border bg-card px-4 py-3 text-left shadow-[var(--shadow-card)] transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
                 ativo && "ring-2 ring-primary",
               )}
             >
@@ -1196,7 +1196,7 @@ function DespesasPage() {
         </div>
       )}
 
-      <div className="mb-3 flex flex-wrap items-center gap-2">
+      <div className="mb-4 flex flex-wrap items-center gap-3">
         <div className="relative min-w-[16rem] flex-1">
           <Search className="pointer-events-none absolute left-3.5 top-1/2 size-5 -translate-y-1/2 text-primary" aria-hidden="true" />
           <Input
@@ -1225,17 +1225,17 @@ function DespesasPage() {
               ora (telas apontadas como as mais usadas no celular). */}
           <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
             <TabsList className="h-10">
-              <TabsTrigger value="total" className="px-3.5 py-2 text-xs">
+              <TabsTrigger value="total" className="px-4 py-2 text-sm">
                 Total
               </TabsTrigger>
-              <TabsTrigger value="fixa" className="px-3.5 py-2 text-xs">
+              <TabsTrigger value="fixa" className="px-4 py-2 text-sm">
                 Fixas
               </TabsTrigger>
-              <TabsTrigger value="variavel" className="px-3.5 py-2 text-xs">
+              <TabsTrigger value="variavel" className="px-4 py-2 text-sm">
                 Variáveis
               </TabsTrigger>
               {pixSaida?.disponivel && (
-                <TabsTrigger value="pix" className="gap-1 px-3.5 py-2 text-xs">
+                <TabsTrigger value="pix" className="gap-1.5 px-4 py-2 text-sm">
                   PIX
                   {pixPendentes > 0 && (
                     <span className="rounded-full bg-primary px-1.5 text-[10px] font-semibold text-primary-foreground">
@@ -1248,10 +1248,10 @@ function DespesasPage() {
           </Tabs>
           <Tabs value={modoLista} onValueChange={(v) => setModoLista(v as "lista" | "cartao")}>
             <TabsList className="h-10">
-              <TabsTrigger value="lista" className="gap-1 px-3.5 py-2 text-xs">
+              <TabsTrigger value="lista" className="gap-1.5 px-4 py-2 text-sm">
                 <ListIcon className="size-3.5" /> Lista
               </TabsTrigger>
-              <TabsTrigger value="cartao" className="gap-1 px-3.5 py-2 text-xs">
+              <TabsTrigger value="cartao" className="gap-1.5 px-4 py-2 text-sm">
                 <CreditCard className="size-3.5" /> Por cartão
               </TabsTrigger>
             </TabsList>
@@ -1266,9 +1266,9 @@ function DespesasPage() {
           }
         >
           <TabsList className="h-10">
-            <TabsTrigger value="todos" className="px-3.5 py-2 text-xs">Todos</TabsTrigger>
-            <TabsTrigger value="nossos" className="px-3.5 py-2 text-xs">Nossos</TabsTrigger>
-            <TabsTrigger value="pessoais" className="px-3.5 py-2 text-xs">Pessoais</TabsTrigger>
+            <TabsTrigger value="todos" className="px-4 py-2 text-sm">Todos</TabsTrigger>
+            <TabsTrigger value="nossos" className="px-4 py-2 text-sm">Nossos</TabsTrigger>
+            <TabsTrigger value="pessoais" className="px-4 py-2 text-sm">Pessoais</TabsTrigger>
           </TabsList>
         </Tabs>
 

@@ -724,7 +724,7 @@ function NotasPage() {
         {mostrarSecaoDrive && (
         <Card>
           {isSiteAdmin && !configAcesso.data?.google_drive_habilitado && (
-            <div className="border-b bg-amber-500/10 px-4 py-2 text-[11px] text-amber-700">
+            <div className="border-b bg-warning/15 px-4 py-2 text-xs text-warning-foreground">
               Visível só pra você (admin). Oculto pros usuários comuns — reative em Administração
               → Módulos.
             </div>
@@ -806,7 +806,7 @@ function NotasPage() {
                   </Button>
                 ) : null}
               </div>
-              <p className="mt-2 text-[11px] text-muted-foreground">
+              <p className="mt-2 text-xs text-muted-foreground">
                 A conexão usa somente a pasta e os arquivos criados pelo aplicativo na sua conta
                 Google. Em outros serviços, use “Abrir pasta” para enviar ou consultar os
                 comprovantes.
@@ -938,7 +938,7 @@ function NotasPage() {
                             {(n as any).so_guardar ? (
                               <Badge variant="outline" className="shrink-0 h-4 text-[10px] px-1.5">Só guardar</Badge>
                             ) : temGarantia ? (
-                              <Badge variant="default" className="shrink-0 h-4 text-[10px] px-1.5 bg-emerald-600 hover:bg-emerald-600">
+                              <Badge variant="default" className="shrink-0 h-4 text-[10px] px-1.5 bg-success text-success-foreground hover:bg-success">
                                 <ShieldCheck className="size-2.5 mr-0.5" />
                                 Garantia
                               </Badge>
@@ -1018,7 +1018,7 @@ function NotasPage() {
                                 style={{ width: `${pct.toFixed(1)}%` }}
                               />
                             </div>
-                            <p className="text-[11px] text-muted-foreground text-right">
+                            <p className="text-xs text-muted-foreground text-right">
                               {pct.toFixed(1)}% do total
                             </p>
                           </CardContent>
@@ -1068,23 +1068,23 @@ function NotasPage() {
                     <CardContent className="py-3 space-y-2">
                       <div className="grid grid-cols-2 gap-2 text-center sm:grid-cols-4">
                         <div className="rounded-lg bg-muted/50 p-2">
-                          <p className="text-[10px] text-muted-foreground">Valor de compra</p>
+                          <p className="text-xs text-muted-foreground">Valor de compra</p>
                           <p className="text-xs font-semibold">{formatBRL(totalOriginal)}</p>
                         </div>
                         <div className="rounded-lg bg-muted/50 p-2">
-                          <p className="text-[10px] text-muted-foreground">Valor atual dos bens</p>
+                          <p className="text-xs text-muted-foreground">Valor atual dos bens</p>
                           <p className="text-xs font-semibold text-primary">{formatBRL(totalAtual)}</p>
                         </div>
                         <div className="rounded-lg bg-muted/50 p-2">
-                          <p className="text-[10px] text-muted-foreground">Depreciado até hoje</p>
+                          <p className="text-xs text-muted-foreground">Depreciado até hoje</p>
                           <p className="text-xs font-semibold">{formatBRL(totalOriginal - totalAtual)}</p>
                         </div>
                         <div className="rounded-lg bg-muted/50 p-2">
-                          <p className="text-[10px] text-muted-foreground">Perda de valor por mês</p>
+                          <p className="text-xs text-muted-foreground">Perda de valor por mês</p>
                           <p className="text-xs font-semibold">{formatBRL(totalMensal)}</p>
                         </div>
                       </div>
-                      <p className="text-[11px] text-muted-foreground">
+                      <p className="text-xs text-muted-foreground">
                         Depreciação é a perda de valor do bem ao longo da vida útil (método linear, em meses completos a partir da compra). Não é um gasto novo: o dinheiro já saiu na compra, então ela não entra nas despesas do mês.
                       </p>
                     </CardContent>
@@ -1112,15 +1112,15 @@ function NotasPage() {
                           </div>
                           <div className="grid grid-cols-3 gap-2 text-center">
                             <div className="rounded-lg bg-muted/50 p-2">
-                              <p className="text-[10px] text-muted-foreground">Valor original</p>
+                              <p className="text-xs text-muted-foreground">Valor original</p>
                               <p className="text-xs font-semibold">{formatBRL(Number((i as any).valor_total))}</p>
                             </div>
                             <div className="rounded-lg bg-muted/50 p-2">
-                              <p className="text-[10px] text-muted-foreground">Valor atual</p>
+                              <p className="text-xs text-muted-foreground">Valor atual</p>
                               <p className="text-xs font-semibold text-primary">{formatBRL(dep.valorAtual)}</p>
                             </div>
                             <div className="rounded-lg bg-muted/50 p-2">
-                              <p className="text-[10px] text-muted-foreground">Meses restantes</p>
+                              <p className="text-xs text-muted-foreground">Meses restantes</p>
                               <p className="text-xs font-semibold">{dep.mesesRestantes}</p>
                             </div>
                           </div>
@@ -1130,7 +1130,7 @@ function NotasPage() {
                               style={{ width: `${dep.percentualDepreciado.toFixed(1)}%` }}
                             />
                           </div>
-                          <p className="text-[11px] text-muted-foreground">
+                          <p className="text-xs text-muted-foreground">
                             Vida útil: {(i as any).meses_depreciacao} meses · Depreciação mensal: {formatBRL(dep.taxaMensal)}
                           </p>
                         </CardContent>
@@ -1416,13 +1416,13 @@ function NotasPage() {
                             }
                             className="size-3.5 accent-primary"
                           />
-                          <span className="text-[11px] text-muted-foreground">
+                          <span className="text-xs text-muted-foreground">
                             Este item deprecia?
                           </span>
                         </label>
                         {item.deprecia && (
                           <div className="flex items-center gap-2">
-                            <label className="text-[11px] text-muted-foreground shrink-0">
+                            <label className="text-xs text-muted-foreground shrink-0">
                               Vida útil (meses):
                             </label>
                             <input
@@ -1560,7 +1560,7 @@ function NotasPage() {
                     ))}
                     <Button
                       variant="outline"
-                      className="size-20 flex-col gap-1 text-[11px]"
+                      className="size-20 flex-col gap-1 text-xs"
                       disabled={anexar.isPending}
                       onClick={() => {
                         notaAlvoUpload.current = notaDetalhe.id;
@@ -1604,7 +1604,7 @@ function NotasPage() {
                               </span>
                             </div>
                             {dep && (
-                              <p className="text-[11px] text-muted-foreground">
+                              <p className="text-xs text-muted-foreground">
                                 {dep.totalmenteDepreciado
                                   ? "Totalmente depreciado"
                                   : `Valor atual: ${formatBRL(dep.valorAtual)} · ${dep.percentualDepreciado.toFixed(0)}% depreciado`}

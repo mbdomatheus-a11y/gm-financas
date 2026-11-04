@@ -72,10 +72,10 @@ export function FluxoDespesas() {
 
   if (!financasProntas) return <CartaoCarregando alturaGrafico="h-48" />;
   return (
-    <div className="mt-4 grid gap-4 md:grid-cols-2">
+    <div className="grid gap-4 md:grid-cols-2">
       <Bloco
         titulo="Despesas do ciclo"
-        icone={<Receipt className="size-3.5" aria-hidden="true" />}
+        icone={<Receipt className="size-4" aria-hidden="true" />}
         total={totalAtual}
         cor="text-foreground"
         subtitulo="Lançamentos do ciclo vigente, por categoria"
@@ -85,9 +85,9 @@ export function FluxoDespesas() {
       />
       <Bloco
         titulo="Despesas futuras"
-        icone={<CalendarClock className="size-3.5" aria-hidden="true" />}
+        icone={<CalendarClock className="size-4" aria-hidden="true" />}
         total={totalFuturo}
-        cor="text-amber-600 dark:text-amber-400"
+        cor="text-foreground"
         subtitulo={`Próximos ${MESES_FUTUROS} meses · parcelas e compromissos a vencer`}
         linhas={futuro}
         vazio="Nenhuma despesa futura registrada."
@@ -123,12 +123,12 @@ function Bloco({
   return (
     <Card className="overflow-hidden">
       <CardHeader className="space-y-1 pb-2">
-        <CardTitle className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          {icone}
+        <CardTitle className="flex items-center gap-2 text-base font-bold tracking-tight">
+          <span className="grid size-8 place-items-center rounded-full bg-muted text-muted-foreground">{icone}</span>
           {titulo}
         </CardTitle>
-        <p className={`text-2xl font-bold tabular-nums tracking-tight ${cor}`}>{formatar(total)}</p>
-        <p className="text-xs text-muted-foreground">{subtitulo}</p>
+        <p className={`pt-1 text-3xl font-extrabold tabular-nums tracking-tight ${cor}`}>{formatar(total)}</p>
+        <p className="text-sm text-muted-foreground">{subtitulo}</p>
       </CardHeader>
       <CardContent className="space-y-3 pt-2">
         {visiveis.length === 0 && <p className="text-sm text-muted-foreground">{vazio}</p>}

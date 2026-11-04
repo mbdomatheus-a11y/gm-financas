@@ -739,41 +739,17 @@ function DashboardPage() {
       title="Finanças"
       description={`Resumo de ${monthLabel(mesAtual)} · USD ${cotacao.toFixed(2)}`}
     >
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-6">
-        <StatCard
-          label="Receitas do mês"
-          value={dados.totalReceitas}
-          usd={dados.usdReceitas}
-          cotacao={cotacao}
-          icon={ArrowUpRight}
-          tone="success"
-          delta={dados.deltaReceitas}
-          deltaGoodUp
-          to="/receitas"
-        />
-        <StatCard
-          label="Despesas do mês"
-          value={dados.totalDespesas}
-          usd={dados.usdDespesas}
-          cotacao={cotacao}
-          icon={ArrowDownRight}
-          tone="destructive"
-          delta={dados.deltaDespesas}
-          hint={`Fixas ${fmtGlobal(dados.fixas)} · Variáveis ${fmtGlobal(dados.variaveis)}`}
-          to="/despesas"
-        />
-
-        {/* "Saldo do mês" e "Taxa de poupança" não têm uma única tela
-            equivalente no site (são métricas derivadas de receitas −
-            despesas) — o destino mais honesto é o próprio gráfico de fluxo
-            de caixa mês a mês, mais abaixo nesta mesma página. */}
-        <StatCard
-          label="Saldo do mês"
-          value={dados.saldo}
-          icon={Wallet}
-          tone={dados.saldo >= 0 ? "success" : "destructive"}
-          href="#fluxo-caixa"
-        />
+      <HeroMes
+        saldo={dados.saldo}
+        receitas={dados.totalReceitas}
+        despesas={dados.totalDespesas}
+        deltaReceitas={dados.deltaReceitas}
+        deltaDespesas={dados.deltaDespesas}
+        fixas={dados.fixas}
+        variaveis={dados.variaveis}
+        mesRotulo={monthLabel(mesAtual)}
+      />
+      <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
         <StatCard
           label="Parcelas do mês (fixas + variáveis)"
           value={dados.fixas + dados.variaveis}
@@ -810,9 +786,11 @@ function DashboardPage() {
           href="#parcelamentos-terminando"
         />
       </div>
+      <div className="mt-4">
       <FluxoDespesas />
+      </div>
       {/* 27/10/2026: mesmo cartão "Previsão do mês" do app e do Início (lib/previsao-mes.ts). */}
-      <ResumoPrevisaoHome mes={mesAtual} className="mt-4 overflow-hidden border-primary/30" />
+      <ResumoPrevisaoHome mes={mesAtual} className="mt-4 overflow-hidden" />
 
       <Card id="fluxo-caixa" className="mt-4">
         <CardHeader className="flex flex-col gap-2 space-y-0 sm:flex-row sm:items-center sm:justify-between">
@@ -1681,6 +1659,77 @@ function CardDividaTotal({
     </Card>
   );
 }
+
+/** Topo do Finanças: saldo do mês em destaque, com receitas e despesas ao lado (visual 04/11/2026). */
+function HeroMes({
+  saldo,
+  receitas,
+  despesas,
+  deltaReceitas,
+  deltaDespesas,
+  fixas,
+  variaveis,
+  mesRotulo,
+}: {
+  saldo: number;
+  receitas: number;
+  despesas: number;
+  deltaReceitas?: number | null;
+  deltaDespesas?: number | null;
+  fixas: number;
+  variaveis: number;
+  mesRotulo: string;
+}) {
+  const { formatar } = usePrivacidadeValores();
+  const positivo = saldo >= 0;
+  const chip = (delta: number | null | undefined, bomSubir: boolean) =>
+    delta != null && Number.isFinite(delta) ? (
+      <span
+        className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-xs font-semibold ${
+          delta >= 0 === bomSubir ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"
+        }`}
+      >
+        {delta >= 0 ? <ArrowUpRight className="size-3" /> : <ArrowDownRight className="size-3" />}
+        {Math.abs(delta).toFixed(0)}% vs. mês anterior
+      </span>
+    ) : null;
+
+  return (
+    <section aria-label={`Resumo de ${mesRotulo}`} className="grid gap-px overflow-hidden rounded-3xl border bg-border shadow-[var(--shadow-card)] lg:grid-cols-[1.3fr_1fr]">
+      <a href="#fluxo-caixa" className="block bg-card p-6 transition-colors hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 sm:p-8">
+        <p className="text-sm font-medium text-muted-foreground">Saldo de {mesRotulo}</p>
+        <p className={`mt-2 text-5xl font-extrabold tabular-nums tracking-tight sm:text-6xl ${positivo ? "text-foreground" : "text-destructive"}`}>
+          {formatar(saldo)}
+        </p>
+        <p className="mt-3 text-sm text-muted-foreground">Receitas menos despesas do mês. Toque para ver o fluxo de caixa.</p>
+      </a>
+      <div className="grid grid-rows-2 gap-px">
+        <Link to="/receitas" className="flex items-center justify-between gap-4 bg-card px-6 py-5 transition-colors hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50">
+          <div className="flex items-center gap-3">
+            <span className="grid size-10 place-items-center rounded-full bg-success/10 text-success"><ArrowUpRight className="size-5" /></span>
+            <div>
+              <p className="text-sm text-muted-foreground">Receitas</p>
+              <p className="text-xl font-bold tabular-nums">{formatar(receitas)}</p>
+            </div>
+          </div>
+          {chip(deltaReceitas, true)}
+        </Link>
+        <Link to="/despesas" className="flex items-center justify-between gap-4 bg-card px-6 py-5 transition-colors hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50">
+          <div className="flex items-center gap-3">
+            <span className="grid size-10 place-items-center rounded-full bg-destructive/10 text-destructive"><ArrowDownRight className="size-5" /></span>
+            <div>
+              <p className="text-sm text-muted-foreground">Despesas</p>
+              <p className="text-xl font-bold tabular-nums">{formatar(despesas)}</p>
+              <p className="text-xs text-muted-foreground">Fixas {formatar(fixas)}, variáveis {formatar(variaveis)}</p>
+            </div>
+          </div>
+          {chip(deltaDespesas, false)}
+        </Link>
+      </div>
+    </section>
+  );
+}
+
 
 function StatCard({
   label,

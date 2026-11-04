@@ -457,7 +457,7 @@ export function AlertsBell() {
         )}
         {historico.length > 0 && (
           <>
-            <p className="mt-2 border-t px-2 py-2 text-xs font-semibold uppercase text-muted-foreground">
+            <p className="mt-2 border-t px-2 py-2 text-xs font-semibold text-muted-foreground">
               Histórico (últimos 7 dias)
             </p>
             {historico.slice(0, 8).map((aviso: any) => (

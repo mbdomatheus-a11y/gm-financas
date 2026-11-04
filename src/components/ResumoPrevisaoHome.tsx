@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { usePreferencias } from "@/hooks/usePreferencias";
 import { Link } from "@tanstack/react-router";
-import { AlertTriangle, CheckCircle2, PiggyBank } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Info, PiggyBank } from "lucide-react";
 import { useMemo, useState } from "react";
 import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
@@ -16,7 +16,7 @@ import { usePrivacidadeValores } from "@/hooks/usePrivacidadeValores";
 import { useCompetenciaVigente } from "@/lib/periodo-vigente";
 import { listarCaixinhas, metaDoMes } from "@/lib/poupar";
 import { calcularPrevisaoMes, datasDoCiclo } from "@/lib/previsao-mes";
-import { formatBRL, monthLabelLong } from "@/lib/format";
+import { monthLabelLong } from "@/lib/format";
 import { somarMeses } from "@/lib/recorrencia";
 
 /**
@@ -55,9 +55,7 @@ export function ResumoPrevisaoHome({ mes: mesEscolhido, className }: { mes?: str
   // 03/11/2026: mostra de qual mês/ciclo é a previsão (ex.: outubro = 08/10 a 07/11 com virada no dia 8).
   const diasCiclo = datasDoCiclo(mes, prefs.dia_virada);
   const fmtDia = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
-  const subtituloCiclo = diasCiclo.length
-    ? `${monthLabelLong(mes)} · ciclo ${fmtDia(diasCiclo[0]!)} a ${fmtDia(diasCiclo[diasCiclo.length - 1]!)}`
-    : monthLabelLong(mes);
+  const cicloTexto = diasCiclo.length ? `${fmtDia(diasCiclo[0]!)} a ${fmtDia(diasCiclo[diasCiclo.length - 1]!)}` : "";
   const serie = p.serie.map((s) => ({
     dia: s.dia,
     rotulo: s.rotulo,
@@ -73,70 +71,90 @@ export function ResumoPrevisaoHome({ mes: mesEscolhido, className }: { mes?: str
   const prefixo = futuro ? "No ritmo deste mês" : "Se continuar assim";
 
   return (
-    <Card className={className ?? "mb-4 overflow-hidden border-primary/30"}>
-      <CardContent className="space-y-3 p-4 sm:p-5">
-        <div className="flex flex-wrap items-start justify-between gap-2">
-          <div>
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">Previsão do mês</p>
-            <p className="text-xs text-muted-foreground">{subtituloCiclo}</p>
+    <Card className={className ?? "mb-4 overflow-hidden"}>
+      <CardContent className="space-y-5 p-5 sm:p-6">
+        <header className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="text-balance text-lg font-bold tracking-tight">Previsão do mês</h2>
+            <p className="mt-0.5 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+              {monthLabelLong(mes)}
+              {cicloTexto && (
+                <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium tabular-nums text-foreground">
+                  ciclo {cicloTexto}
+                </span>
+              )}
+            </p>
           </div>
           {podeTrocar && (
-            <div className="inline-flex rounded-full border p-0.5 text-xs">
+            <div role="group" aria-label="Ciclo da previsão" className="inline-flex rounded-full bg-muted p-1 text-sm">
               {([false, true] as const).map((alvo) => (
                 <button
                   key={String(alvo)}
                   type="button"
+                  aria-pressed={proximo === alvo}
                   onClick={() => setProximo(alvo)}
-                  className={`rounded-full px-3 py-1 font-medium ${proximo === alvo ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
+                  className={`min-h-9 rounded-full px-4 font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 ${
+                    proximo === alvo ? "bg-card text-foreground shadow-[var(--shadow-card)]" : "text-muted-foreground hover:text-foreground"
+                  }`}
                 >
                   {alvo ? "Próximo ciclo" : "Ciclo atual"}
                 </button>
               ))}
             </div>
           )}
-        </div>
+        </header>
+
         {encerrado ? (
-          <div>
-            <p className={`text-2xl font-bold ${p.finalPrevisto >= p.meta ? "text-emerald-600" : "text-rose-600"}`}>{formatar(p.finalPrevisto)}</p>
-            <p className="text-xs text-muted-foreground">Mês encerrado: saldo final{temMeta ? ` (meta de guardar ${formatar(p.meta)})` : ""}.</p>
+          <div className="space-y-1">
+            <p className="text-sm font-medium text-muted-foreground">
+              Saldo final do ciclo{temMeta ? ` (meta de guardar ${formatar(p.meta)})` : ""}
+            </p>
+            <p className={`text-4xl font-extrabold tabular-nums tracking-tight ${p.finalPrevisto >= p.meta ? "text-success" : "text-destructive"}`}>
+              {formatar(p.finalPrevisto)}
+            </p>
           </div>
         ) : semLivre ? (
-          <div>
-            <p className="text-2xl font-bold text-rose-600">Sem saldo livre</p>
+          <div className="space-y-1">
+            <p className="text-sm font-medium text-muted-foreground">Saldo livre do ciclo</p>
+            <p className="text-4xl font-extrabold tabular-nums tracking-tight text-destructive">{formatar(p.saldoLivre)}</p>
             <p className="text-sm text-muted-foreground">
-              Faltam <b className="text-rose-600">{formatar(Math.abs(p.saldoLivre))}</b>{" "}
-              {temMeta ? "para cobrir as despesas do mês e a meta das caixinhas." : "para cobrir as despesas já comprometidas no mês."}
+              Faltam <b className="font-semibold text-foreground">{formatar(Math.abs(p.saldoLivre))}</b>{" "}
+              {temMeta ? "para cobrir as despesas do ciclo e a meta das caixinhas." : "para cobrir as despesas já comprometidas no ciclo."}
             </p>
           </div>
         ) : (
-          <div>
-            <p className="text-sm font-semibold text-muted-foreground">Você pode gastar</p>
-            <p className="text-2xl font-bold text-emerald-600">
-              {formatar(p.porDia)} <span className="text-base font-semibold">por dia</span>
+          <div className="space-y-1">
+            <p className="text-sm font-medium text-muted-foreground">Você pode gastar</p>
+            <p className="text-4xl font-extrabold tabular-nums tracking-tight text-success">
+              {formatar(p.porDia)} <span className="text-base font-semibold text-muted-foreground">por dia</span>
             </p>
             <p className="text-sm text-muted-foreground">
-              {temMeta ? `para atingir sua meta de guardar ${formatar(p.meta)}` : "para não ficar negativo"} · {p.diasRestantes}{" "}
-              {p.diasRestantes === 1 ? "dia restante" : "dias restantes"}
+              {temMeta ? `para atingir sua meta de guardar ${formatar(p.meta)}` : "para não ficar negativo"}, com {p.diasRestantes}{" "}
+              {p.diasRestantes === 1 ? "dia restante" : "dias restantes"}.
             </p>
           </div>
         )}
 
         {!encerrado && (
-          <div className={`flex gap-2 rounded-lg p-3 ${p.alerta ? "bg-rose-500/10" : "bg-emerald-500/10"}`}>
-            {p.alerta ? <AlertTriangle className="size-5 shrink-0 text-rose-600" /> : <CheckCircle2 className="size-5 shrink-0 text-emerald-600" />}
-            <div className="text-sm">
+          <div className={`flex items-start gap-3 rounded-2xl p-4 ${p.alerta ? "bg-destructive/10" : "bg-success/10"}`}>
+            <span
+              className={`grid size-8 shrink-0 place-items-center rounded-full ${p.alerta ? "bg-destructive/15 text-destructive" : "bg-success/15 text-success"}`}
+            >
+              {p.alerta ? <AlertTriangle className="size-4" /> : <CheckCircle2 className="size-4" />}
+            </span>
+            <div className="min-w-0 text-sm">
               {p.alerta ? (
-                <p className="font-semibold text-rose-600">
+                <p className="font-semibold text-foreground">
                   {prefixo}, termina o mês com {formatar(p.finalPrevisto)}
                   {temMeta && p.finalPrevisto >= 0 ? `, abaixo da meta de ${formatar(p.meta)}` : ""}
                 </p>
               ) : (
-                <p className="font-semibold text-emerald-700 dark:text-emerald-400">
+                <p className="font-semibold text-foreground">
                   {prefixo}, sobram {formatar(p.sobraPrevista)}
                   {temMeta ? ` depois de guardar ${formatar(p.meta)}` : " no fim do mês"}
                 </p>
               )}
-              <p className="text-xs text-muted-foreground">
+              <p className="mt-0.5 text-muted-foreground">
                 {p.ritmoDiario > 0 ? `Ritmo dos gastos variáveis: ${formatar(p.ritmoDiario)} por dia.` : "Sem gastos variáveis no mês até agora."}
               </p>
             </div>
@@ -144,64 +162,95 @@ export function ResumoPrevisaoHome({ mes: mesEscolhido, className }: { mes?: str
         )}
 
         {p.estimativas.length > 0 && (
-          <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-xs">
-            <p className="font-semibold text-amber-700 dark:text-amber-400">
-              Inclui {formatar(p.estimadoTotal)} estimados para faturas ainda abertas
-            </p>
-            <p className="mt-0.5 text-muted-foreground">
-              {p.estimativas
-                .map((e) => `${e.nome}: média ${formatBRL(e.media)}, lançado ${formatBRL(e.real)}`)
-                .join(" · ")}
-              . Informe o total da fatura para trocar a estimativa pelo valor certo.
-            </p>
-            <FaturaMesDialog
-              trigger={
-                <Button size="sm" variant="outline" className="mt-2 h-8 text-xs">
-                  Informar total da fatura
-                </Button>
-              }
-            />
-          </div>
+          <section className="rounded-2xl border border-warning/50 bg-warning/10 p-4 text-sm">
+            <div className="flex items-start gap-3">
+              <span className="grid size-8 shrink-0 place-items-center rounded-full bg-warning/25 text-warning-foreground">
+                <Info className="size-4" />
+              </span>
+              <div className="min-w-0 flex-1 space-y-3">
+                <div>
+                  <p className="font-semibold">Inclui {formatar(p.estimadoTotal)} estimados para faturas ainda abertas</p>
+                  <p className="text-muted-foreground">Informe o total da fatura para trocar a estimativa pelo valor certo.</p>
+                </div>
+                <ul className="divide-y divide-border/60 overflow-hidden rounded-xl bg-card/70">
+                  {p.estimativas.map((e) => (
+                    <li key={e.cartaoId} className="flex items-center justify-between gap-3 px-3 py-2">
+                      <div className="min-w-0">
+                        <p className="truncate font-medium">{e.nome}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Média {formatar(e.media)}, lançado {formatar(e.real)}
+                        </p>
+                      </div>
+                      <span className="shrink-0 font-semibold tabular-nums">+{formatar(e.extra)}</span>
+                    </li>
+                  ))}
+                </ul>
+                <FaturaMesDialog
+                  trigger={
+                    <Button size="sm" variant="outline" className="h-9">
+                      Informar total da fatura
+                    </Button>
+                  }
+                />
+              </div>
+            </div>
+          </section>
         )}
 
-        <div className="space-y-1 rounded-lg bg-muted/40 p-3 text-sm">
-          <Linha rotulo="Receitas do mês" valor={formatar(p.receitas)} />
+        <dl className="overflow-hidden rounded-2xl border border-border/70 text-sm">
+          <Linha rotulo="Receitas do mês" valor={`+${formatar(p.receitas)}`} tom="text-success" />
           <Linha rotulo="Despesas já comprometidas" valor={formatar(-p.comprometido)} />
           {temMeta && <Linha rotulo="A guardar nas caixinhas" valor={formatar(-p.meta)} />}
-          <div className="my-1 h-px bg-border" />
-          <Linha rotulo="Saldo livre" valor={formatar(p.saldoLivre)} forte />
-        </div>
+          <Linha rotulo="Saldo livre" valor={formatar(p.saldoLivre)} forte tom={semLivre ? "text-destructive" : "text-success"} />
+        </dl>
 
-        <div className="h-40 w-full sm:h-48">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={serie} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
-              <XAxis dataKey="rotulo" tick={{ fontSize: 11 }} interval="preserveStartEnd" />
-              <YAxis hide />
-              <ReferenceLine y={0} stroke="var(--muted-foreground)" strokeDasharray="2 2" />
-              {temMeta && <ReferenceLine y={p.meta} stroke="#10b981" strokeDasharray="4 4" />}
-              <Tooltip formatter={(v: number) => formatar(v)} labelFormatter={(d) => `Dia ${d}`} />
-              <Line type="monotone" dataKey="real" name="Realizado" stroke="var(--primary)" strokeWidth={2.5} dot={false} connectNulls={false} isAnimationActive={false} />
-              <Line type="monotone" dataKey="previsto" name="Previsto" stroke="var(--primary)" strokeWidth={2.5} strokeDasharray="6 6" dot={false} connectNulls={false} isAnimationActive={false} />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-          <span>Real até hoje, projetado pelo ritmo depois{temMeta ? ` · meta ${formatar(p.meta)}` : ""}</span>
-          <Link to="/caixinhas" className="inline-flex items-center gap-1 font-medium text-primary hover:underline">
-            <PiggyBank className="size-3.5" /> {temMeta ? "Ver caixinhas" : "Criar uma caixinha"}
-          </Link>
+        <div className="space-y-2">
+          <div className="h-44 w-full sm:h-52" role="img" aria-label="Gráfico do saldo acumulado dia a dia no ciclo">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={serie} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                <XAxis dataKey="rotulo" tick={{ fontSize: 11 }} interval="preserveStartEnd" tickLine={false} axisLine={false} />
+                <YAxis hide />
+                <ReferenceLine y={0} stroke="var(--muted-foreground)" strokeDasharray="2 2" />
+                {temMeta && <ReferenceLine y={p.meta} stroke="var(--success)" strokeDasharray="4 4" />}
+                <Tooltip formatter={(v: number) => formatar(v)} labelFormatter={(d) => `Dia ${d}`} />
+                <Line type="monotone" dataKey="real" name="Realizado" stroke="var(--primary)" strokeWidth={2.5} dot={false} connectNulls={false} isAnimationActive={false} />
+                <Line type="monotone" dataKey="previsto" name="Previsto" stroke="var(--primary)" strokeWidth={2.5} strokeDasharray="6 6" dot={false} connectNulls={false} isAnimationActive={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-xs text-muted-foreground">
+            <ul className="flex flex-wrap items-center gap-x-4 gap-y-1">
+              <li className="flex items-center gap-1.5">
+                <span className="h-0.5 w-4 rounded bg-primary" aria-hidden /> Realizado
+              </li>
+              <li className="flex items-center gap-1.5">
+                <span className="w-4 border-t-2 border-dashed border-primary" aria-hidden /> Previsto
+              </li>
+              {temMeta && (
+                <li className="flex items-center gap-1.5">
+                  <span className="w-4 border-t-2 border-dashed border-success" aria-hidden /> Meta {formatar(p.meta)}
+                </li>
+              )}
+            </ul>
+            <Link
+              to="/caixinhas"
+              className="inline-flex min-h-9 items-center gap-1 rounded-full px-2 font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+            >
+              <PiggyBank className="size-3.5" /> {temMeta ? "Ver caixinhas" : "Criar uma caixinha"}
+            </Link>
+          </div>
         </div>
       </CardContent>
     </Card>
   );
 }
 
-function Linha({ rotulo, valor, forte }: { rotulo: string; valor: string; forte?: boolean }) {
+function Linha({ rotulo, valor, forte, tom }: { rotulo: string; valor: string; forte?: boolean; tom?: string }) {
   return (
-    <div className="flex items-center justify-between">
-      <span className={forte ? "font-semibold" : "text-muted-foreground"}>{rotulo}</span>
-      <span className={forte ? "font-bold" : "font-medium"}>{valor}</span>
+    <div className={`flex items-center justify-between gap-3 px-4 py-2.5 ${forte ? "bg-muted/50" : "border-b border-border/60"}`}>
+      <dt className={forte ? "font-semibold" : "text-muted-foreground"}>{rotulo}</dt>
+      <dd className={`tabular-nums ${forte ? "font-bold" : "font-medium"} ${tom ?? ""}`}>{valor}</dd>
     </div>
   );
 }
