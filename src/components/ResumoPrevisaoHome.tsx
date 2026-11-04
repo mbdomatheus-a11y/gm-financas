@@ -2,19 +2,22 @@ import { useQuery } from "@tanstack/react-query";
 import { usePreferencias } from "@/hooks/usePreferencias";
 import { Link } from "@tanstack/react-router";
 import { AlertTriangle, CheckCircle2, PiggyBank } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import { CartaoCarregando } from "@/components/CartaoCarregando";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { FaturaMesDialog } from "@/components/FaturaMesDialog";
 import { useCotacao } from "@/hooks/useCotacao";
-import { useDespesas, useFaturasMes, useReceitas } from "@/hooks/useFinance";
+import { useCartoes, useDespesas, useFaturasMes, useReceitas } from "@/hooks/useFinance";
 import { useFinancasProntas } from "@/hooks/useFinancasProntas";
 import { usePrivacidadeValores } from "@/hooks/usePrivacidadeValores";
 import { useCompetenciaVigente } from "@/lib/periodo-vigente";
 import { listarCaixinhas, metaDoMes } from "@/lib/poupar";
 import { calcularPrevisaoMes, datasDoCiclo } from "@/lib/previsao-mes";
-import { monthLabelLong } from "@/lib/format";
+import { formatBRL, monthLabelLong } from "@/lib/format";
+import { somarMeses } from "@/lib/recorrencia";
 
 /**
  * Card "Previsão do mês" do Início. 27/10/2026: mesma conta e mesmos textos do app
@@ -26,24 +29,28 @@ export function ResumoPrevisaoHome({ mes: mesEscolhido, className }: { mes?: str
   const cotacao = useCotacao();
   const { data: despesas = [] } = useDespesas();
   const { data: faturasMes = [] } = useFaturasMes();
+  const { data: cartoes = [] } = useCartoes();
   const { data: receitas = [] } = useReceitas();
   const { data: caixinhas = [] } = useQuery({ queryKey: ["caixinhas"], queryFn: listarCaixinhas, retry: false });
   const { formatar } = usePrivacidadeValores("resumo-previsao-home");
   const mesVigente = useCompetenciaVigente();
   const { prefs } = usePreferencias();
   // Na tela Finanças segue o mês escolhido no filtro; no Início, a competência vigente.
-  const mes = mesEscolhido ?? mesVigente;
+  // 03/11/2026: no Início dá para ver o ciclo atual ou planejar o próximo (na tela Finanças vale o mês escolhido).
+  const [proximo, setProximo] = useState(false);
+  const podeTrocar = mesEscolhido === undefined;
+  const mes = mesEscolhido ?? (proximo ? somarMeses(mesVigente, 1) : mesVigente);
 
   const p = useMemo(
     () =>
       calcularPrevisaoMes(
-        { despesas: despesas as any[], receitas: receitas as any[], faturas: faturasMes as any[], cotacao },
+        { despesas: despesas as any[], receitas: receitas as any[], faturas: faturasMes as any[], cotacao, cartoes: cartoes as any[] },
         mes,
         metaDoMes(caixinhas, mes),
         prefs.dia_virada,
         prefs.receitas_proximo_ciclo_dia,
       ),
-    [despesas, receitas, faturasMes, cotacao, mes, caixinhas, prefs.dia_virada, prefs.receitas_proximo_ciclo_dia],
+    [despesas, receitas, faturasMes, cotacao, cartoes, mes, caixinhas, prefs.dia_virada, prefs.receitas_proximo_ciclo_dia],
   );
   // 03/11/2026: mostra de qual mês/ciclo é a previsão (ex.: outubro = 08/10 a 07/11 com virada no dia 8).
   const diasCiclo = datasDoCiclo(mes, prefs.dia_virada);
@@ -68,9 +75,25 @@ export function ResumoPrevisaoHome({ mes: mesEscolhido, className }: { mes?: str
   return (
     <Card className={className ?? "mb-4 overflow-hidden border-primary/30"}>
       <CardContent className="space-y-3 p-4 sm:p-5">
-        <div>
-          <p className="text-xs uppercase tracking-wide text-muted-foreground">Previsão do mês</p>
-          <p className="text-xs text-muted-foreground">{subtituloCiclo}</p>
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">Previsão do mês</p>
+            <p className="text-xs text-muted-foreground">{subtituloCiclo}</p>
+          </div>
+          {podeTrocar && (
+            <div className="inline-flex rounded-full border p-0.5 text-xs">
+              {([false, true] as const).map((alvo) => (
+                <button
+                  key={String(alvo)}
+                  type="button"
+                  onClick={() => setProximo(alvo)}
+                  className={`rounded-full px-3 py-1 font-medium ${proximo === alvo ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
+                >
+                  {alvo ? "Próximo ciclo" : "Ciclo atual"}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         {encerrado ? (
           <div>
@@ -117,6 +140,27 @@ export function ResumoPrevisaoHome({ mes: mesEscolhido, className }: { mes?: str
                 {p.ritmoDiario > 0 ? `Ritmo dos gastos variáveis: ${formatar(p.ritmoDiario)} por dia.` : "Sem gastos variáveis no mês até agora."}
               </p>
             </div>
+          </div>
+        )}
+
+        {p.estimativas.length > 0 && (
+          <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-xs">
+            <p className="font-semibold text-amber-700 dark:text-amber-400">
+              Inclui {formatar(p.estimadoTotal)} estimados para faturas ainda abertas
+            </p>
+            <p className="mt-0.5 text-muted-foreground">
+              {p.estimativas
+                .map((e) => `${e.nome}: média ${formatBRL(e.media)}, lançado ${formatBRL(e.real)}`)
+                .join(" · ")}
+              . Informe o total da fatura para trocar a estimativa pelo valor certo.
+            </p>
+            <FaturaMesDialog
+              trigger={
+                <Button size="sm" variant="outline" className="mt-2 h-8 text-xs">
+                  Informar total da fatura
+                </Button>
+              }
+            />
           </div>
         )}
 

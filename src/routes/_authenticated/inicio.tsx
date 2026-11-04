@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AppLayout } from "@/components/AppLayout";
 import { HomeWidgets } from "@/components/HomeWidgets";
 import { ResumoPrevisaoHome } from "@/components/ResumoPrevisaoHome";
+import { SugestoesEconomia } from "@/components/SugestoesEconomia";
 import { ModoClienteControle } from "@/components/ModoClienteControle";
 import { OpenFinanceEmBreve } from "@/components/OpenFinanceEmBreve";
 import { AssistenteHome } from "@/components/AssistenteHome";
@@ -31,6 +32,7 @@ function InicioPage() {
       <BetaTestFlight className="mb-4" />
       <PerguntaFechamento />
       <ResumoPrevisaoHome />
+      <SugestoesEconomia />
       <AssistenteHome />
       <HomeWidgets />
     </AppLayout>

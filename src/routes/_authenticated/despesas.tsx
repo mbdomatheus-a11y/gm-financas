@@ -970,8 +970,10 @@ function DespesasPage() {
         ? `${formatarNomeExibicao(d.cartoes.apelido || d.cartoes.bandeira || "Cartão")} •${d.cartoes.final ?? ""} · ${primeiroNome(d.cartoes.titular)}`
         : (ehRecorrenteFora ? "Recorrente fora do cartão" : "Sem atribuição");
       // Recorrente fora do cartão: cor sólida, sem logo de banco nem ícone (pedido do usuário).
-      const cor = ehRecorrenteFora ? "#64748b" : (d.cartoes?.cor ?? "var(--muted-foreground)");
-      const banco = ehRecorrenteFora ? "" : String(d.bancos?.nome ?? d.banco_nome ?? d.cartoes?.apelido ?? "");
+      // Sem cartão (recorrente fora ou sem atribuição): cor sólida e sem logo, para não parecer cartão de um banco.
+      const semCartao = !d.cartao_id;
+      const cor = ehRecorrenteFora ? "#64748b" : semCartao ? "#94a3b8" : (d.cartoes?.cor ?? "var(--muted-foreground)");
+      const banco = semCartao ? "" : String(d.bancos?.nome ?? d.banco_nome ?? d.cartoes?.apelido ?? "");
       const g = mapa.get(key) ?? { key, label, cor, banco, itens: [] as any[], total: 0 };
       g.itens.push(d);
       // Economia conquistada não soma no total do mês (mesma regra do cabeçalho e da previsão).
@@ -1479,7 +1481,7 @@ function DespesasPage() {
                 >
                   {grupo.banco ? (
                     <IconeBanco nome={grupo.banco} className="size-8 rounded-lg" />
-                  ) : grupo.key === "recorrente_fora" ? (
+                  ) : grupo.key === "recorrente_fora" || grupo.key === "sem" ? (
                     <div className="size-8 shrink-0 rounded-lg" style={{ backgroundColor: grupo.cor }} />
                   ) : (
                     <div

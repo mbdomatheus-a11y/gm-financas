@@ -9,6 +9,18 @@ import { lancamentosPorCompetencias, receitasPorCompetencias, somarMeses } from 
  *                (parcelas, fixas, faturas) − valor a guardar nas caixinhas.
  *  fim do mês previsto = receitas − comprometido − ritmo dos gastos variáveis × dias que faltam.
  */
+/** Fatura de cartão ainda aberta e sem total informado: entra na previsão pela média das últimas faturas. */
+export type EstimativaFatura = {
+  cartaoId: string;
+  nome: string;
+  /** Já lançado (compras e parcelas) com vencimento neste ciclo. */
+  real: number;
+  /** Média das últimas faturas do cartão. */
+  media: number;
+  /** O que foi somado à previsão (média − real). */
+  extra: number;
+};
+
 export type PrevisaoMes = {
   diasNoMes: number;
   diaHoje: number;
@@ -23,6 +35,9 @@ export type PrevisaoMes = {
   finalPrevisto: number;
   sobraPrevista: number;
   alerta: boolean;
+  /** Faturas abertas estimadas pela média (03/11/2026). Vazio quando todas têm total informado ou já fecharam. */
+  estimativas: EstimativaFatura[];
+  estimadoTotal: number;
   /** dia = posição no ciclo (1..N); rotulo = dia do mês para mostrar no gráfico. */
   serie: { dia: number; rotulo: number; saldo: number; projetado: boolean }[];
 };
@@ -77,8 +92,22 @@ export function projetarMes(x: {
     finalPrevisto: r2(finalPrevisto),
     sobraPrevista: r2(sobraPrevista),
     alerta: finalPrevisto < 0 || (meta > 0 && finalPrevisto < meta),
+    estimativas: [],
+    estimadoTotal: 0,
     serie,
   };
+}
+
+/** Data (AAAA-MM-DD) do fechamento da fatura que vence em `venc`: o último dia `diaFech` antes do vencimento. */
+function fechamentoDaFatura(venc: string, diaFech: number | null | undefined): string {
+  const [a = 1970, m = 1, d = 1] = venc.split("-").map(Number);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const fmt = (x: Date) => `${x.getFullYear()}-${pad(x.getMonth() + 1)}-${pad(x.getDate())}`;
+  if (!diaFech) return fmt(new Date(a, m - 1, d - 7));
+  const diaNoMes = (ano: number, mes0: number) => Math.min(diaFech, new Date(ano, mes0 + 1, 0).getDate());
+  let x = new Date(a, m - 1, diaNoMes(a, m - 1));
+  if (x.getDate() >= d) x = new Date(a, m - 2, diaNoMes(a, m - 2));
+  return fmt(x);
 }
 
 /**
@@ -108,7 +137,7 @@ export function cicloDaReceita(iso: string, diaVirada?: number | null, aPartirDo
   const dia = Number(iso.slice(8, 10));
   const naFaixa = n >= d ? dia >= n || dia < d : dia >= n && dia < d;
   if (!naFaixa) return ciclo;
-  const [a, m] = ciclo.split("-").map(Number);
+  const [a = 1970, m = 1] = ciclo.split("-").map(Number);
   const prox = new Date(a, m, 1);
   return `${prox.getFullYear()}-${String(prox.getMonth() + 1).padStart(2, "0")}`;
 }
@@ -116,14 +145,14 @@ export function cicloDaReceita(iso: string, diaVirada?: number | null, aPartirDo
 /** Competência (AAAA-MM) em que a data cai, pelo dia de virada. */
 function competenciaDaData(iso: string, diaVirada?: number | null): string {
   const d = diaVirada && diaVirada >= 2 && diaVirada <= 28 ? diaVirada : 1;
-  const [a, m, dia] = iso.split("-").map(Number);
+  const [a = 1970, m = 1, dia = 1] = iso.split("-").map(Number);
   if (dia >= d) return `${a}-${String(m).padStart(2, "0")}`;
   const ant = new Date(a, m - 2, 1);
   return `${ant.getFullYear()}-${String(ant.getMonth() + 1).padStart(2, "0")}`;
 }
 
 export function calcularPrevisaoMes(
-  dados: { despesas: any[]; receitas: any[]; faturas: any[]; cotacao: any },
+  dados: { despesas: any[]; receitas: any[]; faturas: any[]; cotacao: any; cartoes?: any[] },
   mes: string,
   metaPoupar = 0,
   diaVirada?: number | null,
@@ -164,6 +193,46 @@ export function calcularPrevisaoMes(
     const i = indice.get(String(p.vencimento ?? "").slice(0, 10));
     if (i) sai[i] += v(p);
   }
+  // 03/11/2026: fatura de cartão ainda aberta (fechamento no futuro) e sem total informado em "Fatura do mês":
+  // entra pela média das últimas faturas do cartão, no lugar do que já foi lançado. Quando o usuário informa o
+  // total, ou a fatura fecha, vale o valor real. A estimativa só existe com pelo menos 2 faturas no histórico.
+  const estimativas: EstimativaFatura[] = [];
+  if (!encerrado && Array.isArray(dados.cartoes)) {
+    const noCiclo = new Set(datas);
+    const soma = (lista: any[], dias: Set<string>) =>
+      lista.reduce((s, p) => (dias.has(String(p.vencimento ?? "").slice(0, 10)) ? s + v(p) : s), 0);
+    for (const c of dados.cartoes as any[]) {
+      if (c.tipo && c.tipo !== "credito") continue;
+      if (faturas.some((f) => f.cartao_id === c.id && f.competencia === mes && f.modo_calculo === "somente_total")) continue;
+      const doCartao = (parcelas as any[]).filter((p) => p.despesa?.cartao_id === c.id && p.despesa?.direcao !== "credito");
+      const noPeriodo = doCartao.filter((p) => noCiclo.has(String(p.vencimento ?? "").slice(0, 10)));
+      const real = soma(doCartao, noCiclo);
+      // Todas as faturas do cartão neste ciclo já fecharam (ou estão pagas): vale o real.
+      const vencs = [...new Set(noPeriodo.map((p) => String(p.vencimento).slice(0, 10)))];
+      const abertas = vencs.length === 0 || vencs.some((venc) => hojeIso <= fechamentoDaFatura(venc, c.dia_fechamento));
+      if (!abertas) continue;
+      if (noPeriodo.length > 0 && noPeriodo.every((p) => p.paga)) continue;
+      const hist: number[] = [];
+      for (let i = 1; i <= 3; i++) {
+        const s = soma(doCartao, new Set(datasDoCiclo(somarMeses(mes, -i), diaVirada)));
+        if (s > 0) hist.push(s);
+      }
+      if (hist.length < 2) continue;
+      const media = hist.reduce((a, b) => a + b, 0) / hist.length;
+      const extra = media - real;
+      if (extra < 1) continue;
+      const dia = Number(c.dia_vencimento) || 0;
+      const posicao = datas.findIndex((d) => Number(d.slice(8, 10)) === dia);
+      sai[(posicao >= 0 ? posicao : datas.length - 1) + 1] += extra;
+      estimativas.push({
+        cartaoId: String(c.id),
+        nome: `${c.apelido ?? c.bandeira ?? "Cartão"}${c.final ? ` •${c.final}` : ""}`,
+        real: r2(real),
+        media: r2(media),
+        extra: r2(extra),
+      });
+    }
+  }
   // Ritmo dos variáveis: ciclo vigente até hoje (também usado para projetar ciclos futuros).
   const cicloHoje = datasDoCiclo(competenciaDaData(hojeIso, diaVirada), diaVirada);
   const diaRitmo = Math.max(1, cicloHoje.indexOf(hojeIso) + 1);
@@ -177,5 +246,6 @@ export function calcularPrevisaoMes(
   }
   const ritmoDiario = gastoVarAteHoje / diaRitmo;
   const rotulos = datas.map((d) => Number(d.slice(8, 10)));
-  return projetarMes({ diasNoMes, diaHoje, entradas: ent, saidas: sai, ritmoDiario, meta: metaPoupar, encerrado, rotulos });
+  const base = projetarMes({ diasNoMes, diaHoje, entradas: ent, saidas: sai, ritmoDiario, meta: metaPoupar, encerrado, rotulos });
+  return { ...base, estimativas, estimadoTotal: r2(estimativas.reduce((s, e) => s + e.extra, 0)) };
 }
