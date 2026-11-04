@@ -958,11 +958,13 @@ function DespesasPage() {
       const label = d.cartoes
         ? `${formatarNomeExibicao(d.cartoes.apelido || d.cartoes.bandeira || "Cartão")} •${d.cartoes.final ?? ""} · ${primeiroNome(d.cartoes.titular)}`
         : (ehRecorrenteFora ? "Recorrente fora do cartão" : "Sem atribuição");
-      const cor = d.cartoes?.cor ?? "var(--muted-foreground)";
-      const banco = String(d.bancos?.nome ?? d.banco_nome ?? d.cartoes?.apelido ?? "");
+      // Recorrente fora do cartão: cor sólida, sem logo de banco nem ícone (pedido do usuário).
+      const cor = ehRecorrenteFora ? "#64748b" : (d.cartoes?.cor ?? "var(--muted-foreground)");
+      const banco = ehRecorrenteFora ? "" : String(d.bancos?.nome ?? d.banco_nome ?? d.cartoes?.apelido ?? "");
       const g = mapa.get(key) ?? { key, label, cor, banco, itens: [] as any[], total: 0 };
       g.itens.push(d);
-      if (!idsIgnoradosPorTotal.has(d.id)) {
+      // Economia conquistada não soma no total do mês (mesma regra do cabeçalho e da previsão).
+      if (!idsIgnoradosPorTotal.has(d.id) && !d.economia_conquistada) {
         g.total += toBRL(valorVisivel(d), d.moeda, cotacao);
       }
       mapa.set(key, g);
@@ -1466,6 +1468,8 @@ function DespesasPage() {
                 >
                   {grupo.banco ? (
                     <IconeBanco nome={grupo.banco} className="size-8 rounded-lg" />
+                  ) : grupo.key === "recorrente_fora" ? (
+                    <div className="size-8 shrink-0 rounded-lg" style={{ backgroundColor: grupo.cor }} />
                   ) : (
                     <div
                       className="flex size-8 shrink-0 items-center justify-center rounded-lg"
