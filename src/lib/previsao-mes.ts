@@ -159,6 +159,8 @@ export function calcularPrevisaoMes(
     ent[indice.get(iso) ?? 1] += vr(r);
   }
   for (const p of parcelas as any[]) {
+    // Crédito (estorno/reembolso) não é despesa comprometida: fica de fora, como no Despesas.
+    if (p.despesa?.direcao === "credito") continue;
     const i = indice.get(String(p.vencimento ?? "").slice(0, 10));
     if (i) sai[i] += v(p);
   }

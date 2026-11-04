@@ -13,7 +13,8 @@ import { useFinancasProntas } from "@/hooks/useFinancasProntas";
 import { usePrivacidadeValores } from "@/hooks/usePrivacidadeValores";
 import { useCompetenciaVigente } from "@/lib/periodo-vigente";
 import { listarCaixinhas, metaDoMes } from "@/lib/poupar";
-import { calcularPrevisaoMes } from "@/lib/previsao-mes";
+import { calcularPrevisaoMes, datasDoCiclo } from "@/lib/previsao-mes";
+import { monthLabelLong } from "@/lib/format";
 
 /**
  * Card "Previsão do mês" do Início. 27/10/2026: mesma conta e mesmos textos do app
@@ -44,6 +45,12 @@ export function ResumoPrevisaoHome({ mes: mesEscolhido, className }: { mes?: str
       ),
     [despesas, receitas, faturasMes, cotacao, mes, caixinhas, prefs.dia_virada, prefs.receitas_proximo_ciclo_dia],
   );
+  // 03/11/2026: mostra de qual mês/ciclo é a previsão (ex.: outubro = 08/10 a 07/11 com virada no dia 8).
+  const diasCiclo = datasDoCiclo(mes, prefs.dia_virada);
+  const fmtDia = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
+  const subtituloCiclo = diasCiclo.length
+    ? `${monthLabelLong(mes)} · ciclo ${fmtDia(diasCiclo[0]!)} a ${fmtDia(diasCiclo[diasCiclo.length - 1]!)}`
+    : monthLabelLong(mes);
   const serie = p.serie.map((s) => ({
     dia: s.dia,
     rotulo: s.rotulo,
@@ -61,7 +68,10 @@ export function ResumoPrevisaoHome({ mes: mesEscolhido, className }: { mes?: str
   return (
     <Card className={className ?? "mb-4 overflow-hidden border-primary/30"}>
       <CardContent className="space-y-3 p-4 sm:p-5">
-        <p className="text-xs uppercase tracking-wide text-muted-foreground">Previsão do mês</p>
+        <div>
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">Previsão do mês</p>
+          <p className="text-xs text-muted-foreground">{subtituloCiclo}</p>
+        </div>
         {encerrado ? (
           <div>
             <p className={`text-2xl font-bold ${p.finalPrevisto >= p.meta ? "text-emerald-600" : "text-rose-600"}`}>{formatar(p.finalPrevisto)}</p>
