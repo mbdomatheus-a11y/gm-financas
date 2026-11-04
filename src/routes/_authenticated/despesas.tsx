@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { guardarMesSite, mesEscolhidoSite } from "@/lib/mes-escolhido";
+import { guardarMesSite } from "@/lib/mes-escolhido";
+import { usePreferencias } from "@/hooks/usePreferencias";
+import { datasDoCiclo } from "@/lib/previsao-mes";
 import { CampoCategoria } from "@/components/CampoCategoria";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -230,7 +232,16 @@ function DespesasPage() {
   // `mes=todos` na URL (ex.: vindo do card "Dívida total em aberto" do
   // dashboard) abre a página já mostrando a dívida completa, não só a do
   // mês atual.
-  const [filtroMes, setFiltroMes] = useState(search.mes ?? mesEscolhidoSite() ?? competenciaAtual());
+  // 03/11/2026: abre sempre no ciclo vigente (igual ao Início), não no último mês escolhido.
+  const { prefs: prefsCiclo } = usePreferencias();
+  const [filtroMes, setFiltroMes] = useState(search.mes ?? competenciaAtual());
+  const cicloTexto = useMemo(() => {
+    if (filtroMes === "todos") return "";
+    const dias = datasDoCiclo(filtroMes, prefsCiclo.dia_virada);
+    if (!dias.length) return "";
+    const f = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
+    return ` · ciclo ${f(dias[0]!)} a ${f(dias[dias.length - 1]!)}`;
+  }, [filtroMes, prefsCiclo.dia_virada]);
   // 28/10/2026: o mês escolhido fica salvo e vale também em Receitas e Calendário.
   useEffect(() => {
     guardarMesSite(filtroMes);
@@ -1028,7 +1039,7 @@ function DespesasPage() {
   return (
     <AppLayout
       title="Despesas"
-      description={`${lista.length} lançamento(s) · ${formatar(resumo.total)}`}
+      description={`${lista.length} lançamento(s) · ${formatar(resumo.total)}${cicloTexto}`}
       actions={
         <div className="flex items-center gap-2">
           {isSiteAdmin && (
@@ -1083,12 +1094,12 @@ function DespesasPage() {
           { filtro: null, label: "Receitas", valor: formatar(receitaDoFiltro), cor: "text-success", hint: "" },
           {
             filtro: null,
-            label: "Saldo do mês",
+            label: "Receitas − despesas",
             valor: semFiltrosDeLista
               ? `${saldoDoFiltro >= 0 ? "+" : "-"} ${formatar(Math.abs(saldoDoFiltro))}`
               : "—",
             cor: saldoDoFiltro >= 0 ? "text-success" : "text-destructive",
-            hint: semFiltrosDeLista ? "receitas − despesas" : "tire os filtros para ver o saldo",
+            hint: semFiltrosDeLista ? "não desconta caixinhas" : "tire os filtros para ver o saldo",
           },
           { filtro: "pago" as const, label: "Pago", valor: formatar(resumo.pago), cor: "text-success", hint: "" },
           {
