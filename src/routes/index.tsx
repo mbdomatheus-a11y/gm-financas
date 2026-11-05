@@ -471,7 +471,6 @@ function LandingPage() {
             <Link to="/calculadoras" className="inline-flex items-center gap-1.5 text-primary hover:underline">
               <Calculator className="size-4" /> Calculadoras grátis
             </Link>
-            <Link to="/privacidade" className="text-muted-foreground hover:text-foreground">Solicitar exclusão da conta</Link>
           </div>
         </div>
 
