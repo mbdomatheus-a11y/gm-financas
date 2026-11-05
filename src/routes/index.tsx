@@ -1,5 +1,6 @@
 import { AppEmBreve } from "@/components/AppEmBreve";
 import { CarrosselModulos } from "@/components/landing/CarrosselModulos";
+import { VistaExplodida } from "@/components/landing/VistaExplodida";
 import { VitrineDispositivos } from "@/components/landing/VitrineDispositivos";
 import { DestaquesBeta } from "@/components/BetaTestFlight";
 import { BannerOfertaHome } from "@/components/BannerOfertaHome";
@@ -488,6 +489,8 @@ function LandingPage() {
           </div>
         </div>
       </section>
+
+      <VistaExplodida />
 
       {/* App no celular: os destaques de beta saíram do topo e vieram para cá */}
       <section id="app" className="scroll-mt-20 bg-[#0E1A2B] text-white native:hidden">
