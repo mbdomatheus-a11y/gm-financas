@@ -219,9 +219,11 @@ function FaixaBeta({
   evento: string;
   onFechar?: (() => void) | undefined;
 }) {
+  // Visual 04/11/2026: faixa clara e fina (sem gradiente); `fundo` e `corBotao` ficam só por compatibilidade.
+  void fundo;
+  void corBotao;
   const classeBotao = cn(
-    "inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold shadow-sm transition hover:bg-white/90 disabled:opacity-60",
-    corBotao,
+    "inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-full border border-border bg-background px-4 text-sm font-semibold text-foreground transition-colors hover:border-primary/40 hover:bg-muted disabled:opacity-60",
   );
   const conteudoBotao = (
     <>
@@ -229,27 +231,25 @@ function FaixaBeta({
     </>
   );
   return (
-    <section className={cn("native:hidden relative flex-1 overflow-hidden rounded-2xl p-4 text-white shadow-lg", fundo, className)}>
-      <div className="pointer-events-none absolute -right-10 -top-10 size-40 rounded-full bg-white/10 blur-2xl" />
+    <section className={cn("native:hidden relative flex-1 rounded-2xl border border-border/60 bg-card px-4 py-3 shadow-[var(--shadow-card)]", className)}>
       {onFechar && (
         <button
           type="button"
           onClick={onFechar}
           aria-label="Fechar aviso"
-          className="absolute right-2 top-2 z-10 rounded-md p-1 text-white/80 hover:bg-white/15 hover:text-white"
+          className="absolute right-2 top-2 z-10 grid size-8 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
           <X className="size-4" />
         </button>
       )}
-      <div className="relative flex h-full flex-col gap-3 sm:flex-row sm:items-center">
-        <span className="relative flex size-14 shrink-0 items-center justify-center self-start rounded-2xl bg-white shadow-md ring-2 ring-white/60 sm:self-center">
-          <span className="absolute inset-0 animate-ping rounded-2xl bg-white/40 [animation-duration:2.5s]" />
+      <div className="flex h-full flex-col gap-3 sm:flex-row sm:items-center">
+        <span className="flex size-10 shrink-0 items-center justify-center self-start rounded-full bg-muted sm:self-center [&_svg]:size-5">
           {icone}
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-white/75">{selo}</p>
-          <p className="text-base font-semibold leading-snug">{titulo}</p>
-          <p className="text-sm text-white/85">{texto}</p>
+          <p className="text-xs font-medium text-primary">{selo}</p>
+          <p className="text-sm font-semibold leading-snug">{titulo}</p>
+          <p className="line-clamp-2 text-xs text-muted-foreground">{texto}</p>
         </div>
         {onAbrir ? (
           <button

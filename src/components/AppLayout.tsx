@@ -869,7 +869,7 @@ export function AppLayout({
         <AvisoSincronizacaoPluggy />
         <header
           className={cn(
-            "sticky top-0 z-20 border-b border-border bg-background shadow-sm",
+            "sticky top-0 z-20 border-b border-border/60 bg-background/75 backdrop-blur-xl backdrop-saturate-150",
             topMenu && "lg:top-14",
           )}
         >
@@ -891,10 +891,7 @@ export function AppLayout({
               </Button>
             )}
             <div className="min-w-0 flex-1">
-              <h1 className="truncate text-base font-semibold leading-tight sm:text-lg">{title}</h1>
-              {description && (
-                <p className="truncate text-xs text-muted-foreground">{description}</p>
-              )}
+              <p className="truncate text-base font-bold leading-tight tracking-tight lg:hidden">{title}</p>
             </div>
             <div className="flex shrink-0 items-center gap-0.5 sm:gap-2">
               <Button
@@ -979,7 +976,11 @@ export function AppLayout({
             </Button>
           </div>
         )}
-        <main className="mx-auto w-full max-w-7xl px-4 pb-28 pt-6 lg:px-8 lg:pb-10 native:pb-[calc(5.5rem+var(--app-inset-bottom,0px))]">
+        <main data-entrada className="mx-auto w-full max-w-7xl px-4 pb-28 pt-6 lg:px-8 lg:pb-10 lg:pt-10 native:pb-[calc(5.5rem+var(--app-inset-bottom,0px))]">
+          <div className="mb-6 lg:mb-8">
+            <h1 className="text-balance text-2xl font-extrabold leading-tight tracking-[-0.03em] sm:text-3xl lg:text-[2.5rem]">{title}</h1>
+            {description && <p className="mt-1.5 text-sm text-muted-foreground sm:text-base">{description}</p>}
+          </div>
           {rotaAdminBloqueada ? (
             <div className="rounded-md border p-6 text-center text-sm text-muted-foreground">
               Esta área é exclusiva do administrador. Volte à visão admin para acessá-la.

@@ -72,7 +72,7 @@ export function ResumoPrevisaoHome({ mes: mesEscolhido, className }: { mes?: str
 
   return (
     <Card className={className ?? "mb-4 overflow-hidden"}>
-      <CardContent className="space-y-5 p-5 sm:p-6">
+      <CardContent className="space-y-4 p-4 sm:p-5">
         <header className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <h2 className="text-balance text-lg font-bold tracking-tight">Previsão do mês</h2>
@@ -109,14 +109,14 @@ export function ResumoPrevisaoHome({ mes: mesEscolhido, className }: { mes?: str
             <p className="text-sm font-medium text-muted-foreground">
               Saldo final do ciclo{temMeta ? ` (meta de guardar ${formatar(p.meta)})` : ""}
             </p>
-            <p className={`text-4xl font-extrabold tabular-nums tracking-tight ${p.finalPrevisto >= p.meta ? "text-success" : "text-destructive"}`}>
+            <p className={`text-3xl sm:text-4xl font-extrabold tabular-nums tracking-tight ${p.finalPrevisto >= p.meta ? "text-success" : "text-destructive"}`}>
               {formatar(p.finalPrevisto)}
             </p>
           </div>
         ) : semLivre ? (
           <div className="space-y-1">
             <p className="text-sm font-medium text-muted-foreground">Saldo livre do ciclo</p>
-            <p className="text-4xl font-extrabold tabular-nums tracking-tight text-destructive">{formatar(p.saldoLivre)}</p>
+            <p className="text-3xl sm:text-4xl font-extrabold tabular-nums tracking-tight text-destructive">{formatar(p.saldoLivre)}</p>
             <p className="text-sm text-muted-foreground">
               Faltam <b className="font-semibold text-foreground">{formatar(Math.abs(p.saldoLivre))}</b>{" "}
               {temMeta ? "para cobrir as despesas do ciclo e a meta das caixinhas." : "para cobrir as despesas já comprometidas no ciclo."}
@@ -125,7 +125,7 @@ export function ResumoPrevisaoHome({ mes: mesEscolhido, className }: { mes?: str
         ) : (
           <div className="space-y-1">
             <p className="text-sm font-medium text-muted-foreground">Você pode gastar</p>
-            <p className="text-4xl font-extrabold tabular-nums tracking-tight text-success">
+            <p className="text-3xl sm:text-4xl font-extrabold tabular-nums tracking-tight text-success">
               {formatar(p.porDia)} <span className="text-base font-semibold text-muted-foreground">por dia</span>
             </p>
             <p className="text-sm text-muted-foreground">
@@ -136,67 +136,49 @@ export function ResumoPrevisaoHome({ mes: mesEscolhido, className }: { mes?: str
         )}
 
         {!encerrado && (
-          <div className={`flex items-start gap-3 rounded-2xl p-4 ${p.alerta ? "bg-destructive/10" : "bg-success/10"}`}>
-            <span
-              className={`grid size-8 shrink-0 place-items-center rounded-full ${p.alerta ? "bg-destructive/15 text-destructive" : "bg-success/15 text-success"}`}
-            >
-              {p.alerta ? <AlertTriangle className="size-4" /> : <CheckCircle2 className="size-4" />}
+          <p className={`flex items-start gap-2 rounded-xl px-3 py-2 text-sm ${p.alerta ? "bg-destructive/10" : "bg-success/10"}`}>
+            {p.alerta ? <AlertTriangle className="mt-0.5 size-4 shrink-0 text-destructive" /> : <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" />}
+            <span>
+              <b className="font-semibold">
+                {p.alerta
+                  ? `${prefixo}, termina o mês com ${formatar(p.finalPrevisto)}${temMeta && p.finalPrevisto >= 0 ? `, abaixo da meta de ${formatar(p.meta)}` : ""}.`
+                  : `${prefixo}, sobram ${formatar(p.sobraPrevista)}${temMeta ? ` depois de guardar ${formatar(p.meta)}` : " no fim do mês"}.`}
+              </b>{" "}
+              <span className="text-muted-foreground">
+                {p.ritmoDiario > 0 ? `Gastos variáveis: ${formatar(p.ritmoDiario)} por dia.` : "Sem gastos variáveis até agora."}
+              </span>
             </span>
-            <div className="min-w-0 text-sm">
-              {p.alerta ? (
-                <p className="font-semibold text-foreground">
-                  {prefixo}, termina o mês com {formatar(p.finalPrevisto)}
-                  {temMeta && p.finalPrevisto >= 0 ? `, abaixo da meta de ${formatar(p.meta)}` : ""}
-                </p>
-              ) : (
-                <p className="font-semibold text-foreground">
-                  {prefixo}, sobram {formatar(p.sobraPrevista)}
-                  {temMeta ? ` depois de guardar ${formatar(p.meta)}` : " no fim do mês"}
-                </p>
-              )}
-              <p className="mt-0.5 text-muted-foreground">
-                {p.ritmoDiario > 0 ? `Ritmo dos gastos variáveis: ${formatar(p.ritmoDiario)} por dia.` : "Sem gastos variáveis no mês até agora."}
-              </p>
-            </div>
-          </div>
+          </p>
         )}
 
         {p.estimativas.length > 0 && (
-          <section className="rounded-2xl border border-warning/50 bg-warning/10 p-4 text-sm">
-            <div className="flex items-start gap-3">
-              <span className="grid size-8 shrink-0 place-items-center rounded-full bg-warning/25 text-warning-foreground">
-                <Info className="size-4" />
-              </span>
-              <div className="min-w-0 flex-1 space-y-3">
-                <div>
-                  <p className="font-semibold">Inclui {formatar(p.estimadoTotal)} estimados para faturas ainda abertas</p>
-                  <p className="text-muted-foreground">Informe o total da fatura para trocar a estimativa pelo valor certo.</p>
-                </div>
-                <ul className="divide-y divide-border/60 overflow-hidden rounded-xl bg-card/70">
-                  {p.estimativas.map((e) => (
-                    <li key={e.cartaoId} className="flex items-center justify-between gap-3 px-3 py-2">
-                      <div className="min-w-0">
-                        <p className="truncate font-medium">{e.nome}</p>
-                        <p className="text-xs text-muted-foreground">
-                          Média {formatar(e.media)}, lançado {formatar(e.real)}
-                        </p>
-                      </div>
-                      <span className="shrink-0 font-semibold tabular-nums">+{formatar(e.extra)}</span>
-                    </li>
-                  ))}
-                </ul>
-                <FaturaMesDialog
-                  trigger={
-                    <Button size="sm" variant="outline" className="h-9">
-                      Informar total da fatura
-                    </Button>
-                  }
-                />
-              </div>
-            </div>
-          </section>
+          <details className="group rounded-xl bg-warning/10 px-3 py-2 text-sm">
+            <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-2 gap-y-1 [&::-webkit-details-marker]:hidden">
+              <Info className="size-4 shrink-0 text-warning-foreground" aria-hidden />
+              <span className="font-semibold">Inclui {formatar(p.estimadoTotal)} estimados de faturas abertas</span>
+              <span className="text-muted-foreground group-open:hidden">Ver detalhes</span>
+            </summary>
+            <ul className="mt-2 space-y-1">
+              {p.estimativas.map((e) => (
+                <li key={e.cartaoId} className="flex items-center justify-between gap-3">
+                  <span className="min-w-0 truncate">
+                    {e.nome} <span className="text-xs text-muted-foreground">média {formatar(e.media)}, lançado {formatar(e.real)}</span>
+                  </span>
+                  <span className="shrink-0 font-semibold tabular-nums">+{formatar(e.extra)}</span>
+                </li>
+              ))}
+            </ul>
+            <FaturaMesDialog
+              trigger={
+                <Button size="sm" variant="outline" className="mt-2 h-8">
+                  Informar total da fatura
+                </Button>
+              }
+            />
+          </details>
         )}
 
+        <div className="grid gap-4 md:grid-cols-2 md:items-start">
         <dl className="overflow-hidden rounded-2xl border border-border/70 text-sm">
           <Linha rotulo="Receitas do mês" valor={`+${formatar(p.receitas)}`} tom="text-success" />
           <Linha rotulo="Despesas já comprometidas" valor={formatar(-p.comprometido)} />
@@ -205,7 +187,7 @@ export function ResumoPrevisaoHome({ mes: mesEscolhido, className }: { mes?: str
         </dl>
 
         <div className="space-y-2">
-          <div className="h-44 w-full sm:h-52" role="img" aria-label="Gráfico do saldo acumulado dia a dia no ciclo">
+          <div className="h-44 w-full sm:h-48" role="img" aria-label="Gráfico do saldo acumulado dia a dia no ciclo">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={serie} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
@@ -240,6 +222,7 @@ export function ResumoPrevisaoHome({ mes: mesEscolhido, className }: { mes?: str
               <PiggyBank className="size-3.5" /> {temMeta ? "Ver caixinhas" : "Criar uma caixinha"}
             </Link>
           </div>
+        </div>
         </div>
       </CardContent>
     </Card>

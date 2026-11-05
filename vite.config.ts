@@ -3,7 +3,7 @@ import tailwindcss from "@tailwindcss/vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import viteReact from "@vitejs/plugin-react";
 import { nitro } from "nitro/vite";
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 import type { Plugin } from "vite";
 import { arquivoTraduzivel, transformarCodigo } from "./scripts/i18n/transform.ts";
@@ -51,7 +51,19 @@ function versaoDoCommit(): string {
   }
 }
 
-export default defineConfig(({ command }) => ({
+/**
+ * Só no localhost (04/11/2026): as funções de servidor leem process.env (ex.: SUPABASE_SERVICE_ROLE_KEY),
+ * mas o Vite só expõe as VITE_*. Aqui copiamos o .env/.env.local para o process.env sem sobrescrever
+ * o que já existe. Na Vercel (build) nada muda, porque as variáveis já vêm do ambiente.
+ */
+function carregarEnvLocal(mode: string) {
+  const env = loadEnv(mode, process.cwd(), "");
+  for (const [k, v] of Object.entries(env)) if (process.env[k] === undefined) process.env[k] = v;
+}
+
+export default defineConfig(({ command, mode }) => {
+  if (command === "serve") carregarEnvLocal(mode);
+  return {
   plugins: [
     tailwindcss(),
     tsconfigPaths(),
@@ -64,4 +76,5 @@ export default defineConfig(({ command }) => ({
     __APP_VERSION__: JSON.stringify(versaoDoCommit()),
     __APP_BUILD_TIME__: JSON.stringify(new Date().toISOString()),
   },
-}));
+};
+});

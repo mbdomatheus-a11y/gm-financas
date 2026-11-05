@@ -26,9 +26,9 @@ function CookiesPage() {
   return (
     <main className="min-h-screen bg-background text-foreground">
       <SiteHeader />
-      <div className="mx-auto max-w-3xl px-4 py-10">
+      <div className="entrar-surge mx-auto max-w-3xl px-4 py-10 sm:py-16">
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-6 sm:p-10">
             <DocumentoLegalView
               doc={COOKIES}
               depois={

@@ -138,29 +138,38 @@ function LoginPage() {
       <div className="contents native:hidden">
         <SiteHeader />
       </div>
-      <div className="flex-1 flex flex-col items-center justify-center px-4 py-10">
-        <div className="w-full max-w-sm">
-          <Link
-            to="/"
-            className="mb-6 flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground native:hidden"
-          >
-            <ArrowLeft className="size-3.5" /> Voltar pra página inicial
-          </Link>
-
-          <div className="mb-8 flex flex-col items-center text-center">
-            <BrandMark className="mb-4 size-14 rounded-2xl shadow-soft" />
-            <h1 className="text-2xl font-bold tracking-tight">Control ALL</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Entre ou crie sua conta para acessar o painel
+      <div className="flex-1 px-4 py-10 sm:px-8 lg:py-16">
+        <div className="entrar-surge mx-auto grid w-full max-w-6xl items-center gap-10 lg:grid-cols-[1.1fr_minmax(0,26rem)] lg:gap-20">
+          <div className="native:hidden">
+            <Link
+              to="/"
+              className="mb-8 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <ArrowLeft className="size-4" /> Voltar pra página inicial
+            </Link>
+            <p className="text-base font-semibold text-primary">
+              {aba === "criar" ? "Bem-vindo ao Control ALL" : "Control ALL"}
+            </p>
+            <h1 className="mt-3 text-balance text-[2.6rem] font-extrabold leading-[1.02] tracking-[-0.035em] sm:text-6xl lg:text-7xl">
+              {aba === "criar" ? "Saiba quanto sobra no fim do mês." : "Bom te ver de novo."}
+            </h1>
+            <p className="mt-5 max-w-md text-lg leading-relaxed text-muted-foreground">
+              {aba === "criar"
+                ? "Crie sua conta em menos de um minuto. Sem cartão, sem planilha."
+                : "Entre para ver sua previsão do mês, suas contas e suas notas."}
             </p>
           </div>
-
+          <div className="w-full">
+          <div className="mb-6 hidden flex-col items-center text-center native:flex">
+            <BrandMark className="mb-4 size-14 rounded-2xl shadow-soft" />
+            <h1 className="text-2xl font-bold tracking-tight">Control ALL</h1>
+          </div>
           <Tabs value={aba} onValueChange={setAba} className="w-full">
-            <TabsList className="mb-4 grid w-full grid-cols-2">
-              <TabsTrigger value="entrar" className="gap-1.5">
+            <TabsList className="mb-6 grid h-12 w-full grid-cols-2 rounded-full p-1">
+              <TabsTrigger value="entrar" className="h-10 gap-1.5 rounded-full text-sm font-semibold">
                 <LogInIcon className="size-3.5" /> Entrar
               </TabsTrigger>
-              <TabsTrigger value="criar" className="gap-1.5">
+              <TabsTrigger value="criar" className="h-10 gap-1.5 rounded-full text-sm font-semibold">
                 <UserPlus className="size-3.5" /> Criar conta
               </TabsTrigger>
             </TabsList>
@@ -172,6 +181,7 @@ function LoginPage() {
               <CriarContaForm token={search.convite} />
             </TabsContent>
           </Tabs>
+          </div>
         </div>
       </div>
     </main>

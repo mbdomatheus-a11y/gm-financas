@@ -65,7 +65,7 @@ function PrivacidadePage() {
   return (
     <main className="min-h-screen bg-background text-foreground">
       <SiteHeader />
-      <div className="mx-auto max-w-3xl px-4 py-10">
+      <div className="entrar-surge mx-auto max-w-3xl px-4 py-10 sm:py-16">
         <Card>
           <CardContent className="space-y-6 p-6 text-sm leading-6">
             <DocumentoLegalView doc={PRIVACIDADE} />

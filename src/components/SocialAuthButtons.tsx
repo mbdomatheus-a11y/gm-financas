@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
@@ -159,24 +160,24 @@ export function SocialAuthButtons({
         <div className="absolute inset-0 flex items-center">
           <span className="w-full border-t border-border" />
         </div>
-        <div className="relative flex justify-center text-xs uppercase">
-          <span className="bg-card px-2 text-muted-foreground">ou acesse com</span>
+        <div className="relative flex justify-center text-sm">
+          <span className="bg-background px-3 text-muted-foreground">ou continue com</span>
         </div>
       </div>
 
       {navegadorEmbutido && (
-        <p className="rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900">
+        <p className="rounded-xl bg-warning/15 p-3 text-xs text-warning-foreground">
           Você está no navegador de um aplicativo (como o Instagram). O login com Google, Microsoft e Apple
           pode não funcionar aqui. Toque nos três pontinhos e escolha "Abrir no navegador" (Chrome ou
           Safari), ou crie a conta com e-mail e senha.
         </p>
       )}
-      <div className="grid gap-2">
+      <div className="flex flex-wrap gap-2">
         {/* Google */}
         <Button
           type="button"
           variant="outline"
-          className="h-10 w-full justify-center gap-2.5 text-xs font-medium hover:bg-muted/60"
+          className="h-11 min-w-[6.75rem] flex-1 justify-center gap-2 rounded-xl text-sm font-semibold transition-colors hover:bg-muted/60"
           onClick={() => handleOAuth("google")}
           disabled={loadingProvider !== null}
         >
@@ -202,14 +203,14 @@ export function SocialAuthButtons({
               />
             </svg>
           )}
-          <span>{labelPrefix} Google</span>
+          <span><span className="sr-only">{labelPrefix} </span>Google</span>
         </Button>
 
         {/* Microsoft */}
         <Button
           type="button"
           variant="outline"
-          className="h-10 w-full justify-center gap-2.5 text-xs font-medium hover:bg-muted/60"
+          className="h-11 min-w-[6.75rem] flex-1 justify-center gap-2 rounded-xl text-sm font-semibold transition-colors hover:bg-muted/60"
           onClick={() => handleOAuth("azure")}
           disabled={loadingProvider !== null}
         >
@@ -223,7 +224,7 @@ export function SocialAuthButtons({
               <path fill="#ffba08" d="M12 12h10v10H12z" />
             </svg>
           )}
-          <span>{labelPrefix} Microsoft</span>
+          <span><span className="sr-only">{labelPrefix} </span>Microsoft</span>
         </Button>
 
         {/* Apple: só quando o provedor estiver ligado no Supabase */}
@@ -231,7 +232,7 @@ export function SocialAuthButtons({
         <Button
           type="button"
           variant="outline"
-          className="h-10 w-full justify-center gap-2.5 text-xs font-medium hover:bg-muted/60"
+          className="h-11 min-w-[6.75rem] flex-1 justify-center gap-2 rounded-xl text-sm font-semibold transition-colors hover:bg-muted/60"
           onClick={() => handleOAuth("apple")}
           disabled={loadingProvider !== null}
         >
@@ -245,13 +246,12 @@ export function SocialAuthButtons({
               />
             </svg>
           )}
-          <span>{labelPrefix} Apple</span>
+          <span><span className="sr-only">{labelPrefix} </span>Apple</span>
         </Button>
         )}
       </div>
-      <p className="text-center text-[11px] text-muted-foreground">
-        Ao continuar com Google, Microsoft ou Apple você concorda com os Termos de Uso e o Aviso de
-        Privacidade.
+      <p className="text-center text-xs leading-relaxed text-muted-foreground">
+        Ao continuar com Google, Microsoft ou Apple você concorda com os <Link to="/termos-de-uso" className="font-medium text-primary underline-offset-4 hover:underline">Termos de Uso</Link> e o <Link to="/privacidade" className="font-medium text-primary underline-offset-4 hover:underline">Aviso de Privacidade</Link>.
       </p>
     </div>
   );

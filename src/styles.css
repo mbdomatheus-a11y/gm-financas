@@ -273,3 +273,21 @@ html[data-nav="voltar"]::view-transition-new(root) { animation: vt-slide-in-volt
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-old(root), ::view-transition-new(root) { animation: none; }
 }
+
+/* Rework do Início (04/11/2026): entrada única e escalonada dos blocos + transições curtas nos clicáveis. */
+@keyframes entrada-bloco { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: no-preference) {
+  [data-entrada] > * { animation: entrada-bloco 380ms cubic-bezier(.2,.7,.2,1) both; }
+  [data-entrada] > *:nth-child(2) { animation-delay: 60ms; }
+  [data-entrada] > *:nth-child(3) { animation-delay: 120ms; }
+  [data-entrada] > *:nth-child(4) { animation-delay: 180ms; }
+  [data-entrada] > *:nth-child(n+5) { animation-delay: 240ms; }
+  [data-entrada] a, [data-entrada] button, [data-entrada] summary {
+    transition: color 160ms ease, background-color 160ms ease, border-color 160ms ease, box-shadow 200ms ease, transform 200ms ease, opacity 160ms ease;
+  }
+}
+
+/* Entrada (04/11/2026): surgimento único da tela de login/cadastro. */
+@media (prefers-reduced-motion: no-preference) {
+  .entrar-surge { animation: entrada-bloco 480ms cubic-bezier(.2,.7,.2,1) both; }
+}

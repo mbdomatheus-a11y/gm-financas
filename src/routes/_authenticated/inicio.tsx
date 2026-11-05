@@ -10,6 +10,7 @@ import { AssistenteHome } from "@/components/AssistenteHome";
 import { BetaTestFlight } from "@/components/BetaTestFlight";
 import { PerguntaFechamento } from "@/components/PerguntaFechamento";
 import { InstalarAppCartao } from "@/components/retencao/InstalarApp";
+import { useProfile } from "@/hooks/useAuthData";
 
 export const Route = createFileRoute("/_authenticated/inicio")({
   head: () => ({
@@ -23,18 +24,40 @@ export const Route = createFileRoute("/_authenticated/inicio")({
   component: InicioPage,
 });
 
+function saudacao(d: Date) {
+  const h = d.getHours();
+  return h < 12 ? "Bom dia" : h < 18 ? "Boa tarde" : "Boa noite";
+}
+
+/**
+ * Rework do Início (04/11/2026): saudação no topo, conteúdo principal primeiro
+ * (pergunta do fechamento, previsão, sugestões, assistente, atalhos) e os avisos
+ * de novidade (Open Finance, app, beta) agrupados no fim, para não empurrar o resumo para baixo.
+ */
 function InicioPage() {
+  const { data: profile } = useProfile();
+  const primeiroNome = String((profile as any)?.nome ?? "").trim().split(/\s+/)[0] ?? "";
+  const hoje = new Date();
+  const dataLonga = hoje.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" });
   return (
-    <AppLayout title="Início" description="Escolha o que deseja acessar">
+    <AppLayout
+      title={primeiroNome ? `${saudacao(hoje)}, ${primeiroNome}` : saudacao(hoje)}
+      description={dataLonga.charAt(0).toUpperCase() + dataLonga.slice(1)}
+    >
+      <div data-entrada>
       <ModoClienteControle className="mb-4" />
-      <OpenFinanceEmBreve className="mb-4" />
-      <InstalarAppCartao className="mb-4" />
-      <BetaTestFlight className="mb-4" />
       <PerguntaFechamento />
       <ResumoPrevisaoHome />
       <SugestoesEconomia />
       <AssistenteHome />
       <HomeWidgets />
+      <section aria-label="Novidades" className="mt-8 space-y-3">
+        <h2 className="text-base font-bold tracking-tight text-muted-foreground">Novidades</h2>
+        <InstalarAppCartao />
+        <BetaTestFlight />
+        <OpenFinanceEmBreve />
+      </section>
+      </div>
     </AppLayout>
   );
 }

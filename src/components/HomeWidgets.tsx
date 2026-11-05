@@ -64,7 +64,7 @@ import {
 import { cn } from "@/lib/utils";
 
 const CHIP =
-  "rounded-full border px-3 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/10";
+  "inline-flex min-h-8 items-center rounded-full bg-muted px-3 py-1 text-sm font-medium text-foreground transition-colors hover:bg-primary/10 hover:text-primary";
 
 function AreaCard({ id }: { id: AreaId }) {
   const { can, isSiteAdmin } = usePermissoes();
@@ -128,8 +128,8 @@ function AreaCard({ id }: { id: AreaId }) {
     <Card className={cn("lift h-full", soAdminArea && ADMIN_ONLY_CARD)}>
       <CardContent className="flex h-full flex-col gap-4 p-5">
         <Link to={area.to} className="flex items-center gap-4">
-          <div className="bg-primary flex size-12 shrink-0 items-center justify-center rounded-2xl">
-            <Icon className="size-6 text-primary-foreground" aria-hidden="true" />
+          <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-primary/10">
+            <Icon className="size-6 text-primary" aria-hidden="true" />
           </div>
           <div className="min-w-0 flex-1">
             <h2 className="flex flex-wrap items-center gap-2 text-lg font-semibold">
@@ -204,7 +204,7 @@ function AdminBloco() {
   return (
     <Card className={cn("h-full", ADMIN_ONLY_CARD)}>
       <CardContent className="space-y-2 p-4">
-        <h2 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <h2 className="flex items-center gap-2 text-base font-bold tracking-tight">
           Administração <span className={ADMIN_ONLY_TAG}>Só admin</span>
         </h2>
         <div className="grid gap-2 sm:grid-cols-3">

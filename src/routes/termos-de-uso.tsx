@@ -25,9 +25,9 @@ function TermosPage() {
   return (
     <main className="min-h-screen bg-background text-foreground">
       <SiteHeader />
-      <div className="mx-auto max-w-3xl px-4 py-10">
+      <div className="entrar-surge mx-auto max-w-3xl px-4 py-10 sm:py-16">
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-6 sm:p-10">
             <DocumentoLegalView
               doc={TERMOS}
               depois={
@@ -35,7 +35,7 @@ function TermosPage() {
                   <h2 className="text-base font-semibold">Anexo: módulos, dados guardados e quem vê</h2>
                   <div className="space-y-3">
                     {MODULOS_TERMOS.map((m) => (
-                      <div key={m.nome} className="rounded-lg border p-3">
+                      <div key={m.nome} className="rounded-xl border p-4">
                         <h3 className="font-semibold">{m.nome}</h3>
                         <p><span className="text-muted-foreground">O que guarda: </span>{m.guarda}</p>
                         <p><span className="text-muted-foreground">Quem vê: </span>{m.quemVe}</p>

@@ -216,7 +216,7 @@ function ParceriaBloco() {
   const linhas = parceria.slogan ? parceria.slogan.split("\n").filter(Boolean) : [];
   return (
     <section aria-label="Parceria patrocinada" className="mx-auto max-w-3xl px-4 py-8">
-      <p className="mb-1.5 text-center text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+      <p className="mb-1.5 text-center text-xs font-medium text-muted-foreground">
         Patrocinado
       </p>
       <a
@@ -271,9 +271,9 @@ function EconomiaTotalBanner() {
   const valor = data?.economiaTotalExibida;
   if (valor === null || valor === undefined) return null;
   return (
-    <section className="border-b bg-emerald-500/10">
+    <section className="border-b bg-success/10">
       <div className="mx-auto max-w-6xl px-4 py-3 text-center text-sm">
-        <span className="font-semibold text-emerald-700">{formatBRL(valor)}</span>{" "}
+        <span className="font-semibold text-success">{formatBRL(valor)}</span>{" "}
         <span className="text-muted-foreground">
           já economizados por quem usa o Control ALL para ajustar gastos e parcelas.
         </span>
@@ -437,26 +437,23 @@ function LandingPage() {
 
       {/* Hero */}
       <section className="relative overflow-hidden border-b">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,color-mix(in_oklab,var(--foreground)_9%,transparent)_1px,transparent_0)] [background-size:22px_22px] [mask-image:radial-gradient(70%_60%_at_50%_30%,black,transparent)]" />
-        <div className="pointer-events-none absolute -left-24 -top-24 size-[28rem] rounded-full bg-primary/20 blur-3xl" />
-        <div className="pointer-events-none absolute -right-20 top-32 size-96 rounded-full bg-emerald-400/20 blur-3xl" />
         {/* Plano de retenção (2026-10-17): no celular o botão de criar conta aparece na
             primeira tela, com título de benefício curto. Marca animada e selo só do tablet em diante. */}
-        <div className="relative mx-auto grid max-w-6xl grid-cols-1 gap-10 px-4 py-7 sm:py-16 md:grid-cols-[1.1fr_.9fr] md:py-24">
-          <div className="flex min-w-0 flex-col justify-center">
-            <BrandAnimado className="mb-5 hidden sm:flex" />
+        <div className="entrar-surge relative mx-auto grid max-w-5xl grid-cols-1 gap-14 px-4 py-12 text-center sm:py-20 md:py-28">
+          <div className="flex min-w-0 flex-col items-center justify-center">
+            <BrandAnimado className="mb-6 hidden sm:flex" />
 
-            <div className="mb-4 hidden w-fit items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-1 text-xs font-semibold text-emerald-700 sm:inline-flex dark:text-emerald-400">
+            <div className="mb-5 hidden w-fit items-center gap-2 rounded-full bg-muted px-4 py-1.5 text-sm font-medium text-muted-foreground sm:inline-flex">
               <Sparkles className="size-3.5" />
               Finanças, notas fiscais e IA para te ajudar no dia a dia
             </div>
 
-            <h1 className="text-[2.1rem] font-extrabold leading-[1.08] tracking-tight sm:text-5xl lg:text-6xl">
+            <h1 className="max-w-4xl text-balance text-[2.6rem] font-extrabold leading-[1.02] tracking-[-0.045em] sm:text-6xl lg:text-[5.25rem]">
               Saiba quanto sobra no fim do mês,{" "}
               <span className="text-primary">sem planilha.</span>
             </h1>
 
-            <p className="mt-4 max-w-xl text-base leading-7 text-muted-foreground">
+            <p className="mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground sm:text-xl">
               Fale um gasto e a IA lança. Envie a fatura do cartão e veja quando cada parcela acaba.
               <span className="hidden sm:inline">
                 {" "}Notas fiscais e garantias no mesmo lugar, para toda a família.
@@ -464,12 +461,12 @@ function LandingPage() {
               Grátis.
             </p>
 
-            <p className="mt-3 max-w-xl text-sm font-semibold text-foreground sm:text-base">
+            <p className="mt-3 max-w-2xl text-base font-semibold text-foreground">
               Suas finanças e sua casa, tudo num lugar só. Entre com sua conta no app e no site.
             </p>
 
-            <div className="mt-6 flex flex-col gap-3 sm:mt-8 sm:flex-row sm:flex-wrap sm:items-center">
-              <Button asChild size="lg" className="h-12 w-full px-6 text-base font-semibold sm:w-auto sm:text-sm">
+            <div className="mt-8 flex w-full flex-col items-center gap-3 sm:mt-10 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-center">
+              <Button asChild size="lg" className="h-13 w-full px-8 text-base font-bold sm:w-auto">
                 <Link to="/entrar" search={{ criar: true }} onClick={cliqueCadastrar("hero")}>
                   Criar minha conta grátis <ArrowRight className="ml-2 size-4" />
                 </Link>
@@ -494,7 +491,7 @@ function LandingPage() {
             </div>
             <ContadorUsuarios className="mt-4" />
 
-            <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+            <div className="mt-5 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
               <span className="flex items-center gap-1.5">
                 <Check className="size-3.5 text-emerald-600" /> Gratuito
               </span>
@@ -508,13 +505,11 @@ function LandingPage() {
           </div>
 
           {/* Exemplo ilustrativo */}
-          <Card className="rounded-3xl border-primary/20 bg-card/80 shadow-[var(--shadow-soft)] backdrop-blur-md">
-            <CardContent className="flex h-full flex-col space-y-4 p-6">
+          <Card className="mx-auto w-full max-w-2xl rounded-[2rem] border-border/60 bg-card text-left shadow-[0_40px_80px_-40px_color-mix(in_oklab,var(--foreground)_35%,transparent)]">
+            <CardContent className="flex h-full flex-col space-y-4 p-6 sm:p-8">
               <div className="flex items-center justify-between border-b pb-4">
                 <div>
-                  <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Exemplo ilustrativo
-                  </span>
+                  <span className="text-xs font-medium text-muted-foreground">Exemplo ilustrativo</span>
                   <p className="text-base font-bold">Resumo do mês</p>
                 </div>
                 <BrandMark className="size-10 opacity-90" />
@@ -556,7 +551,7 @@ function LandingPage() {
               </div>
 
               <div className="space-y-2 border-t pt-4">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <p className="text-[11px] font-semibold text-muted-foreground">
                   Seus módulos
                 </p>
                 <div className="grid grid-cols-2 gap-2">
@@ -575,7 +570,7 @@ function LandingPage() {
                           <Icon className={cn("size-4 shrink-0", ok ? "text-primary" : "text-muted-foreground")} />
                           <span className="min-w-0 flex-1 truncate font-medium">{titulo}</span>
                           {!ok && (
-                            <span className="shrink-0 text-[9px] font-bold uppercase text-amber-700 dark:text-amber-300">
+                            <span className="shrink-0 text-[11px] font-bold text-amber-700 dark:text-amber-300">
                               Em breve
                             </span>
                           )}
@@ -595,9 +590,9 @@ function LandingPage() {
       <ComoFunciona />
 
       {/* Recursos */}
-      <section id="recursos" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-16">
+      <section id="recursos" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-20 sm:py-28">
         <div className="mb-10 max-w-2xl">
-          <h2 className="text-3xl font-bold tracking-tight">Organização que acompanha a vida real.</h2>
+          <h2 className="text-balance text-4xl font-extrabold leading-[1.04] tracking-[-0.035em] sm:text-5xl lg:text-6xl">Organização que acompanha a vida real.</h2>
         </div>
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {recursos.map(({ icon: Icon, titulo, texto }) => (
@@ -615,10 +610,10 @@ function LandingPage() {
       </section>
 
       {/* Módulos */}
-      <section id="modulos" className="scroll-mt-20 border-y bg-muted/30">
-        <div className="mx-auto max-w-6xl px-4 py-16">
+      <section id="modulos" className="scroll-mt-20 border-y bg-card">
+        <div className="mx-auto max-w-6xl px-4 py-20 sm:py-28">
           <div className="mx-auto mb-12 max-w-2xl text-center">
-            <h2 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
+            <h2 className="text-balance text-4xl font-extrabold leading-[1.04] tracking-[-0.035em] sm:text-5xl lg:text-6xl">
               Use só o que fizer sentido para a sua casa.
             </h2>
             <p className="mt-3 text-sm text-muted-foreground">
@@ -633,7 +628,7 @@ function LandingPage() {
               <Card key={titulo} className={cn("flex flex-col", liberado ? "lift" : "relative opacity-60 grayscale")}>
                 <CardContent className="flex flex-1 flex-col p-5">
                   {!liberado && (
-                    <span className="mb-2 inline-flex w-fit items-center rounded-full bg-amber-500/15 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300">
+                    <span className="mb-2 inline-flex w-fit items-center rounded-full bg-amber-500/15 px-2.5 py-0.5 text-xs font-bold text-amber-700 dark:text-amber-300">
                       Em breve
                     </span>
                   )}
@@ -684,10 +679,10 @@ function LandingPage() {
 
       {/* Demonstração (só aparece quando há vídeo publicado) */}
       {videoUrl && (
-      <section id="demonstracao" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-16">
+      <section id="demonstracao" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-20 sm:py-28">
         <div className="grid items-center gap-8 md:grid-cols-2">
           <div>
-            <h2 className="text-3xl font-bold tracking-tight">Veja antes de decidir.</h2>
+            <h2 className="text-balance text-4xl font-extrabold leading-[1.04] tracking-[-0.035em] sm:text-5xl lg:text-6xl">Veja antes de decidir.</h2>
             <p className="mt-4 text-muted-foreground">
               Uma apresentação rápida com dados fictícios, sem expor informações de ninguém.
             </p>
@@ -715,12 +710,12 @@ function LandingPage() {
       )}
 
       {/* Educação financeira */}
-      <section id="educacao-financeira" className="scroll-mt-20 border-t bg-muted/20">
-        <div className="mx-auto max-w-5xl px-4 py-14">
+      <section id="educacao-financeira" className="scroll-mt-20 border-t">
+        <div className="mx-auto max-w-5xl px-4 py-20 sm:py-28">
           <div className="mb-8 grid items-center gap-8 md:grid-cols-2">
             <IlustracaoFamilia className="mx-auto w-full max-w-md" />
             <div>
-              <h2 className="text-3xl font-bold tracking-tight">
+              <h2 className="text-balance text-4xl font-extrabold leading-[1.04] tracking-[-0.035em] sm:text-5xl lg:text-6xl">
                 Educação financeira para todas as idades.
               </h2>
               <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
@@ -737,14 +732,14 @@ function LandingPage() {
       <SegurancaBloco />
       <FaqBloco />
 
-      <section id="precos" className="scroll-mt-20 border-t bg-primary/5">
-        <div className="mx-auto max-w-6xl px-4 py-16 text-center">
-          <h2 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
+      <section id="precos" className="scroll-mt-20 border-t bg-muted/40">
+        <div className="mx-auto max-w-6xl px-4 py-24 text-center sm:py-32">
+          <h2 className="text-balance text-4xl font-extrabold leading-[1.04] tracking-[-0.035em] sm:text-5xl lg:text-6xl">
             Gratuito para usar.
           </h2>
           <Card className="mx-auto mt-8 max-w-sm border-primary shadow-xl">
             <CardContent className="p-8">
-              <p className="text-sm font-bold uppercase tracking-wider text-primary">Control ALL</p>
+              <p className="text-sm font-bold text-primary">Control ALL</p>
               <p className="mt-3 text-4xl font-extrabold">
                 {formatBRL(0)}
                 <span className="text-base font-normal text-muted-foreground"> / mês</span>
