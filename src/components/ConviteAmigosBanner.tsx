@@ -344,22 +344,101 @@ export function ConviteRapidoBotao({ comTexto = false }: { comTexto?: boolean })
   }
   return (
     <>
-      <button
-        type="button"
+      <BotaoConvidarDiscreto
         onClick={() => {
           registrarEventoUso("botao-convidar-amigos");
           setAberto(true);
         }}
-        aria-label="Convidar amigos"
-        title="Convidar amigos"
-        className="relative inline-flex h-9 items-center gap-1.5 rounded-full bg-gradient-to-r from-fuchsia-500 via-pink-500 to-orange-400 px-3 text-xs font-semibold text-white shadow-md transition hover:brightness-110 active:scale-95"
-      >
-        <Gift className="size-4.5" aria-hidden="true" />
-        <span className="hidden md:inline">Convidar</span>
-        <span className="absolute -right-0.5 -top-0.5 size-2.5 animate-ping rounded-full bg-yellow-300" aria-hidden="true" />
-      </button>
+      />
       <ConviteAmigosDialog open={aberto} onOpenChange={setAberto} />
     </>
+  );
+}
+
+// Brilho ocasional no botão Convidar: chama atenção de vez em quando, sem piscar o tempo todo.
+const CHAVE_BRILHO_CONVITE = "control-all-convite-brilhos";
+const BRILHO_MAX_POR_SESSAO = 3;
+const BRILHO_ATRASO_INICIAL_MS = 4_000;
+const BRILHO_INTERVALO_MS = 45_000;
+const BRILHO_DURACAO_MS = 1_200;
+let brilhosNestaPagina = 0;
+
+function lerBrilhosDaSessao(): number {
+  try {
+    const n = Number(window.sessionStorage.getItem(CHAVE_BRILHO_CONVITE) ?? "0");
+    return Math.max(Number.isFinite(n) ? n : 0, brilhosNestaPagina);
+  } catch {
+    return brilhosNestaPagina;
+  }
+}
+
+function registrarBrilhoDaSessao(n: number) {
+  brilhosNestaPagina = n;
+  try {
+    window.sessionStorage.setItem(CHAVE_BRILHO_CONVITE, String(n));
+  } catch {
+    // Sem sessionStorage: o contador em memória já limita.
+  }
+}
+
+function BotaoConvidarDiscreto({ onClick }: { onClick: () => void }) {
+  const [brilhando, setBrilhando] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    if (lerBrilhosDaSessao() >= BRILHO_MAX_POR_SESSAO) return;
+
+    const timeouts: number[] = [];
+    let intervalo: number | undefined;
+    const parar = () => {
+      if (intervalo !== undefined) window.clearInterval(intervalo);
+      intervalo = undefined;
+    };
+    const disparar = () => {
+      const feitos = lerBrilhosDaSessao();
+      if (feitos >= BRILHO_MAX_POR_SESSAO) {
+        parar();
+        return;
+      }
+      registrarBrilhoDaSessao(feitos + 1);
+      setBrilhando(true);
+      timeouts.push(window.setTimeout(() => setBrilhando(false), BRILHO_DURACAO_MS));
+      if (feitos + 1 >= BRILHO_MAX_POR_SESSAO) parar();
+    };
+    timeouts.push(
+      window.setTimeout(() => {
+        disparar();
+        if (lerBrilhosDaSessao() < BRILHO_MAX_POR_SESSAO) {
+          intervalo = window.setInterval(disparar, BRILHO_INTERVALO_MS);
+        }
+      }, BRILHO_ATRASO_INICIAL_MS),
+    );
+    return () => {
+      timeouts.forEach((t) => window.clearTimeout(t));
+      parar();
+    };
+  }, []);
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label="Convidar amigos"
+      title="Convidar amigos"
+      className="relative inline-flex h-9 items-center justify-center gap-1.5 overflow-hidden rounded-full border border-primary/30 bg-background/60 px-0 text-xs font-semibold text-foreground outline-none transition-colors duration-150 ease-out hover:border-primary/50 hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-primary/50 active:scale-[0.97] max-md:w-9 md:px-3.5"
+    >
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-y-0 left-0 w-full bg-gradient-to-r from-transparent via-white/60 to-transparent dark:via-white/15"
+        style={{
+          transform: brilhando ? "translateX(120%) skewX(-20deg)" : "translateX(-120%) skewX(-20deg)",
+          transition: brilhando ? `transform ${BRILHO_DURACAO_MS}ms cubic-bezier(0.4, 0, 0.2, 1)` : "none",
+        }}
+      />
+      <Gift className="relative size-4 text-primary" aria-hidden="true" />
+      <span className="relative hidden md:inline">Convidar</span>
+    </button>
   );
 }
 

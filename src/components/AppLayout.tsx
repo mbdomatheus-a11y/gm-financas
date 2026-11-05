@@ -644,16 +644,30 @@ export function AppLayout({
           if (!e.defaultPrevented) onNavigate?.();
         }}
         aria-expanded={aberto}
+        aria-current={active ? "page" : undefined}
         className={cn(
-          "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
-          recuo && "ml-4 py-2 text-[13px]",
-          soAdmin && !active && "bg-violet-500/[0.07] text-violet-700 dark:text-violet-300",
+          "group relative flex h-10 shrink-0 items-center gap-3 rounded-lg px-3 text-sm font-medium outline-none transition-colors duration-150 ease-out focus-visible:ring-2 focus-visible:ring-primary/50",
+          recuo && "ml-4 h-9 text-[13px]",
+          soAdmin && !active && "text-violet-700 dark:text-violet-300",
           active
-            ? "bg-primary/10 text-primary shadow-[inset_3px_0_0_var(--brand)]"
-            : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
+            ? "bg-primary/10 font-semibold text-primary"
+            : "text-muted-foreground hover:bg-muted hover:text-foreground",
         )}
       >
-        <Icon className={cn("size-4.5 shrink-0", active && "text-primary")} />
+        {/* Indicador discreto do item ativo (barrinha à esquerda). */}
+        <span
+          aria-hidden="true"
+          className={cn(
+            "absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-full bg-primary transition-opacity duration-200",
+            active ? "opacity-100" : "opacity-0",
+          )}
+        />
+        <Icon
+          className={cn(
+            "size-[18px] shrink-0 transition-colors duration-150",
+            active ? "text-primary" : "text-muted-foreground/80 group-hover:text-foreground",
+          )}
+        />
         <span className="truncate">{rotuloNav(item)}</span>
         {soAdmin && <span className={cn(ADMIN_ONLY_TAG, "ml-auto")}>Admin</span>}
         {aberto !== undefined && (
@@ -667,13 +681,13 @@ export function AppLayout({
   };
 
   const NavLinks = ({ onNavigate }: { onNavigate?: (() => void) | undefined }) => (
-    <nav className="flex flex-1 flex-col gap-1 overflow-y-auto">
+    <nav className="-mx-1 flex flex-1 flex-col gap-0.5 overflow-y-auto px-1">
       <NavLink item={INICIO} onNavigate={onNavigate} />
       <NavLink item={CALENDARIO} onNavigate={onNavigate} />
 
       {areasVisiveis.length > 0 && (
-        <div className="mt-3 flex items-center justify-between px-3">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/70">Áreas</p>
+        <div className="mb-1 mt-5 flex items-center justify-between pl-3 pr-1.5">
+          <p className="text-xs font-medium text-muted-foreground">Áreas</p>
           <button
             type="button"
             onClick={alternarMenusFixos}
@@ -681,8 +695,8 @@ export function AppLayout({
             title={menusFixos ? "Menus fixados abertos: clique para soltar" : "Fixar os menus abertos (alfinete)"}
             aria-label={menusFixos ? "Soltar menus fixados" : "Fixar menus abertos"}
             className={cn(
-              "rounded-md p-1 transition-colors",
-              menusFixos ? "bg-primary/15 text-primary" : "text-muted-foreground/70 hover:bg-muted hover:text-foreground",
+              "rounded-md p-1 outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-primary/50",
+              menusFixos ? "bg-primary/10 text-primary" : "text-muted-foreground/70 hover:bg-muted hover:text-foreground",
             )}
           >
             {/* Alfinete: em pé quando fixado, deitado quando solto. */}
@@ -704,7 +718,7 @@ export function AppLayout({
           .filter(podeVer)
           .filter((i) => i.to !== a.to);
         return (
-          <div key={id} className="flex flex-col gap-1">
+          <div key={id} className="flex flex-col gap-0.5">
             <NavLink
               item={entrada}
               onNavigate={onNavigate}
@@ -728,9 +742,7 @@ export function AppLayout({
         );
       })}
 
-      <p className="mt-3 px-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/70">
-        Geral
-      </p>
+      <p className="mb-1 mt-5 px-3 text-xs font-medium text-muted-foreground">Geral</p>
       {itensGlobais.map((item) => (
         <NavLink key={item.to} item={item} onNavigate={onNavigate} />
       ))}
@@ -739,13 +751,19 @@ export function AppLayout({
   );
 
   const SidebarInner = ({ onNavigate }: { onNavigate?: (() => void) | undefined }) => (
-    <div className="flex h-full flex-col gap-4 p-4">
-      <Link to="/dashboard" onClick={onNavigate} className="flex items-center gap-3 px-2 py-1">
-        <BrandMark className="size-9 rounded-xl" />
+    <div className="flex h-full flex-col gap-3 px-3 py-4">
+      <Link
+        to="/dashboard"
+        onClick={onNavigate}
+        title="Control ALL: você no controle de tudo"
+        className="flex items-center gap-3 rounded-xl px-2 py-1.5 outline-none transition-colors duration-150 hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-primary/50"
+      >
+        <BrandMark className="size-8 shrink-0 rounded-[10px] shadow-sm" />
         <div className="min-w-0">
-          <p className="truncate text-sm font-bold leading-tight">Control ALL</p>
-          <p className="truncate text-[11px] font-medium text-primary">Você no controle de tudo</p>
-          <p className="truncate text-xs text-muted-foreground">{profile?.nome ?? ""}</p>
+          <p className="truncate text-[15px] font-semibold leading-tight tracking-tight">Control ALL</p>
+          <p className="truncate text-xs text-muted-foreground">
+            {profile?.nome || "Você no controle de tudo"}
+          </p>
         </div>
       </Link>
       <OracleQuotaBadge />
@@ -753,11 +771,9 @@ export function AppLayout({
       <Link
         to="/ajustes-app"
         onClick={onNavigate}
-        className="hidden items-center gap-3 rounded-xl border bg-card px-3 py-2.5 text-sm font-medium native:flex"
+        className="hidden h-10 items-center gap-3 rounded-lg px-3 text-sm font-medium text-muted-foreground outline-none transition-colors duration-150 hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/50 native:flex"
       >
-        <span className="flex size-8 items-center justify-center rounded-lg bg-slate-700 text-white">
-          <Settings className="size-4.5" aria-hidden="true" />
-        </span>
+        <Settings className="size-[18px] shrink-0" aria-hidden="true" />
         Ajustes do app
       </Link>
       <NavLinks onNavigate={onNavigate} />
@@ -766,10 +782,10 @@ export function AppLayout({
       <Link
         to="/configuracoes"
         onClick={onNavigate}
-        className="flex items-center gap-3 rounded-xl border bg-card px-3 py-3 text-sm transition-colors hover:bg-muted lg:hidden"
+        className="flex items-center gap-3 rounded-xl bg-muted/50 px-3 py-2.5 text-sm outline-none transition-colors duration-150 hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary/50 lg:hidden"
       >
-        <span className="flex size-9 items-center justify-center rounded-lg bg-slate-600 text-white">
-          <Settings className="size-5" aria-hidden="true" />
+        <span className="flex size-8 items-center justify-center rounded-lg bg-background text-muted-foreground shadow-sm">
+          <Settings className="size-4.5" aria-hidden="true" />
         </span>
         <span className="min-w-0 flex-1">
           <span className="block font-semibold">Configurações</span>
@@ -777,13 +793,15 @@ export function AppLayout({
         </span>
         <ChevronRight className="size-4 text-muted-foreground" aria-hidden="true" />
       </Link>
-      <Button
-        variant="ghost"
-        className="justify-start gap-3 text-muted-foreground"
-        onClick={signOut}
-      >
-        <LogOut className="size-4.5" /> Sair
-      </Button>
+      <div className="border-t border-border/60 pt-2">
+        <Button
+          variant="ghost"
+          className="h-10 w-full justify-start gap-3 rounded-lg px-3 font-medium text-muted-foreground transition-colors duration-150 hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/50"
+          onClick={signOut}
+        >
+          <LogOut className="size-[18px]" aria-hidden="true" /> Sair
+        </Button>
+      </div>
       <VersaoDoApp />
     </div>
   );
@@ -858,7 +876,7 @@ export function AppLayout({
   return (
     <div className="min-h-screen bg-background">
       {!topMenu && (
-        <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 border-r bg-sidebar lg:block">
+        <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 border-r border-border/60 bg-sidebar/80 backdrop-blur-xl backdrop-saturate-150 lg:block">
           <SidebarInner />
         </aside>
       )}
@@ -878,7 +896,7 @@ export function AppLayout({
               <Button
                 variant="ghost"
                 size="sm"
-                className="shrink-0 gap-1.5 px-2"
+                className="h-9 shrink-0 gap-1.5 rounded-full px-2.5 text-muted-foreground transition-colors duration-150 hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/50 sm:pr-3.5"
                 aria-label="Voltar"
                 title="Voltar para a tela anterior"
                 onClick={() => {
@@ -893,26 +911,35 @@ export function AppLayout({
             <div className="min-w-0 flex-1">
               <p className="truncate text-base font-bold leading-tight tracking-tight lg:hidden">{title}</p>
             </div>
-            <div className="flex shrink-0 items-center gap-0.5 sm:gap-2">
+            <div className="flex shrink-0 items-center gap-1">
               <Button
                 variant={ocultarValores ? "default" : "ghost"}
                 size={ocultarValores ? "sm" : "icon"}
-                className={cn(ocultarValores && "gap-1.5 animate-pulse")}
+                className={cn(
+                  "rounded-full transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-primary/50",
+                  ocultarValores
+                    ? "h-9 gap-1.5 px-3 animate-pulse"
+                    : "size-9 text-muted-foreground hover:bg-muted hover:text-foreground",
+                )}
                 onClick={alternarOcultarValores}
                 aria-label={ocultarValores ? "Mostrar valores em R$" : "Ocultar valores em R$"}
                 title={
                   ocultarValores
                     ? "Mostrar valores em R$ (global)"
-                    : "Ocultar valores em R$ (global) — cada caixa também tem seu próprio olho"
+                    : "Ocultar valores em R$ (global): cada caixa também tem seu próprio olho"
                 }
               >
                 {ocultarValores ? <EyeOff className="size-4.5" /> : <Eye className="size-4.5" />}
                 {ocultarValores && <span className="text-xs font-semibold">Mostrar valores</span>}
               </Button>
-              <Button asChild variant="ghost" size="sm" className="hidden gap-1.5 px-2 sm:inline-flex">
+              <Button
+                asChild
+                variant="ghost"
+                size="icon"
+                className="hidden size-9 rounded-full text-muted-foreground transition-colors duration-150 hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/50 sm:inline-flex"
+              >
                 <Link to="/calendario" aria-label="Abrir calendário" title="Calendário">
-                  <CalendarDays className="size-4.5" />
-                  <span className="hidden text-xs font-medium sm:inline">Calendário</span>
+                  <CalendarDays className="size-4.5" aria-hidden="true" />
                 </Link>
               </Button>
               <CalculadoraRapida />

@@ -1,7 +1,9 @@
 import { useNavigate } from "@tanstack/react-router";
-import { Lightbulb, X } from "lucide-react";
+import { Check, Lightbulb, X } from "lucide-react";
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
 
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useCotacao } from "@/hooks/useCotacao";
 import { useDespesas } from "@/hooks/useFinance";
@@ -9,19 +11,20 @@ import { useFinancasProntas } from "@/hooks/useFinancasProntas";
 import { sugerirEconomias } from "@/lib/sugestoes-economia";
 
 const CHAVE = "controlall:sugestoes-dispensadas";
+const CHAVE_REVISADAS = "controlall:sugestoes-revisadas";
 
-function lerDispensadas(): string[] {
+function lerLista(chave: string): string[] {
   try {
-    const v = JSON.parse(localStorage.getItem(CHAVE) ?? "[]");
+    const v = JSON.parse(localStorage.getItem(chave) ?? "[]");
     return Array.isArray(v) ? v.filter((x) => typeof x === "string") : [];
   } catch {
     return [];
   }
 }
 
-function gravarDispensadas(lista: string[]) {
+function gravarLista(chave: string, lista: string[]) {
   try {
-    localStorage.setItem(CHAVE, JSON.stringify(lista.slice(-200)));
+    localStorage.setItem(chave, JSON.stringify(lista.slice(-200)));
   } catch {
     // sem armazenamento: só não lembra
   }
@@ -36,14 +39,15 @@ export function SugestoesEconomia({ className }: { className?: string }) {
   const cotacao = useCotacao();
   const { data: despesas = [] } = useDespesas();
   const navigate = useNavigate();
-  const [dispensadas, setDispensadas] = useState<string[]>(lerDispensadas);
+  const [dispensadas, setDispensadas] = useState<string[]>(() => lerLista(CHAVE));
+  const [revisadas, setRevisadas] = useState<string[]>(() => lerLista(CHAVE_REVISADAS));
 
   const sugestoes = useMemo(
     () =>
       sugerirEconomias(despesas as any[], cotacao)
-        .filter((s) => !dispensadas.includes(s.id))
+        .filter((s) => !dispensadas.includes(s.id) && !revisadas.includes(s.id))
         .slice(0, 4),
-    [despesas, cotacao, dispensadas],
+    [despesas, cotacao, dispensadas, revisadas],
   );
 
   if (!prontas || sugestoes.length === 0) return null;
@@ -51,7 +55,14 @@ export function SugestoesEconomia({ className }: { className?: string }) {
   function dispensar(id: string) {
     const nova = [...dispensadas, id];
     setDispensadas(nova);
-    gravarDispensadas(nova);
+    gravarLista(CHAVE, nova);
+  }
+
+  function marcarRevisada(id: string) {
+    const nova = [...revisadas, id];
+    setRevisadas(nova);
+    gravarLista(CHAVE_REVISADAS, nova);
+    toast.success("Marcado como revisado");
   }
 
   return (
@@ -62,9 +73,9 @@ export function SugestoesEconomia({ className }: { className?: string }) {
           <h2 className="text-base font-bold tracking-tight">Cobranças para revisar</h2>
           <span className="text-xs text-muted-foreground">sugestões automáticas, não é recomendação financeira</span>
         </header>
-        <ul className="divide-y divide-border/70">
+        <ul className="-mx-2 space-y-1">
           {sugestoes.map((s) => (
-            <li key={s.id} className="group flex items-center gap-3 py-2.5">
+            <li key={s.id} className="group flex items-center gap-3 rounded-xl px-2 py-2.5 transition-colors hover:bg-muted/60">
               <button
                 type="button"
                 className="min-w-0 flex-1 rounded-lg text-left transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
@@ -74,10 +85,21 @@ export function SugestoesEconomia({ className }: { className?: string }) {
                 <p className="truncate text-sm font-semibold">{s.titulo}</p>
                 <p className="truncate text-xs text-muted-foreground">{s.texto}</p>
               </button>
-              <span className="shrink-0 text-right text-sm font-semibold tabular-nums">
+              <span className="shrink-0 text-right text-sm font-semibold tabular-nums text-destructive">
                 {s.anual.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
                 <span className="block text-[11px] font-normal text-muted-foreground">por ano</span>
               </span>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-8 shrink-0 gap-1 rounded-full px-3 text-xs"
+                aria-label={`Já revisei: ${s.titulo}`}
+                onClick={() => marcarRevisada(s.id)}
+              >
+                <Check className="size-3.5" aria-hidden />
+                Já revisei
+              </Button>
               <button
                 type="button"
                 aria-label={`Dispensar sugestão: ${s.titulo}`}

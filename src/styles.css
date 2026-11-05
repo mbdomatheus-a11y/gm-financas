@@ -232,12 +232,25 @@
 
 /* Realce de cartão ao passar o mouse, para blocos clicáveis. */
 @utility lift {
-  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
   &:hover {
     transform: translateY(-2px);
-    box-shadow: var(--shadow-soft);
-    border-color: color-mix(in oklab, var(--brand) 35%, var(--border));
+    box-shadow: 0 0 0 1.5px color-mix(in oklab, var(--brand) 40%, transparent), var(--shadow-soft);
+    border-color: color-mix(in oklab, var(--brand) 40%, var(--border));
   }
+}
+
+/* 05/11/2026: o mesmo realce em TODO cartão clicável do site (cartão com link dentro ou dentro de link). */
+[data-card]:has(> a), a > [data-card], a[data-card] {
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+[data-card]:has(> a):hover, a:hover > [data-card], a[data-card]:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 0 1.5px color-mix(in oklab, var(--brand) 40%, transparent), var(--shadow-soft);
+  border-color: color-mix(in oklab, var(--brand) 40%, var(--border));
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-card]:has(> a):hover, a:hover > [data-card], a[data-card]:hover { transform: none; }
 }
 
 /* Barra de rolagem discreta. */

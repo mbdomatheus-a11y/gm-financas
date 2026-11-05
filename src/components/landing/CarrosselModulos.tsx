@@ -77,11 +77,19 @@ export function CarrosselModulos({ itens }: { itens: readonly Item[] }) {
                 style={{
                   transform: `translate(-50%, -50%) translate3d(calc(${x} * ${raio}), 0, calc(${z} * ${raio} - ${raio})) scale(${escala})`,
                   zIndex: Math.round((z + 1) * 50),
-                  opacity: 0.35 + (z + 1) * 0.325,
+                  opacity: 0.45 + (z + 1) * 0.275,
                   transition: suave ? "transform 600ms cubic-bezier(.2,.7,.2,1), opacity 600ms" : undefined,
                 }}
               >
-                <article className="flex h-[340px] flex-col rounded-[2rem] border border-white/50 bg-white/55 p-7 shadow-[0_30px_60px_-30px_rgba(14,26,43,0.35)] backdrop-blur-2xl backdrop-saturate-150 dark:border-white/10 dark:bg-white/[0.07]">
+                <article
+                  className="relative isolate flex h-[340px] flex-col overflow-hidden rounded-[2rem] border border-white/60 p-7 shadow-[0_30px_60px_-30px_rgba(14,26,43,0.35)] backdrop-blur-2xl backdrop-saturate-150 dark:border-white/10"
+                >
+                  {/* fundo: sólido na frente, vidro nos de trás */}
+                  <span
+                    aria-hidden="true"
+                    className="absolute inset-0 -z-10 bg-card"
+                    style={{ opacity: z > 0.55 ? 0.97 : 0.35 + Math.max(z, -1) * 0.25 + 0.25 }}
+                  />
                   <span className="grid size-12 place-items-center rounded-full bg-primary/10 text-primary">
                     <Icon className="size-6" />
                   </span>
