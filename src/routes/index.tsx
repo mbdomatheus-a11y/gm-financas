@@ -1,5 +1,4 @@
 import { AppEmBreve } from "@/components/AppEmBreve";
-import { VitrineDispositivos } from "@/components/landing/VitrineDispositivos";
 import { DestaquesBeta } from "@/components/BetaTestFlight";
 import { BannerOfertaHome } from "@/components/BannerOfertaHome";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
@@ -272,9 +271,14 @@ function EconomiaTotalBanner() {
   const valor = data?.economiaTotalExibida;
   if (valor === null || valor === undefined) return null;
   return (
-    <p className="text-sm text-muted-foreground sm:text-base">
-      <b className="font-semibold text-foreground">{formatBRL(valor)}</b> já economizados por quem usa o Control ALL
-    </p>
+    <section className="border-b bg-success/10">
+      <div className="mx-auto max-w-6xl px-4 py-3 text-center text-sm">
+        <span className="font-semibold text-success">{formatBRL(valor)}</span>{" "}
+        <span className="text-muted-foreground">
+          já economizados por quem usa o Control ALL para ajustar gastos e parcelas.
+        </span>
+      </div>
+    </section>
   );
 }
 
@@ -426,80 +430,157 @@ function LandingPage() {
       />
       <BannerOfertaHome />
       <SiteHeader home />
+      <div className="mx-auto max-w-6xl px-4 pt-4">
+        <DestaquesBeta />
+      </div>
+      <EconomiaTotalBanner />
 
-      {/* Hero (rework 04/11/2026, estrutura do protótipo aprovado) */}
-      <section className="relative overflow-hidden">
-        <div className="entrar-surge mx-auto flex max-w-5xl flex-col items-center px-5 pb-16 pt-14 text-center sm:pb-20 sm:pt-24">
-          <BrandAnimado className="mb-6 hidden sm:flex" />
-          <p className="text-base font-semibold text-primary sm:hidden">Control ALL</p>
-          <h1 className="mt-2 max-w-4xl text-balance text-[3rem] font-extrabold leading-[0.98] tracking-[-0.05em] sm:text-7xl lg:text-[6.5rem]">
-            Quanto sobra.
-            <br />
-            <span className="text-primary">Sem planilha.</span>
-          </h1>
-          <p className="mt-7 max-w-2xl text-pretty text-lg leading-relaxed text-muted-foreground sm:text-2xl sm:leading-snug">
-            Fale um gasto e a IA lança. Envie a fatura e veja quando cada parcela acaba. Notas fiscais e garantias no mesmo lugar, para toda a família. Grátis.
-          </p>
-          <div className="mt-10 flex w-full flex-col items-center gap-3 sm:w-auto sm:flex-row">
-            <Button asChild size="lg" className="h-14 w-full px-9 text-base font-bold sm:w-auto">
-              <Link to="/entrar" search={{ criar: true }} onClick={cliqueCadastrar("hero")}>
-                Criar conta grátis
-              </Link>
-            </Button>
-            {videoUrl ? (
-              <Button asChild size="lg" variant="outline" className="h-14 w-full border-primary px-9 text-base text-primary sm:w-auto">
-                <a href="#demonstracao">
-                  <PlayCircle className="mr-1 size-5" /> Ver demonstração
-                </a>
+      {/* Hero */}
+      <section className="relative overflow-hidden border-b">
+        {/* Plano de retenção (2026-10-17): no celular o botão de criar conta aparece na
+            primeira tela, com título de benefício curto. Marca animada e selo só do tablet em diante. */}
+        <div className="entrar-surge relative mx-auto grid max-w-5xl grid-cols-1 gap-14 px-4 py-12 text-center sm:py-20 md:py-28">
+          <div className="flex min-w-0 flex-col items-center justify-center">
+            <BrandAnimado className="mb-6 hidden sm:flex" />
+
+            <div className="mb-5 hidden w-fit items-center gap-2 rounded-full bg-muted px-4 py-1.5 text-sm font-medium text-muted-foreground sm:inline-flex">
+              <Sparkles className="size-3.5" />
+              Finanças, notas fiscais e IA para te ajudar no dia a dia
+            </div>
+
+            <h1 className="max-w-4xl text-balance text-[2.6rem] font-extrabold leading-[1.02] tracking-[-0.045em] sm:text-6xl lg:text-[5.25rem]">
+              Saiba quanto sobra no fim do mês,{" "}
+              <span className="text-primary">sem planilha.</span>
+            </h1>
+
+            <p className="mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground sm:text-xl">
+              Fale um gasto e a IA lança. Envie a fatura do cartão e veja quando cada parcela acaba.
+              <span className="hidden sm:inline">
+                {" "}Notas fiscais e garantias no mesmo lugar, para toda a família.
+              </span>{" "}
+              Grátis.
+            </p>
+
+            <p className="mt-3 max-w-2xl text-base font-semibold text-foreground">
+              Suas finanças e sua casa, tudo num lugar só. Entre com sua conta no app e no site.
+            </p>
+
+            <div className="mt-8 flex w-full flex-col items-center gap-3 sm:mt-10 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-center">
+              <Button asChild size="lg" className="h-13 w-full px-8 text-base font-bold sm:w-auto">
+                <Link to="/entrar" search={{ criar: true }} onClick={cliqueCadastrar("hero")}>
+                  Criar minha conta grátis <ArrowRight className="ml-2 size-4" />
+                </Link>
               </Button>
-            ) : (
-              <Button asChild size="lg" variant="outline" className="h-14 w-full border-primary px-9 text-base text-primary sm:w-auto">
-                <a href="#como-funciona">Ver como funciona</a>
-              </Button>
-            )}
-          </div>
-          <div className="mt-7 flex flex-col items-center gap-2">
-            <EconomiaTotalBanner />
-            <ContadorUsuarios />
-          </div>
-          <div className="mt-4 flex flex-wrap items-center justify-center gap-x-5 gap-y-1 text-sm text-muted-foreground">
-            <span className="flex items-center gap-1.5"><Check className="size-4 text-success" /> Gratuito</span>
-            <span className="flex items-center gap-1.5"><Check className="size-4 text-success" /> Cadastro rápido</span>
-            <span className="flex items-center gap-1.5"><Check className="size-4 text-success" /> Dados só seus</span>
-          </div>
-          <div className="mt-5 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm font-medium">
-            <Link to="/calculadoras" className="inline-flex items-center gap-1.5 text-primary hover:underline">
-              <Calculator className="size-4" /> Calculadoras grátis
-            </Link>
-            <Link to="/privacidade" className="text-muted-foreground hover:text-foreground">Solicitar exclusão da conta</Link>
-          </div>
-        </div>
+              <div className="flex gap-3">
+                {videoUrl && (
+                  <Button asChild size="lg" variant="outline" className="h-12 flex-1 px-5 text-sm sm:flex-none">
+                    <a href="#demonstracao">
+                      <PlayCircle className="mr-2 size-4 text-primary" /> Ver demonstração
+                    </a>
+                  </Button>
+                )}
+                <Button asChild size="lg" variant="ghost" className="h-12 flex-1 px-5 text-sm sm:flex-none">
+                  <Link to="/calculadoras">
+                    <Calculator className="mr-2 size-4 text-primary" /> Calculadoras
+                  </Link>
+                </Button>
+                <Button asChild size="lg" variant="ghost" className="h-12 flex-1 px-5 text-sm text-muted-foreground sm:flex-none">
+                  <Link to="/privacidade">Solicitar exclusão da conta</Link>
+                </Button>
+              </div>
+            </div>
+            <ContadorUsuarios className="mt-4" />
 
-        {/* Vitrine: o produto no notebook, no iPhone e no Android (dados de exemplo) */}
-        <div className="px-4 pb-24 sm:pb-32">
-          <VitrineDispositivos />
-          <div className="mx-auto mt-10 flex max-w-4xl flex-wrap justify-center gap-2">
-            {modulos
-              .filter((m) => m.titulo !== "Calculadoras gratuitas" && moduloLiberado(m.titulo))
-              .map(({ icon: Icon, titulo }) => (
-                <span key={titulo} className="inline-flex items-center gap-1.5 rounded-full bg-muted px-3.5 py-1.5 text-sm text-muted-foreground">
-                  <Icon className="size-4" /> {titulo}
-                </span>
-              ))}
+            <div className="mt-5 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+              <span className="flex items-center gap-1.5">
+                <Check className="size-3.5 text-emerald-600" /> Gratuito
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Check className="size-3.5 text-emerald-600" /> Cadastro rápido
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Check className="size-3.5 text-emerald-600" /> Dados só seus
+              </span>
+            </div>
           </div>
-        </div>
-      </section>
 
-      {/* App no celular: os destaques de beta saíram do topo e vieram para cá */}
-      <section id="app" className="scroll-mt-20 bg-[#0E1A2B] text-white native:hidden">
-        <div className="mx-auto max-w-5xl px-5 py-20 text-center sm:py-28">
-          <h2 className="text-balance text-4xl font-extrabold leading-[1.04] tracking-[-0.035em] sm:text-6xl">
-            No iPhone, no Android e no computador.
-          </h2>
-          <p className="mx-auto mt-5 max-w-xl text-lg text-white/70">Uma conta, os mesmos dados em todo lugar. O app está em teste aberto.</p>
-          <div className="mx-auto mt-10 max-w-4xl text-left text-foreground">
-            <DestaquesBeta />
-          </div>
+          {/* Exemplo ilustrativo */}
+          <Card className="mx-auto w-full max-w-2xl rounded-[2rem] border-border/60 bg-card text-left shadow-[0_40px_80px_-40px_color-mix(in_oklab,var(--foreground)_35%,transparent)]">
+            <CardContent className="flex h-full flex-col space-y-4 p-6 sm:p-8">
+              <div className="flex items-center justify-between border-b pb-4">
+                <div>
+                  <span className="text-xs font-medium text-muted-foreground">Exemplo ilustrativo</span>
+                  <p className="text-base font-bold">Resumo do mês</p>
+                </div>
+                <BrandMark className="size-10 opacity-90" />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3.5">
+                  <p className="text-xs text-muted-foreground">Receitas</p>
+                  <p className="text-lg font-bold text-emerald-700 dark:text-emerald-400">R$ 8.240,00</p>
+                </div>
+                <div className="rounded-xl border border-primary/20 bg-primary/10 p-3.5">
+                  <p className="text-xs text-muted-foreground">Despesas e parcelas</p>
+                  <p className="text-lg font-bold">R$ 5.190,00</p>
+                </div>
+              </div>
+
+              <div className="space-y-2 rounded-xl border bg-muted/40 p-4 text-xs">
+                <div className="flex items-center gap-2 font-semibold text-primary">
+                  <Sparkles className="size-4" /> Lançar com IA
+                </div>
+                <p className="text-muted-foreground">
+                  Você escreve ou fala: <em>"mercado, 85 reais no cartão"</em>. O assistente monta o
+                  lançamento e você confere antes de salvar.
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between rounded-xl border border-cyan-500/20 bg-cyan-500/10 p-3 text-xs">
+                <div className="flex items-center gap-2 text-cyan-800 dark:text-cyan-300">
+                  <CalendarClock className="size-4 shrink-0" />
+                  <span>Última parcela de uma compra termina este mês</span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between rounded-xl border border-rose-500/20 bg-rose-500/10 p-3 text-xs">
+                <div className="flex items-center gap-2 text-rose-800 dark:text-rose-300">
+                  <ReceiptText className="size-4 shrink-0" />
+                  <span>Garantia de uma nota fiscal termina em 30 dias</span>
+                </div>
+              </div>
+
+              <div className="space-y-2 border-t pt-4">
+                <p className="text-[11px] font-semibold text-muted-foreground">
+                  Seus módulos
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  {modulos
+                    .filter((m) => m.titulo !== "Calculadoras gratuitas" && moduloLiberado(m.titulo))
+                    .map(({ icon: Icon, titulo }) => {
+                      const ok = moduloLiberado(titulo);
+                      return (
+                        <div
+                          key={titulo}
+                          className={cn(
+                            "flex items-center gap-2 rounded-lg border px-2.5 py-2 text-xs",
+                            ok ? "bg-background" : "bg-muted/40 opacity-60",
+                          )}
+                        >
+                          <Icon className={cn("size-4 shrink-0", ok ? "text-primary" : "text-muted-foreground")} />
+                          <span className="min-w-0 flex-1 truncate font-medium">{titulo}</span>
+                          {!ok && (
+                            <span className="shrink-0 text-[11px] font-bold text-amber-700 dark:text-amber-300">
+                              Em breve
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </section>
 

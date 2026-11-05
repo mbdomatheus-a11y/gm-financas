@@ -291,9 +291,3 @@ html[data-nav="voltar"]::view-transition-new(root) { animation: vt-slide-in-volt
 @media (prefers-reduced-motion: no-preference) {
   .entrar-surge { animation: entrada-bloco 480ms cubic-bezier(.2,.7,.2,1) both; }
 }
-
-/* Vitrine de aparelhos da página pública (04/11/2026): entrada única, escalonada. */
-@keyframes vitrine-sobe { from { opacity: 0; transform: translateY(28px) scale(.98); } to { opacity: 1; transform: none; } }
-@media (prefers-reduced-motion: no-preference) {
-  .vitrine-peca { animation: vitrine-sobe 900ms cubic-bezier(.2,.7,.2,1) both; }
-}
