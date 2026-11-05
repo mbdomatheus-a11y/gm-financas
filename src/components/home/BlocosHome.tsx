@@ -14,6 +14,7 @@ const cliqueCadastrar = (origem: string) => () =>
 
 /** Cabeçalho das seções: título e subtítulo (número e rótulo ficam só como dados). */
 function CabecalhoSecao({
+  rotulo,
   titulo,
   subtitulo,
 }: {
@@ -23,9 +24,10 @@ function CabecalhoSecao({
   subtitulo?: string;
 }) {
   return (
-    <div className="mb-8 max-w-2xl">
-      <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">{titulo}</h2>
-      {subtitulo && <p className="mt-3 text-base leading-7 text-muted-foreground">{subtitulo}</p>}
+    <div className="mx-auto mb-14 max-w-3xl text-center">
+      <p className="text-lg font-semibold text-primary">{rotulo}</p>
+      <h2 className="mt-3 text-balance text-4xl font-extrabold leading-[1.02] tracking-[-0.04em] sm:text-6xl">{titulo}</h2>
+      {subtitulo && <p className="mx-auto mt-5 max-w-xl text-lg leading-relaxed text-muted-foreground">{subtitulo}</p>}
     </div>
   );
 }
@@ -52,8 +54,8 @@ export function PerdasInvisiveis() {
   );
   const mes = v.assinaturas + v.impulso + v.juros;
   return (
-    <section id="perdas" className="scroll-mt-20 border-b bg-amber-50/50 dark:bg-muted/20">
-      <div className="mx-auto max-w-6xl px-4 py-14 sm:py-16">
+    <section id="perdas" className="scroll-mt-20 bg-muted/50">
+      <div className="mx-auto max-w-6xl px-4 py-24 sm:py-32">
         <CabecalhoSecao
           numero="01"
           rotulo="Perdas invisíveis"
@@ -68,10 +70,10 @@ export function PerdasInvisiveis() {
               {campo("juros", "Juros e multas", "Atrasos de fatura e boletos")}
             </CardContent>
           </Card>
-          <Card className="border-primary/30 bg-card">
+          <Card className="border-0 bg-background shadow-[0_30px_60px_-30px_rgba(14,26,43,0.3)]">
             <CardContent className="flex h-full flex-col justify-between gap-4 p-5 sm:p-6">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <p className="text-sm font-medium text-muted-foreground">
                   Estimativa de perda por mês
                 </p>
                 <p className="mt-1 text-4xl font-extrabold tracking-tight text-destructive">−{formatBRL(mes)}</p>
@@ -84,7 +86,7 @@ export function PerdasInvisiveis() {
                   Ver onde meu dinheiro vai <ArrowRight className="size-4" />
                 </Link>
               </Button>
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 Estimativa feita por você neste aparelho. Nada é enviado.
               </p>
             </CardContent>
@@ -115,23 +117,17 @@ const PASSOS = [
 
 export function ComoFunciona() {
   return (
-    <section id="como-funciona" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-14 sm:py-16">
+    <section id="como-funciona" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-24 sm:py-32">
       <CabecalhoSecao numero="02" rotulo="Como funciona" titulo="Você faz uma coisa só. A gente cuida do resto." />
       <ol className="grid gap-4 md:grid-cols-3">
         {PASSOS.map(({ icon: Icon, title, description }, i) => (
           <li key={title}>
-            <Card className="h-full">
-              <CardContent className="p-6">
-                <div className="flex items-center gap-3">
-                  <span className="flex size-8 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
-                    {i + 1}
-                  </span>
-                  <Icon className="size-5 text-primary" />
-                </div>
-                <h3 className="mt-4 text-lg font-bold">{title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{description}</p>
-              </CardContent>
-            </Card>
+            <div className="flex h-full flex-col rounded-[2rem] bg-muted/70 p-8">
+              <span className="text-6xl font-extrabold leading-none tracking-[-0.05em] text-primary/25">{i + 1}</span>
+              <Icon className="mt-6 size-6 text-primary" />
+              <h3 className="mt-3 text-xl font-extrabold tracking-[-0.02em]">{title}</h3>
+              <p className="mt-2 text-[15px] leading-relaxed text-muted-foreground">{description}</p>
+            </div>
           </li>
         ))}
       </ol>
@@ -164,8 +160,8 @@ const SEGURANCA = [
 
 export function SegurancaBloco() {
   return (
-    <section id="seguranca" className="scroll-mt-20 border-y bg-muted/30">
-      <div className="mx-auto max-w-6xl px-4 py-14 sm:py-16">
+    <section id="seguranca" className="scroll-mt-20 bg-[#0E1A2B] text-white [&_h2]:text-white [&_p.text-lg]:text-white/70">
+      <div className="mx-auto max-w-6xl px-4 py-24 sm:py-32">
         <CabecalhoSecao
           numero="03"
           rotulo="Segurança"
@@ -173,15 +169,13 @@ export function SegurancaBloco() {
         />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {SEGURANCA.map(({ icon: Icon, title, description }) => (
-            <Card key={title}>
-              <CardContent className="p-5">
-                <div className="flex size-10 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-700 dark:text-emerald-400">
-                  <Icon className="size-5" />
-                </div>
-                <h3 className="mt-3 text-base font-bold">{title}</h3>
-                <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{description}</p>
-              </CardContent>
-            </Card>
+            <div key={title} className="rounded-[2rem] bg-white/[0.06] p-7 ring-1 ring-white/10">
+              <span className="grid size-11 place-items-center rounded-full bg-white/10 text-[#7DB6E8]">
+                <Icon className="size-5" />
+              </span>
+              <h3 className="mt-5 text-lg font-bold text-white">{title}</h3>
+              <p className="mt-2 text-[15px] leading-relaxed text-white/65">{description}</p>
+            </div>
           ))}
         </div>
       </div>
@@ -215,13 +209,13 @@ const PERGUNTAS = [
 
 export function FaqBloco() {
   return (
-    <section id="perguntas" className="mx-auto max-w-3xl scroll-mt-20 px-4 py-14 sm:py-16">
+    <section id="perguntas" className="mx-auto max-w-3xl scroll-mt-20 px-4 py-24 sm:py-32">
       <CabecalhoSecao numero="04" rotulo="Perguntas" titulo="Perguntas frequentes" />
-      <Accordion type="single" collapsible className="rounded-xl border bg-card px-4">
+      <Accordion type="single" collapsible className="border-t">
         {PERGUNTAS.map(({ title, description }) => (
           <AccordionItem key={title} value={title}>
-            <AccordionTrigger className="text-left text-base font-semibold">{title}</AccordionTrigger>
-            <AccordionContent className="text-sm leading-relaxed text-muted-foreground">
+            <AccordionTrigger className="py-6 text-left text-lg font-semibold hover:no-underline">{title}</AccordionTrigger>
+            <AccordionContent className="pb-6 text-base leading-relaxed text-muted-foreground">
               {description}
             </AccordionContent>
           </AccordionItem>

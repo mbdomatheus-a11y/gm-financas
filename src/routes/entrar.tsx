@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { CelularPrevisao } from "@/components/landing/VitrineDispositivos";
 import { lerUrlRetorno, limparUrlRetorno, urlRetornoSegura } from "@/lib/return-url";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -158,6 +159,22 @@ function LoginPage() {
                 ? "Crie sua conta em menos de um minuto. Sem cartão, sem planilha."
                 : "Entre para ver sua previsão do mês, suas contas e suas notas."}
             </p>
+            {/* Celular com a Previsão real do app (dados de exemplo) e avisos flutuando */}
+            <div className="relative mt-12 hidden h-[420px] max-w-lg lg:block" aria-hidden="true">
+              <CelularPrevisao className="absolute left-[18%] top-0 w-[200px] -rotate-[4deg]" />
+              <div className="entrar-flutua absolute left-[52%] top-[8%] w-60 rounded-2xl border border-white/60 bg-white/70 p-3.5 shadow-[0_20px_40px_-20px_rgba(14,26,43,0.35)] backdrop-blur-xl dark:border-white/10 dark:bg-white/10">
+                <p className="text-xs text-muted-foreground">Fatura do cartão</p>
+                <p className="text-sm font-semibold">Fecha em 3 dias: R$ 1.284,50</p>
+              </div>
+              <div className="entrar-flutua absolute left-[58%] top-[40%] w-56 rounded-2xl border border-white/60 bg-white/70 p-3.5 shadow-[0_20px_40px_-20px_rgba(14,26,43,0.35)] backdrop-blur-xl [animation-delay:1.2s] dark:border-white/10 dark:bg-white/10">
+                <p className="text-xs text-muted-foreground">Nota fiscal</p>
+                <p className="text-sm font-semibold">Garantia da TV termina em 30 dias</p>
+              </div>
+              <div className="entrar-flutua absolute left-0 top-[66%] w-52 rounded-2xl border border-white/60 bg-white/70 p-3.5 shadow-[0_20px_40px_-20px_rgba(14,26,43,0.35)] backdrop-blur-xl [animation-delay:2.4s] dark:border-white/10 dark:bg-white/10">
+                <p className="text-xs text-muted-foreground">Previsão do mês</p>
+                <p className="text-sm font-semibold text-success">Sobram R$ 3.100 no fim do ciclo</p>
+              </div>
+            </div>
           </div>
           <div className="w-full">
           <div className="mb-6 hidden flex-col items-center text-center native:flex">

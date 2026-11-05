@@ -1,4 +1,5 @@
 import { AppEmBreve } from "@/components/AppEmBreve";
+import { CarrosselModulos } from "@/components/landing/CarrosselModulos";
 import { VitrineDispositivos } from "@/components/landing/VitrineDispositivos";
 import { DestaquesBeta } from "@/components/BetaTestFlight";
 import { BannerOfertaHome } from "@/components/BannerOfertaHome";
@@ -432,10 +433,9 @@ function LandingPage() {
         <div className="entrar-surge mx-auto flex max-w-5xl flex-col items-center px-5 pb-16 pt-14 text-center sm:pb-20 sm:pt-24">
           <BrandAnimado className="mb-6 hidden sm:flex" />
           <p className="text-base font-semibold text-primary sm:hidden">Control ALL</p>
-          <h1 className="mt-2 max-w-4xl text-balance text-[3rem] font-extrabold leading-[0.98] tracking-[-0.05em] sm:text-7xl lg:text-[6.5rem]">
-            Quanto sobra.
-            <br />
-            <span className="text-primary">Sem planilha.</span>
+          <h1 className="mt-2 max-w-5xl text-balance text-[2.75rem] font-extrabold leading-[0.98] tracking-[-0.05em] sm:text-7xl lg:text-[6rem]">
+            Quanto sobra no fim do mês.
+            <span className="block text-primary">Sem planilha.</span>
           </h1>
           <p className="mt-7 max-w-2xl text-pretty text-lg leading-relaxed text-muted-foreground sm:text-2xl sm:leading-snug">
             Fale um gasto e a IA lança. Envie a fatura e veja quando cada parcela acaba. Notas fiscais e garantias no mesmo lugar, para toda a família. Grátis.
@@ -508,140 +508,103 @@ function LandingPage() {
       <PerdasInvisiveis />
       <ComoFunciona />
 
-      {/* Recursos */}
-      <section id="recursos" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-20 sm:py-28">
-        <div className="mb-10 max-w-2xl">
-          <h2 className="text-balance text-4xl font-extrabold leading-[1.04] tracking-[-0.035em] sm:text-5xl lg:text-6xl">Organização que acompanha a vida real.</h2>
-        </div>
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {recursos.map(({ icon: Icon, titulo, texto }) => (
-            <Card key={titulo} className="lift">
-              <CardContent className="p-6">
-                <div className="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                  <Icon className="size-5" />
-                </div>
-                <h3 className="mt-4 text-base font-bold">{titulo}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{texto}</p>
-              </CardContent>
-            </Card>
+      {/* Recursos: grade de blocos (bento), sem bordas */}
+      <section id="recursos" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-24 sm:py-32">
+        <h2 className="mx-auto max-w-3xl text-balance text-center text-4xl font-extrabold leading-[1.02] tracking-[-0.04em] sm:text-6xl lg:text-7xl">
+          Organização que acompanha a vida real.
+        </h2>
+        <div className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {recursos.map(({ icon: Icon, titulo, texto }, i) => (
+            <article
+              key={titulo}
+              className={cn(
+                "group flex flex-col rounded-[2rem] bg-muted/70 p-8 transition-transform duration-300 hover:-translate-y-1",
+                i === 0 && "sm:col-span-2 lg:row-span-2 lg:justify-end lg:p-10",
+              )}
+            >
+              <span className={cn("grid place-items-center rounded-full bg-background text-primary", i === 0 ? "size-14" : "size-11")}>
+                <Icon className={i === 0 ? "size-7" : "size-5"} />
+              </span>
+              <h3 className={cn("mt-6 font-extrabold tracking-[-0.02em]", i === 0 ? "text-3xl sm:text-4xl" : "text-xl")}>{titulo}</h3>
+              <p className={cn("mt-2 leading-relaxed text-muted-foreground", i === 0 ? "max-w-md text-lg" : "text-[15px]")}>{texto}</p>
+            </article>
           ))}
         </div>
       </section>
 
-      {/* Módulos */}
-      <section id="modulos" className="scroll-mt-20 border-y bg-card">
-        <div className="mx-auto max-w-6xl px-4 py-20 sm:py-28">
-          <div className="mx-auto mb-12 max-w-2xl text-center">
-            <h2 className="text-balance text-4xl font-extrabold leading-[1.04] tracking-[-0.035em] sm:text-5xl lg:text-6xl">
+      {/* Módulos: carrossel 3D de vidro */}
+      <section id="modulos" className="scroll-mt-20 overflow-hidden bg-muted/50">
+        <div className="mx-auto max-w-6xl px-4 py-24 sm:py-32">
+          <div className="mx-auto mb-10 max-w-3xl text-center">
+            <h2 className="text-balance text-4xl font-extrabold leading-[1.02] tracking-[-0.04em] sm:text-6xl lg:text-7xl">
               Use só o que fizer sentido para a sua casa.
             </h2>
-            <p className="mt-3 text-sm text-muted-foreground">
-              Cada módulo é independente. Comece pelas finanças e ative os outros quando precisar.
+            <p className="mx-auto mt-5 max-w-xl text-lg text-muted-foreground">
+              Cada módulo é independente. Comece pelas finanças e ative os outros quando precisar. Arraste para ver todos.
             </p>
           </div>
+          <CarrosselModulos itens={modulos.filter((m) => moduloLiberado(m.titulo))} />
+        </div>
+      </section>
 
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {modulos.filter((m) => moduloLiberado(m.titulo)).map(({ icon: Icon, titulo, texto, detalhes }) => {
-              const liberado = moduloLiberado(titulo);
-              return (
-              <Card key={titulo} className={cn("flex flex-col", liberado ? "lift" : "relative opacity-60 grayscale")}>
-                <CardContent className="flex flex-1 flex-col p-5">
-                  {!liberado && (
-                    <span className="mb-2 inline-flex w-fit items-center rounded-full bg-amber-500/15 px-2.5 py-0.5 text-xs font-bold text-amber-700 dark:text-amber-300">
-                      Em breve
-                    </span>
-                  )}
-                  <div className="mb-3 flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                    <Icon className="size-5" />
-                  </div>
-                  <h3 className="text-base font-bold">{titulo}</h3>
-                  <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">{texto}</p>
-                  <ul className="mt-4 space-y-1.5 border-t pt-3 text-xs text-muted-foreground">
-                    {detalhes.map((d) => (
-                      <li key={d} className="flex items-start gap-2">
-                        <Check className="mt-0.5 size-3.5 shrink-0 text-emerald-600" />
-                        <span>{d}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  {!liberado && (
-                    <p className="mt-3 text-[11px] italic text-muted-foreground">Lançamento em breve</p>
-                  )}
-                </CardContent>
-              </Card>
-              );
-            })}
+      {/* Notas e garantias: faixa inteira */}
+      <section className="overflow-hidden">
+        <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 py-24 sm:py-32 md:grid-cols-2">
+          <div>
+            <p className="text-lg font-semibold text-primary">Notas fiscais e garantias</p>
+            <h2 className="mt-3 text-balance text-4xl font-extrabold leading-[1.02] tracking-[-0.04em] sm:text-6xl">
+              Notas e garantias, sem papel perdido.
+            </h2>
+            <p className="mt-6 max-w-md text-lg leading-relaxed text-muted-foreground">
+              Cadastre a nota, informe o prazo e deixe o Control ALL avisar quando a garantia estiver perto do fim. Tudo aparece também no calendário.
+            </p>
           </div>
-
-          <div className="mt-10 grid items-center gap-8 md:grid-cols-2">
+          <div className="rounded-[2.5rem] bg-muted/70 p-8 sm:p-12">
             <IlustracaoNotas className="mx-auto w-full max-w-sm" />
-            <div>
-              <h3 className="text-xl font-bold">Notas e garantias, sem papel perdido.</h3>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                Cadastre a nota, informe o prazo e deixe o Control ALL avisar quando a garantia estiver
-                perto do fim. Tudo aparece também no calendário.
-              </p>
-            </div>
           </div>
-          <div className="mt-10 grid items-center gap-8 md:grid-cols-2">
-            <div className="order-2 md:order-1">
-              <h3 className="text-xl font-bold">Calendário que mostra o que vem por aí.</h3>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                Faturas com o total, notas lançadas, fim de garantia e itens aprovados da lista de
-                compras, mês a mês.
-              </p>
-            </div>
-            <IlustracaoCalendario className="order-1 mx-auto w-full max-w-sm md:order-2" />
+        </div>
+      </section>
+
+      {/* Calendário: faixa escura */}
+      <section className="bg-[#0E1A2B] text-white">
+        <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 py-24 sm:py-32 md:grid-cols-2">
+          <div className="order-2 rounded-[2.5rem] bg-white p-8 sm:p-12 md:order-1">
+            <IlustracaoCalendario className="mx-auto w-full max-w-sm" />
+          </div>
+          <div className="order-1 md:order-2">
+            <p className="text-lg font-semibold text-[#7DB6E8]">Calendário</p>
+            <h2 className="mt-3 text-balance text-4xl font-extrabold leading-[1.02] tracking-[-0.04em] sm:text-6xl">
+              O que vem por aí, mês a mês.
+            </h2>
+            <p className="mt-6 max-w-md text-lg leading-relaxed text-white/70">
+              Faturas com o total, notas lançadas, fim de garantia e itens aprovados da lista de compras, num só calendário.
+            </p>
           </div>
         </div>
       </section>
 
       {/* Demonstração (só aparece quando há vídeo publicado) */}
       {videoUrl && (
-      <section id="demonstracao" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-20 sm:py-28">
-        <div className="grid items-center gap-8 md:grid-cols-2">
-          <div>
-            <h2 className="text-balance text-4xl font-extrabold leading-[1.04] tracking-[-0.035em] sm:text-5xl lg:text-6xl">Veja antes de decidir.</h2>
-            <p className="mt-4 text-muted-foreground">
-              Uma apresentação rápida com dados fictícios, sem expor informações de ninguém.
-            </p>
-            {!videoUrl && (
-              <Button className="mt-6" variant="outline" disabled>
-                <PlayCircle className="size-4" /> Vídeo de apresentação em breve
-              </Button>
-            )}
-          </div>
-          {videoUrl ? (
-            <Card className="overflow-hidden p-0">
-              <video src={videoUrl} controls preload="metadata" className="aspect-video w-full bg-black" />
-            </Card>
-          ) : (
-            <Card className="border-dashed">
-              <CardContent className="flex min-h-56 flex-col items-center justify-center p-8 text-center">
-                <PlayCircle className="size-11 text-primary" />
-                <b className="mt-3">Demonstração do Control ALL</b>
-                <p className="mt-1 text-sm text-muted-foreground">O vídeo será exibido aqui.</p>
-              </CardContent>
-            </Card>
-          )}
+      <section id="demonstracao" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-24 text-center sm:py-32">
+        <h2 className="text-balance text-4xl font-extrabold leading-[1.02] tracking-[-0.04em] sm:text-6xl lg:text-7xl">Veja antes de decidir.</h2>
+        <p className="mx-auto mt-5 max-w-xl text-lg text-muted-foreground">Uma apresentação rápida com dados fictícios, sem expor informações de ninguém.</p>
+        <div className="mx-auto mt-12 max-w-5xl overflow-hidden rounded-[2rem] bg-black shadow-[0_50px_100px_-40px_rgba(14,26,43,0.55)]">
+          <video src={videoUrl} controls preload="metadata" className="aspect-video w-full" />
         </div>
       </section>
       )}
 
       {/* Educação financeira */}
-      <section id="educacao-financeira" className="scroll-mt-20 border-t">
-        <div className="mx-auto max-w-5xl px-4 py-20 sm:py-28">
-          <div className="mb-8 grid items-center gap-8 md:grid-cols-2">
-            <IlustracaoFamilia className="mx-auto w-full max-w-md" />
-            <div>
-              <h2 className="text-balance text-4xl font-extrabold leading-[1.04] tracking-[-0.035em] sm:text-5xl lg:text-6xl">
-                Educação financeira para todas as idades.
-              </h2>
-              <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-                Crianças, jovens, adultos e idosos podem aprender e usar juntos. Veja dicas práticas
-                para cada fase da vida.
-              </p>
-            </div>
+      <section id="educacao-financeira" className="scroll-mt-20 bg-muted/50">
+        <div className="mx-auto max-w-5xl px-4 py-24 sm:py-32">
+          <div className="mx-auto mb-14 max-w-3xl text-center">
+            <IlustracaoFamilia className="mx-auto mb-10 w-full max-w-sm" />
+            <h2 className="text-balance text-4xl font-extrabold leading-[1.02] tracking-[-0.04em] sm:text-6xl">
+              Educação financeira para todas as idades.
+            </h2>
+            <p className="mx-auto mt-5 max-w-xl text-lg leading-relaxed text-muted-foreground">
+              Crianças, jovens, adultos e idosos podem aprender e usar juntos. Veja dicas práticas para cada fase da vida.
+            </p>
           </div>
           <EducacaoFinanceira />
         </div>
@@ -651,40 +614,31 @@ function LandingPage() {
       <SegurancaBloco />
       <FaqBloco />
 
-      <section id="precos" className="scroll-mt-20 border-t bg-muted/40">
-        <div className="mx-auto max-w-6xl px-4 py-24 text-center sm:py-32">
-          <h2 className="text-balance text-4xl font-extrabold leading-[1.04] tracking-[-0.035em] sm:text-5xl lg:text-6xl">
-            Gratuito para usar.
-          </h2>
-          <Card className="mx-auto mt-8 max-w-sm border-primary shadow-xl">
-            <CardContent className="p-8">
-              <p className="text-sm font-bold text-primary">Control ALL</p>
-              <p className="mt-3 text-4xl font-extrabold">
-                {formatBRL(0)}
-                <span className="text-base font-normal text-muted-foreground"> / mês</span>
-              </p>
-              <p className="mt-2 text-xs text-muted-foreground">Sem cobrança para usar o site.</p>
-              <ul className="mt-6 space-y-2.5 border-y py-4 text-left text-xs text-muted-foreground">
-                {[
-                  "Finanças, notas fiscais e lista de compras",
-                  "Calendário de faturas, garantias e compras",
-                  "Assistente de IA para lançar e resumir gastos",
-                  "Calculadoras e links temporários",
-                  "Seus dados ficam na sua conta",
-                ].map((i) => (
-                  <li className="flex items-center gap-2" key={i}>
-                    <Check className="size-4 shrink-0 text-emerald-600" />
-                    <span>{i}</span>
-                  </li>
-                ))}
-              </ul>
-              <Button asChild size="lg" className="mt-6 w-full font-semibold">
-                <Link to="/entrar" search={{ criar: true }} onClick={cliqueCadastrar("precos")}>
-                  Criar conta grátis
-                </Link>
-              </Button>
-            </CardContent>
-          </Card>
+      <section id="precos" className="scroll-mt-20">
+        <div className="mx-auto max-w-4xl px-4 py-28 text-center sm:py-40">
+          <p className="text-lg font-semibold text-primary">Preço</p>
+          <h2 className="mt-3 text-[4.5rem] font-extrabold leading-none tracking-[-0.06em] sm:text-[8rem]">Grátis.</h2>
+          <p className="mx-auto mt-6 max-w-xl text-xl text-muted-foreground">
+            {formatBRL(0)} por mês. Sem cartão de crédito. Seus dados ficam na sua conta.
+          </p>
+          <ul className="mx-auto mt-10 flex max-w-3xl flex-wrap justify-center gap-2.5">
+            {[
+              "Finanças, notas fiscais e lista de compras",
+              "Calendário de faturas, garantias e compras",
+              "Assistente de IA para lançar e resumir gastos",
+              "Calculadoras e links temporários",
+              "Seus dados ficam na sua conta",
+            ].map((i) => (
+              <li key={i} className="inline-flex items-center gap-2 rounded-full bg-muted px-4 py-2 text-sm">
+                <Check className="size-4 shrink-0 text-success" /> {i}
+              </li>
+            ))}
+          </ul>
+          <Button asChild size="lg" className="mt-12 h-14 px-10 text-base font-bold">
+            <Link to="/entrar" search={{ criar: true }} onClick={cliqueCadastrar("precos")}>
+              Criar conta grátis
+            </Link>
+          </Button>
         </div>
       </section>
 

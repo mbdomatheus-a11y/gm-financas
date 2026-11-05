@@ -297,3 +297,9 @@ html[data-nav="voltar"]::view-transition-new(root) { animation: vt-slide-in-volt
 @media (prefers-reduced-motion: no-preference) {
   .vitrine-peca { animation: vitrine-sobe 900ms cubic-bezier(.2,.7,.2,1) both; }
 }
+
+/* Avisos flutuantes da tela de login (05/11/2026). */
+@keyframes entrar-flutua { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+@media (prefers-reduced-motion: no-preference) {
+  .entrar-flutua { animation: entrar-flutua 6s ease-in-out infinite; }
+}
