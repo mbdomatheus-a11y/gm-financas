@@ -68,7 +68,7 @@ async function enviarArquivoParaAnexos(file: File, criarUploadFn: (args: any) =>
 export const Route = createFileRoute("/_authenticated/suporte")({
   head: () => ({
     meta: [
-      { title: "Suporte — Control ALL" },
+      { title: "Suporte | Control ALL" },
       { name: "description", content: "Central de suporte e acompanhamento de chamados." },
     ],
   }),
@@ -76,11 +76,11 @@ export const Route = createFileRoute("/_authenticated/suporte")({
 });
 
 const STATUS_INFO: Record<string, { label: string; color: string; icon: typeof Clock }> = {
-  recebido: { label: "Recebido", color: "bg-blue-500/10 text-blue-700", icon: Clock },
-  em_atendimento: { label: "Em Atendimento", color: "bg-orange-500/10 text-orange-700", icon: Clock },
-  aguardando_usuario: { label: "Aguardando sua resposta", color: "bg-yellow-500/10 text-yellow-700", icon: AlertCircle },
-  resolvido: { label: "Resolvido", color: "bg-emerald-500/10 text-emerald-700", icon: CheckCircle2 },
-  cancelado: { label: "Cancelado", color: "bg-gray-500/10 text-gray-600", icon: XCircle },
+  recebido: { label: "Recebido", color: "bg-primary/10 text-primary", icon: Clock },
+  em_atendimento: { label: "Em Atendimento", color: "bg-warning/20 text-warning-foreground", icon: Clock },
+  aguardando_usuario: { label: "Aguardando sua resposta", color: "bg-warning text-warning-foreground", icon: AlertCircle },
+  resolvido: { label: "Resolvido", color: "bg-success/10 text-success", icon: CheckCircle2 },
+  cancelado: { label: "Cancelado", color: "bg-muted text-muted-foreground", icon: XCircle },
 };
 
 function SuportePage() {
@@ -193,12 +193,12 @@ function SuportePage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <Headphones className="size-4 text-primary" />
-              Solicitações ao Suporte
+              Novo chamado
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-5">
             {protocolo && (
-              <div className="rounded-lg bg-emerald-500/10 p-3 text-sm text-emerald-700">
+              <div className="rounded-2xl bg-success/10 p-4 text-sm text-success">
                 <p className="font-semibold">Chamado enviado!</p>
                 <p className="mt-1 font-mono text-xs">{protocolo}</p>
                 <p className="mt-1 text-xs">Guarde este protocolo para acompanhar seu chamado.</p>
@@ -222,28 +222,28 @@ function SuportePage() {
                 >
                   Solicitar exclusão da conta
                 </Button>
-                <div className="space-y-1.5">
-                  <Label>Assunto <span className="text-rose-500">*</span></Label>
+                <div className="space-y-2">
+                  <Label>Assunto <span className="text-destructive">*</span></Label>
                   <Input
-                    placeholder="Descreva brevemente seu problema ou dúvida"
+                    placeholder="Resumo do problema ou dúvida"
                     value={assunto}
                     onChange={(e) => setAssunto(e.target.value)}
                     maxLength={120}
                   />
-                  <p className="text-xs text-muted-foreground">{assunto.length}/120 caracteres</p>
+                  <p className="text-xs text-muted-foreground">{assunto.length}/120</p>
                 </div>
-                <div className="space-y-1.5">
-                  <Label>Descrição detalhada <span className="text-rose-500">*</span></Label>
+                <div className="space-y-2">
+                  <Label>Descrição <span className="text-destructive">*</span></Label>
                   <Textarea
-                    placeholder="Descreva com detalhes o que aconteceu, quando e como reproduzir o problema..."
+                    placeholder="O que aconteceu, quando e como reproduzir"
                     value={descricao}
                     onChange={(e) => setDescricao(e.target.value)}
                     rows={6}
                     maxLength={3000}
                   />
-                  <p className="text-xs text-muted-foreground">{descricao.length}/3000 caracteres</p>
+                  <p className="text-xs text-muted-foreground">{descricao.length}/3000</p>
                 </div>
-                <div className="space-y-1.5">
+                <div className="space-y-2">
                   <Label>Prioridade</Label>
                   <Select value={prioridade} onValueChange={(v) => setPrioridade(v as any)}>
                     <SelectTrigger>
@@ -257,7 +257,7 @@ function SuportePage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-1.5">
+                <div className="space-y-2">
                   <Label>Anexo (opcional)</Label>
                   <input
                     ref={arquivoNovoRef}
@@ -277,12 +277,12 @@ function SuportePage() {
                     }}
                   />
                   {arquivoNovo ? (
-                    <div className="flex items-center gap-2 rounded-lg border p-2 text-xs">
+                    <div className="flex items-center gap-2 rounded-xl border p-3 text-xs">
                       <Paperclip className="size-3.5 shrink-0 text-muted-foreground" />
                       <span className="min-w-0 flex-1 truncate">{arquivoNovo.name}</span>
                       <button
                         type="button"
-                        className="text-muted-foreground hover:text-rose-600"
+                        className="text-muted-foreground hover:text-destructive"
                         onClick={() => {
                           setArquivoNovo(null);
                           if (arquivoNovoRef.current) arquivoNovoRef.current.value = "";
@@ -307,6 +307,7 @@ function SuportePage() {
                   </p>
                 </div>
                 <Button
+                  size="lg"
                   className="w-full"
                   disabled={!podeEnviar}
                   onClick={() => enviar.mutate()}
@@ -320,16 +321,16 @@ function SuportePage() {
         </Card>
 
         {/* Lista de chamados */}
-        <div className="space-y-3">
-          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+        <div className="space-y-4">
+          <h2 className="text-base font-semibold">
             Meus chamados
           </h2>
           {isLoading ? (
             <p className="text-sm text-muted-foreground">Carregando…</p>
           ) : meusChamados.length === 0 ? (
             <Card>
-              <CardContent className="p-6 text-center text-sm text-muted-foreground">
-                Você ainda não abriu nenhum chamado.
+              <CardContent className="p-10 text-center text-sm text-muted-foreground">
+                Nenhum chamado ainda.
               </CardContent>
             </Card>
           ) : (
@@ -338,13 +339,13 @@ function SuportePage() {
               const Icon = info?.icon ?? Clock;
               return (
                 <Card key={c.id} className="overflow-hidden">
-                  <CardContent className="p-4 space-y-2">
+                  <CardContent className="space-y-3 p-5">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="font-semibold text-sm truncate">{c.assunto}</p>
                         <p className="text-xs text-muted-foreground font-mono">{c.protocolo?.substring(0, 8)}…</p>
                       </div>
-                      <span className={`flex shrink-0 items-center gap-1 rounded px-2 py-0.5 text-xs font-semibold ${info?.color ?? ""}`}>
+                      <span className={`flex shrink-0 items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${info?.color ?? ""}`}>
                         <Icon className="size-3" />{info?.label ?? c.status}
                       </span>
                     </div>
@@ -359,7 +360,7 @@ function SuportePage() {
                       </button>
                     )}
                     {c.resposta_admin && (
-                      <div className="rounded bg-muted p-2 text-xs">
+                      <div className="rounded-xl bg-muted p-3 text-xs">
                         <span className="font-semibold">Resposta: </span>
                         {c.resposta_admin}
                       </div>
@@ -389,7 +390,7 @@ function SuportePage() {
                         <Button
                           size="sm"
                           variant="ghost"
-                          className="h-7 text-xs text-rose-600 hover:text-rose-700"
+                          className="h-7 text-xs text-destructive hover:text-destructive/80"
                           disabled={cancelar.isPending}
                           onClick={() => {
                             if (
@@ -407,7 +408,7 @@ function SuportePage() {
                     </div>
 
                     {expandidoId === c.id && (
-                      <div className="space-y-2 rounded-lg border bg-muted/30 p-3">
+                      <div className="space-y-2 rounded-2xl bg-muted p-4">
                         {(mensagens as any[]).length === 0 ? (
                           <p className="text-xs text-muted-foreground">Nenhum complemento ainda.</p>
                         ) : (
@@ -437,7 +438,7 @@ function SuportePage() {
 
                         {c.status === "cancelado" ? (
                           <p className="text-xs text-muted-foreground">
-                            Chamado cancelado — não é possível complementar.
+                            Chamado cancelado. Não é possível complementar.
                           </p>
                         ) : (
                           <div className="space-y-2">
@@ -473,7 +474,7 @@ function SuportePage() {
                                   <span className="max-w-32 truncate">{arquivoComplemento.name}</span>
                                   <button
                                     type="button"
-                                    className="text-muted-foreground hover:text-rose-600"
+                                    className="text-muted-foreground hover:text-destructive"
                                     onClick={() => {
                                       setArquivoComplemento(null);
                                       if (arquivoComplementoRef.current) arquivoComplementoRef.current.value = "";

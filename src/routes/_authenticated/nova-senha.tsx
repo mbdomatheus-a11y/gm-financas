@@ -16,9 +16,9 @@ import { useServerFn } from "@tanstack/react-start";
 export const Route = createFileRoute("/_authenticated/nova-senha")({
   head: () => ({
     meta: [
-      { title: "Criar nova senha — Control ALL" },
+      { title: "Criar nova senha | Control ALL" },
       { name: "description", content: "Defina uma nova senha de acesso à sua conta." },
-      { property: "og:title", content: "Criar nova senha — Control ALL" },
+      { property: "og:title", content: "Criar nova senha | Control ALL" },
       { property: "og:description", content: "Defina uma nova senha de acesso à sua conta." },
     ],
   }),
@@ -65,19 +65,17 @@ function NovaSenhaPage() {
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-background px-4 py-10">
+      <div className="w-full max-w-md">
+      <div className="mb-8 space-y-3 text-center">
+        <h1 className="text-4xl font-extrabold tracking-[-0.03em]">Crie sua nova senha</h1>
+        <p className="text-base text-muted-foreground">
+          Troque a senha provisória para continuar.
+        </p>
+      </div>
       <form
         onSubmit={handleSubmit}
-        className="w-full max-w-sm space-y-4 rounded-2xl border bg-card p-6 shadow-card"
+        className="space-y-5 rounded-3xl border bg-card p-8 shadow-card"
       >
-        <div className="flex flex-col items-center text-center">
-          <div className="bg-primary mb-3 flex size-12 items-center justify-center rounded-2xl">
-            <KeyRound className="size-6 text-primary-foreground" />
-          </div>
-          <h1 className="text-xl font-bold">Crie sua nova senha</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Por segurança, é necessário substituir a senha provisória antes de usar o app.
-          </p>
-        </div>
         <div className="space-y-2">
           <Label htmlFor="s1">Nova senha</Label>
           <InputSenha id="s1" autoComplete="new-password" value={senha} onChange={(e) => setSenha(e.target.value)} />
@@ -91,15 +89,16 @@ function NovaSenhaPage() {
             onChange={(e) => setConfirma(e.target.value)}
           />
         </div>
-        <Button type="submit" className="w-full" disabled={loading}>
+        <Button type="submit" size="lg" className="w-full" disabled={loading}>
           {loading && <Loader2 className="mr-2 size-4 animate-spin" />}
           Salvar e continuar
         </Button>
       </form>
+      </div>
       <Button
         type="button"
         variant="ghost"
-        className="fixed right-3 top-3 gap-2 text-muted-foreground"
+        className="fixed right-4 top-4 gap-2 text-muted-foreground"
         onClick={async () => {
           await supabase.auth.signOut();
           navigate({ to: "/entrar", replace: true });

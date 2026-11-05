@@ -55,12 +55,12 @@ export const Route = createFileRoute("/_authenticated/conta")({
     typeof s["conviteGrupo"] === "string" ? { conviteGrupo: s["conviteGrupo"] } : {},
   head: () => ({
     meta: [
-      { title: "Minha conta — Control ALL" },
+      { title: "Minha conta | Control ALL" },
       {
         name: "description",
         content: "Veja seus dados de acesso, altere sua senha e encerre a sessão com segurança.",
       },
-      { property: "og:title", content: "Minha conta — Control ALL" },
+      { property: "og:title", content: "Minha conta | Control ALL" },
       { property: "og:description", content: "Dados de acesso e segurança da sua conta." },
     ],
   }),
@@ -93,14 +93,13 @@ function MeusDadosCard() {
   return (
     <Card className="lg:col-span-2">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-sm">
+        <CardTitle className="flex items-center gap-2 text-base">
           <Download className="size-4" /> Baixar meus dados
         </CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-3 text-sm sm:flex-row sm:items-center sm:justify-between">
         <p className="text-muted-foreground">
-          Receba em um arquivo JSON tudo o que você registrou no grupo: receitas, despesas, cartões, categorias,
-          caixinhas e demais módulos. Você pode guardar o arquivo ou levá-lo para outro serviço.
+          Tudo o que você registrou no grupo, em um arquivo JSON para guardar ou levar a outro serviço.
         </p>
         <Button variant="outline" onClick={baixar} disabled={baixando} className="shrink-0">
           <Download className="size-4" /> {baixando ? "Gerando..." : "Baixar JSON"}
@@ -315,10 +314,10 @@ function ContaPage() {
         onReenviar={() => salvarDados.mutate(undefined)}
         onFechar={() => setCodigoTrocaAberto(false)}
       />
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-2">
         {/* "Minha conta e foto" (28/10/2026): a foto abre em cima, com trocar e remover, e os dados ao lado. */}
         <Card className="lg:col-span-2">
-          <CardContent className="flex flex-col items-center gap-5 py-6 sm:flex-row sm:items-center">
+          <CardContent className="flex flex-col items-center gap-6 p-6 sm:flex-row sm:items-center">
             <AvatarPerfil modo="cartao" tamanho="size-28" />
             <div className="min-w-0 flex-1 space-y-1 text-center sm:text-left">
               <p className="truncate text-xl font-semibold">{(perfil as { nome?: string } | undefined)?.nome || "Minha conta"}</p>
@@ -326,7 +325,7 @@ function ContaPage() {
               {(perfil as { telefone?: string | null } | undefined)?.telefone ? (
                 <p className="text-sm text-muted-foreground">{(perfil as { telefone?: string | null }).telefone}</p>
               ) : null}
-              <p className="pt-1 text-xs text-muted-foreground">Toque na foto para trocar. Os dados você edita logo abaixo.</p>
+              <p className="pt-1 text-xs text-muted-foreground">Toque na foto para trocar.</p>
             </div>
           </CardContent>
         </Card>
@@ -334,12 +333,13 @@ function ContaPage() {
         {conviteGrupo && (
           <Card className="border-primary lg:col-span-2">
             <CardHeader>
-              <CardTitle>Convite para workspace integrado</CardTitle>
+              <CardTitle className="text-base">Convite para workspace integrado</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <p className="text-sm text-muted-foreground">
-                Ao aceitar, você passa a fazer parte do mesmo grupo de quem convidou. A visão dos
-                módulos compartilhados será única para todos os integrantes. Seu workspace atual fica guardado, sem alterações, e volta se você sair do grupo. Se seu workspace atual tiver outras pessoas, a união será bloqueada para protegê-las.
+                Ao aceitar, você entra no grupo de quem convidou e todos passam a ver os mesmos
+                módulos. Seu workspace atual fica guardado e volta se você sair do grupo. Se ele tiver
+                outras pessoas, a união é bloqueada para protegê-las.
               </p>
               <Button onClick={() => confirmarGrupo.mutate()} disabled={confirmarGrupo.isPending}>
                 Aceitar e integrar workspace
@@ -349,17 +349,15 @@ function ContaPage() {
         )}
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm">Meu grupo compartilhado</CardTitle>
+            <CardTitle className="text-base">Meu grupo compartilhado</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <p className="text-xs text-muted-foreground">
-              Convide uma pessoa que já possui conta. Ela verá claramente que o workspace passará a
-              ser único antes de aceitar.
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Convide alguém que já tem conta para dividir o mesmo workspace.
             </p>
-            <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-2 text-xs text-amber-900 dark:text-amber-200">
-              <strong>Atenção:</strong> quem aceitar o convite passa a ver todos os dados desta conta
-              (lançamentos, notas, cartões e demais módulos) e pode alterá-los. Convide só pessoas da
-              sua confiança. Você pode revogar o acesso a qualquer momento abaixo.
+            <p className="rounded-2xl bg-warning/20 p-4 text-xs text-warning-foreground">
+              <strong>Atenção:</strong> quem aceitar vê e pode alterar todos os dados desta conta.
+              Convide só pessoas de confiança. Você pode revogar o acesso a qualquer momento.
             </p>
             <Input
               type="email"
@@ -372,7 +370,7 @@ function ContaPage() {
               disabled={!emailGrupo.includes("@") || enviarConviteGrupo.isPending}
               onClick={() => enviarConviteGrupo.mutate()}
             >
-              Enviar convite para integrar grupo
+              Enviar convite
             </Button>
             <SairDoGrupoCard />
             <MembrosGrupo />
@@ -384,7 +382,7 @@ function ContaPage() {
         {isAdmin && <IaLancamentoModoGrupoCard />}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm">Seus dados cadastrais</CardTitle>
+            <CardTitle className="text-base">Seus dados cadastrais</CardTitle>
             {!editandoDados ? (
               <Button
                 size="sm"
@@ -405,27 +403,27 @@ function ContaPage() {
               </Button>
             )}
           </CardHeader>
-          <CardContent className="space-y-3 text-sm">
+          <CardContent className="space-y-4 text-sm">
             {!editandoDados ? (
               <>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Nome</span>
-                  <span className="font-medium">{perfil?.nome ?? "—"}</span>
+                  <span className="font-medium">{perfil?.nome ?? "Não informado"}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">E-mail</span>
-                  <span className="font-medium">{perfil?.email ?? "—"}</span>
+                  <span className="font-medium">{perfil?.email ?? "Não informado"}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Telefone</span>
-                  <span className="font-medium">{perfil?.telefone ?? "—"}</span>
+                  <span className="font-medium">{perfil?.telefone ?? "Não informado"}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Nascimento</span>
                   <span className="font-medium">
                     {perfil?.data_nascimento
                       ? new Date(perfil.data_nascimento + "T00:00:00").toLocaleDateString("pt-BR")
-                      : "—"}
+                      : "Não informado"}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
@@ -435,21 +433,21 @@ function ContaPage() {
                       {perfil?.cpf ? maskCpf(perfil.cpf) : "Não cadastrado"}
                     </span>
                     {perfil?.cpf ? (
-                      <Badge variant="outline" className="border-success/40 text-[10px] text-success">
+                      <Badge variant="outline" className="border-success/40 text-xs text-success">
                         Login por CPF ativo
                       </Badge>
                     ) : (
-                      <Badge variant="secondary" className="text-[10px]">
+                      <Badge variant="secondary" className="text-xs">
                         Opcional
                       </Badge>
                     )}
                   </div>
                 </div>
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-3">
                   <div>
                     <span className="text-muted-foreground">Jornada mensal de trabalho</span>
-                    <p className="text-[11px] text-muted-foreground">
-                      Base p/ cálculo de valor da hora na Lista de Compras
+                    <p className="text-xs text-muted-foreground">
+                      Base do valor da hora na Lista de Compras
                     </p>
                   </div>
                   <span className="font-medium">
@@ -462,12 +460,12 @@ function ContaPage() {
                     {isAdmin ? "Administrador" : "Usuário comum"}
                   </Badge>
                 </div>
-                <Button variant="outline" className="mt-3 w-full" onClick={sair}>
+                <Button variant="outline" className="mt-2 w-full" onClick={sair}>
                   <LogOut className="size-4" /> Sair da conta
                 </Button>
               </>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-4">
                 <Field label="Nome completo">
                   <Input value={formNome} onChange={(e) => setFormNome(e.target.value)} />
                 </Field>
@@ -499,8 +497,8 @@ function ContaPage() {
                     onChange={(e) => setFormCpf(onlyDigits(e.target.value).slice(0, 11))}
                     placeholder="000.000.000-00 (opcional)"
                   />
-                  <p className="mt-1 text-[11px] text-muted-foreground">
-                    Ao salvar seu CPF, você pode utilizá-lo para acessar sua conta na tela de login.
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Com o CPF salvo, você também pode entrar usando ele.
                   </p>
                 </Field>
                 <Field label="Carga horária mensal de trabalho (horas/mês)">
@@ -512,8 +510,8 @@ function ContaPage() {
                     onChange={(e) => setFormHorasMes(e.target.value)}
                     placeholder="160"
                   />
-                  <p className="mt-1 text-[11px] text-muted-foreground">
-                    Usado para converter o custo de itens da Lista de Compras em tempo de trabalho (padrão: 160h).
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Converte o custo da Lista de Compras em tempo de trabalho (padrão: 160h).
                   </p>
                 </Field>
                 <Button
@@ -530,25 +528,24 @@ function ContaPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-sm">
+            <CardTitle className="flex items-center gap-2 text-base">
               <CalendarClock className="size-4" /> Mês do sistema
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 text-sm">
             <p className="text-muted-foreground">
-              Por padrão, o Dashboard e a Início consideram o mês calendário (1º ao último dia). Se
-              o seu ciclo financeiro não coincide com o calendário — por exemplo, seu cartão fecha
-              todo dia 10 — configure um dia de virada: a partir dele, essas telas já passam a
-              tratar o mês seguinte como "mês atual".
+              Se o seu ciclo não segue o calendário (por exemplo, o cartão fecha no dia 10), defina
+              um dia de virada. A partir dele, o Dashboard e a Início já tratam o mês seguinte como
+              atual.
             </p>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap items-center gap-3">
               <Button
                 type="button"
                 variant={!usarDiaVirada ? "default" : "outline"}
                 size="sm"
                 onClick={() => setUsarDiaVirada(false)}
               >
-                Mês calendário normal
+                Mês calendário
               </Button>
               <Button
                 type="button"
@@ -556,7 +553,7 @@ function ContaPage() {
                 size="sm"
                 onClick={() => setUsarDiaVirada(true)}
               >
-                Dia de virada customizado
+                Dia de virada
               </Button>
             </div>
             {usarDiaVirada && (
@@ -577,14 +574,14 @@ function ContaPage() {
                 {proximaVirada(new Date(), preferencias.dia_virada).toLocaleDateString("pt-BR")}
               </p>
             )}
-            <div className="space-y-2 rounded-lg border p-3">
-              <label className="flex cursor-pointer items-center gap-2 font-medium">
+            <div className="space-y-3 rounded-2xl bg-muted p-4">
+              <label className="flex cursor-pointer items-center gap-3 font-medium">
                 <Switch checked={usarReceitasProx} onCheckedChange={setUsarReceitasProx} />
                 Receitas do fim do ciclo contam para o próximo
               </label>
               <p className="text-xs text-muted-foreground">
-                Ex.: com virada no dia 8 e "a partir do dia 25", o salário do dia 30 entra na previsão do ciclo que
-                começa no dia 8 seguinte. Receitas antes do dia 25 (como as do dia 15) continuam no ciclo atual.
+                Ex.: com virada no dia 8 e "a partir do dia 25", o salário do dia 30 vai para o ciclo
+                seguinte. Receitas antes do dia 25 ficam no ciclo atual.
               </p>
               {usarReceitasProx && (
                 <Field label="A partir do dia (1 a 31)">
@@ -600,8 +597,7 @@ function ContaPage() {
               )}
             </div>
             <p className="text-xs text-muted-foreground">
-              Vale por enquanto apenas para o Dashboard e a Início — as demais telas continuam
-              considerando o mês calendário.
+              Por enquanto vale só para o Dashboard e a Início.
             </p>
             <Button onClick={salvarMesSistema} disabled={salvarPreferencias.isPending} size="sm">
               {salvarPreferencias.isPending ? "Salvando..." : "Salvar"}
@@ -612,16 +608,15 @@ function ContaPage() {
         {moduloVeiculoAtivo && (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-sm">
+            <CardTitle className="flex items-center gap-2 text-base">
               <Car className="size-4" /> Destaque do módulo Veículo
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
             <p className="text-muted-foreground">
-              Quando ativado, o card "Veículo" na Início mostra em destaque a soma dos gastos do
-              veículo no mês atual.
+              Mostra no card "Veículo" da Início o total gasto no mês.
             </p>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               <Switch checked={destacarVeiculo} onCheckedChange={salvarDestaqueVeiculo} />
               <span className="text-xs text-muted-foreground">
                 {destacarVeiculo ? "Ativado" : "Desativado"}
@@ -633,7 +628,7 @@ function ContaPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-sm">
+            <CardTitle className="flex items-center gap-2 text-base">
               <ShieldCheck className="size-4" /> Alterar senha
             </CardTitle>
           </CardHeader>
@@ -670,7 +665,7 @@ function ContaPage() {
         </Card>
 
         {/* Âncora do menu "Meu grupo e convites" (28/10/2026). */}
-        <div id="grupo" className="-mb-4 scroll-mt-24 lg:col-span-2" aria-hidden="true" />
+        <div id="grupo" className="-mb-6 scroll-mt-24 lg:col-span-2" aria-hidden="true" />
         <ConvitesCard />
         <MostrarAvisosDeNovoCard />
         {isSiteAdmin && <PermissoesUsuariosCard compact />}
@@ -699,10 +694,10 @@ function MembrosGrupo() {
   });
   if (!data || data.membros.length === 0) return null;
   return (
-    <div className="space-y-2 border-t pt-3">
-      <p className="text-xs font-semibold">Pessoas com acesso ao seu grupo</p>
+    <div className="space-y-2 border-t pt-4">
+      <p className="text-sm font-semibold">Pessoas com acesso</p>
       {data.membros.map((m) => (
-        <div key={m.id} className="flex items-center justify-between gap-2 rounded-lg border p-2 text-xs">
+        <div key={m.id} className="flex items-center justify-between gap-3 rounded-xl border p-3 text-xs">
           <span className="min-w-0 truncate">
             {m.nome}
             {m.email ? ` · ${m.email}` : ""}

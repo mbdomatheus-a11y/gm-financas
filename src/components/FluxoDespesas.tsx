@@ -72,13 +72,13 @@ export function FluxoDespesas() {
 
   if (!financasProntas) return <CartaoCarregando alturaGrafico="h-48" />;
   return (
-    <div className="grid gap-4 md:grid-cols-2">
+    <div className="grid gap-6 md:grid-cols-2">
       <Bloco
         titulo="Despesas do ciclo"
         icone={<Receipt className="size-4" aria-hidden="true" />}
         total={totalAtual}
         cor="text-foreground"
-        subtitulo="Lançamentos do ciclo vigente, por categoria"
+        subtitulo="Ciclo vigente, por categoria"
         linhas={atual}
         vazio="Nenhuma despesa neste ciclo."
         formatar={formatar}
@@ -88,7 +88,7 @@ export function FluxoDespesas() {
         icone={<CalendarClock className="size-4" aria-hidden="true" />}
         total={totalFuturo}
         cor="text-foreground"
-        subtitulo={`Próximos ${MESES_FUTUROS} meses · parcelas e compromissos a vencer`}
+        subtitulo={`Próximos ${MESES_FUTUROS} meses, a vencer`}
         linhas={futuro}
         vazio="Nenhuma despesa futura registrada."
         formatar={formatar}

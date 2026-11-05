@@ -118,15 +118,15 @@ function PaginaAssunto() {
       <SiteHeader />
       <section className="relative overflow-hidden border-b">
         <div className="pointer-events-none absolute -left-24 -top-24 size-96 rounded-full bg-primary/15 blur-3xl" />
-        <div className="relative mx-auto max-w-3xl px-4 py-8 sm:py-16">
+        <div className="relative mx-auto max-w-3xl px-4 py-12 sm:py-20">
           <span className="inline-flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
             <Icone className="size-6" />
           </span>
-          <h1 className="mt-4 text-[2.1rem] font-extrabold leading-[1.08] tracking-tight sm:text-5xl">
+          <h1 className="mt-6 text-4xl font-extrabold leading-[1.08] tracking-[-0.03em] sm:text-5xl">
             {a.titulo} <span className="text-primary">{a.destaque}</span>
           </h1>
-          <p className="mt-4 text-base leading-7 text-muted-foreground">{a.subtitulo}</p>
-          <Button asChild size="lg" className="mt-6 h-12 w-full text-base font-semibold sm:w-auto">
+          <p className="mt-4 text-lg leading-8 text-muted-foreground">{a.subtitulo}</p>
+          <Button asChild size="lg" className="mt-8 w-full font-semibold sm:w-auto">
             <Link to="/entrar" search={{ criar: true }} onClick={clique}>
               Começar grátis <ArrowRight className="ml-2 size-4" />
             </Link>
@@ -136,38 +136,38 @@ function PaginaAssunto() {
               <b className="text-foreground">{contador.total}</b> pessoas já usam o Control ALL
             </p>
           )}
-          <ul className="mt-6 space-y-2 text-sm">
+          <ul className="mt-8 space-y-3 text-sm">
             {a.pontos.map((p) => (
               <li key={p} className="flex items-start gap-2">
-                <Check className="mt-0.5 size-4 shrink-0 text-emerald-600" />
+                <Check className="mt-0.5 size-4 shrink-0 text-success" />
                 <span>{p}</span>
               </li>
             ))}
           </ul>
         </div>
       </section>
-      <section className="mx-auto max-w-3xl px-4 py-10">
-        <h2 className="text-xl font-bold tracking-tight">Como funciona</h2>
-        <ol className="mt-4 grid gap-3 sm:grid-cols-3">
+      <section className="mx-auto max-w-3xl px-4 py-14">
+        <h2 className="text-2xl font-bold tracking-tight">Como funciona</h2>
+        <ol className="mt-6 grid gap-4 sm:grid-cols-3">
           {a.passos.map((p, i) => (
-            <li key={p} className="rounded-xl border bg-card p-4 text-sm">
-              <span className="mb-2 flex size-7 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">{i + 1}</span>
+            <li key={p} className="rounded-3xl border bg-card p-5 text-sm">
+              <span className="mb-3 flex size-7 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">{i + 1}</span>
               {p}
             </li>
           ))}
         </ol>
-        <div className="mt-8 rounded-xl border bg-muted/40 p-4 text-sm text-muted-foreground">
+        <div className="mt-8 rounded-3xl bg-muted p-6 text-sm text-muted-foreground">
           <p className="flex items-center gap-2 font-semibold text-foreground">
             <Sparkles className="size-4 text-primary" /> Também dá para lançar falando
           </p>
           <p className="mt-1">Diga "mercado, 85 reais no cartão" e a IA monta o lançamento para você conferir.</p>
         </div>
-        <Button asChild size="lg" className="mt-8 h-12 w-full text-base font-semibold sm:w-auto">
+        <Button asChild size="lg" className="mt-8 w-full font-semibold sm:w-auto">
           <Link to="/entrar" search={{ criar: true }} onClick={clique}>
             Criar minha conta grátis <ArrowRight className="ml-2 size-4" />
           </Link>
         </Button>
-        <p className="mt-6 text-xs text-muted-foreground">
+        <p className="mt-6 text-sm text-muted-foreground">
           <Link to="/" className="underline-offset-2 hover:underline">Conhecer tudo o que o Control ALL faz</Link>
         </p>
       </section>

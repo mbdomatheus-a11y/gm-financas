@@ -67,13 +67,13 @@ import { usePrivacidadeValores } from "@/hooks/usePrivacidadeValores";
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
     meta: [
-      { title: "Dashboard — Control ALL" },
+      { title: "Dashboard | Control ALL" },
       {
         name: "description",
         content:
           "Resumo do mês: receitas, despesas, saldo, valor mensalizado das parcelas e dívida total em aberto.",
       },
-      { property: "og:title", content: "Dashboard — Control ALL" },
+      { property: "og:title", content: "Dashboard | Control ALL" },
       {
         property: "og:description",
         content: "Resumo financeiro do casal com gráficos de categorias e evolução mensal.",
@@ -749,7 +749,7 @@ function DashboardPage() {
         variaveis={dados.variaveis}
         mesRotulo={monthLabel(mesAtual)}
       />
-      <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+      <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
         <StatCard
           label="Parcelas do mês (fixas + variáveis)"
           value={dados.fixas + dados.variaveis}
@@ -786,16 +786,16 @@ function DashboardPage() {
           href="#parcelamentos-terminando"
         />
       </div>
-      <div className="mt-4">
+      <div className="mt-6">
       <FluxoDespesas />
       </div>
       {/* 27/10/2026: mesmo cartão "Previsão do mês" do app e do Início (lib/previsao-mes.ts). */}
-      <ResumoPrevisaoHome mes={mesAtual} className="mt-4 overflow-hidden" />
+      <ResumoPrevisaoHome mes={mesAtual} className="mt-6 overflow-hidden" />
 
-      <Card id="fluxo-caixa" className="mt-4">
+      <Card id="fluxo-caixa" className="mt-6">
         <CardHeader className="flex flex-col gap-2 space-y-0 sm:flex-row sm:items-center sm:justify-between">
           <CardTitle className="text-base">Fluxo de caixa mês a mês</CardTitle>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-3">
             <Select value={visaoFluxo} onValueChange={(v) => setVisaoFluxo(v as typeof visaoFluxo)}>
               <SelectTrigger className="h-8 w-[140px] text-xs">
                 <SelectValue />
@@ -861,8 +861,7 @@ function DashboardPage() {
         </CardHeader>
         {dados.meses.some((m: any) => posicaoTemporalDoMes(m.key, mesAtual) === "futuro") && (
           <p className="px-6 pb-1 text-xs text-muted-foreground">
-            Meses além do atual aparecem com opacidade reduzida — são previstos, ainda não
-            aconteceram.
+            Meses futuros aparecem mais claros: são previsões.
           </p>
         )}
         <CardContent className="h-[340px]">
@@ -1028,12 +1027,11 @@ function DashboardPage() {
 
       {/* Pedido 2 (2026-10-03): Parcelamentos que terminam — alívio mensal */}
       {dados.alivioParcelamentos.length > 0 && (
-        <Card id="parcelamentos-terminando" className="mt-4">
+        <Card id="parcelamentos-terminando" className="mt-6">
           <CardHeader className="space-y-0 pb-3">
             <CardTitle className="text-base">Parcelamentos que terminam</CardTitle>
             <p className="text-xs text-muted-foreground mt-1">
-              Quanto cada mês libera no orçamento quando parcelas terminam. Clique para ver os detalhes
-              e marque os itens que quiser para somar.
+              Quanto cada mês libera no orçamento. Toque para detalhar e marque itens para somar.
             </p>
           </CardHeader>
           <CardContent className="space-y-2">
@@ -1122,7 +1120,7 @@ function DashboardPage() {
         </Card>
       )}
 
-      <Card className="mt-4">
+      <Card className="mt-6">
         <Collapsible open={agrupamentosAberto} onOpenChange={setAgrupamentosAberto}>
           <CardHeader className="flex flex-col gap-2 space-y-0 sm:flex-row sm:items-center sm:justify-between">
             <CollapsibleTrigger asChild>
@@ -1131,7 +1129,7 @@ function DashboardPage() {
                   className={`size-4 shrink-0 text-muted-foreground transition-transform ${agrupamentosAberto ? "rotate-0" : "-rotate-90"}`}
                 />
                 <CardTitle className="text-base">
-                  Agrupamentos de {monthLabelLong(mesPie)} — maior para menor
+                  Agrupamentos de {monthLabelLong(mesPie)}
                 </CardTitle>
               </button>
             </CollapsibleTrigger>
@@ -1179,7 +1177,7 @@ function DashboardPage() {
       </Card>
 
       {drill && (
-        <Card className="mt-4">
+        <Card className="mt-6">
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
             <CardTitle className="text-base">
               {monthLabelLong(drill.mes)}
@@ -1220,7 +1218,7 @@ function DashboardPage() {
         </Card>
       )}
 
-      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
             <CardTitle className="text-base">Despesas por categoria</CardTitle>
@@ -1289,7 +1287,7 @@ function DashboardPage() {
         </Card>
       </div>
 
-      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Maiores despesas do mês</CardTitle>
@@ -1345,7 +1343,7 @@ function DashboardPage() {
         </Card>
       </div>
 
-      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Gasto por cartão neste mês</CardTitle>
@@ -1426,7 +1424,7 @@ function DashboardPage() {
         </Card>
       </div>
 
-      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Categorias: mês atual x média de 3 meses</CardTitle>

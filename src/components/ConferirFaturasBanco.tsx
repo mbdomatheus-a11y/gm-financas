@@ -96,13 +96,13 @@ export function ConferirFaturasBanco() {
   });
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <Card>
-        <CardContent className="space-y-3 p-4">
+        <CardContent className="space-y-4 p-6">
           <div>
             <p className="text-sm font-semibold">Fatura do Control ALL x fatura do banco</p>
             <p className="text-xs text-muted-foreground">
-              O total do banco aparece depois de conferir a fatura em PDF daquele mês. Diferença em vermelho precisa de revisão.
+              O total do banco aparece após conferir o PDF do mês. Diferença em vermelho pede revisão.
             </p>
           </div>
           {cartoesComMovimento.length === 0 && <p className="text-sm text-muted-foreground">Nenhum cartão com lançamentos.</p>}
@@ -115,7 +115,7 @@ export function ConferirFaturasBanco() {
                     {c.apelido} •{c.final}
                   </p>
                 </div>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
                   {meses.map((mes) => {
                     const sistema = totais.get(`${c.id}|${mes}`) ?? 0;
                     const banco = (doBanco as any[]).find((f) => f.cartao_id === c.id && mesDe(f.vencimento) === mes);
@@ -123,9 +123,9 @@ export function ConferirFaturasBanco() {
                     return (
                       <div key={mes} className="rounded-lg bg-muted/40 p-2 text-xs">
                         <p className="capitalize text-muted-foreground">{monthLabelLong(mes)}</p>
-                        <p className="font-semibold">{formatBRL(sistema)}</p>
+                        <p className="font-semibold tabular-nums">{formatBRL(sistema)}</p>
                         {banco?.total_banco != null ? (
-                          <p className={dif === 0 ? "text-emerald-600" : "text-red-600"}>
+                          <p className={dif === 0 ? "text-success" : "text-destructive"}>
                             Banco {formatBRL(Number(banco.total_banco))}
                             {dif === 0 ? " ✓" : ` · dif. ${formatBRL(dif ?? 0)}`}
                           </p>
@@ -143,12 +143,12 @@ export function ConferirFaturasBanco() {
       </Card>
 
       <Card>
-        <CardContent className="space-y-3 p-4">
+        <CardContent className="space-y-4 p-6">
           <div>
             <p className="text-sm font-semibold">Conferir fatura em PDF com o Open Finance</p>
             <p className="text-xs text-muted-foreground">
-              Importe o PDF da fatura em Importar e escolha aqui o cartão. Cada linha do PDF é casada com o lançamento do banco
-              (que passa a vencer nesta fatura); o que só o PDF tem (IOF, ajustes) fica; o que o banco não cobrou aparece para você decidir.
+              Importe o PDF e escolha o cartão. Cada linha é casada com o lançamento do banco; o que só o PDF
+              tem (IOF, ajustes) fica, e o que o banco não cobrou aparece para você decidir.
             </p>
           </div>
           {(pdfs as any[]).length === 0 && <p className="text-sm text-muted-foreground">Nenhuma fatura em PDF importada.</p>}
@@ -156,7 +156,7 @@ export function ConferirFaturasBanco() {
             const escolhido = cartaoDoPdf[f.id] ?? f.cartao_id ?? "";
             const conferida = (doBanco as any[]).find((b) => b.import_fatura_id === f.id);
             return (
-              <div key={f.id} className="flex flex-wrap items-center gap-2 rounded-xl border p-3">
+              <div key={f.id} className="flex flex-wrap items-center gap-3 rounded-2xl border px-4 py-3">
                 <div className="min-w-[12rem] flex-1">
                   <p className="text-sm font-medium capitalize">
                     {f.banco} · vence {String(f.vencimento ?? "").split("-").reverse().join("/")}
@@ -210,21 +210,21 @@ export function ConferirFaturasBanco() {
               <div className="grid grid-cols-3 gap-2 text-center text-sm">
                 <div className="rounded-lg bg-muted/50 p-2">
                   <p className="text-xs text-muted-foreground">Banco</p>
-                  <p className="font-semibold">{formatBRL(Number(resultado.total_banco ?? 0))}</p>
+                  <p className="font-semibold tabular-nums">{formatBRL(Number(resultado.total_banco ?? 0))}</p>
                 </div>
                 <div className="rounded-lg bg-muted/50 p-2">
                   <p className="text-xs text-muted-foreground">Control ALL</p>
-                  <p className="font-semibold">{formatBRL(Number(resultado.total_sistema))}</p>
+                  <p className="font-semibold tabular-nums">{formatBRL(Number(resultado.total_sistema))}</p>
                 </div>
-                <div className={`rounded-lg p-2 ${Number(resultado.diferenca) === 0 ? "bg-emerald-500/10" : "bg-red-500/10"}`}>
+                <div className={`rounded-lg p-2 ${Number(resultado.diferenca) === 0 ? "bg-success/10" : "bg-destructive/10"}`}>
                   <p className="text-xs text-muted-foreground">Diferença</p>
-                  <p className="font-semibold">{formatBRL(Number(resultado.diferenca))}</p>
+                  <p className="font-semibold tabular-nums">{formatBRL(Number(resultado.diferenca))}</p>
                 </div>
               </div>
               {resultado.nao_cobrados.length > 0 && (
                 <div className="space-y-2">
                   <p className="flex items-center gap-1.5 text-sm font-medium">
-                    <TriangleAlert className="size-4 text-amber-500" /> O banco não cobrou nesta fatura
+                    <TriangleAlert className="size-4 text-warning" /> O banco não cobrou nesta fatura
                   </p>
                   {resultado.nao_cobrados.map((n) => (
                     <div key={n.despesa_id} className="flex flex-wrap items-center gap-2 rounded-lg border p-2 text-xs">
@@ -237,7 +237,7 @@ export function ConferirFaturasBanco() {
                       <Button size="sm" variant="outline" disabled={ajustar.isPending} onClick={() => ajustar.mutate({ despesa: n.despesa_id, acao: "proxima" })}>
                         Mover p/ próxima
                       </Button>
-                      <Button size="sm" variant="ghost" className="text-red-600" disabled={ajustar.isPending} onClick={() => ajustar.mutate({ despesa: n.despesa_id, acao: "excluir" })}>
+                      <Button size="sm" variant="ghost" className="text-destructive" disabled={ajustar.isPending} onClick={() => ajustar.mutate({ despesa: n.despesa_id, acao: "excluir" })}>
                         Excluir
                       </Button>
                     </div>

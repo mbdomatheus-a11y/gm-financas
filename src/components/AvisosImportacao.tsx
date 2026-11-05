@@ -31,7 +31,7 @@ export function AvisoDuplicata({ motivo }: { motivo: string | null | undefined }
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="mt-1 inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-700 hover:bg-amber-500/20 dark:text-amber-400"
+          className="mt-1 inline-flex items-center gap-1 rounded-full border border-warning/40 bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning-foreground dark:text-warning hover:bg-warning/20"
         >
           <AlertTriangle className="size-3 shrink-0" aria-hidden="true" /> Possível duplicata
         </button>
@@ -101,9 +101,9 @@ export function AvisoCorrespondenciaFixa({
         <button
           type="button"
           className={cn(
-            "mt-1 inline-flex max-w-full items-center gap-1 rounded-md border px-2 py-1 text-left text-[10px] font-semibold",
+            "mt-1 inline-flex max-w-full items-center gap-1 rounded-md border px-2 py-1 text-left text-xs font-semibold",
             acao === "manter"
-              ? "border-amber-500/50 bg-amber-500/15 text-amber-800 hover:bg-amber-500/25 dark:text-amber-300"
+              ? "border-warning/50 bg-warning/15 text-warning-foreground dark:text-warning hover:bg-warning/25"
               : "border-primary/40 bg-primary/10 text-primary hover:bg-primary/20",
           )}
           aria-label={`${titulo}: escolher o que fazer`}

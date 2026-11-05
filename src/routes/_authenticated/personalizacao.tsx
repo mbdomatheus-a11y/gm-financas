@@ -10,12 +10,12 @@ import { usePreferencias } from "@/hooks/usePreferencias";
 export const Route = createFileRoute("/_authenticated/personalizacao")({
   head: () => ({
     meta: [
-      { title: "Personalização — Control ALL" },
+      { title: "Personalização | Control ALL" },
       {
         name: "description",
         content: "Escolha tema claro ou escuro, paleta de cores, fonte e layout do menu do app.",
       },
-      { property: "og:title", content: "Personalização — Control ALL" },
+      { property: "og:title", content: "Personalização | Control ALL" },
       { property: "og:description", content: "Deixe o app com a cara do casal: tema, cores e fontes." },
     ],
   }),
@@ -59,14 +59,15 @@ function PersonalizacaoPage() {
 
   return (
     <AppLayout title="Personalização" description="Ajuste a aparência do aplicativo">
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-sm">
+            <CardTitle className="flex items-center gap-2 text-base">
               <Palette className="size-4" /> Tema
             </CardTitle>
+            <p className="text-sm text-muted-foreground">Claro, escuro ou conforme o sistema.</p>
           </CardHeader>
-          <CardContent className="flex flex-wrap gap-2">
+          <CardContent className="flex flex-wrap items-center gap-3">
             {TEMAS.map((t) => (
               <Button
                 key={t.id}
@@ -82,9 +83,10 @@ function PersonalizacaoPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm">Paleta de cores</CardTitle>
+            <CardTitle className="text-base">Paleta de cores</CardTitle>
+            <p className="text-sm text-muted-foreground">Cor de destaque dos botões e realces.</p>
           </CardHeader>
-          <CardContent className="flex flex-wrap gap-3">
+          <CardContent className="flex flex-wrap gap-4">
             {PALETAS.map((p) => (
               <button
                 key={p.id}
@@ -100,7 +102,7 @@ function PersonalizacaoPage() {
                 >
                   {prefs.paleta === p.id && <Check className="size-4 text-white" />}
                 </span>
-                <span className="text-[11px] text-muted-foreground">{p.label}</span>
+                <span className="text-xs text-muted-foreground">{p.label}</span>
               </button>
             ))}
           </CardContent>
@@ -108,9 +110,10 @@ function PersonalizacaoPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm">Fonte</CardTitle>
+            <CardTitle className="text-base">Fonte</CardTitle>
+            <p className="text-sm text-muted-foreground">Tipografia usada em todo o app.</p>
           </CardHeader>
-          <CardContent className="flex flex-wrap gap-2">
+          <CardContent className="flex flex-wrap items-center gap-3">
             {FONTES.map((f) => (
               <Button
                 key={f}
@@ -127,9 +130,10 @@ function PersonalizacaoPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm">Layout do menu (desktop)</CardTitle>
+            <CardTitle className="text-base">Layout do menu</CardTitle>
+            <p className="text-sm text-muted-foreground">Posição da navegação no computador.</p>
           </CardHeader>
-          <CardContent className="flex flex-wrap gap-2">
+          <CardContent className="flex flex-wrap items-center gap-3">
             {LAYOUTS.map((l) => (
               <Button
                 key={l.id}

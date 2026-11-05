@@ -42,13 +42,13 @@ import { alertasDosVeiculos } from "@/lib/veiculo-alertas";
 export const Route = createFileRoute("/_authenticated/compartilhar")({
   head: () => ({
     meta: [
-      { title: "Compartilhar — Control ALL" },
+      { title: "Compartilhar | Control ALL" },
       {
         name: "description",
         content:
           "Gere um resumo ou imagem de finanças, lista de compras, notas fiscais ou veículos para compartilhar no WhatsApp ou salvar.",
       },
-      { property: "og:title", content: "Compartilhar — Control ALL" },
+      { property: "og:title", content: "Compartilhar | Control ALL" },
       {
         property: "og:description",
         content: "Resumos prontos para compartilhar no WhatsApp ou salvar.",
@@ -78,7 +78,7 @@ async function copiarTexto(texto: string) {
     await navigator.clipboard.writeText(texto);
     toast.success("Texto copiado");
   } catch {
-    toast.error("Não foi possível copiar — tente novamente.");
+    toast.error("Não foi possível copiar. Tente novamente.");
   }
 }
 
@@ -223,42 +223,42 @@ function CompartilharPage() {
   return (
     <AppLayout title="Compartilhar" description="Gere um resumo pronto para compartilhar">
       <ConviteCompartilhar />
-      <Tabs defaultValue="financas" className="space-y-4">
+      <Tabs defaultValue="financas" className="space-y-6">
         <TabsList className="flex h-auto flex-wrap gap-1">
-          <TabsTrigger value="financas" className="gap-1.5 text-xs">
+          <TabsTrigger value="financas" className="gap-1.5">
             <Wallet className="size-3.5" /> Finanças
           </TabsTrigger>
           {habilitado("lista") && (
-            <TabsTrigger value="lista" className="gap-1.5 text-xs">
+            <TabsTrigger value="lista" className="gap-1.5">
               <ShoppingCart className="size-3.5" /> Lista de compras
             </TabsTrigger>
           )}
           {habilitado("notas") && (
-            <TabsTrigger value="notas" className="gap-1.5 text-xs">
+            <TabsTrigger value="notas" className="gap-1.5">
               <Receipt className="size-3.5" /> Notas fiscais
             </TabsTrigger>
           )}
           {habilitado("veiculo") && (
-            <TabsTrigger value="veiculos" className="gap-1.5 text-xs">
+            <TabsTrigger value="veiculos" className="gap-1.5">
               <Car className="size-3.5" /> Veículos
             </TabsTrigger>
           )}
           {habilitado("pet") && (
-            <TabsTrigger value="pet" className="gap-1.5 text-xs">
+            <TabsTrigger value="pet" className="gap-1.5">
               <PawPrint className="size-3.5" /> Pet
             </TabsTrigger>
           )}
           {habilitado("onde_esta") && (
-            <TabsTrigger value="onde-esta" className="gap-1.5 text-xs">
+            <TabsTrigger value="onde-esta" className="gap-1.5">
               <MapPin className="size-3.5" /> Onde está?
             </TabsTrigger>
           )}
           {habilitado("exames") && (
-            <TabsTrigger value="exames" className="gap-1.5 text-xs">
+            <TabsTrigger value="exames" className="gap-1.5">
               <FileHeart className="size-3.5" /> Exames
             </TabsTrigger>
           )}
-          <TabsTrigger value="inteligente" className="gap-1.5 text-xs">
+          <TabsTrigger value="inteligente" className="gap-1.5">
             <Sparkles className="size-3.5" /> Resumo inteligente
           </TabsTrigger>
         </TabsList>
@@ -457,9 +457,9 @@ function FinancasShareCard() {
   }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
+    <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
       <Card>
-        <CardContent className="space-y-4 p-4">
+        <CardContent className="space-y-4 p-6">
           <Select value={mes} onValueChange={setMes}>
             <SelectTrigger>
               <SelectValue />
@@ -482,7 +482,7 @@ function FinancasShareCard() {
             <Download className="size-4" /> Baixar imagem
           </Button>
           <p className="text-xs text-muted-foreground">
-            A imagem inclui receitas, despesas, saldo e as maiores categorias do mês selecionado.
+            Receitas, despesas, saldo e maiores categorias do mês.
           </p>
         </CardContent>
       </Card>
@@ -490,7 +490,7 @@ function FinancasShareCard() {
       <Card className="overflow-hidden">
         <CardContent className="space-y-4 p-6">
           <div className="flex items-center gap-2 text-sm font-semibold">
-            <ImageIcon className="size-4" /> Prévia do resumo — {monthLabel(mes)}
+            <ImageIcon className="size-4" /> Prévia de {monthLabel(mes)}
           </div>
           <div className="grid gap-3 sm:grid-cols-3">
             <Preview label="Receitas" value={formatBRL(resumo.rec)} tone="text-success" />
@@ -547,9 +547,9 @@ function ListaComprasShareCard() {
   }, [pendentes]);
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
+    <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
       <Card>
-        <CardContent className="space-y-4 p-4">
+        <CardContent className="space-y-4 p-6">
           <Button
             variant="outline"
             className="w-full"
@@ -611,18 +611,18 @@ function NotasFiscaisShareCard() {
   );
 
   const texto = useMemo(() => {
-    if (doMes.length === 0) return `Notas fiscais — ${monthLabel(mes)}\n\nNenhuma nota registrada.`;
+    if (doMes.length === 0) return `Notas fiscais · ${monthLabel(mes)}\n\nNenhuma nota registrada.`;
     const top = [...doMes]
       .sort((a: any, b: any) => Number(b.valor_total ?? 0) - Number(a.valor_total ?? 0))
       .slice(0, 5)
       .map((n: any) => `• ${n.estabelecimento || "Sem nome"}: ${formatBRL(Number(n.valor_total ?? 0))}`);
-    return `Notas fiscais — ${monthLabel(mes)}\n\n${doMes.length} nota${doMes.length > 1 ? "s" : ""} · Total: ${formatBRL(total)}\n\nMaiores compras:\n${top.join("\n")}`;
+    return `Notas fiscais · ${monthLabel(mes)}\n\n${doMes.length} nota${doMes.length > 1 ? "s" : ""} · Total: ${formatBRL(total)}\n\nMaiores compras:\n${top.join("\n")}`;
   }, [doMes, mes, total]);
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
+    <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
       <Card>
-        <CardContent className="space-y-4 p-4">
+        <CardContent className="space-y-4 p-6">
           <Select value={mes} onValueChange={setMes}>
             <SelectTrigger>
               <SelectValue />
@@ -648,8 +648,7 @@ function NotasFiscaisShareCard() {
           </Button>
           <ImageShareActions titulo="Notas fiscais" texto={texto} arquivo={`notas-fiscais-${mes}`} />
           <p className="text-xs text-muted-foreground">
-            Não inclui as fotos das notas — só o resumo em texto (quantidade, total e maiores
-            compras do mês).
+            Só o resumo em texto, sem as fotos das notas.
           </p>
         </CardContent>
       </Card>
@@ -687,9 +686,9 @@ function VeiculosShareCard() {
   }, [veiculos, alertas]);
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
+    <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
       <Card>
-        <CardContent className="space-y-4 p-4">
+        <CardContent className="space-y-4 p-6">
           <Button
             variant="outline"
             className="w-full"
@@ -755,7 +754,7 @@ function PetShareCard() {
       .slice(0, 5)
       .map((v: any) => {
         const nomePet = (pets as any[]).find((p: any) => p.id === v.pet_id)?.nome ?? "Pet";
-        return `• ${nomePet} — ${v.nome}: ${formatDate(v.proxima_dose_em)}`;
+        return `• ${nomePet}, ${v.nome}: ${formatDate(v.proxima_dose_em)}`;
       });
     return [
       `Pet (${(pets as any[]).length})`,
@@ -766,9 +765,9 @@ function PetShareCard() {
   }, [pets, vacinas]);
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
+    <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
       <Card>
-        <CardContent className="space-y-4 p-4">
+        <CardContent className="space-y-4 p-6">
           <Button
             variant="outline"
             className="w-full"
@@ -826,15 +825,15 @@ function OndeEstaShareCard() {
     if ((locais as any[]).length === 0) return "Onde está?\n\nNenhum local cadastrado.";
     const linhas = (locais as any[]).map((l: any) => {
       const qtd = (itens as any[]).filter((i: any) => i.local_id === l.id).length;
-      return `• ${l.nome} — ${qtd} item(ns)`;
+      return `• ${l.nome}: ${qtd} item(ns)`;
     });
     return `Onde está? (${(locais as any[]).length} local(is))\n\n${linhas.join("\n")}`;
   }, [locais, itens]);
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
+    <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
       <Card>
-        <CardContent className="space-y-4 p-4">
+        <CardContent className="space-y-4 p-6">
           <Button
             variant="outline"
             className="w-full"
@@ -887,15 +886,15 @@ function ExamesShareCard() {
     if ((exames as any[]).length === 0) return "Exames\n\nNenhum exame registrado.";
     const linhas = (exames as any[]).map(
       (e: any) =>
-        `• ${e.titulo}${e.data_exame ? ` — ${formatDate(e.data_exame)}` : ""}${e.laboratorio ? ` (${e.laboratorio})` : ""}`,
+        `• ${e.titulo}${e.data_exame ? ` · ${formatDate(e.data_exame)}` : ""}${e.laboratorio ? ` (${e.laboratorio})` : ""}`,
     );
-    return `Exames — últimos registrados\n\n${linhas.join("\n")}`;
+    return `Exames: últimos registrados\n\n${linhas.join("\n")}`;
   }, [exames]);
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
+    <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
       <Card>
-        <CardContent className="space-y-4 p-4">
+        <CardContent className="space-y-4 p-6">
           <Button
             variant="outline"
             className="w-full"
@@ -909,8 +908,7 @@ function ExamesShareCard() {
           </Button>
           <ImageShareActions titulo="Exames" texto={texto} arquivo="exames" />
           <p className="text-xs text-muted-foreground">
-            Inclui só título, data e laboratório dos exames — os resultados/indicadores não entram
-            neste resumo.
+            Só título, data e laboratório. Os resultados não entram.
           </p>
         </CardContent>
       </Card>
@@ -1068,7 +1066,7 @@ function ResumoInteligenteShareCard() {
 
   const texto = useMemo(() => {
     const linhas = [
-      `Resumo — ${monthLabel(mes)}`,
+      `Resumo · ${monthLabel(mes)}`,
       "",
       `💰 Receitas: ${formatBRL(resumo.rec)}`,
       `💸 Despesas: ${formatBRL(resumo.desp)}`,
@@ -1089,10 +1087,10 @@ function ResumoInteligenteShareCard() {
   }, [resumo, alertasVeiculos, habilitado, mes]);
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
+    <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
       <AssistenteIA />
       <Card>
-        <CardContent className="space-y-4 p-4">
+        <CardContent className="space-y-4 p-6">
           <Button
             variant="outline"
             className="w-full"
@@ -1105,8 +1103,7 @@ function ResumoInteligenteShareCard() {
           </Button>
           <ImageShareActions titulo="Resumo inteligente" texto={texto} arquivo="resumo-inteligente" />
           <p className="text-xs text-muted-foreground">
-            Junta o essencial de finanças, lista de compras e veículos num único resumo — bom pra
-            mandar rapidinho sem abrir o site.
+            Finanças, lista de compras e veículos em um único resumo.
           </p>
         </CardContent>
       </Card>

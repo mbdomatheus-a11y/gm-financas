@@ -125,13 +125,13 @@ import { lerPlanilhaImportacao, modeloCsvPlanilha } from "@/lib/importacao-plani
 export const Route = createFileRoute("/_authenticated/importar")({
   head: () => ({
     meta: [
-      { title: "Importar Lançamentos — Control ALL" },
+      { title: "Importar Lançamentos | Control ALL" },
       {
         name: "description",
         content:
           "Importe faturas em PDF ou cole lançamentos de texto, revise tudo linha a linha com categorização automática e confirme para lançar nas despesas.",
       },
-      { property: "og:title", content: "Importar Lançamentos — Control ALL" },
+      { property: "og:title", content: "Importar Lançamentos | Control ALL" },
       {
         property: "og:description",
         content:
@@ -2719,7 +2719,7 @@ function ImportarPage() {
           { duration: 8000 },
         );
       toast.info(
-        "O arquivo enviado foi processado e descartado — nada além dos lançamentos foi armazenado.",
+        "Arquivo processado e descartado. Só os lançamentos foram guardados.",
       );
       if (regrasSalvas)
         toast.info(`${regrasSalvas} classificação(ões) aprendida(s) para próximas importações.`);
@@ -2754,11 +2754,12 @@ function ImportarPage() {
     return (
       <AppLayout title="Importar Lançamentos">
         <Card>
-          <CardContent className="flex flex-col items-center gap-2 py-16 text-center">
-            <ShieldCheck className="size-8 text-muted-foreground" />
+          <CardContent className="flex flex-col items-center gap-4 py-16 text-center">
+            <span className="grid size-14 place-items-center rounded-full bg-muted text-muted-foreground">
+              <ShieldCheck className="size-6" aria-hidden="true" />
+            </span>
             <p className="text-sm text-muted-foreground">
-              Seu usuário não tem permissão para importar lançamentos. Fale com um administrador se
-              precisar desse acesso.
+              Sem permissão para importar. Peça acesso a um administrador.
             </p>
           </CardContent>
         </Card>
@@ -2769,7 +2770,7 @@ function ImportarPage() {
   return (
     <AppLayout
       title="Importar Lançamentos"
-      description="Envie PDFs de fatura, planilha ou cole os lançamentos, revise linha a linha e confirme."
+      description="Envie PDFs, planilha ou cole lançamentos. Revise e confirme."
       actions={
         faturas.length > 0 ? (
           <Button onClick={() => void prepararImportacao()} disabled={confirmar.isPending || preparando}>
@@ -2785,7 +2786,7 @@ function ImportarPage() {
     >
       {(confirmar.isPending || preparando) && (
         <div
-          className="sticky top-2 z-30 mb-3 rounded-lg border bg-background/95 p-3 shadow-sm backdrop-blur"
+          className="sticky top-2 z-30 mb-6 rounded-2xl border bg-background/95 px-4 py-3 shadow-sm backdrop-blur"
           role="status"
           aria-live="polite"
         >
@@ -2804,7 +2805,7 @@ function ImportarPage() {
                       style={{ width: `${pct}%` }}
                     />
                   </div>
-                  <p className="mt-1 text-[11px] text-muted-foreground">
+                  <p className="mt-1 text-xs text-muted-foreground">
                     {progresso.feitos} de {progresso.total} lançamentos gravados
                   </p>
                 </>
@@ -2819,11 +2820,11 @@ function ImportarPage() {
         </div>
       )}
       {(backupsRecentes.data ?? []).length > 0 && (
-        <Card className="mb-4">
-          <CardContent className="space-y-2 py-3 text-sm">
-            <p className="font-medium">Substituições de fatura fechada</p>
+        <Card className="mb-6">
+          <CardContent className="space-y-3 p-6 text-sm">
+            <p className="font-semibold">Substituições de fatura fechada</p>
             {(backupsRecentes.data ?? []).map((b) => (
-              <div key={b.id} className="flex flex-wrap items-center gap-2 text-xs">
+              <div key={b.id} className="flex flex-wrap items-center gap-3 text-xs">
                 <span className="mr-auto">
                   {rotuloCartao(b.cartao_id)} · {monthLabelLong(b.competencia)} · substituída em{" "}
                   {new Date(b.criado_em).toLocaleString("pt-BR")}
@@ -2831,7 +2832,7 @@ function ImportarPage() {
                 <Button
                   size="sm"
                   variant="outline"
-                  className="h-7 text-[11px]"
+                  className="h-7 text-xs"
                   disabled={desfazerSubstituicao.isPending}
                   onClick={() => {
                     if (
@@ -2851,11 +2852,11 @@ function ImportarPage() {
       )}
 
       <PrimeiraFaturaAviso onImportar={() => inputRef.current?.click()} />
-      <PrimeiraCategoriaGuia tipo="despesa" className="mb-3" />
+      <PrimeiraCategoriaGuia tipo="despesa" className="mb-6" />
       <Card>
-        <CardContent className="p-4">
+        <CardContent className="p-6">
           <Tabs defaultValue="pdf">
-            <TabsList className="mb-3">
+            <TabsList className="mb-6">
               <TabsTrigger value="pdf">
                 <FileText className="mr-2 size-4" /> Fatura em PDF
               </TabsTrigger>
@@ -2874,9 +2875,9 @@ function ImportarPage() {
             </TabsList>
 
             <TabsContent value="pdf">
-              <div className="mb-3 flex items-stretch gap-2">
+              <div className="mb-4 flex items-stretch gap-3">
                 <div
-                  className="flex flex-1 cursor-pointer flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-dashed px-4 py-2.5 text-left transition-colors hover:bg-muted/50"
+                  className="flex flex-1 cursor-pointer flex-wrap items-center gap-x-3 gap-y-1 rounded-2xl border border-dashed px-5 py-4 text-left transition-colors hover:bg-muted/50"
                   onClick={() => inputRef.current?.click()}
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={(e) => {
@@ -2889,7 +2890,7 @@ function ImportarPage() {
                   ) : (
                     <Upload className="size-6 text-muted-foreground" />
                   )}
-                  <p className="text-sm font-medium">Arraste os PDFs ou clique para selecionar</p>
+                  <p className="text-sm font-medium">Arraste os PDFs ou clique para escolher</p>
                   <p className="text-xs text-muted-foreground">
                     Itaú, Nubank, Pernambucanas e Santander · vários arquivos por vez
                   </p>
@@ -2946,12 +2947,12 @@ function ImportarPage() {
                   {pdfsComSenha.map((p) => (
                     <div
                       key={p.file.name + p.file.size}
-                      className="flex flex-col gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 dark:border-amber-900 dark:bg-amber-950/40 sm:flex-row sm:items-center"
+                      className="flex flex-col gap-2 rounded-lg border border-warning/40 bg-warning/10 p-3 sm:flex-row sm:items-center"
                     >
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium">{p.file.name}</p>
                         <p className="text-xs text-muted-foreground">
-                          PDF protegido por senha — informe a senha para ler.
+                          PDF com senha. Informe a senha para ler.
                         </p>
                         {p.erro && <p className="text-xs text-destructive">{p.erro}</p>}
                       </div>
@@ -3081,8 +3082,7 @@ function ImportarPage() {
               </div>
               <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
                 <span>
-                  Não precisa ser de um banco específico — funciona com qualquer planilha que tenha
-                  colunas de data, descrição e valor.
+                  Qualquer planilha com colunas de data, descrição e valor.
                 </span>
                 <Button
                   size="sm"
@@ -3119,8 +3119,11 @@ function ImportarPage() {
                 {faturasFechadasLista.isLoading ? (
                   <p className="py-6 text-center text-xs text-muted-foreground">Carregando faturas…</p>
                 ) : (faturasFechadasLista.data ?? []).length === 0 ? (
-                  <div className="rounded-xl border border-dashed py-8 text-center text-xs text-muted-foreground">
-                    Nenhuma fatura fechada registrada ainda.
+                  <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed py-10 text-center">
+                    <span className="grid size-12 place-items-center rounded-full bg-muted text-muted-foreground">
+                      <ShieldCheck className="size-5" aria-hidden="true" />
+                    </span>
+                    <p className="text-sm text-muted-foreground">Nenhuma fatura fechada ainda.</p>
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -3134,19 +3137,19 @@ function ImportarPage() {
                             <span className="font-semibold text-foreground">
                               {fat.cartao_id ? rotuloCartao(fat.cartao_id) : BANCO_LABEL[fat.banco as BancoFatura] ?? fat.banco}
                             </span>
-                            <Badge variant="secondary" className="text-[10px]">
+                            <Badge variant="secondary" className="text-xs">
                               {fat.competencia ? monthLabelLong(fat.competencia) : "Sem competência"}
                             </Badge>
                             {fat.status === "fechada" && (
-                              <Badge variant="default" className="bg-emerald-600 text-[10px]">
+                              <Badge variant="default" className="bg-success text-success-foreground text-xs">
                                 Fechada
                               </Badge>
                             )}
                           </div>
                           <p className="truncate text-muted-foreground">
-                            {fat.arquivo_nome} · Total declarado: {fat.total_declarado !== null ? formatBRL(fat.total_declarado) : "—"} · Extraído: {fat.total_extraido !== null ? formatBRL(fat.total_extraido) : "—"}
+                            {fat.arquivo_nome} · Total declarado: {fat.total_declarado !== null ? formatBRL(fat.total_declarado) : "-"} · Extraído: {fat.total_extraido !== null ? formatBRL(fat.total_extraido) : "-"}
                           </p>
-                          <p className="text-[10px] text-muted-foreground">
+                          <p className="text-xs text-muted-foreground">
                             Registrada em {new Date(fat.created_at).toLocaleString("pt-BR")}
                           </p>
                         </div>
@@ -3203,7 +3206,7 @@ function ImportarPage() {
       </Card>
 
       {faturas.map((f, idx) => (
-        <Card key={f.arquivo_hash} className="mt-4">
+        <Card key={f.arquivo_hash} className="mt-6">
           <CardHeader className="gap-3 pb-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <CardTitle className="flex items-center gap-2 text-base">
@@ -3223,7 +3226,7 @@ function ImportarPage() {
                   </Badge>
                 )}
                 {f.conflitoMes && (
-                  <Badge variant="outline" className="gap-1 border-amber-500 text-amber-700 dark:text-amber-300">
+                  <Badge variant="outline" className="gap-1 border-warning text-warning-foreground dark:text-warning">
                     <AlertTriangle className="size-3" /> Já existe fatura deste cartão neste mês (
                     {f.conflitoMes.arquivo_nome}, importada em{" "}
                     {new Date(f.conflitoMes.created_at).toLocaleDateString("pt-BR")})
@@ -3269,7 +3272,7 @@ function ImportarPage() {
                   {!f.destino && (
                     <Badge
                       variant="outline"
-                      className="border-amber-500/40 text-[10px] text-amber-600 dark:text-amber-400"
+                      className="border-warning/40 text-xs text-warning-foreground dark:text-warning"
                     >
                       Não cadastrado
                     </Badge>
@@ -3403,7 +3406,7 @@ function ImportarPage() {
                     })
                   }
                 />
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-xs text-muted-foreground">
                   Pré-preenchido com a soma dos lançamentos (exceto pagamento de fatura). Troque
                   pelo valor real da sua fatura para conferir se falta algum lançamento.
                 </p>
@@ -3498,7 +3501,7 @@ function ImportarPage() {
                 (l) => acaoDuplicataDe(f, l) === "decidir",
               ).length;
               return (
-                <div className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs">
+                <div className="flex flex-wrap items-center gap-2 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs">
                   <span className="mr-auto">
                     <b>{comDuplicata.length} lançamento(s)</b> desta fatura já têm algo parecido
                     cadastrado
@@ -3509,7 +3512,7 @@ function ImportarPage() {
                     type="button"
                     size="sm"
                     variant="outline"
-                    className="h-7 shrink-0 text-[11px]"
+                    className="h-7 shrink-0 text-xs"
                     onClick={() => substituirTodasDuplicatas(f)}
                   >
                     <ClipboardPaste className="mr-1 size-3.5" aria-hidden="true" /> Substituir todos
@@ -3554,8 +3557,8 @@ function ImportarPage() {
                 <div
                   className={`rounded-lg border px-3 py-2 text-sm ${
                     conf.ok
-                      ? "border-emerald-500/40 bg-emerald-500/10"
-                      : "border-amber-500/40 bg-amber-500/10"
+                      ? "border-success/40 bg-success/10"
+                      : "border-warning/40 bg-warning/10"
                   }`}
                 >
                   {conf.ok ? (
@@ -3580,10 +3583,9 @@ function ImportarPage() {
             })()}
 
             {!podeImportarLimite && (
-              <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+              <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <ShieldCheck className="size-3.5 shrink-0" />
-                Seu usuário não tem permissão para importar o limite do cartão — esses campos não
-                serão salvos.
+                Sem permissão para importar o limite do cartão. Estes campos não serão salvos.
               </p>
             )}
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
@@ -3668,7 +3670,7 @@ function ImportarPage() {
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[920px] table-fixed text-xs">
-                    <thead className="bg-muted/50 text-[10px] uppercase tracking-wide text-muted-foreground">
+                    <thead className="bg-muted/50 text-xs text-muted-foreground">
                       <tr>
                         <th className="w-6 p-0.5"></th>
                         <th className="w-[96px] p-0.5 text-left">Data</th>
@@ -3723,7 +3725,7 @@ function ImportarPage() {
                             <td className="p-0.5">
                               <Input
                                 type="date"
-                                className="h-6 w-full min-w-0 px-1 text-[11px]"
+                                className="h-6 w-full min-w-0 px-1 text-xs"
                                 value={l.data_compra}
                                 onChange={(e) =>
                                   atualizarLancamento(idx, l.id, { data_compra: e.target.value })
@@ -3732,7 +3734,7 @@ function ImportarPage() {
                             </td>
                             <td className="p-0.5">
                               <Textarea
-                                className="min-h-7 w-full min-w-0 resize-none overflow-hidden rounded-md px-1.5 py-1 text-[11px] leading-tight"
+                                className="min-h-7 w-full min-w-0 resize-none overflow-hidden rounded-md px-1.5 py-1 text-xs leading-tight"
                                 rows={1}
                                 value={l.descricao}
                                 onChange={(e) => {
@@ -3763,9 +3765,9 @@ function ImportarPage() {
                                       setDuplicataAberta({ faturaIdx: idx, lancamentoId: l.id })
                                     }
                                     className={cn(
-                                      "mt-1 inline-flex max-w-full items-center gap-1 rounded-md border px-2 py-1 text-left text-[10px] font-semibold",
+                                      "mt-1 inline-flex max-w-full items-center gap-1 rounded-md border px-2 py-1 text-left text-xs font-semibold",
                                       acao === "decidir"
-                                        ? "border-amber-500/50 bg-amber-500/15 text-amber-800 hover:bg-amber-500/25 dark:text-amber-300"
+                                        ? "border-warning/50 bg-warning/15 text-warning-foreground dark:text-warning hover:bg-warning/25"
                                         : "border-primary/40 bg-primary/10 text-primary hover:bg-primary/20",
                                     )}
                                   >
@@ -3780,7 +3782,7 @@ function ImportarPage() {
                                 <Input
                                   type="number"
                                   min={1}
-                                  className="h-6 w-9 min-w-0 px-0.5 text-center text-[11px] [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                  className="h-6 w-9 min-w-0 px-0.5 text-center text-xs [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                                   value={l.parcela_numero}
                                   onChange={(e) =>
                                     atualizarLancamento(idx, l.id, {
@@ -3788,11 +3790,11 @@ function ImportarPage() {
                                     })
                                   }
                                 />
-                                <span className="text-[10px] text-muted-foreground">/</span>
+                                <span className="text-xs text-muted-foreground">/</span>
                                 <Input
                                   type="number"
                                   min={1}
-                                  className="h-6 w-9 min-w-0 px-0.5 text-center text-[11px] [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                  className="h-6 w-9 min-w-0 px-0.5 text-center text-xs [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                                   value={l.parcela_total}
                                   onChange={(e) =>
                                     atualizarLancamento(idx, l.id, {
@@ -3809,7 +3811,7 @@ function ImportarPage() {
                                   atualizarLancamento(idx, l.id, { tipo: v as "fixa" | "variavel" })
                                 }
                               >
-                                <SelectTrigger className="h-6 w-full min-w-0 px-1 text-[11px]">
+                                <SelectTrigger className="h-6 w-full min-w-0 px-1 text-xs">
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -3870,7 +3872,7 @@ function ImportarPage() {
                             </td>
                             <td className="p-0.5">
                               <Input
-                                className="h-6 w-full min-w-0 px-1 text-[11px]"
+                                className="h-6 w-full min-w-0 px-1 text-xs"
                                 placeholder="0000"
                                 maxLength={4}
                                 value={l.cartao_final ?? ""}
@@ -3891,11 +3893,11 @@ function ImportarPage() {
                                   })
                                 }
                               >
-                                <SelectTrigger className="h-6 w-full min-w-0 px-1 text-[11px]">
-                                  <SelectValue placeholder="—" />
+                                <SelectTrigger className="h-6 w-full min-w-0 px-1 text-xs">
+                                  <SelectValue placeholder="-" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="none">—</SelectItem>
+                                  <SelectItem value="none">-</SelectItem>
                                   {opcoesResponsavel.map((r) => (
                                     <SelectItem key={r} value={r}>
                                       {r}
@@ -3908,7 +3910,7 @@ function ImportarPage() {
                               <div className="flex items-center gap-1">
                                 <SeletorCategoria
                                   campo="categoria"
-                                  className="h-7 min-w-0 px-1 text-[11px]"
+                                  className="h-7 min-w-0 px-1 text-xs"
                                   ariaLabel="Categoria do lançamento"
                                   placeholder="Categoria"
                                   valor={l.categoria}
@@ -3926,7 +3928,7 @@ function ImportarPage() {
                                 />
                               </div>
                               {l.confianca_categoria && (
-                                <p className="mt-1 text-[10px] text-muted-foreground">
+                                <p className="mt-1 text-xs text-muted-foreground">
                                   Confiança: {CONFIANCA_LABEL[l.confianca_categoria]}
                                 </p>
                               )}
@@ -3934,9 +3936,9 @@ function ImportarPage() {
                             <td className="p-0.5">
                               <SeletorCategoria
                                 campo="subcategoria"
-                                className="h-6 w-full min-w-0 px-1 text-[11px]"
+                                className="h-6 w-full min-w-0 px-1 text-xs"
                                 ariaLabel="Subcategoria do lançamento"
-                                placeholder="—"
+                                placeholder="-"
                                 valor={l.subcategoria ?? null}
                                 categoriaAtual={l.categoria}
                                 estrutura={estrutura}
@@ -3956,7 +3958,7 @@ function ImportarPage() {
                               <Input
                                 type="number"
                                 step="0.01"
-                                className={`h-7 w-full min-w-0 px-1 text-right text-[11px] font-medium ${
+                                className={`h-7 w-full min-w-0 px-1 text-right text-xs font-medium ${
                                   l.direcao === "credito" ? "text-success" : "text-destructive"
                                 }`}
                                 value={l.valor}
@@ -3967,7 +3969,7 @@ function ImportarPage() {
                                 }
                               />
                               <p
-                                className={`mt-1 text-[10px] font-medium ${
+                                className={`mt-1 text-xs font-medium ${
                                   l.direcao === "credito" ? "text-success" : "text-destructive"
                                 }`}
                               >
@@ -3978,7 +3980,7 @@ function ImportarPage() {
                                 type="button"
                                 title="Inverter o sinal: débito vira crédito e vice-versa"
                                 aria-label="Inverter o sinal deste lançamento"
-                                className="mt-0.5 inline-flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground"
+                                className="mt-0.5 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
                                 onClick={() =>
                                   atualizarLancamento(idx, l.id, {
                                     direcao: l.direcao === "credito" ? "debito" : "credito",
@@ -4115,7 +4117,7 @@ function ImportarPage() {
                       onClick={() => setDecisaoFatura((p) => ({ ...p, [c.arquivo_hash]: "fechada" }))}
                     >
                       <span className="text-xs font-semibold">Fatura fechada</span>
-                      <span className="text-[11px] font-normal opacity-80">
+                      <span className="text-xs font-normal opacity-80">
                         Substitui o que está cadastrado deste cartão no mês.
                       </span>
                     </Button>
@@ -4126,7 +4128,7 @@ function ImportarPage() {
                       onClick={() => setDecisaoFatura((p) => ({ ...p, [c.arquivo_hash]: "parcial" }))}
                     >
                       <span className="text-xs font-semibold">Fatura parcial</span>
-                      <span className="text-[11px] font-normal opacity-80">
+                      <span className="text-xs font-normal opacity-80">
                         Só adiciona. Pergunta sobre os parecidos.
                       </span>
                     </Button>
@@ -4191,7 +4193,7 @@ function ImportarPage() {
                       }
                     >
                       <span className="text-xs font-semibold">{titulo}</span>
-                      <span className="text-[11px] font-normal opacity-80">{texto}</span>
+                      <span className="text-xs font-normal opacity-80">{texto}</span>
                     </Button>
                   ))}
                 </div>
@@ -4222,8 +4224,7 @@ function ImportarPage() {
           </DialogHeader>
           <div className="space-y-3 py-2">
             <p className="text-xs text-muted-foreground">
-              Abaixo estão os arquivos de fatura que você enviou para a nossa equipe calibrar o
-              leitor de PDF.
+              Faturas que você enviou para calibrarmos o leitor de PDF.
             </p>
             {solicitacoesAnalise.length === 0 ? (
               <p className="py-4 text-center text-sm text-muted-foreground">
@@ -4235,7 +4236,7 @@ function ImportarPage() {
                   <div key={item.id} className="rounded-lg border p-3 text-xs">
                     <div className="flex items-center justify-between gap-2">
                       <b className="truncate text-sm">{item.arquivo_nome}</b>
-                      <Badge variant="outline" className="shrink-0 text-[10px]">
+                      <Badge variant="outline" className="shrink-0 text-xs">
                         {item.status === "corrigida"
                           ? "✓ Concluída / Tratada"
                           : item.status === "descartada"
@@ -4251,12 +4252,12 @@ function ImportarPage() {
                       {item.cartao_final ? ` · Final: ${item.cartao_final}` : ""}
                     </p>
                     {item.protocolo && (
-                      <p className="mt-0.5 font-mono text-[10px] text-muted-foreground/70">
+                      <p className="mt-0.5 font-mono text-xs text-muted-foreground/70">
                         Protocolo: {item.protocolo.substring(0, 8)}…
                       </p>
                     )}
                     {item.resposta_admin && (
-                      <p className="mt-1 font-medium text-emerald-600">
+                      <p className="mt-1 font-medium text-success">
                         Resposta: {item.resposta_admin}
                       </p>
                     )}

@@ -36,13 +36,13 @@ import { usePermissoes } from "@/hooks/useAuthData";
 export const Route = createFileRoute("/_authenticated/backup")({
   head: () => ({
     meta: [
-      { title: "Backup e Reset — Control ALL" },
+      { title: "Backup e Reset | Control ALL" },
       {
         name: "description",
         content:
           "Exporte, restaure ou reinicie os dados do casal módulo por módulo: receitas, despesas, notas fiscais, de-para, veículo e mais.",
       },
-      { property: "og:title", content: "Backup e Reset — Control ALL" },
+      { property: "og:title", content: "Backup e Reset | Control ALL" },
       {
         property: "og:description",
         content: "Backup seletivo em JSON, restauração e reset administrativo por módulo.",
@@ -257,22 +257,21 @@ function BackupPage() {
   return (
     <AppLayout
       title="Backup e Reset"
-      description="Escolha os módulos, exporte, restaure ou reinicie individualmente"
+      description="Exporte, restaure ou reinicie seus dados por módulo"
     >
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-2">
         <Card>
-          <CardContent className="space-y-3 p-5">
+          <CardContent className="space-y-4 p-6">
             <div className="flex items-center gap-2">
               <Download className="size-4.5 text-primary" />
-              <p className="font-semibold">1. Backup seletivo (JSON)</p>
+              <p className="text-base font-semibold">Backup</p>
             </div>
             <p className="text-sm text-muted-foreground">
-              Marque os módulos que quer incluir neste arquivo. Dá pra fazer um backup só de notas
-              fiscais, só do de-para, ou de tudo de uma vez.
+              Marque os módulos que entram no arquivo JSON.
             </p>
             <button
               type="button"
-              className="flex items-center gap-2 text-xs font-medium text-primary"
+              className="flex items-center gap-2 text-sm font-medium text-primary"
               onClick={() =>
                 setSelecionados(todosSelecionados ? new Set() : new Set(MODULOS.map((m) => m.key)))
               }
@@ -288,7 +287,7 @@ function BackupPage() {
               {MODULOS.map((m) => (
                 <label
                   key={m.key}
-                  className="flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs hover:bg-muted/40"
+                  className="flex items-center gap-3 rounded-xl border px-3 py-2.5 text-sm hover:bg-muted/40"
                 >
                   <Checkbox
                     checked={selecionados.has(m.key)}
@@ -305,7 +304,7 @@ function BackupPage() {
             {resumo && (
               <div className="flex flex-wrap gap-1.5 pt-1">
                 {Object.entries(resumo).map(([k, v]) => (
-                  <Badge key={k} variant="secondary" className="text-[11px]">
+                  <Badge key={k} variant="secondary" className="text-xs">
                     {k}: {v}
                   </Badge>
                 ))}
@@ -315,14 +314,13 @@ function BackupPage() {
         </Card>
 
         <Card>
-          <CardContent className="space-y-3 p-5">
+          <CardContent className="space-y-4 p-6">
             <div className="flex items-center gap-2">
               <Upload className="size-4.5 text-primary" />
-              <p className="font-semibold">2. Restaurar backup</p>
+              <p className="text-base font-semibold">Restaurar</p>
             </div>
             <p className="text-sm text-muted-foreground">
-              Reimporta um arquivo gerado aqui — completo ou de um módulo só. Registros com o mesmo
-              identificador são atualizados, então você recomeça exatamente de onde parou.
+              Reimporta um arquivo gerado aqui. Registros iguais são atualizados, sem duplicar.
             </p>
             <Input
               ref={fileRef}
@@ -339,20 +337,17 @@ function BackupPage() {
         </Card>
 
         <Card className="lg:col-span-2 border-destructive/40">
-          <CardContent className="space-y-3 p-5">
+          <CardContent className="space-y-4 p-6">
             <div className="flex items-center gap-2">
               <RotateCcw className="size-4.5 text-destructive" />
-              <p className="font-semibold">Reset completo (começar do zero)</p>
+              <p className="text-base font-semibold">Reset completo</p>
             </div>
             <p className="text-sm text-muted-foreground">
-              Apaga despesas, receitas, parcelas, faturas, cartões, bancos cadastrados, categorias,
-              regras e tudo o que foi importado dos bancos conectados (Open Finance), inclusive
-              lançamentos congelados. As conexões com os bancos continuam: é só sincronizar de novo
-              depois. Veículos, notas fiscais e lista de compras não são mexidos. Um backup completo é
-              guardado automaticamente antes de apagar, e se algo falhar nada é apagado.
+              Apaga lançamentos, faturas, cartões, bancos, categorias, regras e o que veio do Open
+              Finance. As conexões com os bancos continuam. Veículos, notas fiscais e lista de compras
+              ficam intactos. Um backup completo é guardado antes, e se algo falhar nada é apagado.
             </p>
             <Button
-              size="sm"
               variant="destructive"
               className="gap-1"
               disabled={exclusaoBloqueada || busy !== null}
@@ -368,27 +363,24 @@ function BackupPage() {
         </Card>
 
         <Card className="lg:col-span-2 border-destructive/40">
-          <CardContent className="space-y-3 p-5">
+          <CardContent className="space-y-4 p-6">
             <div className="flex items-center gap-2">
               <Database className="size-4.5 text-destructive" />
               <p className="font-semibold">Reset por módulo</p>
             </div>
             <p className="text-sm text-muted-foreground">
-              Apaga só os dados do módulo escolhido — dá pra resetar as notas fiscais ou o veículo
-              sem mexer no resto. Cada módulo só libera o reset depois que você baixar um backup
-              dele nesta sessão. Se você baixou o backup com todos os módulos marcados, dá para
-              zerar tudo de uma vez.
+              Apaga só o módulo escolhido. Cada um é liberado depois que você baixa o backup dele
+              nesta sessão.
             </p>
             {!!exemplos?.total && (
-              <div className="flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2">
-                <span className="mr-auto text-xs">
-                  <b>Dados de exemplo</b> da conta nova (receitas, cartão final 0000, investimento de
-                  teste e categorias sem uso). Não precisa de backup.
+              <div className="flex flex-wrap items-center gap-3 rounded-2xl bg-muted px-4 py-3">
+                <span className="mr-auto text-sm">
+                  <b>Dados de exemplo</b> da conta nova. Não precisa de backup.
                 </span>
                 <Button
                   size="sm"
                   variant="outline"
-                  className="h-7 shrink-0 gap-1 text-[11px]"
+                  className="shrink-0 gap-1"
                   disabled={busy !== null}
                   onClick={() => void apagarExemplos()}
                 >
@@ -397,12 +389,12 @@ function BackupPage() {
                 </Button>
               </div>
             )}
-            <div className="flex flex-wrap items-center gap-2 rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2">
-              <span className="mr-auto text-xs font-medium">Todos os módulos</span>
+            <div className="flex flex-wrap items-center gap-3 rounded-2xl bg-destructive/5 px-4 py-3">
+              <span className="mr-auto text-sm font-medium">Todos os módulos</span>
               <Button
                 size="sm"
                 variant="destructive"
-                className="h-7 shrink-0 gap-1 text-[11px]"
+                className="shrink-0 gap-1"
                 disabled={exclusaoBloqueada || !todosBackupados || busy !== null}
                 title={
                   exclusaoBloqueada
@@ -419,19 +411,19 @@ function BackupPage() {
                 <RotateCcw className="size-3.5" /> Resetar todos
               </Button>
             </div>
-            <div className="grid gap-2 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-2">
               {MODULOS.map((m) => {
                 const liberado = modulosBackupados.has(m.key);
                 return (
                   <div
                     key={m.key}
-                    className="flex items-center justify-between gap-2 rounded-lg border px-3 py-2"
+                    className="flex items-center justify-between gap-3 rounded-xl border px-4 py-2.5"
                   >
-                    <span className="text-xs">{m.label}</span>
+                    <span className="text-sm">{m.label}</span>
                     <Button
                       size="sm"
                       variant="destructive"
-                      className="h-7 shrink-0 gap-1 text-[11px]"
+                      className="shrink-0 gap-1"
                       disabled={exclusaoBloqueada || !liberado || busy !== null}
                       title={
                         exclusaoBloqueada

@@ -23,7 +23,7 @@ import { Button } from "@/components/ui/button";
 export const Route = createFileRoute("/sobre")({
   head: () => ({
     meta: [
-      { title: "Sobre — Control ALL" },
+      { title: "Sobre | Control ALL" },
       {
         name: "description",
         content:
@@ -94,7 +94,7 @@ function SobrePage() {
       <section className="relative overflow-hidden border-b">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_80%_at_50%_0%,color-mix(in_oklab,var(--primary)_14%,transparent),transparent)]" />
         <div className="relative mx-auto max-w-3xl px-4 pb-14 pt-16 text-center sm:pt-20">
-          <h1 className="text-balance text-4xl font-extrabold tracking-tight sm:text-5xl">
+          <h1 className="text-balance text-4xl font-extrabold tracking-[-0.03em] sm:text-5xl">
             Começou numa planilha. Cabe no seu bolso.
           </h1>
           <p className="mx-auto mt-5 max-w-2xl text-pretty text-lg leading-8 text-muted-foreground">
@@ -145,9 +145,9 @@ function SobrePage() {
             <h2 className="text-2xl font-bold tracking-tight">O que já dá para fazer hoje</h2>
             <p className="mt-1 text-muted-foreground">No site e no app para iPhone, com a mesma conta.</p>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2">
             {HOJE.map((h) => (
-              <div key={h.titulo} className="flex gap-3 rounded-2xl border bg-card p-4">
+              <div key={h.titulo} className="flex gap-4 rounded-3xl border bg-card p-5">
                 <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
                   <h.icone className="size-5" />
                 </span>
@@ -186,14 +186,14 @@ function SobrePage() {
             </a>
             .
           </p>
-          <div className="grid gap-3 pt-2 sm:grid-cols-2">
-            <div className="flex gap-3 rounded-2xl border p-4">
+          <div className="grid gap-4 pt-2 sm:grid-cols-2">
+            <div className="flex gap-3 rounded-3xl border p-5">
               <Lock className="mt-0.5 size-5 shrink-0 text-primary" />
               <p className="text-sm leading-6">
                 <strong>Seus dados são seus.</strong> Não vendemos dados e não mostramos anúncios.
               </p>
             </div>
-            <div className="flex gap-3 rounded-2xl border p-4">
+            <div className="flex gap-3 rounded-3xl border p-5">
               <HeartHandshake className="mt-0.5 size-5 shrink-0 text-primary" />
               <p className="text-sm leading-6">
                 <strong>Sem letra miúda.</strong> Os Termos dizem, módulo por módulo, o que guardamos e quem vê.

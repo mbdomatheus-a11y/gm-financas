@@ -2,7 +2,7 @@ import { InputSenha } from "@/components/ui/input-senha";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { KeyRound, Loader2, ArrowLeft } from "lucide-react";
+import { Loader2, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 
 import { redefinirSenhaComToken } from "@/lib/recuperacao-senha.functions";
@@ -16,7 +16,7 @@ export const Route = createFileRoute("/redefinir-senha")({
   }),
   head: () => ({
     meta: [
-      { title: "Nova senha — Control ALL" },
+      { title: "Nova senha | Control ALL" },
       { name: "robots", content: "noindex" },
     ],
   }),
@@ -35,7 +35,7 @@ function RedefinirSenhaPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!search.token) {
-      toast.error("Link inválido — peça um novo em Esqueci minha senha.");
+      toast.error("Link inválido. Peça um novo em Esqueci minha senha.");
       return;
     }
     if (senha.length < 8) {
@@ -60,24 +60,21 @@ function RedefinirSenhaPage() {
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-10">
-      <div className="w-full max-w-sm">
+      <div className="w-full max-w-md">
         <Link
           to="/entrar"
-          className="mb-6 flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
+          className="mb-10 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
         >
-          <ArrowLeft className="size-3.5" /> Voltar para o login
+          <ArrowLeft className="size-4" /> Voltar para o login
         </Link>
 
-        <div className="mb-8 flex flex-col items-center text-center">
-          <div className="bg-primary mb-4 flex size-14 items-center justify-center rounded-2xl shadow-soft">
-            <KeyRound className="size-7 text-primary-foreground" />
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight">Nova senha</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Escolha uma nova senha para sua conta</p>
+        <div className="mb-8 space-y-3 text-center">
+          <h1 className="text-4xl font-extrabold tracking-[-0.03em]">Nova senha</h1>
+          <p className="text-base text-muted-foreground">Use pelo menos 8 caracteres.</p>
         </div>
 
         {!search.token ? (
-          <p className="rounded-2xl border bg-card p-6 text-center text-sm text-destructive shadow-card">
+          <p className="rounded-3xl border bg-card p-8 text-center text-sm text-destructive shadow-card">
             Link inválido ou incompleto. Peça um novo em{" "}
             <Link to="/esqueci-senha" className="underline">
               Esqueci minha senha
@@ -87,7 +84,7 @@ function RedefinirSenhaPage() {
         ) : (
           <form
             onSubmit={handleSubmit}
-            className="space-y-4 rounded-2xl border bg-card p-6 shadow-card"
+            className="space-y-5 rounded-3xl border bg-card p-8 shadow-card"
           >
             <div className="space-y-2">
               <Label htmlFor="senha">Nova senha</Label>
@@ -96,7 +93,6 @@ function RedefinirSenhaPage() {
                 autoComplete="new-password"
                 value={senha}
                 onChange={(e) => setSenha(e.target.value)}
-                className="h-11"
               />
             </div>
             <div className="space-y-2">
@@ -106,10 +102,9 @@ function RedefinirSenhaPage() {
                 autoComplete="new-password"
                 value={confirmar}
                 onChange={(e) => setConfirmar(e.target.value)}
-                className="h-11"
               />
             </div>
-            <Button type="submit" className="h-11 w-full" disabled={loading}>
+            <Button type="submit" size="lg" className="w-full" disabled={loading}>
               {loading && <Loader2 className="mr-2 size-4 animate-spin" />}
               Redefinir senha
             </Button>

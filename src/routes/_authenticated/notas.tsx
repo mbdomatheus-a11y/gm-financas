@@ -16,6 +16,8 @@ import {
   Image as ImageIcon,
   Plus,
   QrCode,
+  Receipt,
+  TrendingDown,
   ShieldCheck,
   Trash2,
   Upload,
@@ -72,13 +74,13 @@ import { obterConfiguracaoAcesso } from "@/lib/configuracoes-site.functions";
 export const Route = createFileRoute("/_authenticated/notas")({
   head: () => ({
     meta: [
-      { title: "Notas fiscais e garantias — Control ALL" },
+      { title: "Notas fiscais e garantias | Control ALL" },
       {
         name: "description",
         content:
           "Guarde comprovantes por foto ou leitura do QR Code da nota, com chave de acesso, itens e alerta de fim da garantia.",
       },
-      { property: "og:title", content: "Notas fiscais e garantias — Control ALL" },
+      { property: "og:title", content: "Notas fiscais e garantias | Control ALL" },
       {
         property: "og:description",
         content:
@@ -691,7 +693,7 @@ function NotasPage() {
   return (
     <AppLayout
       title="Notas fiscais"
-      description="Comprovantes, chave de acesso e controle de garantia"
+      description="Comprovantes, chave de acesso e garantias."
       actions={
         <Button size="sm" className="hidden gap-2 lg:inline-flex" onClick={() => setEscolha(true)} data-tour="nova-nota">
           <Plus className="size-4" /> Nova nota
@@ -720,16 +722,15 @@ function NotasPage() {
         }}
       />
 
-      <div className="space-y-4">
+      <div className="space-y-6">
         {mostrarSecaoDrive && (
         <Card>
           {isSiteAdmin && !configAcesso.data?.google_drive_habilitado && (
             <div className="border-b bg-warning/15 px-4 py-2 text-xs text-warning-foreground">
-              Visível só pra você (admin). Oculto pros usuários comuns — reative em Administração
-              → Módulos.
+              Visível só para você (admin). Oculto para os usuários; reative em Administração, Módulos.
             </div>
           )}
-          <CardContent className="space-y-4 py-4">
+          <CardContent className="space-y-6 p-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 <div className="flex size-9 items-center justify-center rounded-xl bg-primary/10">
@@ -752,7 +753,7 @@ function NotasPage() {
                 </Button>
               )}
             </div>
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-3">
               <Input
                 value={pastaInput}
                 onChange={(e) => setPastaInput(e.target.value)}
@@ -768,7 +769,7 @@ function NotasPage() {
                 Salvar pasta
               </Button>
             </div>
-            <div className="border-t pt-4">
+            <div className="border-t pt-6">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
                   <div className="flex size-9 items-center justify-center rounded-xl bg-primary/10">
@@ -779,11 +780,11 @@ function NotasPage() {
                     <p className="text-xs text-muted-foreground">
                       {drive.data?.connected
                         ? pasta.data?.provider === "Google Drive" && pasta.data?.folderId
-                          ? "Conectado. Tentamos usar a pasta que você configurou abaixo — se o Drive não deixar (só funciona com pastas criadas ou abertas pelo próprio app), cai automaticamente para a pasta padrão do app"
-                          : "Conectado. O envio usa a pasta que o próprio app cria no seu Drive (\"Finanças do Casal/Notas fiscais\")"
+                          ? "Conectado. Usamos a pasta configurada; se o Drive não permitir, vai para a pasta padrão do app."
+                          : "Conectado. O envio usa a pasta criada pelo app no seu Drive."
                         : drive.data?.googleAvailable
-                          ? "Opcional: conecte. Sem conexão, os arquivos ficam privados no site"
-                          : "Seus arquivos ficam privados no site. Google Drive aguarda configuração"}
+                          ? "Opcional. Sem conexão, os arquivos ficam privados no site."
+                          : "Seus arquivos ficam privados no site."}
                     </p>
                   </div>
                 </div>
@@ -806,10 +807,8 @@ function NotasPage() {
                   </Button>
                 ) : null}
               </div>
-              <p className="mt-2 text-xs text-muted-foreground">
-                A conexão usa somente a pasta e os arquivos criados pelo aplicativo na sua conta
-                Google. Em outros serviços, use “Abrir pasta” para enviar ou consultar os
-                comprovantes.
+              <p className="mt-3 text-xs text-muted-foreground">
+                O app só acessa os arquivos que ele mesmo cria no seu Google. Em outros serviços, use “Abrir pasta”.
               </p>
             </div>
           </CardContent>
@@ -817,11 +816,11 @@ function NotasPage() {
         )}
 
         {aVencer.length > 0 && (
-          <Card className="border-warning/40 bg-warning/5">
-            <CardContent className="flex items-start gap-3 py-4">
-              <AlertTriangle className="mt-0.5 size-4.5 text-warning" />
+          <Card className="border-warning/40 bg-warning/10">
+            <CardContent className="flex items-start gap-3 p-5">
+              <AlertTriangle className="mt-0.5 size-4.5 text-warning-foreground dark:text-warning" />
               <div className="text-sm">
-                <p className="font-medium">
+                <p className="font-medium tabular-nums">
                   {aVencer.length} garantia{aVencer.length > 1 ? "s" : ""} vencendo em até 30 dias
                 </p>
                 <p className="text-xs text-muted-foreground">
@@ -838,21 +837,21 @@ function NotasPage() {
           </Card>
         )}
 
-        <Tabs defaultValue="notas" className="space-y-4">
-          <TabsList className="h-9">
-            <TabsTrigger value="notas" className="text-xs">Notas fiscais</TabsTrigger>
-            <TabsTrigger value="segmentos" className="text-xs">Gastos por tipo</TabsTrigger>
-            <TabsTrigger value="depreciacao" className="text-xs">Depreciação</TabsTrigger>
+        <Tabs defaultValue="notas" className="space-y-6">
+          <TabsList>
+            <TabsTrigger value="notas">Notas fiscais</TabsTrigger>
+            <TabsTrigger value="segmentos">Gastos por tipo</TabsTrigger>
+            <TabsTrigger value="depreciacao">Depreciação</TabsTrigger>
           </TabsList>
 
           {/* === ABA 1: listagem de notas === */}
-          <TabsContent value="notas" className="space-y-4">
-            <div className="flex flex-wrap items-center gap-2">
+          <TabsContent value="notas" className="space-y-6">
+            <div className="flex flex-wrap items-center gap-3">
               <Input
                 value={busca}
                 onChange={(e) => setBusca(e.target.value)}
                 placeholder="Buscar por loja, item, descrição ou chave"
-                className="h-9 max-w-xs"
+                className="max-w-xs"
               />
               {(
                 [
@@ -902,22 +901,28 @@ function NotasPage() {
               <p className="text-sm text-muted-foreground">Carregando…</p>
             ) : lista.length === 0 ? (
               <Card>
-                <CardContent className="py-10 text-center text-sm text-muted-foreground">
-                  Nenhuma nota por aqui ainda. Toque em "Nova nota" para começar.
+                <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
+                  <div className="flex size-12 items-center justify-center rounded-full bg-muted">
+                    <Receipt className="size-5 text-muted-foreground" />
+                  </div>
+                  <p className="text-sm text-muted-foreground">Nenhuma nota por aqui ainda.</p>
+                  <Button size="sm" onClick={() => setEscolha(true)}>
+                    <Plus className="size-4" /> Nova nota
+                  </Button>
                 </CardContent>
               </Card>
             ) : (
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 {lista.map((n) => {
                   const foto = (n.nota_arquivos ?? [])[0];
                   const temGarantia = !!n.garantia_fim;
                   return (
                     <Card
                       key={n.id}
-                      className="cursor-pointer transition-colors hover:border-primary/50"
+                      className="lift cursor-pointer"
                       onClick={() => setDetalhe(n.id)}
                     >
-                      <CardContent className="flex gap-3 py-4">
+                      <CardContent className="flex gap-4 p-5">
                         <div className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-muted">
                           {foto?.thumbnail_link ? (
                             <img
@@ -936,19 +941,19 @@ function NotasPage() {
                               {n.estabelecimento || n.descricao || "Nota fiscal"}
                             </p>
                             {(n as any).so_guardar ? (
-                              <Badge variant="outline" className="shrink-0 h-4 text-[10px] px-1.5">Só guardar</Badge>
+                              <Badge variant="outline" className="shrink-0 text-xs px-2">Só guardar</Badge>
                             ) : temGarantia ? (
-                              <Badge variant="default" className="shrink-0 h-4 text-[10px] px-1.5 bg-success text-success-foreground hover:bg-success">
-                                <ShieldCheck className="size-2.5 mr-0.5" />
+                              <Badge variant="default" className="shrink-0 text-xs px-2 bg-success/15 text-success hover:bg-success/15">
+                                <ShieldCheck className="size-3 mr-0.5" />
                                 Garantia
                               </Badge>
                             ) : (
-                              <Badge variant="secondary" className="shrink-0 h-4 text-[10px] px-1.5">
+                              <Badge variant="secondary" className="shrink-0 text-xs px-2">
                                 Sem garantia
                               </Badge>
                             )}
                           </div>
-                          <p className="text-xs text-muted-foreground">
+                          <p className="text-xs text-muted-foreground tabular-nums">
                             {formatDate(n.data_compra)} · {formatBRL(Number(n.valor_total))}
                             {nomeDoGrupo((n as any).nota_grupo_id) ? ` · ${nomeDoGrupo((n as any).nota_grupo_id)}` : ""}
                           </p>
@@ -963,7 +968,7 @@ function NotasPage() {
           </TabsContent>
 
           {/* === ABA 2: gastos por tipo / segmentos === */}
-          <TabsContent value="segmentos" className="space-y-3">
+          <TabsContent value="segmentos" className="space-y-6">
             {(() => {
               const todosItens = notas.filter(contaNosTotais).flatMap((n) =>
                 (n.nota_itens ?? []).map((i) => ({
@@ -975,8 +980,14 @@ function NotasPage() {
               if (!todosItens.length) {
                 return (
                   <Card>
-                    <CardContent className="py-10 text-center text-sm text-muted-foreground">
-                      Nenhum item registrado ainda. Faça a leitura de uma nota via QR Code para ver os gastos por tipo.
+                    <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
+                      <div className="flex size-12 items-center justify-center rounded-full bg-muted">
+                        <Tags className="size-5 text-muted-foreground" />
+                      </div>
+                      <p className="text-sm text-muted-foreground">Leia uma nota pelo QR Code para ver os gastos por tipo.</p>
+                      <Button size="sm" onClick={() => setEscolha(true)}>
+                        <QrCode className="size-4" /> Nova nota
+                      </Button>
                     </CardContent>
                   </Card>
                 );
@@ -993,18 +1004,18 @@ function NotasPage() {
               return (
                 <>
                   <p className="text-xs text-muted-foreground">
-                    Total em itens registrados: <span className="font-semibold text-foreground">{formatBRL(totalGeral)}</span>
+                    Total em itens registrados: <span className="font-semibold text-foreground tabular-nums">{formatBRL(totalGeral)}</span>
                   </p>
                   <div className="space-y-3">
                     {categorias.map(([cat, { total, qtdItens }]) => {
                       const pct = totalGeral > 0 ? (total / totalGeral) * 100 : 0;
                       return (
                         <Card key={cat}>
-                          <CardContent className="py-3 space-y-1.5">
+                          <CardContent className="space-y-2 p-5">
                             <div className="flex items-center justify-between gap-2">
                               <p className="text-sm font-medium">{cat}</p>
                               <div className="flex items-center gap-2">
-                                <Badge variant="secondary" className="text-[10px]">
+                                <Badge variant="secondary" className="text-xs tabular-nums">
                                   {qtdItens} {qtdItens === 1 ? "item" : "itens"}
                                 </Badge>
                                 <span className="text-sm font-semibold tabular-nums">
@@ -1018,7 +1029,7 @@ function NotasPage() {
                                 style={{ width: `${pct.toFixed(1)}%` }}
                               />
                             </div>
-                            <p className="text-xs text-muted-foreground text-right">
+                            <p className="text-xs text-muted-foreground text-right tabular-nums">
                               {pct.toFixed(1)}% do total
                             </p>
                           </CardContent>
@@ -1032,7 +1043,7 @@ function NotasPage() {
           </TabsContent>
 
           {/* === ABA 3: módulo de depreciação === */}
-          <TabsContent value="depreciacao" className="space-y-3">
+          <TabsContent value="depreciacao" className="space-y-6">
             {(() => {
               const bensDepreciaveis = notas.filter(contaNosTotais).flatMap((n) =>
                 (n.nota_itens ?? [])
@@ -1046,8 +1057,11 @@ function NotasPage() {
               if (!bensDepreciaveis.length) {
                 return (
                   <Card>
-                    <CardContent className="py-10 text-center text-sm text-muted-foreground">
-                      Nenhum bem sujeito a depreciação registrado. Ao ler uma nota, marque "Este item deprecia?" para ativá-lo aqui.
+                    <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
+                      <div className="flex size-12 items-center justify-center rounded-full bg-muted">
+                        <TrendingDown className="size-5 text-muted-foreground" />
+                      </div>
+                      <p className="text-sm text-muted-foreground">Nenhum bem com depreciação. Ao ler uma nota, marque "Este item deprecia?".</p>
                     </CardContent>
                   </Card>
                 );
@@ -1065,8 +1079,8 @@ function NotasPage() {
               return (
                 <div className="space-y-3">
                   <Card>
-                    <CardContent className="py-3 space-y-2">
-                      <div className="grid grid-cols-2 gap-2 text-center sm:grid-cols-4">
+                    <CardContent className="space-y-4 p-5">
+                      <div className="grid grid-cols-2 gap-3 text-center tabular-nums sm:grid-cols-4">
                         <div className="rounded-lg bg-muted/50 p-2">
                           <p className="text-xs text-muted-foreground">Valor de compra</p>
                           <p className="text-xs font-semibold">{formatBRL(totalOriginal)}</p>
@@ -1085,7 +1099,7 @@ function NotasPage() {
                         </div>
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        Depreciação é a perda de valor do bem ao longo da vida útil (método linear, em meses completos a partir da compra). Não é um gasto novo: o dinheiro já saiu na compra, então ela não entra nas despesas do mês.
+                        Perda de valor ao longo da vida útil (método linear). Não é um gasto novo e não entra nas despesas do mês.
                       </p>
                     </CardContent>
                   </Card>
@@ -1097,21 +1111,21 @@ function NotasPage() {
                     });
                     return (
                       <Card key={(i as any).id}>
-                        <CardContent className="py-3 space-y-2">
+                        <CardContent className="space-y-3 p-5">
                           <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0">
                               <p className="text-sm font-medium truncate">{(i as any).descricao}</p>
-                              <p className="text-xs text-muted-foreground">{(i as any).estabelecimento} · {formatDate(i.data_compra)}</p>
+                              <p className="text-xs text-muted-foreground tabular-nums">{(i as any).estabelecimento} · {formatDate(i.data_compra)}</p>
                             </div>
                             <Badge
                               variant={dep.totalmenteDepreciado ? "destructive" : "secondary"}
-                              className="shrink-0 text-[10px]"
+                              className="shrink-0 text-xs tabular-nums"
                             >
                               {dep.totalmenteDepreciado ? "Totalmente depreciado" : `${dep.percentualDepreciado.toFixed(0)}% depreciado`}
                             </Badge>
                           </div>
-                          <div className="grid grid-cols-3 gap-2 text-center">
-                            <div className="rounded-lg bg-muted/50 p-2">
+                          <div className="grid grid-cols-3 gap-2 text-center tabular-nums">
+                            <div className="rounded-xl bg-muted/50 p-2">
                               <p className="text-xs text-muted-foreground">Valor original</p>
                               <p className="text-xs font-semibold">{formatBRL(Number((i as any).valor_total))}</p>
                             </div>
@@ -1303,7 +1317,7 @@ function NotasPage() {
                               Number(form.garantia_meses) || 0,
                             )!,
                           )
-                        : "—"
+                        : "-"
                     }
                   />
                 </div>
@@ -1394,7 +1408,7 @@ function NotasPage() {
                               {item.quantidade}x {item.descricao}
                             </p>
                             {item.categoria && (
-                              <Badge variant="secondary" className="mt-0.5 text-[10px] h-4 px-1.5">
+                              <Badge variant="secondary" className="mt-0.5 text-xs px-2">
                                 {item.categoria}{item.subcategoria ? ` / ${item.subcategoria}` : ""}
                               </Badge>
                             )}
@@ -1442,7 +1456,7 @@ function NotasPage() {
                               className="w-20 rounded border bg-background px-2 py-0.5 text-xs"
                             />
                             {item.meses_depreciacao && (
-                              <span className="text-[10px] text-muted-foreground">
+                              <span className="text-xs text-muted-foreground tabular-nums">
                                 ≈ {(item.meses_depreciacao / 12).toFixed(1)} ano(s)
                               </span>
                             )}
@@ -1552,7 +1566,7 @@ function NotasPage() {
                             loading="lazy"
                           />
                         ) : (
-                          <span className="flex size-full items-center justify-center text-[10px] text-muted-foreground">
+                          <span className="flex size-full items-center justify-center text-xs text-muted-foreground">
                             {a.nome ?? "arquivo"}
                           </span>
                         )}
@@ -1593,7 +1607,7 @@ function NotasPage() {
                                   {Number(i.quantidade)}x {i.descricao}
                                 </p>
                                 {(i as any).categoria && (
-                                  <Badge variant="secondary" className="mt-0.5 h-4 text-[10px] px-1.5">
+                                  <Badge variant="secondary" className="mt-0.5 text-xs px-2">
                                     {(i as any).categoria}
                                     {(i as any).subcategoria ? ` / ${(i as any).subcategoria}` : ""}
                                   </Badge>

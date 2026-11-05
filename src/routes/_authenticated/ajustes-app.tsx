@@ -23,17 +23,17 @@ import { ehAppNativo, ponteNativa } from "@/lib/app-nativo";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/ajustes-app")({
-  head: () => ({ meta: [{ title: "Ajustes — Control ALL" }] }),
+  head: () => ({ meta: [{ title: "Ajustes | Control ALL" }] }),
   component: AjustesAppPage,
 });
 
 /** Grupo no estilo dos Ajustes do iPhone: cartão arredondado com linhas separadas. */
 function Grupo({ titulo, rodape, children }: { titulo: string; rodape?: string; children: ReactNode }) {
   return (
-    <section className="mb-6">
-      <h2 className="mb-1.5 px-4 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{titulo}</h2>
-      <div className="divide-y overflow-hidden rounded-2xl border bg-card">{children}</div>
-      {rodape && <p className="mt-1.5 px-4 text-[11px] text-muted-foreground">{rodape}</p>}
+    <section className="mb-8">
+      <h2 className="mb-2 px-4 text-sm font-semibold text-muted-foreground">{titulo}</h2>
+      <div className="divide-y overflow-hidden rounded-3xl border bg-card">{children}</div>
+      {rodape && <p className="mt-2 px-4 text-xs text-muted-foreground">{rodape}</p>}
     </section>
   );
 }
@@ -67,7 +67,10 @@ function Linha({
       {direita ?? ((para || onClick) && <ChevronRight className="size-4 shrink-0 text-muted-foreground" />)}
     </>
   );
-  const classe = "flex min-h-14 w-full items-center gap-3 px-4 py-2.5 text-left transition-colors active:bg-muted/60";
+  const classe = cn(
+    "flex min-h-14 w-full items-center gap-3 px-5 py-3 text-left transition-colors",
+    (para || onClick) && "hover:bg-muted/60 active:bg-muted",
+  );
   if (para)
     return (
       <Link to={para} className={classe}>
@@ -136,12 +139,12 @@ function AjustesAppPage() {
             detalhe="Padrão: português do Brasil"
             direita={<SeletorIdioma mostrarNome />}
           />
-          <div className="flex min-h-14 items-center gap-3 px-4 py-2.5">
+          <div className="flex min-h-14 flex-wrap items-center gap-3 px-5 py-3">
             <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-slate-700 text-white">
               <Moon className="size-4.5" />
             </span>
             <span className="flex-1 text-sm font-medium">Aparência</span>
-            <div className="inline-flex rounded-lg bg-muted p-0.5 text-xs" role="group" aria-label="Aparência">
+            <div className="inline-flex rounded-full bg-muted p-1 text-xs" role="group" aria-label="Aparência">
               {(
                 [
                   ["claro", "Claro"],
@@ -155,7 +158,7 @@ function AjustesAppPage() {
                   aria-pressed={tema === valor}
                   onClick={() => save.mutate({ tema: valor })}
                   className={cn(
-                    "rounded-md px-2.5 py-1.5 font-medium transition-colors",
+                    "rounded-full px-3 py-1.5 font-medium transition-colors",
                     tema === valor ? "bg-background text-foreground shadow-sm" : "text-muted-foreground",
                   )}
                 >

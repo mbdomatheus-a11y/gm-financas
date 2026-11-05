@@ -38,7 +38,7 @@ function ConfiguracoesPage() {
     {
       to: "/conta" as const,
       label: "Conta",
-      descricao: "Dados pessoais, senha, segurança e preferências de IA.",
+      descricao: "Dados pessoais, senha, segurança e IA.",
       icon: Settings,
     },
     ...(can("personalizacao", "ver")
@@ -55,27 +55,29 @@ function ConfiguracoesPage() {
 
   return (
     <AppLayout title="Configurações" description="Conta e personalização do aplicativo">
-      <div className="grid gap-4 sm:grid-cols-2">
-        {itens.map((item) => {
-          const Icon = item.icon;
-          return (
-            <Link key={item.to} to={item.to}>
-              <Card className="h-full transition-all hover:-translate-y-0.5 hover:shadow-lg">
-                <CardContent className="flex items-center gap-4 p-5">
-                  <div className="bg-primary flex size-12 shrink-0 items-center justify-center rounded-xl">
-                    <Icon className="size-6 text-primary-foreground" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <h2 className="text-base font-semibold">{item.label}</h2>
-                    <p className="mt-0.5 text-sm text-muted-foreground">{item.descricao}</p>
-                  </div>
-                  <ArrowRight className="size-4 shrink-0 text-muted-foreground" />
-                </CardContent>
-              </Card>
-            </Link>
-          );
-        })}
-      </div>
+      <Card className="overflow-hidden">
+        <CardContent className="divide-y p-0">
+          {itens.map((item) => {
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.to}
+                to={item.to}
+                className="flex items-center gap-4 px-6 py-5 transition-colors hover:bg-muted/60"
+              >
+                <div className="bg-primary flex size-10 shrink-0 items-center justify-center rounded-xl">
+                  <Icon className="size-5 text-primary-foreground" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-base font-semibold">{item.label}</h2>
+                  <p className="mt-0.5 text-sm text-muted-foreground">{item.descricao}</p>
+                </div>
+                <ArrowRight className="size-4 shrink-0 text-muted-foreground" />
+              </Link>
+            );
+          })}
+        </CardContent>
+      </Card>
     </AppLayout>
   );
 }

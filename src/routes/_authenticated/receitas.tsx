@@ -84,12 +84,12 @@ export const Route = createFileRoute("/_authenticated/receitas")({
   }),
   head: () => ({
     meta: [
-      { title: "Receitas — Control ALL" },
+      { title: "Receitas | Control ALL" },
       {
         name: "description",
         content: "Cadastre e acompanhe salários, freelances e rendimentos do casal por mês.",
       },
-      { property: "og:title", content: "Receitas — Control ALL" },
+      { property: "og:title", content: "Receitas | Control ALL" },
       {
         property: "og:description",
         content: "Controle de receitas recorrentes e avulsas do casal.",
@@ -566,8 +566,8 @@ function ReceitasPage() {
         )
       }
     >
-      <div className="mb-3 space-y-2">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+      <div className="mb-6 space-y-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
           <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
             <TabsList className="h-10">
               <TabsTrigger value="total" className="px-3.5 py-2 text-xs">
@@ -583,7 +583,7 @@ function ReceitasPage() {
                 <TabsTrigger value="pix" className="gap-1 px-3.5 py-2 text-xs">
                   PIX
                   {pixPendentes > 0 && (
-                    <span className="rounded-full bg-primary px-1.5 text-[10px] font-semibold text-primary-foreground">
+                    <span className="rounded-full bg-primary px-1.5 text-xs font-semibold text-primary-foreground">
                       {pixPendentes}
                     </span>
                   )}
@@ -628,10 +628,9 @@ function ReceitasPage() {
             if (filtroMes === "custom") setFiltroMesCustom(m);
             else setFiltroMes(m);
           }}
-          className="mb-2"
         />
 
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <Select
             value={filtroMes === "atual_proximo" ? currentMonthKey() : filtroMes}
             onValueChange={setFiltroMes}
@@ -685,18 +684,18 @@ function ReceitasPage() {
       </div>
 
       {chips.length > 0 && (
-        <div className="mb-3 flex flex-wrap items-center gap-1.5">
+        <div className="mb-6 flex flex-wrap items-center gap-3">
           {chips.map((c) => (
             <button
               key={c.label}
               onClick={c.clear}
-              className="inline-flex items-center gap-1.5 rounded-full border bg-muted/50 px-3 py-1.5 text-[11px] font-medium hover:bg-muted"
+              className="inline-flex items-center gap-1.5 rounded-full border bg-muted/50 px-3 py-1.5 text-xs font-medium hover:bg-muted"
             >
               {c.label}
               <X className="size-3" />
             </button>
           ))}
-          <Button variant="ghost" size="sm" className="h-8 text-[11px]" onClick={limparFiltros}>
+          <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={limparFiltros}>
             Limpar filtros
           </Button>
         </div>
@@ -706,7 +705,7 @@ function ReceitasPage() {
         <button
           type="button"
           onClick={() => setTab("pix")}
-          className="mb-3 flex w-full items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 p-3 text-left text-sm"
+          className="mb-6 flex w-full items-center gap-3 rounded-2xl border border-primary/30 bg-primary/5 px-4 py-3 text-left text-sm"
         >
           <span className="font-medium text-primary">
             {pixComSugestao === 1
@@ -724,16 +723,29 @@ function ReceitasPage() {
       <div className={cn("space-y-4", tab === "pix" && "hidden")}>
         {lista.length === 0 && (
           <Card>
-            <CardContent className="flex flex-col items-center gap-2 py-12 text-center">
-              <TrendingUp className="size-8 text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">Nenhuma receita encontrada.</p>
+            <CardContent className="flex flex-col items-center gap-4 py-14 text-center">
+              <span className="grid size-14 place-items-center rounded-full bg-muted text-muted-foreground">
+                <TrendingUp className="size-6" aria-hidden="true" />
+              </span>
+              <p className="text-sm text-muted-foreground">Nenhuma receita por aqui.</p>
+              {chips.length > 0 ? (
+                <Button variant="outline" onClick={limparFiltros}>
+                  Limpar filtros
+                </Button>
+              ) : (
+                can("receitas", "editar") && (
+                  <Button onClick={abrirNova}>
+                    <Plus className="size-4" /> Nova receita
+                  </Button>
+                )
+              )}
             </CardContent>
           </Card>
         )}
         {grupos.map((g) => {
           const aberto = estaAberto(g.key);
           return (
-            <div key={g.key} className="overflow-hidden rounded-xl border bg-card">
+            <div key={g.key} className="overflow-hidden rounded-2xl border bg-card">
               <div className="flex items-center bg-muted/40 pl-4 hover:bg-muted/60">
                 <input
                   type="checkbox"
@@ -754,7 +766,7 @@ function ReceitasPage() {
                 <span className="flex-1 truncate text-sm font-semibold">
                   {g.label}
                 </span>
-                <Badge variant="secondary" className="shrink-0 text-[10px]">
+                <Badge variant="secondary" className="shrink-0 text-xs">
                   {g.itens.length} lançamento{g.itens.length > 1 ? "s" : ""}
                 </Badge>
                 <span className="shrink-0 text-sm font-bold tabular-nums text-success">
@@ -789,15 +801,15 @@ function ReceitasPage() {
                           <span className="text-primary">{r.responsavel} · </span>
                           {r.descricao}
                           {!!(r as any).possivel_duplicidade && (
-                            <Badge variant="outline" className="ml-2 border-amber-500/40 align-middle text-[10px] text-amber-700 dark:text-amber-300" title="Mesmo valor de um lançamento manual em outra data. Confira se não é duplicidade.">Possível duplicidade</Badge>
+                            <Badge variant="outline" className="ml-2 border-warning/40 align-middle text-xs text-warning-foreground dark:text-warning" title="Mesmo valor de um lançamento manual em outra data. Confira se não é duplicidade.">Possível duplicidade</Badge>
                           )}
                           {((r as any).origem ?? (r as any).receitaOriginal?.origem) === "pluggy" && (
-                            <Badge variant="outline" className="ml-2 border-emerald-500/30 align-middle text-[10px] text-emerald-600 dark:text-emerald-400">
+                            <Badge variant="outline" className="ml-2 border-success/30 align-middle text-xs text-success">
                               Open Finance
                             </Badge>
                           )}
                         </p>
-                        <p className="truncate text-[11px] text-muted-foreground">
+                        <p className="truncate text-xs text-muted-foreground">
                           {r.categoria} · {formatDate(r.data_recebimento)}
                           {r.tipo === "fixa" && " · fixa"}
                           {r.recorrente && r.tipo !== "fixa" ? ` · ${r.frequencia}` : ""}
@@ -812,7 +824,7 @@ function ReceitasPage() {
                           {formatar(toBRL(Number(r.valor), r.moeda, cotacao))}
                         </p>
                         {r.moeda === "USD" && (
-                          <p className="text-[10px] text-muted-foreground">
+                          <p className="text-xs text-muted-foreground">
                             {formatMoeda(Number(r.valor), "USD")} na cotação
                           </p>
                         )}
@@ -870,14 +882,12 @@ function ReceitasPage() {
       />
 
       {lista.some((r: any) => r.tipo === "fixa") && (
-        <p className="mt-4 text-xs text-muted-foreground">
+        <p className="mt-6 text-xs text-muted-foreground">
           <Badge variant="secondary" className="mr-2">
             Receitas fixas
           </Badge>
-          Receitas fixas são projetadas dinamicamente para qualquer mês futuro — filtre por um mês
-          específico para ver 2029, 2030, etc. Entradas marcadas como <em>projetada</em> são
-          calculadas automaticamente; edite a receita original para alterar o valor ou as regras de
-          reajuste.
+          São projetadas para qualquer mês futuro. Itens <em>projetada</em> são calculados; para mudar
+          valor ou reajuste, edite a receita original.
         </p>
       )}
 
@@ -1012,8 +1022,7 @@ function ReceitasPage() {
               </div>
               {ehMensalRecorrente && (
                 <p className="mt-1.5 text-xs text-muted-foreground">
-                  Sem data fim — lançamentos são gerados automaticamente por {HORIZONTE_SEM_PRAZO}{" "}
-                  meses à frente.
+                  Sem data fim: lançamentos gerados por {HORIZONTE_SEM_PRAZO} meses à frente.
                 </p>
               )}
             </Field>

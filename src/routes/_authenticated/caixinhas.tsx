@@ -70,22 +70,22 @@ function CaixinhasPage() {
         </Button>
       }
     >
-      <Card className="mb-4">
-        <CardContent className="grid gap-3 p-4 sm:grid-cols-3">
+      <Card className="mb-6">
+        <CardContent className="grid gap-4 p-6 sm:grid-cols-3">
           <div>
             <p className="text-xs text-muted-foreground">A guardar em {monthLabelLong(mes)}</p>
-            <p className="text-xl font-bold">{formatar(meta)}</p>
+            <p className="mt-1 text-xl font-bold tabular-nums">{formatar(meta)}</p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Já guardado neste mês</p>
-            <p className="text-xl font-bold text-emerald-600">{formatar(aportado)}</p>
+            <p className="mt-1 text-xl font-bold tabular-nums text-success">{formatar(aportado)}</p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Total guardado em todas</p>
-            <p className="text-xl font-bold">{formatar(caixinhas.reduce((s, c) => s + totalGuardado(c), 0))}</p>
+            <p className="mt-1 text-xl font-bold tabular-nums">{formatar(caixinhas.reduce((s, c) => s + totalGuardado(c), 0))}</p>
           </div>
           <p className="text-xs text-muted-foreground sm:col-span-3">
-            O valor a guardar no mês entra na Previsão do mês, no site e no app.
+            O valor a guardar entra na Previsão do mês.
           </p>
         </CardContent>
       </Card>
@@ -93,9 +93,11 @@ function CaixinhasPage() {
       {isLoading && <p className="text-sm text-muted-foreground">Carregando…</p>}
       {!isLoading && caixinhas.length === 0 && (
         <Card>
-          <CardContent className="flex flex-col items-center gap-3 p-8 text-center">
-            <PiggyBank className="size-10 text-primary" />
-            <p className="text-sm text-muted-foreground">Crie um objetivo (viagem, reserva, carro) e quanto quer guardar por mês.</p>
+          <CardContent className="flex flex-col items-center gap-4 py-14 text-center">
+            <span className="grid size-14 place-items-center rounded-full bg-muted text-muted-foreground">
+              <PiggyBank className="size-6" aria-hidden="true" />
+            </span>
+            <p className="text-sm text-muted-foreground">Crie um objetivo e defina quanto guardar por mês.</p>
             <Button onClick={() => setEditando("nova")}>
               <Plus className="size-4" /> Criar caixinha
             </Button>
@@ -103,7 +105,7 @@ function CaixinhasPage() {
         </Card>
       )}
 
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2">
         {caixinhas.map((c) => {
           const meses = linhaDoTempo(c, competenciaAtual());
           const total = totalGuardado(c);
@@ -111,8 +113,8 @@ function CaixinhasPage() {
           const doMes = c.aportes[mes] ?? 0;
           return (
             <Card key={c.id}>
-              <CardContent className="space-y-3 p-4">
-                <div className="flex items-start justify-between gap-2">
+              <CardContent className="space-y-4 p-5">
+                <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="font-semibold">{c.nome}</p>
                     <p className="text-xs text-muted-foreground">
@@ -138,8 +140,8 @@ function CaixinhasPage() {
                   </div>
                 </div>
                 <div>
-                  <div className="mb-1 flex justify-between text-xs">
-                    <span>Guardado: <b>{formatar(total)}</b></span>
+                  <div className="mb-1.5 flex justify-between text-xs tabular-nums">
+                    <span>Guardado <b>{formatar(total)}</b></span>
                     {objetivo != null && <span className="text-muted-foreground">Objetivo {formatar(objetivo)}</span>}
                   </div>
                   {objetivo != null && <Progress value={objetivo > 0 ? Math.min(100, (total / objetivo) * 100) : 0} />}
@@ -152,9 +154,9 @@ function CaixinhasPage() {
                   onClick={() => aporte.mutate({ c, m: mes, valor: doMes > 0 ? null : c.valorMensal })}
                 >
                   <Check className="size-4" />
-                  {doMes > 0 ? `Guardado em ${monthLabelLong(mes)} (desmarcar)` : `Marcar ${formatar(c.valorMensal)} guardado em ${monthLabelLong(mes)}`}
+                  {doMes > 0 ? `Guardado em ${monthLabelLong(mes)} · desmarcar` : `Guardar ${formatar(c.valorMensal)} em ${monthLabelLong(mes)}`}
                 </Button>
-                <div className="flex flex-wrap gap-1">
+                <div className="flex flex-wrap gap-1.5">
                   {meses.slice(-12).map((m) => (
                     <button
                       key={m.mes}
@@ -163,10 +165,10 @@ function CaixinhasPage() {
                       disabled={m.situacao === "futuro" || aporte.isPending}
                       onClick={() => aporte.mutate({ c, m: m.mes, valor: m.aportado > 0 ? null : c.valorMensal })}
                       className={cn(
-                        "rounded-md px-2 py-1 text-[11px] font-medium capitalize",
-                        m.situacao === "atingiu" && "bg-emerald-500/15 text-emerald-700",
-                        m.situacao === "faltou" && "bg-rose-500/15 text-rose-700",
-                        m.situacao === "aberto" && "bg-amber-500/15 text-amber-700",
+                        "rounded-md px-2 py-1 text-xs font-medium capitalize",
+                        m.situacao === "atingiu" && "bg-success/15 text-success",
+                        m.situacao === "faltou" && "bg-destructive/15 text-destructive",
+                        m.situacao === "aberto" && "bg-warning/15 text-warning-foreground dark:text-warning",
                         m.situacao === "futuro" && "bg-muted text-muted-foreground",
                       )}
                     >

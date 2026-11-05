@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, LayoutGrid } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,7 +15,17 @@ export function AreaHub({ area }: { area: AreaId }) {
   const modulos = info.modulos.filter((m) => habilitado(m));
   return (
     <AppLayout title={info.titulo} description={info.descricao}>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      {modulos.length === 0 && (
+        <Card>
+          <CardContent className="flex flex-col items-center gap-3 p-10 text-center">
+            <div className="flex size-12 items-center justify-center rounded-full bg-muted">
+              <LayoutGrid className="size-5 text-muted-foreground" />
+            </div>
+            <p className="text-sm text-muted-foreground">Nenhum módulo liberado nesta área.</p>
+          </CardContent>
+        </Card>
+      )}
+      <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
         {modulos.map((m) => {
           const mod = MODULOS_INFO[m];
           const Icon = mod.icon;
@@ -23,7 +33,7 @@ export function AreaHub({ area }: { area: AreaId }) {
           return (
             <Link key={m} to={mod.to}>
               <Card className={cn("lift h-full", soAdmin && ADMIN_ONLY_CARD)}>
-                <CardContent className="flex h-full min-h-32 items-center gap-4 p-5">
+                <CardContent className="flex h-full min-h-32 items-center gap-4 p-6">
                   <div className="bg-primary flex size-12 shrink-0 items-center justify-center rounded-2xl">
                     <Icon className="size-6 text-primary-foreground" />
                   </div>
@@ -34,7 +44,7 @@ export function AreaHub({ area }: { area: AreaId }) {
                     </h2>
                     <p className="mt-0.5 text-sm text-muted-foreground">{mod.descricao}</p>
                   </div>
-                  <ArrowRight className="size-4 shrink-0 text-primary" />
+                  <ArrowRight className="size-4 shrink-0 text-muted-foreground" />
                 </CardContent>
               </Card>
             </Link>

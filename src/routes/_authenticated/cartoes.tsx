@@ -1,5 +1,5 @@
 import { formatarNomeExibicao } from "@/lib/nome-exibicao";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Building2, CreditCard, Gauge, Pencil, Plus, Trash2 } from "lucide-react";
@@ -48,12 +48,12 @@ import { formatBRL, toBRL } from "@/lib/format";
 export const Route = createFileRoute("/_authenticated/cartoes")({
   head: () => ({
     meta: [
-      { title: "Cartões e Bancos — Control ALL" },
+      { title: "Cartões e Bancos | Control ALL" },
       {
         name: "description",
         content: "Cadastre cartões de crédito, contas bancárias e acompanhe a fatura de cada um.",
       },
-      { property: "og:title", content: "Cartões e Bancos — Control ALL" },
+      { property: "og:title", content: "Cartões e Bancos | Control ALL" },
       {
         property: "og:description",
         content: "Gestão de cartões, limites, faturas e contas bancárias do casal.",
@@ -352,12 +352,19 @@ function CartoesPage() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="cartoes" className="mt-4 grid gap-3 sm:grid-cols-2">
+        <TabsContent value="cartoes" className="mt-6 grid gap-4 sm:grid-cols-2">
           {cartoes.length === 0 && (
             <Card className="sm:col-span-2">
-              <CardContent className="flex flex-col items-center gap-2 py-12 text-center">
-                <CreditCard className="size-8 text-muted-foreground" />
+              <CardContent className="flex flex-col items-center gap-4 py-14 text-center">
+                <span className="grid size-14 place-items-center rounded-full bg-muted text-muted-foreground">
+                  <CreditCard className="size-6" aria-hidden="true" />
+                </span>
                 <p className="text-sm text-muted-foreground">Nenhum cartão cadastrado.</p>
+                {can("cartoes", "editar") && (
+                  <Button onClick={novoCartao}>
+                    <Plus className="size-4" /> Novo cartão
+                  </Button>
+                )}
               </CardContent>
             </Card>
           )}
@@ -437,12 +444,19 @@ function CartoesPage() {
           })}
         </TabsContent>
 
-        <TabsContent value="bancos" className="mt-4 space-y-2">
+        <TabsContent value="bancos" className="mt-6 space-y-3">
           {bancos.length === 0 && (
             <Card>
-              <CardContent className="flex flex-col items-center gap-2 py-12 text-center">
-                <Building2 className="size-8 text-muted-foreground" />
+              <CardContent className="flex flex-col items-center gap-4 py-14 text-center">
+                <span className="grid size-14 place-items-center rounded-full bg-muted text-muted-foreground">
+                  <Building2 className="size-6" aria-hidden="true" />
+                </span>
                 <p className="text-sm text-muted-foreground">Nenhum banco cadastrado.</p>
+                {can("cartoes", "editar") && (
+                  <Button onClick={novoBanco}>
+                    <Plus className="size-4" /> Novo banco
+                  </Button>
+                )}
               </CardContent>
             </Card>
           )}
@@ -486,24 +500,24 @@ function CartoesPage() {
           ))}
         </TabsContent>
 
-        <TabsContent value="limites" className="mt-4 space-y-3">
+        <TabsContent value="limites" className="mt-6 space-y-4">
           {limitesPorBanco.length > 0 && (
             <>
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="grid flex-1 grid-cols-3 gap-2">
-                  <div className="rounded-lg border bg-card p-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="grid flex-1 grid-cols-3 gap-4">
+                  <div className="rounded-2xl border bg-card px-4 py-3">
                     <p className="text-xs text-muted-foreground">Limite total</p>
-                    <p className="font-bold">{formatBRL(totaisLimite.total)}</p>
+                    <p className="font-bold tabular-nums">{formatBRL(totaisLimite.total)}</p>
                   </div>
-                  <div className="rounded-lg border bg-card p-3">
+                  <div className="rounded-2xl border bg-card px-4 py-3">
                     <p className="text-xs text-muted-foreground">Usado</p>
-                    <p className="font-bold text-destructive">
+                    <p className="font-bold tabular-nums text-destructive">
                       {formatBRL(totaisLimite.utilizado)}
                     </p>
                   </div>
-                  <div className="rounded-lg border bg-card p-3">
+                  <div className="rounded-2xl border bg-card px-4 py-3">
                     <p className="text-xs text-muted-foreground">Disponível</p>
-                    <p className="font-bold text-success">{formatBRL(totaisLimite.disponivel)}</p>
+                    <p className="font-bold tabular-nums text-success">{formatBRL(totaisLimite.disponivel)}</p>
                   </div>
                 </div>
                 <Select value={periodoLimite} onValueChange={setPeriodoLimite}>
@@ -524,12 +538,14 @@ function CartoesPage() {
           )}
           {limitesPorBanco.length === 0 ? (
             <Card>
-              <CardContent className="flex flex-col items-center gap-2 py-12 text-center">
-                <Gauge className="size-8 text-muted-foreground" />
-                <p className="text-sm text-muted-foreground">
-                  Nenhum limite capturado ainda. Importe uma fatura em "Importar Faturas" para ver
-                  esta análise.
-                </p>
+              <CardContent className="flex flex-col items-center gap-4 py-14 text-center">
+                <span className="grid size-14 place-items-center rounded-full bg-muted text-muted-foreground">
+                  <Gauge className="size-6" aria-hidden="true" />
+                </span>
+                <p className="text-sm text-muted-foreground">Importe uma fatura para ver os limites.</p>
+                <Button asChild>
+                  <Link to="/importar">Importar fatura</Link>
+                </Button>
               </CardContent>
             </Card>
           ) : (
@@ -542,7 +558,7 @@ function CartoesPage() {
                       <div>
                         <p className="text-sm font-semibold">{g.label}</p>
                         <p className="text-xs text-muted-foreground">
-                          Última fatura: {g.competencia ?? "—"}
+                          Última fatura: {g.competencia ?? "-"}
                         </p>
                       </div>
                       <Badge variant={uso > 80 ? "destructive" : "secondary"}>
@@ -561,11 +577,11 @@ function CartoesPage() {
                         },
                       ].map((k) => (
                         <div key={k.label} className="rounded-lg border bg-muted/30 px-3 py-2">
-                          <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                          <p className="text-xs text-muted-foreground">
                             {k.label}
                           </p>
                           <p className={`text-sm font-bold tabular-nums ${k.cor}`}>
-                            {k.valor != null ? formatBRL(k.valor) : "—"}
+                            {k.valor != null ? formatBRL(k.valor) : "-"}
                           </p>
                         </div>
                       ))}
@@ -615,7 +631,7 @@ function CartoesPage() {
             })
           )}
         </TabsContent>
-        <TabsContent value="conferir" className="mt-4">
+        <TabsContent value="conferir" className="mt-6">
           <ConferirFaturasBanco />
         </TabsContent>
       </Tabs>

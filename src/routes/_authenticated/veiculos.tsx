@@ -54,13 +54,13 @@ import {
 export const Route = createFileRoute("/_authenticated/veiculos")({
   head: () => ({
     meta: [
-      { title: "Meu Veículo — Control ALL" },
+      { title: "Meu veículo | Control ALL" },
       {
         name: "description",
         content:
           "Cadastro de veículos com alertas de troca de óleo, IPVA e seguro, e anexo de orçamentos.",
       },
-      { property: "og:title", content: "Meu Veículo — Control ALL" },
+      { property: "og:title", content: "Meu veículo | Control ALL" },
       {
         property: "og:description",
         content: "Controle de veículos: documentos, KM, IPVA, seguro e revisões.",
@@ -107,7 +107,7 @@ const emptyForm = {
 };
 
 function urgenciaCor(a: AlertaVeiculo) {
-  return a.urgencia === "critica" ? "text-destructive" : "text-warning";
+  return a.urgencia === "critica" ? "text-destructive" : "text-warning-foreground dark:text-warning";
 }
 
 const eventoSchema = z.object({
@@ -386,8 +386,8 @@ function VeiculosPage() {
 
   return (
     <AppLayout
-      title="Meu Veículo"
-      description="Documentos, quilometragem e alertas de IPVA, seguro e revisão"
+      title="Meu veículo"
+      description="Documentos, quilometragem e alertas de IPVA, seguro e revisão."
       actions={
         can("veiculos", "editar") && (
           <Button size="sm" onClick={abrirNovo}>
@@ -396,12 +396,19 @@ function VeiculosPage() {
         )
       }
     >
-      <div className="space-y-3">
+      <div className="space-y-6">
         {veiculos.length === 0 && (
           <Card>
-            <CardContent className="flex flex-col items-center gap-2 py-12 text-center">
-              <Car className="size-8 text-muted-foreground" />
+            <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
+              <div className="flex size-12 items-center justify-center rounded-full bg-muted">
+                <Car className="size-5 text-muted-foreground" />
+              </div>
               <p className="text-sm text-muted-foreground">Nenhum veículo cadastrado.</p>
+              {can("veiculos", "editar") && (
+                <Button size="sm" onClick={abrirNovo}>
+                  <Plus className="size-4" /> Novo veículo
+                </Button>
+              )}
             </CardContent>
           </Card>
         )}
@@ -410,20 +417,20 @@ function VeiculosPage() {
           const documentos = (v.veiculo_documentos ?? []) as any[];
           return (
             <Card key={v.id}>
-              <CardContent className="space-y-3 p-4">
-                <div className="flex items-start gap-3">
-                  <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+              <CardContent className="space-y-4 p-6">
+                <div className="flex items-start gap-4">
+                  <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10">
                     <Car className="size-5 text-primary" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold">{v.nome}</p>
+                    <p className="truncate text-base font-semibold">{v.nome}</p>
                     <p className="truncate text-xs text-muted-foreground">
                       {[v.marca, v.modelo, v.ano].filter(Boolean).join(" ")}
                       {v.placa ? ` · placa ${v.placa}` : ""}
                       {v.motorista_principal ? ` · ${v.motorista_principal}` : ""}
                     </p>
                     {v.km_atual != null && (
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-muted-foreground tabular-nums">
                         {Number(v.km_atual).toLocaleString("pt-BR")} km
                       </p>
                     )}
@@ -453,7 +460,7 @@ function VeiculosPage() {
                 </div>
 
                 {alertas.length > 0 && (
-                  <div className="space-y-1 rounded-lg border border-warning/40 bg-warning/5 p-2">
+                  <div className="space-y-1.5 rounded-2xl bg-warning/10 p-3">
                     {alertas.map((a, i) => (
                       <p key={i} className={`flex items-center gap-1.5 text-xs ${urgenciaCor(a)}`}>
                         <AlertTriangle className="size-3.5 shrink-0" /> {a.mensagem}
@@ -464,10 +471,10 @@ function VeiculosPage() {
 
                 <div className="flex flex-wrap items-center gap-2">
                   {v.data_vencimento_ipva && (
-                    <Badge variant="secondary">IPVA {formatDate(v.data_vencimento_ipva)}</Badge>
+                    <Badge variant="secondary" className="tabular-nums">IPVA {formatDate(v.data_vencimento_ipva)}</Badge>
                   )}
                   {v.data_vencimento_seguro && (
-                    <Badge variant="secondary">Seguro {formatDate(v.data_vencimento_seguro)}</Badge>
+                    <Badge variant="secondary" className="tabular-nums">Seguro {formatDate(v.data_vencimento_seguro)}</Badge>
                   )}
                   {documentos
                     .filter((d) => !d.evento_id)
@@ -501,11 +508,11 @@ function VeiculosPage() {
                     filtro === "todos" ? eventos : eventos.filter((e) => e.tipo === filtro);
                   const aberto = !!historicoAberto[v.id];
                   return (
-                    <div className="border-t pt-3">
+                    <div className="border-t pt-4">
                       <button
                         type="button"
                         onClick={() => setHistoricoAberto((s) => ({ ...s, [v.id]: !aberto }))}
-                        className="flex w-full items-center gap-2 text-left text-xs font-semibold text-muted-foreground hover:text-foreground"
+                        className="flex w-full items-center gap-2 text-left text-sm font-medium text-muted-foreground tabular-nums hover:text-foreground"
                       >
                         <Wrench className="size-3.5" />
                         Histórico de manutenção ({eventos.length})
@@ -517,8 +524,8 @@ function VeiculosPage() {
                         />
                       </button>
                       {aberto && (
-                        <div className="mt-2 space-y-2">
-                          <div className="flex flex-wrap items-center gap-2">
+                        <div className="mt-3 space-y-3">
+                          <div className="flex flex-wrap items-center gap-3">
                             <Select
                               value={filtro}
                               onValueChange={(val) =>
@@ -552,20 +559,20 @@ function VeiculosPage() {
                             )}
                           </div>
                           {eventosFiltrados.length === 0 ? (
-                            <p className="px-1 text-xs text-muted-foreground">
+                            <p className="rounded-2xl border border-dashed p-4 text-center text-xs text-muted-foreground">
                               Nenhum evento{filtro !== "todos" ? " desse tipo" : ""} registrado.
                             </p>
                           ) : (
-                            <div className="space-y-1.5">
+                            <div className="space-y-2">
                               {eventosFiltrados.map((e: any) => (
                                 <div
                                   key={e.id}
-                                  className="flex items-start gap-2 rounded-lg border px-2.5 py-1.5 text-xs"
+                                  className="flex items-start gap-2 rounded-xl border px-3 py-2 text-xs"
                                 >
                                   <div className="min-w-0 flex-1">
                                     <p className="font-medium">
                                       {labelTipoEvento(e.tipo)}{" "}
-                                      <span className="font-normal text-muted-foreground">
+                                      <span className="font-normal text-muted-foreground tabular-nums">
                                         · {formatDate(e.data)}
                                         {e.km != null
                                           ? ` · ${Number(e.km).toLocaleString("pt-BR")} km`

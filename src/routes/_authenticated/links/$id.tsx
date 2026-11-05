@@ -55,9 +55,9 @@ function LinkPage() {
   return (
     <AppLayout title={ok?.titulo ?? "Link"} description="Conteúdo publicado pela administração">
       <Card>
-        <CardContent className="space-y-4 p-5">
+        <CardContent className="space-y-6 p-6">
           {ok && (
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-3">
               <Button type="button" size="sm" variant="outline" onClick={copiar}>
                 <Copy className="mr-1.5 h-4 w-4" aria-hidden="true" />
                 Copiar nota toda
@@ -79,7 +79,7 @@ function LinkPage() {
                 </Button>
               )}
               {ok.concluidaEm && (
-                <span className="text-xs text-muted-foreground">
+                <span className="text-xs text-muted-foreground tabular-nums">
                   Analisada em {new Date(ok.concluidaEm).toLocaleDateString("pt-BR")}
                 </span>
               )}

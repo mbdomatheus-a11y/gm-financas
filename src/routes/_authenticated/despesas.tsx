@@ -134,13 +134,13 @@ export const Route = createFileRoute("/_authenticated/despesas")({
   }),
   head: () => ({
     meta: [
-      { title: "Despesas — Control ALL" },
+      { title: "Despesas | Control ALL" },
       {
         name: "description",
         content:
           "Despesas fixas e variáveis com parcelamento automático, alerta de duplicidade e controle de parcelas pagas.",
       },
-      { property: "og:title", content: "Despesas — Control ALL" },
+      { property: "og:title", content: "Despesas | Control ALL" },
       {
         property: "og:description",
         content: "Controle de despesas fixas, variáveis e parcelamentos do casal.",
@@ -1067,7 +1067,7 @@ function DespesasPage() {
       }
     >
       {divisaoJusta && (
-        <Card className="mb-3">
+        <Card className="mb-6">
           <CardContent className="space-y-2 p-4">
             <h2 className="text-base font-bold tracking-tight">Divisão justa do compartilhado</h2>
             <p className="text-sm text-muted-foreground">
@@ -1090,7 +1090,7 @@ function DespesasPage() {
         </Card>
       )}
 
-      <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-3">
+      <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-3">
         {[
           { filtro: "total" as const, label: "Total despesas", valor: formatar(resumo.total), cor: "text-destructive", hint: "" },
           { filtro: null, label: "Receitas", valor: formatar(receitaDoFiltro), cor: "text-success", hint: "" },
@@ -1099,7 +1099,7 @@ function DespesasPage() {
             label: "Receitas − despesas",
             valor: semFiltrosDeLista
               ? `${saldoDoFiltro >= 0 ? "+" : "-"} ${formatar(Math.abs(saldoDoFiltro))}`
-              : "—",
+              : "-",
             cor: saldoDoFiltro >= 0 ? "text-success" : "text-destructive",
             hint: semFiltrosDeLista ? "não desconta caixinhas" : "tire os filtros para ver o saldo",
           },
@@ -1114,7 +1114,7 @@ function DespesasPage() {
           {
             filtro: "proximo" as const,
             label: "Próximo vencimento",
-            valor: resumo.proximo ? formatar(resumo.proximo.valor) : "—",
+            valor: resumo.proximo ? formatar(resumo.proximo.valor) : "-",
             cor: "text-warning",
             hint: resumo.proximo
               ? `${formatDate(resumo.proximo.data)} · fixas ${formatar(resumo.proximo.fixas)} · parcelados no cartão ${formatar(resumo.proximo.parcelados)}${resumo.proximo.outros > 0.004 ? ` · outros ${formatar(resumo.proximo.outros)}` : ""}`
@@ -1168,7 +1168,7 @@ function DespesasPage() {
           desmarcar itens aqui só recalcula o total na hora, nada é gravado
           no banco (estado local, reseta ao trocar de aba/mês ou sair). */}
       {tab === "fixa" && filtroMes !== "todos" && modoLista === "lista" && lista.length > 0 && (
-        <div className="mb-3 space-y-2">
+        <div className="mb-6 space-y-3">
           <Button
             size="sm"
             variant={simulandoCortes ? "secondary" : "outline"}
@@ -1181,7 +1181,7 @@ function DespesasPage() {
           {simulandoCortes && simulacao && (
             <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-muted/20 px-3 py-2 text-xs">
               <span className="text-muted-foreground">
-                Desmarque abaixo os gastos que você cortaria — nada é salvo, é só pra visualizar.
+                Desmarque o que você cortaria. Nada é salvo.
               </span>
               <span className="font-semibold">
                 Total simulado: {formatBRL(simulacao.totalSimulado)}
@@ -1196,7 +1196,7 @@ function DespesasPage() {
         </div>
       )}
 
-      <div className="mb-4 flex flex-wrap items-center gap-3">
+      <div className="mb-6 flex flex-wrap items-center gap-3">
         <div className="relative min-w-[16rem] flex-1">
           <Search className="pointer-events-none absolute left-3.5 top-1/2 size-5 -translate-y-1/2 text-primary" aria-hidden="true" />
           <Input
@@ -1238,7 +1238,7 @@ function DespesasPage() {
                 <TabsTrigger value="pix" className="gap-1.5 px-4 py-2 text-sm">
                   PIX
                   {pixPendentes > 0 && (
-                    <span className="rounded-full bg-primary px-1.5 text-[10px] font-semibold text-primary-foreground">
+                    <span className="rounded-full bg-primary px-1.5 text-xs font-semibold text-primary-foreground">
                       {pixPendentes}
                     </span>
                   )}
@@ -1277,7 +1277,7 @@ function DespesasPage() {
           onChange={setFiltroMes}
         />
 
-        <div className="flex w-full flex-wrap items-center gap-1.5">
+        <div className="flex w-full flex-wrap items-center gap-3">
         <div className="contents">
           <Select value={filtroCartao} onValueChange={setFiltroCartao}>
             <SelectTrigger className="h-9 w-auto min-w-[8.5rem] text-xs">
@@ -1363,13 +1363,13 @@ function DespesasPage() {
               <button
                 key={c.label}
                 onClick={c.clear}
-                className="inline-flex items-center gap-1.5 rounded-full border bg-muted/50 px-3 py-1.5 text-[11px] font-medium hover:bg-muted"
+                className="inline-flex items-center gap-1.5 rounded-full border bg-muted/50 px-3 py-1.5 text-xs font-medium hover:bg-muted"
               >
                 {c.label}
                 <X className="size-3" />
               </button>
             ))}
-            <Button variant="ghost" size="sm" className="h-8 text-[11px]" onClick={limparFiltros}>
+            <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={limparFiltros}>
               Limpar filtros
             </Button>
           </div>
@@ -1381,7 +1381,7 @@ function DespesasPage() {
         filtroMes !== "todos" &&
         can("despesas", "editar") &&
         lista.length > 0 && (
-          <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border bg-muted/20 px-3 py-2">
+          <div className="mb-6 flex flex-wrap items-center gap-3 rounded-2xl border bg-muted/20 px-4 py-3">
             <span className="text-xs text-muted-foreground">
               {tab === "total" ? "Todas" : tab === "fixa" ? "Fixas" : "Variáveis"} de{" "}
               {monthLabelLong(filtroMes)}:
@@ -1439,7 +1439,7 @@ function DespesasPage() {
                   >
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium">{d.descricao}</p>
-                      <p className="text-[11px] text-muted-foreground">
+                      <p className="text-xs text-muted-foreground">
                         {formatDate(p.vencimento)} ·{" "}
                         {d.cartoes
                           ? `${d.cartoes.apelido || d.cartoes.bandeira || "Cartão"} •${d.cartoes.final ?? ""}`
@@ -1447,7 +1447,7 @@ function DespesasPage() {
                         {d.total_parcelas > 1 ? ` · parcela ${p.numero}/${d.total_parcelas}` : ""}
                       </p>
                     </div>
-                    <Badge variant={p.paga ? "secondary" : "outline"} className="text-[10px]">
+                    <Badge variant={p.paga ? "secondary" : "outline"} className="text-xs">
                       {p.paga ? "Paga" : "Em aberto"}
                     </Badge>
                     <span className="shrink-0 text-sm font-semibold tabular-nums">{formatar(valor)}</span>
@@ -1459,20 +1459,33 @@ function DespesasPage() {
         </Card>
       ) : lista.length === 0 ? (
         <Card>
-          <CardContent className="flex flex-col items-center gap-2 py-12 text-center">
-            <TrendingDown className="size-8 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">Nenhuma despesa encontrada.</p>
+          <CardContent className="flex flex-col items-center gap-4 py-14 text-center">
+            <span className="grid size-14 place-items-center rounded-full bg-muted text-muted-foreground">
+              <TrendingDown className="size-6" aria-hidden="true" />
+            </span>
+            <p className="text-sm text-muted-foreground">Nenhuma despesa por aqui.</p>
+            {chips.length > 0 ? (
+              <Button variant="outline" onClick={limparFiltros}>
+                Limpar filtros
+              </Button>
+            ) : (
+              can("despesas", "editar") && (
+                <Button onClick={abrirNova}>
+                  <Plus className="size-4" /> Nova despesa
+                </Button>
+              )
+            )}
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-4">
           {gruposLista.map((grupo) => (
-            <div key={grupo.key} className="overflow-hidden rounded-xl border bg-card">
+            <div key={grupo.key} className="overflow-hidden rounded-2xl border bg-card">
               {modoLista === "cartao" && (
                 <div
                   role="button"
                   tabIndex={0}
-                  className="flex w-full items-center gap-3 border-b bg-muted/30 px-3 py-2 text-left native:flex-wrap native:gap-y-2"
+                  className="flex w-full items-center gap-3 border-b bg-muted/30 px-4 py-3 text-left native:flex-wrap native:gap-y-2"
                   onClick={() => setGrupoExpandido(grupoExpandido === grupo.key ? null : grupo.key)}
                   onKeyDown={(e) =>
                     e.key === "Enter" &&
@@ -1501,7 +1514,7 @@ function DespesasPage() {
                   </div>
                   <div className="shrink-0 text-right">
                     <p className="text-sm font-bold tabular-nums">{formatar(grupo.total)}</p>
-                    <p className="text-[10px] text-muted-foreground">
+                    <p className="text-xs text-muted-foreground">
                       {grupo.itens.length} lançamento(s) ·{" "}
                       {resumo.total > 0 ? ((grupo.total / resumo.total) * 100).toFixed(0) : 0}%
                     </p>
@@ -1553,7 +1566,7 @@ function DespesasPage() {
               )}
               {(modoLista !== "cartao" || grupoExpandido === grupo.key) && (
                 <div className="divide-y">
-                  <label className="flex cursor-pointer items-center gap-3 bg-muted/20 px-3 py-1.5 text-[11px] text-muted-foreground">
+                  <label className="flex cursor-pointer items-center gap-3 bg-muted/20 px-4 py-2 text-xs text-muted-foreground">
                     <Checkbox
                       checked={soma.todosMarcados(grupo.itens.map((d: any) => d.id))}
                       onCheckedChange={() => soma.alternarVarios(grupo.itens.map((d: any) => d.id))}
@@ -1580,7 +1593,7 @@ function DespesasPage() {
                         <div
                           onClick={() => abrirEdicao(d)}
                           className={cn(
-                            "flex items-center gap-3 px-3 py-2.5 transition-colors hover:bg-muted/40 native:gap-2 native:active:bg-muted/50",
+                            "flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/40 native:gap-2 native:active:bg-muted/50",
                             can("despesas", "editar") && "cursor-pointer",
                             (ignoradaNoMes ||
                               d.origem === "fatura_total_concluida" ||
@@ -1624,20 +1637,20 @@ function DespesasPage() {
                                 )}
                                 {d.descricao}
                                 {!!d.possivel_duplicidade && (
-                                  <Badge variant="outline" className="ml-2 border-amber-500/40 align-middle text-[10px] text-amber-700 dark:text-amber-300" title="Mesmo valor de um lançamento manual em outra data. Confira se não é duplicidade.">Possível duplicidade</Badge>
+                                  <Badge variant="outline" className="ml-2 border-warning/40 align-middle text-xs text-warning-foreground dark:text-warning" title="Mesmo valor de um lançamento manual em outra data. Confira se não é duplicidade.">Possível duplicidade</Badge>
                                 )}
                               </p>
                               {ignoradaNoMes && (
                                 <Badge
                                   variant="outline"
-                                  className="border-amber-500/30 text-[10px] text-amber-600 dark:text-amber-400"
+                                  className="border-warning/30 text-xs text-warning-foreground dark:text-warning"
                                 >
                                   Ignorado neste mês (total manual)
                                 </Badge>
                               )}
                               {ehTotalManual && faturaAvulsa?.status === "aberta" && (
                                 <Badge
-                                  className="bg-amber-600 text-[10px] hover:bg-amber-700"
+                                  className="bg-warning text-xs text-warning-foreground hover:bg-warning/90"
                                   title="Veio do totalizador de fatura (Fatura do mês), não de lançamento item a item."
                                 >
                                   Total manual ativo
@@ -1653,20 +1666,20 @@ function DespesasPage() {
                                 competenciaDoDia(faturaAvulsa.data_limite) < competenciaAtual() && (
                                   <Badge
                                     variant="outline"
-                                    className="border-destructive/40 text-[10px] text-destructive"
+                                    className="border-destructive/40 text-xs text-destructive"
                                   >
-                                    Prazo do total passou — considere detalhar item a item
+                                    Prazo do total vencido: detalhe item a item
                                   </Badge>
                                 )}
                               {d.origem === "fatura_total_concluida" && (
-                                <Badge variant="outline" className="text-[10px]">
+                                <Badge variant="outline" className="text-xs">
                                   Total manual concluído
                                 </Badge>
                               )}
                               {d.origem === "pluggy" && (
                                 <Badge
                                   variant="outline"
-                                  className="border-emerald-500/30 text-[10px] text-emerald-600 dark:text-emerald-400"
+                                  className="border-success/30 text-xs text-success"
                                 >
                                   Open Finance
                                 </Badge>
@@ -1674,7 +1687,7 @@ function DespesasPage() {
                               {d.origem && d.origem !== "manual" && d.origem !== "pluggy" && (
                                 <Badge
                                   variant="outline"
-                                  className="border-sky-500/30 text-[10px] text-sky-600 dark:text-sky-400"
+                                  className="border-sky-500/30 text-xs text-sky-600 dark:text-sky-400"
                                 >
                                   {d.origem.startsWith("fatura") ? "De fatura" : "Importado"}
                                 </Badge>
@@ -1682,13 +1695,13 @@ function DespesasPage() {
                               {d.economia_conquistada && (
                                 <Badge
                                   variant="outline"
-                                  className="border-emerald-500/30 text-[10px] text-emerald-600 dark:text-emerald-400"
+                                  className="border-success/30 text-xs text-success"
                                 >
                                   Economia conquistada
                                 </Badge>
                               )}
                             </div>
-                            <p className="truncate text-[11px] text-muted-foreground">
+                            <p className="truncate text-xs text-muted-foreground">
                               {formatDate(d.data_compra)} · {d.categoria}
                               {d.tipo === "fixa"
                                 ? ` · ${filtroMes === "todos" ? "valor mensal" : monthLabelLong(filtroMes)}`
@@ -1705,7 +1718,7 @@ function DespesasPage() {
                           </div>
                           {d.tipo !== "fixa" && d.total_parcelas > 1 && (
                             <div className="hidden w-24 shrink-0 sm:block">
-                              <Badge variant="secondary" className="text-[10px]">
+                              <Badge variant="secondary" className="text-xs">
                                 {`${totalPagas}/${d.total_parcelas} pagas`}
                               </Badge>
                               <Progress
@@ -1720,7 +1733,7 @@ function DespesasPage() {
                               {formatar(toBRL(valorVisivel(d), d.moeda, cotacao))}
                             </p>
                             {d.moeda === "USD" && (
-                              <p className="text-[10px] text-muted-foreground">
+                              <p className="text-xs tabular-nums text-muted-foreground">
                                 {formatUSD(Number(d.valor_total))}
                               </p>
                             )}
@@ -1868,7 +1881,7 @@ function DespesasPage() {
                                   onClick={() => togglePaga.mutate({ id: p.id, paga: !p.paga })}
                                   disabled={!can("despesas", "editar")}
                                   className={cn(
-                                    "inline-flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-[11px] font-medium tabular-nums transition-colors",
+                                    "inline-flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-xs font-medium tabular-nums transition-colors",
                                     p.paga
                                       ? "border-success/30 bg-success/10 text-success"
                                       : "border-border bg-background text-muted-foreground hover:border-primary/40",
@@ -1932,11 +1945,11 @@ function DespesasPage() {
                 placeholder="0,00"
               />
               {valorDigitado > 0 && (
-                <p className="mt-1 text-[11px] text-muted-foreground">
+                <p className="mt-1 text-xs text-muted-foreground">
                   {ehFixa
                     ? `${formatBRL(valorDigitado)} por mês`
                     : nParcelas > 1
-                      ? `${nParcelas}x de ${formatBRL(previewParcela)} — total ${formatBRL(valorNum)}`
+                      ? `${nParcelas}x de ${formatBRL(previewParcela)}, total ${formatBRL(valorNum)}`
                       : ""}
                 </p>
               )}
@@ -2156,16 +2169,16 @@ function DespesasPage() {
                 onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
               />
             </Field>
-            <div className="sm:col-span-2 rounded-lg border border-emerald-500/20 bg-emerald-50/50 p-3 dark:bg-emerald-950/20">
-              <label className="flex items-center gap-2 text-sm font-medium text-emerald-800 dark:text-emerald-300 cursor-pointer">
+            <div className="sm:col-span-2 rounded-lg border border-success/20 bg-success/5 p-3">
+              <label className="flex items-center gap-2 text-sm font-medium text-success cursor-pointer">
                 <Checkbox
                   checked={!!form.economia_conquistada}
                   onCheckedChange={(v) => setForm({ ...form, economia_conquistada: !!v })}
                 />
-                Despesa Ajustada / Economia Conquistada
+                Economia conquistada
               </label>
               <p className="mt-1 text-xs text-muted-foreground">
-                Marque se você negociou ou cancelou esta cobrança (ex.: anuidade isentada ou serviço cancelado). A despesa fica riscada no histórico.
+                Marque se negociou ou cancelou a cobrança. Ela fica riscada no histórico.
               </p>
             </div>
           </div>
@@ -2178,9 +2191,9 @@ function DespesasPage() {
                     ? ", sem prazo."
                     : ` até ${monthLabelLong(ultimaCompetencia?.competencia ?? "")} (${mesesPrazo} meses).`) +
                   (recorrencia?.reajuste
-                    ? ` Reajuste ${recorrencia.reajuste.periodicidade} de ${recorrencia.reajuste.percentual}%${recorrencia.reajuste.indice ? ` (${recorrencia.reajuste.indice})` : ""} — último mês projetado: ${formatBRL(ultimaCompetencia?.valor ?? valorDigitado)}.`
+                    ? ` Reajuste ${recorrencia.reajuste.periodicidade} de ${recorrencia.reajuste.percentual}%${recorrencia.reajuste.indice ? ` (${recorrencia.reajuste.indice})` : ""}. Último mês projetado: ${formatBRL(ultimaCompetencia?.valor ?? valorDigitado)}.`
                     : "")
-                : `${nParcelas}x de ${formatBRL(previewParcela)} — total ${formatBRL(valorNum)}.`}
+                : `${nParcelas}x de ${formatBRL(previewParcela)}, total ${formatBRL(valorNum)}.`}
             </p>
           )}
 

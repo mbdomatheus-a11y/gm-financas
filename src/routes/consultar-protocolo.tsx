@@ -23,7 +23,7 @@ export const Route = createFileRoute("/consultar-protocolo")({
   }),
   head: () => ({
     meta: [
-      { title: "Consultar Protocolo — Control ALL" },
+      { title: "Consultar protocolo | Control ALL" },
       { name: "description", content: "Acompanhe o status de uma solicitação pelo número de protocolo." },
     ],
   }),
@@ -85,22 +85,24 @@ function ConsultarProtocoloPage() {
   }, [p]);
 
   return (
-    <main className="mx-auto min-h-screen max-w-2xl px-4 py-10">
-      <Link to="/entrar" className="mb-6 inline-flex items-center gap-1 text-sm text-muted-foreground">
-        <ArrowLeft className="size-4" /> Voltar
+    <main className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-10">
+      <div className="w-full max-w-md">
+      <Link
+        to="/entrar"
+        className="mb-10 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
+      >
+        <ArrowLeft className="size-4" /> Voltar para o login
       </Link>
+      <div className="mb-8 space-y-3 text-center">
+        <h1 className="text-4xl font-extrabold tracking-[-0.03em]">Consultar protocolo</h1>
+        <p className="text-base text-muted-foreground">
+          Acompanhe sua solicitação com o protocolo recebido por e-mail.
+        </p>
+      </div>
       <Card>
-        <CardContent className="space-y-5 p-6 text-sm">
-          <div>
-            <h1 className="text-2xl font-bold">Consultar Protocolo</h1>
-            <p className="text-muted-foreground">
-              Acompanhe o status de uma solicitação de privacidade, chamado de suporte ou fatura
-              enviada para modelagem usando o protocolo recebido por e-mail.
-            </p>
-          </div>
-
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-            <div className="flex-1 space-y-1.5">
+        <CardContent className="space-y-5 p-8 text-sm">
+          <div className="flex flex-col gap-3">
+            <div className="space-y-2">
               <Label>Número de protocolo</Label>
               <Input
                 value={protocoloInput}
@@ -108,15 +110,15 @@ function ConsultarProtocoloPage() {
                 placeholder="ex.: 3f2a9c10-..."
               />
             </div>
-            <Button disabled={buscando} onClick={() => buscar(protocoloInput)}>
-              <Search className="mr-2 size-4" /> {buscando ? "Buscando…" : "Consultar"}
+            <Button size="lg" className="w-full" disabled={buscando} onClick={() => buscar(protocoloInput)}>
+              <Search className="size-4" /> {buscando ? "Buscando…" : "Consultar"}
             </Button>
           </div>
 
           {jaBuscou && !buscando && (
             <div className="border-t pt-4">
               {resultado ? (
-                <div className="space-y-2 rounded-lg border bg-muted/30 p-4">
+                <div className="space-y-2 rounded-2xl bg-muted p-4">
                   <div className="flex items-center justify-between gap-2">
                     <b>{TIPO_LABEL[resultado.tipo] ?? resultado.tipo}</b>
                     <Badge variant="outline">{STATUS_LABEL[resultado.status] ?? resultado.status}</Badge>
@@ -126,22 +128,22 @@ function ConsultarProtocoloPage() {
                   )}
                   <p className="text-xs text-muted-foreground">Aberto há {resultado.dias_aberto} dia(s).</p>
                   {resultado.resposta && (
-                    <div className="rounded bg-background p-2 text-xs">
+                    <div className="rounded-xl bg-background p-3 text-xs">
                       <span className="font-semibold">Resposta: </span>
                       {resultado.resposta}
                     </div>
                   )}
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">
-                  Nenhuma solicitação encontrada para esse protocolo. Confira se copiou o código
-                  completo recebido por e-mail.
+                <p className="text-center text-sm text-muted-foreground">
+                  Nenhuma solicitação encontrada. Confira se copiou o código completo.
                 </p>
               )}
             </div>
           )}
         </CardContent>
       </Card>
+      </div>
     </main>
   );
 }

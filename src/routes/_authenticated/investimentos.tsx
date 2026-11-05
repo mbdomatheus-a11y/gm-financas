@@ -39,12 +39,12 @@ import { TIPOS_RENDIMENTO, type TipoRendimento } from "@/lib/rendimento";
 export const Route = createFileRoute("/_authenticated/investimentos")({
   head: () => ({
     meta: [
-      { title: "Investimentos — Control ALL" },
+      { title: "Investimentos | Control ALL" },
       {
         name: "description",
         content: "Acompanhe aportes, resgates, rentabilidade e patrimônio investido do casal.",
       },
-      { property: "og:title", content: "Investimentos — Control ALL" },
+      { property: "og:title", content: "Investimentos | Control ALL" },
       {
         property: "og:description",
         content: "Carteira de investimentos do casal com aportes, resgates e rendimento.",
@@ -261,24 +261,24 @@ function InvestimentosPage() {
         )
       }
     >
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-3">
         <Card>
-          <CardContent className="p-4">
+          <CardContent className="p-5">
             <p className="text-xs text-muted-foreground">Total investido</p>
-            <p className="mt-1 text-xl font-bold">{formatBRL(totalInvestido)}</p>
+            <p className="mt-1 text-xl font-bold tabular-nums">{formatBRL(totalInvestido)}</p>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4">
+          <CardContent className="p-5">
             <p className="text-xs text-muted-foreground">Valor atual</p>
-            <p className="mt-1 text-xl font-bold">{formatBRL(totalAtual)}</p>
+            <p className="mt-1 text-xl font-bold tabular-nums">{formatBRL(totalAtual)}</p>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4">
+          <CardContent className="p-5">
             <p className="text-xs text-muted-foreground">Rendimento</p>
             <p
-              className={`mt-1 text-xl font-bold ${rendimento >= 0 ? "text-success" : "text-destructive"}`}
+              className={`mt-1 text-xl font-bold tabular-nums ${rendimento >= 0 ? "text-success" : "text-destructive"}`}
             >
               {formatBRL(rendimento)}
             </p>
@@ -286,10 +286,12 @@ function InvestimentosPage() {
         </Card>
       </div>
 
+      {(porTipo.length > 0 || fixaVariavel.length > 0) && (
+      <div className="mt-6 grid gap-6 lg:grid-cols-2">
       {porTipo.length > 0 && (
-        <Card className="mt-4">
+        <Card>
           <CardHeader className="pb-0">
-            <CardTitle className="text-sm">Distribuição por tipo</CardTitle>
+            <CardTitle className="text-base">Distribuição por tipo</CardTitle>
           </CardHeader>
           <CardContent className="h-56">
             <ResponsiveContainer width="100%" height="100%">
@@ -313,9 +315,9 @@ function InvestimentosPage() {
       )}
 
       {fixaVariavel.length > 0 && (
-        <Card className="mt-4">
+        <Card>
           <CardHeader className="pb-0">
-            <CardTitle className="text-sm">Renda fixa x variável</CardTitle>
+            <CardTitle className="text-base">Renda fixa x variável</CardTitle>
           </CardHeader>
           <CardContent className="h-56">
             <ResponsiveContainer width="100%" height="100%">
@@ -343,6 +345,8 @@ function InvestimentosPage() {
           </CardContent>
         </Card>
       )}
+      </div>
+      )}
 
       {vincular && (
         <VincularInvestimentoDialog
@@ -351,19 +355,26 @@ function InvestimentosPage() {
           onFechar={() => setVincular(null)}
         />
       )}
-      <div className="mt-4 space-y-2">
+      <div className="mt-6 space-y-3">
         {investimentos.length === 0 && (
           <Card>
-            <CardContent className="flex flex-col items-center gap-2 py-12 text-center">
-              <PiggyBank className="size-8 text-muted-foreground" />
+            <CardContent className="flex flex-col items-center gap-4 py-14 text-center">
+              <span className="grid size-14 place-items-center rounded-full bg-muted text-muted-foreground">
+                <PiggyBank className="size-6" aria-hidden="true" />
+              </span>
               <p className="text-sm text-muted-foreground">Nenhum investimento cadastrado.</p>
+              {can("investimentos", "editar") && (
+                <Button onClick={abrirNovo}>
+                  <Plus className="size-4" /> Novo investimento
+                </Button>
+              )}
             </CardContent>
           </Card>
         )}
         {grupos.map((g) => (
-          <section key={g.tipo} className="space-y-2">
-            <header className="flex items-center justify-between gap-2 px-1 pt-3 text-xs">
-              <span className="font-semibold uppercase tracking-wide text-muted-foreground">
+          <section key={g.tipo} className="space-y-3">
+            <header className="flex items-center justify-between gap-3 px-1 pt-4 text-xs">
+              <span className="font-semibold text-muted-foreground">
                 {g.tipo} ({g.itens.length})
               </span>
               <span className="font-semibold tabular-nums">{formatBRL(g.total)}</span>
@@ -382,7 +393,7 @@ function InvestimentosPage() {
                     <p className="flex items-center gap-1.5 truncate text-sm font-semibold">
                       <span className="truncate">{i.nome}</span>
                       {i.origem === "pluggy" && (
-                        <Badge variant="outline" className="h-5 shrink-0 px-1.5 text-[10px]">
+                        <Badge variant="outline" className="h-5 shrink-0 px-1.5 text-xs">
                           Open Finance
                         </Badge>
                       )}
@@ -390,12 +401,12 @@ function InvestimentosPage() {
                     <p className="truncate text-xs text-muted-foreground">
                       {i.tipo}
                       {i.instituicao ? ` · ${i.instituicao}` : ""} · desde{" "}
-                      {formatDate(i.data_investimento)} · {i.responsavel ?? "—"}
+                      {formatDate(i.data_investimento)} · {i.responsavel ?? "-"}
                     </p>
                   </div>
                   <div className="shrink-0 text-right">
-                    <p className="text-sm font-bold">{formatBRL(Number(i.valor_atual))}</p>
-                    <p className={`text-xs ${lucro >= 0 ? "text-success" : "text-destructive"}`}>
+                    <p className="text-sm font-bold tabular-nums">{formatBRL(Number(i.valor_atual))}</p>
+                    <p className={`text-xs tabular-nums ${lucro >= 0 ? "text-success" : "text-destructive"}`}>
                       {lucro >= 0 ? "+" : ""}
                       {formatBRL(lucro)} ({pct.toFixed(1)}%)
                     </p>

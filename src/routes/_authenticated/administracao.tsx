@@ -203,9 +203,9 @@ function TabelaAtividadeUsuarios({ usuarios }: { usuarios: any[] }) {
           titulo: "Situação",
           celula: (u: any) =>
             u.ativo ? (
-              <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-700">Ativa</Badge>
+              <Badge variant="secondary" className="bg-success/10 text-success">Ativa</Badge>
             ) : (
-              <Badge variant="secondary" className="bg-rose-500/10 text-rose-700">Inativa</Badge>
+              <Badge variant="secondary" className="bg-destructive/10 text-destructive">Inativa</Badge>
             ),
           ordenar: (u: any) => (u.ativo ? "Ativa" : "Inativa"),
         },
@@ -243,36 +243,36 @@ function formatarTamanho(bytes: number): string {
 }
 
 const STATUS_PRIVACIDADE: Record<string, { label: string; color: string }> = {
-  recebida: { label: "Recebida", color: "bg-blue-500/10 text-blue-700" },
-  em_analise: { label: "Em Análise", color: "bg-yellow-500/10 text-yellow-700" },
-  em_atendimento: { label: "Em Atendimento", color: "bg-orange-500/10 text-orange-700" },
-  aguardando_ti: { label: "Aguardando TI", color: "bg-purple-500/10 text-purple-700" },
-  planejado: { label: "Planejado", color: "bg-indigo-500/10 text-indigo-700" },
+  recebida: { label: "Recebida", color: "bg-primary/10 text-primary" },
+  em_analise: { label: "Em Análise", color: "bg-warning/20 text-warning-foreground" },
+  em_atendimento: { label: "Em Atendimento", color: "bg-warning text-warning-foreground" },
+  aguardando_ti: { label: "Aguardando TI", color: "bg-muted text-foreground" },
+  planejado: { label: "Planejado", color: "bg-primary/5 text-primary" },
   programado: { label: "Programado", color: "bg-teal-500/10 text-teal-700" },
-  concluida: { label: "Concluída", color: "bg-emerald-500/10 text-emerald-700" },
-  indeferida: { label: "Indeferida", color: "bg-rose-500/10 text-rose-700" },
+  concluida: { label: "Concluída", color: "bg-success/10 text-success" },
+  indeferida: { label: "Indeferida", color: "bg-destructive/10 text-destructive" },
 };
 
 const STATUS_CHAMADO: Record<string, { label: string; color: string }> = {
-  recebido: { label: "Recebido", color: "bg-blue-500/10 text-blue-700" },
-  em_atendimento: { label: "Em Atendimento", color: "bg-orange-500/10 text-orange-700" },
-  aguardando_usuario: { label: "Aguardando usuário", color: "bg-yellow-500/10 text-yellow-700" },
-  resolvido: { label: "Resolvido", color: "bg-emerald-500/10 text-emerald-700" },
-  cancelado: { label: "Cancelado", color: "bg-rose-500/10 text-rose-700" },
+  recebido: { label: "Recebido", color: "bg-primary/10 text-primary" },
+  em_atendimento: { label: "Em Atendimento", color: "bg-warning text-warning-foreground" },
+  aguardando_usuario: { label: "Aguardando usuário", color: "bg-warning/20 text-warning-foreground" },
+  resolvido: { label: "Resolvido", color: "bg-success/10 text-success" },
+  cancelado: { label: "Cancelado", color: "bg-destructive/10 text-destructive" },
 };
 
 const STATUS_LAYOUT: Record<string, { label: string; color: string }> = {
-  recebida: { label: "Pendente", color: "bg-amber-500/10 text-amber-700" },
-  em_modelagem: { label: "Em análise", color: "bg-blue-500/10 text-blue-700" },
-  corrigida: { label: "Concluído", color: "bg-emerald-500/10 text-emerald-700" },
-  descartada: { label: "Descartado", color: "bg-rose-500/10 text-rose-700" },
+  recebida: { label: "Pendente", color: "bg-warning/20 text-warning-foreground" },
+  em_modelagem: { label: "Em análise", color: "bg-primary/10 text-primary" },
+  corrigida: { label: "Concluído", color: "bg-success/10 text-success" },
+  descartada: { label: "Descartado", color: "bg-destructive/10 text-destructive" },
 };
 
 const STATUS_CONVITE: Record<string, { label: string; color: string }> = {
-  usado: { label: "Usado", color: "bg-emerald-500/10 text-emerald-700" },
-  pendente: { label: "Pendente", color: "bg-blue-500/10 text-blue-700" },
-  expirado: { label: "Expirado", color: "bg-rose-500/10 text-rose-700" },
-  cancelado: { label: "Cancelado", color: "bg-gray-500/10 text-gray-700" },
+  usado: { label: "Usado", color: "bg-success/10 text-success" },
+  pendente: { label: "Pendente", color: "bg-primary/10 text-primary" },
+  expirado: { label: "Expirado", color: "bg-destructive/10 text-destructive" },
+  cancelado: { label: "Cancelado", color: "bg-muted text-muted-foreground" },
 };
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -638,13 +638,13 @@ function Admin() {
 
   const limparAviso = useMutation({
     mutationFn: (id: string) => encerrarComunicadoFn({ data: { id } }),
-    onSuccess: () => { toast.success("Aviso encerrado — não aparece mais pra ninguém."); qc.invalidateQueries({ queryKey: ["admin-comunicados"] }); qc.invalidateQueries({ queryKey: ["comunicados-pendentes"] }); },
+    onSuccess: () => { toast.success("Aviso encerrado. Não aparece mais pra ninguém."); qc.invalidateQueries({ queryKey: ["admin-comunicados"] }); qc.invalidateQueries({ queryKey: ["comunicados-pendentes"] }); },
     onError: (e: any) => toast.error(e.message),
   });
 
   const reenviarAviso = useMutation({
     mutationFn: (id: string) => reenviarComunicadoFn({ data: { id } }),
-    onSuccess: () => { toast.success("Aviso reenviado — vai reaparecer pra todos, inclusive quem já confirmou."); qc.invalidateQueries({ queryKey: ["admin-comunicados"] }); },
+    onSuccess: () => { toast.success("Aviso reenviado. Vai reaparecer pra todos, inclusive quem já confirmou."); qc.invalidateQueries({ queryKey: ["admin-comunicados"] }); },
     onError: (e: any) => toast.error(e.message),
   });
 
@@ -656,7 +656,7 @@ function Admin() {
 
   const reenviarTour = useMutation({
     mutationFn: () => reenviarTourFn(),
-    onSuccess: () => { toast.success("Tour reenviado — vai aparecer novamente pra quem já tinha visto."); qc.invalidateQueries({ queryKey: ["admin-tour-config"] }); },
+    onSuccess: () => { toast.success("Tour reenviado. Vai aparecer novamente pra quem já tinha visto."); qc.invalidateQueries({ queryKey: ["admin-tour-config"] }); },
     onError: (e: any) => toast.error(e.message),
   });
 
@@ -674,7 +674,7 @@ function Admin() {
     onSuccess: () => {
       toast.success(
         comunicadoEditandoId
-          ? "Aviso atualizado — vai reaparecer pra quem já tinha confirmado."
+          ? "Aviso atualizado. Vai reaparecer pra quem já tinha confirmado."
           : "Aviso publicado.",
       );
       setTitulo("");
@@ -865,8 +865,8 @@ function Admin() {
           <CardContent className="p-6 space-y-4 max-w-sm mx-auto">
             <div className="text-center space-y-1">
               <div className="flex justify-center mb-3">
-                <div className="flex size-12 items-center justify-center rounded-full bg-amber-500/10">
-                  <svg className="size-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                <div className="flex size-12 items-center justify-center rounded-full bg-warning/20">
+                  <svg className="size-6 text-warning-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
                 </div>
               </div>
               <p className="font-semibold">Área protegida</p>
@@ -900,7 +900,7 @@ function Admin() {
                     }
                   }}
                 />
-                {erroSenhaConsulta && <p className="text-xs text-rose-600 text-center">{erroSenhaConsulta}</p>}
+                {erroSenhaConsulta && <p className="text-xs text-destructive text-center">{erroSenhaConsulta}</p>}
                 <Button
                   className="w-full"
                   disabled={pinConsulta.length !== 4 || verificarPinMut.isPending}
@@ -937,7 +937,7 @@ function Admin() {
                     if (error) { setErroSenhaConsulta("Senha incorreta."); } else { setConsultaDesbloqueada(true); setSenhaConsulta(""); }
                   }}
                 />
-                {erroSenhaConsulta && <p className="text-xs text-rose-600 text-center">{erroSenhaConsulta}</p>}
+                {erroSenhaConsulta && <p className="text-xs text-destructive text-center">{erroSenhaConsulta}</p>}
                 <Button
                   className="w-full"
                   disabled={!senhaConsulta}
@@ -994,12 +994,12 @@ function Admin() {
 
   return (
     <AppLayout title="Administração do site" description="Painel de controle administrativo">
-      <Tabs value={abaAtiva} onValueChange={setAbaAtiva} className="space-y-4">
+      <Tabs value={abaAtiva} onValueChange={setAbaAtiva} className="space-y-6">
         <NovosUsuariosResumo />
         {/* Grupos (2026-10-06): as 10 abas foram agrupadas por assunto. Primeiro
             escolhe-se o grupo, depois a aba dentro dele. Os valores das abas e
             seus conteudos nao mudaram (links com ?aba= continuam validos). */}
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5" role="group" aria-label="Grupos da administração">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5" role="group" aria-label="Grupos da administração">
           {GRUPOS_ADMIN.map((g) => {
             const ativo = g.abas.some((a) => a.id === abaAtiva);
             const pend = g.abas.some((a) => a.id === "central") ? totalPendentes : 0;
@@ -1010,14 +1010,14 @@ function Admin() {
                 onClick={() => setAbaAtiva(g.abas[0]!.id)}
                 aria-pressed={ativo}
                 className={cn(
-                  "relative rounded-xl border p-3 text-left transition-colors",
+                  "relative rounded-2xl border p-4 text-left transition-colors",
                   ativo ? "border-primary bg-primary/10" : "hover:bg-muted/50",
                 )}
               >
                 <p className={cn("text-sm font-semibold", ativo && "text-primary")}>{g.titulo}</p>
                 <p className="text-xs text-muted-foreground">{g.descricao}</p>
                 {pend > 0 && (
-                  <span className="absolute right-2 top-2 rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                  <span className="absolute right-2 top-2 rounded-full bg-destructive px-1.5 py-0.5 text-xs font-bold text-destructive-foreground">
                     {pend}
                   </span>
                 )}
@@ -1027,14 +1027,14 @@ function Admin() {
         </div>
         <p className="flex items-center gap-2 text-xs text-muted-foreground">
           <span className={ADMIN_ONLY_TAG}>Só admin</span>
-          Itens neste tom roxo claro ainda não estão liberados para os demais usuários.
+          Itens em roxo ainda não foram liberados aos usuários.
         </p>
         <TabsList className="flex h-auto flex-wrap gap-1">
           {(GRUPOS_ADMIN.find((g) => g.abas.some((a) => a.id === abaAtiva)) ?? GRUPOS_ADMIN[0]!).abas.map((a) => (
             <TabsTrigger key={a.id} value={a.id} className="relative">
               {a.rotulo}
               {a.id === "central" && totalPendentes > 0 && (
-                <span className="ml-1 rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                <span className="ml-1 rounded-full bg-destructive px-1.5 py-0.5 text-xs font-bold text-destructive-foreground">
                   {totalPendentes}
                 </span>
               )}
@@ -1042,32 +1042,32 @@ function Admin() {
           ))}
         </TabsList>
 
-        <TabsContent value="resumo-uso" className="space-y-4">
+        <TabsContent value="resumo-uso" className="space-y-6">
           <ResumoUsoAdmin />
         </TabsContent>
 
-        <TabsContent value="bancos" className="space-y-4">
+        <TabsContent value="bancos" className="space-y-6">
           <ConteudoBancosPluggy embutido />
         </TabsContent>
 
-        <TabsContent value="funil" className="space-y-4">
+        <TabsContent value="funil" className="space-y-6">
           <FunilAdmin />
         </TabsContent>
 
-        <TabsContent value="acessos" className="space-y-4">
+        <TabsContent value="acessos" className="space-y-6">
           <AcessosSiteAdmin />
         </TabsContent>
 
-        <TabsContent value="padroes" className="space-y-4">
+        <TabsContent value="padroes" className="space-y-6">
           <PadroesAdmin />
         </TabsContent>
 
         {/* ─── ABA 1: DADOS GERAIS ─── */}
-        <TabsContent value="dados-gerais" className="space-y-4">
+        <TabsContent value="dados-gerais" className="space-y-6">
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle className="text-sm">Atividade e espaço por usuário</CardTitle>
+                <CardTitle className="text-base">Atividade e espaço por usuário</CardTitle>
 
               </div>
             </CardHeader>
@@ -1089,7 +1089,7 @@ function Admin() {
 
           {/* Convites */}
           <Card>
-            <CardHeader><CardTitle className="text-sm">Convites</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-base">Convites</CardTitle></CardHeader>
             <CardContent>
               <div className="flex flex-wrap gap-4 text-sm mb-3">
                 <span><b>{(convites as any[]).filter((c: any) => c.status === "usado").length}</b> usados</span>
@@ -1134,7 +1134,7 @@ function Admin() {
 
           {/* Composição dos grupos */}
           <Card>
-            <CardHeader><CardTitle className="text-sm">Composição dos grupos</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-base">Composição dos grupos</CardTitle></CardHeader>
             <CardContent className="grid gap-3 md:grid-cols-2">
               {(metricas?.grupos ?? []).map((g: any) => (
                 <div key={g.id} className="rounded-lg border p-3">
@@ -1155,11 +1155,11 @@ function Admin() {
         {/* 2026-09-27: a senha extra agora é pedida uma única vez na ENTRADA
             de toda a rota /administracao (ver o gate antes do `return`
             principal) — essa aba não pede senha de novo, já chega liberada. */}
-        <TabsContent value="consulta" className="space-y-4">
+        <TabsContent value="consulta" className="space-y-6">
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle className="text-sm">Atividade e espaço por usuário</CardTitle>
+                <CardTitle className="text-base">Atividade e espaço por usuário</CardTitle>
                 <Button size="sm" variant="ghost" className="text-xs text-muted-foreground" onClick={() => setConsultaDesbloqueada(false)}>
                   🔒 Bloquear administração
                 </Button>
@@ -1177,15 +1177,15 @@ function Admin() {
         </TabsContent>
 
         {/* ─── ABA 3: ACESSO E AUTENTICAÇÃO ─── */}
-        <TabsContent value="usuarios" className="space-y-4">
+        <TabsContent value="usuarios" className="space-y-6">
           <GestaoUsuariosAdmin />
         </TabsContent>
 
-        <TabsContent value="acesso" className="space-y-4">
+        <TabsContent value="acesso" className="space-y-6">
           {/* Card Proteção de Entrada na Administração (Pedido 7) */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm">Proteção de entrada na Administração</CardTitle>
+              <CardTitle className="text-base">Proteção de entrada na Administração</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-xs text-muted-foreground">
@@ -1238,7 +1238,7 @@ function Admin() {
                       </Button>
                     </div>
                     {protecaoAdmin?.temPin && (
-                      <p className="text-[11px] text-muted-foreground">
+                      <p className="text-xs text-muted-foreground">
                         PIN atual configurado e ativo. Digite 4 novos números acima caso queira alterar.
                       </p>
                     )}
@@ -1250,7 +1250,7 @@ function Admin() {
 
           {config && (
             <Card>
-              <CardHeader><CardTitle className="text-sm">Configurações de acesso e autenticação</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="text-base">Configurações de acesso e autenticação</CardTitle></CardHeader>
               <CardContent className="grid gap-4 sm:grid-cols-3">
                 <div>
                   <p className="mb-2 text-xs text-muted-foreground">Identificador no login</p>
@@ -1266,7 +1266,7 @@ function Admin() {
                     </SelectContent>
                   </Select>
                 </div>
-                <label className="flex items-center justify-between gap-3 rounded-lg border p-3 text-sm">
+                <label className="flex items-center justify-between gap-3 rounded-xl border p-4 text-sm">
                   2FA por e-mail
                   <Switch
                     checked={config.segundo_fator_email}
@@ -1304,7 +1304,7 @@ function Admin() {
                   >
                     Salvar cota de convites
                   </Button>
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-xs text-muted-foreground">
                     Vale para todo mundo. Você (admin do site) sempre pode convidar sem limite,
                     independente deste valor.
                   </p>
@@ -1316,13 +1316,13 @@ function Admin() {
           <BannerOfertaAdminCard />
           {config && (
             <Card className={cn(!config.google_drive_habilitado && ADMIN_ONLY_CARD)}>
-              <CardHeader><CardTitle className="flex items-center gap-2 text-sm">Notas fiscais — Google Drive{!config.google_drive_habilitado && <span className={ADMIN_ONLY_TAG}>Só admin</span>}</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="flex items-center gap-2 text-base">Notas fiscais: Google Drive{!config.google_drive_habilitado && <span className={ADMIN_ONLY_TAG}>Só admin</span>}</CardTitle></CardHeader>
               <CardContent className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-sm">Mostrar seção de pasta/Google Drive pros usuários comuns</p>
                   <p className="text-xs text-muted-foreground">
                     Desligado por padrão (item 15 do backlog). Enquanto desligado, só você (admin do
-                    site) vê essa seção em Notas fiscais — o fluxo de conexão continua funcionando
+                    site) vê essa seção em Notas fiscais. O fluxo de conexão continua funcionando
                     normalmente pra quem já tinha conectado antes.
                   </p>
                 </div>
@@ -1335,7 +1335,7 @@ function Admin() {
           )}
           {config && (
             <Card className={cn(!config.cadastro_livre_habilitado && ADMIN_ONLY_CARD)}>
-              <CardHeader><CardTitle className="flex items-center gap-2 text-sm">Cadastro sem convite{!config.cadastro_livre_habilitado && <span className={ADMIN_ONLY_TAG}>Desligado</span>}</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="flex items-center gap-2 text-base">Cadastro sem convite{!config.cadastro_livre_habilitado && <span className={ADMIN_ONLY_TAG}>Desligado</span>}</CardTitle></CardHeader>
               <CardContent className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-sm">Permitir criar conta sem código de convite</p>
@@ -1343,7 +1343,7 @@ function Admin() {
                     Pensado pra fase de testes/lançamento, pra não burocratizar a entrada de gente
                     fora da família. Enquanto ligado, a tela de "Criar conta" libera o cadastro sem
                     pedir convite (quem tiver um código continua podendo usá-lo). Cada pessoa que
-                    entrar assim ganha o próprio grupo novo, isolado — igual quem entra por convite.
+                    entrar assim ganha o próprio grupo novo, isolado, igual quem entra por convite.
                   </p>
                 </div>
                 <Switch
@@ -1368,10 +1368,10 @@ function Admin() {
         </TabsContent>
 
         {/* ─── ABA 4: MÓDULOS ─── */}
-        <TabsContent value="modulos" className="space-y-4">
+        <TabsContent value="modulos" className="space-y-6">
           {gestaoModulos && (
             <Card>
-              <CardHeader><CardTitle className="text-sm">Módulos globais e exceções por usuário</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="text-base">Módulos globais e exceções por usuário</CardTitle></CardHeader>
               <CardContent className="space-y-3">
                 <p className="text-xs text-muted-foreground">
                   Matheus (admin master) sempre enxerga todos os módulos. Desative globalmente e libere para usuários de teste individualmente.
@@ -1398,7 +1398,7 @@ function Admin() {
                           <b className="text-sm">{m.nome}</b>
                           {!m.habilitado && <span className={ADMIN_ONLY_TAG}>Só admin</span>}
                           {!m.habilitado && (
-                            <Badge variant="secondary" className="text-[10px]">
+                            <Badge variant="secondary" className="text-xs">
                               {liberados} usuário(s) com exceção liberada
                             </Badge>
                           )}
@@ -1482,17 +1482,17 @@ function Admin() {
         </TabsContent>
 
         {/* ─── ABA: ARMAZENAMENTO ORACLE ─── */}
-        <TabsContent value="armazenamento" className="space-y-4">
+        <TabsContent value="armazenamento" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm">Armazenamento Oracle por grupo familiar</CardTitle>
+              <CardTitle className="text-base">Armazenamento Oracle por grupo familiar</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <p className="text-xs text-muted-foreground">
                 Grupos com o Oracle habilitado usam o Object Storage do Oracle Cloud como destino
                 preferencial dos comprovantes de notas fiscais (antes do Google Drive e do
                 armazenamento do site). Ao habilitar pela primeira vez, a cota sugerida é 500 MB
-                por membro do grupo — depois disso fica fixa até você ajustar manualmente aqui.
+                por membro do grupo. Depois disso fica fixa até você ajustar manualmente aqui.
               </p>
               {armazenamentoOracle.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Nenhum grupo encontrado.</p>
@@ -1519,7 +1519,7 @@ function Admin() {
                         <>
                           <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
                             <div
-                              className={`h-full rounded-full ${percentual >= 90 ? "bg-rose-500" : percentual >= 70 ? "bg-amber-500" : "bg-emerald-500"}`}
+                              className={`h-full rounded-full ${percentual >= 90 ? "bg-destructive" : percentual >= 70 ? "bg-warning" : "bg-success"}`}
                               style={{ width: `${percentual}%` }}
                             />
                           </div>
@@ -1567,7 +1567,7 @@ function Admin() {
         </TabsContent>
 
         {/* ─── ABA 5: PERSONALIZAÇÃO ─── */}
-        <TabsContent value="personalizacao" className="space-y-4">
+        <TabsContent value="personalizacao" className="space-y-6">
           <Card>
             <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
               <div>
@@ -1734,7 +1734,7 @@ function Admin() {
                     className="h-16 w-28 rounded-md border object-cover"
                   />
                 ) : (
-                  <div className="flex h-16 w-28 items-center justify-center rounded-md border border-dashed text-[10px] text-muted-foreground">
+                  <div className="flex h-16 w-28 items-center justify-center rounded-md border border-dashed text-xs text-muted-foreground">
                     Sem prévia
                   </div>
                 )}
@@ -1757,12 +1757,12 @@ function Admin() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm">Economia total conquistada (exibida na home)</CardTitle>
+              <CardTitle className="text-base">Economia total conquistada (exibida na home)</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <p className="text-xs text-muted-foreground">
                 Valor automático: soma de todas as despesas fixas (recorrentes) marcadas como
-                "Economia Conquistada" por qualquer usuário do site — só uma referência.{" "}
+                "Economia Conquistada" por qualquer usuário do site. É só uma referência.{" "}
                 {economiaAutomatica ? (
                   <>
                     Hoje soma{" "}
@@ -1832,14 +1832,14 @@ function Admin() {
         </TabsContent>
 
         {/* ─── ABA 6: AVISOS ─── */}
-        <TabsContent value="links" className="space-y-4">
+        <TabsContent value="links" className="space-y-6">
           <LinksAdminHabilitar />
         </TabsContent>
 
-        <TabsContent value="avisos" className="space-y-4">
+        <TabsContent value="avisos" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm">
+              <CardTitle className="text-base">
                 {comunicadoEditandoId ? "Editar aviso" : "Novo aviso (modal ao logar)"}
               </CardTitle>
             </CardHeader>
@@ -1872,7 +1872,7 @@ function Admin() {
             </CardContent>
           </Card>
           <Card>
-            <CardHeader><CardTitle className="text-sm">Avisos ativos</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-base">Avisos ativos</CardTitle></CardHeader>
             <CardContent className="space-y-2">
               {comunicados.filter((c: any) => c.ativo).length === 0 ? (
                 <p className="text-sm text-muted-foreground">Nenhum aviso ativo.</p>
@@ -1901,7 +1901,7 @@ function Admin() {
                       >
                         Reenviar p/ todos
                       </Button>
-                      <Button size="sm" variant="ghost" className="text-rose-600" onClick={() => limparAviso.mutate(c.id)}>
+                      <Button size="sm" variant="ghost" className="text-destructive" onClick={() => limparAviso.mutate(c.id)}>
                         Encerrar
                       </Button>
                     </div>
@@ -1912,7 +1912,7 @@ function Admin() {
           </Card>
           {comunicados.filter((c: any) => !c.ativo).length > 0 && (
             <Card>
-              <CardHeader><CardTitle className="text-sm">Histórico de avisos</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="text-base">Histórico de avisos</CardTitle></CardHeader>
               <CardContent>
                 <LogPainel
                   itens={comunicados.filter((c: any) => !c.ativo) as any[]}
@@ -1934,9 +1934,9 @@ function Admin() {
           )}
           {tourConfig && (
             <Card>
-              <CardHeader><CardTitle className="text-sm">Tour guiado (novos usuários)</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="text-base">Tour guiado (novos usuários)</CardTitle></CardHeader>
               <CardContent className="space-y-3">
-                <label className="flex items-center justify-between gap-3 rounded-lg border p-3 text-sm">
+                <label className="flex items-center justify-between gap-3 rounded-xl border p-4 text-sm">
                   <div>
                     <p>Mostrar o tour depois do aviso de boas-vindas</p>
                     <p className="text-xs text-muted-foreground">
@@ -1963,12 +1963,12 @@ function Admin() {
         </TabsContent>
 
         {/* ─── ABA 7: PRIVACIDADE LGPD ─── */}
-        <TabsContent value="privacidade" className="space-y-4">
+        <TabsContent value="privacidade" className="space-y-6">
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle className="text-sm">Solicitações de Privacidade (LGPD)</CardTitle>
-                {privPendentes > 0 && <span className="rounded-full bg-rose-500/10 px-2.5 py-0.5 text-xs font-medium text-rose-600">{privPendentes} pendente(s)</span>}
+                <CardTitle className="text-base">Solicitações de Privacidade (LGPD)</CardTitle>
+                {privPendentes > 0 && <span className="rounded-full bg-destructive/10 px-2.5 py-0.5 text-xs font-medium text-destructive">{privPendentes} pendente(s)</span>}
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -2013,13 +2013,13 @@ function Admin() {
         </TabsContent>
 
         {/* ─── ABA 8: CENTRAL DE SOLICITAÇÕES ─── */}
-        <TabsContent value="central" className="space-y-4">
+        <TabsContent value="central" className="space-y-6">
           {/* Faturas para modelagem */}
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle className="text-sm">Faturas enviadas para modelagem</CardTitle>
-                {layoutsPendentes > 0 && <span className="rounded-full bg-amber-500/10 px-2.5 py-0.5 text-xs font-medium text-amber-600">{layoutsPendentes} pendente(s)</span>}
+                <CardTitle className="text-base">Faturas enviadas para modelagem</CardTitle>
+                {layoutsPendentes > 0 && <span className="rounded-full bg-warning/20 px-2.5 py-0.5 text-xs font-medium text-warning-foreground">{layoutsPendentes} pendente(s)</span>}
               </div>
             </CardHeader>
             <CardContent className="space-y-2">
@@ -2047,8 +2047,8 @@ function Admin() {
                           {l.status !== "em_modelagem" && (
                             <Button size="sm" variant="secondary" onClick={() => atualizarLayout.mutate({ id: l.id, status: "em_modelagem" })}>Em análise</Button>
                           )}
-                          <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => atualizarLayout.mutate({ id: l.id, status: "corrigida" })}>Concluído & Apagar PDF</Button>
-                          <Button size="sm" variant="ghost" className="text-rose-600" onClick={() => atualizarLayout.mutate({ id: l.id, status: "descartada" })}>Descartar</Button>
+                          <Button size="sm" className="bg-success text-success-foreground hover:bg-success/90" onClick={() => atualizarLayout.mutate({ id: l.id, status: "corrigida" })}>Concluído & Apagar PDF</Button>
+                          <Button size="sm" variant="ghost" className="text-destructive" onClick={() => atualizarLayout.mutate({ id: l.id, status: "descartada" })}>Descartar</Button>
                         </>
                       )}
                     </div>
@@ -2062,8 +2062,8 @@ function Admin() {
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle className="text-sm">Chamados de Suporte</CardTitle>
-                {chamadosPendentes > 0 && <span className="rounded-full bg-blue-500/10 px-2.5 py-0.5 text-xs font-medium text-blue-600">{chamadosPendentes} aberto(s)</span>}
+                <CardTitle className="text-base">Chamados de Suporte</CardTitle>
+                {chamadosPendentes > 0 && <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">{chamadosPendentes} aberto(s)</span>}
               </div>
             </CardHeader>
             <CardContent className="space-y-2">
@@ -2142,7 +2142,7 @@ function Admin() {
                       // admin) nunca é excluído — fica visível aqui pra
                       // histórico/auditoria — mas não aceita mais respostas.
                       <p className="text-xs text-muted-foreground">
-                        Chamado cancelado — não aceita mais respostas.
+                        Chamado cancelado. Não aceita mais respostas.
                       </p>
                     ) : (
                       <Button
@@ -2161,10 +2161,10 @@ function Admin() {
         </TabsContent>
 
         {/* ─── ABA 9: LOGS DE AUDITORIA ─── */}
-        <TabsContent value="logs" className="space-y-4">
+        <TabsContent value="logs" className="space-y-6">
           {/* 31/10/2026: as falhas de login (e-mail ou senha errados) ficam aqui, na auditoria (pedido do Matheus). */}
           <Card>
-            <CardHeader><CardTitle className="text-sm">Tentativas de login com erro (site e app)</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-base">Tentativas de login com erro (site e app)</CardTitle></CardHeader>
             <CardContent className="space-y-3">
               <p className="text-xs text-muted-foreground">
                 Toda tentativa de login com erro é registrada (mesmo a primeira), com o que foi digitado
@@ -2194,13 +2194,13 @@ function Admin() {
                 renderItem={(f: any) => (
                   <div className="rounded-lg border px-3 py-2 text-xs">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded bg-rose-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-rose-600">
+                      <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-semibold text-destructive">
                         {MOTIVOS_FALHA_LOGIN[f.motivo] ?? f.motivo}
                       </span>
                       <span className="font-mono">{f.identificador}</span>
-                      <span className="rounded bg-muted px-1.5 py-0.5 text-[10px]">{origemLogin(f.user_agent)}</span>
+                      <span className="rounded bg-muted px-1.5 py-0.5 text-xs">{origemLogin(f.user_agent)}</span>
                       {f.bloqueou && (
-                        <span className="rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-amber-600">
+                        <span className="rounded-full bg-warning/20 px-2 py-0.5 text-xs font-semibold text-warning-foreground">
                           Conta bloqueada
                         </span>
                       )}
@@ -2217,7 +2217,7 @@ function Admin() {
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between gap-2">
-                <CardTitle className="text-sm">Log administrativo</CardTitle>
+                <CardTitle className="text-base">Log administrativo</CardTitle>
                 <Input
                   className="w-48 h-8 text-xs"
                   placeholder="Filtrar por ação ou usuário"
@@ -2250,18 +2250,18 @@ function Admin() {
                           {l.profiles?.nome ?? l.profiles?.email ?? "Sistema"} · {new Date(l.criado_em).toLocaleString("pt-BR")}
                         </span>
                         {l.detalhes?.ip && (
-                          <span className="ml-2 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px]">
+                          <span className="ml-2 rounded bg-muted px-1.5 py-0.5 font-mono text-xs">
                             {l.detalhes.ip}{l.detalhes.cidade ? ` · ${l.detalhes.cidade}` : ""}
                           </span>
                         )}
                         {l.acao?.includes("falha") || l.acao?.includes("bloqueado") || l.acao?.includes("login_falhou") ? (
-                          <span className="ml-2 rounded bg-rose-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-rose-600">⚠ Falha</span>
+                          <span className="ml-2 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-semibold text-destructive">⚠ Falha</span>
                         ) : null}
                       </div>
-                      <span className="shrink-0 text-[10px] text-muted-foreground group-open:hidden">▼ detalhes</span>
+                      <span className="shrink-0 text-xs text-muted-foreground group-open:hidden">▼ detalhes</span>
                     </summary>
                     {l.detalhes && Object.keys(l.detalhes).length > 0 && (
-                      <div className="mt-2 rounded bg-muted/60 p-2 font-mono text-[10px] whitespace-pre-wrap">
+                      <div className="mt-2 rounded bg-muted/60 p-2 font-mono text-xs whitespace-pre-wrap">
                         {JSON.stringify(l.detalhes, null, 2)}
                       </div>
                     )}
@@ -2290,7 +2290,7 @@ function Admin() {
               </SelectContent>
             </Select>
             <Textarea
-              placeholder="Tratativa / resposta (opcional — será enviada por e-mail se preenchida)"
+              placeholder="Tratativa / resposta (opcional, enviada por e-mail se preenchida)"
               value={respostaPriv}
               onChange={(e) => setRespostaPriv(e.target.value)}
               rows={4}
@@ -2361,7 +2361,7 @@ function Admin() {
               </SelectContent>
             </Select>
             <Textarea
-              placeholder="Resposta ao usuário (opcional — será enviada por e-mail se preenchida)"
+              placeholder="Resposta ao usuário (opcional, enviada por e-mail se preenchida)"
               value={respostaChamado}
               onChange={(e) => setRespostaChamado(e.target.value)}
               rows={4}
@@ -2394,7 +2394,7 @@ function Admin() {
                 <span className="min-w-0 flex-1 truncate">{arquivoChamado.name}</span>
                 <button
                   type="button"
-                  className="text-muted-foreground hover:text-rose-600"
+                  className="text-muted-foreground hover:text-destructive"
                   onClick={() => {
                     setArquivoChamado(null);
                     if (arquivoChamadoRef.current) arquivoChamadoRef.current.value = "";

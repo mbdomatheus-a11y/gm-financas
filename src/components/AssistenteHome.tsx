@@ -101,7 +101,7 @@ export function AssistenteHome() {
   }
 
   return (
-    <Card className="mb-4">
+    <Card>
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2 text-sm">
           <Sparkles className="size-4 text-primary" /> Pergunte ao assistente

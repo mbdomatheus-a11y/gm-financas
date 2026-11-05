@@ -16,13 +16,13 @@ import { SimuladorInterativo } from "@/components/ferramentas/SimuladorInterativ
 export const Route = createFileRoute("/_authenticated/ferramentas")({
   head: () => ({
     meta: [
-      { title: "Calculadora — Control ALL" },
+      { title: "Calculadora | Control ALL" },
       {
         name: "description",
         content:
-          "Calculadoras de data, horário e o Simulador Interativo — ferramentas de uso geral do módulo Calculadora.",
+          "Calculadoras de data, horário e o Simulador Interativo: ferramentas de uso geral do módulo Calculadora.",
       },
-      { property: "og:title", content: "Calculadora — Control ALL" },
+      { property: "og:title", content: "Calculadora | Control ALL" },
       {
         property: "og:description",
         content: "Calculadoras de uso geral, sem relação com seus dados financeiros.",
@@ -36,19 +36,19 @@ function FerramentasPage() {
   return (
     <AppLayout
       title="Utilidades"
-      description="Calculadoras e link temporário — sem relação com seus dados financeiros."
+      description="Calculadoras e link temporário, sem relação com seus dados financeiros."
     >
       <div className="space-y-6">
         <Card>
-          <CardContent className="flex flex-wrap items-center gap-3 p-4">
+          <CardContent className="flex flex-wrap items-center gap-3 p-6">
             <div className="min-w-0 flex-1">
-              <p className="font-medium">Link temporário</p>
+              <p className="text-base font-semibold">Link temporário</p>
               <p className="text-sm text-muted-foreground">
-                Crie um link que expira para compartilhar algo sem deixar aberto para sempre.
+                Compartilhe algo com um link que expira.
               </p>
             </div>
             <Button asChild variant="outline">
-              <Link to="/links-temporarios">Abrir link temporário</Link>
+              <Link to="/links-temporarios">Abrir</Link>
             </Button>
           </CardContent>
         </Card>
@@ -59,7 +59,7 @@ function FerramentasPage() {
               <CalendarClock className="size-4.5" /> Diferença entre datas
             </CardTitle>
             <CardDescription>
-              Quantos segundos, minutos, horas, dias, anos ou séculos há entre duas datas.
+              Quanto tempo há entre duas datas.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -99,7 +99,7 @@ function FerramentasPage() {
               <Syringe className="size-4.5" /> Simulador Interativo
             </CardTitle>
             <CardDescription>
-              Conversor de dose/diluição e visualização de seringa — só para uso acadêmico.
+              Dose, diluição e seringa. Só para uso acadêmico.
             </CardDescription>
           </CardHeader>
           <CardContent>

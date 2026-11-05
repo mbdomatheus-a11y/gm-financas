@@ -58,21 +58,21 @@ export function GastosPorCategoria() {
 
   if (!financasProntas) return <CartaoCarregando alturaGrafico="h-48" />;
   return (
-    <Card className="mt-4">
+    <Card className="mt-6">
       <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0 pb-2">
         <div>
-          <CardTitle className="text-sm">Gastos por categoria no mês</CardTitle>
+          <CardTitle className="text-base">Gastos por categoria no mês</CardTitle>
           <p className="text-xs text-muted-foreground">
-            Ainda vai sair: <span className="font-medium text-foreground">{formatar(aindaVaiGeral)}</span>
+            Ainda vai sair: <span className="font-medium tabular-nums text-foreground">{formatar(aindaVaiGeral)}</span>
           </p>
         </div>
-        <div className="flex shrink-0 rounded-md border p-0.5 text-xs">
+        <div className="flex shrink-0 rounded-full border p-0.5 text-xs">
           {(["reais", "percentual"] as Modo[]).map((m) => (
             <button
               key={m}
               type="button"
               onClick={() => setModo(m)}
-              className={`rounded px-2 py-1 font-medium transition-colors ${
+              className={`rounded-full px-3 py-1 font-medium transition-colors ${
                 modo === m ? "bg-primary text-primary-foreground" : "text-muted-foreground"
               }`}
               aria-pressed={modo === m}
@@ -82,7 +82,7 @@ export function GastosPorCategoria() {
           ))}
         </div>
       </CardHeader>
-      <CardContent className="space-y-3 p-4 pt-2">
+      <CardContent className="space-y-4 p-6 pt-2">
         {linhas.length === 0 ? (
           <p className="py-6 text-center text-sm text-muted-foreground">
             Nenhum gasto com vencimento neste mês.
@@ -103,15 +103,15 @@ export function GastosPorCategoria() {
                     <div className="h-full bg-primary/35" style={{ width: `${100 - pctPago}%` }} />
                   </div>
                 </div>
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-xs tabular-nums text-muted-foreground">
                   Pago {valorTexto(l.pago)} · ainda vai sair {valorTexto(l.aindaVai)}
                 </p>
               </div>
             );
           })
         )}
-        <p className="text-[11px] text-muted-foreground">
-          Barra escura: já pago. Barra clara: ainda vai sair. Considera o mês vigente.
+        <p className="text-xs text-muted-foreground">
+          Escuro: já pago. Claro: ainda vai sair. Mês vigente.
         </p>
       </CardContent>
     </Card>

@@ -47,12 +47,12 @@ import {
 export const Route = createFileRoute("/_authenticated/categorias")({
   head: () => ({
     meta: [
-      { title: "Categorias — Control ALL" },
+      { title: "Categorias | Control ALL" },
       {
         name: "description",
         content: "Crie, edite e remova categorias de receitas e despesas usadas nos lançamentos.",
       },
-      { property: "og:title", content: "Categorias — Control ALL" },
+      { property: "og:title", content: "Categorias | Control ALL" },
       { property: "og:description", content: "Organize os lançamentos do casal por categoria." },
     ],
   }),
@@ -248,15 +248,14 @@ function CategoriasPage() {
 
       {tipo === "despesa" && <GastosPorCategoria />}
 
-      <Card className="mt-4">
-        <CardContent className="space-y-2 p-4">
-          <p className="text-sm font-medium">Baixar, editar e enviar de volta</p>
+      <Card className="mt-6">
+        <CardContent className="space-y-3 p-6">
+          <p className="text-sm font-semibold">Baixar, editar e enviar de volta</p>
           <p className="text-xs text-muted-foreground">
-            Baixe a lista sugerida completa do site (ou as suas categorias), edite no Excel ou no
-            bloco de notas e envie o arquivo. Só as categorias novas são criadas; as que já existem
-            não são alteradas nem duplicadas. A coluna "subcategoria" serve de referência.
+            Baixe a lista sugerida ou as suas, edite e envie. Só categorias novas são criadas; as
+            existentes não mudam nem duplicam.
           </p>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-3">
             <Button variant="outline" size="sm" onClick={() => baixarXlsx(`categorias-sugeridas-${tipo}`, CABECALHO_CATEGORIAS, linhasListaSugerida(padraoMapa, tipo))}>
               <Download className="size-4" /> Modelo de {tipo === "receita" ? "receitas" : "despesas"} (Excel)
             </Button>
@@ -288,12 +287,12 @@ function CategoriasPage() {
       </Card>
 
       {tipo === "despesa" && (
-        <div className="mt-4 space-y-2">
-          <p className="text-sm font-medium">Macro categorias e subcategorias</p>
+        <div className="mt-6 space-y-3">
+          <p className="text-sm font-semibold">Macro categorias e subcategorias</p>
           <p className="text-xs text-muted-foreground">
-            Toque numa macro para ver as subcategorias. As padrão vêm do site. As que você cria aparecem como "sua" e podem ser removidas.
+            Toque numa macro para ver as subcategorias. As marcadas como "sua" podem ser removidas.
           </p>
-          <div className="divide-y overflow-hidden rounded-xl border bg-card">
+          <div className="divide-y overflow-hidden rounded-2xl border bg-card">
             {estrutura.map((e) => {
               const aberta = !!abertas[e.macro];
               return (
@@ -302,7 +301,7 @@ function CategoriasPage() {
                     type="button"
                     aria-expanded={aberta}
                     onClick={() => setAbertas((a) => ({ ...a, [e.macro]: !aberta }))}
-                    className="flex w-full items-center gap-2 px-3 py-2.5 text-left hover:bg-accent"
+                    className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-accent"
                   >
                     {aberta ? <ChevronDown className="size-4" aria-hidden="true" /> : <ChevronRight className="size-4" aria-hidden="true" />}
                     <span className="min-w-0 flex-1 truncate text-sm font-semibold">{e.macro}</span>
@@ -319,7 +318,7 @@ function CategoriasPage() {
                         return (
                           <div key={sub} className="flex items-center gap-2 text-sm">
                             <span className="min-w-0 flex-1 truncate">{sub}</span>
-                            <span className="text-[10px] text-muted-foreground">
+                            <span className="text-xs text-muted-foreground">
                               {subId ? "sua" : ehPadrao ? "padrão" : "cadastrada"}
                             </span>
                             {subId && podeEditar && (
@@ -375,9 +374,9 @@ function CategoriasPage() {
         </div>
       )}
 
-      <div className="mt-6 space-y-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <p className="mr-auto text-sm font-medium">
+      <div className="mt-6 space-y-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="mr-auto text-sm font-semibold">
             {tipo === "despesa" ? "Categorias cadastradas" : "Categorias de receita"}
           </p>
           {podeEditar && idsUsuario.length > 0 && (
@@ -418,15 +417,22 @@ function CategoriasPage() {
 
         {categorias.length === 0 ? (
           <Card>
-            <CardContent className="flex flex-col items-center gap-2 py-12 text-center">
-              <Tags className="size-8 text-muted-foreground" />
+            <CardContent className="flex flex-col items-center gap-4 py-14 text-center">
+              <span className="grid size-14 place-items-center rounded-full bg-muted text-muted-foreground">
+                <Tags className="size-6" aria-hidden="true" />
+              </span>
               <p className="text-sm text-muted-foreground">Nenhuma categoria cadastrada.</p>
+              {podeEditar && (
+                <Button onClick={abrirNova}>
+                  <Plus className="size-4" /> Nova categoria
+                </Button>
+              )}
             </CardContent>
           </Card>
         ) : (
-          <div className="divide-y overflow-hidden rounded-xl border bg-card">
+          <div className="divide-y overflow-hidden rounded-2xl border bg-card">
             {categorias.map((c: any) => (
-              <div key={c.id} className="flex items-center gap-3 px-3 py-2.5">
+              <div key={c.id} className="flex items-center gap-3 px-4 py-3">
                 {podeEditar && (
                   <Checkbox
                     checked={sel.has(c.id)}

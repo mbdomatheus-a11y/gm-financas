@@ -66,13 +66,13 @@ import { addMonths, formatDate, formatBRL, monthKey, toBRL, toISODate, competenc
 export const Route = createFileRoute("/_authenticated/lista-compras")({
   head: () => ({
     meta: [
-      { title: "Lista de compras — Control ALL" },
+      { title: "Lista de compras | Control ALL" },
       {
         name: "description",
         content:
           "Lista de compras compartilhada do casal com datas, alertas de recompra, itens únicos e exportação.",
       },
-      { property: "og:title", content: "Lista de compras — Control ALL" },
+      { property: "og:title", content: "Lista de compras | Control ALL" },
       {
         property: "og:description",
         content: "Adicione, marque, repita e exporte os itens que o casal precisa comprar.",
@@ -473,7 +473,7 @@ function ListaComprasPage() {
 
     return (
       <div
-        className={`flex items-start gap-3 px-3 py-3 ${precisaNova ? "border-l-4 border-red-500 bg-red-500/10" : ""}`}
+        className={`flex items-start gap-3 px-4 py-4 ${precisaNova ? "border-l-4 border-destructive bg-destructive/5" : ""}`}
       >
         <Checkbox
           checked={item.comprado}
@@ -490,20 +490,20 @@ function ListaComprasPage() {
             >
               {item.nome}
               {item.quantidade > 1 && (
-                <span className="text-muted-foreground"> · {item.quantidade} un.</span>
+                <span className="text-muted-foreground tabular-nums"> · {item.quantidade} un.</span>
               )}
             </p>
 
             {precisaNova && (
-              <Badge variant="outline" className="border-red-500 bg-red-500/10 text-[10px] text-red-600">
-                Editado por {editorNome}: precisa de nova autorização
+              <Badge variant="outline" className="border-destructive/40 bg-destructive/10 text-xs text-destructive">
+                Editado por {editorNome}: precisa de nova aprovação
               </Badge>
             )}
             {!precisaNova && item.editado_em && (
-              <span className="text-[10px] text-muted-foreground">Editado por {editorNome}</span>
+              <span className="text-xs text-muted-foreground">Editado por {editorNome}</span>
             )}
             {valorTotalItem > 0 && (
-              <Badge variant="outline" className="font-semibold text-xs text-foreground">
+              <Badge variant="outline" className="font-semibold text-xs text-foreground tabular-nums">
                 {formatBRL(valorTotalItem)}
               </Badge>
             )}
@@ -512,24 +512,24 @@ function ListaComprasPage() {
               variant="outline"
               className={
                 isLongoPrazo
-                  ? "border-purple-500/40 bg-purple-500/10 text-purple-700 text-[10px]"
-                  : "border-border text-[10px] text-muted-foreground"
+                  ? "border-primary/30 bg-primary/10 text-primary text-xs"
+                  : "border-border text-xs text-muted-foreground"
               }
             >
-              {isLongoPrazo ? "Longo Prazo" : "Imediato"}
+              {isLongoPrazo ? "Longo prazo" : "Imediato"}
             </Badge>
 
             {impacto && (
-              <Badge variant="secondary" className="gap-1 text-[11px] font-normal">
+              <Badge variant="secondary" className="gap-1 text-xs font-normal tabular-nums">
                 <Clock className="size-3 text-primary" />
                 {impacto.tempoFormatado} de trabalho
               </Badge>
             )}
           </div>
 
-          <p className="truncate text-xs text-muted-foreground mt-0.5">
+          <p className="truncate text-xs text-muted-foreground tabular-nums mt-0.5">
             {categoriaLabel(item.categoria)} · pedido em{" "}
-            {item.created_at ? formatDate(item.created_at) : "—"}
+            {item.created_at ? formatDate(item.created_at) : "sem data"}
             {item.comprado_em && ` · concluído em ${formatDate(item.comprado_em)}`}
           </p>
 
@@ -561,18 +561,17 @@ function ListaComprasPage() {
 
           {/* Gamificação: Box de Impacto na Renda e Aprovação/Decisão */}
           {impacto && !item.comprado && (
-            <div className="mt-2 rounded-lg border border-border/70 bg-muted/40 p-2.5 text-xs text-muted-foreground">
+            <div className="mt-3 rounded-2xl bg-muted/60 p-3 text-xs text-muted-foreground">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <div>
                   <p className="font-medium text-foreground">
-                    ⏱ Para comprar este item são necessários{" "}
-                    <span className="font-bold text-primary">{impacto.tempoFormatado}</span> do mês.
+                    Este item custa{" "}
+                    <span className="font-bold text-primary tabular-nums">{impacto.tempoFormatado}</span> de trabalho.
                   </p>
-                  <p className="mt-0.5 text-[11px]">
+                  <p className="mt-0.5 text-xs tabular-nums">
                     {impacto.percentualSobra !== null ? (
                       <>
-                        Como só usamos o que sobra da renda já comprometida (sobra de{" "}
-                        {formatBRL(finCalculado.sobraLivre)}), isso consome{" "}
+                        Consome{" "}
                         <span
                           className={`font-semibold ${
                             impacto.excedeSobra ? "text-destructive font-bold" : "text-foreground"
@@ -580,11 +579,11 @@ function ListaComprasPage() {
                         >
                           {impacto.percentualSobra}%
                         </span>{" "}
-                        do que está sobrando este mês. Deseja aprovar e seguir?
+                        da sobra livre do mês ({formatBRL(finCalculado.sobraLivre)}).
                       </>
                     ) : (
                       <>
-                        Sua renda deste mês já está 100% comprometida por despesas e faturas. Esta compra exigirá reservas ou reorganização de orçamento.
+                        Sua renda do mês já está toda comprometida. Esta compra exige reserva ou ajuste no orçamento.
                       </>
                     )}
                   </p>
@@ -611,7 +610,9 @@ function ListaComprasPage() {
               <Badge
                 variant="outline"
                 className={
-                  faltam > 0 ? "border-warning/40 text-warning" : "border-success/40 text-success"
+                  faltam > 0
+                    ? "tabular-nums border-warning/40 bg-warning/15 text-warning-foreground dark:text-warning"
+                    : "tabular-nums border-success/40 text-success"
                 }
               >
                 <ShieldCheck className="size-3" />
@@ -621,7 +622,7 @@ function ListaComprasPage() {
                 <Button
                   size="sm"
                   variant={jaAprovei ? "outline" : "default"}
-                  className="h-6 px-2 text-[11px]"
+                  className="h-7 px-3 text-xs"
                   onClick={() => aprovar.mutate(item)}
                 >
                   <CheckCircle2 className="size-3" />
@@ -672,9 +673,9 @@ function ListaComprasPage() {
   return (
     <AppLayout
       title="Lista de compras"
-      description={`${itens.length}/${LIMITE} itens registrados · Gamificação e Poder de Compra`}
+      description={`${itens.length} de ${LIMITE} itens`}
       actions={
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-3">
           <Button size="sm" variant="outline" onClick={exportar}>
             <Download className="size-4" /> Exportar
           </Button>
@@ -689,15 +690,15 @@ function ListaComprasPage() {
       <PerfilFinanceiroTelaCheia />
       {/* Gamificação compacta: o card completo (com as perguntas) fica no Início */}
       {!gam.respondido ? (
-        <p className="mb-4 rounded-lg border border-dashed p-3 text-xs text-muted-foreground">
-          Quer ver quanto cada compra custa em horas de trabalho? Responda 3 perguntas rápidas no{" "}
+        <p className="mb-6 rounded-2xl border border-dashed p-4 text-sm text-muted-foreground">
+          Veja quanto cada compra custa em horas de trabalho: responda 3 perguntas no{" "}
           <Link to="/inicio" className="font-medium text-primary underline">
             Início
           </Link>
           .
         </p>
       ) : (
-        <p className="mb-4 rounded-lg border bg-muted/40 p-3 text-xs">
+        <p className="mb-6 rounded-2xl bg-muted p-4 text-sm tabular-nums">
           Sua hora líquida: <strong>{formatBRL(finCalculado.valorHora)}</strong> · Sobra livre:{" "}
           <strong>{formatBRL(finCalculado.sobraLivre)}</strong> · Na lista:{" "}
           <strong>{formatBRL(totalEstimadoPendentes)}</strong> ({pendentes.length} pendente(s))
@@ -705,11 +706,11 @@ function ListaComprasPage() {
       )}
 
       {alertasVencidos.length > 0 && (
-        <Card className="mb-4 border-destructive/40 bg-destructive/5">
-          <CardContent className="flex items-start gap-3 py-3">
+        <Card className="mb-6 border-destructive/30 bg-destructive/5">
+          <CardContent className="flex items-start gap-3 p-5">
             <BellRing className="mt-0.5 size-4 text-destructive" />
             <div className="min-w-0 text-sm">
-              <p className="font-medium text-destructive">
+              <p className="font-medium text-destructive tabular-nums">
                 {alertasVencidos.length} alerta(s) no prazo
               </p>
               <p className="truncate text-xs text-muted-foreground">
@@ -721,21 +722,21 @@ function ListaComprasPage() {
       )}
 
       <Tabs value={lista} onValueChange={(v) => setLista(v as "compras" | "unicos" | "todas")}>
-        <TabsList className="h-9">
-          <TabsTrigger value="todas" className="text-xs">
+        <TabsList>
+          <TabsTrigger value="todas">
             Tudo
           </TabsTrigger>
-          <TabsTrigger value="compras" className="text-xs">
+          <TabsTrigger value="compras">
             Lista de compras
           </TabsTrigger>
-          <TabsTrigger value="unicos" className="text-xs">
+          <TabsTrigger value="unicos">
             Itens únicos
           </TabsTrigger>
         </TabsList>
       </Tabs>
 
       <form
-        className="mt-4 space-y-2.5 rounded-xl border bg-card p-3.5 shadow-xs"
+        className="mt-6 space-y-3 rounded-3xl border bg-card p-5 shadow-xs"
         onSubmit={(e) => {
           e.preventDefault();
           adicionar.mutate();
@@ -891,9 +892,9 @@ function ListaComprasPage() {
       </form>
 
       {/* Barra de Filtros: Horizonte e Categorias */}
-      <div className="mt-4 flex flex-col gap-2 rounded-lg border bg-card/60 p-2.5">
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-xs font-semibold text-muted-foreground mr-1">Horizonte:</span>
+      <div className="mt-6 flex flex-col gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="mr-1 text-xs font-medium text-muted-foreground">Prazo</span>
           <Button
             size="sm"
             variant={filtroHorizonte === "todos" ? "default" : "outline"}
@@ -908,7 +909,7 @@ function ListaComprasPage() {
             className="h-7 text-xs"
             onClick={() => setFiltroHorizonte("imediato")}
           >
-            Imediatos (Consumo do mês)
+            Imediatos
           </Button>
           <Button
             size="sm"
@@ -916,12 +917,12 @@ function ListaComprasPage() {
             className="h-7 text-xs"
             onClick={() => setFiltroHorizonte("longo_prazo")}
           >
-            Longo Prazo (Desejos / Projetos)
+            Longo prazo
           </Button>
         </div>
 
-        <div className="flex flex-wrap items-center gap-1.5 border-t pt-2">
-          <span className="text-xs font-semibold text-muted-foreground mr-1">Categoria:</span>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="mr-1 text-xs font-medium text-muted-foreground">Categoria</span>
           <Button
             size="sm"
             variant={filtro === "todas" ? "default" : "outline"}
@@ -944,18 +945,23 @@ function ListaComprasPage() {
         </div>
       </div>
 
-      <div className="mt-4 space-y-4">
+      <div className="mt-6 space-y-6">
         {daLista.length === 0 ? (
           <Card>
-            <CardContent className="flex flex-col items-center gap-2 py-12 text-center">
-              <ShoppingCart className="size-8 text-muted-foreground" />
+            <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
+              <div className="flex size-12 items-center justify-center rounded-full bg-muted">
+                <ShoppingCart className="size-5 text-muted-foreground" />
+              </div>
               <p className="text-sm text-muted-foreground">Nenhum item aqui ainda.</p>
+              <Button size="sm" onClick={() => document.getElementById("campo-novo-item-lista")?.focus()}>
+                <Plus className="size-4" /> Adicionar item
+              </Button>
             </CardContent>
           </Card>
         ) : (
           <>
             {pendentes.length > 0 && (
-              <div className="divide-y overflow-hidden rounded-xl border bg-card">
+              <div className="divide-y overflow-hidden rounded-3xl border bg-card">
                 {pendentes.map((i) => (
                   <Linha key={i.id} item={i} />
                 ))}
@@ -963,10 +969,10 @@ function ListaComprasPage() {
             )}
             {comprados.length > 0 && (
               <div>
-                <p className="mb-1.5 px-1 text-xs font-medium text-muted-foreground">
+                <p className="mb-2 px-1 text-xs font-medium text-muted-foreground tabular-nums">
                   Concluídos ({comprados.length})
                 </p>
-                <div className="divide-y overflow-hidden rounded-xl border bg-card">
+                <div className="divide-y overflow-hidden rounded-3xl border bg-card">
                   {comprados.map((i) => (
                     <Linha key={i.id} item={i} />
                   ))}
@@ -982,9 +988,9 @@ function ListaComprasPage() {
             <DialogTitle>Editar item</DialogTitle>
           </DialogHeader>
           {(editando?.aprovado_por ?? []).length > 0 && (
-            <p className="rounded-md border border-red-500/40 bg-red-500/10 p-2 text-xs text-red-600">
-              Este item já tem aprovações. Ao salvar, as aprovações são zeradas e ele precisa de nova
-              autorização.
+            <p className="rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">
+              Este item já tem aprovações. Ao salvar, elas são zeradas e ele precisa de nova
+              aprovação.
             </p>
           )}
           <div className="space-y-3">

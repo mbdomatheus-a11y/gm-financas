@@ -52,7 +52,7 @@ import {
 export const Route = createFileRoute("/_authenticated/calendario")({
   head: () => ({
     meta: [
-      { title: "Calendário — Control ALL" },
+      { title: "Calendário | Control ALL" },
       {
         name: "description",
         content:
@@ -67,26 +67,26 @@ export const Route = createFileRoute("/_authenticated/calendario")({
 const TIPOS: Record<Tipo, { rotulo: string; cor: string; ponto: string; icone: typeof CreditCard }> = {
   fatura: {
     rotulo: "Faturas",
-    cor: "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30",
-    ponto: "bg-amber-500",
+    cor: "bg-warning/15 text-foreground border-warning/40",
+    ponto: "bg-warning",
     icone: CreditCard,
   },
   nota: {
     rotulo: "Notas fiscais",
-    cor: "bg-sky-500/15 text-sky-700 dark:text-sky-300 border-sky-500/30",
-    ponto: "bg-sky-500",
+    cor: "bg-primary/10 text-primary border-primary/30",
+    ponto: "bg-primary",
     icone: Receipt,
   },
   garantia: {
     rotulo: "Fim de garantia",
-    cor: "bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30",
-    ponto: "bg-rose-500",
+    cor: "bg-destructive/10 text-destructive border-destructive/30",
+    ponto: "bg-destructive",
     icone: ShieldCheck,
   },
   lista: {
     rotulo: "Lista aprovada",
-    cor: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30",
-    ponto: "bg-emerald-500",
+    cor: "bg-success/10 text-success border-success/30",
+    ponto: "bg-success",
     icone: ShoppingCart,
   },
 };
@@ -240,7 +240,7 @@ function CalendarioPage() {
       title="Calendário"
       description="Faturas, notas fiscais, garantias e lista de compras em um só lugar"
     >
-      <div className="mb-3 inline-flex rounded-xl border bg-muted/40 p-1" role="group" aria-label="Tipo de visão">
+      <div className="mb-4 inline-flex rounded-full bg-muted p-1" role="group" aria-label="Tipo de visão">
         {(["mes", "ano"] as const).map((v) => (
           <button
             key={v}
@@ -248,8 +248,8 @@ function CalendarioPage() {
             onClick={() => setVisao(v)}
             aria-pressed={visao === v}
             className={cn(
-              "rounded-lg px-4 py-1.5 text-sm font-medium transition-colors",
-              visao === v ? "bg-background text-primary shadow-sm" : "text-muted-foreground",
+              "rounded-full px-4 py-1.5 text-sm font-medium transition-colors",
+              visao === v ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
             )}
           >
             {v === "mes" ? "Mês" : "Ano (12 meses)"}
@@ -259,18 +259,17 @@ function CalendarioPage() {
 
       {/* Agenda do iPhone (só no app): depois de vinculada, sincroniza sozinha. */}
       {vinculada ? (
-        <p className="mb-3 hidden items-center gap-1.5 text-xs text-muted-foreground native:flex">
+        <p className="mb-4 hidden items-center gap-1.5 text-xs text-muted-foreground native:flex">
           <CalendarPlus className="size-3.5" aria-hidden="true" />
           Agenda do iPhone vinculada: os vencimentos vão sozinhos para o calendário "Control ALL".
         </p>
       ) : (
-        <div className="mb-3 hidden rounded-xl border border-primary/30 bg-primary/5 p-3 native:block">
+        <div className="mb-6 hidden rounded-3xl border border-primary/20 bg-primary/5 p-5 native:block">
           <p className="text-sm font-semibold">Veja os vencimentos na agenda do iPhone</p>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            Faturas em aberto, fim de garantias e compras aprovadas entram num calendário "Control ALL", com lembrete
-            na véspera. Depois de permitir, a agenda se atualiza sozinha.
+          <p className="mt-1 text-sm text-muted-foreground">
+            Faturas, garantias e compras aprovadas entram no calendário "Control ALL", com lembrete na véspera.
           </p>
-          <Button className="mt-2 w-full gap-2" disabled={sincronizando} onClick={sincronizarAgenda}>
+          <Button className="mt-4 w-full gap-2" disabled={sincronizando} onClick={sincronizarAgenda}>
             <CalendarPlus className="size-4" />
             {sincronizando ? "Vinculando…" : "Vincular à agenda do iPhone"}
           </Button>
@@ -278,19 +277,19 @@ function CalendarioPage() {
       )}
 
       {visao === "ano" && (
-        <div className="mb-3 flex items-center gap-2">
+        <div className="mb-4 flex flex-wrap items-center gap-3">
           <Button variant="outline" size="icon" onClick={() => irParaMes(somarMes(mes, -12))} aria-label="Ano anterior">
             <ChevronLeft className="size-4" />
           </Button>
-          <h2 className="min-w-20 text-center text-base font-semibold">{ano}</h2>
+          <h2 className="min-w-20 text-center text-base font-semibold tabular-nums">{ano}</h2>
           <Button variant="outline" size="icon" onClick={() => irParaMes(somarMes(mes, 12))} aria-label="Próximo ano">
             <ChevronRight className="size-4" />
           </Button>
-          <span className="ml-2 text-xs text-muted-foreground">Toque num mês para abrir, ou num dia para ver o que tem nele.</span>
+          <span className="text-xs text-muted-foreground">Toque num mês ou num dia para abrir.</span>
         </div>
       )}
 
-      <div className={cn("mb-3 flex flex-wrap items-center gap-2", visao === "ano" && "hidden")}>
+      <div className={cn("mb-4 flex flex-wrap items-center gap-3", visao === "ano" && "hidden")}>
         <Button variant="outline" size="icon" onClick={() => irParaMes(somarMes(mes, -1))} aria-label="Mês anterior">
           <ChevronLeft className="size-4" />
         </Button>
@@ -312,7 +311,7 @@ function CalendarioPage() {
         />
       </div>
 
-      <div className="mb-3 flex flex-wrap gap-2">
+      <div className="mb-6 flex flex-wrap items-center gap-2">
         {(Object.keys(TIPOS) as Tipo[]).map((t) => {
           const on = ativos.includes(t);
           const I = TIPOS[t].icone;
@@ -334,13 +333,13 @@ function CalendarioPage() {
         })}
         {totalFaturasMes > 0 && (
           <span className="ml-auto self-center text-xs text-muted-foreground">
-            Faturas do mês: <strong className="text-foreground">{formatBRL(totalFaturasMes)}</strong>
+            Faturas do mês: <strong className="text-foreground tabular-nums">{formatBRL(totalFaturasMes)}</strong>
           </span>
         )}
       </div>
 
       {visao === "ano" && (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {Array.from({ length: 12 }, (_, i) => {
             const chave = `${ano}-${String(i + 1).padStart(2, "0")}`;
             const [a, m] = chave.split("-").map(Number);
@@ -351,7 +350,7 @@ function CalendarioPage() {
             const qtd = visiveis.filter((e) => e.data.slice(0, 7) === chave).length;
             return (
               <Card key={chave} className={cn(chave === monthKey(new Date()) && "border-primary")}>
-                <CardContent className="p-3">
+                <CardContent className="p-4">
                   <button
                     type="button"
                     onClick={() => {
@@ -364,12 +363,12 @@ function CalendarioPage() {
                       {new Date(a!, m! - 1, 1).toLocaleDateString("pt-BR", { month: "long" })}
                     </span>
                     {qtd > 0 && (
-                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary tabular-nums">
                         {qtd} evento{qtd > 1 ? "s" : ""}
                       </span>
                     )}
                   </button>
-                  <div className="grid grid-cols-7 gap-0.5 text-center text-[10px] text-muted-foreground">
+                  <div className="grid grid-cols-7 gap-0.5 text-center text-xs text-muted-foreground tabular-nums">
                     {DIAS_SEMANA.map((d) => (
                       <div key={d}>{d[0]}</div>
                     ))}
@@ -387,7 +386,7 @@ function CalendarioPage() {
                             setVisao("mes");
                           }}
                           className={cn(
-                            "flex h-8 flex-col items-center justify-center rounded text-[11px] hover:bg-muted",
+                            "flex h-8 flex-col items-center justify-center rounded-lg text-xs hover:bg-muted",
                             dia === hojeISO && "bg-primary/10 font-bold text-primary",
                           )}
                           aria-label={`${formatDate(dia)}${evs.length ? `, ${evs.length} evento(s)` : ""}`}
@@ -411,25 +410,25 @@ function CalendarioPage() {
 
       <Card className={cn(visao === "ano" && "hidden")}>
         <CardContent className="p-2 sm:p-3">
-          <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-semibold text-muted-foreground">
+          <div className="grid grid-cols-7 gap-1 text-center text-xs font-medium text-muted-foreground">
             {DIAS_SEMANA.map((d) => (
               <div key={d} className="py-1">
                 {d}
               </div>
             ))}
           </div>
-          <div className="mb-2 grid grid-cols-3 gap-2 text-center">
-            <div className="rounded-md bg-emerald-500/10 p-2">
-              <p className="text-[10px] uppercase text-muted-foreground">Entradas</p>
-              <p className="text-xs font-semibold text-emerald-600 sm:text-sm">{formatBRL(financeiro.entradas)}</p>
+          <div className="mb-3 grid grid-cols-3 gap-2 text-center">
+            <div className="rounded-xl bg-success/10 p-2">
+              <p className="text-xs text-muted-foreground">Entradas</p>
+              <p className="text-xs font-semibold text-success tabular-nums sm:text-sm">{formatBRL(financeiro.entradas)}</p>
             </div>
-            <div className="rounded-md bg-rose-500/10 p-2">
-              <p className="text-[10px] uppercase text-muted-foreground">Saídas</p>
-              <p className="text-xs font-semibold text-rose-600 sm:text-sm">{formatBRL(financeiro.saidas)}</p>
+            <div className="rounded-xl bg-destructive/10 p-2">
+              <p className="text-xs text-muted-foreground">Saídas</p>
+              <p className="text-xs font-semibold text-destructive tabular-nums sm:text-sm">{formatBRL(financeiro.saidas)}</p>
             </div>
-            <div className="rounded-md bg-muted/50 p-2">
-              <p className="text-[10px] uppercase text-muted-foreground">Resultado</p>
-              <p className={cn("text-xs font-semibold sm:text-sm", financeiro.resultado >= 0 ? "text-emerald-600" : "text-rose-600")}>
+            <div className="rounded-xl bg-muted p-2">
+              <p className="text-xs text-muted-foreground">Resultado</p>
+              <p className={cn("text-xs font-semibold tabular-nums sm:text-sm", financeiro.resultado >= 0 ? "text-success" : "text-destructive")}>
                 {formatBRL(financeiro.resultado)}
               </p>
             </div>
@@ -453,14 +452,14 @@ function CalendarioPage() {
                     ehHoje && "bg-primary/10",
                   )}
                 >
-                  <span className={cn("text-xs font-semibold", ehHoje && "text-primary")}>
+                  <span className={cn("text-xs font-semibold tabular-nums", ehHoje && "text-primary")}>
                     {Number(dia.slice(8, 10))}
                   </span>
                   {fin && (fin.entradas > 0 || fin.saidas > 0) && (
                     <span
                       className={cn(
-                        "truncate text-[10px] font-medium tabular-nums",
-                        resDia >= 0 ? "text-emerald-600" : "text-rose-600",
+                        "truncate text-xs font-medium tabular-nums",
+                        resDia >= 0 ? "text-success" : "text-destructive",
                       )}
                       title={`Entradas ${formatBRL(fin.entradas)} · Saídas ${formatBRL(fin.saidas)}`}
                     >
@@ -471,14 +470,14 @@ function CalendarioPage() {
                     {evs.slice(0, 3).map((e) => (
                       <span
                         key={e.id}
-                        className={cn("truncate rounded border px-1 py-px text-[10px]", TIPOS[e.tipo].cor)}
+                        className={cn("truncate rounded-md border px-1 py-px text-xs", TIPOS[e.tipo].cor)}
                         title={e.titulo}
                       >
                         {e.titulo}
                       </span>
                     ))}
                     {evs.length > 3 && (
-                      <span className="text-[10px] text-muted-foreground">+{evs.length - 3} mais</span>
+                      <span className="text-xs text-muted-foreground tabular-nums">+{evs.length - 3} mais</span>
                     )}
                   </div>
                   <div className="flex flex-wrap gap-0.5 sm:hidden">
@@ -493,14 +492,17 @@ function CalendarioPage() {
         </CardContent>
       </Card>
 
-      <div className={cn("mt-4", visao === "ano" && "hidden")}>
-        <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold">
+      <div className={cn("mt-6", visao === "ano" && "hidden")}>
+        <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold">
           <CalendarDays className="size-4" /> {formatDate(diaSel)}
         </h3>
         {eventosDoDia.length === 0 ? (
-          <p className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
-            Nada registrado neste dia.
-          </p>
+          <div className="flex flex-col items-center gap-3 rounded-3xl border border-dashed p-8 text-center">
+            <div className="flex size-12 items-center justify-center rounded-full bg-muted">
+              <CalendarDays className="size-5 text-muted-foreground" />
+            </div>
+            <p className="text-sm text-muted-foreground">Nada neste dia.</p>
+          </div>
         ) : (
           <div className="space-y-2">
             {eventosDoDia.map((e) => {
@@ -511,14 +513,14 @@ function CalendarioPage() {
                   type="button"
                   onClick={() => setEditando(e)}
                   className={cn(
-                    "flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left hover:opacity-90",
+                    "flex w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left hover:opacity-90",
                     TIPOS[e.tipo].cor,
                   )}
                 >
                   <I className="size-4 shrink-0" />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold">{e.titulo}</p>
-                    {e.detalhe && <p className="truncate text-[11px] opacity-80">{e.detalhe}</p>}
+                    {e.detalhe && <p className="truncate text-xs opacity-80">{e.detalhe}</p>}
                   </div>
                   {e.valor != null && (
                     <span className="shrink-0 text-sm font-bold tabular-nums">{formatBRL(e.valor)}</span>

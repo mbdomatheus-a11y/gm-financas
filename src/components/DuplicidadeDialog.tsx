@@ -78,7 +78,7 @@ export function DuplicidadeDialog({
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base">
-            <AlertTriangle className="size-4 text-amber-600" aria-hidden="true" />
+            <AlertTriangle className="size-4 text-warning-foreground dark:text-warning" aria-hidden="true" />
             Lançamento parecido com {candidatas.length === 1 ? "um que" : `${candidatas.length} que`}{" "}
             já {candidatas.length === 1 ? "existe" : "existem"}
           </DialogTitle>
@@ -88,7 +88,7 @@ export function DuplicidadeDialog({
         </DialogHeader>
 
         <div className="rounded-lg border border-primary/40 bg-primary/5 p-3 text-sm">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-primary">
+          <p className="text-xs font-semibold text-primary">
             Nesta fatura
           </p>
           <p className="mt-1 font-medium">{lancamento.descricao}</p>

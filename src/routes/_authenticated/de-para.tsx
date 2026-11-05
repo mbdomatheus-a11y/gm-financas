@@ -42,13 +42,13 @@ import { baixarTxt, baixarXlsx } from "@/lib/exportar-planilha";
 export const Route = createFileRoute("/_authenticated/de-para")({
   head: () => ({
     meta: [
-      { title: "De-para de categorias — Control ALL" },
+      { title: "De-para de categorias | Control ALL" },
       {
         name: "description",
         content:
           "Suba uma planilha Excel ou CSV com o de-para de descrição para categoria e mantenha a categorização automática das despesas sempre calibrada.",
       },
-      { property: "og:title", content: "De-para de categorias — Control ALL" },
+      { property: "og:title", content: "De-para de categorias | Control ALL" },
       {
         property: "og:description",
         content: "Regras de categorização automática alimentadas por planilha Excel ou CSV.",
@@ -362,13 +362,13 @@ function DeParaPage() {
   return (
     <AppLayout
       title="De-para de categorias"
-      description="Suba a planilha com estabelecimento → categoria. Toda importação passa a usar essas regras."
+      description="Envie a planilha estabelecimento → categoria. As importações passam a usar essas regras."
     >
       <AvisoPrimeiraVezDePara />
       <Card>
-        <CardContent className="p-4">
+        <CardContent className="p-6">
           <div
-            className="flex cursor-pointer flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-dashed px-4 py-2.5 text-left transition-colors hover:bg-muted/50"
+            className="flex cursor-pointer flex-wrap items-center gap-x-3 gap-y-1 rounded-2xl border border-dashed px-5 py-4 text-left transition-colors hover:bg-muted/50"
             onClick={() => inputRef.current?.click()}
             onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => {
@@ -381,9 +381,9 @@ function DeParaPage() {
             ) : (
               <Upload className="size-6 text-muted-foreground" />
             )}
-            <p className="text-sm font-medium">Arraste a planilha ou clique para selecionar</p>
+            <p className="text-sm font-medium">Arraste a planilha ou clique para escolher</p>
             <p className="text-xs text-muted-foreground">
-              Excel (.xlsx), CSV ou TXT · colunas: estabelecimento, categoria, subcategoria (opcional)
+              Excel, CSV ou TXT · estabelecimento, categoria, subcategoria (opcional)
             </p>
             <input
               ref={inputRef}
@@ -393,8 +393,8 @@ function DeParaPage() {
               onChange={(e) => void onFile(e.target.files?.[0])}
             />
           </div>
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <span className="text-xs text-muted-foreground">Baixar modelo:</span>
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <span className="text-xs text-muted-foreground">Baixar modelo</span>
             <Button variant="outline" size="sm" onClick={() => baixarXlsx("modelo-de-para", CABECALHO_DEPARA, EXEMPLOS_DEPARA)}>
               <Download className="mr-2 size-4" /> Excel
             </Button>
@@ -409,7 +409,7 @@ function DeParaPage() {
       </Card>
 
       {previa.length > 0 && (
-        <Card className="mt-4">
+        <Card className="mt-6">
           <CardHeader className="flex-row items-center justify-between gap-2 pb-3">
             <CardTitle className="text-base">
               Prévia de {arquivo} · {previa.length} linha(s)
@@ -548,7 +548,7 @@ function DeParaPage() {
         </Card>
       )}
 
-      <Card className="mt-4">
+      <Card className="mt-6">
         <CardHeader className="gap-3 pb-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <CardTitle className="text-base">Regras ativas ({regras.length})</CardTitle>
@@ -570,7 +570,7 @@ function DeParaPage() {
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="h-5 px-1.5 text-[11px] gap-1 text-primary hover:text-primary hover:bg-primary/10"
+                  className="h-5 px-1.5 text-xs gap-1 text-primary hover:text-primary hover:bg-primary/10"
                   disabled={identificando || !nova.descricao.trim()}
                   onClick={() => void consultarSegmentoWeb(nova.descricao)}
                 >
@@ -644,7 +644,7 @@ function DeParaPage() {
               <button
                 type="button"
                 onClick={() => setExplicacaoIa(null)}
-                className="text-[10px] text-muted-foreground hover:text-foreground"
+                className="text-xs text-muted-foreground hover:text-foreground"
               >
                 Dispensar
               </button>
@@ -655,9 +655,13 @@ function DeParaPage() {
           {isLoading ? (
             <p className="px-6 pb-6 text-sm text-muted-foreground">Carregando…</p>
           ) : filtradas.length === 0 ? (
-            <p className="px-6 pb-6 text-sm text-muted-foreground">
-              Nenhuma regra cadastrada ainda.
-            </p>
+            <div className="flex flex-col items-center gap-4 px-6 py-12 text-center">
+              <span className="grid size-14 place-items-center rounded-full bg-muted text-muted-foreground">
+                <Upload className="size-6" aria-hidden="true" />
+              </span>
+              <p className="text-sm text-muted-foreground">Nenhuma regra encontrada.</p>
+              <Button onClick={() => inputRef.current?.click()}>Enviar planilha</Button>
+            </div>
           ) : (
             <div className="max-h-[520px] overflow-auto">
               <table className="w-full text-sm">
@@ -717,7 +721,7 @@ function DeParaPage() {
                             uma por linha — primeira linha vira o padrão principal
                             (estabelecimento_normalizado), mantido por compatibilidade. */}
                         <Textarea
-                          className="mt-1 min-h-7 py-1 text-[11px] text-muted-foreground"
+                          className="mt-1 min-h-7 py-1 text-xs text-muted-foreground"
                           rows={1}
                           defaultValue={(r.padroes?.length ? r.padroes : [r.estabelecimento_normalizado]).join(
                             "\n",
@@ -793,23 +797,22 @@ function DeParaPage() {
           )}
         </CardContent>
       </Card>
-      <Card className="mt-4">
+      <Card className="mt-6">
         <CardHeader>
           <CardTitle className="text-base">Classificações aprendidas</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Estabelecimentos que a importação lembra para o seu grupo. Ao esquecer, a próxima importação
-            volta a perguntar ou usar o aprendizado geral. Nenhum lançamento já salvo muda.
+            O que a importação lembra para o seu grupo. Esquecer não altera lançamentos já salvos.
           </p>
         </CardHeader>
         <CardContent className="p-0">
           {carregandoAprendidas ? (
             <p className="p-4 text-sm text-muted-foreground">Carregando…</p>
           ) : aprendidas.length === 0 ? (
-            <p className="p-4 text-sm text-muted-foreground">Nenhuma classificação aprendida ainda.</p>
+            <p className="px-6 pb-6 text-sm text-muted-foreground">Nenhuma classificação aprendida ainda.</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-muted/50 text-left text-xs uppercase text-muted-foreground">
+                <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
                   <tr>
                     <th className="px-4 py-2">Estabelecimento</th>
                     <th className="px-4 py-2">Categoria</th>
@@ -821,8 +824,8 @@ function DeParaPage() {
                   {(aprendidas as any[]).map((a) => (
                     <tr key={a.id} className="border-t">
                       <td className="px-4 py-2 font-medium">{a.chave}</td>
-                      <td className="px-4 py-2">{a.categoria || "—"}</td>
-                      <td className="px-4 py-2">{a.subcategoria || "—"}</td>
+                      <td className="px-4 py-2">{a.categoria || "-"}</td>
+                      <td className="px-4 py-2">{a.subcategoria || "-"}</td>
                       <td className="px-4 py-2 text-right">
                         <Button
                           variant="ghost"

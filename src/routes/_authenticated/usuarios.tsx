@@ -16,12 +16,12 @@ import { definirTempoInatividade, obterTempoInatividade } from "@/lib/inatividad
 export const Route = createFileRoute("/_authenticated/usuarios")({
   head: () => ({
     meta: [
-      { title: "Usuários e Privilégios — Control ALL" },
+      { title: "Usuários e Privilégios | Control ALL" },
       {
         name: "description",
         content: "Convites e configurações comuns a todos os usuários. A gestão de contas fica na Administração.",
       },
-      { property: "og:title", content: "Usuários e Privilégios — Control ALL" },
+      { property: "og:title", content: "Usuários e Privilégios | Control ALL" },
       { property: "og:description", content: "Convites e configurações comuns." },
     ],
   }),
@@ -52,15 +52,15 @@ function UsuariosPage() {
 
   return (
     <AppLayout title="Usuários e Privilégios" description="Configurações comuns a todos os usuários">
-      <div className="space-y-4">
+      <div className="space-y-6">
         <Card>
-          <CardContent className="flex flex-wrap items-end gap-3 p-4">
+          <CardContent className="flex flex-wrap items-center gap-3 p-6">
             <div className="min-w-52 flex-1">
               <label htmlFor="inatividade-minutos" className="flex items-center gap-2 text-sm font-semibold">
                 <Clock3 className="size-4" /> Desconectar por inatividade
               </label>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Aviso no último minuto. Prazo para todos os usuários, entre 2 e 120 minutos.
+              <p className="mt-1 text-sm text-muted-foreground">
+                Vale para todos os usuários, de 2 a 120 minutos.
                 {!isSiteAdmin ? " Só a administração do site pode alterar." : ""}
               </p>
             </div>
@@ -75,7 +75,6 @@ function UsuariosPage() {
               onChange={(e) => setTempoDigitado(e.target.value)}
             />
             <Button
-              size="sm"
               disabled={
                 !isSiteAdmin ||
                 salvarTempo.isPending ||
@@ -85,7 +84,7 @@ function UsuariosPage() {
               }
               onClick={() => salvarTempo.mutate()}
             >
-              Salvar prazo
+              Salvar
             </Button>
           </CardContent>
         </Card>

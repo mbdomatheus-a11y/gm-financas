@@ -1018,6 +1018,16 @@ export function AppLayout({
           {/* 31/10/2026: pesquisa de satisfação (joinha) no fim das páginas, igual ao app. */}
           {!rotaAdminBloqueada && <PesquisaTela />}
           <SincronizadorAgendaApp />
+          {/* 05/11/2026: rodapé discreto no fim de toda tela do app */}
+          <footer className="mt-12 flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-t border-border/60 pt-6 text-xs text-muted-foreground">
+            <span>Control ALL · seus dados são só seus</span>
+            <nav aria-label="Documentos" className="flex flex-wrap gap-x-5 gap-y-1">
+              <Link to="/termos-de-uso" className="transition-colors hover:text-foreground">Termos de Uso</Link>
+              <Link to="/privacidade" className="transition-colors hover:text-foreground">Privacidade</Link>
+              <Link to="/cookies" className="transition-colors hover:text-foreground">Cookies</Link>
+              <Link to="/suporte" className="transition-colors hover:text-foreground">Suporte</Link>
+            </nav>
+          </footer>
         </main>
       </div>
 

@@ -70,7 +70,7 @@ function caminhoDoLocal(localId: string | null, locais: Local[]): string {
     atual = atual.local_pai_id ? locais.find((l) => l.id === atual!.local_pai_id) : undefined;
     guarda++;
   }
-  return partes.join(" › ") || "—";
+  return partes.join(" › ") || "Sem local";
 }
 
 function formatarData(iso: string | null): string | null {
@@ -261,13 +261,13 @@ function OndeEsta() {
   return (
     <AppLayout
       title="Onde está?"
-      description="Guarde local, cômodo, detalhes e validade de cada coisa — preencha só o que souber."
+      description="Onde cada coisa está guardada, com detalhes e validade."
     >
-      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder='Digite pra encontrar (ex.: "pilha" ou "AAA")'
+            placeholder='Buscar, ex.: "pilha"'
             value={q}
             onChange={(e) => setQ(e.target.value)}
             className="pl-9"
@@ -282,8 +282,8 @@ function OndeEsta() {
       </div>
 
       {termo ? (
-        <div className="space-y-2">
-          <p className="text-sm text-muted-foreground">
+        <div className="space-y-3">
+          <p className="text-sm text-muted-foreground tabular-nums">
             {resultado.length} {resultado.length === 1 ? "resultado" : "resultados"} para "{q}"
           </p>
           {resultado.map((i) => (
@@ -296,23 +296,31 @@ function OndeEsta() {
             />
           ))}
           {!resultado.length && (
-            <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-              Nada encontrado com esse termo.
-            </p>
+            <div className="flex flex-col items-center gap-3 rounded-3xl border border-dashed p-8 text-center">
+              <div className="flex size-12 items-center justify-center rounded-full bg-muted">
+                <Search className="size-5 text-muted-foreground" />
+              </div>
+              <p className="text-sm text-muted-foreground">Nada encontrado.</p>
+            </div>
           )}
         </div>
       ) : (
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid gap-6 lg:grid-cols-2">
           <Card>
-            <CardContent className="space-y-3 p-4">
-              <h2 className="flex items-center gap-1.5 font-semibold">
+            <CardContent className="space-y-4 p-6">
+              <h2 className="flex items-center gap-2 text-lg font-semibold">
                 <MapPin className="size-4 text-primary" /> Locais
               </h2>
               {!locais.length && (
-                <p className="text-sm text-muted-foreground">
-                  Nenhum local cadastrado ainda. Comece com algo simples, como "Escritório" ou
-                  "Quarto" — você pode detalhar depois.
-                </p>
+                <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed p-6 text-center">
+                  <div className="flex size-12 items-center justify-center rounded-full bg-muted">
+                    <MapPin className="size-5 text-muted-foreground" />
+                  </div>
+                  <p className="text-sm text-muted-foreground">Nenhum local ainda. Comece por "Quarto" ou "Escritório".</p>
+                  <Button size="sm" variant="outline" className="gap-1.5" onClick={() => abrirNovoLocal()}>
+                    <Plus className="size-4" /> Novo local
+                  </Button>
+                </div>
               )}
               <div className="space-y-2">
                 {locais
@@ -336,14 +344,20 @@ function OndeEsta() {
           </Card>
 
           <Card>
-            <CardContent className="space-y-3 p-4">
-              <h2 className="flex items-center gap-1.5 font-semibold">
+            <CardContent className="space-y-4 p-6">
+              <h2 className="flex items-center gap-2 text-lg font-semibold">
                 <Boxes className="size-4 text-primary" /> Todos os itens
               </h2>
               {!itens.length && (
-                <p className="text-sm text-muted-foreground">
-                  Nenhum item guardado ainda. Cadastre um local e depois adicione itens a ele.
-                </p>
+                <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed p-6 text-center">
+                  <div className="flex size-12 items-center justify-center rounded-full bg-muted">
+                    <Boxes className="size-5 text-muted-foreground" />
+                  </div>
+                  <p className="text-sm text-muted-foreground">Nenhum item guardado ainda.</p>
+                  <Button size="sm" className="gap-1.5" disabled={!locais.length} onClick={() => abrirNovoItem()}>
+                    <Plus className="size-4" /> Novo item
+                  </Button>
+                </div>
               )}
               <div className="space-y-2">
                 {itens.map((i) => (
@@ -393,10 +407,10 @@ function OndeEsta() {
                 onValueChange={(v) => setFormLocal({ ...formLocal, local_pai_id: v === "none" ? null : v })}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Nenhum — é um local principal" />
+                  <SelectValue placeholder="Nenhum (local principal)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">Nenhum — é um local principal</SelectItem>
+                  <SelectItem value="none">Nenhum (local principal)</SelectItem>
                   {locais
                     .filter((l) => !(dialogLocal !== "novo" && dialogLocal && l.id === dialogLocal.id))
                     .map((l) => (
@@ -532,7 +546,7 @@ function LocalNode({
 
   return (
     <div className={nivel > 0 ? "ml-4 border-l pl-3" : ""}>
-      <div className="rounded-lg border p-3">
+      <div className="rounded-2xl border p-4">
         <div className="flex items-start justify-between gap-2">
           <div>
             <p className="font-medium">{local.nome}</p>
@@ -547,7 +561,7 @@ function LocalNode({
             </Button>
           </div>
         </div>
-        <div className="mt-2 flex flex-wrap gap-2">
+        <div className="mt-3 flex flex-wrap items-center gap-2">
           <Button size="sm" variant="outline" className="h-7 gap-1 text-xs" onClick={() => onNovoSublocal(local.id)}>
             <Plus className="size-3" /> Sublocal
           </Button>
@@ -556,11 +570,11 @@ function LocalNode({
           </Button>
         </div>
         {itensDoLocal.length > 0 && (
-          <div className="mt-2 space-y-1.5">
+          <div className="mt-3 space-y-1.5">
             {itensDoLocal.map((i) => (
-              <div key={i.id} className="flex items-center justify-between gap-2 rounded bg-muted/50 px-2 py-1 text-sm">
+              <div key={i.id} className="flex items-center justify-between gap-2 rounded-xl bg-muted/50 px-3 py-1.5 text-sm">
                 <span>
-                  {i.nome} {i.quantidade > 1 && <span className="text-muted-foreground">×{i.quantidade}</span>}
+                  {i.nome} {i.quantidade > 1 && <span className="text-muted-foreground tabular-nums">×{i.quantidade}</span>}
                 </span>
                 <div className="flex shrink-0 gap-1">
                   <Button size="icon" variant="ghost" className="size-6" onClick={() => onEditarItem(i)} aria-label="Editar item">
@@ -613,11 +627,11 @@ function ItemCard({
   const compra = formatarData(item.data_compra);
   const vencido = item.data_validade ? new Date(item.data_validade) < new Date() : false;
   return (
-    <div className="rounded-lg border p-3">
+    <div className="rounded-2xl border p-4">
       <div className="flex items-start justify-between gap-2">
         <div>
           <p className="font-medium">
-            {item.nome} {item.quantidade > 1 && <span className="text-muted-foreground">×{item.quantidade}</span>}
+            {item.nome} {item.quantidade > 1 && <span className="text-muted-foreground tabular-nums">×{item.quantidade}</span>}
           </p>
           <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
             <MapPin className="size-3" /> {caminho}
@@ -626,12 +640,12 @@ function ItemCard({
           {(compra || validade) && (
             <div className="mt-1.5 flex flex-wrap gap-1.5">
               {compra && (
-                <Badge variant="outline" className="gap-1 text-[11px]">
+                <Badge variant="outline" className="gap-1 text-xs tabular-nums">
                   <Calendar className="size-3" /> Comprado {compra}
                 </Badge>
               )}
               {validade && (
-                <Badge variant={vencido ? "destructive" : "outline"} className="gap-1 text-[11px]">
+                <Badge variant={vencido ? "destructive" : "outline"} className="gap-1 text-xs tabular-nums">
                   <Calendar className="size-3" /> Validade {validade}
                 </Badge>
               )}
