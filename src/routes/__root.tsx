@@ -9,6 +9,8 @@ import {
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
 import { inject, type BeforeSendEvent } from "@vercel/analytics";
+import { SpeedInsights } from "@vercel/speed-insights/react";
+import { ColetorDesempenho } from "@/components/ColetorDesempenho";
 
 import appCss from "../styles.css?url";
 import { Toaster } from "@/components/ui/sonner";
@@ -160,6 +162,8 @@ function RootComponent() {
       <VersaoBuild />
       <DynamicFavicon />
       <RastreadorAcessos />
+      <ColetorDesempenho />
+      <SpeedInsights beforeSend={(e) => (metricasPermitidas() ? e : null)} />
       <Outlet />
       <AvisoPrivacidade />
       <AvisoConexao />

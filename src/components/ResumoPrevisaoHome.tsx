@@ -1,20 +1,19 @@
-import { useQuery } from "@tanstack/react-query";
 import { usePreferencias } from "@/hooks/usePreferencias";
 import { Link } from "@tanstack/react-router";
-import { AlertTriangle, CheckCircle2, Info, PiggyBank } from "lucide-react";
+import { Info, PiggyBank } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Area, AreaChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import { CartaoCarregando } from "@/components/CartaoCarregando";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { SobraCiclo } from "@/components/SobraCiclo";
 import { FaturaMesDialog } from "@/components/FaturaMesDialog";
-import { useCotacao } from "@/hooks/useCotacao";
-import { useCartoes, useDespesas, useFaturasMes, useReceitas } from "@/hooks/useFinance";
+import { useDadosCiclo } from "@/hooks/useNumerosCiclo";
 import { useFinancasProntas } from "@/hooks/useFinancasProntas";
 import { usePrivacidadeValores } from "@/hooks/usePrivacidadeValores";
 import { useCompetenciaVigente } from "@/lib/periodo-vigente";
-import { listarCaixinhas, metaDoMes } from "@/lib/poupar";
+import { metaDoMes } from "@/lib/poupar";
 import { calcularPrevisaoMes, datasDoCiclo } from "@/lib/previsao-mes";
 import { monthLabelLong } from "@/lib/format";
 import { somarMeses } from "@/lib/recorrencia";
@@ -22,16 +21,11 @@ import { somarMeses } from "@/lib/recorrencia";
 /**
  * Card "Previsão do mês" do Início. 27/10/2026: mesma conta e mesmos textos do app
  * (lib/previsao-mes.ts = controlall/src/lib/painel.ts): receitas com recorrentes projetadas,
- * despesas comprometidas, valor a guardar nas caixinhas e ritmo dos gastos variáveis.
+ * despesas comprometidas e valor a guardar nas caixinhas. 07/11/2026: a sobra vem só de numeros-ciclo.ts
+ * ("Sobra até agora" em destaque e "Previsto no fim do ciclo" abaixo); o forecast por ritmo foi removido.
  */
 export function ResumoPrevisaoHome({ mes: mesEscolhido, className }: { mes?: string; className?: string } = {}) {
   const financasProntas = useFinancasProntas();
-  const cotacao = useCotacao();
-  const { data: despesas = [] } = useDespesas();
-  const { data: faturasMes = [] } = useFaturasMes();
-  const { data: cartoes = [] } = useCartoes();
-  const { data: receitas = [] } = useReceitas();
-  const { data: caixinhas = [] } = useQuery({ queryKey: ["caixinhas"], queryFn: listarCaixinhas, retry: false });
   const { formatar } = usePrivacidadeValores("resumo-previsao-home");
   const mesVigente = useCompetenciaVigente();
   const { prefs } = usePreferencias();
@@ -41,24 +35,10 @@ export function ResumoPrevisaoHome({ mes: mesEscolhido, className }: { mes?: str
   const podeTrocar = mesEscolhido === undefined;
   const mes = mesEscolhido ?? (proximo ? somarMeses(mesVigente, 1) : mesVigente);
 
+  const { dados, caixinhas: caixinhasCiclo, diaVirada } = useDadosCiclo();
   const p = useMemo(
-    () =>
-      calcularPrevisaoMes(
-        {
-          despesas: despesas as any[],
-          receitas: receitas as any[],
-          faturas: faturasMes as any[],
-          cotacao,
-          cartoes: cartoes as any[],
-          mostrarFaturaAberta: prefs.mostrar_fatura_aberta,
-          somarPagamentoFatura: prefs.somar_pagamento_fatura,
-        },
-        mes,
-        metaDoMes(caixinhas, mes),
-        prefs.dia_virada,
-        prefs.receitas_proximo_ciclo_dia,
-      ),
-    [despesas, receitas, faturasMes, cotacao, cartoes, mes, caixinhas, prefs.dia_virada, prefs.receitas_proximo_ciclo_dia, prefs.mostrar_fatura_aberta, prefs.somar_pagamento_fatura],
+    () => calcularPrevisaoMes(dados, mes, metaDoMes(caixinhasCiclo, mes), diaVirada),
+    [dados, mes, caixinhasCiclo, diaVirada],
   );
   // 03/11/2026: mostra de qual mês/ciclo é a previsão (ex.: outubro = 08/10 a 07/11 com virada no dia 8).
   const diasCiclo = datasDoCiclo(mes, prefs.dia_virada);
@@ -81,9 +61,7 @@ export function ResumoPrevisaoHome({ mes: mesEscolhido, className }: { mes?: str
   if (!financasProntas) return <CartaoCarregando alturaGrafico="h-44" />;
   const encerrado = p.diaHoje >= p.diasNoMes && p.diasRestantes === 0;
   const temMeta = p.meta > 0;
-  const semLivre = p.saldoLivre <= 0;
-  const futuro = p.diaHoje === 0;
-  const prefixo = futuro ? "No ritmo deste mês" : "Se continuar assim";
+  const semLivre = p.numeros.previsto.sobra < 0;
 
   return (
     <Card className={`${className ?? "mb-4 overflow-hidden"} transition-shadow duration-300 hover:shadow-md`}>
@@ -119,36 +97,7 @@ export function ResumoPrevisaoHome({ mes: mesEscolhido, className }: { mes?: str
           )}
         </header>
 
-        {encerrado ? (
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-muted-foreground">
-              Saldo final do ciclo{temMeta ? ` (meta de guardar ${formatar(p.meta)})` : ""}
-            </p>
-            <p className={`text-5xl sm:text-6xl font-extrabold leading-none tabular-nums tracking-tight ${p.finalPrevisto >= p.meta ? "text-success" : "text-destructive"}`}>
-              {formatar(p.finalPrevisto)}
-            </p>
-          </div>
-        ) : semLivre ? (
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-muted-foreground">Saldo livre do ciclo</p>
-            <p className="text-5xl sm:text-6xl font-extrabold leading-none tabular-nums tracking-tight text-destructive">{formatar(p.saldoLivre)}</p>
-            <p className="text-sm text-muted-foreground">
-              Faltam <b className="font-semibold text-foreground">{formatar(Math.abs(p.saldoLivre))}</b>{" "}
-              {temMeta ? "para cobrir as despesas do ciclo e a meta das caixinhas." : "para cobrir as despesas já comprometidas no ciclo."}
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-muted-foreground">Você pode gastar</p>
-            <p className="text-5xl sm:text-6xl font-extrabold leading-none tabular-nums tracking-tight text-success">
-              {formatar(p.porDia)} <span className="text-lg font-semibold tracking-normal text-muted-foreground">por dia</span>
-            </p>
-            <p className="text-sm text-muted-foreground">
-              {temMeta ? `para atingir sua meta de guardar ${formatar(p.meta)}` : "para não ficar negativo"}, com {p.diasRestantes}{" "}
-              {p.diasRestantes === 1 ? "dia restante" : "dias restantes"}.
-            </p>
-          </div>
-        )}
+        <SobraCiclo numeros={p.numeros} formatar={formatar} />
 
         <div className="space-y-4">
           <div className="space-y-1.5">
@@ -171,22 +120,6 @@ export function ResumoPrevisaoHome({ mes: mesEscolhido, className }: { mes?: str
           </div>
           <BarraComposicao receitas={p.receitas} comprometido={p.comprometido} caixinhas={temMeta ? p.meta : 0} formatar={formatar} />
         </div>
-
-        {!encerrado && (
-          <p className={`flex items-start gap-2 rounded-xl px-3 py-2 text-sm ${p.alerta ? "bg-destructive/10" : "bg-success/10"}`}>
-            {p.alerta ? <AlertTriangle className="mt-0.5 size-4 shrink-0 text-destructive" /> : <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" />}
-            <span>
-              <b className="font-semibold">
-                {p.alerta
-                  ? `${prefixo}, termina o mês com ${formatar(p.finalPrevisto)}${temMeta && p.finalPrevisto >= 0 ? `, abaixo da meta de ${formatar(p.meta)}` : ""}.`
-                  : `${prefixo}, sobram ${formatar(p.sobraPrevista)}${temMeta ? ` depois de guardar ${formatar(p.meta)}` : " no fim do mês"}.`}
-              </b>{" "}
-              <span className="text-muted-foreground">
-                {p.ritmoDiario > 0 ? `Gastos variáveis: ${formatar(p.ritmoDiario)} por dia.` : "Sem gastos variáveis até agora."}
-              </span>
-            </span>
-          </p>
-        )}
 
         {p.estimativas.length > 0 && (
           <details className="group rounded-xl bg-warning/10 px-3 py-2 text-sm">
@@ -217,10 +150,10 @@ export function ResumoPrevisaoHome({ mes: mesEscolhido, className }: { mes?: str
 
         <div className="grid gap-4 md:grid-cols-2 md:items-start">
         <dl className="overflow-hidden rounded-2xl border border-border/70 text-sm">
-          <Linha rotulo="Receitas do mês" valor={`+${formatar(p.receitas)}`} tom="text-success" />
-          <Linha rotulo="Despesas já comprometidas" valor={formatar(-p.comprometido)} tom="text-destructive" />
+          <Linha rotulo="Receitas previstas no ciclo" valor={`+${formatar(p.receitas)}`} tom="text-success" />
+          <Linha rotulo="Despesas previstas no ciclo" valor={formatar(-p.comprometido)} tom="text-destructive" />
           {temMeta && <Linha rotulo="A guardar nas caixinhas" valor={formatar(-p.meta)} tom="text-primary" />}
-          <Linha rotulo="Saldo livre" valor={formatar(p.saldoLivre)} forte tom={semLivre ? "text-destructive" : "text-success"} />
+          <Linha rotulo="Previsto no fim do ciclo" valor={formatar(p.numeros.previsto.sobra)} forte tom={semLivre ? "text-destructive" : "text-success"} />
         </dl>
 
         <div className="space-y-2">

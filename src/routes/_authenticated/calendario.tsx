@@ -293,7 +293,7 @@ function CalendarioPage() {
         <Button variant="outline" size="icon" onClick={() => irParaMes(somarMes(mes, -1))} aria-label="Mês anterior">
           <ChevronLeft className="size-4" />
         </Button>
-        <h2 className="min-w-44 text-center text-base font-semibold capitalize">
+        <h2 className="min-w-44 text-center text-base font-semibold">
           {monthLabelLong(mes)}
         </h2>
         <Button variant="outline" size="icon" onClick={() => irParaMes(somarMes(mes, 1))} aria-label="Próximo mês">

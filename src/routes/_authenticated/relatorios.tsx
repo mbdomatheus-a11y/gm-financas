@@ -64,6 +64,10 @@ import {
   type Parcelamento,
 } from "@/lib/relatorios";
 import { movimentosDeInvestimentos, totaisInvestimentos } from "@/lib/regras-saldo";
+import { useDadosCiclo } from "@/hooks/useNumerosCiclo";
+import { SobraCiclo } from "@/components/SobraCiclo";
+import { calcularNumerosCiclo, calcularNumerosDosCiclos, type NumerosCiclo } from "@/lib/numeros-ciclo";
+import { metaDoMes } from "@/lib/poupar";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/relatorios")({
@@ -108,6 +112,8 @@ function RelatoriosPage() {
   const { macroDe } = useEstruturaCategorias("despesa");
   const { formatar } = usePrivacidadeValores();
   const mesAtual = useCompetenciaVigente();
+  // 07/11/2026: resultado de cada mês = previsto no fim do ciclo (numeros-ciclo.ts), igual ao Início.
+  const { dados: dadosCiclo, caixinhas: caixinhasCiclo, diaVirada: diaViradaCiclo } = useDadosCiclo();
   // 07/11/2026: regra "Somar transferências" (Personalização). Tabela de contas pendente: ignora.
   const { prefs } = usePreferencias();
   const { transferencias, tabelaPendente: transferenciasPendentes } = useTransferencias();
@@ -132,6 +138,15 @@ function RelatoriosPage() {
     return [mesAtual];
   }, [periodo, mesAtual, mesInicio, mesFim]);
   const fimPeriodo = competencias[competencias.length - 1] ?? mesAtual;
+  const { sobraDe, numerosDe } = useMemo(() => {
+    const metaDe = (m: string) => metaDoMes(caixinhasCiclo, m);
+    const janela = new Set<string>();
+    for (let i = -12; i <= 12; i++) janela.add(somarMeses(mesAtual, i));
+    for (let i = -6; i <= 0; i++) janela.add(somarMeses(fimPeriodo, i));
+    const mapa = calcularNumerosDosCiclos(dadosCiclo, [...janela], metaDe, diaViradaCiclo);
+    const numerosDe = (c: string) => mapa.get(c) ?? calcularNumerosCiclo(dadosCiclo, c, metaDe(c), diaViradaCiclo);
+    return { numerosDe, sobraDe: (c: string) => numerosDe(c).previsto.sobra };
+  }, [dadosCiclo, caixinhasCiclo, diaViradaCiclo, mesAtual, fimPeriodo]);
 
   const cartoesCredito = useMemo(
     () => new Set((cartoes as any[]).filter((c) => (c.tipo ?? "credito") === "credito").map((c) => String(c.id))),
@@ -231,7 +246,9 @@ function RelatoriosPage() {
                 desp={noPeriodo.desp}
                 rec={noPeriodo.rec}
                 investimentos={noPeriodo.invest}
-                serie={seriePorMes(ultimasCompetencias(fimPeriodo, 6), desp, rec)}
+                numeros={competencias.length === 1 ? numerosDe(competencias[0]!) : null}
+                sobraPeriodo={competencias.reduce((acc, k) => acc + sobraDe(k), 0)}
+                serie={seriePorMes(ultimasCompetencias(fimPeriodo, 6), desp, rec, sobraDe)}
                 periodoSel={competencias}
                 onVerCategorias={() => setAba("categorias")}
                 onMes={escolherMes}
@@ -247,12 +264,12 @@ function RelatoriosPage() {
                   transferencias: transferenciasSaldo,
                   investimentos: movimentosInvest,
                 })}
-                serie={seriePorMes(ultimasCompetencias(fimPeriodo, 6), desp, rec)}
+                serie={seriePorMes(ultimasCompetencias(fimPeriodo, 6), desp, rec, sobraDe)}
                 formatar={formatar}
               />
             </TabsContent>
             <TabsContent value="previsao">
-              <AbaPrevisao desp={desp} rec={rec} mesAtual={mesAtual} formatar={formatar} />
+              <AbaPrevisao desp={desp} rec={rec} mesAtual={mesAtual} formatar={formatar} sobraDe={sobraDe} />
             </TabsContent>
             <TabsContent value="parcelas">
               <AbaParcelas
@@ -376,6 +393,8 @@ function AbaResumo({
   desp,
   rec,
   investimentos,
+  numeros,
+  sobraPeriodo,
   serie,
   periodoSel,
   onVerCategorias,
@@ -386,6 +405,10 @@ function AbaResumo({
   rec: ReturnType<typeof receitasDaCompetencia>;
   /** Regra "Somar investimentos" ligada: resgates entram nas receitas e aportes nas despesas do período. */
   investimentos?: { entradas: number; saidas: number } | undefined;
+  /** Números do ciclo quando o período é um ciclo só (Sobra até agora + Previsto). */
+  numeros: NumerosCiclo | null;
+  /** Soma do previsto no fim de cada ciclo do período. */
+  sobraPeriodo: number;
   serie: ReturnType<typeof seriePorMes>;
   periodoSel: string[];
   onVerCategorias: () => void;
@@ -394,7 +417,7 @@ function AbaResumo({
 }) {
   const totalRec = somar(rec) + (investimentos?.entradas ?? 0);
   const totalDesp = somar(desp) + (investimentos?.saidas ?? 0);
-  const resultado = totalRec - totalDesp;
+  const resultado = sobraPeriodo;
   const categorias = agrupar(desp, (d) => d.categoria);
   const receitasCat = agrupar(rec, (r) => r.categoria);
   const noCartao = somar(desp.filter((d) => d.noCartao));
@@ -414,10 +437,16 @@ function AbaResumo({
     <div className="space-y-4">
       <Card className="rounded-3xl">
         <CardContent className="p-6 sm:p-8">
-          <p className="text-sm font-medium text-muted-foreground">Receitas menos despesas</p>
-          <p className={cn("mt-1 text-4xl font-bold tracking-tight tabular-nums sm:text-5xl", resultado >= 0 ? "text-success" : "text-destructive")}>
-            {formatar(resultado)}
-          </p>
+          {numeros ? (
+            <SobraCiclo numeros={numeros} formatar={formatar} tamanho="medio" />
+          ) : (
+            <>
+              <p className="text-sm font-medium text-muted-foreground">Previsto no fim dos ciclos (soma)</p>
+              <p className={cn("mt-1 text-4xl font-bold tracking-tight tabular-nums sm:text-5xl", resultado >= 0 ? "text-success" : "text-destructive")}>
+                {formatar(resultado)}
+              </p>
+            </>
+          )}
           <div className="mt-5 grid grid-cols-2 gap-4">
             <div className="flex items-center gap-3">
               <span className="flex h-9 w-9 items-center justify-center rounded-full bg-success/10">
@@ -647,7 +676,12 @@ function AbaSaldo({ dias, serie, formatar }: { dias: ReturnType<typeof saldoDiar
         <Indicador rotulo="Saldo final do período" valor={formatar(final)} tom={final >= 0 ? "success" : "destructive"} dica="Começando do zero" />
         <Indicador rotulo="Entradas" valor={formatar(entradas)} tom="success" />
         <Indicador rotulo="Saídas" valor={formatar(saidas)} tom="destructive" />
-        <Indicador rotulo="Resultado" valor={formatar(entradas - saidas)} tom={entradas - saidas >= 0 ? "success" : "destructive"} />
+        <Indicador
+          rotulo="Previsto no fim do ciclo"
+          valor={formatar(serie[serie.length - 1]?.resultado ?? 0)}
+          tom={(serie[serie.length - 1]?.resultado ?? 0) >= 0 ? "success" : "destructive"}
+          dica={serie.length ? monthLabel(serie[serie.length - 1]!.key) : ""}
+        />
       </div>
 
       <Painel
@@ -717,18 +751,20 @@ function AbaPrevisao({
   rec,
   mesAtual,
   formatar,
+  sobraDe,
 }: {
   desp: ReturnType<typeof despesasPorCompetencia>;
   rec: ReturnType<typeof receitasDaCompetencia>;
   mesAtual: string;
   formatar: Fmt;
+  sobraDe: (competencia: string) => number;
 }) {
   const [horizonte, setHorizonte] = useState<"3" | "12">("3");
   const [estimarVariaveis, setEstimarVariaveis] = useState(true);
   const [mesSel, setMesSel] = useState<string | null>(null);
 
   const historico = ultimasCompetencias(somarMeses(mesAtual, -1), 6);
-  const hist = seriePorMes(historico, desp, rec);
+  const hist = seriePorMes(historico, desp, rec, sobraDe);
   const mediaRec = hist.reduce((s, l) => s + l.receitas, 0) / hist.length;
   const mediaDesp = hist.reduce((s, l) => s + l.despesas, 0) / hist.length;
   const mediaVar =
@@ -745,8 +781,10 @@ function AbaPrevisao({
     const variaveis = estimarVariaveis ? Math.max(lancadas, mediaVar) : lancadas;
     const receitas = somar(r);
     const despesas = parcelas + fixas + variaveis;
-    acumulado += receitas - despesas;
-    return { key, mes: monthLabel(key), receitas, parcelas, fixas, variaveis, despesas, resultado: receitas - despesas, acumulado, itensRec: r };
+    // 07/11/2026: o resultado do mês é o previsto de numeros-ciclo.ts; a simulação de variáveis só desconta a diferença.
+    const resultado = sobraDe(key) - (variaveis - lancadas);
+    acumulado += resultado;
+    return { key, mes: monthLabel(key), receitas, parcelas, fixas, variaveis, despesas, resultado, acumulado, itensRec: r };
   });
   const sel = linhas.find((l) => l.key === mesSel) ?? linhas[0]!;
   const vazio = !rec.length && !desp.length;

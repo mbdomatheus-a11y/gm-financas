@@ -1,3 +1,4 @@
+import { useNumerosCiclo } from "@/hooks/useNumerosCiclo";
 import { useFinancasProntas } from "@/hooks/useFinancasProntas";
 import { CartaoCarregando } from "@/components/CartaoCarregando";
 import { useMemo, useState } from "react";
@@ -34,6 +35,8 @@ export function useGamificacaoFinanceira() {
   const { data: faturasMes = [] } = useFaturasMes();
   const cotacao = useCotacao();
   const mesAtual = useCompetenciaVigente();
+  // 07/11/2026: a sobra vem só de numeros-ciclo.ts (previsto no fim do ciclo, nunca negativo aqui).
+  const numeros = useNumerosCiclo(mesAtual);
   const p = profile as any;
 
   return useMemo(() => {
@@ -70,9 +73,9 @@ export function useGamificacaoFinanceira() {
       maiores,
       valorHora,
       valorMinuto: valorHora / 60,
-      sobra: Math.max(0, renda - comprometido),
+      sobra: Math.max(0, numeros.previsto.sobra),
     };
-  }, [p, despesas, faturasMes, cotacao, mesAtual]);
+  }, [p, despesas, faturasMes, cotacao, mesAtual, numeros]);
 }
 
 export function GamificacaoFinanceira() {
@@ -188,7 +191,7 @@ export function GamificacaoFinanceira() {
               <p className="text-lg font-semibold">{formatBRL(g.comprometido)}</p>
             </div>
             <div>
-              <p className="flex items-center gap-1 text-xs text-muted-foreground"><Wallet className="size-3" /> Sobra livre</p>
+              <p className="flex items-center gap-1 text-xs text-muted-foreground"><Wallet className="size-3" /> Previsto no fim do ciclo</p>
               <p className="text-lg font-semibold text-success">{formatBRL(g.sobra)}</p>
             </div>
           </div>

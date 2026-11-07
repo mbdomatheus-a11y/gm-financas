@@ -2,6 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { guardarMesSite } from "@/lib/mes-escolhido";
 import { usePreferencias } from "@/hooks/usePreferencias";
 import { datasDoCiclo } from "@/lib/previsao-mes";
+import { useNumerosCiclo } from "@/hooks/useNumerosCiclo";
+import { ROTULO_SOBRA_PREVISTA, ROTULO_SOBRA_REAL } from "@/lib/numeros-ciclo";
 import { CampoCategoria } from "@/components/CampoCategoria";
 import { useEffect, useMemo, useState } from "react";
 import { useValorAdiado } from "@/hooks/useValorAdiado";
@@ -107,6 +109,8 @@ import { IconeBanco } from "@/components/IconeBanco";
 import { visualDoBanco } from "@/lib/banco-visual";
 import { formatarNomeExibicao } from "@/lib/nome-exibicao";
 import { usePermissoes, useSession } from "@/hooks/useAuthData";
+import { useFinancasProntas } from "@/hooks/useFinancasProntas";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   competenciaDe,
   lancamentosPorCompetencias,
@@ -211,6 +215,7 @@ function DespesasPage() {
   const { user } = useSession();
   const { can, isSiteAdmin } = usePermissoes();
   const { data: despesas = [] } = useDespesas();
+  const financasProntas = useFinancasProntas();
   const { data: receitas = [] } = useReceitas();
   const { data: faturasMes = [] } = useFaturasMes();
   const { data: categorias = [] } = useCategorias("despesa");
@@ -229,6 +234,11 @@ function DespesasPage() {
   // vindos de outras telas, ex. o card "Dívida total" do dashboard), e
   // persistir por localStorage entraria em conflito com esse comportamento.
   const [tab, setTab] = usePersistedState<"total" | "fixa" | "variavel" | "pix">("despesas.tab", "total");
+  // Ordenação da lista (vale dentro de cada grupo); padrão = ordem original. Lembrada em localStorage.
+  const [ordem, setOrdem] = usePersistedState<"padrao" | "valor_desc" | "valor_asc" | "nome_asc" | "nome_desc">(
+    "despesas.ordem",
+    "padrao",
+  );
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   // Bloco 6 (plano-mega 2026-09-14): simulação visual de corte em despesas
@@ -261,6 +271,8 @@ function DespesasPage() {
   // 03/11/2026: abre sempre no ciclo vigente (igual ao Início), não no último mês escolhido.
   const { prefs: prefsCiclo } = usePreferencias();
   const [filtroMes, setFiltroMes] = useState(search.mes ?? competenciaAtual());
+  // 07/11/2026: a sobra vem só de numeros-ciclo.ts (mesmo número do Início e das Finanças).
+  const numerosCiclo = useNumerosCiclo(filtroMes === "todos" ? undefined : filtroMes);
   const cicloTexto = useMemo(() => {
     if (filtroMes === "todos") return "";
     const dias = datasDoCiclo(filtroMes, prefsCiclo.dia_virada);
@@ -1052,7 +1064,6 @@ function DespesasPage() {
     filtroOrigem === "todos" &&
     !filtroEconomia &&
     !busca;
-  const saldoDoFiltro = receitaDoFiltro - resumo.total;
 
   // Bloco 6: sai da simulação sozinho ao trocar de aba/mês — os ids
   // excluídos de uma simulação não fazem sentido mais depois disso.
@@ -1073,7 +1084,14 @@ function DespesasPage() {
     return { totalSimulado: resumo.total - economia, economia };
   }, [simulandoCortes, listaVisivel, idsExcluidosSimulacao, idsIgnoradosPorTotal, cotacao, resumo.total]);
 
-  /** Agrupa por cartão. Despesas fixas sem cartão ficam em 'Recorrente fora do cartão'. Demais sem cartão ficam em 'Sem atribuição'. */
+  /**
+   * REGRA DE AGRUPAMENTO (copiar no app): lançamentos com cartao_id formam um grupo por cartão
+   * (`cartao:<id>`). TODOS os lançamentos sem cartão (fixas/recorrentes manuais e os sem atribuição,
+   * inclusive os do Open Finance) formam um único grupo "fora_cartao", rotulado
+   * "Fora do cartão (recorrentes e sem atribuição)", para enxergar duplicados lado a lado.
+   * Total e contagem do grupo somam os dois; grupos ordenados por total desc.
+   * Ordenação opcional (valor/nome) é aplicada aos itens dentro de cada grupo; padrão = ordem original.
+   */
   const gruposLista = useMemo(() => {
     if (modoLista === "lista")
       return [
@@ -1085,14 +1103,14 @@ function DespesasPage() {
     >();
     for (const d of listaVisivel as any[]) {
       const ehRecorrenteFora = !d.cartao_id && (d.tipo === "fixa" || d.tipo === "recorrente");
-      const key = d.cartao_id ? `cartao:${d.cartao_id}` : (ehRecorrenteFora ? "recorrente_fora" : "sem");
+      const key = d.cartao_id ? `cartao:${d.cartao_id}` : "fora_cartao";
       const label = d.cartoes
         ? `${formatarNomeExibicao(d.cartoes.apelido || d.cartoes.bandeira || "Cartão")} •${d.cartoes.final ?? ""} · ${primeiroNome(d.cartoes.titular)}`
-        : (ehRecorrenteFora ? "Recorrente fora do cartão" : "Sem atribuição");
+        : "Fora do cartão (recorrentes e sem atribuição)";
       // Recorrente fora do cartão: cor sólida, sem logo de banco nem ícone (pedido do usuário).
       // Sem cartão (recorrente fora ou sem atribuição): cor sólida e sem logo, para não parecer cartão de um banco.
       const semCartao = !d.cartao_id;
-      const cor = ehRecorrenteFora ? "#64748b" : semCartao ? "#94a3b8" : (d.cartoes?.cor ?? "var(--muted-foreground)");
+      const cor = semCartao ? "#94a3b8" : (d.cartoes?.cor ?? "var(--muted-foreground)");
       const banco = semCartao ? "" : String(d.bancos?.nome ?? d.banco_nome ?? d.cartoes?.apelido ?? "");
       const g = mapa.get(key) ?? { key, label, cor, banco, itens: [] as any[], total: 0 };
       g.itens.push(d);
@@ -1102,8 +1120,20 @@ function DespesasPage() {
       }
       mapa.set(key, g);
     }
-    return Array.from(mapa.values()).sort((a, b) => b.total - a.total);
-  }, [listaVisivel, modoLista, cotacao, resumo.total, filtroMes, lancamentoPorDespesa, idsIgnoradosPorTotal]);
+    const arr = Array.from(mapa.values()).sort((a, b) => b.total - a.total);
+    if (ordem !== "padrao") {
+      const val = (d: any) => toBRL(valorVisivel(d), d.moeda, cotacao);
+      const nome = (d: any) => String(d.descricao ?? "");
+      const cmp: Record<string, (a: any, b: any) => number> = {
+        valor_desc: (a, b) => val(b) - val(a),
+        valor_asc: (a, b) => val(a) - val(b),
+        nome_asc: (a, b) => nome(a).localeCompare(nome(b), "pt-BR", { sensitivity: "base" }),
+        nome_desc: (a, b) => nome(b).localeCompare(nome(a), "pt-BR", { sensitivity: "base" }),
+      };
+      for (const g of arr) g.itens = [...g.itens].sort(cmp[ordem]);
+    }
+    return arr;
+  }, [ordem, listaVisivel, modoLista, cotacao, resumo.total, filtroMes, lancamentoPorDespesa, idsIgnoradosPorTotal]);
 
   const chips = [
     filtroCartao !== "todos" && {
@@ -1216,12 +1246,12 @@ function DespesasPage() {
           { filtro: null, label: "Receitas", valor: formatar(receitaDoFiltro), cor: "text-success", hint: "" },
           {
             filtro: null,
-            label: "Receitas − despesas",
-            valor: semFiltrosDeLista
-              ? `${saldoDoFiltro >= 0 ? "+" : "-"} ${formatar(Math.abs(saldoDoFiltro))}`
-              : "-",
-            cor: saldoDoFiltro >= 0 ? "text-success" : "text-destructive",
-            hint: semFiltrosDeLista ? "não desconta caixinhas" : "tire os filtros para ver o saldo",
+            label: ROTULO_SOBRA_REAL,
+            valor: semFiltrosDeLista && filtroMes !== "todos" ? formatar(numerosCiclo.real.sobra) : "-",
+            cor: numerosCiclo.real.sobra >= 0 ? "text-success" : "text-destructive",
+            hint: semFiltrosDeLista && filtroMes !== "todos"
+              ? `${ROTULO_SOBRA_PREVISTA}: ${formatar(numerosCiclo.previsto.sobra)}`
+              : "tire os filtros para ver a sobra",
           },
           { filtro: "pago" as const, label: "Pago", valor: formatar(resumo.pago), cor: "text-success", hint: "" },
           {
@@ -1244,8 +1274,12 @@ function DespesasPage() {
           const conteudo = (
             <>
               <p className="text-xs font-medium text-muted-foreground">{k.label}</p>
-              <p className={cn("mt-0.5 text-lg font-extrabold tabular-nums tracking-tight", k.cor)}>{k.valor}</p>
-              {k.hint && <p className="mt-0.5 text-xs text-muted-foreground">{k.hint}</p>}
+              {financasProntas ? (
+                <p className={cn("mt-0.5 text-lg font-extrabold tabular-nums tracking-tight", k.cor)}>{k.valor}</p>
+              ) : (
+                <Skeleton className="mt-1 h-7 w-24" aria-label="Carregando" />
+              )}
+              {financasProntas && k.hint && <p className="mt-0.5 text-xs text-muted-foreground">{k.hint}</p>}
             </>
           );
           if (!k.filtro)
@@ -1599,6 +1633,21 @@ function DespesasPage() {
         </Card>
       ) : (
         <div className="space-y-4">
+          <div className="flex items-center justify-end gap-2">
+            <span className="text-xs text-muted-foreground">Ordenar</span>
+            <Select value={ordem} onValueChange={(v) => setOrdem(v as typeof ordem)}>
+              <SelectTrigger className="h-8 w-[170px] text-xs" aria-label="Ordenar lista">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="padrao">Padrão</SelectItem>
+                <SelectItem value="valor_desc">Valor: maior primeiro</SelectItem>
+                <SelectItem value="valor_asc">Valor: menor primeiro</SelectItem>
+                <SelectItem value="nome_asc">Nome: A a Z</SelectItem>
+                <SelectItem value="nome_desc">Nome: Z a A</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           {gruposLista.map((grupo) => (
             <div key={grupo.key} className="overflow-hidden rounded-2xl border bg-card">
               {modoLista === "cartao" && (
@@ -1614,7 +1663,7 @@ function DespesasPage() {
                 >
                   {grupo.banco ? (
                     <IconeBanco nome={grupo.banco} className="size-8 rounded-lg" />
-                  ) : grupo.key === "recorrente_fora" || grupo.key === "sem" ? (
+                  ) : grupo.key === "fora_cartao" ? (
                     <div className="size-8 shrink-0 rounded-lg" style={{ backgroundColor: grupo.cor }} />
                   ) : (
                     <div

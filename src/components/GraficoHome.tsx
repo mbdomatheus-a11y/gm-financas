@@ -1,4 +1,7 @@
 import { useFinancasProntas } from "@/hooks/useFinancasProntas";
+import { useDadosCiclo } from "@/hooks/useNumerosCiclo";
+import { calcularNumerosDosCiclos } from "@/lib/numeros-ciclo";
+import { metaDoMes } from "@/lib/poupar";
 import { CartaoCarregando } from "@/components/CartaoCarregando";
 import { useMemo } from "react";
 import { BarChart3 } from "lucide-react";
@@ -63,9 +66,11 @@ export function GraficoHome({
     [despesas, meses, faturasMes, somarPagamentoFatura],
   );
 
-  const serie = useMemo(
-    () =>
-      meses.map((key) => {
+  // 07/11/2026: o saldo de cada mês é o previsto no fim do ciclo (numeros-ciclo.ts), igual ao Início.
+  const { dados: dadosCiclo, caixinhas: caixinhasCiclo, diaVirada: diaViradaCiclo } = useDadosCiclo();
+  const serie = useMemo(() => {
+    const numeros = calcularNumerosDosCiclos(dadosCiclo, meses, (m) => metaDoMes(caixinhasCiclo, m), diaViradaCiclo);
+    return meses.map((key) => {
         const des = parcelas
           .filter((p) => competenciaDoDia(p.vencimento) === key)
           .reduce((s, p) => s + toBRL(Number(p.valor), p.despesa.moeda, cotacao), 0);
@@ -76,11 +81,10 @@ export function GraficoHome({
           mes: monthLabel(key),
           Receitas: Number(rec.toFixed(2)),
           Despesas: Number(des.toFixed(2)),
-          Saldo: Number((rec - des).toFixed(2)),
+          Saldo: numeros.get(key)?.previsto.sobra ?? 0,
         };
-      }),
-    [meses, parcelas, receitas, cotacao],
-  );
+      });
+  }, [meses, parcelas, receitas, cotacao, dadosCiclo, caixinhasCiclo, diaViradaCiclo]);
 
   const { macroDe: macroDeCategoria } = useEstruturaCategorias("despesa");
   const categorias = useMemo(() => {

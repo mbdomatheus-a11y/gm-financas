@@ -37,6 +37,9 @@ import { usePersistedState } from "@/hooks/usePersistedState";
 import { lancamentosPorCompetencias, receitasPorCompetencias } from "@/lib/recorrencia";
 import { usePreferencias } from "@/hooks/usePreferencias";
 import { contaComoDespesa } from "@/lib/regras-saldo";
+import { useDadosCiclo } from "@/hooks/useNumerosCiclo";
+import { ROTULO_SOBRA_PREVISTA, ROTULO_SOBRA_REAL, calcularNumerosDosCiclos } from "@/lib/numeros-ciclo";
+import { metaDoMes } from "@/lib/poupar";
 import { opacidadePorPosicao, posicaoTemporalDoMes } from "@/lib/tempo-visual";
 
 type Agrupamento = "cartao" | "categoria" | "responsavel" | "tipo";
@@ -195,25 +198,27 @@ export function VisaoGeralHome({
     [despesas, meses, faturasMes, somarPagamentoFatura],
   );
 
+  // 07/11/2026: receitas, despesas e sobra de cada ciclo vêm só de numeros-ciclo.ts (mesma conta do Início).
+  const { dados: dadosCiclo, caixinhas: caixinhasCiclo, diaVirada: diaViradaCiclo } = useDadosCiclo();
   const serie = useMemo(() => {
+    const mapa = calcularNumerosDosCiclos(dadosCiclo, meses, (m) => metaDoMes(caixinhasCiclo, m), diaViradaCiclo);
     return meses.map((key) => {
-      const des = parcelas
-        .filter((p) => competenciaDoDia(p.vencimento) === key)
-        .reduce((s, p) => s + toBRL(Number(p.valor), p.despesa.moeda, cotacao), 0);
-      const rec = receitasPorCompetencias(receitas as any[], [key])
-        .reduce((s, r) => s + toBRL(Number(r.valor), r.moeda, cotacao), 0);
+      const n = mapa.get(key)!;
+      const des = n.previsto.despesas;
+      const rec = n.previsto.receitas;
       return {
         key,
         mes: monthLabel(key),
         Despesas: Number(des.toFixed(2)),
         Receitas: Number(rec.toFixed(2)),
-        Saldo: Number((rec - des).toFixed(2)),
+        Saldo: n.previsto.sobra,
+        SobraReal: n.real.sobra,
         // % da renda do mês já comprometida com despesas — null quando não há
         // renda cadastrada naquele mês (não dá pra calcular percentual).
         Comprometido: rec > 0 ? Number(((des / rec) * 100).toFixed(1)) : null,
       };
     });
-  }, [meses, parcelas, receitas, cotacao]);
+  }, [meses, dadosCiclo, caixinhasCiclo, diaViradaCiclo]);
 
   const mesSelecionado = serie.find((s) => s.key === mes) ?? null;
 
@@ -305,7 +310,7 @@ export function VisaoGeralHome({
           <div>
             <CardTitle className="text-base">Linha do tempo de 12 meses</CardTitle>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Receitas, despesas e saldo mês a mês. O mês atual aparece em destaque. Toque em um mês para ver os valores.
+              Receitas, despesas e o previsto no fim de cada ciclo. O mês atual aparece em destaque. Toque em um mês para ver os valores.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
@@ -401,7 +406,7 @@ export function VisaoGeralHome({
           <ul className="mt-2 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs text-muted-foreground" aria-label="Legenda">
             <li className="flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: "var(--success)" }} />Receitas</li>
             <li className="flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: "var(--destructive)" }} />Despesas</li>
-            <li className="flex items-center gap-1.5"><span className="h-0.5 w-4 rounded" style={{ background: "var(--chart-4)" }} />Saldo</li>
+            <li className="flex items-center gap-1.5"><span className="h-0.5 w-4 rounded" style={{ background: "var(--chart-4)" }} />{ROTULO_SOBRA_PREVISTA}</li>
           </ul>
           {mesSelecionado && (
             <p className="mt-2 text-center text-sm tabular-nums" aria-live="polite">
@@ -410,7 +415,9 @@ export function VisaoGeralHome({
               {" · "}
               <span className="text-destructive">Despesas {valorFmt(mesSelecionado.Despesas)}</span>
               {" · "}
-              Saldo {valorFmt(mesSelecionado.Saldo)}
+              {ROTULO_SOBRA_REAL} {valorFmt(mesSelecionado.SobraReal)}
+              {" · "}
+              {ROTULO_SOBRA_PREVISTA} {valorFmt(mesSelecionado.Saldo)}
             </p>
           )}
         </CardContent>

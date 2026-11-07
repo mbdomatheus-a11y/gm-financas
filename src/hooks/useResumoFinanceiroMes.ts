@@ -5,6 +5,7 @@ import { useCotacao } from "@/hooks/useCotacao";
 import { monthKey, toBRL, competenciaDoDia } from "@/lib/format";
 import { competenciaDe, lancamentosPorCompetencias } from "@/lib/recorrencia";
 import type { ResumoFinanceiroContexto } from "@/lib/lancamento-ia";
+import { useNumerosCiclo } from "@/hooks/useNumerosCiclo";
 import { supabase } from "@/integrations/supabase/client";
 
 const TOP_CATEGORIAS = 5;
@@ -20,6 +21,7 @@ export function useResumoFinanceiroMes(): {
   const { data: despesas = [], isLoading: carregandoDespesas } = useDespesas();
   const { data: receitas = [], isLoading: carregandoReceitas } = useReceitas();
   const cotacao = useCotacao();
+  const numeros = useNumerosCiclo();
 
   const { data: compras = [] } = useQuery({
     queryKey: ["resumo-ia-lista-compras"],
@@ -102,7 +104,8 @@ export function useResumoFinanceiroMes(): {
       .slice(0, TOP_CATEGORIAS)
       .map(([categoria, total]) => ({ categoria, total }));
 
-    const saldo = totalReceitas - totalDespesas;
+    // 07/11/2026: a sobra vem só de numeros-ciclo.ts.
+    const saldo = numeros.real.sobra;
 
     // Parcelamentos que terminam no futuro
     const parcelamentosFuturos: ResumoFinanceiroContexto["parcelamentosFuturos"] = [];
@@ -154,6 +157,7 @@ export function useResumoFinanceiroMes(): {
       totalReceitas,
       totalDespesas,
       saldo,
+      previstoNoFimDoCiclo: numeros.previsto.sobra,
       taxaPoupancaPct: totalReceitas > 0 ? (saldo / totalReceitas) * 100 : null,
       topCategoriasDespesa,
       mediaCategoriasAnteriores,
@@ -165,7 +169,7 @@ export function useResumoFinanceiroMes(): {
       itensListaCompras,
       notasFiscais,
     };
-  }, [despesas, receitas, compras, notas, cotacao]);
+  }, [despesas, receitas, compras, notas, cotacao, numeros]);
 
   return { resumo, carregando: carregandoDespesas || carregandoReceitas };
 }

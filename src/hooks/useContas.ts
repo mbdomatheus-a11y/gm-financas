@@ -116,7 +116,9 @@ class TabelaPendente extends Error {
   }
 }
 
-async function grupoAtual(): Promise<{ userId: string; grupoId: string }> {
+let grupoCache: { userId: string; grupoId: string; em: number } | null = null;
+
+async function grupoAtualBruto(): Promise<{ userId: string; grupoId: string }> {
   const { data: u } = await supabase.auth.getUser();
   if (!u.user) throw new Error("Sessão expirada. Entre de novo.");
   const { data: p } = await db()
@@ -126,6 +128,16 @@ async function grupoAtual(): Promise<{ userId: string; grupoId: string }> {
     .maybeSingle();
   if (!p?.grupo_id) throw new Error("Seu usuário não está em um grupo.");
   return { userId: u.user.id, grupoId: p.grupo_id };
+}
+
+/** Perfil lido uma vez por sessão (5 min): evita repetir profiles?select=grupo_id a cada consulta de contas. */
+async function grupoAtual(): Promise<{ userId: string; grupoId: string }> {
+  const { data: sess } = await supabase.auth.getSession();
+  const uid = sess.session?.user.id;
+  if (uid && grupoCache && grupoCache.userId === uid && Date.now() - grupoCache.em < 300_000) return grupoCache;
+  const g = await grupoAtualBruto();
+  grupoCache = { ...g, em: Date.now() };
+  return g;
 }
 
 async function listarContas(): Promise<ContaBancaria[]> {

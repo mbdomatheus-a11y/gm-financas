@@ -82,7 +82,10 @@ export type ResumoFinanceiroContexto = {
   competencia: string; // "YYYY-MM"
   totalReceitas: number;
   totalDespesas: number;
+  /** Sobra até agora (REAL de numeros-ciclo.ts). */
   saldo: number;
+  /** Previsto no fim do ciclo (numeros-ciclo.ts). */
+  previstoNoFimDoCiclo?: number;
   taxaPoupancaPct: number | null; // null quando não há receita no mês
   topCategoriasDespesa: { categoria: string; total: number }[];
   /** Média mensal por categoria nos 3 meses anteriores, para apontar gasto acima do normal. */

@@ -346,7 +346,8 @@ function montarPromptResumo(r: ResumoFinanceiroContexto, pergunta: string): stri
     `Mês de referência: ${mesExtenso}.`,
     `Total de receitas no mês: R$ ${r.totalReceitas.toFixed(2)} (${r.numLancamentosReceita} lançamento(s)).`,
     `Total de despesas no mês: R$ ${r.totalDespesas.toFixed(2)} (${r.numLancamentosDespesa} lançamento(s)).`,
-    `Saldo do mês (receitas − despesas): R$ ${r.saldo.toFixed(2)}.`,
+    `Sobra até agora (real, receitas já recebidas menos despesas já lançadas no ciclo): R$ ${r.saldo.toFixed(2)}.`,
+    ...(r.previstoNoFimDoCiclo != null ? [`Previsto no fim do ciclo: R$ ${r.previstoNoFimDoCiclo.toFixed(2)}.`] : []),
     r.taxaPoupancaPct != null
       ? `Taxa de poupança do mês: ${r.taxaPoupancaPct.toFixed(1)}% da renda.`
       : "Taxa de poupança: não calculável (sem receita cadastrada no mês).",

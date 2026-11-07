@@ -37,7 +37,7 @@ export function NavegadorMes({
       >
         <ChevronLeft className="size-4" />
       </Button>
-      <span className="min-w-[8.5rem] px-2 text-center text-sm font-medium capitalize">
+      <span className="min-w-[8.5rem] px-2 text-center text-sm font-medium">
         {valor ? monthLabelLong(valor) : "Todos os meses"}
       </span>
       <Button

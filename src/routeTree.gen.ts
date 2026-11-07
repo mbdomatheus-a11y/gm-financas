@@ -39,7 +39,6 @@ import { Route as AuthenticatedDespesasRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedDocumentosRouteImport } from './routes/_authenticated/documentos'
 import { Route as AuthenticatedExamesRouteImport } from './routes/_authenticated/exames'
 import { Route as AuthenticatedFerramentasRouteImport } from './routes/_authenticated/ferramentas'
-import { Route as AuthenticatedNovidadesRouteImport } from './routes/_authenticated/novidades'
 import { Route as AuthenticatedImportarRouteImport } from './routes/_authenticated/importar'
 import { Route as AuthenticatedInicioRouteImport } from './routes/_authenticated/inicio'
 import { Route as AuthenticatedInvestimentosRouteImport } from './routes/_authenticated/investimentos'
@@ -48,6 +47,7 @@ import { Route as AuthenticatedListaComprasRouteImport } from './routes/_authent
 import { Route as AuthenticatedNotasRouteImport } from './routes/_authenticated/notas'
 import { Route as AuthenticatedNotificacoesRouteImport } from './routes/_authenticated/notificacoes'
 import { Route as AuthenticatedNovaSenhaRouteImport } from './routes/_authenticated/nova-senha'
+import { Route as AuthenticatedNovidadesRouteImport } from './routes/_authenticated/novidades'
 import { Route as AuthenticatedOndeEstaRouteImport } from './routes/_authenticated/onde-esta'
 import { Route as AuthenticatedParaOndeVaiRouteImport } from './routes/_authenticated/para-onde-vai'
 import { Route as AuthenticatedPersonalizacaoRouteImport } from './routes/_authenticated/personalizacao'
@@ -230,12 +230,6 @@ const AuthenticatedFerramentasRoute =
     path: '/ferramentas',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedNovidadesRoute =
-  AuthenticatedNovidadesRouteImport.update({
-    id: '/novidades',
-    path: '/novidades',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
 const AuthenticatedImportarRoute = AuthenticatedImportarRouteImport.update({
   id: '/importar',
   path: '/importar',
@@ -277,6 +271,11 @@ const AuthenticatedNotificacoesRoute =
 const AuthenticatedNovaSenhaRoute = AuthenticatedNovaSenhaRouteImport.update({
   id: '/nova-senha',
   path: '/nova-senha',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedNovidadesRoute = AuthenticatedNovidadesRouteImport.update({
+  id: '/novidades',
+  path: '/novidades',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedOndeEstaRoute = AuthenticatedOndeEstaRouteImport.update({
@@ -457,7 +456,6 @@ export interface FileRoutesByFullPath {
   '/documentos': typeof AuthenticatedDocumentosRoute
   '/exames': typeof AuthenticatedExamesRoute
   '/ferramentas': typeof AuthenticatedFerramentasRoute
-  '/novidades': typeof AuthenticatedNovidadesRoute
   '/importar': typeof AuthenticatedImportarRoute
   '/inicio': typeof AuthenticatedInicioRoute
   '/investimentos': typeof AuthenticatedInvestimentosRoute
@@ -466,6 +464,7 @@ export interface FileRoutesByFullPath {
   '/notas': typeof AuthenticatedNotasRoute
   '/notificacoes': typeof AuthenticatedNotificacoesRoute
   '/nova-senha': typeof AuthenticatedNovaSenhaRoute
+  '/novidades': typeof AuthenticatedNovidadesRoute
   '/onde-esta': typeof AuthenticatedOndeEstaRoute
   '/para-onde-vai': typeof AuthenticatedParaOndeVaiRoute
   '/personalizacao': typeof AuthenticatedPersonalizacaoRoute
@@ -525,7 +524,6 @@ export interface FileRoutesByTo {
   '/documentos': typeof AuthenticatedDocumentosRoute
   '/exames': typeof AuthenticatedExamesRoute
   '/ferramentas': typeof AuthenticatedFerramentasRoute
-  '/novidades': typeof AuthenticatedNovidadesRoute
   '/importar': typeof AuthenticatedImportarRoute
   '/inicio': typeof AuthenticatedInicioRoute
   '/investimentos': typeof AuthenticatedInvestimentosRoute
@@ -534,6 +532,7 @@ export interface FileRoutesByTo {
   '/notas': typeof AuthenticatedNotasRoute
   '/notificacoes': typeof AuthenticatedNotificacoesRoute
   '/nova-senha': typeof AuthenticatedNovaSenhaRoute
+  '/novidades': typeof AuthenticatedNovidadesRoute
   '/onde-esta': typeof AuthenticatedOndeEstaRoute
   '/para-onde-vai': typeof AuthenticatedParaOndeVaiRoute
   '/personalizacao': typeof AuthenticatedPersonalizacaoRoute
@@ -595,7 +594,6 @@ export interface FileRoutesById {
   '/_authenticated/documentos': typeof AuthenticatedDocumentosRoute
   '/_authenticated/exames': typeof AuthenticatedExamesRoute
   '/_authenticated/ferramentas': typeof AuthenticatedFerramentasRoute
-  '/_authenticated/novidades': typeof AuthenticatedNovidadesRoute
   '/_authenticated/importar': typeof AuthenticatedImportarRoute
   '/_authenticated/inicio': typeof AuthenticatedInicioRoute
   '/_authenticated/investimentos': typeof AuthenticatedInvestimentosRoute
@@ -604,6 +602,7 @@ export interface FileRoutesById {
   '/_authenticated/notas': typeof AuthenticatedNotasRoute
   '/_authenticated/notificacoes': typeof AuthenticatedNotificacoesRoute
   '/_authenticated/nova-senha': typeof AuthenticatedNovaSenhaRoute
+  '/_authenticated/novidades': typeof AuthenticatedNovidadesRoute
   '/_authenticated/onde-esta': typeof AuthenticatedOndeEstaRoute
   '/_authenticated/para-onde-vai': typeof AuthenticatedParaOndeVaiRoute
   '/_authenticated/personalizacao': typeof AuthenticatedPersonalizacaoRoute
@@ -665,7 +664,6 @@ export interface FileRouteTypes {
     | '/documentos'
     | '/exames'
     | '/ferramentas'
-    | '/novidades'
     | '/importar'
     | '/inicio'
     | '/investimentos'
@@ -674,6 +672,7 @@ export interface FileRouteTypes {
     | '/notas'
     | '/notificacoes'
     | '/nova-senha'
+    | '/novidades'
     | '/onde-esta'
     | '/para-onde-vai'
     | '/personalizacao'
@@ -733,7 +732,6 @@ export interface FileRouteTypes {
     | '/documentos'
     | '/exames'
     | '/ferramentas'
-    | '/novidades'
     | '/importar'
     | '/inicio'
     | '/investimentos'
@@ -742,6 +740,7 @@ export interface FileRouteTypes {
     | '/notas'
     | '/notificacoes'
     | '/nova-senha'
+    | '/novidades'
     | '/onde-esta'
     | '/para-onde-vai'
     | '/personalizacao'
@@ -802,7 +801,6 @@ export interface FileRouteTypes {
     | '/_authenticated/documentos'
     | '/_authenticated/exames'
     | '/_authenticated/ferramentas'
-    | '/_authenticated/novidades'
     | '/_authenticated/importar'
     | '/_authenticated/inicio'
     | '/_authenticated/investimentos'
@@ -811,6 +809,7 @@ export interface FileRouteTypes {
     | '/_authenticated/notas'
     | '/_authenticated/notificacoes'
     | '/_authenticated/nova-senha'
+    | '/_authenticated/novidades'
     | '/_authenticated/onde-esta'
     | '/_authenticated/para-onde-vai'
     | '/_authenticated/personalizacao'
@@ -1082,13 +1081,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedFerramentasRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/novidades': {
-      id: '/_authenticated/novidades'
-      path: '/novidades'
-      fullPath: '/novidades'
-      preLoaderRoute: typeof AuthenticatedNovidadesRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/importar': {
       id: '/_authenticated/importar'
       path: '/importar'
@@ -1143,6 +1135,13 @@ declare module '@tanstack/react-router' {
       path: '/nova-senha'
       fullPath: '/nova-senha'
       preLoaderRoute: typeof AuthenticatedNovaSenhaRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/novidades': {
+      id: '/_authenticated/novidades'
+      path: '/novidades'
+      fullPath: '/novidades'
+      preLoaderRoute: typeof AuthenticatedNovidadesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/onde-esta': {
@@ -1364,7 +1363,6 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDocumentosRoute: typeof AuthenticatedDocumentosRoute
   AuthenticatedExamesRoute: typeof AuthenticatedExamesRoute
   AuthenticatedFerramentasRoute: typeof AuthenticatedFerramentasRoute
-  AuthenticatedNovidadesRoute: typeof AuthenticatedNovidadesRoute
   AuthenticatedImportarRoute: typeof AuthenticatedImportarRoute
   AuthenticatedInicioRoute: typeof AuthenticatedInicioRoute
   AuthenticatedInvestimentosRoute: typeof AuthenticatedInvestimentosRoute
@@ -1373,6 +1371,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedNotasRoute: typeof AuthenticatedNotasRoute
   AuthenticatedNotificacoesRoute: typeof AuthenticatedNotificacoesRoute
   AuthenticatedNovaSenhaRoute: typeof AuthenticatedNovaSenhaRoute
+  AuthenticatedNovidadesRoute: typeof AuthenticatedNovidadesRoute
   AuthenticatedOndeEstaRoute: typeof AuthenticatedOndeEstaRoute
   AuthenticatedParaOndeVaiRoute: typeof AuthenticatedParaOndeVaiRoute
   AuthenticatedPersonalizacaoRoute: typeof AuthenticatedPersonalizacaoRoute
@@ -1408,7 +1407,6 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDocumentosRoute: AuthenticatedDocumentosRoute,
   AuthenticatedExamesRoute: AuthenticatedExamesRoute,
   AuthenticatedFerramentasRoute: AuthenticatedFerramentasRoute,
-  AuthenticatedNovidadesRoute: AuthenticatedNovidadesRoute,
   AuthenticatedImportarRoute: AuthenticatedImportarRoute,
   AuthenticatedInicioRoute: AuthenticatedInicioRoute,
   AuthenticatedInvestimentosRoute: AuthenticatedInvestimentosRoute,
@@ -1417,6 +1415,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedNotasRoute: AuthenticatedNotasRoute,
   AuthenticatedNotificacoesRoute: AuthenticatedNotificacoesRoute,
   AuthenticatedNovaSenhaRoute: AuthenticatedNovaSenhaRoute,
+  AuthenticatedNovidadesRoute: AuthenticatedNovidadesRoute,
   AuthenticatedOndeEstaRoute: AuthenticatedOndeEstaRoute,
   AuthenticatedParaOndeVaiRoute: AuthenticatedParaOndeVaiRoute,
   AuthenticatedPersonalizacaoRoute: AuthenticatedPersonalizacaoRoute,
@@ -1467,3 +1466,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

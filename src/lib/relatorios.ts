@@ -144,11 +144,20 @@ export function agrupar<T extends { valor: number }>(lista: T[], chave: (x: T) =
 
 export type LinhaMes = { key: string; receitas: number; despesas: number; resultado: number };
 
-export function seriePorMes(competencias: string[], desp: ItemDespesa[], rec: ItemReceita[]): LinhaMes[] {
+/**
+ * `sobraDe(key)` = previsto no fim do ciclo de numeros-ciclo.ts (07/11/2026). O resultado do mês vem dela,
+ * nunca de receitas − despesas calculado aqui.
+ */
+export function seriePorMes(
+  competencias: string[],
+  desp: ItemDespesa[],
+  rec: ItemReceita[],
+  sobraDe?: (competencia: string) => number,
+): LinhaMes[] {
   return competencias.map((key) => {
     const receitas = somar(rec.filter((r) => r.competencia === key));
     const despesas = somar(desp.filter((d) => d.competencia === key));
-    return { key, receitas, despesas, resultado: receitas - despesas };
+    return { key, receitas, despesas, resultado: sobraDe ? sobraDe(key) : receitas - despesas };
   });
 }
 

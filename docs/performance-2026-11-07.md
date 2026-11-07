@@ -20,7 +20,7 @@ Escopo: checklist de 25 itens. Corrigido só o que era seguro. `tsc --noEmit` pa
 | 20 | SSR nas páginas públicas | OK | Só `_authenticated/route.tsx:26` e `oauth/google-drive/return.tsx:5` usam `ssr: false` | Médio | n/a |
 | 21 | Scripts de terceiros após o load | OK | Turnstile injetado sob demanda (`TurnstileWidget.tsx:37`); `@vercel/analytics` em `useEffect` (`__root.tsx:143`) | Baixo | n/a |
 | 22 | Code splitting | CORRIGIDO | `React.lazy` + `Suspense` para `GraficoHome`, `VisaoGeralHome` (`HomeWidgets.tsx`) e `ResumoPrevisaoHome`, `VisaoGeralHome` (`inicio.tsx`). `pdfjs` e `tesseract` já são `import()` dinâmico; `driver.js` (`TourGuiado`) segue estático em `_authenticated/route.tsx` | Médio | Baixo |
-| 24 | `select('*')` em listagens | FALTA | 44 ocorrências. Principais: `useFinance.ts:12,62,75,120,149,161`, `useContas.ts:151,223`, `importar.tsx` (9). Não alterado: despesas, parcelas e receitas têm dezenas de consumidores, parte com `as any`, e o `tsc` não pega coluna faltando | Médio | Médio |
+| 24 | `select('*')` em listagens | PARCIAL | Ver detalhamento abaixo (item 24). Trocados 6 pontos de `useFinance.ts`; demais mantidos com motivo | Médio | Médio |
 | 26 | Re-render | CONFERIR NO PAINEL | Usar React DevTools Profiler em despesas e dashboard. `lista` em `despesas.tsx` é recalculada a cada render, sem `useMemo` | Médio | Médio |
 | 27 | Cache-control de estáticos | CONFERIR NO PAINEL | `/assets/*` com hash recebe cache longo da Vercel. `public/brand` e `public/icons` não têm header; `vercel.json` não foi alterado | Baixo | Baixo |
 | 29 | Fontes | CORRIGIDO | `__root.tsx:~109`: removida a família Poppins (nenhuma tela a usa; seletor oferece só Plus Jakarta Sans, Inter, Nunito e Roboto). Self-host das demais segue como próximo passo | Médio | Baixo |
@@ -54,3 +54,49 @@ Escopo: checklist de 25 itens. Corrigido só o que era seguro. `tsc --noEmit` pa
 ## Ajuste final (07/11/2026)
 - 19: vercel.json com "regions": ["gru1"] (funções em São Paulo, mesma região do Supabase sa-east-1).
 - 03/05: QueryClient com staleTime de 30 s em src/router.tsx. Trocar de tela não rebaixa despesas, parcelas e receitas; gravações seguem atualizando por invalidateQueries.
+
+## Relatório de desempenho (admin)
+- Migração 20261107220000: tabela desempenho_metricas (RLS: insert do próprio usuário, select só admin), resumo_desempenho(dias) com p50/p75/p95 e retenção de 30 dias (limpeza roda ao abrir o relatório, sem cron novo).
+- Coleta web: web-vitals (LCP, INP, CLS, TTFB, FCP) em 1 lote por página, enviado em visibilitychange hidden, só logado, caminho sem ids (src/lib/desempenho-coleta.ts). SpeedInsights da Vercel montado no __root.tsx, respeitando o aceite de métricas.
+- Administração, aba "Desempenho": filtro 7/30 dias e Web/iPhone/Android, p75 por tela com selo Bom/Melhorar/Ruim (LCP 2,5 s, INP 200 ms, CLS 0,1; app: bom até 1 s, ruim acima de 2,5 s), taxa de erro e as 5 telas mais lentas. Sem a tabela, mostra "Rode a migração 20261107220000".
+- O app grava na mesma tabela com plataforma ios/android e metrica carregamento (ms) ou erro.
+
+
+### Item 24: detalhamento (tsc sem erros)
+
+Verificado por grep de nomes de coluna em todo `src` (inclusive `as any`). Colunas sem nenhum uso foram removidas da listagem.
+
+| arquivo:linha | antes | depois | motivo se manteve |
+|---|---|---|---|
+| hooks/useFinance.ts:12 receitas | `*` | 29 colunas explicitas (todas) | Sem coluna removivel: todas usadas; protege contra colunas futuras |
+| hooks/useFinance.ts:~24 despesas | `*, parcelas(*)` | lista explicita, sem comprovante_id, cotacao_original, grupo_parcelamento, moeda_original, subcategoria_sugerida, valor_original_centavos | |
+| hooks/useFinance.ts:~24 parcelas | `parcelas(*)` | lista explicita, sem valor_centavos | |
+| hooks/useFinance.ts profiles (useProfilesList) | `*` | ativo, created_at, email, foto_url, grupo_id, grupo_secundario_id, id, nome | Sai cpf, senha_temporaria, telefone, data_nascimento, renda e perfil financeiro |
+| hooks/useFinance.ts import_faturas | `*` | sem paginas e storage_path | |
+| hooks/useFinance.ts fatura_mes | `*` | 18 colunas explicitas (todas) | |
+| Mantidos `*` | | | |
+| hooks/useFinance.ts:62 bancos, :75 categorias, :136 user_roles | `*` | `*` | tabelas pequenas, objeto inteiro repassado a formularios |
+| hooks/useAuthData.ts:63,134; usePreferencias:84; usePreferenciasNotificacao:122; useContas.ts:151,223; useLimites:143 | `*` | `*` | tabelas pequenas/uma linha, objeto inteiro usado em update/spread ou `as any` sem tipo |
+| importar.tsx:563,1481,1598,1659,1884,1892 | `*` | `*` | backup/restauracao e reversao: linha inteira regravada |
+| importar.tsx:216,312,1304; de-para:112; lista-compras:189; onde-esta:102,112; pets:23,24; PermissoesUsuariosCard:55; RegrasPixReceita:37; FaturaMesDialog:65; ConferirFaturasBanco:47 | `*` | `*` | tabelas pequenas, `as any` ou objeto repassado inteiro; ganho baixo |
+| `.select()` apos insert (LancamentoRapidoDialog:516, despesas.tsx:532, veiculos.tsx:265) | sem lista | igual | retorno do insert, linha inteira |
+| lib/exclusao-recorrente:116, pix.functions:289,417, pluggy-api.server:783,789, retencao-emails.server:290, convites.functions:214, receitas.tsx:605 | `*` | `*` | linha inteira duplicada/regravada |
+| lib/exportacao-conta.server:43,52, exportar-dados:92, admin-avancado:278,279 | `*` | `*` | exportacao/backup e contagem head |
+
+## Rodada 2
+
+Causa das requisições repetidas: `usePreferencias` chamava `qc.resetQueries` na primeira carga (o dia de virada do ciclo chegava depois das outras consultas e diferia do padrão), o que descartava e baixava de novo despesas, receitas, profiles, site_admins etc. Mais as páginas de `buscarTudo` saíam em sequência. A queryKey de despesas já era única (`["despesas"]`).
+
+Feito:
+- `usePreferencias`: o ciclo é aplicado dentro do `queryFn` (antes de a tela receber o dado) e a primeira carga não refaz consultas; só uma troca feita depois pelo usuário dispara o reset. Expõe `pronto`. staleTime 5 min, sem refetch ao focar.
+- `useAuthData` (profile, is-admin, is-site-admin, permissoes): staleTime 5 min, sem `refetchOnWindowFocus`. `useContas.grupoAtual` guarda o grupo por 5 min (antes lia `profiles` a cada consulta).
+- `buscarTudo`: primeira página, depois lotes de 3 páginas em paralelo (`Promise.all`), parando na primeira página incompleta.
+- Sem número falso: `useFinancasProntas` agora também espera as preferências. Dashboard (HeroMes e os 3 cartões de parcelas/dívida/términos), Despesas (6 cartões de resumo, com `Skeleton`) e Receitas (descrição e lista, com `CartaoCarregando`) mostram esqueleto até os dados chegarem. Início e Relatórios já usavam o mesmo gate.
+- "Novembro De 2026": a classe CSS `capitalize` capitalizava cada palavra de `monthLabelLong` (que já devolve "Novembro de 2026"). Removida em NavegadorMes, Calendário e ConferirFaturasBanco.
+- Bundle: nenhuma biblioteca pesada estática fora de rota (zxing e tesseract já são `import()`, pdfjs só em importar, recharts nos chunks de rota). Maiores chunks: index 575 kB, zxing 478 kB (sob demanda), ocr 469 kB (sob demanda), AppLayout 270 kB. O build completo falha só na limpeza final do `.vercel/output` (EPERM de unlink no ambiente), não no código.
+- Janela de despesas por mês: NÃO feita. Dívida total, recorrentes, parcelas que terminam, previsão e comparação com mês anterior precisam do histórico completo; recortar sem uma RPC de agregação mudaria números. Próximo passo seguro: RPC por ciclo (soma e contagem) para Dashboard/Início, mantendo `useDespesas` completo em Relatórios.
+
+Antes (medido): despesas 4x (144+144+256+144 kB), profiles 4x, site_admins 2x, 201 requisições, Performance 45.
+Esperado depois: despesas 1x (páginas em paralelo, ~1 viagem a menos por 1.000 linhas), profiles 1x, site_admins 1x, user_roles/permissoes 1x; menos ~60% das requisições de dados e Performance acima de 60 (a confirmar).
+
+Como medir: janela anônima, sem extensões, entrar, abrir /dashboard direto já logado, DevTools > Network (filtrar `despesas`, `profiles`) e Lighthouse mobile. Rodar 3 vezes e usar a mediana.

@@ -56,6 +56,8 @@ export function useProfile() {
   const { user } = useSession();
   return useQuery({
     queryKey: ["profile", user?.id],
+    staleTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
     enabled: !!user?.id,
     queryFn: async () => {
       const { data, error } = await supabase
@@ -73,6 +75,8 @@ export function useIsAdmin() {
   const { user } = useSession();
   return useQuery({
     queryKey: ["is-admin", user?.id],
+    staleTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
     enabled: !!user?.id,
     queryFn: async () => {
       const { data, error } = await supabase
@@ -89,6 +93,8 @@ export function useIsSiteAdmin() {
   const { user } = useSession();
   return useQuery({
     queryKey: ["is-site-admin", user?.id],
+    staleTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
     enabled: !!user?.id,
     queryFn: async () => {
       const { data, error } = await appSupabase
@@ -129,6 +135,8 @@ export function usePermissoes() {
   const siteAdminEfetivo = !!isSiteAdmin && !modoCliente;
   const query = useQuery({
     queryKey: ["permissoes", user?.id],
+    staleTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
     enabled: !!user?.id,
     queryFn: async () => {
       const { data, error } = await supabase.from("permissoes").select("*").eq("user_id", user!.id);

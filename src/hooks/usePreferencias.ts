@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { definirCicloDoUsuario, diaViradaDefinida } from "@/lib/format";
+import { definirCicloDoUsuario } from "@/lib/format";
 import { useSession } from "./useAuthData";
 
 export type Preferencias = {
@@ -71,6 +71,9 @@ export const DEFAULT_PREFS: Omit<Preferencias, "user_id"> = {
   somar_investimentos: false,
 };
 
+/** Último dia de virada aplicado nesta sessão (undefined = ainda não carregou). */
+let viradaAplicada: number | null | undefined;
+
 export function usePreferencias() {
   const { user } = useSession();
   const qc = useQueryClient();
@@ -78,6 +81,8 @@ export function usePreferencias() {
   const query = useQuery({
     queryKey: ["preferencias", user?.id],
     enabled: !!user?.id,
+    staleTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("preferencias_usuario")
@@ -91,7 +96,10 @@ export function usePreferencias() {
       const regras = Object.fromEntries(
         CHAVES_REGRAS_SALDO.map((k) => [k, typeof linha[k] === "boolean" ? linha[k] : DEFAULT_PREFS[k]]),
       ) as Pick<Preferencias, ChaveRegraSaldo>;
-      return { ...(data as unknown as Preferencias), ...regras };
+      const prefs = { ...(data as unknown as Preferencias), ...regras };
+      // Aplica o ciclo ANTES de a tela receber as preferências: os totais já saem do período certo.
+      definirCicloDoUsuario(prefs.dia_virada ?? null, prefs.receitas_proximo_ciclo_dia ?? null);
+      return prefs;
     },
   });
 
@@ -122,14 +130,18 @@ export function usePreferencias() {
   useEffect(() => {
     if (!query.data) return;
     const novo = query.data.dia_virada ?? null;
-    const antes = diaViradaDefinida();
+    const valido = novo && novo >= 2 && novo <= 28 ? novo : null;
     definirCicloDoUsuario(novo, query.data.receitas_proximo_ciclo_dia ?? null);
-    if ((antes ?? null) !== (novo && novo >= 2 && novo <= 28 ? novo : null)) {
+    // Rodada 2 (07/11/2026): na primeira carga NÃO refaz as consultas (era o que baixava tudo de novo,
+    // 2 a 4 vezes). Os totais são calculados na tela, e as telas esperam as preferências (useFinancasProntas).
+    // Só uma troca feita pelo usuário depois força a releitura.
+    if (viradaAplicada !== undefined && viradaAplicada !== valido) {
       qc.resetQueries({ predicate: (q) => q.queryKey[0] !== "preferencias" });
     }
+    viradaAplicada = valido;
   }, [query.data, qc]);
 
-  return { prefs: query.data ?? { user_id: "", ...DEFAULT_PREFS }, save };
+  return { prefs: query.data ?? { user_id: "", ...DEFAULT_PREFS }, save, pronto: query.isSuccess || query.isError };
 }
 
 export function useApplyPreferencias() {

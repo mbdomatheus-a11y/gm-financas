@@ -579,7 +579,7 @@ function ListaComprasPage() {
                         >
                           {impacto.percentualSobra}%
                         </span>{" "}
-                        da sobra livre do mês ({formatBRL(finCalculado.sobraLivre)}).
+                        do previsto no fim do ciclo ({formatBRL(finCalculado.sobraLivre)}).
                       </>
                     ) : (
                       <>
@@ -699,7 +699,7 @@ function ListaComprasPage() {
         </p>
       ) : (
         <p className="mb-6 rounded-2xl bg-muted p-4 text-sm tabular-nums">
-          Sua hora líquida: <strong>{formatBRL(finCalculado.valorHora)}</strong> · Sobra livre:{" "}
+          Sua hora líquida: <strong>{formatBRL(finCalculado.valorHora)}</strong> · Previsto no fim do ciclo:{" "}
           <strong>{formatBRL(finCalculado.sobraLivre)}</strong> · Na lista:{" "}
           <strong>{formatBRL(totalEstimadoPendentes)}</strong> ({pendentes.length} pendente(s))
         </p>
@@ -805,7 +805,7 @@ function ListaComprasPage() {
                 {impacto.percentualSobra !== null && (
                   <>
                     {" "}
-                    · Consome <strong>{impacto.percentualSobra}%</strong> da sua sobra livre no mês (restam {formatBRL(finCalculado.sobraLivre)})
+                    · Consome <strong>{impacto.percentualSobra}%</strong> do seu previsto no fim do ciclo (restam {formatBRL(finCalculado.sobraLivre)})
                   </>
                 )}
               </span>

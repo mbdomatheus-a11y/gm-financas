@@ -51,8 +51,14 @@ import {
 } from "@/components/ui/select";
 import { useCotacao } from "@/hooks/useCotacao";
 import { usePersistedState } from "@/hooks/usePersistedState";
+import { useFinancasProntas } from "@/hooks/useFinancasProntas";
+import { CartaoCarregando } from "@/components/CartaoCarregando";
 import { useCategorias, useDespesas, useFaturasMes, useInvestimentos, useReceitas } from "@/hooks/useFinance";
 import { usePreferencias } from "@/hooks/usePreferencias";
+import { SobraCiclo } from "@/components/SobraCiclo";
+import { useDadosCiclo, useNumerosCiclo } from "@/hooks/useNumerosCiclo";
+import { calcularNumerosDosCiclos, type NumerosCiclo } from "@/lib/numeros-ciclo";
+import { metaDoMes } from "@/lib/poupar";
 import { contaComoDespesa, movimentosDeInvestimentos, totaisInvestimentos } from "@/lib/regras-saldo";
 import { useEstruturaCategorias } from "@/hooks/useEstruturaCategorias";
 import { criarCorPorCategoria, nomeBaseDoGrupo } from "@/lib/categorias-cor";
@@ -185,6 +191,7 @@ function DashboardPage() {
   const cotacao = useCotacao();
   const { data: receitas = [] } = useReceitas();
   const { data: despesas = [] } = useDespesas();
+  const financasProntas = useFinancasProntas();
   const { data: faturasMes = [] } = useFaturasMes();
   // 07/11/2026: regras de saldo (Personalização). "Somar pagamento de fatura" desligada tira o pagamento
   // de fatura de todos os totais daqui; "Somar investimentos" ligada põe aportes e resgates no saldo do mês.
@@ -210,6 +217,9 @@ function DashboardPage() {
   // (Receitas/Despesas/Saldo/Parcelas do mês). Sem configuração, comporta-se
   // exatamente como antes (mês calendário normal).
   const mesAtual = useCompetenciaVigente();
+  // 07/11/2026: a sobra do topo vem só de numeros-ciclo.ts (mesmos números do Início).
+  const numerosCiclo = useNumerosCiclo(mesAtual);
+  const { dados: dadosCiclo, caixinhas: caixinhasCiclo, diaVirada: diaViradaCiclo } = useDadosCiclo();
   // Item 10 (2026-10-05): a última opção escolhida fica salva neste navegador.
   const [janela, setJanela] = usePersistedState("dashboard.janela2", "m1p1");
   const [mesInicioCustom, setMesInicioCustom] = usePersistedState("dashboard.mesInicioCustom", mesAtual);
@@ -392,6 +402,7 @@ function DashboardPage() {
       .slice(0, 7)
       .map(([g]) => g);
 
+    const previstoMeses = calcularNumerosDosCiclos(dadosCiclo, meses, (m) => metaDoMes(caixinhasCiclo, m), diaViradaCiclo);
     const serie = meses.map((key: string) => {
       const rec = receitasProjetadas
         .filter((r) => r.competencia === key)
@@ -408,7 +419,8 @@ function DashboardPage() {
         linha[alvo] = Number((linha[alvo] + v).toFixed(2));
       }
       linha.Despesas = Number(des.toFixed(2));
-      linha.Saldo = Number((rec - des).toFixed(2));
+      // 07/11/2026: o saldo do mês é o previsto no fim do ciclo (numeros-ciclo.ts).
+      linha.Saldo = previstoMeses.get(key)?.previsto.sobra ?? 0;
       return linha;
     });
     const temOutros = serie.some((l: any) => l["Outros grupos"] > 0);
@@ -629,7 +641,7 @@ function DashboardPage() {
       top5,
       alivioParcelamentos,
     };
-  }, [receitasProjetadas, despesas, parcelas, cotacao, mesAtual, mesPie, meses, grupoDe, macroDeCategoria, movimentosInvest]);
+  }, [receitasProjetadas, despesas, parcelas, cotacao, mesAtual, mesPie, meses, grupoDe, macroDeCategoria, movimentosInvest, dadosCiclo, caixinhasCiclo, diaViradaCiclo]);
 
   // Pedido 3 (2026-10-03): O último mês do gráfico comanda o horizonte padrão da dívida
   const mesAtualRotulo = useMemo(
@@ -769,8 +781,11 @@ function DashboardPage() {
         </Button>
       }
     >
+      {!financasProntas ? (
+        <CartaoCarregando alturaGrafico="h-24" />
+      ) : (
       <HeroMes
-        saldo={dados.saldo}
+        numeros={numerosCiclo}
         receitas={dados.totalReceitas}
         despesas={dados.totalDespesas}
         deltaReceitas={dados.deltaReceitas}
@@ -779,9 +794,17 @@ function DashboardPage() {
         variaveis={dados.variaveis}
         mesRotulo={monthLabel(mesAtual)}
       />
+      )}
       <div className="mt-4">
         <VisaoGeralHome parte="mes" />
       </div>
+      {!financasProntas ? (
+        <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3" aria-busy="true">
+          <CartaoCarregando className="mb-0" alturaGrafico="h-8" />
+          <CartaoCarregando className="mb-0" alturaGrafico="h-8" />
+          <CartaoCarregando className="mb-0" alturaGrafico="h-8" />
+        </div>
+      ) : (
       <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
         <StatCard
           label="Parcelas do mês (fixas + variáveis)"
@@ -819,6 +842,7 @@ function DashboardPage() {
           href="#parcelamentos-terminando"
         />
       </div>
+      )}
       <div className="mt-6">
       <FluxoDespesas />
       </div>
@@ -1693,7 +1717,7 @@ function CardDividaTotal({
 
 /** Topo do Finanças: saldo do mês em destaque, com receitas e despesas ao lado (visual 04/11/2026). */
 function HeroMes({
-  saldo,
+  numeros,
   receitas,
   despesas,
   deltaReceitas,
@@ -1702,7 +1726,7 @@ function HeroMes({
   variaveis,
   mesRotulo,
 }: {
-  saldo: number;
+  numeros: NumerosCiclo;
   receitas: number;
   despesas: number;
   deltaReceitas?: number | null;
@@ -1712,7 +1736,6 @@ function HeroMes({
   mesRotulo: string;
 }) {
   const { formatar } = usePrivacidadeValores();
-  const positivo = saldo >= 0;
   const chip = (delta: number | null | undefined, bomSubir: boolean) =>
     delta != null && Number.isFinite(delta) ? (
       <span
@@ -1728,11 +1751,8 @@ function HeroMes({
   return (
     <section aria-label={`Resumo de ${mesRotulo}`} className="grid gap-px overflow-hidden rounded-3xl border bg-border shadow-[var(--shadow-card)] lg:grid-cols-[1.3fr_1fr]">
       <a href="#fluxo-caixa" className="block bg-card p-6 transition-colors hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 sm:p-8">
-        <p className="text-sm font-medium text-muted-foreground">Saldo de {mesRotulo}</p>
-        <p className={`mt-2 text-5xl font-extrabold tabular-nums tracking-tight sm:text-6xl ${positivo ? "text-foreground" : "text-destructive"}`}>
-          {formatar(saldo)}
-        </p>
-        <p className="mt-3 text-sm text-muted-foreground">Receitas menos despesas do mês. Toque para ver o fluxo de caixa.</p>
+        <SobraCiclo numeros={numeros} formatar={formatar} />
+        <p className="mt-3 text-xs text-muted-foreground">Ciclo de {mesRotulo}. Toque para ver o fluxo de caixa.</p>
       </a>
       <div className="grid grid-rows-2 gap-px">
         <Link to="/receitas" className="flex items-center justify-between gap-4 bg-card px-6 py-5 transition-colors hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50">

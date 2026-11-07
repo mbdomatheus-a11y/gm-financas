@@ -1,3 +1,4 @@
+import { usePreferencias } from "@/hooks/usePreferencias";
 import { useDespesas, useFaturasMes, useReceitas } from "@/hooks/useFinance";
 
 /**
@@ -10,6 +11,8 @@ export function useFinancasProntas(): boolean {
   const d = useDespesas();
   const r = useReceitas();
   const f = useFaturasMes();
+  // O dia de virada do ciclo vem das preferências: sem ele os totais do mês saem de outro período.
+  const { pronto: prefsProntas } = usePreferencias();
   if (d.isError || r.isError || f.isError) return true;
-  return d.isSuccess && r.isSuccess && f.isSuccess;
+  return d.isSuccess && r.isSuccess && f.isSuccess && prefsProntas;
 }

@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { Input } from "@/components/ui/input";
 import { resumoFinanceiroIA } from "@/lib/lancamento-ia.functions";
+import { useNumerosCiclo } from "@/hooks/useNumerosCiclo";
 import { useResumoFinanceiroMes } from "@/hooks/useResumoFinanceiroMes";
 
 import { AppLayout } from "@/components/AppLayout";
@@ -320,6 +321,8 @@ function FinancasShareCard() {
     return [...set].sort().reverse();
   }, [receitas, despesas]);
 
+  // 07/11/2026: a sobra vem só de numeros-ciclo.ts.
+  const numeros = useNumerosCiclo(mes);
   const resumo = useMemo(() => {
     const rec = receitas
       .filter((r: any) => competenciaDaReceita(r.data_recebimento) === mes)
@@ -343,8 +346,8 @@ function FinancasShareCard() {
       .sort((a, b) => (b[1] as number) - (a[1] as number))
       .slice(0, 5) as [string, number][];
 
-    return { rec, desp, saldo: rec - desp, porCategoria };
-  }, [receitas, despesas, mes, cotacao]);
+    return { rec, desp, saldo: numeros.real.sobra, previsto: numeros.previsto.sobra, porCategoria };
+  }, [receitas, despesas, mes, cotacao, numeros]);
 
   function desenhar(): HTMLCanvasElement | null {
     const canvas = canvasRef.current;
@@ -382,7 +385,7 @@ function FinancasShareCard() {
 
     box(320, "Receitas do mês", formatBRL(resumo.rec), "#4ade80");
     box(500, "Despesas do mês", formatBRL(resumo.desp), "#f87171");
-    box(680, "Saldo", formatBRL(resumo.saldo), resumo.saldo >= 0 ? "#38bdf8" : "#fbbf24");
+    box(680, "Sobra até agora", formatBRL(resumo.saldo), resumo.saldo >= 0 ? "#38bdf8" : "#fbbf24");
 
     ctx.fillStyle = "rgba(255,255,255,0.75)";
     ctx.font = "600 32px system-ui, sans-serif";
@@ -431,7 +434,7 @@ function FinancasShareCard() {
           /* cancelado pelo usuário */
         }
       } else {
-        const texto = `Resumo ${monthLabel(mes)}%0AReceitas: ${formatBRL(resumo.rec)}%0ADespesas: ${formatBRL(resumo.desp)}%0ASaldo do mês: ${formatBRL(resumo.saldo)}`;
+        const texto = `Resumo ${monthLabel(mes)}%0AReceitas: ${formatBRL(resumo.rec)}%0ADespesas: ${formatBRL(resumo.desp)}%0ASobra até agora: ${formatBRL(resumo.saldo)}%0APrevisto no fim do ciclo: ${formatBRL(resumo.previsto)}`;
         window.open(`https://wa.me/?text=${texto}`, "_blank", "noopener");
       }
     }, "image/png");
@@ -496,7 +499,7 @@ function FinancasShareCard() {
             <Preview label="Receitas" value={formatBRL(resumo.rec)} tone="text-success" />
             <Preview label="Despesas" value={formatBRL(resumo.desp)} tone="text-destructive" />
             <Preview
-              label="Saldo do mês"
+              label="Sobra até agora"
               value={formatBRL(resumo.saldo)}
               tone={resumo.saldo >= 0 ? "text-primary" : "text-destructive"}
             />
@@ -1050,6 +1053,8 @@ function ResumoInteligenteShareCard() {
     [veiculos, habilitado],
   );
 
+  // 07/11/2026: a sobra vem só de numeros-ciclo.ts.
+  const numeros = useNumerosCiclo(mes);
   const resumo = useMemo(() => {
     const rec = (receitas as any[])
       .filter((r) => competenciaDaReceita(r.data_recebimento) === mes)
@@ -1061,8 +1066,8 @@ function ResumoInteligenteShareCard() {
     );
     const desp = parcelasMes.reduce((s, p: any) => s + toBRL(Number(p.valor), p.moeda, cotacao), 0);
     const pendentesLista = (itensLista as any[]).filter((i) => !i.comprado).length;
-    return { rec, desp, saldo: rec - desp, pendentesLista };
-  }, [receitas, despesas, itensLista, mes, cotacao]);
+    return { rec, desp, saldo: numeros.real.sobra, previsto: numeros.previsto.sobra, pendentesLista };
+  }, [receitas, despesas, itensLista, mes, cotacao, numeros]);
 
   const texto = useMemo(() => {
     const linhas = [
@@ -1070,7 +1075,8 @@ function ResumoInteligenteShareCard() {
       "",
       `💰 Receitas: ${formatBRL(resumo.rec)}`,
       `💸 Despesas: ${formatBRL(resumo.desp)}`,
-      `${resumo.saldo >= 0 ? "✅" : "🔴"} Saldo do mês: ${formatBRL(resumo.saldo)}`,
+      `${resumo.saldo >= 0 ? "✅" : "🔴"} Sobra até agora: ${formatBRL(resumo.saldo)}`,
+      `Previsto no fim do ciclo: ${formatBRL(resumo.previsto)}`,
     ];
     if (habilitado("lista")) {
       linhas.push(

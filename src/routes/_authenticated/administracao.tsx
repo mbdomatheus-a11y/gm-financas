@@ -1,5 +1,6 @@
 import { ConteudoBancosPluggy } from "@/components/BancosPluggy";
 import { ResumoUsoAdmin } from "@/components/ResumoUsoAdmin";
+import { DesempenhoAdmin } from "@/components/DesempenhoAdmin";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ModoClienteControle } from "@/components/ModoClienteControle";
 import { LogPainel } from "@/components/LogPainel";
@@ -127,6 +128,7 @@ const GRUPOS_ADMIN: {
     abas: [
       { id: "dados-gerais", rotulo: "Dados Gerais" },
       { id: "resumo-uso", rotulo: "Resumo de uso" },
+      { id: "desempenho", rotulo: "Desempenho" },
       { id: "consulta", rotulo: "Consulta" },
       { id: "funil", rotulo: "Funil e retenção" },
       { id: "acessos", rotulo: "Acessos ao site" },
@@ -1049,6 +1051,10 @@ function Admin() {
             </TabsTrigger>
           ))}
         </TabsList>
+
+        <TabsContent value="desempenho" className="space-y-6">
+          <DesempenhoAdmin />
+        </TabsContent>
 
         <TabsContent value="resumo-uso" className="space-y-6">
           <ResumoUsoAdmin />

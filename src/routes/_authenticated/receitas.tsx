@@ -78,6 +78,8 @@ import {
   RESPONSAVEIS_EXTRA,
 } from "@/hooks/useFinance";
 import { usePermissoes, useSession } from "@/hooks/useAuthData";
+import { usePreferencias } from "@/hooks/usePreferencias";
+import { CartaoCarregando } from "@/components/CartaoCarregando";
 import { useCotacao } from "@/hooks/useCotacao";
 import { addMonths, currentMonthKey, formatBRL, formatDate, formatMoeda, monthKey, monthLabelLong, toBRL, toISODate, competenciaDaReceita, mesDoCiclo } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -145,7 +147,9 @@ function ReceitasPage() {
   const cotacao = useCotacao();
   const { user } = useSession();
   const { can } = usePermissoes();
-  const { data: receitas = [] } = useReceitas();
+  const { data: receitas = [], isSuccess: receitasOk } = useReceitas();
+  const { pronto: prefsOk } = usePreferencias();
+  const receitasProntas = receitasOk && prefsOk;
   const { data: categorias = [] } = useCategorias("receita");
   const { data: cartoes = [] } = useCartoes();
   const { data: perfis = [] } = useProfilesList();
@@ -626,7 +630,7 @@ function ReceitasPage() {
   return (
     <AppLayout
       title="Receitas"
-      description={`${lista.length} lançamento(s) · ${formatar(total)}`}
+      description={receitasProntas ? `${lista.length} lançamento(s) · ${formatar(total)}` : "Carregando receitas..."}
       actions={
         can("receitas", "editar") && (
           <Button size="sm" onClick={abrirNova} data-tour="nova-receita">
@@ -790,7 +794,8 @@ function ReceitasPage() {
       <BarraSoma qtd={soma.ids.size} total={totalSelecionadoReceitas} onLimpar={soma.limpar} />
 
       <div className={cn("space-y-4", tab === "pix" && "hidden")}>
-        {lista.length === 0 && (
+        {!receitasProntas && <CartaoCarregando />}
+        {receitasProntas && lista.length === 0 && (
           <Card>
             <CardContent className="flex flex-col items-center gap-4 py-14 text-center">
               <span className="grid size-14 place-items-center rounded-full bg-muted text-muted-foreground">

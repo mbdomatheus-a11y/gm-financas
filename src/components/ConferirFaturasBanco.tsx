@@ -122,7 +122,7 @@ export function ConferirFaturasBanco() {
                     const dif = banco?.total_banco != null ? Math.round((sistema - Number(banco.total_banco)) * 100) / 100 : null;
                     return (
                       <div key={mes} className="rounded-lg bg-muted/40 p-2 text-xs">
-                        <p className="capitalize text-muted-foreground">{monthLabelLong(mes)}</p>
+                        <p className="text-muted-foreground">{monthLabelLong(mes)}</p>
                         <p className="font-semibold tabular-nums">{formatBRL(sistema)}</p>
                         {banco?.total_banco != null ? (
                           <p className={dif === 0 ? "text-success" : "text-destructive"}>
