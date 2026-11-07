@@ -40,6 +40,7 @@ async function apiKey(): Promise<string> {
   const c = credenciais();
   if (!c) throw new Error("Credenciais da Pluggy não configuradas no servidor.");
   const r = await fetch(`${BASE}/auth`, {
+    signal: AbortSignal.timeout(15000),
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(c),
@@ -52,6 +53,7 @@ async function apiKey(): Promise<string> {
 
 async function pluggy<T>(key: string, caminho: string, init?: RequestInit): Promise<T> {
   const r = await fetch(`${BASE}${caminho}`, {
+    signal: AbortSignal.timeout(15000),
     ...init,
     headers: { "X-API-KEY": key, "Content-Type": "application/json", ...(init?.headers ?? {}) },
   });

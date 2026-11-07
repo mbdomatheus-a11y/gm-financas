@@ -4,6 +4,7 @@ import { usePreferencias } from "@/hooks/usePreferencias";
 import { datasDoCiclo } from "@/lib/previsao-mes";
 import { CampoCategoria } from "@/components/CampoCategoria";
 import { useEffect, useMemo, useState } from "react";
+import { useValorAdiado } from "@/hooks/useValorAdiado";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
@@ -253,6 +254,7 @@ function DespesasPage() {
     if (editId && tagsAtuais.data) setTagsForm(tagsAtuais.data);
   }, [editId, tagsAtuais.data]);
   const [busca, setBusca] = useState(search.busca ?? "");
+  const buscaAdiada = useValorAdiado(busca, 250);
   // `mes=todos` na URL (ex.: vindo do card "Dívida total em aberto" do
   // dashboard) abre a página já mostrando a dívida completa, não só a do
   // mês atual.
@@ -902,11 +904,11 @@ function DespesasPage() {
     if (filtroOrigem === "fatura" && (!d.origem || d.origem === "manual")) return false;
     if (filtroEconomia && !d.economia_conquistada) return false;
     if (
-      busca &&
+      buscaAdiada &&
       !correspondeBuscaComValor(
         `${d.descricao ?? ""} ${d.categoria ?? ""} ${d.responsavel ?? ""}`,
         valorVisivel(d),
-        busca,
+        buscaAdiada,
       )
     )
       return false;

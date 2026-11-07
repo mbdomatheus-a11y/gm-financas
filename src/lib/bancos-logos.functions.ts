@@ -45,7 +45,7 @@ export const catalogoLogosBancos = createServerFn({ method: "GET" })
     try {
       const { chaveApi } = await import("@/lib/pluggy-api.server");
       const key = await chaveApi();
-      const r = await fetch("https://api.pluggy.ai/connectors?countries=BR", { headers: { "X-API-KEY": key } });
+      const r = await fetch("https://api.pluggy.ai/connectors?countries=BR", { headers: { "X-API-KEY": key }, signal: AbortSignal.timeout(10000) });
       if (!r.ok) return lista;
       const j = (await r.json()) as {
         results?: { name?: string; imageUrl?: string; primaryColor?: string; type?: string; isSandbox?: boolean }[];

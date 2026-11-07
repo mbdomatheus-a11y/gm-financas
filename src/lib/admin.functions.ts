@@ -93,12 +93,12 @@ export const adminListarUsuarios = createServerFn({ method: "GET" })
       )
       .order("created_at", { ascending: true });
     if (error) throw new Error(error.message);
-    const { data: roles } = await db.from("user_roles").select("user_id, role");
-    const { data: exclusoes } = await db
-      .from("exclusoes_agendadas")
-      .select("user_id, prevista_em");
-    const { ehAdminPrincipal } = await import("@/lib/conta-exclusao.server");
-    const solicitanteEhPrincipal = await ehAdminPrincipal(context.userId);
+    // Consultas independentes entre si: em paralelo.
+    const [{ data: roles }, { data: exclusoes }, solicitanteEhPrincipal] = await Promise.all([
+      db.from("user_roles").select("user_id, role"),
+      db.from("exclusoes_agendadas").select("user_id, prevista_em"),
+      import("@/lib/conta-exclusao.server").then((m) => m.ehAdminPrincipal(context.userId)),
+    ]);
     return (data ?? []).map((p: any) => ({
       id: p.id as string,
       nome: p.nome as string,

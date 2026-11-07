@@ -17,6 +17,7 @@ export async function verificarTurnstileToken(token: string): Promise<boolean> {
 
   const body = new URLSearchParams({ secret, response: token });
   const res = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+    signal: AbortSignal.timeout(5000),
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body,

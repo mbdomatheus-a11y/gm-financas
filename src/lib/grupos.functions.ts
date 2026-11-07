@@ -90,12 +90,10 @@ export const listarMembrosMeuGrupo = createServerFn({ method: "GET" })
     const db = supabaseAdmin as any;
     const { data: eu } = await db.from("profiles").select("grupo_id").eq("id", context.userId).single();
     if (!eu?.grupo_id) return { souDono: false, membros: [] as { id: string; nome: string; email: string | null; ehDono: boolean }[] };
-    const { data: grupo } = await db.from("grupos").select("criado_por").eq("id", eu.grupo_id).single();
-    const { data: membros } = await db
-      .from("profiles")
-      .select("id,nome,email")
-      .eq("grupo_id", eu.grupo_id)
-      .eq("ativo", true);
+    const [{ data: grupo }, { data: membros }] = await Promise.all([
+      db.from("grupos").select("criado_por").eq("id", eu.grupo_id).single(),
+      db.from("profiles").select("id,nome,email").eq("grupo_id", eu.grupo_id).eq("ativo", true),
+    ]);
     return {
       souDono: grupo?.criado_por === context.userId,
       membros: ((membros ?? []) as any[])

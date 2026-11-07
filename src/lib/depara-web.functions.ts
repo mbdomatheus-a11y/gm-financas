@@ -150,6 +150,7 @@ REGRAS RÍGIDAS:
 5. Responda ESTRITAMENTE em formato JSON puro, sem blocos markdown.`;
 
       const resposta = await fetch("https://api.openai.com/v1/chat/completions", {
+        signal: AbortSignal.timeout(20000),
         method: "POST",
         headers: {
           "Content-Type": "application/json",

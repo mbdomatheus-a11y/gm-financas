@@ -47,7 +47,7 @@ async function buscarSerieBacen(
   const url = `https://api.bcb.gov.br/dados/serie/bcdata.sgs.${serieSgs}/dados/ultimos/${ultimosN}?formato=json`;
   let res: Response;
   try {
-    res = await fetch(url);
+    res = await fetch(url, { signal: AbortSignal.timeout(10000) });
   } catch {
     throw new Error("Não foi possível conectar à API do Banco Central. Tente novamente.");
   }

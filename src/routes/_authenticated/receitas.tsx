@@ -3,6 +3,7 @@ import { guardarMesSite, mesEscolhidoSite } from "@/lib/mes-escolhido";
 import { CampoCategoria } from "@/components/CampoCategoria";
 import { SelectBusca } from "@/components/SelectBusca";
 import { useEffect, useMemo, useState } from "react";
+import { useValorAdiado } from "@/hooks/useValorAdiado";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
@@ -196,6 +197,7 @@ function ReceitasPage() {
   const [filtroCat, setFiltroCat] = usePersistedState("receitas.filtroCat", "todas");
   const [filtroResp, setFiltroResp] = usePersistedState("receitas.filtroResp", "todos");
   const [busca, setBusca] = useState("");
+  const buscaAdiada = useValorAdiado(busca, 250);
   const [modoLista, setModoLista] = usePersistedState<"lista" | "cartao">(
     "receitas.modoLista",
     "lista",
@@ -230,17 +232,17 @@ function ReceitasPage() {
       if (filtroCat !== "todas" && r.categoria !== filtroCat) return false;
       if (filtroResp !== "todos" && r.responsavel !== filtroResp) return false;
       if (
-        busca &&
+        buscaAdiada &&
         !correspondeBuscaComValor(
           `${r.descricao} ${r.categoria} ${r.responsavel}`,
           Number(r.valor),
-          busca,
+          buscaAdiada,
         )
       )
         return false;
       return true;
     });
-  }, [receitas, competenciasParaFiltro, tab, filtroCat, filtroResp, busca]);
+  }, [receitas, competenciasParaFiltro, tab, filtroCat, filtroResp, buscaAdiada]);
 
   const chips = [
     filtroMes !== currentMonthKey() &&

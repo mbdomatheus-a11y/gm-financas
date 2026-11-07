@@ -29,17 +29,7 @@ import { lancamentosPorCompetencias } from "@/lib/recorrencia";
 import { usePreferencias } from "@/hooks/usePreferencias";
 import { contaComoDespesa } from "@/lib/regras-saldo";
 
-export type OpcaoGrafico = "fluxo" | "saldo" | "categorias";
-
-export const OPCOES_GRAFICO: { value: OpcaoGrafico; label: string }[] = [
-  { value: "fluxo", label: "Receitas x despesas (3 meses)" },
-  { value: "saldo", label: "Saldo por mês (3 meses)" },
-  { value: "categorias", label: "Despesas por categoria (mês atual)" },
-];
-
-export function opcaoGraficoValida(v: unknown): OpcaoGrafico {
-  return OPCOES_GRAFICO.some((o) => o.value === v) ? (v as OpcaoGrafico) : "fluxo";
-}
+import { OPCOES_GRAFICO, opcaoGraficoValida, type OpcaoGrafico } from "@/lib/opcao-grafico";
 
 /** Widget de gráfico da Início: o usuário escolhe qual gráfico ver. */
 export function GraficoHome({

@@ -1,6 +1,7 @@
 import { useBancos, useCartoes } from "@/hooks/useFinance";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useValorAdiado } from "@/hooks/useValorAdiado";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -272,6 +273,7 @@ function NotasPage() {
   const [novoGrupo, setNovoGrupo] = useState("");
   const [perguntaArquivo, setPerguntaArquivo] = useState<string | null>(null);
   const [busca, setBusca] = useState("");
+  const buscaAdiada = useValorAdiado(busca, 250);
   const [escolha, setEscolha] = useState(false);
   useEffect(() => {
     const abrir = () => setEscolha(true);
@@ -665,7 +667,7 @@ function NotasPage() {
   };
 
   const lista = useMemo(() => {
-    const termo = busca.trim().toLowerCase();
+    const termo = buscaAdiada.trim().toLowerCase();
     return notas.filter((n) => {
       const st = statusGarantia(n.garantia_fim);
       const arquivada = !!(n as any).arquivada;
@@ -681,7 +683,7 @@ function NotasPage() {
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(termo));
     });
-  }, [notas, filtro, busca, grupoFiltro]);
+  }, [notas, filtro, buscaAdiada, grupoFiltro]);
 
   const aVencer = notas.filter((n) => {
     const st = statusGarantia(n.garantia_fim);

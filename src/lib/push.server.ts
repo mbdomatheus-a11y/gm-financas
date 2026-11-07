@@ -99,6 +99,7 @@ export async function enviarPush(
     const lote = tokens.slice(i, i + 100);
     try {
       const res = await fetch(URL_EXPO, {
+        signal: AbortSignal.timeout(10000),
         method: "POST",
         headers: cabecalhos,
         body: JSON.stringify(

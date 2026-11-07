@@ -1806,6 +1806,8 @@ function Admin() {
                   <img
                     src={supabase.storage.from("site_assets").getPublicUrl(parceria.preview_imagem_path).data.publicUrl}
                     alt="Prévia atual do site parceiro"
+                    loading="lazy"
+                    decoding="async"
                     className="h-16 w-28 rounded-xl border object-cover"
                   />
                 ) : (

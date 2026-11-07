@@ -82,6 +82,7 @@ export async function exchangeGoogleDriveCode(
     throw new Error("A autorização do Google expirou ou não pertence a esta conta.");
   }
   const response = await fetch(TOKEN_URL, {
+    signal: AbortSignal.timeout(10000),
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
@@ -106,6 +107,7 @@ export async function exchangeGoogleDriveCode(
 export async function googleDriveAccessToken(refreshToken: string): Promise<string> {
   const { clientId, clientSecret } = settings();
   const response = await fetch(TOKEN_URL, {
+    signal: AbortSignal.timeout(10000),
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
@@ -124,6 +126,7 @@ export async function googleDriveAccessToken(refreshToken: string): Promise<stri
 
 export async function revokeGoogleDrive(refreshToken: string): Promise<void> {
   await fetch("https://oauth2.googleapis.com/revoke", {
+    signal: AbortSignal.timeout(10000),
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ token: refreshToken }),

@@ -49,6 +49,7 @@ export const Route = createFileRoute("/api/pluggy/conectar")({
         if (!clientId || !clientSecret) return json({ erro: "Credenciais da Pluggy não configuradas no site." }, 500);
 
         const auth = await fetch(`${BASE}/auth`, {
+          signal: AbortSignal.timeout(15000),
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ clientId, clientSecret }),
@@ -58,6 +59,7 @@ export const Route = createFileRoute("/api/pluggy/conectar")({
         if (!apiKey) return json({ erro: "Resposta inesperada da Pluggy." }, 500);
 
         const r = await fetch(`${BASE}/connect_token`, {
+          signal: AbortSignal.timeout(15000),
           method: "POST",
           headers: { "X-API-KEY": apiKey, "Content-Type": "application/json" },
           body: JSON.stringify({ options: { clientUserId: uid, avoidDuplicates: true } }),

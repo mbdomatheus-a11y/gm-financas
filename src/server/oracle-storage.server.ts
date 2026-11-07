@@ -132,15 +132,10 @@ export async function usoOracleDoGrupo(
   supabase: any,
   grupoId: string,
 ): Promise<{ usadoBytes: number; cotaBytes: number }> {
-  const { data: grupo } = await supabase
-    .from("grupos")
-    .select("oracle_storage_cota_bytes")
-    .eq("id", grupoId)
-    .maybeSingle();
-  const { data: arquivos } = await supabase
-    .from("oracle_storage_arquivos")
-    .select("bytes")
-    .eq("grupo_id", grupoId);
+  const [{ data: grupo }, { data: arquivos }] = await Promise.all([
+    supabase.from("grupos").select("oracle_storage_cota_bytes").eq("id", grupoId).maybeSingle(),
+    supabase.from("oracle_storage_arquivos").select("bytes").eq("grupo_id", grupoId),
+  ]);
   const usadoBytes = (arquivos ?? []).reduce((s: number, r: any) => s + Number(r.bytes ?? 0), 0);
   return {
     usadoBytes,

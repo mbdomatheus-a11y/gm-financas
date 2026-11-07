@@ -39,6 +39,7 @@ export async function enviarEmail(params: {
 
   try {
     const res = await fetch(RESEND_API_URL, {
+      signal: AbortSignal.timeout(20000),
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,

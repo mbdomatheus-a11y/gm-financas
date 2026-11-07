@@ -1,8 +1,9 @@
+import { lazy, Suspense } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, FileUp, Plus, Sparkles, TrendingUp } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
-import { ResumoPrevisaoHome } from "@/components/ResumoPrevisaoHome";
+import { CartaoCarregando } from "@/components/CartaoCarregando";
 import { SugestoesEconomia } from "@/components/SugestoesEconomia";
 import { AssistenteHome } from "@/components/AssistenteHome";
 import { PerguntaFechamento } from "@/components/PerguntaFechamento";
@@ -11,7 +12,14 @@ import { MinhasContasCard } from "@/components/MinhasContasCard";
 import { LimitesResumoCard } from "@/components/LimitesResumoCard";
 import { useProfile } from "@/hooks/useAuthData";
 import { TempoInicioCard } from "@/components/GamificacaoFinanceira";
-import { VisaoGeralHome } from "@/components/VisaoGeralHome";
+
+// Componentes com gráficos (recharts) carregam sob demanda para aliviar o JS inicial.
+const ResumoPrevisaoHome = lazy(() =>
+  import("@/components/ResumoPrevisaoHome").then((m) => ({ default: m.ResumoPrevisaoHome })),
+);
+const VisaoGeralHome = lazy(() =>
+  import("@/components/VisaoGeralHome").then((m) => ({ default: m.VisaoGeralHome })),
+);
 import { NOVIDADE_TITULO, useNovidadeNaoLida } from "@/lib/novidades";
 
 export const Route = createFileRoute("/_authenticated/inicio")({
@@ -64,7 +72,9 @@ function InicioPage() {
         <PerguntaFechamento />
         {/* Duas colunas no computador: previsão em destaque e, ao lado, assistente, contas e limites */}
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)] xl:items-start">
-          <ResumoPrevisaoHome className="overflow-hidden" />
+          <Suspense fallback={<CartaoCarregando />}>
+            <ResumoPrevisaoHome className="overflow-hidden" />
+          </Suspense>
           <div className="space-y-6 xl:sticky xl:top-24">
             <AssistenteHome />
             <MinhasContasCard />
@@ -73,7 +83,9 @@ function InicioPage() {
         </div>
         <SugestoesEconomia className="overflow-hidden" />
         <TempoInicioCard />
-        <VisaoGeralHome parte="inicio" />
+        <Suspense fallback={<CartaoCarregando />}>
+          <VisaoGeralHome parte="inicio" />
+        </Suspense>
       </div>
     </AppLayout>
   );

@@ -126,6 +126,7 @@ export async function chaveApi(): Promise<string> {
   const clientSecret = process.env["PLUGGY_CLIENT_SECRET"];
   if (!clientId || !clientSecret) throw new Error("Credenciais da Pluggy não configuradas no servidor.");
   const r = await fetch(`${BASE}/auth`, {
+    signal: AbortSignal.timeout(15000),
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ clientId, clientSecret }),
@@ -137,7 +138,10 @@ export async function chaveApi(): Promise<string> {
 }
 
 async function pluggy<T>(key: string, caminho: string): Promise<T> {
-  const r = await fetch(`${BASE}${caminho}`, { headers: { "X-API-KEY": key } });
+  const r = await fetch(`${BASE}${caminho}`, {
+    headers: { "X-API-KEY": key },
+    signal: AbortSignal.timeout(15000),
+  });
   if (r.status === 404) {
     throw new Error("A Pluggy não reconhece esta conexão com a chave do site (404). O Item ID precisa ser de uma conexão criada na aplicação do site, no dashboard.pluggy.ai, com o conector MeuPluggy. Remova este card e cole o Item ID correto.");
   }

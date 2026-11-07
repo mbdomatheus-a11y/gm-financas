@@ -339,8 +339,9 @@ export const salvarProtecaoAdmin = createServerFn({ method: "POST" })
       });
     }
 
-    for (const item of upserts) {
-      await db.from("configuracoes_casal").upsert(item, { onConflict: "chave" });
+    // Um único upsert em lote (antes: uma ida ao banco por item).
+    if (upserts.length > 0) {
+      await db.from("configuracoes_casal").upsert(upserts, { onConflict: "chave" });
     }
 
     await db.from("admin_audit_logs").insert({

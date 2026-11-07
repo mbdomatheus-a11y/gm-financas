@@ -1,4 +1,6 @@
-import { GraficoHome, opcaoGraficoValida } from "@/components/GraficoHome";
+import { lazy, Suspense } from "react";
+import { CartaoCarregando } from "@/components/CartaoCarregando";
+import { opcaoGraficoValida } from "@/lib/opcao-grafico";
 import { Link } from "@tanstack/react-router";
 import {
   ArrowRight,
@@ -39,7 +41,14 @@ import { CSS } from "@dnd-kit/utilities";
 import { GamificacaoFinanceira } from "@/components/GamificacaoFinanceira";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { VisaoGeralHome } from "@/components/VisaoGeralHome";
+
+// Gráficos (recharts) carregam sob demanda.
+const GraficoHome = lazy(() =>
+  import("@/components/GraficoHome").then((m) => ({ default: m.GraficoHome })),
+);
+const VisaoGeralHome = lazy(() =>
+  import("@/components/VisaoGeralHome").then((m) => ({ default: m.VisaoGeralHome })),
+);
 import { useModulosGlobais, usePermissoes } from "@/hooks/useAuthData";
 import { useVeiculos } from "@/hooks/useFinance";
 import { usePreferencias } from "@/hooks/usePreferencias";
@@ -248,13 +257,21 @@ function Corpo({
   onOpcao: (o: string) => void;
 }) {
   if (id === "grafico1" || id === "grafico2")
-    return <GraficoHome opcao={opcaoGraficoValida(opcao)} onOpcao={onOpcao} />;
+    return (
+      <Suspense fallback={<CartaoCarregando />}>
+        <GraficoHome opcao={opcaoGraficoValida(opcao)} onOpcao={onOpcao} />
+      </Suspense>
+    );
   if (id === "dinheiro" || id === "casa" || id === "documentos" || id === "ferramentas")
     return <AreaCard id={id} />;
   if (id === "atalhos") return <Atalhos />;
   if (id === "admin") return <AdminBloco />;
   if (id === "conquistas") return <GamificacaoFinanceira />;
-  return <VisaoGeralHome />;
+  return (
+    <Suspense fallback={<CartaoCarregando />}>
+      <VisaoGeralHome />
+    </Suspense>
+  );
 }
 
 const ROTULO_TAMANHO: Record<TamanhoWidget, string> = { p: "Pequeno", m: "Médio", g: "Grande" };
