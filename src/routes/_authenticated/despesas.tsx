@@ -27,6 +27,10 @@ import {
 import { FaturaMesDialog } from "@/components/FaturaMesDialog";
 import { IndiceReajusteField } from "@/components/IndiceReajusteField";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
+import { JuntarLancamentoDialog } from "@/components/JuntarLancamentoDialog";
+import { useIsSiteAdmin, useModulosGlobais } from "@/hooks/useAuthData";
+import { carregarVinculos, melhorSugestao, type LancamentoOF } from "@/lib/juntar-lancamento";
 import { excluirDespesaSerie } from "@/lib/exclusao-recorrente";
 import { diasAntesPadrao, vencimentoDaFatura } from "@/lib/fatura-ciclo";
 import { ExcluirRecorrenteDialog } from "@/components/ExcluirRecorrenteDialog";
@@ -828,6 +832,43 @@ function DespesasPage() {
     () => new Map(lancamentosDoFiltro.map((p) => [p.despesa_id, p])),
     [lancamentosDoFiltro],
   );
+
+  // 07/11/2026: juntar lançamento do Open Finance com um que o usuário já tinha (mesma regra de acesso do módulo).
+  const { data: ehAdminSiteOF } = useIsSiteAdmin();
+  const { habilitado: moduloHabilitadoOF } = useModulosGlobais();
+  const podeJuntarOF = (!!ehAdminSiteOF || isSiteAdmin || moduloHabilitadoOF("open_finance")) && can("despesas", "editar");
+  const { data: vinculosOF = [] } = useQuery({
+    queryKey: ["vinculos-open-finance"],
+    queryFn: () => carregarVinculos(supabase),
+    enabled: podeJuntarOF,
+  });
+  const [juntarOF, setJuntarOF] = useState<LancamentoOF | null>(null);
+  const poolPorCompetencia = useMemo(() => {
+    const cache = new Map<string, any[]>();
+    return (comp: string) => {
+      if (!cache.has(comp)) cache.set(comp, lancamentosPorCompetencias(despesas as any[], [comp]));
+      return cache.get(comp)!;
+    };
+  }, [despesas]);
+  function lancamentoOFDe(d: any): LancamentoOF | null {
+    if (d.origem !== "pluggy" || !d.pluggy_transaction_id) return null;
+    const comp = filtroMes !== "todos" ? filtroMes : competenciaDoDia(d.parcelas?.[0]?.vencimento ?? d.data_compra);
+    const valor = filtroMes !== "todos" ? Number(lancamentoPorDespesa.get(d.id)?.valor ?? d.valor_total) : Number(d.valor_total);
+    return {
+      despesaId: d.id,
+      transactionId: d.pluggy_transaction_id,
+      descricao: String(d.descricao ?? ""),
+      valor,
+      data: String(d.data_compra).slice(0, 10),
+      categoria: d.categoria ?? null,
+      competencia: comp,
+    };
+  }
+  function sugestaoOF(d: any) {
+    if (!podeJuntarOF || (d.parcelas ?? []).length > 1) return null;
+    const of = lancamentoOFDe(d);
+    return of ? melhorSugestao(of, poolPorCompetencia(of.competencia), vinculosOF) : null;
+  }
 
   const formaKey = (d: any) => (d.cartao_id ? `cartao:${d.cartao_id}` : "sem");
   const primeiroNome = (nome?: string | null) =>
@@ -1761,6 +1802,39 @@ function DespesasPage() {
                                   Open Finance
                                 </Badge>
                               )}
+                              {podeJuntarOF && d.origem === "pluggy" && (() => {
+                                const sug = sugestaoOF(d);
+                                const of = lancamentoOFDe(d);
+                                if (!of) return null;
+                                return (
+                                  <>
+                                    {sug && (
+                                      <button
+                                        type="button"
+                                        title={`Parece ser ${sug.descricao}. Juntar?`}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setJuntarOF(of);
+                                        }}
+                                      >
+                                        <Badge variant="outline" className="border-amber-500/40 text-xs text-amber-600 dark:text-amber-400">
+                                          Possível duplicado
+                                        </Badge>
+                                      </button>
+                                    )}
+                                    <button
+                                      type="button"
+                                      className="text-xs text-muted-foreground underline-offset-2 hover:underline"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setJuntarOF(of);
+                                      }}
+                                    >
+                                      Juntar com lançamento existente
+                                    </button>
+                                  </>
+                                );
+                              })()}
                               {d.origem && d.origem !== "manual" && d.origem !== "pluggy" && (
                                 <Badge
                                   variant="outline"
@@ -1984,6 +2058,12 @@ function DespesasPage() {
           ))}
         </div>
       )}
+
+      <JuntarLancamentoDialog
+        of={juntarOF}
+        lancamentos={juntarOF ? poolPorCompetencia(juntarOF.competencia) : []}
+        onFechar={() => setJuntarOF(null)}
+      />
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">

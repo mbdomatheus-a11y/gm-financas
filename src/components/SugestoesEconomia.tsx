@@ -75,20 +75,30 @@ export function SugestoesEconomia({ className }: { className?: string }) {
         </header>
         <ul className="-mx-2 space-y-1">
           {sugestoes.map((s) => (
-            <li key={s.id} className="group flex items-center gap-3 rounded-xl px-2 py-2.5 transition-colors hover:bg-muted/60">
+            <li key={s.id} className="group flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl px-2 py-3 transition-colors hover:bg-muted/60">
               <button
                 type="button"
-                className="min-w-0 flex-1 rounded-lg text-left transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+                className="min-w-[12rem] flex-1 rounded-lg text-left transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
                 onClick={() => void navigate({ to: "/despesas", search: { busca: s.busca, mes: "todos" } as any })}
                 title={s.texto}
               >
-                <p className="truncate text-sm font-semibold">{s.titulo}</p>
-                <p className="truncate text-xs text-muted-foreground">{s.texto}</p>
+                <p className="text-sm font-semibold">{s.titulo}</p>
+                <p className="text-xs text-muted-foreground">{s.texto}</p>
               </button>
               <span className="shrink-0 text-right text-sm font-semibold tabular-nums text-destructive">
                 {s.anual.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
                 <span className="block text-[11px] font-normal text-muted-foreground">por ano</span>
               </span>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="h-8 shrink-0 rounded-full px-3 text-xs"
+                aria-label={`Ver lançamentos: ${s.titulo}`}
+                onClick={() => void navigate({ to: "/despesas", search: { busca: s.busca, mes: "todos" } as any })}
+              >
+                Ver lançamentos
+              </Button>
               <Button
                 type="button"
                 size="sm"

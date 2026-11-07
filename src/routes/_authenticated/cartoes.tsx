@@ -46,21 +46,27 @@ import { useCotacao } from "@/hooks/useCotacao";
 import { formatBRL, toBRL } from "@/lib/format";
 import { cartaoSchema, melhorDiaCompra, salvarCartao as gravarCartao } from "@/lib/cartao-salvar";
 import { Switch } from "@/components/ui/switch";
+import { LogoBanco } from "@/components/LogoBanco";
+import { nomeBanco } from "@/lib/bancos-catalogo";
+import { ContasConteudo } from "@/routes/_authenticated/contas";
 
 export const Route = createFileRoute("/_authenticated/cartoes")({
   head: () => ({
     meta: [
-      { title: "Cartões e Bancos | Control ALL" },
+      { title: "Cartões e contas | Control ALL" },
       {
         name: "description",
         content: "Cadastre cartões de crédito, contas bancárias e acompanhe a fatura de cada um.",
       },
-      { property: "og:title", content: "Cartões e Bancos | Control ALL" },
+      { property: "og:title", content: "Cartões e contas | Control ALL" },
       {
         property: "og:description",
         content: "Gestão de cartões, limites, faturas e contas bancárias do casal.",
       },
     ],
+  }),
+  validateSearch: (s: Record<string, unknown>): { tab?: string | undefined } => ({
+    tab: typeof s["tab"] === "string" ? s["tab"] : undefined,
   }),
   component: CartoesPage,
 });
@@ -112,7 +118,8 @@ function CartoesPage() {
   const { data: despesas = [] } = useDespesas();
   const { data: faturas = [] } = useFaturasImportadas();
 
-  const [tab, setTab] = useState("cartoes");
+  const busca = Route.useSearch();
+  const [tab, setTab] = useState(busca.tab && ["cartoes", "bancos", "contas", "limites", "conferir"].includes(busca.tab) ? busca.tab : "cartoes");
   const [periodoLimite, setPeriodoLimite] = useState("12");
   const [openCartao, setOpenCartao] = useState(false);
   const [openBanco, setOpenBanco] = useState(false);
@@ -206,7 +213,7 @@ function CartoesPage() {
   const salvarBanco = useMutation({
     mutationFn: async () => {
       const parsed = bancoSchema.parse({
-        nome: fb.nome,
+        nome: nomeBanco(fb.nome),
         agencia: fb.agencia || null,
         conta: fb.conta || null,
         tipo_conta: fb.tipo,
@@ -315,10 +322,10 @@ function CartoesPage() {
 
   return (
     <AppLayout
-      title="Cartões e Bancos"
+      title="Cartões e contas"
       description="Formas de pagamento usadas nas despesas"
       actions={
-        can("cartoes", "editar") && (
+        can("cartoes", "editar") && tab !== "contas" && (
           <Button size="sm" onClick={() => (tab === "cartoes" ? novoCartao() : novoBanco())}>
             <Plus className="size-4" /> {tab === "cartoes" ? "Novo cartão" : "Novo banco"}
           </Button>
@@ -332,6 +339,9 @@ function CartoesPage() {
           </TabsTrigger>
           <TabsTrigger value="bancos" className="flex-1 sm:flex-none">
             Bancos
+          </TabsTrigger>
+          <TabsTrigger value="contas" className="flex-1 sm:flex-none">
+            Contas
           </TabsTrigger>
           <TabsTrigger value="limites" className="flex-1 sm:flex-none">
             Limites
@@ -442,6 +452,10 @@ function CartoesPage() {
               </Card>
             );
           })}
+        </TabsContent>
+
+        <TabsContent value="contas" className="mt-6">
+          <ContasConteudo embutido />
         </TabsContent>
 
         <TabsContent value="bancos" className="mt-6 space-y-3">
@@ -695,7 +709,10 @@ function CartoesPage() {
                 <SelectContent>
                   {bancos.map((b: any) => (
                     <SelectItem key={b.id} value={b.id}>
-                      {b.nome} · {primeiroNome(b.titular)}
+                      <span className="flex items-center gap-2">
+                        <LogoBanco nome={b.nome} className="size-5" />
+                        {nomeBanco(b.nome)} · {primeiroNome(b.titular)}
+                      </span>
                     </SelectItem>
                   ))}
                 </SelectContent>

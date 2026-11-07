@@ -181,6 +181,8 @@ export function monthLabelLong(key: string): string {
  * "Guilherme · Itaú •1234" — identificação de responsável e forma de pagamento.
  * `nomesContas` (opcional, id -> nome): mostra a conta quando a despesa tem conta_id (07/11/2026).
  */
+import { nomeBanco } from "@/lib/bancos-catalogo";
+
 export function identificacaoDespesa(
   d: {
     responsavel?: string | null;
@@ -204,9 +206,12 @@ export function identificacaoDespesa(
   } else if (d.conta_id && nomesContas?.get(String(d.conta_id))) {
     partes.push(nomesContas.get(String(d.conta_id))!);
   } else if (d.bancos?.nome) {
-    partes.push(d.bancos.nome);
+    partes.push(nomeBanco(d.bancos.nome));
   } else if (d.banco_nome) {
-    partes.push(d.cartao_final ? `${d.banco_nome} •${d.cartao_final}` : d.banco_nome);
+    {
+    const bn = nomeBanco(d.banco_nome);
+    partes.push(d.cartao_final ? `${bn} •${d.cartao_final}` : bn);
+    }
   }
   return partes.join(" · ");
 }

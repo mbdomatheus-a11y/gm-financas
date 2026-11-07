@@ -39,6 +39,7 @@ import { Route as AuthenticatedDespesasRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedDocumentosRouteImport } from './routes/_authenticated/documentos'
 import { Route as AuthenticatedExamesRouteImport } from './routes/_authenticated/exames'
 import { Route as AuthenticatedFerramentasRouteImport } from './routes/_authenticated/ferramentas'
+import { Route as AuthenticatedNovidadesRouteImport } from './routes/_authenticated/novidades'
 import { Route as AuthenticatedImportarRouteImport } from './routes/_authenticated/importar'
 import { Route as AuthenticatedInicioRouteImport } from './routes/_authenticated/inicio'
 import { Route as AuthenticatedInvestimentosRouteImport } from './routes/_authenticated/investimentos'
@@ -227,6 +228,12 @@ const AuthenticatedFerramentasRoute =
   AuthenticatedFerramentasRouteImport.update({
     id: '/ferramentas',
     path: '/ferramentas',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedNovidadesRoute =
+  AuthenticatedNovidadesRouteImport.update({
+    id: '/novidades',
+    path: '/novidades',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedImportarRoute = AuthenticatedImportarRouteImport.update({
@@ -450,6 +457,7 @@ export interface FileRoutesByFullPath {
   '/documentos': typeof AuthenticatedDocumentosRoute
   '/exames': typeof AuthenticatedExamesRoute
   '/ferramentas': typeof AuthenticatedFerramentasRoute
+  '/novidades': typeof AuthenticatedNovidadesRoute
   '/importar': typeof AuthenticatedImportarRoute
   '/inicio': typeof AuthenticatedInicioRoute
   '/investimentos': typeof AuthenticatedInvestimentosRoute
@@ -517,6 +525,7 @@ export interface FileRoutesByTo {
   '/documentos': typeof AuthenticatedDocumentosRoute
   '/exames': typeof AuthenticatedExamesRoute
   '/ferramentas': typeof AuthenticatedFerramentasRoute
+  '/novidades': typeof AuthenticatedNovidadesRoute
   '/importar': typeof AuthenticatedImportarRoute
   '/inicio': typeof AuthenticatedInicioRoute
   '/investimentos': typeof AuthenticatedInvestimentosRoute
@@ -586,6 +595,7 @@ export interface FileRoutesById {
   '/_authenticated/documentos': typeof AuthenticatedDocumentosRoute
   '/_authenticated/exames': typeof AuthenticatedExamesRoute
   '/_authenticated/ferramentas': typeof AuthenticatedFerramentasRoute
+  '/_authenticated/novidades': typeof AuthenticatedNovidadesRoute
   '/_authenticated/importar': typeof AuthenticatedImportarRoute
   '/_authenticated/inicio': typeof AuthenticatedInicioRoute
   '/_authenticated/investimentos': typeof AuthenticatedInvestimentosRoute
@@ -655,6 +665,7 @@ export interface FileRouteTypes {
     | '/documentos'
     | '/exames'
     | '/ferramentas'
+    | '/novidades'
     | '/importar'
     | '/inicio'
     | '/investimentos'
@@ -722,6 +733,7 @@ export interface FileRouteTypes {
     | '/documentos'
     | '/exames'
     | '/ferramentas'
+    | '/novidades'
     | '/importar'
     | '/inicio'
     | '/investimentos'
@@ -790,6 +802,7 @@ export interface FileRouteTypes {
     | '/_authenticated/documentos'
     | '/_authenticated/exames'
     | '/_authenticated/ferramentas'
+    | '/_authenticated/novidades'
     | '/_authenticated/importar'
     | '/_authenticated/inicio'
     | '/_authenticated/investimentos'
@@ -1069,6 +1082,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedFerramentasRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/novidades': {
+      id: '/_authenticated/novidades'
+      path: '/novidades'
+      fullPath: '/novidades'
+      preLoaderRoute: typeof AuthenticatedNovidadesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/importar': {
       id: '/_authenticated/importar'
       path: '/importar'
@@ -1344,6 +1364,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDocumentosRoute: typeof AuthenticatedDocumentosRoute
   AuthenticatedExamesRoute: typeof AuthenticatedExamesRoute
   AuthenticatedFerramentasRoute: typeof AuthenticatedFerramentasRoute
+  AuthenticatedNovidadesRoute: typeof AuthenticatedNovidadesRoute
   AuthenticatedImportarRoute: typeof AuthenticatedImportarRoute
   AuthenticatedInicioRoute: typeof AuthenticatedInicioRoute
   AuthenticatedInvestimentosRoute: typeof AuthenticatedInvestimentosRoute
@@ -1387,6 +1408,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDocumentosRoute: AuthenticatedDocumentosRoute,
   AuthenticatedExamesRoute: AuthenticatedExamesRoute,
   AuthenticatedFerramentasRoute: AuthenticatedFerramentasRoute,
+  AuthenticatedNovidadesRoute: AuthenticatedNovidadesRoute,
   AuthenticatedImportarRoute: AuthenticatedImportarRoute,
   AuthenticatedInicioRoute: AuthenticatedInicioRoute,
   AuthenticatedInvestimentosRoute: AuthenticatedInvestimentosRoute,

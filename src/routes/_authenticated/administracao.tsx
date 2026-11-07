@@ -1,6 +1,7 @@
 import { ConteudoBancosPluggy } from "@/components/BancosPluggy";
 import { ResumoUsoAdmin } from "@/components/ResumoUsoAdmin";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { ModoClienteControle } from "@/components/ModoClienteControle";
 import { LogPainel } from "@/components/LogPainel";
 import { AvisoCalculadoraAdminCard } from "@/components/AvisoCalculadoraAdminCard";
 import { BannerOfertaAdminCard } from "@/components/BannerOfertaAdminCard";
@@ -994,6 +995,13 @@ function Admin() {
 
   return (
     <AppLayout title="Administração do site" description="Painel de controle administrativo">
+      <div className="mb-6 space-y-3">
+        <ModoClienteControle />
+        <nav aria-label="Atalhos de administração" className="flex flex-wrap gap-2">
+          <Button asChild variant="outline" size="sm"><Link to="/usuarios">Usuários e privilégios</Link></Button>
+          <Button asChild variant="outline" size="sm"><Link to="/backup">Backup e Reset</Link></Button>
+        </nav>
+      </div>
       <Tabs value={abaAtiva} onValueChange={setAbaAtiva} className="space-y-6">
         <NovosUsuariosResumo />
         {/* Grupos (2026-10-06): as 10 abas foram agrupadas por assunto. Primeiro

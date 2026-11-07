@@ -32,6 +32,7 @@ import {
 } from "recharts";
 
 import { AppLayout } from "@/components/AppLayout";
+import { VisaoGeralHome } from "@/components/VisaoGeralHome";
 import { MonthPicker } from "@/components/MonthPicker";
 import { ResumoPrevisaoHome } from "@/components/ResumoPrevisaoHome";
 import { FluxoDespesas } from "@/components/FluxoDespesas";
@@ -778,6 +779,9 @@ function DashboardPage() {
         variaveis={dados.variaveis}
         mesRotulo={monthLabel(mesAtual)}
       />
+      <div className="mt-4">
+        <VisaoGeralHome parte="mes" />
+      </div>
       <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
         <StatCard
           label="Parcelas do mês (fixas + variáveis)"

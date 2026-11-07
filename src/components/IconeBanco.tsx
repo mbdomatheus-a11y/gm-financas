@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 
 import { visualDoBanco } from "@/lib/banco-visual";
+import { visualBanco } from "@/lib/bancos-catalogo";
 import { logoDoCatalogo } from "@/lib/bancos-logos";
 import { catalogoLogosBancos } from "@/lib/bancos-logos.functions";
 import { logosDosBancos } from "@/lib/pix.functions";
@@ -63,7 +64,7 @@ export function IconeBanco({
     (bancoId ? logos.find((l) => l.bancoId === bancoId)?.logo : undefined) ??
     logos.find((l) => normal(l.nome) === normal(nome))?.logo ??
     (v.conhecido ? logos.find((l) => visualDoBanco(l.nome).sigla === v.sigla && visualDoBanco(l.nome).conhecido)?.logo : undefined) ??
-    null;
+    visualBanco(nome).icone;
 
   if (achado && !falhou)
     return (

@@ -8,7 +8,6 @@ import {
   Bar,
   BarChart,
   Cell,
-  LabelList,
   Line,
   ComposedChart,
   ResponsiveContainer,
@@ -35,7 +34,6 @@ import { aplicarRegrasFaturaMes } from "@/lib/fatura-mes";
 import { formatBRL, formatDate, identificacaoDespesa, monthKey, monthLabel, monthLabelLong, toBRL, competenciaDoDia, mesDoCiclo } from "@/lib/format";
 import { useCompetenciaVigente } from "@/lib/periodo-vigente";
 import { usePersistedState } from "@/hooks/usePersistedState";
-import { abreviarValor } from "@/lib/format";
 import { lancamentosPorCompetencias, receitasPorCompetencias } from "@/lib/recorrencia";
 import { usePreferencias } from "@/hooks/usePreferencias";
 import { contaComoDespesa } from "@/lib/regras-saldo";
@@ -111,7 +109,16 @@ function BotaoOlhoItem({ oculto, onClick }: { oculto: boolean; onClick: () => vo
   );
 }
 
-export function VisaoGeralHome({ ocultarValores }: { ocultarValores?: boolean } = {}) {
+/**
+ * `parte`: "inicio" mostra Economia conquistada e a Linha do tempo (tela Início);
+ * "mes" mostra o cartão do mês com total, variação e receita (Finanças); "tudo" mostra os dois.
+ */
+export function VisaoGeralHome({
+  ocultarValores,
+  parte = "tudo",
+}: { ocultarValores?: boolean; parte?: "tudo" | "inicio" | "mes" } = {}) {
+  const mostrarInicio = parte !== "mes";
+  const mostrarMes = parte !== "inicio";
   // 07/11/2026: nome da conta na identificação da despesa.
   const { todas: contasParaNome } = useContas();
   const nomesContasMapa = useMemo(() => new Map(contasParaNome.map((c) => [String(c.id), c.nome])), [contasParaNome]);
@@ -252,10 +259,16 @@ export function VisaoGeralHome({ ocultarValores }: { ocultarValores?: boolean } 
       .reduce((s, d) => s + toBRL(Number(d.valor_total ?? 0), d.moeda ?? "BRL", cotacao), 0);
   }, [despesas, cotacao]);
 
+  const economiaQtd = useMemo(
+    () => (despesas as any[]).filter((d) => d.economia_conquistada).length,
+    [despesas],
+  );
+
   if (!financasProntas) return <CartaoCarregando alturaGrafico="h-48" />;
   return (
     <>
-      <div className="mb-3 grid grid-cols-2 gap-2">
+      {mostrarInicio && (
+      <div className="mb-3">
         <Card className="border-emerald-500/20 bg-emerald-500/5 transition-colors hover:bg-emerald-500/10">
           <Link
             to="/despesas"
@@ -275,23 +288,26 @@ export function VisaoGeralHome({ ocultarValores }: { ocultarValores?: boolean } 
               <h3 className="text-base font-bold tabular-nums text-emerald-700 dark:text-emerald-300">
                 {valorFmtItem(economiaTotal, ocultoEconomia)}
               </h3>
+              <p className="text-xs text-muted-foreground">
+                {economiaQtd === 0
+                  ? "Nenhuma economia registrada ainda"
+                  : `${economiaQtd} ${economiaQtd === 1 ? "economia registrada" : "economias registradas"}. Toque para ver a lista.`}
+              </p>
             </CardContent>
           </Link>
         </Card>
-
-        <Card className="border-blue-500/20 bg-blue-500/5">
-          <CardContent className="px-3 py-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-blue-600 dark:text-blue-400">
-              Comunidade Control ALL
-            </p>
-            <h3 className="text-base font-bold text-blue-700 dark:text-blue-300">Organização ativa</h3>
-          </CardContent>
-        </Card>
       </div>
+      )}
 
+      {mostrarInicio && (
       <Card className="mb-4">
         <CardHeader className="flex flex-col gap-2 space-y-0 pb-2 sm:flex-row sm:items-center sm:justify-between">
-          <CardTitle className="text-base">Linha do tempo — 12 meses</CardTitle>
+          <div>
+            <CardTitle className="text-base">Linha do tempo de 12 meses</CardTitle>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Receitas, despesas e saldo mês a mês. O mês atual aparece em destaque. Toque em um mês para ver os valores.
+            </p>
+          </div>
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
             {menor && (
               <Badge variant="outline" className="border-success/40 text-success">
@@ -332,8 +348,7 @@ export function VisaoGeralHome({ ocultarValores }: { ocultarValores?: boolean } 
                 }}
               >
                 <XAxis dataKey="mes" tickLine={false} axisLine={false} fontSize={11} />
-                <YAxis hide domain={[0, (max: number) => Math.ceil(max * 1.2)]} />
-                <YAxis yAxisId="pct" hide domain={[0, "dataMax + 20"]} />
+                <YAxis hide domain={["auto", "auto"]} />
                 <Tooltip
                   formatter={(v: any, n: any) =>
                     n === "Renda comprometida"
@@ -342,32 +357,36 @@ export function VisaoGeralHome({ ocultarValores }: { ocultarValores?: boolean } 
                   }
                   labelFormatter={(l: any) => String(l)}
                 />
-                <Bar dataKey="Despesas" radius={[6, 6, 0, 0]} maxBarSize={38} cursor="pointer" isAnimationActive={false}>
+                <Bar dataKey="Receitas" radius={[6, 6, 0, 0]} maxBarSize={22} cursor="pointer" isAnimationActive={false}>
                   {serie.map((s) => (
                     <Cell
                       key={s.key}
-                      fill={
-                        s.key === mes
-                          ? "var(--primary)"
-                          : s.key === maior?.key
-                            ? "var(--destructive)"
-                            : s.key === menor?.key
-                              ? "var(--success)"
-                              : "var(--chart-2)"
+                      fill="var(--success)"
+                      opacity={
+                        s.key === mes || s.key === competenciaVigente
+                          ? 1
+                          : opacidadePorPosicao(posicaoTemporalDoMes(s.key, competenciaVigente))
                       }
+                    />
+                  ))}
+                </Bar>
+                <Bar dataKey="Despesas" radius={[6, 6, 0, 0]} maxBarSize={22} cursor="pointer" isAnimationActive={false}>
+                  {serie.map((s) => (
+                    <Cell
+                      key={s.key}
+                      fill="var(--destructive)"
                       // Bloco 3 (plano-mega 2026-09-14): mês selecionado sempre
                       // em destaque total; os demais usam a opacidade padrão de
                       // passado/futuro em vez de um valor fixo — assim um mês
                       // futuro (ainda "previsto") fica visualmente mais apagado
                       // que um mês passado já fechado.
                       opacity={
-                        s.key === mes
+                        s.key === mes || s.key === competenciaVigente
                           ? 1
                           : opacidadePorPosicao(posicaoTemporalDoMes(s.key, competenciaVigente))
                       }
                     />
                   ))}
-                  <LabelList dataKey="Despesas" position="top" fontSize={10} fill="var(--muted-foreground)" formatter={abreviarValor} />
                 </Bar>
                 <Line
                   type="monotone"
@@ -376,26 +395,29 @@ export function VisaoGeralHome({ ocultarValores }: { ocultarValores?: boolean } 
                   strokeWidth={2}
                   dot={false}
                 />
-                <Line
-                  yAxisId="pct"
-                  type="monotone"
-                  dataKey="Comprometido"
-                  name="Renda comprometida"
-                  stroke="var(--warning)"
-                  strokeWidth={2}
-                  strokeDasharray="4 3"
-                  dot={false}
-                  connectNulls
-                />
               </ComposedChart>
             </ResponsiveContainer>
           </div>
-          <p className="mt-1 text-center text-xs text-muted-foreground">
-            Toque em um mês para ver os agrupamentos abaixo. Linha tracejada: % da renda do mês
-            comprometida com despesas.
-          </p>
+          <ul className="mt-2 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs text-muted-foreground" aria-label="Legenda">
+            <li className="flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: "var(--success)" }} />Receitas</li>
+            <li className="flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: "var(--destructive)" }} />Despesas</li>
+            <li className="flex items-center gap-1.5"><span className="h-0.5 w-4 rounded" style={{ background: "var(--chart-4)" }} />Saldo</li>
+          </ul>
+          {mesSelecionado && (
+            <p className="mt-2 text-center text-sm tabular-nums" aria-live="polite">
+              <span className="font-semibold">{monthLabelLong(mesSelecionado.key)}:</span>{" "}
+              <span className="text-success">Receitas {valorFmt(mesSelecionado.Receitas)}</span>
+              {" · "}
+              <span className="text-destructive">Despesas {valorFmt(mesSelecionado.Despesas)}</span>
+              {" · "}
+              Saldo {valorFmt(mesSelecionado.Saldo)}
+            </p>
+          )}
         </CardContent>
       </Card>
+      )}
+
+      {mostrarMes && (
 
       <Card className="mb-4">
         <CardHeader className="flex flex-col gap-2 space-y-0 pb-2 sm:flex-row sm:items-center sm:justify-between">
@@ -508,6 +530,8 @@ export function VisaoGeralHome({ ocultarValores }: { ocultarValores?: boolean } 
           })}
         </CardContent>
       </Card>
+
+      )}
 
       <EditarDespesaRapido despesa={editando} onClose={() => setEditando(null)} />
     </>

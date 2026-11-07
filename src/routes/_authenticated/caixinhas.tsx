@@ -22,8 +22,10 @@ import {
   Sofa,
   Trash2,
   TreePalm,
+  ImagePlus,
+  Undo2,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { AppLayout } from "@/components/AppLayout";
@@ -35,9 +37,12 @@ import { Label } from "@/components/ui/label";
 import { usePrivacidadeValores } from "@/hooks/usePrivacidadeValores";
 import { formatBRL, monthLabelLong, competenciaAtual } from "@/lib/format";
 import { useCompetenciaVigente } from "@/lib/periodo-vigente";
+import { TEMAS_CAIXINHA, sugerirTema, temaPorId, urlImagemTema } from "@/lib/caixinhas-temas";
 import {
   type Caixinha,
   aportadoNoMes,
+  apagarFotoCaixinha,
+  enviarFotoCaixinha,
   excluirCaixinha,
   linhaDoTempo,
   listarCaixinhasComMetas,
@@ -107,6 +112,49 @@ function IconeCaixinha({
 }
 
 /**
+ * Imagem da caixinha (07/11/2026): foto do usuário, senão a foto do tema (Unsplash). Se a imagem não
+ * carregar, mostra gradiente + ícone do tema. Filhos ficam por cima (progresso, ações).
+ */
+function ImagemCaixinha({
+  temaId,
+  fotoUrl,
+  className,
+  children,
+}: {
+  temaId?: string | null | undefined;
+  fotoUrl?: string | null | undefined;
+  className?: string | undefined;
+  children?: React.ReactNode;
+}) {
+  const tema = temaPorId(temaId);
+  const [falhou, setFalhou] = useState(false);
+  const src = fotoUrl || urlImagemTema(tema);
+  useEffect(() => setFalhou(false), [src]);
+  const Icone = ICONES_CAIXINHA.find((i) => i.id === tema.icone)?.icon ?? PiggyBank;
+  return (
+    <div
+      className={cn("relative isolate overflow-hidden", className)}
+      style={{ backgroundImage: `linear-gradient(135deg, ${tema.cor1}, ${tema.cor2})` }}
+    >
+      {falhou ? (
+        <Icone className="absolute right-4 top-4 size-16 text-white/30" aria-hidden="true" />
+      ) : (
+        <img
+          src={src}
+          alt=""
+          loading="lazy"
+          referrerPolicy="no-referrer"
+          className="absolute inset-0 -z-10 size-full object-cover"
+          onError={() => setFalhou(true)}
+        />
+      )}
+      <div className="absolute inset-0 -z-10 bg-gradient-to-t from-black/70 via-black/20 to-black/10" />
+      {children}
+    </div>
+  );
+}
+
+/**
  * Caixinhas e metas (27/10/2026, metas em 07/11/2026): objetivo com valor por mês e aporte marcado mês a
  * mês, agora com valor alvo, prazo, ícone e cor opcionais. O valor a guardar no mês entra na Previsão do
  * mês (Início) do site e do app. Sem a migration 20261107130000, os campos de meta ficam escondidos.
@@ -118,6 +166,7 @@ function CaixinhasPage() {
   const { data, isLoading } = useQuery({ queryKey: ["caixinhas", "metas"], queryFn: listarCaixinhasComMetas });
   const caixinhas = data?.lista ?? [];
   const metasPendentes = data?.metasPendentes ?? false;
+  const imagemPendente = data?.imagemPendente ?? false;
   const [editando, setEditando] = useState<Caixinha | "nova" | null>(null);
 
   const aporte = useMutation({
@@ -192,74 +241,75 @@ function CaixinhasPage() {
           const prog = progressoMeta(c, competenciaAtual());
           const prazo = c.dataAlvo ?? c.fim ?? null;
           const doMes = c.aportes[mes] ?? 0;
-          const cor = c.cor || COR_PADRAO;
-          return (
-            <Card key={c.id} className="rounded-3xl">
-              <CardContent className="space-y-4 p-5">
-                <div className="flex items-start gap-3">
-                  <IconeCaixinha imagem={c.imagem} cor={c.cor} />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-semibold">{c.nome}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {formatar(c.valorMensal)} por mês · desde {mmaa(c.inicio)}
-                      {c.fim ? ` até ${mmaa(c.fim)}` : ""}
-                    </p>
-                  </div>
-                  <div className="flex shrink-0">
-                    <Button variant="ghost" size="icon" className="rounded-full" aria-label="Editar" onClick={() => setEditando(c)}>
-                      <Pencil className="size-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      aria-label="Excluir"
-                      className="rounded-full text-muted-foreground hover:text-destructive"
-                      onClick={() => {
-                        if (window.confirm(`Excluir a caixinha "${c.nome}" e os aportes marcados?`)) excluir.mutate(c.id);
-                      }}
-                    >
-                      <Trash2 className="size-4" />
-                    </Button>
-                  </div>
-                </div>
-
-                <div>
-                  <div className="mb-1.5 flex items-baseline justify-between gap-2 text-xs tabular-nums">
-                    <span>
-                      Guardado <b>{formatar(total)}</b>
-                      {prog && <span className="text-muted-foreground"> de {formatar(prog.alvo)}</span>}
-                    </span>
-                    {prog && <span className="font-semibold" style={{ color: cor }}>{Math.round(prog.percentual)}%</span>}
-                  </div>
-                  {prog && (
-                    <div className="h-2.5 overflow-hidden rounded-full bg-muted" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(prog.percentual)}>
-                      <div className="h-full rounded-full transition-all" style={{ width: `${prog.percentual}%`, backgroundColor: cor }} />
+                    return (
+            <Card key={c.id} className="overflow-hidden rounded-3xl">
+              <ImagemCaixinha temaId={c.tema ?? sugerirTema(c.nome)} fotoUrl={c.fotoUrl} className="min-h-44 text-white">
+                <div className="flex min-h-44 flex-col justify-between p-5">
+                  <div className="flex items-start gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-lg font-semibold drop-shadow">{c.nome}</p>
+                      <p className="text-xs text-white/85">
+                        {formatar(c.valorMensal)} por mês · desde {mmaa(c.inicio)}
+                        {c.fim ? ` até ${mmaa(c.fim)}` : ""}
+                      </p>
                     </div>
-                  )}
-                  {prog && (
-                    <p className="mt-2 text-xs text-muted-foreground">
-                      {prog.concluida ? (
-                        <span className="font-medium text-success">Meta atingida. Parabéns!</span>
-                      ) : prog.atrasada ? (
-                        <>Prazo encerrado em {mmaa(prazo!)}. Faltam <b className="text-foreground">{formatar(prog.falta)}</b>.</>
-                      ) : prazo ? (
-                        <>
-                          Faltam <b className="text-foreground">{formatar(prog.falta)}</b> até {mmaa(prazo)}
-                          {prog.porMesNecessario != null && (
-                            <>
-                              {" "}· guarde <b className="text-foreground">{formatar(prog.porMesNecessario)}</b> por mês para chegar no prazo
-                              {prog.porMesNecessario > c.valorMensal + 0.005 && (
-                                <span className="text-warning-foreground dark:text-warning"> (acima dos {formatar(c.valorMensal)} planejados)</span>
-                              )}
-                            </>
-                          )}
-                        </>
-                      ) : (
-                        <>Faltam <b className="text-foreground">{formatar(prog.falta)}</b> · sem prazo definido</>
-                      )}
-                    </p>
-                  )}
+                    <div className="flex shrink-0">
+                      <Button variant="ghost" size="icon" className="rounded-full text-white hover:bg-white/20 hover:text-white" aria-label="Editar" onClick={() => setEditando(c)}>
+                        <Pencil className="size-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label="Excluir"
+                        className="rounded-full text-white hover:bg-white/20 hover:text-white"
+                        onClick={() => {
+                          if (window.confirm(`Excluir a caixinha "${c.nome}" e os aportes marcados?`)) excluir.mutate(c.id);
+                        }}
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="mb-1.5 flex items-baseline justify-between gap-2 text-xs tabular-nums">
+                      <span>
+                        Guardado <b>{formatar(total)}</b>
+                        {prog && <span className="text-white/80"> de {formatar(prog.alvo)}</span>}
+                      </span>
+                      {prog && <span className="font-semibold">{Math.round(prog.percentual)}%</span>}
+                    </div>
+                    {prog && (
+                      <div className="h-2.5 overflow-hidden rounded-full bg-white/30" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(prog.percentual)}>
+                        <div className="h-full rounded-full bg-white transition-all" style={{ width: `${prog.percentual}%` }} />
+                      </div>
+                    )}
+                  </div>
                 </div>
+              </ImagemCaixinha>
+              <CardContent className="space-y-4 p-5">
+                {prog && (
+                  <p className="text-xs text-muted-foreground">
+                    {prog.concluida ? (
+                      <span className="font-medium text-success">Meta atingida. Parabéns!</span>
+                    ) : prog.atrasada ? (
+                      <>Prazo encerrado em {mmaa(prazo!)}. Faltam <b className="text-foreground">{formatar(prog.falta)}</b>.</>
+                    ) : prazo ? (
+                      <>
+                        Faltam <b className="text-foreground">{formatar(prog.falta)}</b> até {mmaa(prazo)}
+                        {prog.porMesNecessario != null && (
+                          <>
+                            {" "}· guarde <b className="text-foreground">{formatar(prog.porMesNecessario)}</b> por mês para chegar no prazo
+                            {prog.porMesNecessario > c.valorMensal + 0.005 && (
+                              <span className="text-warning-foreground dark:text-warning"> (acima dos {formatar(c.valorMensal)} planejados)</span>
+                            )}
+                          </>
+                        )}
+                      </>
+                    ) : (
+                      <>Faltam <b className="text-foreground">{formatar(prog.falta)}</b> · sem prazo definido</>
+                    )}
+                  </p>
+                )}
 
                 <Button
                   size="sm"
@@ -301,6 +351,7 @@ function CaixinhasPage() {
         <FormCaixinha
           caixinha={editando === "nova" ? null : editando}
           metasPendentes={metasPendentes}
+          imagemPendente={imagemPendente}
           onFechar={() => setEditando(null)}
         />
       )}
@@ -311,10 +362,12 @@ function CaixinhasPage() {
 function FormCaixinha({
   caixinha,
   metasPendentes,
+  imagemPendente,
   onFechar,
 }: {
   caixinha: Caixinha | null;
   metasPendentes: boolean;
+  imagemPendente: boolean;
   onFechar: () => void;
 }) {
   const qc = useQueryClient();
@@ -326,6 +379,33 @@ function FormCaixinha({
   const [dataAlvo, setDataAlvo] = useState(caixinha?.dataAlvo ?? "");
   const [imagem, setImagem] = useState(caixinha?.imagem ?? "piggy-bank");
   const [cor, setCor] = useState(caixinha?.cor ?? COR_PADRAO);
+  // Imagem: tema (foto padrão) ou foto do usuário (arquivo novo ou já salvo).
+  const [tema, setTema] = useState(caixinha?.tema ?? sugerirTema(caixinha?.nome ?? "") ?? "outro");
+  const [temaManual, setTemaManual] = useState(!!caixinha?.tema);
+  const [fotoPath, setFotoPath] = useState<string | null>(caixinha?.fotoPath ?? null);
+  const [fotoUrl, setFotoUrl] = useState<string | null>(caixinha?.fotoUrl ?? null);
+  const [arquivo, setArquivo] = useState<File | null>(null);
+  const inputFoto = useRef<HTMLInputElement>(null);
+  useEffect(() => () => {
+    if (fotoUrl?.startsWith("blob:")) URL.revokeObjectURL(fotoUrl);
+  }, [fotoUrl]);
+
+  function mudarNome(v: string) {
+    setNome(v);
+    if (!temaManual) setTema(sugerirTema(v) ?? "outro");
+  }
+  function escolherFoto(f: File | undefined) {
+    if (!f) return;
+    if (!/^image\/(jpeg|png|webp)$/.test(f.type)) { toast.error("Use uma imagem JPG, PNG ou WebP."); return; }
+    if (f.size > 5 * 1024 * 1024) { toast.error("A foto passa de 5 MB. Escolha uma menor."); return; }
+    setArquivo(f);
+    setFotoUrl(URL.createObjectURL(f));
+  }
+  function voltarParaTema() {
+    setArquivo(null);
+    setFotoPath(null);
+    setFotoUrl(null);
+  }
 
   // Sugestão de quanto guardar por mês para chegar no alvo dentro do prazo.
   const alvoNum = paraNumero(alvo);
@@ -339,8 +419,10 @@ function FormCaixinha({
       : null;
 
   const salvar = useMutation({
-    mutationFn: () =>
-      salvarCaixinha(
+    mutationFn: async () => {
+      let novoPath = fotoPath;
+      if (!imagemPendente && arquivo) novoPath = await enviarFotoCaixinha(arquivo);
+      await salvarCaixinha(
         {
           nome,
           valorMensal: paraNumero(valor),
@@ -349,9 +431,12 @@ function FormCaixinha({
           ...(metasPendentes
             ? {}
             : { valorAlvo: alvoNum > 0 ? alvoNum : null, dataAlvo: dataAlvo || null, imagem: imagem || null, cor: cor || null }),
+          ...(imagemPendente ? {} : { tema, fotoPath: novoPath }),
         },
         caixinha?.id,
-      ),
+      );
+      if (!imagemPendente && caixinha?.fotoPath && caixinha.fotoPath !== novoPath) await apagarFotoCaixinha(caixinha.fotoPath);
+    },
     onSuccess: () => {
       toast.success("Meta salva.");
       qc.invalidateQueries({ queryKey: ["caixinhas"] });
@@ -371,9 +456,45 @@ function FormCaixinha({
             {!metasPendentes && <IconeCaixinha imagem={imagem} cor={cor} />}
             <div className="flex-1 space-y-1">
               <Label htmlFor="caixinha-nome">Objetivo</Label>
-              <Input id="caixinha-nome" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex.: Viagem, reserva de emergência" />
+              <Input id="caixinha-nome" value={nome} onChange={(e) => mudarNome(e.target.value)} placeholder="Ex.: Viagem, reserva de emergência" />
             </div>
           </div>
+
+          {!imagemPendente && (
+            <div className="space-y-2">
+              <ImagemCaixinha temaId={tema} fotoUrl={fotoUrl} className="h-32 rounded-2xl" />
+              <div className="flex flex-wrap gap-1.5">
+                {TEMAS_CAIXINHA.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    aria-pressed={tema === t.id}
+                    onClick={() => {
+                      setTema(t.id);
+                      setTemaManual(true);
+                    }}
+                    className={cn(
+                      "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+                      tema === t.id ? "border-transparent bg-primary text-primary-foreground" : "bg-muted/40 text-muted-foreground hover:bg-accent",
+                    )}
+                  >
+                    {t.rotulo}
+                  </button>
+                ))}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <input ref={inputFoto} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => { escolherFoto(e.target.files?.[0]); e.target.value = ""; }} />
+                <Button type="button" size="sm" variant="outline" className="gap-1.5 rounded-full" onClick={() => inputFoto.current?.click()}>
+                  <ImagePlus className="size-4" /> Usar minha foto
+                </Button>
+                {fotoUrl && (
+                  <Button type="button" size="sm" variant="ghost" className="gap-1.5 rounded-full" onClick={voltarParaTema}>
+                    <Undo2 className="size-4" /> Voltar para a imagem do tema
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
 
           {!metasPendentes && (
             <>

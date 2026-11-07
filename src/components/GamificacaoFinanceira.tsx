@@ -1,6 +1,7 @@
 import { useFinancasProntas } from "@/hooks/useFinancasProntas";
 import { CartaoCarregando } from "@/components/CartaoCarregando";
 import { useMemo, useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Clock, Pencil, Wallet } from "lucide-react";
@@ -50,6 +51,15 @@ export function useGamificacaoFinanceira() {
     );
     // Comprometido: o maior entre o que o usuário já lançou e o que ele informou.
     const comprometido = Math.max(despesasReais, fixosInformados);
+    // Maiores despesas do ciclo (para mostrar em horas de trabalho na Início).
+    const maiores = parcelasMes
+      .map((x: any) => ({
+        id: String(x.id),
+        descricao: String(x.despesa?.descricao ?? "Despesa"),
+        valor: toBRL(Number(x.valor), x.despesa?.moeda ?? "BRL", cotacao),
+      }))
+      .sort((a, b) => b.valor - a.valor)
+      .slice(0, 3);
     const valorHora = renda > 0 ? renda / horas : 0;
     return {
       respondido,
@@ -57,6 +67,7 @@ export function useGamificacaoFinanceira() {
       horas,
       fixosInformados,
       comprometido,
+      maiores,
       valorHora,
       valorMinuto: valorHora / 60,
       sobra: Math.max(0, renda - comprometido),
@@ -119,7 +130,7 @@ export function GamificacaoFinanceira() {
 
   if (!financasProntas) return <CartaoCarregando alturaGrafico="h-24" />;
   return (
-    <Card className="mb-8 border-primary/30">
+    <Card className="border-primary/30">
       <CardContent className="space-y-4 p-5">
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -181,6 +192,46 @@ export function GamificacaoFinanceira() {
               <p className="text-lg font-semibold text-success">{formatBRL(g.sobra)}</p>
             </div>
           </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function formatarHoras(h: number): string {
+  if (h < 1) return `${Math.max(1, Math.round(h * 60))} min`;
+  return `${h.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} h`;
+}
+
+/**
+ * Cartão da Início: só aparece quando a pessoa já respondeu "Quanto vale o seu tempo" (que fica em Ferramentas).
+ * Mostra o valor da hora e as 3 maiores despesas do ciclo em horas de trabalho.
+ */
+export function TempoInicioCard() {
+  const g = useGamificacaoFinanceira();
+  if (!g.respondido || g.valorHora <= 0) return null;
+  return (
+    <Card className="border-primary/30">
+      <CardContent className="space-y-3 p-4 sm:p-5">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <h2 className="flex items-center gap-2 text-base font-bold tracking-tight">
+            <Clock className="size-4 text-primary" aria-hidden="true" /> Sua hora vale {formatBRL(g.valorHora)}
+          </h2>
+          <Link to="/ferramentas" className="text-xs font-medium text-primary hover:underline">
+            Refazer
+          </Link>
+        </div>
+        {g.maiores.length > 0 && (
+          <ul className="space-y-1.5">
+            {g.maiores.map((m) => (
+              <li key={m.id} className="flex items-center justify-between gap-3 text-sm">
+                <span className="min-w-0 truncate">{m.descricao}</span>
+                <span className="shrink-0 tabular-nums text-muted-foreground">
+                  {formatBRL(m.valor)} · <span className="font-semibold text-foreground">{formatarHoras(m.valor / g.valorHora)} de trabalho</span>
+                </span>
+              </li>
+            ))}
+          </ul>
         )}
       </CardContent>
     </Card>

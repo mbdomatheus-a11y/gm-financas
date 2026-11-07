@@ -235,13 +235,6 @@ const MUNDOS: Record<MundoId, { titulo: string; home: NavTo; items: NavItem[] }>
         modulo: "despesas",
       },
       {
-        to: "/contas",
-        label: "Contas",
-        short: "Contas",
-        icon: Landmark,
-        modulo: "despesas",
-      },
-      {
         to: "/caixinhas",
         label: "Caixinhas e metas",
         short: "Caixinhas",
@@ -290,8 +283,8 @@ const MUNDOS: Record<MundoId, { titulo: string; home: NavTo; items: NavItem[] }>
       },
       {
         to: "/cartoes",
-        label: "Cartões e Bancos",
-        short: "Cartões",
+        label: "Cartões e contas",
+        short: "Cartões e contas",
         icon: CreditCard,
         modulo: "cartoes",
       },

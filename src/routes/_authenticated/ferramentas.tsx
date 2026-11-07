@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { obterAvisoCalculadora } from "@/lib/aviso-calculadora.functions";
 import { AppLayout } from "@/components/AppLayout";
+import { GamificacaoFinanceira } from "@/components/GamificacaoFinanceira";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DiferencaEntreDatas } from "@/components/ferramentas/DiferencaEntreDatas";
@@ -36,9 +37,11 @@ function FerramentasPage() {
   return (
     <AppLayout
       title="Utilidades"
-      description="Calculadoras e link temporário, sem relação com seus dados financeiros."
+      description="Quanto vale o seu tempo, calculadoras e link temporário."
     >
       <div className="space-y-6">
+        <GamificacaoFinanceira />
+
         <Card>
           <CardContent className="flex flex-wrap items-center gap-3 p-6">
             <div className="min-w-0 flex-1">

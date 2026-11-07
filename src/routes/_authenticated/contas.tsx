@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import {
   Archive,
   ArchiveRestore,
@@ -50,10 +50,15 @@ import { useBancos, useDespesas, useReceitas } from "@/hooks/useFinance";
 import { usePrivacidadeValores } from "@/hooks/usePrivacidadeValores";
 import { formatDate, toISODate } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { LogoBanco } from "@/components/LogoBanco";
+import { nomeBanco } from "@/lib/bancos-catalogo";
 
 export const Route = createFileRoute("/_authenticated/contas")({
-  head: () => ({ meta: [{ title: "Contas | Control ALL" }] }),
-  component: ContasPage,
+  head: () => ({ meta: [{ title: "Cartões e contas | Control ALL" }] }),
+  // 07/11/2026: Contas virou aba de "Cartões e contas".
+  beforeLoad: () => {
+    throw redirect({ to: "/cartoes", search: { tab: "contas" } });
+  },
 });
 
 const SEM_BANCO = "__sem_banco__";
@@ -73,7 +78,7 @@ const valorParaTexto = (v: number) => (v ? String(v).replace(".", ",") : "");
  * informado e soma receitas e despesas pagas lançadas na conta (cartão fica de fora, sai pela fatura)
  * mais as transferências entre contas.
  */
-function ContasPage() {
+export function ContasConteudo({ embutido = false }: { embutido?: boolean }) {
   const { formatar } = usePrivacidadeValores("contas");
   const { data: receitas = [] } = useReceitas();
   const { data: despesas = [] } = useDespesas();
@@ -93,11 +98,7 @@ function ContasPage() {
   const nomeConta = (id: string) => todasContas.find((c) => c.id === id)?.nome ?? "Conta removida";
   const recentes = transferencias.slice(0, 15);
 
-  return (
-    <AppLayout
-      title="Contas"
-      description="Bancos e carteira, com saldo de cada um"
-      actions={
+  const acoes = (
         !tabelaPendente && (
           <div className="flex gap-2">
             <Button
@@ -117,8 +118,9 @@ function ContasPage() {
             </Button>
           </div>
         )
-      }
-    >
+  );
+  const corpo = (
+    <>
       {tabelaPendente ? (
         <Card className="rounded-3xl">
           <CardContent className="flex flex-col items-center gap-3 py-14 text-center">
@@ -369,6 +371,20 @@ function ContasPage() {
           onFechar={() => setTransferindo(false)}
         />
       )}
+    </>
+  );
+  return embutido ? (
+    <div className="space-y-4">
+      {!tabelaPendente && <div className="flex justify-end">{acoes}</div>}
+      {corpo}
+    </div>
+  ) : (
+    <AppLayout
+      title="Contas"
+      description="Bancos e carteira, com saldo de cada um"
+      actions={acoes}
+    >
+      {corpo}
     </AppLayout>
   );
 }
@@ -455,7 +471,10 @@ function FormConta({ conta, onFechar }: { conta: ContaBancaria | null; onFechar:
                   <SelectItem value={SEM_BANCO}>Sem banco</SelectItem>
                   {bancos.map((b) => (
                     <SelectItem key={b.id} value={b.id}>
-                      {b.nome}
+                      <span className="flex items-center gap-2">
+                        <LogoBanco nome={b.nome} className="size-5" />
+                        {nomeBanco(b.nome)}
+                      </span>
                     </SelectItem>
                   ))}
                 </SelectContent>

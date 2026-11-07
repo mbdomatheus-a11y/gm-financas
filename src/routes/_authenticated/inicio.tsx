@@ -1,20 +1,18 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { FileUp, Plus, Sparkles, TrendingUp } from "lucide-react";
+import { ArrowRight, FileUp, Plus, Sparkles, TrendingUp } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
-import { HomeWidgets } from "@/components/HomeWidgets";
 import { ResumoPrevisaoHome } from "@/components/ResumoPrevisaoHome";
 import { SugestoesEconomia } from "@/components/SugestoesEconomia";
-import { ModoClienteControle } from "@/components/ModoClienteControle";
-import { OpenFinanceEmBreve } from "@/components/OpenFinanceEmBreve";
 import { AssistenteHome } from "@/components/AssistenteHome";
-import { BetaTestFlight } from "@/components/BetaTestFlight";
 import { PerguntaFechamento } from "@/components/PerguntaFechamento";
-import { InstalarAppCartao } from "@/components/retencao/InstalarApp";
 import { PrimeirosPassos as PrimeirosPassosCard } from "@/components/PrimeirosPassos";
 import { MinhasContasCard } from "@/components/MinhasContasCard";
 import { LimitesResumoCard } from "@/components/LimitesResumoCard";
 import { useProfile } from "@/hooks/useAuthData";
+import { TempoInicioCard } from "@/components/GamificacaoFinanceira";
+import { VisaoGeralHome } from "@/components/VisaoGeralHome";
+import { NOVIDADE_TITULO, useNovidadeNaoLida } from "@/lib/novidades";
 
 export const Route = createFileRoute("/_authenticated/inicio")({
   head: () => ({
@@ -34,12 +32,13 @@ function saudacao(d: Date) {
 }
 
 /**
- * Rework do Início (04/11/2026): saudação no topo, conteúdo principal primeiro
- * (pergunta do fechamento, previsão, sugestões, assistente, atalhos) e os avisos
- * de novidade (Open Finance, app, beta) agrupados no fim, para não empurrar o resumo para baixo.
+ * Início (07/11/2026): saudação, ações rápidas, pergunta do fechamento, previsão do mês,
+ * cobranças para revisar, economia conquistada e linha do tempo. Menus, administração,
+ * resumo do mês e novidades saíram daqui (ver spec-inicio-2026-11-07).
  */
 function InicioPage() {
   const { data: profile } = useProfile();
+  const { naoLida } = useNovidadeNaoLida();
   const primeiroNome = String((profile as any)?.nome ?? "").trim().split(/\s+/)[0] ?? "";
   const hoje = new Date();
   const dataLonga = hoje.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" });
@@ -49,27 +48,32 @@ function InicioPage() {
       description={dataLonga.charAt(0).toUpperCase() + dataLonga.slice(1)}
     >
       <div data-entrada className="space-y-6">
-        <ModoClienteControle />
+        {naoLida && (
+          <Link
+            to="/novidades"
+            className="flex items-center justify-between gap-2 rounded-xl border border-border/60 bg-card px-4 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <span>Novidade: {NOVIDADE_TITULO}</span>
+            <span className="inline-flex items-center gap-1 font-medium text-primary">
+              Ver <ArrowRight className="size-3.5" aria-hidden="true" />
+            </span>
+          </Link>
+        )}
         <AcoesRapidas />
         <PrimeirosPassosCard />
         <PerguntaFechamento />
-        {/* Duas colunas no computador: previsão em destaque e, ao lado, assistente e revisões */}
+        {/* Duas colunas no computador: previsão em destaque e, ao lado, assistente, contas e limites */}
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)] xl:items-start">
           <ResumoPrevisaoHome className="overflow-hidden" />
           <div className="space-y-6 xl:sticky xl:top-24">
             <AssistenteHome />
             <MinhasContasCard />
             <LimitesResumoCard />
-            <SugestoesEconomia className="overflow-hidden" />
           </div>
         </div>
-        <HomeWidgets />
-        <section aria-labelledby="novidades" className="space-y-3 pt-4">
-          <h2 id="novidades" className="text-xl font-extrabold tracking-tight">Novidades</h2>
-          <InstalarAppCartao />
-          <BetaTestFlight />
-          <OpenFinanceEmBreve />
-        </section>
+        <SugestoesEconomia className="overflow-hidden" />
+        <TempoInicioCard />
+        <VisaoGeralHome parte="inicio" />
       </div>
     </AppLayout>
   );

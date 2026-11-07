@@ -21,6 +21,10 @@ export type Caixinha = {
   /** Nome do ícone (ver ICONES_CAIXINHA na tela) ou emoji. */
   imagem?: string | null;
   cor?: string | null;
+  /** Imagem (07/11/2026, migration 20261107200000_caixinhas_imagem.sql): id do tema, foto do usuário e URL assinada dela. */
+  tema?: string | null;
+  fotoPath?: string | null;
+  fotoUrl?: string | null;
 };
 export type CaixinhaForm = {
   nome: string;
@@ -31,16 +35,20 @@ export type CaixinhaForm = {
   dataAlvo?: string | null;
   imagem?: string | null;
   cor?: string | null;
+  /** undefined = não mexe (migration de imagem pendente). */
+  tema?: string | null;
+  fotoPath?: string | null;
 };
 export type MesCaixinha = { mes: string; meta: number; aportado: number; situacao: "atingiu" | "faltou" | "aberto" | "futuro" };
 
 const COLUNAS = "id, nome, valor_mensal, inicio, fim, created_at";
 const COLUNAS_METAS = `${COLUNAS}, valor_alvo, data_alvo, imagem, cor`;
+const COLUNAS_IMG = `${COLUNAS_METAS}, tema, foto_path`;
 
 /** Coluna nova ainda não criada no banco (migration pendente). */
 function colunaPendente(error: any): boolean {
   const code = String(error?.code ?? "");
-  return code === "42703" || code === "PGRST204";
+  return code === "42703" || code === "PGRST204" || code === "42P01" || code === "PGRST205";
 }
 const mesParaData = (mes: string) => `${mes}-01`;
 const dataParaMes = (d: string) => d.slice(0, 7);
@@ -70,26 +78,76 @@ function montar(c: any, aportes: any[]): Caixinha {
     dataAlvo: c.data_alvo ? dataParaMes(String(c.data_alvo)) : null,
     imagem: c.imagem ?? null,
     cor: c.cor ?? null,
+    tema: c.tema ?? null,
+    fotoPath: c.foto_path ?? null,
+    fotoUrl: null,
   };
+}
+
+const BUCKET_FOTOS = "caixinhas";
+
+/** URLs assinadas (1 h) das fotos do usuário. Bucket ou política ausente: sem foto, a tela usa o tema. */
+async function assinarFotos(lista: Caixinha[]): Promise<void> {
+  const caminhos = lista.map((c) => c.fotoPath).filter((p): p is string => !!p);
+  if (!caminhos.length) return;
+  try {
+    const { data } = await supabase.storage.from(BUCKET_FOTOS).createSignedUrls(caminhos, 3600);
+    for (const r of data ?? []) {
+      const c = lista.find((x) => x.fotoPath === r.path);
+      if (c && r.signedUrl) c.fotoUrl = r.signedUrl;
+    }
+  } catch {
+    /* sem foto: cai no tema */
+  }
+}
+
+/** Envia a foto do usuário para o bucket privado "caixinhas" (pasta = grupo). Devolve o caminho. */
+export async function enviarFotoCaixinha(arquivo: File): Promise<string> {
+  if (!/^image\/(jpeg|png|webp)$/.test(arquivo.type)) throw new Error("Use uma imagem JPG, PNG ou WebP.");
+  if (arquivo.size > 5 * 1024 * 1024) throw new Error("A foto passa de 5 MB. Escolha uma menor.");
+  const { grupoId } = await contexto();
+  const ext = arquivo.type === "image/png" ? "png" : arquivo.type === "image/webp" ? "webp" : "jpg";
+  const caminho = `${grupoId}/${crypto.randomUUID()}.${ext}`;
+  const { error } = await supabase.storage.from(BUCKET_FOTOS).upload(caminho, arquivo, { contentType: arquivo.type });
+  if (error) throw new Error("Não foi possível enviar a foto. Tente de novo.");
+  return caminho;
+}
+
+/** Apaga uma foto antiga (melhor esforço). */
+export async function apagarFotoCaixinha(caminho: string | null | undefined): Promise<void> {
+  if (!caminho) return;
+  try {
+    await supabase.storage.from(BUCKET_FOTOS).remove([caminho]);
+  } catch {
+    /* ignora */
+  }
 }
 
 /**
  * Lista as caixinhas e diz se as colunas de meta já existem (metasPendentes = migration não aplicada).
  * Com a migration pendente, cai para as colunas antigas e a tela esconde alvo, prazo, ícone e cor.
  */
-export async function listarCaixinhasComMetas(): Promise<{ lista: Caixinha[]; metasPendentes: boolean }> {
+export async function listarCaixinhasComMetas(): Promise<{ lista: Caixinha[]; metasPendentes: boolean; imagemPendente: boolean }> {
   let metasPendentes = false;
-  let r = await db().from("caixinhas").select(COLUNAS_METAS).order("created_at", { ascending: true });
+  let imagemPendente = false;
+  let r = await db().from("caixinhas").select(COLUNAS_IMG).order("created_at", { ascending: true });
+  if (r.error && colunaPendente(r.error)) {
+    imagemPendente = true;
+    r = await db().from("caixinhas").select(COLUNAS_METAS).order("created_at", { ascending: true });
+  }
   if (r.error && colunaPendente(r.error)) {
     metasPendentes = true;
+    imagemPendente = true;
     r = await db().from("caixinhas").select(COLUNAS).order("created_at", { ascending: true });
   }
   if (r.error) throw new Error("Não foi possível carregar as caixinhas.");
   const linhas = (r.data ?? []) as any[];
-  if (!linhas.length) return { lista: [], metasPendentes };
+  if (!linhas.length) return { lista: [], metasPendentes, imagemPendente };
   const { data: aportes, error: e2 } = await db().from("caixinha_aportes").select("caixinha_id, competencia, valor").in("caixinha_id", linhas.map((l) => l.id));
   if (e2) throw new Error("Não foi possível carregar os aportes.");
-  return { lista: linhas.map((l) => montar(l, aportes ?? [])), metasPendentes };
+  const lista = linhas.map((l) => montar(l, aportes ?? []));
+  await assinarFotos(lista);
+  return { lista, metasPendentes, imagemPendente };
 }
 
 export async function listarCaixinhas(): Promise<Caixinha[]> {
@@ -110,17 +168,26 @@ export async function salvarCaixinha(form: CaixinhaForm, id?: string | null): Pr
   if (form.dataAlvo !== undefined) metas.data_alvo = form.dataAlvo ? mesParaData(form.dataAlvo) : null;
   if (form.imagem !== undefined) metas.imagem = form.imagem || null;
   if (form.cor !== undefined) metas.cor = form.cor || null;
-  const dados = { ...base, ...metas };
+  const img: { tema?: string | null; foto_path?: string | null } = {};
+  if (form.tema !== undefined) img.tema = form.tema || null;
+  if (form.fotoPath !== undefined) img.foto_path = form.fotoPath || null;
+  // Tenta com tudo; coluna inexistente: tira primeiro a imagem, depois as metas.
+  const tentativas = [{ ...base, ...metas, ...img }, { ...base, ...metas }, base].filter((d, i, a) => i === 0 || Object.keys(d).length < Object.keys(a[i - 1]!).length);
   if (id) {
-    let { error } = await db().from("caixinhas").update(dados).eq("id", id);
-    if (error && colunaPendente(error) && Object.keys(metas).length) ({ error } = await db().from("caixinhas").update(base).eq("id", id));
+    let error: any = null;
+    for (const d of tentativas) {
+      ({ error } = await db().from("caixinhas").update(d).eq("id", id));
+      if (!error || !colunaPendente(error)) break;
+    }
     if (error) throw new Error("Não foi possível salvar a caixinha.");
     return;
   }
   const { userId, grupoId } = await contexto();
-  let { error } = await db().from("caixinhas").insert({ ...dados, grupo_id: grupoId, created_by: userId });
-  if (error && colunaPendente(error) && Object.keys(metas).length)
-    ({ error } = await db().from("caixinhas").insert({ ...base, grupo_id: grupoId, created_by: userId }));
+  let error: any = null;
+  for (const d of tentativas) {
+    ({ error } = await db().from("caixinhas").insert({ ...d, grupo_id: grupoId, created_by: userId }));
+    if (!error || !colunaPendente(error)) break;
+  }
   if (error) throw new Error("Não foi possível criar a caixinha.");
 }
 
