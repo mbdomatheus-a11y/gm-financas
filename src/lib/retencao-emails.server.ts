@@ -235,7 +235,7 @@ ${g.terminam > 0 ? linha("Parcelamentos que terminam este mês", String(g.termin
       titulo: assunto,
       corpo: textoPushSemanal,
       destino: "/",
-    }).catch(() => ({ enviados: 0, falhas: 0 }));
+    }, { tipo: "habito_lancar" }).catch(() => ({ enviados: 0, falhas: 0 }));
     if (r.ok || push.enviados > 0) {
       await registrar(db, p.id, "semanal", semana);
       enviados++;
@@ -272,7 +272,7 @@ export async function enviarAtivacao(db: any, hoje = new Date()): Promise<number
       titulo: ref === "d1" ? "Falta só 1 passo" : "Seu controle ainda está vazio",
       corpo: ref === "d1" ? "Lance seu primeiro gasto: leva 30 segundos." : "Importe a fatura do cartão e veja para onde vai seu dinheiro.",
       destino: ref === "d1" ? "/novo" : "/explore",
-    }).catch(() => ({ enviados: 0, falhas: 0 }));
+    }, { tipo: "habito_lancar" }).catch(() => ({ enviados: 0, falhas: 0 }));
     if (r.ok || push.enviados > 0) {
       await registrar(db, p.id, "ativacao", ref);
       enviados++;

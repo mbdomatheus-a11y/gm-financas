@@ -1,4 +1,5 @@
 import { useFinancasProntas } from "@/hooks/useFinancasProntas";
+import { useContas } from "@/hooks/useContas";
 import { CartaoCarregando } from "@/components/CartaoCarregando";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
@@ -36,6 +37,8 @@ import { useCompetenciaVigente } from "@/lib/periodo-vigente";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { abreviarValor } from "@/lib/format";
 import { lancamentosPorCompetencias, receitasPorCompetencias } from "@/lib/recorrencia";
+import { usePreferencias } from "@/hooks/usePreferencias";
+import { contaComoDespesa } from "@/lib/regras-saldo";
 import { opacidadePorPosicao, posicaoTemporalDoMes } from "@/lib/tempo-visual";
 
 type Agrupamento = "cartao" | "categoria" | "responsavel" | "tipo";
@@ -109,6 +112,9 @@ function BotaoOlhoItem({ oculto, onClick }: { oculto: boolean; onClick: () => vo
 }
 
 export function VisaoGeralHome({ ocultarValores }: { ocultarValores?: boolean } = {}) {
+  // 07/11/2026: nome da conta na identificação da despesa.
+  const { todas: contasParaNome } = useContas();
+  const nomesContasMapa = useMemo(() => new Map(contasParaNome.map((c) => [String(c.id), c.nome])), [contasParaNome]);
   const financasProntas = useFinancasProntas();
   const cotacao = useCotacao();
   const { data: despesas = [] } = useDespesas();
@@ -170,13 +176,16 @@ export function VisaoGeralHome({ ocultarValores }: { ocultarValores?: boolean } 
     );
   }, []);
 
+  // 07/11/2026, regra "Somar pagamento de fatura": desligada (padrão), pagamento de fatura fica fora dos totais.
+  const { prefs: prefsSaldo } = usePreferencias();
+  const somarPagamentoFatura = prefsSaldo.somar_pagamento_fatura;
   const parcelas = useMemo(
     () =>
       aplicarRegrasFaturaMes(
         lancamentosPorCompetencias(despesas as any[], meses),
         faturasMes as any[],
-      ),
-    [despesas, meses, faturasMes],
+      ).filter((p: any) => contaComoDespesa(p.despesa, somarPagamentoFatura)),
+    [despesas, meses, faturasMes, somarPagamentoFatura],
   );
 
   const serie = useMemo(() => {
@@ -482,8 +491,8 @@ export function VisaoGeralHome({ ocultarValores }: { ocultarValores?: boolean } 
                               : p.total > 1
                                 ? ` · parcela ${p.numero}/${p.total}`
                                 : ""}
-                            {identificacaoDespesa(p.despesa)
-                              ? ` · ${identificacaoDespesa(p.despesa)}`
+                            {identificacaoDespesa(p.despesa, nomesContasMapa)
+                              ? ` · ${identificacaoDespesa(p.despesa, nomesContasMapa)}`
                               : ""}
                           </p>
                         </div>

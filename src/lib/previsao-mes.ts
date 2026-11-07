@@ -1,6 +1,7 @@
 import { aplicarRegrasFaturaMes } from "@/lib/fatura-mes";
 import { monthKey, toBRL, competenciaAtual } from "@/lib/format";
 import { lancamentosPorCompetencias, receitasPorCompetencias, somarMeses } from "@/lib/recorrencia";
+import { contaComoDespesa } from "@/lib/regras-saldo";
 
 /**
  * Previsão do mês: MESMA regra do app (controlall/src/lib/painel.ts, calcularPainel + projetarMes),
@@ -160,6 +161,8 @@ export function calcularPrevisaoMes(
     cartoes?: any[];
     /** 07/11/2026, regra "Mostrar fatura aberta": false tira a estimativa das faturas abertas. Padrão true. */
     mostrarFaturaAberta?: boolean;
+    /** 07/11/2026, regra "Somar pagamento de fatura": sem ela (padrão), pagamento de fatura não entra nas saídas. */
+    somarPagamentoFatura?: boolean;
   },
   mes: string,
   metaPoupar = 0,
@@ -198,6 +201,8 @@ export function calcularPrevisaoMes(
   for (const p of parcelas as any[]) {
     // Crédito (estorno/reembolso) não é despesa comprometida: fica de fora, como no Despesas.
     if (p.despesa?.direcao === "credito") continue;
+    // Regra "Somar pagamento de fatura" (regras-saldo.ts): desligada, o pagamento não conta (as compras já contam).
+    if (!contaComoDespesa(p.despesa, dados.somarPagamentoFatura)) continue;
     const i = indice.get(String(p.vencimento ?? "").slice(0, 10));
     if (i) sai[i] += v(p);
   }
@@ -247,6 +252,7 @@ export function calcularPrevisaoMes(
   let gastoVarAteHoje = 0;
   for (const d of despesas) {
     if (d.recorrencia_inicio || d.tipo === "fixa" || d.direcao === "credito" || d.economia_conquistada) continue;
+    if (!contaComoDespesa(d, dados.somarPagamentoFatura)) continue;
     const k = String(d.data_compra ?? "").slice(0, 10);
     if (k < cicloHoje[0]! || k > hojeIso) continue;
     const partes = Math.max(1, Number(d.total_parcelas) || 1);

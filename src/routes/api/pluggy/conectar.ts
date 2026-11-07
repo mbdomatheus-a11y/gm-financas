@@ -40,8 +40,9 @@ export const Route = createFileRoute("/api/pluggy/conectar")({
         const uid = usuarioDoToken(new URL(request.url).searchParams.get("s"));
         if (!uid) return json({ erro: "Link inválido ou expirado. Volte ao app e tente de novo." }, 403);
 
-        const { ehAdminPrincipal } = await import("@/lib/conta-exclusao.server");
-        if (!(await ehAdminPrincipal(uid))) return json({ erro: "Recurso restrito ao administrador principal." }, 403);
+        // Mesma regra das server functions: admin do site ou módulo open_finance habilitado (usuário ativo, com grupo).
+        const { verificarAcessoOpenFinance, MENSAGEM_SEM_ACESSO_OPEN_FINANCE } = await import("@/lib/acesso-open-finance.server");
+        if (!(await verificarAcessoOpenFinance(uid))) return json({ erro: MENSAGEM_SEM_ACESSO_OPEN_FINANCE }, 403);
 
         const clientId = process.env["PLUGGY_CLIENT_ID"];
         const clientSecret = process.env["PLUGGY_CLIENT_SECRET"];

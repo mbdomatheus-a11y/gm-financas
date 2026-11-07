@@ -81,7 +81,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { useContasComSaldo } from "@/hooks/useContas";
+import { useContas, useContasComSaldo } from "@/hooks/useContas";
 import { definirTagsDoLancamento, useTags, useTagsDoLancamento } from "@/hooks/useTags";
 import { SeletorTags } from "@/components/SeletorTags";
 import { supabase } from "@/integrations/supabase/client";
@@ -239,6 +239,9 @@ function DespesasPage() {
   // 07/11/2026: "Conta ou cartão" (contas bancárias do módulo Contas) e tags no formulário.
   const contasPg = useContasComSaldo(receitas as any, despesas as any);
   const contasDisponiveis = contasPg.tabelaPendente ? [] : contasPg.linhas;
+  // 07/11/2026: nome da conta na identificação da despesa (todas, inclusive arquivadas; vazio com a tabela pendente).
+  const { todas: todasContas } = useContas();
+  const nomesContas = useMemo(() => new Map(todasContas.map((c) => [String(c.id), c.nome])), [todasContas]);
   const { tabelaPendente: tagsPendentes } = useTags();
   const [tagsForm, setTagsForm] = useState<string[]>([]);
   const tagsAtuais = useTagsDoLancamento("despesa", editId);
@@ -1706,8 +1709,8 @@ function DespesasPage() {
                           <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-1.5">
                               <p className="truncate text-sm font-semibold leading-tight native:line-clamp-2 native:whitespace-normal">
-                                {identificacaoDespesa(d) && (
-                                  <span className="text-primary">{identificacaoDespesa(d)} · </span>
+                                {identificacaoDespesa(d, nomesContas) && (
+                                  <span className="text-primary">{identificacaoDespesa(d, nomesContas)} · </span>
                                 )}
                                 {d.descricao}
                                 {!!d.possivel_duplicidade && (

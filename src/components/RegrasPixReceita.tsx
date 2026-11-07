@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
+import { useIsSiteAdmin } from "@/hooks/useAuthData";
 
 type Regra = {
   id: string;
@@ -27,6 +28,8 @@ const formInicial = { nome: "", receita: "", min: "", max: "", dias: "3" };
 export function RegrasPixReceita() {
   const qc = useQueryClient();
   const [form, setForm] = useState(formInicial);
+  // 07/11/2026: o intervalo de dias (configuracoes_open_finance) vale para TODOS os usuários; só o admin do site edita.
+  const { data: ehAdminSite } = useIsSiteAdmin();
 
   const { data: regras = [] } = useQuery({
     queryKey: ["regras-pix"],
@@ -130,27 +133,29 @@ export function RegrasPixReceita() {
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="flex flex-wrap items-end gap-2 rounded-md border p-3">
-          <div className="mr-auto">
-            <p className="text-sm font-medium">Substituir despesa de cartão pelo Open Finance</p>
-            <p className="text-xs text-muted-foreground">
-              Lançamento manual de cartão com o mesmo valor e data até este número de dias, ou com nome parecido, é
-              substituído.
-            </p>
+        {ehAdminSite && (
+          <div className="flex flex-wrap items-end gap-2 rounded-md border p-3">
+            <div className="mr-auto">
+              <p className="text-sm font-medium">Substituir despesa de cartão pelo Open Finance</p>
+              <p className="text-xs text-muted-foreground">
+                Lançamento manual de cartão com o mesmo valor e data até este número de dias, ou com nome parecido, é
+                substituído.
+              </p>
+            </div>
+            <label className="flex items-center gap-2 text-sm">
+              Dias
+              <Input
+                className="w-20"
+                inputMode="numeric"
+                value={diasEditados ?? String(diasCartao ?? 3)}
+                onChange={(e) => setDiasEditados(e.target.value)}
+              />
+            </label>
+            <Button size="sm" variant="outline" disabled={diasEditados === null || salvarDiasCartao.isPending} onClick={() => salvarDiasCartao.mutate()}>
+              Salvar
+            </Button>
           </div>
-          <label className="flex items-center gap-2 text-sm">
-            Dias
-            <Input
-              className="w-20"
-              inputMode="numeric"
-              value={diasEditados ?? String(diasCartao ?? 3)}
-              onChange={(e) => setDiasEditados(e.target.value)}
-            />
-          </label>
-          <Button size="sm" variant="outline" disabled={diasEditados === null || salvarDiasCartao.isPending} onClick={() => salvarDiasCartao.mutate()}>
-            Salvar
-          </Button>
-        </div>
+        )}
         <div className="space-y-2">
           {regras.length === 0 && <p className="text-sm text-muted-foreground">Nenhuma regra cadastrada.</p>}
           {regras.map((r) => (

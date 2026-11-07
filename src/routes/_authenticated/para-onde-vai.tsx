@@ -39,6 +39,7 @@ import {
   useReceitas,
 } from "@/hooks/useFinance";
 import { usePreferencias, type ExibicaoCategoria } from "@/hooks/usePreferencias";
+import { contaComoDespesa } from "@/lib/regras-saldo";
 import { useEstruturaCategorias } from "@/hooks/useEstruturaCategorias";
 import { macroDe, rotuloExibicao, subDe } from "@/lib/macro-categorias";
 import { useSession } from "@/hooks/useAuthData";
@@ -184,7 +185,13 @@ function ParaOndeVaiPage() {
   const gastos: GastoMes[] = useMemo(
     () =>
       parcelas
-        .filter((p: any) => p.despesa?.direcao !== "credito" && !p.despesa?.economia_conquistada)
+        // 07/11/2026, regra "Somar pagamento de fatura": desligada (padrão), pagamento de fatura não é gasto aqui.
+        .filter(
+          (p: any) =>
+            p.despesa?.direcao !== "credito" &&
+            !p.despesa?.economia_conquistada &&
+            contaComoDespesa(p.despesa, prefs.somar_pagamento_fatura),
+        )
         .map((p: any) => {
           const categoria = p.despesa?.categoria || "outros";
           const macro = macroDe(categoria, macros);
@@ -205,7 +212,7 @@ function ParaOndeVaiPage() {
             rotulo: rotuloExibicao(macro, sub ?? null, modoNome),
           };
         }),
-    [parcelas, cotacao, macros, modoNome],
+    [parcelas, cotacao, macros, modoNome, prefs.somar_pagamento_fatura],
   );
 
   /** Contas (cartões e bancos) presentes no período, na ordem de aparição. */

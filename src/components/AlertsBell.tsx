@@ -218,7 +218,7 @@ export function AlertsBell() {
       if (ehAppNativo()) {
         // Cada lembrete leva a chave de preferência correspondente (null = sem chave em lembretes).
         // Mapa: fatura vence (véspera/dia) e contas a vencer = despesa_perto_vencer;
-        // fatura fecha hoje = revisar_faturas; garantia de nota fiscal = sem chave.
+        // fatura fecha hoje = revisar_faturas; garantia de nota fiscal = garantia_vencendo.
         const lembretes: (LembreteApp & { tipo: LembreteChave | null })[] = [];
         const hojeLocal = new Date();
         for (const cartao of cartoes.data ?? []) {
@@ -253,7 +253,7 @@ export function AlertsBell() {
         for (const nota of notas.data ?? []) {
           if (!nota.garantia_fim) continue;
           const nome = nota.estabelecimento ?? nota.descricao ?? "compra";
-          lembretes.push({ id: `garantia-${nota.id}`, titulo: "Garantia termina em 7 dias", corpo: `A garantia de ${nome} termina em 7 dias.`, quando: momentoLembrete(nota.garantia_fim, 9, 7), destino: "/notas", tipo: null });
+          lembretes.push({ id: `garantia-${nota.id}`, titulo: "Garantia termina em 7 dias", corpo: `A garantia de ${nome} termina em 7 dias.`, quando: momentoLembrete(nota.garantia_fim, 9, 7), destino: "/notas", tipo: "garantia_vencendo" });
         }
         const prefsAgora = prefsNotifRef.current;
         agendarLembretesNoApp(

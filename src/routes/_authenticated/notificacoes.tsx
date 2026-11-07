@@ -31,6 +31,10 @@ const LEMBRETES: { chave: LembreteChave; titulo: string; detalhe: string }[] = [
   { chave: "meta_sem_aporte", titulo: "Caixinha sem aporte", detalhe: "Quando o mês avança sem guardar o valor combinado" },
   { chave: "revisar_transacoes", titulo: "Revisar lançamentos", detalhe: "Um lembrete por dia para conferir o que entrou" },
   { chave: "dicas_economia", titulo: "Dicas de economia", detalhe: "Sugestões a partir dos seus gastos" },
+  { chave: "garantia_vencendo", titulo: "Garantia perto do fim", detalhe: "Antes de a garantia de uma nota fiscal acabar" },
+  { chave: "veiculo_manutencao", titulo: "Manutenção do veículo", detalhe: "Revisões, documentos e eventos do veículo" },
+  { chave: "lista_compras", titulo: "Lista de compras", detalhe: "Itens aprovados e lembretes da lista" },
+  { chave: "habito_lancar", titulo: "Lembrete para lançar gastos", detalhe: "Quando ficar sem lançar e o resumo da semana" },
 ];
 
 function Grupo({ titulo, rodape, children }: { titulo?: string; rodape?: string; children: ReactNode }) {

@@ -42,10 +42,10 @@ import { useCotacao } from "@/hooks/useCotacao";
 import { useEstruturaCategorias } from "@/hooks/useEstruturaCategorias";
 import { useFinancasProntas } from "@/hooks/useFinancasProntas";
 import { useTransferencias } from "@/hooks/useContas";
-import { useCartoes, useDespesas, useFaturasMes, useReceitas } from "@/hooks/useFinance";
+import { useCartoes, useDespesas, useFaturasMes, useInvestimentos, useReceitas } from "@/hooks/useFinance";
 import { usePreferencias } from "@/hooks/usePreferencias";
 import { usePrivacidadeValores } from "@/hooks/usePrivacidadeValores";
-import { abreviarValor, monthLabel, monthLabelLong } from "@/lib/format";
+import { abreviarValor, competenciaDoDia, monthLabel, monthLabelLong } from "@/lib/format";
 import { useCompetenciaVigente } from "@/lib/periodo-vigente";
 import { somarMeses } from "@/lib/recorrencia";
 import {
@@ -63,6 +63,7 @@ import {
   type Fatia,
   type Parcelamento,
 } from "@/lib/relatorios";
+import { movimentosDeInvestimentos, totaisInvestimentos } from "@/lib/regras-saldo";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/relatorios")({
@@ -112,6 +113,12 @@ function RelatoriosPage() {
   const { transferencias, tabelaPendente: transferenciasPendentes } = useTransferencias();
   const transferenciasSaldo =
     prefs.somar_transferencias && !transferenciasPendentes ? transferencias : undefined;
+  // 07/11/2026: regra "Somar investimentos": aportes são saídas e resgates entradas no Resumo e no Saldo.
+  const { data: investimentos = [] } = useInvestimentos();
+  const movimentosInvest = useMemo(
+    () => (prefs.somar_investimentos ? movimentosDeInvestimentos(investimentos as any[]) : undefined),
+    [prefs.somar_investimentos, investimentos],
+  );
 
   const [aba, setAba] = useState<Aba>("resumo");
   const [periodo, setPeriodo] = useState<Periodo>("atual");
@@ -140,7 +147,12 @@ function RelatoriosPage() {
     return [...s].sort();
   }, [competencias, fimPeriodo, mesAtual]);
 
-  const opcoes = useMemo(() => ({ cotacao, macroDe, cartoesCredito }), [cotacao, macroDe, cartoesCredito]);
+  // 07/11/2026: regra "Somar pagamento de fatura" (padrão desligada: pagamento de fatura fora dos totais).
+  const somarPagamentoFatura = prefs.somar_pagamento_fatura;
+  const opcoes = useMemo(
+    () => ({ cotacao, macroDe, cartoesCredito, somarPagamentoFatura }),
+    [cotacao, macroDe, cartoesCredito, somarPagamentoFatura],
+  );
   const desp = useMemo(
     () => despesasPorCompetencia(despesas as any[], faturasMes as any[], janela, opcoes),
     [despesas, faturasMes, janela, opcoes],
@@ -149,8 +161,12 @@ function RelatoriosPage() {
 
   const noPeriodo = useMemo(() => {
     const s = new Set(competencias);
-    return { desp: desp.filter((d) => s.has(d.competencia)), rec: rec.filter((r) => s.has(r.competencia)) };
-  }, [desp, rec, competencias]);
+    return {
+      desp: desp.filter((d) => s.has(d.competencia)),
+      rec: rec.filter((r) => s.has(r.competencia)),
+      invest: movimentosInvest ? totaisInvestimentos(movimentosInvest, (data) => s.has(competenciaDoDia(data))) : undefined,
+    };
+  }, [desp, rec, competencias, movimentosInvest]);
 
   const rotuloPeriodo =
     competencias.length === 1
@@ -214,6 +230,7 @@ function RelatoriosPage() {
               <AbaResumo
                 desp={noPeriodo.desp}
                 rec={noPeriodo.rec}
+                investimentos={noPeriodo.invest}
                 serie={seriePorMes(ultimasCompetencias(fimPeriodo, 6), desp, rec)}
                 periodoSel={competencias}
                 onVerCategorias={() => setAba("categorias")}
@@ -226,7 +243,10 @@ function RelatoriosPage() {
             </TabsContent>
             <TabsContent value="saldo">
               <AbaSaldo
-                dias={saldoDiario(competencias, noPeriodo.desp, noPeriodo.rec, { transferencias: transferenciasSaldo })}
+                dias={saldoDiario(competencias, noPeriodo.desp, noPeriodo.rec, {
+                  transferencias: transferenciasSaldo,
+                  investimentos: movimentosInvest,
+                })}
                 serie={seriePorMes(ultimasCompetencias(fimPeriodo, 6), desp, rec)}
                 formatar={formatar}
               />
@@ -355,6 +375,7 @@ function tooltipBRL(formatar: Fmt) {
 function AbaResumo({
   desp,
   rec,
+  investimentos,
   serie,
   periodoSel,
   onVerCategorias,
@@ -363,19 +384,21 @@ function AbaResumo({
 }: {
   desp: ReturnType<typeof despesasPorCompetencia>;
   rec: ReturnType<typeof receitasDaCompetencia>;
+  /** Regra "Somar investimentos" ligada: resgates entram nas receitas e aportes nas despesas do período. */
+  investimentos?: { entradas: number; saidas: number } | undefined;
   serie: ReturnType<typeof seriePorMes>;
   periodoSel: string[];
   onVerCategorias: () => void;
   onMes: (key: string) => void;
   formatar: Fmt;
 }) {
-  const totalRec = somar(rec);
-  const totalDesp = somar(desp);
+  const totalRec = somar(rec) + (investimentos?.entradas ?? 0);
+  const totalDesp = somar(desp) + (investimentos?.saidas ?? 0);
   const resultado = totalRec - totalDesp;
   const categorias = agrupar(desp, (d) => d.categoria);
   const receitasCat = agrupar(rec, (r) => r.categoria);
   const noCartao = somar(desp.filter((d) => d.noCartao));
-  const naConta = totalDesp - noCartao;
+  const naConta = somar(desp) - noCartao;
   const maiores = [...desp].sort((a, b) => b.valor - a.valor).slice(0, 5);
   const dadosGrafico = serie.map((l) => ({ ...l, mes: monthLabel(l.key), Receitas: l.receitas, Despesas: l.despesas }));
 

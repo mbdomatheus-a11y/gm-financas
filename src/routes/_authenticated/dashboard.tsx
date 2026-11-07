@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useContas } from "@/hooks/useContas";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -49,7 +50,9 @@ import {
 } from "@/components/ui/select";
 import { useCotacao } from "@/hooks/useCotacao";
 import { usePersistedState } from "@/hooks/usePersistedState";
-import { useCategorias, useDespesas, useFaturasMes, useReceitas } from "@/hooks/useFinance";
+import { useCategorias, useDespesas, useFaturasMes, useInvestimentos, useReceitas } from "@/hooks/useFinance";
+import { usePreferencias } from "@/hooks/usePreferencias";
+import { contaComoDespesa, movimentosDeInvestimentos, totaisInvestimentos } from "@/lib/regras-saldo";
 import { useEstruturaCategorias } from "@/hooks/useEstruturaCategorias";
 import { criarCorPorCategoria, nomeBaseDoGrupo } from "@/lib/categorias-cor";
 import { aplicarRegrasFaturaMes } from "@/lib/fatura-mes";
@@ -175,10 +178,22 @@ const AGRUPAMENTOS: { value: Agrupamento; label: string }[] = [
 ];
 
 function DashboardPage() {
+  // 07/11/2026: nome da conta na identificação da despesa.
+  const { todas: contasParaNome } = useContas();
+  const nomesContasMapa = useMemo(() => new Map(contasParaNome.map((c) => [String(c.id), c.nome])), [contasParaNome]);
   const cotacao = useCotacao();
   const { data: receitas = [] } = useReceitas();
   const { data: despesas = [] } = useDespesas();
   const { data: faturasMes = [] } = useFaturasMes();
+  // 07/11/2026: regras de saldo (Personalização). "Somar pagamento de fatura" desligada tira o pagamento
+  // de fatura de todos os totais daqui; "Somar investimentos" ligada põe aportes e resgates no saldo do mês.
+  const { prefs } = usePreferencias();
+  const somarPagamentoFatura = prefs.somar_pagamento_fatura;
+  const { data: investimentos = [] } = useInvestimentos();
+  const movimentosInvest = useMemo(
+    () => (prefs.somar_investimentos ? movimentosDeInvestimentos(investimentos as any[]) : null),
+    [prefs.somar_investimentos, investimentos],
+  );
   // Bloco 3 (plano-mega 2026-09-14): cor por categoria vem sempre do
   // cadastro em /categorias, não mais sorteada por posição no gráfico.
   const { data: categoriasDespesa = [] } = useCategorias("despesa");
@@ -295,8 +310,8 @@ function DashboardPage() {
       aplicarRegrasFaturaMes(
         lancamentosPorCompetencias(despesas as any[], mesesSelecionaveis),
         faturasMes as any[],
-      ),
-    [despesas, mesesSelecionaveis, faturasMes],
+      ).filter((p: any) => contaComoDespesa(p.despesa, somarPagamentoFatura)),
+    [despesas, mesesSelecionaveis, faturasMes, somarPagamentoFatura],
   );
 
   const receitasProjetadas = useMemo(
@@ -403,7 +418,7 @@ function DashboardPage() {
       .map((d: any) => ({
         id: d.id,
         descricao: d.descricao,
-        cartao: identificacaoDespesa(d) || "Sem forma de pagamento",
+        cartao: identificacaoDespesa(d, nomesContasMapa) || "Sem forma de pagamento",
         pagas: (d.parcelas ?? []).filter((p: any) => p.paga).length,
         total: d.total_parcelas,
         valorParcela: toBRL(
@@ -422,7 +437,7 @@ function DashboardPage() {
       .map((p: any) => ({
         id: p.id,
         descricao: p.despesa.descricao,
-        identificacao: identificacaoDespesa(p.despesa),
+        identificacao: identificacaoDespesa(p.despesa, nomesContasMapa),
         valor: toBRL(Number(p.valor), p.despesa.moeda, cotacao),
       }))
       .sort((a, b) => b.valor - a.valor)
@@ -509,7 +524,7 @@ function DashboardPage() {
       .map((p: any) => ({
         id: p.id,
         descricao: p.despesa.descricao,
-        identificacao: identificacaoDespesa(p.despesa),
+        identificacao: identificacaoDespesa(p.despesa, nomesContasMapa),
         vencimento: p.vencimento,
         parcela: p.despesa.tipo === "fixa" ? "competência mensal" : `${p.numero}/${p.total}`,
         valor: toBRL(Number(p.valor), p.despesa.moeda, cotacao),
@@ -563,7 +578,7 @@ function DashboardPage() {
       entry.itens.push({
         id: d.id,
         descricao: d.descricao,
-        cartao: identificacaoDespesa(d) || "Sem forma de pagamento",
+        cartao: identificacaoDespesa(d, nomesContasMapa) || "Sem forma de pagamento",
         valor: valorParcela,
         ultimaParcela: parcelaFinal.vencimento,
         numeroParcela: `${totalParcelas}/${totalParcelas}`,
@@ -576,13 +591,22 @@ function DashboardPage() {
       .sort((a, b) => a.mes.localeCompare(b.mes))
       .slice(0, 18); // máximo 18 meses à frente
 
+    // Regra "Somar investimentos": resgate entra nas receitas e aporte nas despesas do mês (e do anterior, para a variação).
+    const doMes = (key: string) => (data: string) => competenciaDoDia(data) === key;
+    const inv = movimentosInvest ? totaisInvestimentos(movimentosInvest, doMes(mesAtual)) : { entradas: 0, saidas: 0 };
+    const invAnt = movimentosInvest ? totaisInvestimentos(movimentosInvest, doMes(mesAnterior)) : { entradas: 0, saidas: 0 };
+    const recTotal = totalReceitas + inv.entradas;
+    const desTotal = totalDespesas + inv.saidas;
+    const recAntTotal = receitasAnt + invAnt.entradas;
+    const desAntTotal = despesasAnt + invAnt.saidas;
+
     return {
-      totalReceitas,
-      totalDespesas,
+      totalReceitas: recTotal,
+      totalDespesas: desTotal,
       usdReceitas,
       usdDespesas,
-      saldo: totalReceitas - totalDespesas,
-      taxaPoupanca: totalReceitas > 0 ? ((totalReceitas - totalDespesas) / totalReceitas) * 100 : 0,
+      saldo: recTotal - desTotal,
+      taxaPoupanca: recTotal > 0 ? ((recTotal - desTotal) / recTotal) * 100 : 0,
       fixas,
       variaveis,
       parcelados,
@@ -590,8 +614,8 @@ function DashboardPage() {
       mensalizado,
       dividaTotal,
       mediaDespesas,
-      deltaReceitas: receitasAnt > 0 ? ((totalReceitas - receitasAnt) / receitasAnt) * 100 : null,
-      deltaDespesas: despesasAnt > 0 ? ((totalDespesas - despesasAnt) / despesasAnt) * 100 : null,
+      deltaReceitas: recAntTotal > 0 ? ((recTotal - recAntTotal) / recAntTotal) * 100 : null,
+      deltaDespesas: desAntTotal > 0 ? ((desTotal - desAntTotal) / desAntTotal) * 100 : null,
       porCartao,
       porResponsavel,
       comparativo,
@@ -604,7 +628,7 @@ function DashboardPage() {
       top5,
       alivioParcelamentos,
     };
-  }, [receitasProjetadas, despesas, parcelas, cotacao, mesAtual, mesPie, meses, grupoDe, macroDeCategoria]);
+  }, [receitasProjetadas, despesas, parcelas, cotacao, mesAtual, mesPie, meses, grupoDe, macroDeCategoria, movimentosInvest]);
 
   // Pedido 3 (2026-10-03): O último mês do gráfico comanda o horizonte padrão da dívida
   const mesAtualRotulo = useMemo(
@@ -698,7 +722,7 @@ function DashboardPage() {
         id: p.id,
         despesa: p.despesa,
         descricao: p.despesa.descricao,
-        identificacao: identificacaoDespesa(p.despesa),
+        identificacao: identificacaoDespesa(p.despesa, nomesContasMapa),
         parcela: p.despesa.tipo === "fixa" ? "competência mensal" : `${p.numero}/${p.total}`,
         vencimento: p.vencimento,
         paga: p.paga,

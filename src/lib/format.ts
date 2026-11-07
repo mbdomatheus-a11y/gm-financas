@@ -177,14 +177,21 @@ export function monthLabelLong(key: string): string {
   return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
-/** "Guilherme · Itaú •1234" — identificação de responsável e forma de pagamento. */
-export function identificacaoDespesa(d: {
-  responsavel?: string | null;
-  banco_nome?: string | null;
-  cartao_final?: string | null;
-  cartoes?: { apelido?: string | null; titular?: string | null; final?: string | null } | null;
-  bancos?: { nome?: string | null } | null;
-}): string {
+/**
+ * "Guilherme · Itaú •1234" — identificação de responsável e forma de pagamento.
+ * `nomesContas` (opcional, id -> nome): mostra a conta quando a despesa tem conta_id (07/11/2026).
+ */
+export function identificacaoDespesa(
+  d: {
+    responsavel?: string | null;
+    banco_nome?: string | null;
+    cartao_final?: string | null;
+    conta_id?: string | null;
+    cartoes?: { apelido?: string | null; titular?: string | null; final?: string | null } | null;
+    bancos?: { nome?: string | null } | null;
+  },
+  nomesContas?: Map<string, string>,
+): string {
   const partes: string[] = [];
   if (d.responsavel) partes.push(d.responsavel);
   const cartao = d.cartoes;
@@ -194,6 +201,8 @@ export function identificacaoDespesa(d: {
     partes.push(
       `${cartao.final ? `${nome} •${cartao.final}` : nome}${titular ? ` · ${titular}` : ""}`,
     );
+  } else if (d.conta_id && nomesContas?.get(String(d.conta_id))) {
+    partes.push(nomesContas.get(String(d.conta_id))!);
   } else if (d.bancos?.nome) {
     partes.push(d.bancos.nome);
   } else if (d.banco_nome) {

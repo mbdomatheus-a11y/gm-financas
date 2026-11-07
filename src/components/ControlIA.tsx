@@ -254,7 +254,8 @@ function useContexto(ativo: boolean) {
   });
   return useMemo(() => {
     if (!ativo) return null;
-    const prev = calcularPrevisaoMes({ despesas: despesas as any[], receitas: receitas as any[], faturas: faturas as any[], cotacao }, mes, metaDoMes(caixinhas, mes), prefsVirada.dia_virada, prefsVirada.receitas_proximo_ciclo_dia);
+    // 07/11/2026: regras de saldo do usuário (Personalização). Sem cartões aqui não há estimativa de fatura aberta.
+    const prev = calcularPrevisaoMes({ despesas: despesas as any[], receitas: receitas as any[], faturas: faturas as any[], cotacao, mostrarFaturaAberta: prefsVirada.mostrar_fatura_aberta, somarPagamentoFatura: prefsVirada.somar_pagamento_fatura }, mes, metaDoMes(caixinhas, mes), prefsVirada.dia_virada, prefsVirada.receitas_proximo_ciclo_dia);
     const hoje = new Date().toISOString().slice(0, 10);
     const em30 = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
     const proximoMes = mesDoCiclo(1);
@@ -288,5 +289,5 @@ function useContexto(ativo: boolean) {
         listaDeComprasPendente: compras.map((i: any) => ({ item: i.nome, quantidade: i.quantidade })),
       },
     };
-  }, [ativo, despesas, receitas, faturas, cartoes, caixinhas, compras, cotacao, mes, prefsVirada.dia_virada, prefsVirada.receitas_proximo_ciclo_dia]);
+  }, [ativo, despesas, receitas, faturas, cartoes, caixinhas, compras, cotacao, mes, prefsVirada.dia_virada, prefsVirada.receitas_proximo_ciclo_dia, prefsVirada.mostrar_fatura_aberta, prefsVirada.somar_pagamento_fatura]);
 }

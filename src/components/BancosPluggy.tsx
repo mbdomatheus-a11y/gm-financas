@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useIsSiteAdmin } from "@/hooks/useAuthData";
+import { useIsSiteAdmin, useModulosGlobais } from "@/hooks/useAuthData";
 import { formatBRL } from "@/lib/format";
 import {
   pluggyBuscarMovimentos,
@@ -141,7 +141,11 @@ function Moldura({ embutido, title, description, children }: { embutido: boolean
 /** Bancos e cartões do Open Finance (Pluggy). 27/10/2026: também aparece como aba da Administração. */
 export function ConteudoBancosPluggy({ embutido = false }: { embutido?: boolean }) {
   const qc = useQueryClient();
-  const { data: ehAdmin, isLoading: carregandoAdmin } = useIsSiteAdmin();
+  const { data: ehAdminSite, isLoading: carregandoAdminSite } = useIsSiteAdmin();
+  const { habilitado: moduloHabilitado, isLoading: carregandoModulos } = useModulosGlobais();
+  // 07/11/2026: mesma regra do servidor (exigirAcessoOpenFinance): admin do site ou módulo open_finance habilitado.
+  const ehAdmin = !!ehAdminSite || moduloHabilitado("open_finance");
+  const carregandoAdmin = carregandoAdminSite || carregandoModulos;
   const status = useServerFn(pluggyStatus);
   const criarToken = useServerFn(pluggyCriarConnectToken);
   const registrar = useServerFn(pluggyRegistrarItem);
@@ -289,7 +293,7 @@ export function ConteudoBancosPluggy({ embutido = false }: { embutido?: boolean 
     return (
       <Moldura embutido={embutido} title="Bancos (teste)">
         <Card>
-          <CardContent className="p-6 text-sm">Recurso restrito à administração do site.</CardContent>
+          <CardContent className="p-6 text-sm">Open Finance ainda não está disponível para sua conta.</CardContent>
         </Card>
       </Moldura>
     );
@@ -524,36 +528,39 @@ export function ConteudoBancosPluggy({ embutido = false }: { embutido?: boolean 
                 Modo demo: aqui só conecta o banco de teste (Sandbox). Bancos reais entram pelo Item ID abaixo.
               </span>
             </div>
-            <details className="text-xs">
-              <summary className="cursor-pointer rounded-md text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50">Usar dados reais pelo Meu Pluggy (gratuito)</summary>
-              <div className="mt-3 space-y-3">
-                <p className="text-muted-foreground">
-                  Conecte o banco no meu.pluggy.ai. Depois, no dashboard.pluggy.ai, abra sua aplicação, crie uma conexão com o conector
-                  MeuPluggy (login com sua conta do Meu Pluggy), autorize o banco e copie o Item ID da conexão. Cole o Item ID aqui.
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  <Input
-                    className="min-w-0 flex-1"
-                    placeholder="Item ID da aplicação do site"
-                    value={itemManual}
-                    onChange={(e) => setItemManual(e.target.value.trim())}
-                    aria-label="Item ID da Pluggy"
-                  />
-                  <Button
-                    disabled={!st?.configurado || !itemExtraido || ehLinkMeuPluggy || guardar.isPending}
-                    onClick={() => itemExtraido && guardar.mutate({ itemId: itemExtraido, conector: "Meu Pluggy" })}
-                  >
-                    Adicionar
-                  </Button>
-                </div>
-                {ehLinkMeuPluggy && (
-                  <p className="text-destructive">
-                    Este link é a página da conexão no Meu Pluggy, não o Item ID, e a Pluggy responde 404 para ele. O Item ID sai do
-                    dashboard.pluggy.ai, na conexão criada na sua aplicação com o conector MeuPluggy.
+            {/* Cadastro manual de Item ID: só admin (o servidor também recusa item que não nasceu do token do usuário). */}
+            {ehAdminSite && (
+              <details className="text-xs">
+                <summary className="cursor-pointer rounded-md text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50">Usar dados reais pelo Meu Pluggy (gratuito)</summary>
+                <div className="mt-3 space-y-3">
+                  <p className="text-muted-foreground">
+                    Conecte o banco no meu.pluggy.ai. Depois, no dashboard.pluggy.ai, abra sua aplicação, crie uma conexão com o conector
+                    MeuPluggy (login com sua conta do Meu Pluggy), autorize o banco e copie o Item ID da conexão. Cole o Item ID aqui.
                   </p>
-                )}
-              </div>
-            </details>
+                  <div className="flex flex-wrap gap-2">
+                    <Input
+                      className="min-w-0 flex-1"
+                      placeholder="Item ID da aplicação do site"
+                      value={itemManual}
+                      onChange={(e) => setItemManual(e.target.value.trim())}
+                      aria-label="Item ID da Pluggy"
+                    />
+                    <Button
+                      disabled={!st?.configurado || !itemExtraido || ehLinkMeuPluggy || guardar.isPending}
+                      onClick={() => itemExtraido && guardar.mutate({ itemId: itemExtraido, conector: "Meu Pluggy" })}
+                    >
+                      Adicionar
+                    </Button>
+                  </div>
+                  {ehLinkMeuPluggy && (
+                    <p className="text-destructive">
+                      Este link é a página da conexão no Meu Pluggy, não o Item ID, e a Pluggy responde 404 para ele. O Item ID sai do
+                      dashboard.pluggy.ai, na conexão criada na sua aplicação com o conector MeuPluggy.
+                    </p>
+                  )}
+                </div>
+              </details>
+            )}
           </CardContent>
         </Card>
 

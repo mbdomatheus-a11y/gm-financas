@@ -3,6 +3,7 @@ import { competenciaDoDia, diaViradaDefinida, toBRL } from "@/lib/format";
 import { subDe } from "@/lib/macro-categorias";
 import { datasDoCiclo } from "@/lib/previsao-mes";
 import { lancamentosPorCompetencias, receitasPorCompetencias, somarMeses } from "@/lib/recorrencia";
+import { contaComoDespesa, sentidoDoMovimento, type MovimentoInvestimento } from "@/lib/regras-saldo";
 
 /**
  * Relatórios (07/11/2026): funções puras que alimentam a tela /relatorios.
@@ -60,7 +61,11 @@ export function naturezaDaDespesa(d: any): ItemDespesa["natureza"] {
   return "variavel";
 }
 
-/** Lançamentos de despesa (em BRL) das competências pedidas, como no Dashboard. Créditos ficam de fora. */
+/**
+ * Lançamentos de despesa (em BRL) das competências pedidas, como no Dashboard. Créditos ficam de fora.
+ * 07/11/2026, regra "Somar pagamento de fatura": desligada (padrão), pagamento de fatura fica de fora
+ * (as compras do cartão já contam); ligada, entra.
+ */
 export function despesasPorCompetencia(
   despesas: any[],
   faturasMes: any[],
@@ -69,6 +74,7 @@ export function despesasPorCompetencia(
     cotacao: number;
     macroDe: (nome: string | null | undefined) => string;
     cartoesCredito: Set<string>;
+    somarPagamentoFatura?: boolean;
   },
 ): ItemDespesa[] {
   if (!competencias.length) return [];
@@ -81,6 +87,7 @@ export function despesasPorCompetencia(
   for (const p of lancamentos as any[]) {
     const d = p.despesa ?? {};
     if (d.direcao === "credito") continue;
+    if (!contaComoDespesa(d, opcoes.somarPagamentoFatura)) continue;
     const competencia = competenciaDoDia(p.vencimento);
     if (!desejadas.has(competencia)) continue;
     const categoriaOriginal = d.categoria || "Outros";
@@ -151,12 +158,16 @@ export type Dia = { data: string; entradas: number; saidas: number; saldo: numbe
  * Saldo acumulado dia a dia no período (começa em zero), seguindo o ciclo do dia de virada.
  * 07/11/2026: com `transferencias` (regra "Somar transferências"), cada transferência entre contas
  * do período entra como entrada e saída no mesmo dia: aparece nos totais e não muda o saldo.
+ * Com `investimentos` (regra "Somar investimentos"), aporte é saída e resgate é entrada no dia do movimento.
  */
 export function saldoDiario(
   competencias: string[],
   desp: ItemDespesa[],
   rec: ItemReceita[],
-  opcoes: { transferencias?: { data: string; valor: number | string }[] | undefined } = {},
+  opcoes: {
+    transferencias?: { data: string; valor: number | string }[] | undefined;
+    investimentos?: MovimentoInvestimento[] | undefined;
+  } = {},
 ): Dia[] {
   const virada = diaViradaDefinida();
   const datas = competencias.flatMap((c) => datasDoCiclo(c, virada));
@@ -174,6 +185,12 @@ export function saldoDiario(
     if (i === undefined || valor <= 0) continue;
     ent[i] += valor;
     sai[i] += valor;
+  }
+  for (const m of opcoes.investimentos ?? []) {
+    const i = indice.get(m.data);
+    if (i === undefined) continue;
+    if (sentidoDoMovimento(m.tipo) === "saida") sai[i] += m.valor;
+    else ent[i] += m.valor;
   }
   let saldo = 0;
   return datas.map((data, i) => {

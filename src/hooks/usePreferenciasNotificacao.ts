@@ -15,6 +15,10 @@ export const LEMBRETES_CHAVES = [
   "meta_sem_aporte",
   "revisar_transacoes",
   "dicas_economia",
+  "garantia_vencendo",
+  "veiculo_manutencao",
+  "lista_compras",
+  "habito_lancar",
 ] as const;
 
 export type LembreteChave = (typeof LEMBRETES_CHAVES)[number];

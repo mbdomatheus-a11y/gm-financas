@@ -63,12 +63,24 @@ async function logosDosItens(itemIds: string[]): Promise<Map<string, string | nu
   return out;
 }
 
+/**
+ * Ids de quem está HOJE no grupo. pluggy_contas.grupo_id é gravado na sincronização: se o dono da
+ * conexão saiu do grupo, as contas antigas não podem continuar visíveis para quem ficou (07/11/2026).
+ */
+async function membrosDoGrupo(db: any, grupoId: string): Promise<string[]> {
+  const { data } = await db.from("profiles").select("id").eq("grupo_id", grupoId);
+  const ids = ((data ?? []) as { id: string }[]).map((p) => p.id);
+  return ids.length ? ids : ["00000000-0000-0000-0000-000000000000"];
+}
+
 /** Contas correntes (não cartão) do grupo, com o nome e o logo do banco. */
 async function contasDoGrupo(db: any, grupoId: string) {
+  const membros = await membrosDoGrupo(db, grupoId);
   const { data: contas } = await db
     .from("pluggy_contas")
     .select("account_id, banco_id, nome, tipo, item_id")
     .eq("grupo_id", grupoId)
+    .in("user_id", membros)
     .eq("ativo", true) // conta conectada duas vezes: só a cópia ativa (evita PIX em dobro)
     .neq("tipo", "CREDIT");
   const lista = (contas ?? []) as { account_id: string; banco_id: string | null; nome: string | null; item_id: string }[];
@@ -528,6 +540,7 @@ export const logosDosBancos = createServerFn({ method: "GET" })
       .from("pluggy_contas")
       .select("banco_id, item_id, nome")
       .eq("grupo_id", grupoId)
+      .in("user_id", await membrosDoGrupo(db, grupoId))
       .eq("ativo", true);
     const lista = (contas ?? []) as { banco_id: string | null; item_id: string; nome: string | null }[];
     if (!lista.length) return [];

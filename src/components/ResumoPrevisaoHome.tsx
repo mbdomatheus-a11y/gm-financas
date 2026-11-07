@@ -51,13 +51,14 @@ export function ResumoPrevisaoHome({ mes: mesEscolhido, className }: { mes?: str
           cotacao,
           cartoes: cartoes as any[],
           mostrarFaturaAberta: prefs.mostrar_fatura_aberta,
+          somarPagamentoFatura: prefs.somar_pagamento_fatura,
         },
         mes,
         metaDoMes(caixinhas, mes),
         prefs.dia_virada,
         prefs.receitas_proximo_ciclo_dia,
       ),
-    [despesas, receitas, faturasMes, cotacao, cartoes, mes, caixinhas, prefs.dia_virada, prefs.receitas_proximo_ciclo_dia, prefs.mostrar_fatura_aberta],
+    [despesas, receitas, faturasMes, cotacao, cartoes, mes, caixinhas, prefs.dia_virada, prefs.receitas_proximo_ciclo_dia, prefs.mostrar_fatura_aberta, prefs.somar_pagamento_fatura],
   );
   // 03/11/2026: mostra de qual mês/ciclo é a previsão (ex.: outubro = 08/10 a 07/11 com virada no dia 8).
   const diasCiclo = datasDoCiclo(mes, prefs.dia_virada);

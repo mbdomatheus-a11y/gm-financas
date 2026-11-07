@@ -4,16 +4,29 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 /**
- * Integração Pluggy (Open Finance). Fase de teste: SOMENTE o administrador
- * principal. As credenciais ficam nas variáveis de ambiente do servidor
+ * Integração Pluggy (Open Finance). Acesso (07/11/2026): admin do site OU, com o módulo
+ * "open_finance" habilitado, qualquer usuário ativo em um grupo (ver acesso-open-finance.server.ts).
+ * Toda consulta com supabaseAdmin filtra pelo próprio usuário (user_id/created_by). As credenciais ficam nas variáveis de ambiente do servidor
  * (PLUGGY_CLIENT_ID e PLUGGY_CLIENT_SECRET) e nunca vão para o navegador.
  * Aqui só se guarda o id da conexão (item); nenhuma senha bancária passa por nós.
  */
 const BASE = "https://api.pluggy.ai";
 
-async function exigirPrincipal(userId: string) {
-  const { ehAdminPrincipal } = await import("@/lib/conta-exclusao.server");
-  if (!(await ehAdminPrincipal(userId))) throw new Error("Recurso em teste, restrito ao administrador principal.");
+async function exigirAcesso(userId: string) {
+  const { exigirAcessoOpenFinance } = await import("@/lib/acesso-open-finance.server");
+  return exigirAcessoOpenFinance({ userId });
+}
+
+/** A conexão (item) precisa ser do próprio usuário; senão, "não encontrada". */
+async function exigirItemDoUsuario(itemId: string, userId: string) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data } = await (supabaseAdmin as any)
+    .from("pluggy_items")
+    .select("id")
+    .eq("item_id", itemId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (!data) throw new Error("Conexão não encontrada.");
 }
 
 function credenciais() {
@@ -49,7 +62,7 @@ async function pluggy<T>(key: string, caminho: string, init?: RequestInit): Prom
 export const pluggyStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await exigirPrincipal(context.userId);
+    await exigirAcesso(context.userId);
     return { configurado: !!credenciais() };
   });
 
@@ -57,7 +70,7 @@ export const pluggyStatus = createServerFn({ method: "POST" })
 export const pluggyCriarConnectToken = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await exigirPrincipal(context.userId);
+    await exigirAcesso(context.userId);
     const key = await apiKey();
     const j = await pluggy<{ accessToken: string }>(key, "/connect_token", {
       method: "POST",
@@ -72,7 +85,11 @@ export const pluggyRegistrarItem = createServerFn({ method: "POST" })
     z.object({ itemId: z.string().uuid(), conector: z.string().max(120).optional() }).parse(v),
   )
   .handler(async ({ data, context }) => {
-    await exigirPrincipal(context.userId);
+    const acesso = await exigirAcesso(context.userId);
+    const { validarDonoDoItem } = await import("@/lib/acesso-open-finance.server");
+    await validarDonoDoItem(acesso, data.itemId, async (id) =>
+      pluggy<{ clientUserId?: string | null }>(await apiKey(), `/items/${encodeURIComponent(id)}`),
+    );
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await (supabaseAdmin as any).from("pluggy_items").upsert(
       {
@@ -90,7 +107,7 @@ export const pluggyRegistrarItem = createServerFn({ method: "POST" })
 export const pluggyListarItens = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await exigirPrincipal(context.userId);
+    await exigirAcesso(context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data } = await (supabaseAdmin as any)
       .from("pluggy_items")
@@ -105,7 +122,7 @@ export const pluggyEditarItem = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((v: unknown) => z.object({ itemId: z.string().uuid(), nome: z.string().trim().min(1).max(120) }).parse(v))
   .handler(async ({ data, context }) => {
-    await exigirPrincipal(context.userId);
+    await exigirAcesso(context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await (supabaseAdmin as any)
       .from("pluggy_items")
@@ -120,7 +137,7 @@ export const pluggyRemoverItem = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((v: unknown) => z.object({ itemId: z.string().uuid() }).parse(v))
   .handler(async ({ data, context }) => {
-    await exigirPrincipal(context.userId);
+    await exigirAcesso(context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const db = supabaseAdmin as any;
     const { data: meu } = await db
@@ -173,12 +190,13 @@ async function apagarDadosDaConexao(db: any, itemId: string, userId: string) {
   falhou((await db.from("pluggy_sincronizacoes").delete().eq("item_id", itemId).eq("user_id", userId)).error);
 }
 
-/** Sincroniza agora uma conexão (todo o histórico da janela), a pedido do administrador. */
+/** Sincroniza agora uma conexão do próprio usuário (todo o histórico da janela). */
 export const pluggySincronizarAgora = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((v: unknown) => z.object({ itemId: z.string().uuid() }).parse(v))
   .handler(async ({ data, context }) => {
-    await exigirPrincipal(context.userId);
+    await exigirAcesso(context.userId);
+    await exigirItemDoUsuario(data.itemId, context.userId);
     const { sincronizarItem } = await import("@/lib/pluggy-api.server");
     const r = await sincronizarItem(data.itemId);
     return { ok: true as const, transacoes: r.transacoes };
@@ -188,7 +206,7 @@ export const pluggySincronizarAgora = createServerFn({ method: "POST" })
 export const pluggySincronizarTodos = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await exigirPrincipal(context.userId);
+    await exigirAcesso(context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { sincronizarItem } = await import("@/lib/pluggy-api.server");
     const { data: itens } = await (supabaseAdmin as any).from("pluggy_items").select("item_id").eq("user_id", context.userId);
@@ -211,7 +229,7 @@ export const pluggySincronizarTodos = createServerFn({ method: "POST" })
 export const pluggyListarSincronizacoes = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await exigirPrincipal(context.userId);
+    await exigirAcesso(context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data } = await (supabaseAdmin as any)
       .from("pluggy_sincronizacoes")
@@ -226,7 +244,7 @@ export const pluggyListarSincronizacoes = createServerFn({ method: "POST" })
 export const pluggyListarPatrimonio = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await exigirPrincipal(context.userId);
+    await exigirAcesso(context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const db = supabaseAdmin as any;
     const [inv, emp] = await Promise.all([
@@ -240,7 +258,7 @@ export const pluggyListarPatrimonio = createServerFn({ method: "POST" })
 export const pluggyListarContas = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await exigirPrincipal(context.userId);
+    await exigirAcesso(context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const db = supabaseAdmin as any;
     const { data } = await db
@@ -274,7 +292,7 @@ export const pluggyListarContas = createServerFn({ method: "POST" })
 export const pluggyListarImportados = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await exigirPrincipal(context.userId);
+    await exigirAcesso(context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data } = await (supabaseAdmin as any)
       .from("despesas")
@@ -306,7 +324,7 @@ export const pluggyRejeitarLancamento = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((v: unknown) => z.object({ transactionId: z.string().min(1).max(200) }).parse(v))
   .handler(async ({ data, context }) => {
-    await exigirPrincipal(context.userId);
+    await exigirAcesso(context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const db = supabaseAdmin as any;
     const { data: transacao } = await db
@@ -341,7 +359,11 @@ export const pluggyRejeitarLancamento = createServerFn({ method: "POST" })
       const { error } = await db.from("receitas").delete().eq("id", receita.id);
       if (error) throw new Error("Esta entrada já está congelada e não pode ser rejeitada.");
     }
-    await db.from("pluggy_transacoes").update({ rejeitada: true }).eq("transaction_id", data.transactionId);
+    await db
+      .from("pluggy_transacoes")
+      .update({ rejeitada: true })
+      .eq("transaction_id", data.transactionId)
+      .eq("user_id", context.userId);
     return { ok: true as const };
   });
 
@@ -371,7 +393,7 @@ export const pluggyBuscarMovimentos = createServerFn({ method: "POST" })
     z.object({ itemId: z.string().uuid(), dias: z.number().int().min(1).max(90).default(30) }).parse(v),
   )
   .handler(async ({ data, context }) => {
-    await exigirPrincipal(context.userId);
+    await exigirAcesso(context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: meu } = await (supabaseAdmin as any)
       .from("pluggy_items")
@@ -385,7 +407,8 @@ export const pluggyBuscarMovimentos = createServerFn({ method: "POST" })
     await (supabaseAdmin as any)
       .from("pluggy_items")
       .update({ status: item.status ?? null, atualizado_em: new Date().toISOString() })
-      .eq("item_id", data.itemId);
+      .eq("item_id", data.itemId)
+      .eq("user_id", context.userId);
     const contas = await pluggy<{ results: Conta[] }>(key, `/accounts?itemId=${data.itemId}`);
     const de = new Date(Date.now() - data.dias * 86400000).toISOString();
     const saida: { conta: Conta; transacoes: Transacao[] }[] = [];

@@ -26,6 +26,8 @@ import { aplicarRegrasFaturaMes } from "@/lib/fatura-mes";
 import { formatBRL, monthKey, monthLabel, toBRL, competenciaDaReceita, competenciaDoDia, mesDoCiclo } from "@/lib/format";
 import { useCompetenciaVigente } from "@/lib/periodo-vigente";
 import { lancamentosPorCompetencias } from "@/lib/recorrencia";
+import { usePreferencias } from "@/hooks/usePreferencias";
+import { contaComoDespesa } from "@/lib/regras-saldo";
 
 export type OpcaoGrafico = "fluxo" | "saldo" | "categorias";
 
@@ -60,10 +62,15 @@ export function GraficoHome({
     return [-1, 0, 1].map((i) => mesDoCiclo(+ i));
   }, []);
 
+  // 07/11/2026, regra "Somar pagamento de fatura": desligada (padrão), pagamento de fatura fica fora dos totais.
+  const { prefs: prefsSaldo } = usePreferencias();
+  const somarPagamentoFatura = prefsSaldo.somar_pagamento_fatura;
   const parcelas = useMemo(
     () =>
-      aplicarRegrasFaturaMes(lancamentosPorCompetencias(despesas as any[], meses), faturasMes as any[]),
-    [despesas, meses, faturasMes],
+      aplicarRegrasFaturaMes(lancamentosPorCompetencias(despesas as any[], meses), faturasMes as any[]).filter(
+        (p: any) => contaComoDespesa(p.despesa, somarPagamentoFatura),
+      ),
+    [despesas, meses, faturasMes, somarPagamentoFatura],
   );
 
   const serie = useMemo(
