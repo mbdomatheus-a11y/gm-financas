@@ -21,6 +21,7 @@ import { Route as RedefinirSenhaRouteImport } from './routes/redefinir-senha'
 import { Route as SobreRouteImport } from './routes/sobre'
 import { Route as TermosDeUsoRouteImport } from './routes/termos-de-uso'
 import { Route as AuthenticatedAdministracaoRouteImport } from './routes/_authenticated/administracao'
+import { Route as AuthenticatedAjudaRouteImport } from './routes/_authenticated/ajuda'
 import { Route as AuthenticatedAjustesAppRouteImport } from './routes/_authenticated/ajustes-app'
 import { Route as AuthenticatedBackupRouteImport } from './routes/_authenticated/backup'
 import { Route as AuthenticatedCaixinhasRouteImport } from './routes/_authenticated/caixinhas'
@@ -31,6 +32,7 @@ import { Route as AuthenticatedCategoriasRouteImport } from './routes/_authentic
 import { Route as AuthenticatedCompartilharRouteImport } from './routes/_authenticated/compartilhar'
 import { Route as AuthenticatedConfiguracoesRouteImport } from './routes/_authenticated/configuracoes'
 import { Route as AuthenticatedContaRouteImport } from './routes/_authenticated/conta'
+import { Route as AuthenticatedContasRouteImport } from './routes/_authenticated/contas'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedDeParaRouteImport } from './routes/_authenticated/de-para'
 import { Route as AuthenticatedDespesasRouteImport } from './routes/_authenticated/despesas'
@@ -40,8 +42,10 @@ import { Route as AuthenticatedFerramentasRouteImport } from './routes/_authenti
 import { Route as AuthenticatedImportarRouteImport } from './routes/_authenticated/importar'
 import { Route as AuthenticatedInicioRouteImport } from './routes/_authenticated/inicio'
 import { Route as AuthenticatedInvestimentosRouteImport } from './routes/_authenticated/investimentos'
+import { Route as AuthenticatedLimitesRouteImport } from './routes/_authenticated/limites'
 import { Route as AuthenticatedListaComprasRouteImport } from './routes/_authenticated/lista-compras'
 import { Route as AuthenticatedNotasRouteImport } from './routes/_authenticated/notas'
+import { Route as AuthenticatedNotificacoesRouteImport } from './routes/_authenticated/notificacoes'
 import { Route as AuthenticatedNovaSenhaRouteImport } from './routes/_authenticated/nova-senha'
 import { Route as AuthenticatedOndeEstaRouteImport } from './routes/_authenticated/onde-esta'
 import { Route as AuthenticatedParaOndeVaiRouteImport } from './routes/_authenticated/para-onde-vai'
@@ -49,7 +53,9 @@ import { Route as AuthenticatedPersonalizacaoRouteImport } from './routes/_authe
 import { Route as AuthenticatedPetsRouteImport } from './routes/_authenticated/pets'
 import { Route as AuthenticatedPluggyRouteImport } from './routes/_authenticated/pluggy'
 import { Route as AuthenticatedReceitasRouteImport } from './routes/_authenticated/receitas'
+import { Route as AuthenticatedRelatoriosRouteImport } from './routes/_authenticated/relatorios'
 import { Route as AuthenticatedSuporteRouteImport } from './routes/_authenticated/suporte'
+import { Route as AuthenticatedTagsRouteImport } from './routes/_authenticated/tags'
 import { Route as AuthenticatedUsuariosRouteImport } from './routes/_authenticated/usuarios'
 import { Route as AuthenticatedVeiculosRouteImport } from './routes/_authenticated/veiculos'
 import { Route as CalculadorasIndexRouteImport } from './routes/calculadoras/index'
@@ -130,6 +136,11 @@ const AuthenticatedAdministracaoRoute =
     path: '/administracao',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedAjudaRoute = AuthenticatedAjudaRouteImport.update({
+  id: '/ajuda',
+  path: '/ajuda',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedAjustesAppRoute = AuthenticatedAjustesAppRouteImport.update({
   id: '/ajustes-app',
   path: '/ajustes-app',
@@ -182,6 +193,11 @@ const AuthenticatedContaRoute = AuthenticatedContaRouteImport.update({
   path: '/conta',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedContasRoute = AuthenticatedContasRouteImport.update({
+  id: '/contas',
+  path: '/contas',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -229,6 +245,11 @@ const AuthenticatedInvestimentosRoute =
     path: '/investimentos',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedLimitesRoute = AuthenticatedLimitesRouteImport.update({
+  id: '/limites',
+  path: '/limites',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedListaComprasRoute =
   AuthenticatedListaComprasRouteImport.update({
     id: '/lista-compras',
@@ -240,6 +261,12 @@ const AuthenticatedNotasRoute = AuthenticatedNotasRouteImport.update({
   path: '/notas',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedNotificacoesRoute =
+  AuthenticatedNotificacoesRouteImport.update({
+    id: '/notificacoes',
+    path: '/notificacoes',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedNovaSenhaRoute = AuthenticatedNovaSenhaRouteImport.update({
   id: '/nova-senha',
   path: '/nova-senha',
@@ -277,9 +304,19 @@ const AuthenticatedReceitasRoute = AuthenticatedReceitasRouteImport.update({
   path: '/receitas',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedRelatoriosRoute = AuthenticatedRelatoriosRouteImport.update({
+  id: '/relatorios',
+  path: '/relatorios',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedSuporteRoute = AuthenticatedSuporteRouteImport.update({
   id: '/suporte',
   path: '/suporte',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedTagsRoute = AuthenticatedTagsRouteImport.update({
+  id: '/tags',
+  path: '/tags',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedUsuariosRoute = AuthenticatedUsuariosRouteImport.update({
@@ -395,6 +432,7 @@ export interface FileRoutesByFullPath {
   '/sobre': typeof SobreRoute
   '/termos-de-uso': typeof TermosDeUsoRoute
   '/administracao': typeof AuthenticatedAdministracaoRoute
+  '/ajuda': typeof AuthenticatedAjudaRoute
   '/ajustes-app': typeof AuthenticatedAjustesAppRoute
   '/backup': typeof AuthenticatedBackupRoute
   '/caixinhas': typeof AuthenticatedCaixinhasRoute
@@ -405,6 +443,7 @@ export interface FileRoutesByFullPath {
   '/compartilhar': typeof AuthenticatedCompartilharRoute
   '/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/conta': typeof AuthenticatedContaRoute
+  '/contas': typeof AuthenticatedContasRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/de-para': typeof AuthenticatedDeParaRoute
   '/despesas': typeof AuthenticatedDespesasRoute
@@ -414,8 +453,10 @@ export interface FileRoutesByFullPath {
   '/importar': typeof AuthenticatedImportarRoute
   '/inicio': typeof AuthenticatedInicioRoute
   '/investimentos': typeof AuthenticatedInvestimentosRoute
+  '/limites': typeof AuthenticatedLimitesRoute
   '/lista-compras': typeof AuthenticatedListaComprasRoute
   '/notas': typeof AuthenticatedNotasRoute
+  '/notificacoes': typeof AuthenticatedNotificacoesRoute
   '/nova-senha': typeof AuthenticatedNovaSenhaRoute
   '/onde-esta': typeof AuthenticatedOndeEstaRoute
   '/para-onde-vai': typeof AuthenticatedParaOndeVaiRoute
@@ -423,7 +464,9 @@ export interface FileRoutesByFullPath {
   '/pets': typeof AuthenticatedPetsRoute
   '/pluggy': typeof AuthenticatedPluggyRoute
   '/receitas': typeof AuthenticatedReceitasRoute
+  '/relatorios': typeof AuthenticatedRelatoriosRoute
   '/suporte': typeof AuthenticatedSuporteRoute
+  '/tags': typeof AuthenticatedTagsRoute
   '/usuarios': typeof AuthenticatedUsuariosRoute
   '/veiculos': typeof AuthenticatedVeiculosRoute
   '/calculadoras/diferenca-entre-datas': typeof CalculadorasDiferencaEntreDatasRoute
@@ -456,6 +499,7 @@ export interface FileRoutesByTo {
   '/sobre': typeof SobreRoute
   '/termos-de-uso': typeof TermosDeUsoRoute
   '/administracao': typeof AuthenticatedAdministracaoRoute
+  '/ajuda': typeof AuthenticatedAjudaRoute
   '/ajustes-app': typeof AuthenticatedAjustesAppRoute
   '/backup': typeof AuthenticatedBackupRoute
   '/caixinhas': typeof AuthenticatedCaixinhasRoute
@@ -466,6 +510,7 @@ export interface FileRoutesByTo {
   '/compartilhar': typeof AuthenticatedCompartilharRoute
   '/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/conta': typeof AuthenticatedContaRoute
+  '/contas': typeof AuthenticatedContasRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/de-para': typeof AuthenticatedDeParaRoute
   '/despesas': typeof AuthenticatedDespesasRoute
@@ -475,8 +520,10 @@ export interface FileRoutesByTo {
   '/importar': typeof AuthenticatedImportarRoute
   '/inicio': typeof AuthenticatedInicioRoute
   '/investimentos': typeof AuthenticatedInvestimentosRoute
+  '/limites': typeof AuthenticatedLimitesRoute
   '/lista-compras': typeof AuthenticatedListaComprasRoute
   '/notas': typeof AuthenticatedNotasRoute
+  '/notificacoes': typeof AuthenticatedNotificacoesRoute
   '/nova-senha': typeof AuthenticatedNovaSenhaRoute
   '/onde-esta': typeof AuthenticatedOndeEstaRoute
   '/para-onde-vai': typeof AuthenticatedParaOndeVaiRoute
@@ -484,7 +531,9 @@ export interface FileRoutesByTo {
   '/pets': typeof AuthenticatedPetsRoute
   '/pluggy': typeof AuthenticatedPluggyRoute
   '/receitas': typeof AuthenticatedReceitasRoute
+  '/relatorios': typeof AuthenticatedRelatoriosRoute
   '/suporte': typeof AuthenticatedSuporteRoute
+  '/tags': typeof AuthenticatedTagsRoute
   '/usuarios': typeof AuthenticatedUsuariosRoute
   '/veiculos': typeof AuthenticatedVeiculosRoute
   '/calculadoras/diferenca-entre-datas': typeof CalculadorasDiferencaEntreDatasRoute
@@ -519,6 +568,7 @@ export interface FileRoutesById {
   '/sobre': typeof SobreRoute
   '/termos-de-uso': typeof TermosDeUsoRoute
   '/_authenticated/administracao': typeof AuthenticatedAdministracaoRoute
+  '/_authenticated/ajuda': typeof AuthenticatedAjudaRoute
   '/_authenticated/ajustes-app': typeof AuthenticatedAjustesAppRoute
   '/_authenticated/backup': typeof AuthenticatedBackupRoute
   '/_authenticated/caixinhas': typeof AuthenticatedCaixinhasRoute
@@ -529,6 +579,7 @@ export interface FileRoutesById {
   '/_authenticated/compartilhar': typeof AuthenticatedCompartilharRoute
   '/_authenticated/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/_authenticated/conta': typeof AuthenticatedContaRoute
+  '/_authenticated/contas': typeof AuthenticatedContasRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/de-para': typeof AuthenticatedDeParaRoute
   '/_authenticated/despesas': typeof AuthenticatedDespesasRoute
@@ -538,8 +589,10 @@ export interface FileRoutesById {
   '/_authenticated/importar': typeof AuthenticatedImportarRoute
   '/_authenticated/inicio': typeof AuthenticatedInicioRoute
   '/_authenticated/investimentos': typeof AuthenticatedInvestimentosRoute
+  '/_authenticated/limites': typeof AuthenticatedLimitesRoute
   '/_authenticated/lista-compras': typeof AuthenticatedListaComprasRoute
   '/_authenticated/notas': typeof AuthenticatedNotasRoute
+  '/_authenticated/notificacoes': typeof AuthenticatedNotificacoesRoute
   '/_authenticated/nova-senha': typeof AuthenticatedNovaSenhaRoute
   '/_authenticated/onde-esta': typeof AuthenticatedOndeEstaRoute
   '/_authenticated/para-onde-vai': typeof AuthenticatedParaOndeVaiRoute
@@ -547,7 +600,9 @@ export interface FileRoutesById {
   '/_authenticated/pets': typeof AuthenticatedPetsRoute
   '/_authenticated/pluggy': typeof AuthenticatedPluggyRoute
   '/_authenticated/receitas': typeof AuthenticatedReceitasRoute
+  '/_authenticated/relatorios': typeof AuthenticatedRelatoriosRoute
   '/_authenticated/suporte': typeof AuthenticatedSuporteRoute
+  '/_authenticated/tags': typeof AuthenticatedTagsRoute
   '/_authenticated/usuarios': typeof AuthenticatedUsuariosRoute
   '/_authenticated/veiculos': typeof AuthenticatedVeiculosRoute
   '/calculadoras/diferenca-entre-datas': typeof CalculadorasDiferencaEntreDatasRoute
@@ -582,6 +637,7 @@ export interface FileRouteTypes {
     | '/sobre'
     | '/termos-de-uso'
     | '/administracao'
+    | '/ajuda'
     | '/ajustes-app'
     | '/backup'
     | '/caixinhas'
@@ -592,6 +648,7 @@ export interface FileRouteTypes {
     | '/compartilhar'
     | '/configuracoes'
     | '/conta'
+    | '/contas'
     | '/dashboard'
     | '/de-para'
     | '/despesas'
@@ -601,8 +658,10 @@ export interface FileRouteTypes {
     | '/importar'
     | '/inicio'
     | '/investimentos'
+    | '/limites'
     | '/lista-compras'
     | '/notas'
+    | '/notificacoes'
     | '/nova-senha'
     | '/onde-esta'
     | '/para-onde-vai'
@@ -610,7 +669,9 @@ export interface FileRouteTypes {
     | '/pets'
     | '/pluggy'
     | '/receitas'
+    | '/relatorios'
     | '/suporte'
+    | '/tags'
     | '/usuarios'
     | '/veiculos'
     | '/calculadoras/diferenca-entre-datas'
@@ -643,6 +704,7 @@ export interface FileRouteTypes {
     | '/sobre'
     | '/termos-de-uso'
     | '/administracao'
+    | '/ajuda'
     | '/ajustes-app'
     | '/backup'
     | '/caixinhas'
@@ -653,6 +715,7 @@ export interface FileRouteTypes {
     | '/compartilhar'
     | '/configuracoes'
     | '/conta'
+    | '/contas'
     | '/dashboard'
     | '/de-para'
     | '/despesas'
@@ -662,8 +725,10 @@ export interface FileRouteTypes {
     | '/importar'
     | '/inicio'
     | '/investimentos'
+    | '/limites'
     | '/lista-compras'
     | '/notas'
+    | '/notificacoes'
     | '/nova-senha'
     | '/onde-esta'
     | '/para-onde-vai'
@@ -671,7 +736,9 @@ export interface FileRouteTypes {
     | '/pets'
     | '/pluggy'
     | '/receitas'
+    | '/relatorios'
     | '/suporte'
+    | '/tags'
     | '/usuarios'
     | '/veiculos'
     | '/calculadoras/diferenca-entre-datas'
@@ -705,6 +772,7 @@ export interface FileRouteTypes {
     | '/sobre'
     | '/termos-de-uso'
     | '/_authenticated/administracao'
+    | '/_authenticated/ajuda'
     | '/_authenticated/ajustes-app'
     | '/_authenticated/backup'
     | '/_authenticated/caixinhas'
@@ -715,6 +783,7 @@ export interface FileRouteTypes {
     | '/_authenticated/compartilhar'
     | '/_authenticated/configuracoes'
     | '/_authenticated/conta'
+    | '/_authenticated/contas'
     | '/_authenticated/dashboard'
     | '/_authenticated/de-para'
     | '/_authenticated/despesas'
@@ -724,8 +793,10 @@ export interface FileRouteTypes {
     | '/_authenticated/importar'
     | '/_authenticated/inicio'
     | '/_authenticated/investimentos'
+    | '/_authenticated/limites'
     | '/_authenticated/lista-compras'
     | '/_authenticated/notas'
+    | '/_authenticated/notificacoes'
     | '/_authenticated/nova-senha'
     | '/_authenticated/onde-esta'
     | '/_authenticated/para-onde-vai'
@@ -733,7 +804,9 @@ export interface FileRouteTypes {
     | '/_authenticated/pets'
     | '/_authenticated/pluggy'
     | '/_authenticated/receitas'
+    | '/_authenticated/relatorios'
     | '/_authenticated/suporte'
+    | '/_authenticated/tags'
     | '/_authenticated/usuarios'
     | '/_authenticated/veiculos'
     | '/calculadoras/diferenca-entre-datas'
@@ -870,6 +943,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdministracaoRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/ajuda': {
+      id: '/_authenticated/ajuda'
+      path: '/ajuda'
+      fullPath: '/ajuda'
+      preLoaderRoute: typeof AuthenticatedAjudaRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/ajustes-app': {
       id: '/_authenticated/ajustes-app'
       path: '/ajustes-app'
@@ -940,6 +1020,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedContaRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/contas': {
+      id: '/_authenticated/contas'
+      path: '/contas'
+      fullPath: '/contas'
+      preLoaderRoute: typeof AuthenticatedContasRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/dashboard': {
       id: '/_authenticated/dashboard'
       path: '/dashboard'
@@ -1003,6 +1090,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedInvestimentosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/limites': {
+      id: '/_authenticated/limites'
+      path: '/limites'
+      fullPath: '/limites'
+      preLoaderRoute: typeof AuthenticatedLimitesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/lista-compras': {
       id: '/_authenticated/lista-compras'
       path: '/lista-compras'
@@ -1015,6 +1109,13 @@ declare module '@tanstack/react-router' {
       path: '/notas'
       fullPath: '/notas'
       preLoaderRoute: typeof AuthenticatedNotasRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/notificacoes': {
+      id: '/_authenticated/notificacoes'
+      path: '/notificacoes'
+      fullPath: '/notificacoes'
+      preLoaderRoute: typeof AuthenticatedNotificacoesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/nova-senha': {
@@ -1066,11 +1167,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedReceitasRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/relatorios': {
+      id: '/_authenticated/relatorios'
+      path: '/relatorios'
+      fullPath: '/relatorios'
+      preLoaderRoute: typeof AuthenticatedRelatoriosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/suporte': {
       id: '/_authenticated/suporte'
       path: '/suporte'
       fullPath: '/suporte'
       preLoaderRoute: typeof AuthenticatedSuporteRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/tags': {
+      id: '/_authenticated/tags'
+      path: '/tags'
+      fullPath: '/tags'
+      preLoaderRoute: typeof AuthenticatedTagsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/usuarios': {
@@ -1211,6 +1326,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdministracaoRoute: typeof AuthenticatedAdministracaoRoute
+  AuthenticatedAjudaRoute: typeof AuthenticatedAjudaRoute
   AuthenticatedAjustesAppRoute: typeof AuthenticatedAjustesAppRoute
   AuthenticatedBackupRoute: typeof AuthenticatedBackupRoute
   AuthenticatedCaixinhasRoute: typeof AuthenticatedCaixinhasRoute
@@ -1221,6 +1337,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedCompartilharRoute: typeof AuthenticatedCompartilharRoute
   AuthenticatedConfiguracoesRoute: typeof AuthenticatedConfiguracoesRoute
   AuthenticatedContaRoute: typeof AuthenticatedContaRoute
+  AuthenticatedContasRoute: typeof AuthenticatedContasRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDeParaRoute: typeof AuthenticatedDeParaRoute
   AuthenticatedDespesasRoute: typeof AuthenticatedDespesasRoute
@@ -1230,8 +1347,10 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedImportarRoute: typeof AuthenticatedImportarRoute
   AuthenticatedInicioRoute: typeof AuthenticatedInicioRoute
   AuthenticatedInvestimentosRoute: typeof AuthenticatedInvestimentosRoute
+  AuthenticatedLimitesRoute: typeof AuthenticatedLimitesRoute
   AuthenticatedListaComprasRoute: typeof AuthenticatedListaComprasRoute
   AuthenticatedNotasRoute: typeof AuthenticatedNotasRoute
+  AuthenticatedNotificacoesRoute: typeof AuthenticatedNotificacoesRoute
   AuthenticatedNovaSenhaRoute: typeof AuthenticatedNovaSenhaRoute
   AuthenticatedOndeEstaRoute: typeof AuthenticatedOndeEstaRoute
   AuthenticatedParaOndeVaiRoute: typeof AuthenticatedParaOndeVaiRoute
@@ -1239,7 +1358,9 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedPetsRoute: typeof AuthenticatedPetsRoute
   AuthenticatedPluggyRoute: typeof AuthenticatedPluggyRoute
   AuthenticatedReceitasRoute: typeof AuthenticatedReceitasRoute
+  AuthenticatedRelatoriosRoute: typeof AuthenticatedRelatoriosRoute
   AuthenticatedSuporteRoute: typeof AuthenticatedSuporteRoute
+  AuthenticatedTagsRoute: typeof AuthenticatedTagsRoute
   AuthenticatedUsuariosRoute: typeof AuthenticatedUsuariosRoute
   AuthenticatedVeiculosRoute: typeof AuthenticatedVeiculosRoute
   AuthenticatedLinksIdRoute: typeof AuthenticatedLinksIdRoute
@@ -1248,6 +1369,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdministracaoRoute: AuthenticatedAdministracaoRoute,
+  AuthenticatedAjudaRoute: AuthenticatedAjudaRoute,
   AuthenticatedAjustesAppRoute: AuthenticatedAjustesAppRoute,
   AuthenticatedBackupRoute: AuthenticatedBackupRoute,
   AuthenticatedCaixinhasRoute: AuthenticatedCaixinhasRoute,
@@ -1258,6 +1380,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCompartilharRoute: AuthenticatedCompartilharRoute,
   AuthenticatedConfiguracoesRoute: AuthenticatedConfiguracoesRoute,
   AuthenticatedContaRoute: AuthenticatedContaRoute,
+  AuthenticatedContasRoute: AuthenticatedContasRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDeParaRoute: AuthenticatedDeParaRoute,
   AuthenticatedDespesasRoute: AuthenticatedDespesasRoute,
@@ -1267,8 +1390,10 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedImportarRoute: AuthenticatedImportarRoute,
   AuthenticatedInicioRoute: AuthenticatedInicioRoute,
   AuthenticatedInvestimentosRoute: AuthenticatedInvestimentosRoute,
+  AuthenticatedLimitesRoute: AuthenticatedLimitesRoute,
   AuthenticatedListaComprasRoute: AuthenticatedListaComprasRoute,
   AuthenticatedNotasRoute: AuthenticatedNotasRoute,
+  AuthenticatedNotificacoesRoute: AuthenticatedNotificacoesRoute,
   AuthenticatedNovaSenhaRoute: AuthenticatedNovaSenhaRoute,
   AuthenticatedOndeEstaRoute: AuthenticatedOndeEstaRoute,
   AuthenticatedParaOndeVaiRoute: AuthenticatedParaOndeVaiRoute,
@@ -1276,7 +1401,9 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedPetsRoute: AuthenticatedPetsRoute,
   AuthenticatedPluggyRoute: AuthenticatedPluggyRoute,
   AuthenticatedReceitasRoute: AuthenticatedReceitasRoute,
+  AuthenticatedRelatoriosRoute: AuthenticatedRelatoriosRoute,
   AuthenticatedSuporteRoute: AuthenticatedSuporteRoute,
+  AuthenticatedTagsRoute: AuthenticatedTagsRoute,
   AuthenticatedUsuariosRoute: AuthenticatedUsuariosRoute,
   AuthenticatedVeiculosRoute: AuthenticatedVeiculosRoute,
   AuthenticatedLinksIdRoute: AuthenticatedLinksIdRoute,
@@ -1318,13 +1445,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

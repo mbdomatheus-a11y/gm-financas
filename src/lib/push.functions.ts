@@ -34,6 +34,8 @@ export const adminEnviarPush = createServerFn({ method: "POST" })
         alvo: z.union([z.literal("todos"), z.string().uuid()]),
         titulo: z.string().trim().min(2).max(80),
         corpo: z.string().trim().min(2).max(240),
+        /** Ignora o horário de silêncio de quem recebe (padrão false). Quem desligou o push não recebe. */
+        urgente: z.boolean().optional().default(false),
       })
       .parse(v),
   )
@@ -47,11 +49,12 @@ export const adminEnviarPush = createServerFn({ method: "POST" })
       ids = (perfis ?? []).map((p: any) => p.id);
     } else ids = [data.alvo];
     const { enviarPush } = await import("@/lib/push.server");
-    const r = await enviarPush(db, ids, { titulo: data.titulo, corpo: data.corpo, destino: "/" });
+    const r = await enviarPush(db, ids, { titulo: data.titulo, corpo: data.corpo, destino: "/" }, { urgente: data.urgente });
     await db.from("admin_audit_logs").insert({
       ator_id: context.userId,
       acao: "push_enviado",
-      detalhes: { alvo: data.alvo, titulo: data.titulo, enviados: r.enviados, falhas: r.falhas },
+      // ignorados: pessoas sem envio por preferência (push desligado ou horário de silêncio).
+      detalhes: { alvo: data.alvo, titulo: data.titulo, urgente: data.urgente, enviados: r.enviados, falhas: r.falhas, ignorados: r.ignorados ?? 0 },
     });
     return r;
   });

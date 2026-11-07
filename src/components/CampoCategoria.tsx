@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
+import { useCategorias } from "@/hooks/useFinance";
 import { cn } from "@/lib/utils";
 
 /**
@@ -11,7 +12,7 @@ import { cn } from "@/lib/utils";
  * digite "mer" e aparece Mercado (começa com > palavra começa com > contém), Enter escolhe a primeira,
  * cria uma categoria nova com o texto digitado e renomeia uma existente sem sair do formulário.
  */
-export type OpcaoCategoria = { nome: string; cor?: string | null };
+export type OpcaoCategoria = { nome: string; cor?: string | null; oculta?: boolean };
 
 const CORES = ["#0079BF", "#1C985A", "#E08A00", "#8E5CD9", "#D6477E", "#DB2B33", "#005BAA", "#5C7AEA", "#64748B"];
 
@@ -63,17 +64,30 @@ export function CampoCategoria({
   const [salvando, setSalvando] = useState(false);
   const caixa = useRef<HTMLDivElement>(null);
 
+  // 07/11/2026: categorias ocultas (categorias.oculta) somem das opções. Lê a mesma query de
+  // useCategorias (cache compartilhado), porque as telas passam só nome e cor. A categoria já
+  // escolhida no lançamento continua aparecendo, para lançamentos antigos manterem o nome.
+  const { data: doBanco = [] } = useCategorias(tipo ?? "despesa");
+  const ocultas = useMemo(() => {
+    const s = new Set<string>();
+    for (const c of categorias) if (c.oculta) s.add(normalizar(c.nome));
+    if (tipo) for (const c of doBanco as any[]) if (c?.oculta === true) s.add(normalizar(String(c.nome ?? "")));
+    return s;
+  }, [categorias, doBanco, tipo]);
+
   const todas = useMemo(() => {
     const vistas = new Set<string>();
     const out: OpcaoCategoria[] = [];
+    const escolhida = normalizar(valor);
     for (const x of [...categorias.map((k) => ({ ...k, nome: renomes[k.nome] ?? k.nome })), ...extras]) {
       const chave = normalizar(x.nome);
       if (vistas.has(chave)) continue;
+      if (ocultas.has(chave) && chave !== escolhida) continue;
       vistas.add(chave);
       out.push(x);
     }
     return out;
-  }, [categorias, extras, renomes]);
+  }, [categorias, extras, renomes, ocultas, valor]);
 
   const resultados = useMemo(() => buscarCategorias(todas, termo), [todas, termo]);
   const atual = todas.find((x) => x.nome === valor);

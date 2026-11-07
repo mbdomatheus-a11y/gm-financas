@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Bell, BellOff, X } from "lucide-react";
+import { Bell, BellOff, ChevronRight, Settings2, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { alertasDosVeiculos } from "@/lib/veiculo-alertas";
 import { diasRestantes } from "@/lib/nfe";
@@ -18,6 +18,12 @@ import {
   versoesAtivasSite,
 } from "@/lib/comunicados.functions";
 import { useIsSiteAdmin } from "@/hooks/useAuthData";
+import { useAlertasLimites } from "@/hooks/useAlertasLimites";
+import {
+  lembreteLiberado,
+  usePreferenciasNotificacao,
+  type LembreteChave,
+} from "@/hooks/usePreferenciasNotificacao";
 import { useModoCliente } from "@/lib/modo-cliente";
 import {
   agendarLembretesNoApp,
@@ -30,7 +36,7 @@ import {
 type Aviso = {
   chave: string;
   texto: string;
-  destino?: "/notas" | "/veiculos" | "/lista-compras" | "/cartoes" | "/despesas";
+  destino?: "/notas" | "/veiculos" | "/lista-compras" | "/cartoes" | "/despesas" | "/limites";
 };
 
 // Fatura de cartão (fechamento/vencimento, pedido explícito do usuário em
@@ -57,6 +63,13 @@ export function AlertsBell() {
   const { data: isSiteAdminRaw } = useIsSiteAdmin();
   const modoCliente = useModoCliente();
   const isSiteAdminUser = !!isSiteAdminRaw && !modoCliente;
+  // 07/11/2026: preferências de notificação filtram os lembretes locais do app (lidas por ref
+  // dentro da consulta dos alertas; ao mudar, a consulta roda de novo e reagenda).
+  const { prefs: prefsNotif } = usePreferenciasNotificacao();
+  const prefsNotifRef = useRef(prefsNotif);
+  prefsNotifRef.current = prefsNotif;
+  const assinaturaPrefs = JSON.stringify(prefsNotif);
+  const alertasLimites = useAlertasLimites();
   // Dentro do app do iPhone: sem avisos de deploy do site e com botão de testar notificação.
   const [ehApp, setEhApp] = useState(false);
   useEffect(() => {
@@ -89,7 +102,7 @@ export function AlertsBell() {
     queryKey: ["historico-alertas"],
     queryFn: () => historicoFn(),
   });
-  const { data: avisos = [] } = useQuery({
+  const { data: avisos = [], refetch: refetchAvisos } = useQuery({
     queryKey: ["alertas-globais"],
     queryFn: async (): Promise<Aviso[]> => {
       const [veiculos, notas, compras, cartoes, parcelas] = await Promise.all([
@@ -203,20 +216,23 @@ export function AlertsBell() {
       // No app do iPhone: agenda notificações na tela de bloqueio para os próximos vencimentos
       // (funciona com o app fechado, sem servidor de push). No navegador não faz nada.
       if (ehAppNativo()) {
-        const lembretes: LembreteApp[] = [];
+        // Cada lembrete leva a chave de preferência correspondente (null = sem chave em lembretes).
+        // Mapa: fatura vence (véspera/dia) e contas a vencer = despesa_perto_vencer;
+        // fatura fecha hoje = revisar_faturas; garantia de nota fiscal = sem chave.
+        const lembretes: (LembreteApp & { tipo: LembreteChave | null })[] = [];
         const hojeLocal = new Date();
         for (const cartao of cartoes.data ?? []) {
           const nome = cartao.apelido || "cartão";
           if (cartao.dia_vencimento) {
             const venc = proximaVirada(new Date(hojeLocal.getTime() - 86400000), cartao.dia_vencimento);
             lembretes.push(
-              { id: `fatura-${cartao.id}-vespera`, titulo: "Fatura vence amanhã", corpo: `A fatura do ${nome} vence amanhã.`, quando: momentoLembrete(venc, 9, 1), destino: "/despesas" },
-              { id: `fatura-${cartao.id}-dia`, titulo: "Fatura vence hoje", corpo: `A fatura do ${nome} vence hoje.`, quando: momentoLembrete(venc, 9, 0), destino: "/despesas" },
+              { id: `fatura-${cartao.id}-vespera`, titulo: "Fatura vence amanhã", corpo: `A fatura do ${nome} vence amanhã.`, quando: momentoLembrete(venc, 9, 1), destino: "/despesas", tipo: "despesa_perto_vencer" },
+              { id: `fatura-${cartao.id}-dia`, titulo: "Fatura vence hoje", corpo: `A fatura do ${nome} vence hoje.`, quando: momentoLembrete(venc, 9, 0), destino: "/despesas", tipo: "despesa_perto_vencer" },
             );
           }
           if (cartao.dia_fechamento) {
             const fecha = proximaVirada(new Date(hojeLocal.getTime() - 86400000), cartao.dia_fechamento);
-            lembretes.push({ id: `fechamento-${cartao.id}`, titulo: "Fatura fecha hoje", corpo: `A fatura do ${nome} fecha hoje. Compras a partir de agora vão para a próxima.`, quando: momentoLembrete(fecha, 9, 0), destino: "/despesas" });
+            lembretes.push({ id: `fechamento-${cartao.id}`, titulo: "Fatura fecha hoje", corpo: `A fatura do ${nome} fecha hoje. Compras a partir de agora vão para a próxima.`, quando: momentoLembrete(fecha, 9, 0), destino: "/despesas", tipo: "revisar_faturas" });
           }
         }
         // Contas fora do cartão (o cartão já é avisado pela fatura), agrupadas por dia.
@@ -230,23 +246,36 @@ export function AlertsBell() {
         for (const [dia, nomes] of porDia) {
           const resumo = nomes.length === 1 ? nomes[0]! : `${nomes.length} contas (${nomes.slice(0, 3).join(", ")}${nomes.length > 3 ? "…" : ""})`;
           lembretes.push(
-            { id: `contas-${dia}-vespera`, titulo: "Conta vence amanhã", corpo: `${resumo} vence amanhã.`, quando: momentoLembrete(dia, 9, 1), destino: "/despesas" },
-            { id: `contas-${dia}-dia`, titulo: "Conta vence hoje", corpo: `${resumo} vence hoje.`, quando: momentoLembrete(dia, 9, 0), destino: "/despesas" },
+            { id: `contas-${dia}-vespera`, titulo: "Conta vence amanhã", corpo: `${resumo} vence amanhã.`, quando: momentoLembrete(dia, 9, 1), destino: "/despesas", tipo: "despesa_perto_vencer" },
+            { id: `contas-${dia}-dia`, titulo: "Conta vence hoje", corpo: `${resumo} vence hoje.`, quando: momentoLembrete(dia, 9, 0), destino: "/despesas", tipo: "despesa_perto_vencer" },
           );
         }
         for (const nota of notas.data ?? []) {
           if (!nota.garantia_fim) continue;
           const nome = nota.estabelecimento ?? nota.descricao ?? "compra";
-          lembretes.push({ id: `garantia-${nota.id}`, titulo: "Garantia termina em 7 dias", corpo: `A garantia de ${nome} termina em 7 dias.`, quando: momentoLembrete(nota.garantia_fim, 9, 7), destino: "/notas" });
+          lembretes.push({ id: `garantia-${nota.id}`, titulo: "Garantia termina em 7 dias", corpo: `A garantia de ${nome} termina em 7 dias.`, quando: momentoLembrete(nota.garantia_fim, 9, 7), destino: "/notas", tipo: null });
         }
-        agendarLembretesNoApp(lembretes);
+        const prefsAgora = prefsNotifRef.current;
+        agendarLembretesNoApp(
+          lembretes
+            .filter((l) => lembreteLiberado(prefsAgora, l.tipo, l.quando))
+            .map(({ tipo: _tipo, ...l }) => l),
+        );
       }
       return alertas.slice(0, 50);
     },
     refetchInterval: 60_000,
   });
+  // Preferências mudaram: refaz a consulta para reagendar os lembretes do app com o filtro novo.
+  const primeiraAssinatura = useRef(assinaturaPrefs);
+  useEffect(() => {
+    if (primeiraAssinatura.current === assinaturaPrefs) return;
+    primeiraAssinatura.current = assinaturaPrefs;
+    if (ehAppNativo()) void refetchAvisos();
+  }, [assinaturaPrefs, refetchAvisos]);
   const avisosComVersao: Aviso[] = [
     ...avisos,
+    ...alertasLimites,
     ...(ehApp ? [] : versoes).map((v: any) => ({
       chave: `versao:${v.versao}`,
       texto: `Nova versão publicada: build ${v.versao} · ${new Date(v.build_em ?? v.criado_em).toLocaleString("pt-BR")}`,
@@ -341,7 +370,7 @@ export function AlertsBell() {
       <PopoverContent align="end" sideOffset={8} className="flex max-h-[28rem] w-80 flex-col overflow-hidden rounded-2xl border bg-background/95 shadow-lg backdrop-blur-xl p-2">
         <div className="flex items-center justify-between px-3 pb-1 pt-2">
           <p className="text-sm font-semibold">
-            Alertas <span className="font-normal tabular-nums text-muted-foreground">{visiveis.length}</span>
+            Notificações <span className="font-normal tabular-nums text-muted-foreground">{visiveis.length}</span>
           </p>
           {visiveis.length > 0 && (
             <button
@@ -360,11 +389,11 @@ export function AlertsBell() {
           <div className="flex flex-wrap gap-4 px-3 pb-2 text-xs">
             {naoLidos.length > 0 && (
               <button type="button" className="rounded-md text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50" onClick={() => void marcarLidos(visiveis)}>
-                Marcar todos como lidos
+                Marcar todas como lidas
               </button>
             )}
             <button type="button" className="rounded-md text-destructive hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50" onClick={() => confirmarLimpeza(visiveis)}>
-              Limpar todos
+              Limpar tudo
             </button>
           </div>
         )}
@@ -374,7 +403,7 @@ export function AlertsBell() {
               <span className="flex size-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
                 <BellOff className="size-4.5" aria-hidden="true" />
               </span>
-              <p className="text-sm text-muted-foreground">Nenhum alerta no momento.</p>
+              <p className="text-sm text-muted-foreground">Nenhuma notificação por enquanto</p>
             </div>
           ) : (
             visiveis.map((aviso) => {
@@ -476,6 +505,15 @@ export function AlertsBell() {
             ))}
           </>
         )}
+        <Link
+          to="/notificacoes"
+          onClick={() => setAberto(false)}
+          className="mt-2 flex min-h-10 shrink-0 items-center gap-2 rounded-xl border-t px-3 pt-2 text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+        >
+          <Settings2 className="size-4" aria-hidden="true" />
+          <span className="flex-1">Preferências de notificação</span>
+          <ChevronRight className="size-4" aria-hidden="true" />
+        </Link>
       </PopoverContent>
     </Popover>
   );

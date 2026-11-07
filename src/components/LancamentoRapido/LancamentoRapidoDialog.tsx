@@ -20,10 +20,16 @@ import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { useContasComSaldo } from "@/hooks/useContas";
+import { definirTagsDoLancamento, useTags } from "@/hooks/useTags";
+import { SeletorTags } from "@/components/SeletorTags";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Field } from "@/routes/_authenticated/receitas";
 
@@ -60,7 +66,7 @@ import { obterModoIaLancamento } from "@/lib/ia-lancamento-modo.functions";
  * `claude/plano-fase2-lancamento-2026-10-02.md` (Frente 1). */
 const LIMITE_GRAVACAO_MS = 60_000;
 
-type FormaPagamento = "nenhum" | `cartao:${string}` | `banco:${string}`;
+type FormaPagamento = "nenhum" | `cartao:${string}` | `banco:${string}` | `conta:${string}`;
 
 type FormConfirma = {
   tipo: "despesa" | "receita";
@@ -74,6 +80,8 @@ type FormConfirma = {
   responsavel: string;
   pagamento: FormaPagamento;
   parcelas: string;
+  /** Despesa parcelada: true = o valor digitado é o da parcela (total = parcela x parcelas). */
+  informarParcela: boolean;
 };
 
 function formVazio(hoje: string, responsavelPadrao: string): FormConfirma {
@@ -87,6 +95,7 @@ function formVazio(hoje: string, responsavelPadrao: string): FormConfirma {
     responsavel: responsavelPadrao,
     pagamento: "nenhum",
     parcelas: "1",
+    informarParcela: false,
   };
 }
 
@@ -223,6 +232,11 @@ export function LancamentoRapidoDialog({
     formVazio(hoje, nomeUsuarioAtual ?? RESPONSAVEIS_EXTRA),
   );
   const [duplicata, setDuplicata] = useState<any | null>(null);
+  // 07/11/2026: contas bancárias no seletor de pagamento e tags no lançamento rápido.
+  const contasPg = useContasComSaldo(receitasExistentes as any, despesasExistentes as any);
+  const contasDisponiveis = contasPg.tabelaPendente ? [] : contasPg.linhas;
+  const { tabelaPendente: tagsPendentes } = useTags();
+  const [tagsForm, setTagsForm] = useState<string[]>([]);
 
   const [perguntaResumo, setPerguntaResumo] = useState("");
   const [respostaResumo, setRespostaResumo] = useState<string | null>(null);
@@ -243,6 +257,7 @@ export function LancamentoRapidoDialog({
     setRespostaResumo(null);
     setTextoLiberadoPorAudio(false);
     setDuplicata(null);
+    setTagsForm([]);
   }
 
   function fechar() {
@@ -428,6 +443,8 @@ export function LancamentoRapidoDialog({
           ? (`banco:${(bancoAchado as any).id}` as FormaPagamento)
           : "nenhum",
       parcelas: draft.parcelas ? String(draft.parcelas) : "1",
+      // A IA entende o valor como total da compra.
+      informarParcela: false,
     });
   }
 
@@ -447,17 +464,23 @@ export function LancamentoRapidoDialog({
     );
   }, [despesasExistentes, receitasExistentes, form.tipo, form.valor, form.data]);
 
-  function tentarSalvar() {
+  function tentarSalvar(continuar = false) {
     if (possivelDuplicata && !duplicata) {
       setDuplicata(possivelDuplicata);
       return;
     }
-    salvar.mutate();
+    salvar.mutate({ continuar });
   }
 
   const salvar = useMutation({
-    mutationFn: async () => {
-      const valorNum = Number(form.valor.replace(",", "."));
+    mutationFn: async (_opcoes?: { continuar?: boolean }) => {
+      const valorDigitado = Number(form.valor.replace(",", "."));
+      const parcelasForm = Math.max(1, Number(form.parcelas) || 1);
+      // Switch "Informar valor da parcela": converte para o total antes de gravar.
+      const valorNum =
+        form.tipo === "despesa" && form.informarParcela && parcelasForm > 1
+          ? Number((valorDigitado * parcelasForm).toFixed(2))
+          : valorDigitado;
       if (!form.descricao.trim()) throw new Error("Informe a descrição.");
       if (!Number.isFinite(valorNum) || valorNum <= 0) throw new Error("Informe um valor válido.");
       if (!form.data) throw new Error("Informe a data.");
@@ -465,6 +488,10 @@ export function LancamentoRapidoDialog({
       const [tipoPg, idPg] = form.pagamento.split(":");
       const cartao_id = tipoPg === "cartao" ? (idPg ?? null) : null;
       const banco_id = tipoPg === "banco" ? (idPg ?? null) : null;
+      // conta_id só vai no payload com conta escolhida e módulo Contas disponível.
+      const vinculoConta: { conta_id?: string } =
+        tipoPg === "conta" && idPg && !contasPg.tabelaPendente ? { conta_id: idPg } : {};
+      let lancamentoId: string | null = null;
 
       if (form.tipo === "despesa") {
         const totalParcelas = Math.max(1, Number(form.parcelas) || 1);
@@ -483,11 +510,13 @@ export function LancamentoRapidoDialog({
             responsavel: form.responsavel,
             cartao_id,
             banco_id,
+            ...vinculoConta,
             created_by: user?.id ?? null,
-          })
+          } as any)
           .select()
           .single();
         if (error) throw error;
+        lancamentoId = despesa.id;
 
         const base = new Date(`${form.data}T12:00:00`);
         const parcelas = dividirParcelas(valorNum, totalParcelas).map((valor, i) => ({
@@ -502,7 +531,7 @@ export function LancamentoRapidoDialog({
         const { error: e2 } = await supabase.from("parcelas").insert(parcelas);
         if (e2) throw e2;
       } else {
-        const { error } = await supabase.from("receitas").insert({
+        const { data: receita, error } = await supabase.from("receitas").insert({
           descricao: form.descricao.trim(),
           observacoes: form.observacao.trim() || null,
           valor: valorNum,
@@ -511,13 +540,22 @@ export function LancamentoRapidoDialog({
           data_recebimento: form.data,
           recorrente: false,
           responsavel: form.responsavel,
+          ...vinculoConta,
           created_by: user?.id ?? null,
-        });
+        } as any).select("id").single();
         if (error) throw error;
+        lancamentoId = receita?.id ?? null;
+      }
+      // Tags: gravadas depois do lançamento salvo. Falha aqui não desfaz o lançamento.
+      if (lancamentoId && tagsForm.length && !tagsPendentes) {
+        try {
+          await definirTagsDoLancamento(form.tipo, lancamentoId, tagsForm);
+        } catch {
+          toast.error("Lançamento salvo, mas as tags não foram gravadas.");
+        }
       }
     },
-    onSuccess: () => {
-      toast.success(form.tipo === "despesa" ? "Despesa lançada" : "Receita lançada");
+    onSuccess: (_r, opcoes) => {
       registrarNoHistorico(
         "lancamento",
         texto.trim() || form.descricao,
@@ -526,6 +564,23 @@ export function LancamentoRapidoDialog({
       qc.invalidateQueries({ queryKey: ["despesas"] });
       qc.invalidateQueries({ queryKey: ["parcelas"] });
       qc.invalidateQueries({ queryKey: ["receitas"] });
+      if (opcoes?.continuar) {
+        // "Salvar e adicionar outro": mantém tipo, data, conta/cartão, categoria e responsável.
+        toast.success("Salvo. Pode lançar o próximo.");
+        setTexto("");
+        setDuplicata(null);
+        setTagsForm([]);
+        setForm((f) => ({
+          ...formVazio(hoje, f.responsavel),
+          tipo: f.tipo,
+          data: f.data,
+          pagamento: f.pagamento,
+          categoria: f.categoria,
+          informarParcela: f.informarParcela,
+        }));
+        return;
+      }
+      toast.success(form.tipo === "despesa" ? "Despesa lançada" : "Receita lançada");
       fechar();
     },
     onError: (e: any) => {
@@ -874,6 +929,7 @@ export function LancamentoRapidoDialog({
                           max={60}
                           value={form.parcelas}
                           onChange={(e) => setForm({ ...form, parcelas: e.target.value })}
+                          aria-label="Parcelas"
                         />
                       ) : (
                         <Select
@@ -895,6 +951,24 @@ export function LancamentoRapidoDialog({
                       )}
                     </Field>
                   </div>
+
+                  {form.tipo === "despesa" && Number(form.parcelas) > 1 && (
+                    <div className="flex items-center justify-between gap-3 rounded-2xl bg-muted px-3 py-2">
+                      <div>
+                        <p className="text-sm font-medium">Informar valor da parcela</p>
+                        <p className="text-xs text-muted-foreground">
+                          {form.informarParcela
+                            ? "O valor digitado é o de cada parcela. O total é parcela x parcelas."
+                            : "O valor digitado é o total, dividido nas parcelas."}
+                        </p>
+                      </div>
+                      <Switch
+                        checked={form.informarParcela}
+                        onCheckedChange={(v) => setForm({ ...form, informarParcela: v })}
+                        aria-label="Informar valor da parcela"
+                      />
+                    </div>
+                  )}
 
                   {form.tipo === "despesa" && (
                     <Field label="Responsável">
@@ -926,7 +1000,9 @@ export function LancamentoRapidoDialog({
                         <SelectValue placeholder="Selecione" />
                       </SelectTrigger>
                       <SelectContent>
-                        {(form.tipo === "despesa" ? categoriasDespesa : categoriasReceita).map(
+                        {(form.tipo === "despesa" ? categoriasDespesa : categoriasReceita)
+                          .filter((c: any) => c.oculta !== true || c.nome === form.categoria)
+                          .map(
                           (c: any) => (
                             <SelectItem key={c.id} value={c.nome}>
                               {c.nome}
@@ -938,7 +1014,7 @@ export function LancamentoRapidoDialog({
                   </Field>
 
                   {form.tipo === "despesa" && (
-                    <Field label="Forma de pagamento (opcional)">
+                    <Field label={contasDisponiveis.length ? "Conta ou cartão (opcional)" : "Forma de pagamento (opcional)"}>
                       <Select
                         value={form.pagamento}
                         onValueChange={(v) => setForm({ ...form, pagamento: v as FormaPagamento })}
@@ -948,18 +1024,65 @@ export function LancamentoRapidoDialog({
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="nenhum">Pix / dinheiro / não informado</SelectItem>
-                          {cartoes.map((c: any) => (
-                            <SelectItem key={c.id} value={`cartao:${c.id}`}>
-                              {c.apelido || "Cartão"} {c.final ? `•${c.final}` : ""}
-                            </SelectItem>
-                          ))}
-                          {bancos.map((b: any) => (
-                            <SelectItem key={b.id} value={`banco:${b.id}`}>
-                              {b.nome}
+                          {contasDisponiveis.length > 0 && (
+                            <SelectGroup>
+                              <SelectLabel>Contas</SelectLabel>
+                              {contasDisponiveis.map(({ conta }) => (
+                                <SelectItem key={conta.id} value={`conta:${conta.id}`}>
+                                  {conta.nome}
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                          )}
+                          <SelectGroup>
+                            {contasDisponiveis.length > 0 && cartoes.length > 0 && (
+                              <SelectLabel>Cartões</SelectLabel>
+                            )}
+                            {cartoes.map((c: any) => (
+                              <SelectItem key={c.id} value={`cartao:${c.id}`}>
+                                {c.apelido || "Cartão"} {c.final ? `•${c.final}` : ""}
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                          <SelectGroup>
+                            {contasDisponiveis.length > 0 && bancos.length > 0 && (
+                              <SelectLabel>Bancos</SelectLabel>
+                            )}
+                            {bancos.map((b: any) => (
+                              <SelectItem key={b.id} value={`banco:${b.id}`}>
+                                {b.nome}
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                  )}
+
+                  {form.tipo === "receita" && contasDisponiveis.length > 0 && (
+                    <Field label="Conta de destino (opcional)">
+                      <Select
+                        value={form.pagamento.startsWith("conta:") ? form.pagamento : "nenhum"}
+                        onValueChange={(v) => setForm({ ...form, pagamento: v as FormaPagamento })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="nenhum">Não informar</SelectItem>
+                          {contasDisponiveis.map(({ conta }) => (
+                            <SelectItem key={conta.id} value={`conta:${conta.id}`}>
+                              {conta.nome}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
+                    </Field>
+                  )}
+
+                  {!tagsPendentes && (
+                    <Field label="Tags (opcional)">
+                      <SeletorTags valor={tagsForm} onChange={setTagsForm} />
                     </Field>
                   )}
                 </div>
@@ -973,7 +1096,12 @@ export function LancamentoRapidoDialog({
             Cancelar
           </Button>
           {modo === "lancar" && mostrarFormulario && (
-            <Button onClick={tentarSalvar} disabled={salvar.isPending}>
+            <Button variant="outline" onClick={() => tentarSalvar(true)} disabled={salvar.isPending}>
+              Salvar e adicionar outro
+            </Button>
+          )}
+          {modo === "lancar" && mostrarFormulario && (
+            <Button onClick={() => tentarSalvar()} disabled={salvar.isPending}>
               {salvar.isPending ? <Loader2 className="size-4 animate-spin" /> : null}
               {duplicata ? "Salvar mesmo assim" : "Salvar lançamento"}
             </Button>

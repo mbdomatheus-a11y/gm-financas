@@ -11,6 +11,9 @@ import { AssistenteHome } from "@/components/AssistenteHome";
 import { BetaTestFlight } from "@/components/BetaTestFlight";
 import { PerguntaFechamento } from "@/components/PerguntaFechamento";
 import { InstalarAppCartao } from "@/components/retencao/InstalarApp";
+import { PrimeirosPassos as PrimeirosPassosCard } from "@/components/PrimeirosPassos";
+import { MinhasContasCard } from "@/components/MinhasContasCard";
+import { LimitesResumoCard } from "@/components/LimitesResumoCard";
 import { useProfile } from "@/hooks/useAuthData";
 
 export const Route = createFileRoute("/_authenticated/inicio")({
@@ -48,12 +51,15 @@ function InicioPage() {
       <div data-entrada className="space-y-6">
         <ModoClienteControle />
         <AcoesRapidas />
+        <PrimeirosPassosCard />
         <PerguntaFechamento />
         {/* Duas colunas no computador: previsão em destaque e, ao lado, assistente e revisões */}
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)] xl:items-start">
           <ResumoPrevisaoHome className="overflow-hidden" />
           <div className="space-y-6 xl:sticky xl:top-24">
             <AssistenteHome />
+            <MinhasContasCard />
+            <LimitesResumoCard />
             <SugestoesEconomia className="overflow-hidden" />
           </div>
         </div>

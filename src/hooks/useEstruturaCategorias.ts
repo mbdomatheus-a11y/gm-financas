@@ -42,6 +42,17 @@ export function useEstruturaCategorias(tipo: "receita" | "despesa" = "despesa") 
 
   const macros = useMemo(() => new Set(estrutura.map((e) => e.macro)), [estrutura]);
 
+  // 07/11/2026: estrutura para SELETORES de lançamento, sem as macros marcadas como ocultas
+  // (categorias.oculta). A tela de Categorias e os relatórios seguem usando `estrutura` completa.
+  const estruturaSelecao: MacroEstrutura[] = useMemo(() => {
+    const norm = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim().toLowerCase();
+    const ocultas = new Set(
+      (categorias as any[]).filter((c) => c?.oculta === true).map((c) => norm(String(c.nome ?? ""))),
+    );
+    if (ocultas.size === 0) return estrutura;
+    return estrutura.filter((e) => !ocultas.has(norm(e.macro)));
+  }, [estrutura, categorias]);
+
   const criarSubcategoria = useMutation({
     mutationFn: async ({ categoria, nome }: { categoria: string; nome: string }) => {
       const limpo = nome.replace(/\s+/g, " ").trim();
@@ -65,6 +76,7 @@ export function useEstruturaCategorias(tipo: "receita" | "despesa" = "despesa") 
 
   return {
     estrutura,
+    estruturaSelecao,
     macros,
     subcategorias,
     macroDe: (nome: string | null | undefined) => macroDe(nome, macros),

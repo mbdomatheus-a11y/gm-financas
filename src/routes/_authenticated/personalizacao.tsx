@@ -5,7 +5,8 @@ import { toast } from "sonner";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { usePreferencias } from "@/hooks/usePreferencias";
+import { Switch } from "@/components/ui/switch";
+import { usePreferencias, type ChaveRegraSaldo } from "@/hooks/usePreferencias";
 
 export const Route = createFileRoute("/_authenticated/personalizacao")({
   head: () => ({
@@ -51,11 +52,44 @@ const LAYOUTS = [
   { id: "superior", label: "Menu superior" },
 ];
 
+/** Regras de saldo (07/11/2026): o que entra nos totais de saldo e nas previsões. */
+const REGRAS_SALDO: { chave: ChaveRegraSaldo; titulo: string; detalhe: string }[] = [
+  {
+    chave: "somar_transferencias",
+    titulo: "Somar transferências",
+    detalhe: "Dinheiro movido entre suas contas entra no saldo. Desligado, não muda o total.",
+  },
+  {
+    chave: "somar_pagamento_fatura",
+    titulo: "Somar pagamento de fatura",
+    detalhe: "Conta o pagamento da fatura como saída. Desligado, só as compras do cartão contam.",
+  },
+  {
+    chave: "mostrar_fatura_aberta",
+    titulo: "Mostrar fatura aberta",
+    detalhe: "Inclui na previsão a fatura que ainda não fechou, com as compras feitas até agora.",
+  },
+  {
+    chave: "somar_investimentos",
+    titulo: "Somar investimentos",
+    detalhe: "Aportes e resgates entram no saldo. Desligado, ficam só na tela de investimentos.",
+  },
+];
+
 function PersonalizacaoPage() {
   const { prefs, save } = usePreferencias();
 
   const aplicar = (values: Record<string, string>) =>
     save.mutate(values, { onSuccess: () => toast.success("Preferências salvas") });
+
+  const aplicarRegra = (chave: ChaveRegraSaldo, valor: boolean) =>
+    save.mutate(
+      { [chave]: valor },
+      {
+        onSuccess: () => toast.success("Preferências salvas"),
+        onError: (e) => toast.error(e instanceof Error ? e.message : "Não consegui salvar. Tente de novo."),
+      },
+    );
 
   return (
     <AppLayout title="Personalização" description="Ajuste a aparência do aplicativo">
@@ -147,6 +181,30 @@ function PersonalizacaoPage() {
           </CardContent>
         </Card>
       </div>
+
+      <section className="mt-8 max-w-2xl">
+        <h2 className="mb-2 px-4 text-sm font-semibold text-muted-foreground">Saldos e valores</h2>
+        <div className="divide-y overflow-hidden rounded-3xl border bg-card">
+          {REGRAS_SALDO.map((r) => (
+            <div key={r.chave} className="flex min-h-14 items-center gap-4 px-5 py-3">
+              <label htmlFor={`regra-${r.chave}`} className="min-w-0 flex-1">
+                <span className="block text-sm font-medium">{r.titulo}</span>
+                <span className="block text-xs text-muted-foreground">{r.detalhe}</span>
+              </label>
+              <Switch
+                id={`regra-${r.chave}`}
+                className="shrink-0"
+                checked={prefs[r.chave]}
+                disabled={save.isPending}
+                onCheckedChange={(v) => aplicarRegra(r.chave, v)}
+              />
+            </div>
+          ))}
+        </div>
+        <p className="mt-2 px-4 text-xs text-muted-foreground">
+          Vale para os seus relatórios e previsões. Os lançamentos não mudam.
+        </p>
+      </section>
     </AppLayout>
   );
 }

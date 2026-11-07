@@ -152,7 +152,15 @@ function competenciaDaData(iso: string, diaVirada?: number | null): string {
 }
 
 export function calcularPrevisaoMes(
-  dados: { despesas: any[]; receitas: any[]; faturas: any[]; cotacao: any; cartoes?: any[] },
+  dados: {
+    despesas: any[];
+    receitas: any[];
+    faturas: any[];
+    cotacao: any;
+    cartoes?: any[];
+    /** 07/11/2026, regra "Mostrar fatura aberta": false tira a estimativa das faturas abertas. Padrão true. */
+    mostrarFaturaAberta?: boolean;
+  },
   mes: string,
   metaPoupar = 0,
   diaVirada?: number | null,
@@ -197,7 +205,7 @@ export function calcularPrevisaoMes(
   // entra pela média das últimas faturas do cartão, no lugar do que já foi lançado. Quando o usuário informa o
   // total, ou a fatura fecha, vale o valor real. A estimativa só existe com pelo menos 2 faturas no histórico.
   const estimativas: EstimativaFatura[] = [];
-  if (!encerrado && Array.isArray(dados.cartoes)) {
+  if (!encerrado && Array.isArray(dados.cartoes) && dados.mostrarFaturaAberta !== false) {
     const noCiclo = new Set(datas);
     const soma = (lista: any[], dias: Set<string>) =>
       lista.reduce((s, p) => (dias.has(String(p.vencimento ?? "").slice(0, 10)) ? s + v(p) : s), 0);

@@ -5,6 +5,7 @@ import {
   FileHeart,
   FolderOpen,
   HeartHandshake,
+  Landmark,
   Link2,
   MapPin,
   PawPrint,
@@ -70,6 +71,14 @@ export const MODULOS_INFO = {
     titulo: "Calculadoras",
     descricao: "Datas, horários, doses e link temporário.",
     icon: Calculator,
+  },
+  // 07/11/2026: desligado por padrão (modulos_globais.habilitado = false). Fica fora das áreas
+  // até ser liberado; a rota /pluggy só abre com o módulo habilitado (admin continua vendo).
+  open_finance: {
+    to: "/pluggy",
+    titulo: "Open Finance",
+    descricao: "Conecte seus bancos e importe transações automaticamente. Em breve.",
+    icon: Landmark,
   },
 } as const satisfies Record<
   ModuloGlobal,

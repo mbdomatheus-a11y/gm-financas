@@ -74,10 +74,16 @@ import {
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { useContasComSaldo } from "@/hooks/useContas";
+import { definirTagsDoLancamento, useTags, useTagsDoLancamento } from "@/hooks/useTags";
+import { SeletorTags } from "@/components/SeletorTags";
 import { supabase } from "@/integrations/supabase/client";
 import {
   RESPONSAVEIS_EXTRA,
@@ -179,6 +185,8 @@ function novoForm(tipo: "fixa" | "variavel") {
     responsavel: "",
     observacoes: "",
     economia_conquistada: false,
+    // Variável parcelada: true = o valor digitado é o da parcela (total = parcela x parcelas).
+    informar_parcela: true,
     recorrencia_duracao: "sem_prazo",
     recorrencia_meses: "12",
     reajuste_tipo: "nenhum",
@@ -228,6 +236,15 @@ function DespesasPage() {
   const [idsExcluidosSimulacao, setIdsExcluidosSimulacao] = useState<Set<string>>(new Set());
   const [form, setForm] = useState<any>(novoForm("fixa"));
   const [duplicata, setDuplicata] = useState<any | null>(null);
+  // 07/11/2026: "Conta ou cartão" (contas bancárias do módulo Contas) e tags no formulário.
+  const contasPg = useContasComSaldo(receitas as any, despesas as any);
+  const contasDisponiveis = contasPg.tabelaPendente ? [] : contasPg.linhas;
+  const { tabelaPendente: tagsPendentes } = useTags();
+  const [tagsForm, setTagsForm] = useState<string[]>([]);
+  const tagsAtuais = useTagsDoLancamento("despesa", editId);
+  useEffect(() => {
+    if (editId && tagsAtuais.data) setTagsForm(tagsAtuais.data);
+  }, [editId, tagsAtuais.data]);
   const [busca, setBusca] = useState(search.busca ?? "");
   // `mes=todos` na URL (ex.: vindo do card "Dívida total em aberto" do
   // dashboard) abre a página já mostrando a dívida completa, não só a do
@@ -354,8 +371,15 @@ function DespesasPage() {
 
   const nParcelas = ehFixa ? Math.max(1, projecao.length) : parcelasInformadas;
   // Fixa: o valor gravado é o valor mensal. Variável: valor da parcela x parcelas.
-  const valorNum = ehFixa ? valorDigitado : Number((valorDigitado * nParcelas).toFixed(2));
-  const previewParcela = valorDigitado;
+  // Switch "Informar valor da parcela" desligado: o valor digitado já é o total da compra.
+  const informarParcela = form.informar_parcela !== false;
+  const valorNum = ehFixa
+    ? valorDigitado
+    : informarParcela
+      ? Number((valorDigitado * nParcelas).toFixed(2))
+      : valorDigitado;
+  const previewParcela =
+    ehFixa || informarParcela ? valorDigitado : Number((valorDigitado / nParcelas).toFixed(2));
   const ultimaCompetencia = projecao.at(-1);
 
   const possivelDuplicata = useMemo(() => {
@@ -372,6 +396,7 @@ function DespesasPage() {
           86400000;
         const mesmoPagamento =
           (tipoPg === "cartao" && d.cartao_id === idPg) ||
+          (tipoPg === "conta" && d.conta_id === idPg) ||
           (tipoPg === "banco" && d.banco_id === idPg);
         return (mesmaDescricao || valorProximo) && diffDias <= 3 && (mesmoPagamento || !idPg);
       }) ?? null
@@ -382,6 +407,7 @@ function DespesasPage() {
     if (!search.novo) return;
     setEditId(null);
     setForm(novoForm(tab === "fixa" ? "fixa" : "variavel"));
+    setTagsForm([]);
     setOpen(true);
     void navigate({
       search: (p: Record<string, unknown>) => {
@@ -397,6 +423,7 @@ function DespesasPage() {
     setEditId(null);
     setForm(novoForm(tab === "fixa" ? "fixa" : "variavel"));
     setDuplicata(null);
+    setTagsForm([]);
     setOpen(true);
   }
 
@@ -404,6 +431,7 @@ function DespesasPage() {
     if (!can("despesas", "editar")) return;
     setEditId(d.id);
     setDuplicata(null);
+    setTagsForm([]);
     const n = Math.max(1, Number(d.total_parcelas) || 1);
     const fixa = (d.tipo ?? "fixa") === "fixa";
     // Fixa nova já grava o valor mensal; registros antigos guardavam o total.
@@ -418,7 +446,13 @@ function DespesasPage() {
       categoria: d.categoria ?? "",
       tipo: d.tipo ?? "fixa",
       data_compra: d.data_compra,
-      pagamento: d.cartao_id ? `cartao:${d.cartao_id}` : d.banco_id ? `banco:${d.banco_id}` : "",
+      pagamento: d.cartao_id
+        ? `cartao:${d.cartao_id}`
+        : d.conta_id
+          ? `conta:${d.conta_id}`
+          : d.banco_id
+            ? `banco:${d.banco_id}`
+            : "",
       total_parcelas: fixa ? "1" : String(n),
       data_primeira_parcela: d.recorrencia_inicio ?? d.data_primeira_parcela,
       responsavel: d.responsavel ?? "",
@@ -437,7 +471,7 @@ function DespesasPage() {
   }
 
   const salvar = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (_opcoes?: { continuar?: boolean }) => {
       const parsed = schema.parse({
         descricao: form.descricao,
         valor_total: valorNum,
@@ -452,7 +486,18 @@ function DespesasPage() {
         economia_conquistada: !!form.economia_conquistada,
       });
       const [tipoPg, idPg] = String(form.pagamento).split(":");
+      // conta_id só vai no payload quando há conta escolhida e o módulo Contas existe
+      // (migration aplicada). Na edição, limpa a conta antiga se o usuário trocou para cartão.
+      const contaEscolhida =
+        tipoPg === "conta" && idPg && !contasPg.tabelaPendente ? idPg : null;
+      const despesaOriginal: any = editId ? despesas.find((d: any) => d.id === editId) : null;
+      const vinculoConta: { conta_id?: string | null } = contaEscolhida
+        ? { conta_id: contaEscolhida }
+        : despesaOriginal?.conta_id
+          ? { conta_id: null }
+          : {};
       const vinculos = {
+        ...vinculoConta,
         cartao_id: tipoPg === "cartao" ? (idPg ?? null) : null,
         banco_id: tipoPg === "banco" ? (idPg ?? null) : null,
         recorrencia_inicio: ehFixa ? parsed.data_primeira_parcela : null,
@@ -468,13 +513,13 @@ function DespesasPage() {
       if (editId) {
         const { error } = await supabase
           .from("despesas")
-          .update({ ...parsed, ...vinculos })
+          .update({ ...parsed, ...vinculos } as any)
           .eq("id", editId);
         if (error) throw error;
       } else {
         const { data: despesa, error } = await supabase
           .from("despesas")
-          .insert({ ...parsed, ...vinculos, created_by: user?.id ?? null })
+          .insert({ ...parsed, ...vinculos, created_by: user?.id ?? null } as any)
           .select()
           .single();
         if (error) throw error;
@@ -555,12 +600,41 @@ function DespesasPage() {
         tipo: parsed.tipo,
         userId: user?.id ?? null,
       });
+      // Tags: grava depois da despesa salva. Falha aqui não desfaz a despesa.
+      const tinhaTags = !!editId && (tagsAtuais.data?.length ?? 0) > 0;
+      if (despesaId && !tagsPendentes && (tagsForm.length > 0 || tinhaTags)) {
+        try {
+          await definirTagsDoLancamento("despesa", despesaId, tagsForm);
+        } catch {
+          toast.error("Despesa salva, mas as tags não foram gravadas.");
+        }
+      }
+      return despesaId;
     },
-    onSuccess: () => {
+    onSuccess: (_id, opcoes) => {
+      if (opcoes?.continuar && !editId) {
+        // "Salvar e adicionar outro": mantém data, conta/cartão, categoria, tipo e responsável.
+        toast.success("Despesa salva. Pode lançar a próxima.");
+        setDuplicata(null);
+        setTagsForm([]);
+        setForm((f: any) => ({
+          ...novoForm(f.tipo === "fixa" ? "fixa" : "variavel"),
+          data_compra: f.data_compra,
+          data_primeira_parcela: f.data_primeira_parcela,
+          pagamento: f.pagamento,
+          categoria: f.categoria,
+          responsavel: f.responsavel,
+          moeda: f.moeda,
+          informar_parcela: f.informar_parcela,
+        }));
+        qc.invalidateQueries();
+        return;
+      }
       toast.success(editId ? "Despesa atualizada" : "Despesa cadastrada com parcelas geradas");
       setOpen(false);
       setEditId(null);
       setDuplicata(null);
+      setTagsForm([]);
       setForm(novoForm(tab === "fixa" ? "fixa" : "variavel"));
       qc.invalidateQueries();
     },
@@ -728,12 +802,12 @@ function DespesasPage() {
     return ids;
   }
 
-  function tentarSalvar() {
+  function tentarSalvar(continuar = false) {
     if (possivelDuplicata && !duplicata) {
       setDuplicata(possivelDuplicata);
       return;
     }
-    salvar.mutate();
+    salvar.mutate({ continuar });
   }
 
   const meses = useMemo(() => {
@@ -1937,7 +2011,7 @@ function DespesasPage() {
                 placeholder="Ex.: Mercado do mês"
               />
             </Field>
-            <Field label="Valor">
+            <Field label={ehFixa ? "Valor" : nParcelas > 1 && informarParcela ? "Valor da parcela" : nParcelas > 1 ? "Valor total" : "Valor"}>
               <Input
                 inputMode="decimal"
                 value={form.valor_total}
@@ -1973,7 +2047,7 @@ function DespesasPage() {
               <div className="hidden sm:block" />
             )}
             {ehFixa && !semPrazo && (
-              <Field label="Parcelas/Meses">
+              <Field label="Repetir por (meses)">
                 <Input
                   type="number"
                   min={1}
@@ -2022,25 +2096,60 @@ function DespesasPage() {
                 onChange={(e) => setForm({ ...form, data_compra: e.target.value })}
               />
             </Field>
-            <Field label="Forma de pagamento">
+            <Field label={contasDisponiveis.length ? "Conta ou cartão" : "Forma de pagamento"}>
               <Select
                 value={form.pagamento}
                 onValueChange={(v) => setForm({ ...form, pagamento: v })}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Cartão ou banco" />
+                  <SelectValue placeholder={contasDisponiveis.length ? "Conta ou cartão" : "Cartão ou banco"} />
                 </SelectTrigger>
                 <SelectContent>
-                  {cartoes.map((c: any) => (
-                    <SelectItem key={c.id} value={`cartao:${c.id}`}>
-                      {c.apelido ?? c.bandeira} •{c.final} · {primeiroNome(c.titular)}
-                    </SelectItem>
-                  ))}
-                  {bancos.map((b: any) => (
-                    <SelectItem key={b.id} value={`banco:${b.id}`}>
-                      {b.nome} (conta)
-                    </SelectItem>
-                  ))}
+                  {contasDisponiveis.length > 0 ? (
+                    <>
+                      <SelectGroup>
+                        <SelectLabel>Contas</SelectLabel>
+                        {contasDisponiveis.map(({ conta }) => (
+                          <SelectItem key={conta.id} value={`conta:${conta.id}`}>
+                            {conta.nome}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                      {cartoes.length > 0 && (
+                        <SelectGroup>
+                          <SelectLabel>Cartões</SelectLabel>
+                          {cartoes.map((c: any) => (
+                            <SelectItem key={c.id} value={`cartao:${c.id}`}>
+                              {c.apelido ?? c.bandeira} •{c.final} · {primeiroNome(c.titular)}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      )}
+                      {bancos.length > 0 && (
+                        <SelectGroup>
+                          <SelectLabel>Bancos</SelectLabel>
+                          {bancos.map((b: any) => (
+                            <SelectItem key={b.id} value={`banco:${b.id}`}>
+                              {b.nome} (conta)
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      {cartoes.map((c: any) => (
+                        <SelectItem key={c.id} value={`cartao:${c.id}`}>
+                          {c.apelido ?? c.bandeira} •{c.final} · {primeiroNome(c.titular)}
+                        </SelectItem>
+                      ))}
+                      {bancos.map((b: any) => (
+                        <SelectItem key={b.id} value={`banco:${b.id}`}>
+                          {b.nome} (conta)
+                        </SelectItem>
+                      ))}
+                    </>
+                  )}
                 </SelectContent>
               </Select>
             </Field>
@@ -2053,6 +2162,23 @@ function DespesasPage() {
                   onChange={(e) => setForm({ ...form, total_parcelas: e.target.value })}
                 />
               </Field>
+            )}
+            {!ehFixa && nParcelas > 1 && (
+              <div className="flex items-center justify-between gap-3 rounded-2xl bg-muted px-3 py-2 sm:col-span-2">
+                <div>
+                  <p className="text-sm font-medium">Informar valor da parcela</p>
+                  <p className="text-xs text-muted-foreground">
+                    {informarParcela
+                      ? "O valor digitado é o de cada parcela. O total é parcela x parcelas."
+                      : "O valor digitado é o total da compra, dividido nas parcelas."}
+                  </p>
+                </div>
+                <Switch
+                  checked={informarParcela}
+                  onCheckedChange={(v) => setForm({ ...form, informar_parcela: v })}
+                  aria-label="Informar valor da parcela"
+                />
+              </div>
             )}
             {!ehFixa && nParcelas > 1 && (
               <Field label="Parcela atual / Já pagas">
@@ -2162,6 +2288,11 @@ function DespesasPage() {
                 </SelectContent>
               </Select>
             </Field>
+            {!tagsPendentes && (
+              <Field label="Tags" className="sm:col-span-2">
+                <SeletorTags valor={tagsForm} onChange={setTagsForm} />
+              </Field>
+            )}
             <Field label="Observações" className="sm:col-span-2">
               <Textarea
                 rows={2}
@@ -2197,8 +2328,13 @@ function DespesasPage() {
             </p>
           )}
 
-          <DialogFooter>
-            <Button onClick={tentarSalvar} disabled={salvar.isPending}>
+          <DialogFooter className="gap-2">
+            {!editId && (
+              <Button variant="outline" onClick={() => tentarSalvar(true)} disabled={salvar.isPending}>
+                Salvar e adicionar outro
+              </Button>
+            )}
+            <Button onClick={() => tentarSalvar()} disabled={salvar.isPending}>
               {duplicata ? "Salvar mesmo assim" : editId ? "Salvar alterações" : "Salvar despesa"}
             </Button>
           </DialogFooter>

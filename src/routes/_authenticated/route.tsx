@@ -16,6 +16,7 @@ import { TourGuiado } from "@/components/TourGuiado";
 import { IdiomaProvider } from "@/hooks/useIdioma";
 import { ExclusaoAgendadaModal } from "@/components/ExclusaoAgendadaModal";
 import { BoasVindasExemplos } from "@/components/BoasVindasExemplos";
+import { BoasVindas } from "@/components/boas-vindas/BoasVindas";
 import { PrimeirosPassos } from "@/components/retencao/PrimeirosPassos";
 import { useUltimaTela } from "@/lib/ultima-tela";
 import { useModulosGlobais, useSession, type ModuloGlobal } from "@/hooks/useAuthData";
@@ -78,6 +79,8 @@ function Protegido() {
   const [exemplosAberto, setExemplosAberto] = useState(false);
   const [primeirosPassos, setPrimeirosPassos] = useState(false);
   const [betaAberto, setBetaAberto] = useState(false);
+  // 07/11/2026: boas-vindas em tela cheia (conta nova, uma vez) vem antes dos outros avisos.
+  const [boasVindas, setBoasVindas] = useState(false);
   const { user } = useSession();
   // Admin pode redefinir os avisos (para gravar vídeos): limpa o "já vi" guardado neste navegador.
   useAplicarRedefinicaoAvisos(user?.id);
@@ -94,11 +97,12 @@ function Protegido() {
       <AtualizacaoSite />
       <ExclusaoAgendadaModal />
       <ComunicadosModal onVisibilityChange={setAvisoAberto} />
-      <BoasVindasExemplos bloqueado={avisoAberto} onVisibilityChange={setExemplosAberto} />
-      <PrimeirosPassos bloqueado={avisoAberto || exemplosAberto} onPendenteChange={setPrimeirosPassos} />
-      <TourGuiado bloqueado={avisoAberto || exemplosAberto || primeirosPassos} />
-      <AvisoBetaApp bloqueado={avisoAberto || exemplosAberto} onVisibilityChange={setBetaAberto} />
-      <ConviteAposTresDias bloqueado={avisoAberto || betaAberto} />
+      <BoasVindas bloqueado={avisoAberto} onVisibilityChange={setBoasVindas} />
+      <BoasVindasExemplos bloqueado={avisoAberto || boasVindas} onVisibilityChange={setExemplosAberto} />
+      <PrimeirosPassos bloqueado={avisoAberto || boasVindas || exemplosAberto} onPendenteChange={setPrimeirosPassos} />
+      <TourGuiado bloqueado={avisoAberto || boasVindas || exemplosAberto || primeirosPassos} />
+      <AvisoBetaApp bloqueado={avisoAberto || boasVindas || exemplosAberto} onVisibilityChange={setBetaAberto} />
+      <ConviteAposTresDias bloqueado={avisoAberto || boasVindas || betaAberto} />
       <Outlet />
       </IdiomaProvider>
     </InactivityGuard>

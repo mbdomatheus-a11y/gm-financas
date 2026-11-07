@@ -145,7 +145,9 @@ export function EditarDespesaRapido({
                 <SelectValue placeholder="Selecione" />
               </SelectTrigger>
               <SelectContent>
-                {(categorias as any[]).map((c) => (
+                {(categorias as any[])
+                  .filter((c) => c.oculta !== true || c.nome === form.categoria)
+                  .map((c) => (
                   <SelectItem key={c.id} value={c.nome}>
                     {c.nome}
                   </SelectItem>

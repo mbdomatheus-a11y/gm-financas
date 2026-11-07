@@ -184,7 +184,7 @@ async function hashTexto(texto: string) {
 }
 
 function ImportarPage() {
-  const { estrutura, criarSubcategoria } = useEstruturaCategorias("despesa");
+  const { estrutura, estruturaSelecao, criarSubcategoria } = useEstruturaCategorias("despesa");
   const qc = useQueryClient();
   const { user } = useSession();
   const { can, canImportar, exclusaoBloqueada } = usePermissoes();
@@ -3922,7 +3922,7 @@ function ImportarPage() {
                                   ariaLabel="Categoria do lançamento"
                                   placeholder="Categoria"
                                   valor={l.categoria}
-                                  estrutura={estrutura}
+                                  estrutura={estruturaSelecao}
                                   onEscolher={(cat, sub) =>
                                     atualizarLancamento(idx, l.id, { categoria: cat, subcategoria: sub })
                                   }

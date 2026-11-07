@@ -367,6 +367,11 @@ function ParaOndeVaiPage() {
     <AppLayout
       title="Para onde vai meu dinheiro"
       description="Gastos por categoria, cobranças que se repetem e o que deixou de sair."
+      actions={
+        <Button variant="outline" size="sm" className="rounded-full" asChild>
+          <Link to="/relatorios">Ver em Relatórios</Link>
+        </Button>
+      }
     >
       <div className="mb-6 flex flex-wrap items-center gap-3">
         <Select

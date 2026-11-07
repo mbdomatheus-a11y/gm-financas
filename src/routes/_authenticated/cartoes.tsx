@@ -44,6 +44,8 @@ import { useBancos, useCartoes, useDespesas, useFaturasImportadas } from "@/hook
 import { usePermissoes, useProfile } from "@/hooks/useAuthData";
 import { useCotacao } from "@/hooks/useCotacao";
 import { formatBRL, toBRL } from "@/lib/format";
+import { cartaoSchema, melhorDiaCompra, salvarCartao as gravarCartao } from "@/lib/cartao-salvar";
+import { Switch } from "@/components/ui/switch";
 
 export const Route = createFileRoute("/_authenticated/cartoes")({
   head: () => ({
@@ -63,18 +65,6 @@ export const Route = createFileRoute("/_authenticated/cartoes")({
   component: CartoesPage,
 });
 
-const cartaoSchema = z.object({
-  apelido: z.string().trim().min(2, "Informe um apelido").max(60),
-  bandeira: z.string().min(1, "Selecione a bandeira"),
-  final: z.string().regex(/^\d{4}$/, "Informe os 4 últimos dígitos"),
-  limite: z.number().nonnegative(),
-  dia_fechamento: z.number().int().min(1).max(31),
-  dia_vencimento: z.number().int().min(1).max(31),
-  banco_id: z.string().uuid().nullable(),
-  cor: z.string(),
-  titular: z.string().min(1, "Informe o titular"),
-  tipo: z.string().min(1),
-});
 
 const bancoSchema = z.object({
   nome: z.string().trim().min(2, "Informe o nome do banco").max(60),
@@ -133,6 +123,7 @@ function CartoesPage() {
     bandeira: "Visa",
     final: "",
     limite: "",
+    semLimite: false,
     dia_fechamento: "1",
     dia_vencimento: "10",
     banco_id: "",
@@ -156,6 +147,7 @@ function CartoesPage() {
       bandeira: c.bandeira ?? "Visa",
       final: c.final ?? "",
       limite: c.limite != null ? String(c.limite) : "",
+      semLimite: c.limite == null,
       dia_fechamento: String(c.dia_fechamento ?? 1),
       dia_vencimento: String(c.dia_vencimento ?? 10),
       banco_id: c.banco_id ?? "",
@@ -192,7 +184,7 @@ function CartoesPage() {
         apelido: fc.apelido,
         bandeira: fc.bandeira,
         final: fc.final,
-        limite: Number(String(fc.limite).replace(",", ".")) || 0,
+        limite: fc.semLimite ? null : Number(String(fc.limite).replace(",", ".")) || 0,
         dia_fechamento: Number(fc.dia_fechamento),
         dia_vencimento: Number(fc.dia_vencimento),
         banco_id: fc.banco_id || null,
@@ -200,10 +192,7 @@ function CartoesPage() {
         titular: fc.titular || perfilNome,
         tipo: "credito",
       });
-      const { error } = editCartaoId
-        ? await supabase.from("cartoes").update({ ...parsed, fechamento_confirmado: true } as any).eq("id", editCartaoId)
-        : await supabase.from("cartoes").insert({ ...parsed, fechamento_confirmado: true } as any);
-      if (error) throw error;
+      await gravarCartao(parsed, editCartaoId);
     },
     onSuccess: () => {
       toast.success(editCartaoId ? "Cartão atualizado" : "Cartão cadastrado");
@@ -370,7 +359,9 @@ function CartoesPage() {
           )}
           {cartoes.map((c: any) => {
             const usado = gastoDoCartao(c.id);
+            const semLimite = c.limite == null;
             const limite = Number(c.limite) || 0;
+            const melhorDia = melhorDiaCompra(c.dia_fechamento);
             return (
               <Card key={c.id} className="overflow-hidden">
                 <div className="h-1.5" style={{ backgroundColor: c.cor }} />
@@ -411,28 +402,37 @@ function CartoesPage() {
                       )}
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="grid grid-cols-3 gap-2 text-xs">
                     <div className="rounded-lg bg-muted/50 p-2">
                       <p className="text-muted-foreground">Fecha dia</p>
-                      <p className="font-semibold">{c.dia_fechamento}</p>
+                      <p className="font-semibold">{c.dia_fechamento ?? "-"}</p>
                     </div>
                     <div className="rounded-lg bg-muted/50 p-2">
                       <p className="text-muted-foreground">Vence dia</p>
-                      <p className="font-semibold">{c.dia_vencimento}</p>
+                      <p className="font-semibold">{c.dia_vencimento ?? "-"}</p>
                     </div>
+                    {c.tipo !== "debito" && (
+                      <div
+                        className="rounded-lg bg-success/10 p-2"
+                        title="Compras a partir deste dia entram só na fatura seguinte"
+                      >
+                        <p className="text-muted-foreground">Melhor dia de compra</p>
+                        <p className="font-semibold text-success">{melhorDia ? `Dia ${melhorDia}` : "-"}</p>
+                      </div>
+                    )}
                   </div>
                   <div className="space-y-1">
                     <div className="flex justify-between text-xs">
                       <span className="text-muted-foreground">Comprometido</span>
                       <span className="font-semibold">
-                        {formatBRL(usado)} / {formatBRL(limite)}
+                        {formatBRL(usado)} / {semLimite ? "Sem limite" : formatBRL(limite)}
                       </span>
                     </div>
                     <div className="h-2 overflow-hidden rounded-full bg-muted">
                       <div
                         className="h-full rounded-full"
                         style={{
-                          width: `${limite ? Math.min(100, (usado / limite) * 100) : 0}%`,
+                          width: `${!semLimite && limite ? Math.min(100, (usado / limite) * 100) : 0}%`,
                           backgroundColor: c.cor,
                         }}
                       />
@@ -673,10 +673,19 @@ function CartoesPage() {
             <Field label="Limite">
               <Input
                 inputMode="decimal"
-                value={fc.limite}
+                value={fc.semLimite ? "" : fc.limite}
+                disabled={fc.semLimite}
                 onChange={(e) => setFc({ ...fc, limite: e.target.value })}
-                placeholder="0,00"
+                placeholder={fc.semLimite ? "Sem limite" : "0,00"}
               />
+              <label className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                <Switch
+                  checked={!!fc.semLimite}
+                  onCheckedChange={(v) => setFc({ ...fc, semLimite: v })}
+                  aria-label="Cartão sem limite"
+                />
+                Cartão sem limite
+              </label>
             </Field>
             <Field label="Banco emissor">
               <Select value={fc.banco_id} onValueChange={(v) => setFc({ ...fc, banco_id: v })}>
@@ -700,6 +709,11 @@ function CartoesPage() {
                 value={fc.dia_fechamento}
                 onChange={(e) => setFc({ ...fc, dia_fechamento: e.target.value })}
               />
+              {melhorDiaCompra(fc.dia_fechamento) && (
+                <p className="mt-1 text-xs text-success">
+                  Melhor dia de compra: dia {melhorDiaCompra(fc.dia_fechamento)}
+                </p>
+              )}
             </Field>
             <Field label="Dia de vencimento">
               <Input

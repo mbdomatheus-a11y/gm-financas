@@ -40,7 +40,7 @@ import {
   PieChart,
 } from "lucide-react";
 
-import { Plus } from "lucide-react";
+import { BarChart3, BellRing, Gauge, Hash, LifeBuoy, Plus } from "lucide-react";
 import { Fragment } from "react";
 import { MenuUsuario } from "@/components/MenuUsuario";
 import { Pin } from "lucide-react";
@@ -152,7 +152,13 @@ type NavTo =
   | "/calendario"
   | "/casa"
   | "/documentos"
-  | "/suporte";
+  | "/suporte"
+  | "/relatorios"
+  | "/contas"
+  | "/limites"
+  | "/tags"
+  | "/notificacoes"
+  | "/ajuda";
 
 type NavItem = {
   to: NavTo;
@@ -229,10 +235,31 @@ const MUNDOS: Record<MundoId, { titulo: string; home: NavTo; items: NavItem[] }>
         modulo: "despesas",
       },
       {
+        to: "/contas",
+        label: "Contas",
+        short: "Contas",
+        icon: Landmark,
+        modulo: "despesas",
+      },
+      {
         to: "/caixinhas",
-        label: "Caixinhas",
+        label: "Caixinhas e metas",
         short: "Caixinhas",
         icon: PiggyBank,
+        modulo: "despesas",
+      },
+      {
+        to: "/limites",
+        label: "Limites de gastos",
+        short: "Limites",
+        icon: Gauge,
+        modulo: "despesas",
+      },
+      {
+        to: "/relatorios",
+        label: "Relatórios",
+        short: "Relatórios",
+        icon: BarChart3,
         modulo: "despesas",
       },
       {
@@ -253,6 +280,7 @@ const MUNDOS: Record<MundoId, { titulo: string; home: NavTo; items: NavItem[] }>
         modulo: "importar",
       },
       { to: "/categorias", label: "Categorias", short: "Categ.", icon: Tags },
+      { to: "/tags", label: "Tags", short: "Tags", icon: Hash, modulo: "despesas" },
       {
         to: "/de-para",
         label: "De-para de categorias",
@@ -419,6 +447,8 @@ const GLOBAL: NavItem[] = [
     short: "Config.",
     icon: Settings,
   },
+  { to: "/notificacoes", label: "Notificações", short: "Avisos", icon: BellRing },
+  { to: "/ajuda", label: "Ajuda", short: "Ajuda", icon: LifeBuoy },
   { to: "/suporte", label: "Suporte", short: "Suporte", icon: Headphones },
 ];
 

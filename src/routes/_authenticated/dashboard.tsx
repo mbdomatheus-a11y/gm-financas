@@ -738,6 +738,11 @@ function DashboardPage() {
     <AppLayout
       title="Finanças"
       description={`Resumo de ${monthLabel(mesAtual)} · USD ${cotacao.toFixed(2)}`}
+      actions={
+        <Button variant="outline" size="sm" className="rounded-full" asChild>
+          <Link to="/relatorios">Ver em Relatórios</Link>
+        </Button>
+      }
     >
       <HeroMes
         saldo={dados.saldo}

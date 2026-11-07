@@ -44,13 +44,20 @@ export function ResumoPrevisaoHome({ mes: mesEscolhido, className }: { mes?: str
   const p = useMemo(
     () =>
       calcularPrevisaoMes(
-        { despesas: despesas as any[], receitas: receitas as any[], faturas: faturasMes as any[], cotacao, cartoes: cartoes as any[] },
+        {
+          despesas: despesas as any[],
+          receitas: receitas as any[],
+          faturas: faturasMes as any[],
+          cotacao,
+          cartoes: cartoes as any[],
+          mostrarFaturaAberta: prefs.mostrar_fatura_aberta,
+        },
         mes,
         metaDoMes(caixinhas, mes),
         prefs.dia_virada,
         prefs.receitas_proximo_ciclo_dia,
       ),
-    [despesas, receitas, faturasMes, cotacao, cartoes, mes, caixinhas, prefs.dia_virada, prefs.receitas_proximo_ciclo_dia],
+    [despesas, receitas, faturasMes, cotacao, cartoes, mes, caixinhas, prefs.dia_virada, prefs.receitas_proximo_ciclo_dia, prefs.mostrar_fatura_aberta],
   );
   // 03/11/2026: mostra de qual mês/ciclo é a previsão (ex.: outubro = 08/10 a 07/11 com virada no dia 8).
   const diasCiclo = datasDoCiclo(mes, prefs.dia_virada);

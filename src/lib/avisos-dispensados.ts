@@ -2,7 +2,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { supabase } from "@/integrations/supabase/client";
 
-export type AvisoDispensavel = "beta" | "convite";
+/** "boas_vindas" e "primeiros_passos" (07/11/2026): migration 20261107151000_avisos_boas_vindas.sql. */
+export type AvisoDispensavel = "beta" | "convite" | "boas_vindas" | "primeiros_passos";
 
 /**
  * "Não mostrar mais" guardado na conta (27/10/2026), não no navegador: vale no site e no app, em

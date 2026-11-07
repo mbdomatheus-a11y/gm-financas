@@ -8,15 +8,31 @@ import { listarModulosDisponiveis } from "@/lib/configuracoes-site.functions";
 import { useModoCliente } from "@/lib/modo-cliente";
 
 export type ModuloGlobal =
-  "financas" | "lista" | "notas" | "calculadora" | "pet" | "onde_esta" | "veiculo" | "exames" | "links";
+  | "financas"
+  | "lista"
+  | "notas"
+  | "calculadora"
+  | "pet"
+  | "onde_esta"
+  | "veiculo"
+  | "exames"
+  | "links"
+  | "open_finance";
+
+/**
+ * Módulos que nascem desligados (07/11/2026): enquanto a linha não existir em modulos_globais
+ * (migration 20261107140000_modulo_open_finance.sql ainda não aplicada), contam como desligados.
+ */
+const DESLIGADOS_POR_PADRAO: ReadonlySet<ModuloGlobal> = new Set<ModuloGlobal>(["open_finance"]);
+
 export function useModulosGlobais() {
   const listar = useServerFn(listarModulosDisponiveis);
   const query = useQuery({ queryKey: ["modulos-disponiveis"], queryFn: () => listar() });
   const habilitado = (modulo: ModuloGlobal) =>
-    query.data?.find((x: any) => x.modulo === modulo)?.habilitado ?? true;
+    query.data?.find((x: any) => x.modulo === modulo)?.habilitado ?? !DESLIGADOS_POR_PADRAO.has(modulo);
   // Liberado para todos os usuários (ignora o acesso extra do admin).
   const liberadoGeral = (modulo: ModuloGlobal) =>
-    query.data?.find((x: any) => x.modulo === modulo)?.liberadoGeral ?? true;
+    query.data?.find((x: any) => x.modulo === modulo)?.liberadoGeral ?? !DESLIGADOS_POR_PADRAO.has(modulo);
   return { ...query, habilitado, liberadoGeral };
 }
 

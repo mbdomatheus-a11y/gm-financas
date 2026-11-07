@@ -1,7 +1,20 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, ChevronRight, Download, Pencil, Plus, Tags, Trash2, Upload } from "lucide-react";
+import {
+  ArrowDownAZ,
+  ArrowUpZA,
+  ChevronDown,
+  ChevronRight,
+  Download,
+  Eye,
+  EyeOff,
+  Pencil,
+  Plus,
+  Tags,
+  Trash2,
+  Upload,
+} from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -32,11 +45,13 @@ import {
 } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useCategorias } from "@/hooks/useFinance";
+import { useCategoriasPreferencias } from "@/hooks/useCategoriasPreferencias";
 import { useEstruturaCategorias } from "@/hooks/useEstruturaCategorias";
 import { useCategoriasPadrao } from "@/hooks/useCategoriasPadrao";
 import { usePermissoes } from "@/hooks/useAuthData";
 import { espelharCategoriaNoPadrao } from "@/lib/categorias-padrao-admin";
 import { baixarTxt, baixarXlsx } from "@/lib/exportar-planilha";
+import { cn } from "@/lib/utils";
 import {
   CABECALHO_CATEGORIAS,
   lerPlanilhaCategorias,
@@ -87,6 +102,10 @@ function CategoriasPage() {
   const { mapa: padraoMapa } = useCategoriasPadrao();
   const [tipo, setTipo] = useState<"despesa" | "receita">("despesa");
   const { data: categorias = [] } = useCategorias(tipo);
+  const { preferenciaDe, colunasPendentes, definirOculta, definirEssencial } = useCategoriasPreferencias(tipo);
+  const [visao, setVisao] = useState<"ativas" | "ocultas">("ativas");
+  const [filtroEssencial, setFiltroEssencial] = useState<"todos" | "sim" | "nao">("todos");
+  const [ordem, setOrdem] = useState<"az" | "za">("az");
   const { estrutura, subcategorias, criarSubcategoria, excluirSubcategorias } =
     useEstruturaCategorias(tipo);
   const [abertas, setAbertas] = useState<Record<string, boolean>>({});
@@ -222,6 +241,59 @@ function CategoriasPage() {
   const todasMarcadas = idsUsuario.length > 0 && idsUsuario.every((id) => sel.has(id));
   const subsDoUsuario = subcategorias;
   const subIdPorChave = new Map(subsDoUsuario.map((x) => [`${x.categoria}|${x.nome}`, x.id]));
+
+  // 07/11/2026: lista com as categorias do grupo + macros padrão (despesa) que ainda não têm linha,
+  // para poder ocultar e marcar essencial também nas padrão (o hook cria a linha ao marcar).
+  const itensLista = useMemo(() => {
+    const norm = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+    const vistos = new Set<string>();
+    const out: { id: string | null; nome: string; cor: string | null; linha: any | null }[] = [];
+    for (const c of categorias as any[]) {
+      vistos.add(norm(String(c.nome)));
+      out.push({ id: c.id, nome: String(c.nome), cor: c.cor ?? null, linha: c });
+    }
+    if (tipo === "despesa" && !colunasPendentes) {
+      for (const e of estrutura) {
+        if (vistos.has(norm(e.macro))) continue;
+        vistos.add(norm(e.macro));
+        out.push({ id: null, nome: e.macro, cor: null, linha: null });
+      }
+    }
+    return out;
+  }, [categorias, estrutura, tipo, colunasPendentes]);
+
+  const contagemOcultas = colunasPendentes ? 0 : itensLista.filter((i) => preferenciaDe(i.nome).oculta).length;
+  const listaVisivel = itensLista
+    .filter((i) => {
+      if (colunasPendentes) return true;
+      const p = preferenciaDe(i.nome);
+      if (visao === "ocultas" ? !p.oculta : p.oculta) return false;
+      if (filtroEssencial === "sim") return p.essencial === true;
+      if (filtroEssencial === "nao") return p.essencial === false;
+      return true;
+    })
+    .sort((a, b) => (ordem === "az" ? 1 : -1) * a.nome.localeCompare(b.nome, "pt-BR", { sensitivity: "base" }));
+
+  function alternarOculta(nome: string, oculta: boolean) {
+    definirOculta.mutate(
+      { nome, oculta },
+      {
+        onSuccess: () =>
+          toast.success(oculta ? `"${nome}" oculta dos lançamentos novos.` : `"${nome}" volta a aparecer nos lançamentos.`),
+        onError: (e: any) => toast.error(e?.message ?? "Não foi possível atualizar a categoria."),
+      },
+    );
+  }
+
+  /** Pílula de 3 estados: sem definir > essencial > não essencial > sem definir. */
+  function proximoEssencial(nome: string) {
+    const atual = preferenciaDe(nome).essencial;
+    const proximo = atual === null ? true : atual === true ? false : null;
+    definirEssencial.mutate(
+      { nome, essencial: proximo },
+      { onError: (e: any) => toast.error(e?.message ?? "Não foi possível atualizar a categoria.") },
+    );
+  }
 
   return (
     <AppLayout
@@ -415,7 +487,57 @@ function CategoriasPage() {
           )}
         </div>
 
-        {categorias.length === 0 ? (
+        <div className="flex flex-wrap items-center gap-2">
+          {!colunasPendentes && (
+            <Tabs value={visao} onValueChange={(v) => setVisao(v as typeof visao)}>
+              <TabsList className="h-9 rounded-full">
+                <TabsTrigger value="ativas" className="rounded-full text-xs">
+                  Ativas
+                </TabsTrigger>
+                <TabsTrigger value="ocultas" className="rounded-full text-xs">
+                  Ocultas{contagemOcultas > 0 ? ` (${contagemOcultas})` : ""}
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          )}
+          {!colunasPendentes && (
+            <Tabs value={filtroEssencial} onValueChange={(v) => setFiltroEssencial(v as typeof filtroEssencial)}>
+              <TabsList className="h-9 rounded-full">
+                <TabsTrigger value="todos" className="rounded-full text-xs">
+                  Todos
+                </TabsTrigger>
+                <TabsTrigger value="sim" className="rounded-full text-xs">
+                  Essenciais
+                </TabsTrigger>
+                <TabsTrigger value="nao" className="rounded-full text-xs">
+                  Não essenciais
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            className="ml-auto rounded-full"
+            onClick={() => setOrdem((o) => (o === "az" ? "za" : "az"))}
+            aria-label={ordem === "az" ? "Ordenado de A a Z. Tocar para Z a A" : "Ordenado de Z a A. Tocar para A a Z"}
+          >
+            {ordem === "az" ? <ArrowDownAZ className="size-4" /> : <ArrowUpZA className="size-4" />}
+            {ordem === "az" ? "A-Z" : "Z-A"}
+          </Button>
+        </div>
+        {colunasPendentes ? (
+          <p className="text-xs text-muted-foreground">
+            Ocultar categorias e marcar essenciais ficam disponíveis após a atualização do banco.
+          </p>
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            Categorias ocultas não aparecem nos lançamentos novos; os antigos continuam com o nome. Toque na pílula para
+            marcar como essencial ou não essencial.
+          </p>
+        )}
+
+        {itensLista.length === 0 ? (
           <Card>
             <CardContent className="flex flex-col items-center gap-4 py-14 text-center">
               <span className="grid size-14 place-items-center rounded-full bg-muted text-muted-foreground">
@@ -431,9 +553,19 @@ function CategoriasPage() {
           </Card>
         ) : (
           <div className="divide-y overflow-hidden rounded-2xl border bg-card">
-            {categorias.map((c: any) => (
-              <div key={c.id} className="flex items-center gap-3 px-4 py-3">
-                {podeEditar && (
+            {listaVisivel.length === 0 && (
+              <p className="px-4 py-6 text-center text-sm text-muted-foreground">
+                {visao === "ocultas" && filtroEssencial === "todos"
+                  ? "Nenhuma categoria oculta."
+                  : "Nenhuma categoria neste filtro."}
+              </p>
+            )}
+            {listaVisivel.map((item) => {
+              const c: any = item.linha;
+              const pref = preferenciaDe(item.nome);
+              return (
+              <div key={item.id ?? `padrao:${item.nome}`} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3">
+                {podeEditar && c && (
                   <Checkbox
                     checked={sel.has(c.id)}
                     onCheckedChange={() => alternarSel(c.id)}
@@ -441,11 +573,47 @@ function CategoriasPage() {
                   />
                 )}
                 <span
-                  className="size-4 shrink-0 rounded-full"
-                  style={{ backgroundColor: c.cor ?? "var(--muted-foreground)" }}
+                  className={cn("size-4 shrink-0 rounded-full", pref.oculta && "opacity-40")}
+                  style={{ backgroundColor: item.cor ?? "var(--muted-foreground)" }}
                 />
-                <p className="min-w-0 flex-1 truncate text-sm font-medium">{c.nome}</p>
-                {podeEditar && (
+                <p className={cn("min-w-0 flex-1 truncate text-sm font-medium", pref.oculta && "text-muted-foreground")}>
+                  {item.nome}
+                  {!c && <span className="ml-2 text-xs font-normal text-muted-foreground">padrão</span>}
+                </p>
+                {!colunasPendentes && podeEditar && (
+                  <button
+                    type="button"
+                    onClick={() => proximoEssencial(item.nome)}
+                    disabled={definirEssencial.isPending}
+                    aria-label={`${item.nome}: ${pref.essencial === true ? "essencial" : pref.essencial === false ? "não essencial" : "sem definir"}. Tocar para mudar`}
+                    className={cn(
+                      "rounded-full px-2.5 py-1 text-xs font-medium transition-colors",
+                      pref.essencial === true && "bg-success/15 text-success",
+                      pref.essencial === false && "bg-warning/15 text-warning-foreground dark:text-warning",
+                      pref.essencial === null && "border border-dashed text-muted-foreground hover:bg-accent",
+                    )}
+                  >
+                    {pref.essencial === true ? "Essencial" : pref.essencial === false ? "Não essencial" : "Sem definir"}
+                  </button>
+                )}
+                {!colunasPendentes && !podeEditar && pref.essencial !== null && (
+                  <span className="rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">
+                    {pref.essencial ? "Essencial" : "Não essencial"}
+                  </span>
+                )}
+                {!colunasPendentes && podeEditar && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 gap-1.5 rounded-full px-2.5 text-xs text-muted-foreground"
+                    disabled={definirOculta.isPending}
+                    onClick={() => alternarOculta(item.nome, !pref.oculta)}
+                  >
+                    {pref.oculta ? <Eye className="size-4" /> : <EyeOff className="size-4" />}
+                    {pref.oculta ? "Mostrar" : "Ocultar"}
+                  </Button>
+                )}
+                {podeEditar && c && (
                   <Button
                     variant="ghost"
                     size="icon"
@@ -457,7 +625,7 @@ function CategoriasPage() {
                   </Button>
                 )}
                 {/* Categorias padrão do admin não podem ser apagadas por usuários comuns. */}
-                {podeEditar && !padraoMapa[c.nome] && (
+                {podeEditar && c && !padraoMapa[c.nome] && (
                   <Button
                     variant="ghost"
                     size="icon"
@@ -469,7 +637,8 @@ function CategoriasPage() {
                   </Button>
                 )}
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

@@ -18,6 +18,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ExcluirContaCard } from "@/components/ExcluirContaCard";
+import { ExportarDadosCard } from "@/components/ExportarDadosCard";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -244,6 +245,7 @@ function BackupPage() {
   if (!isAdmin) {
     return (
       <AppLayout title="Backup e Reset" description="Área restrita a administradores">
+        <ExportarDadosCard className="mb-6" />
         <Card>
           <CardContent className="flex items-center gap-3 p-6 text-sm text-muted-foreground">
             <ShieldAlert className="size-5 text-destructive" />
@@ -259,6 +261,7 @@ function BackupPage() {
       title="Backup e Reset"
       description="Exporte, restaure ou reinicie seus dados por módulo"
     >
+      <ExportarDadosCard className="mb-6" />
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardContent className="space-y-4 p-6">

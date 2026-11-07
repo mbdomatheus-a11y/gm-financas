@@ -50,6 +50,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { useContasComSaldo } from "@/hooks/useContas";
+import { definirTagsDoLancamento, useTags, useTagsDoLancamento } from "@/hooks/useTags";
+import { SeletorTags } from "@/components/SeletorTags";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
@@ -123,6 +126,11 @@ const emptyForm = {
   responsavel: "",
   observacoes: "",
   cartao_id: "",
+  /** Conta de destino (módulo Contas). Só vai ao banco quando escolhida e a tabela existe. */
+  conta_id: "",
+  /** Mensal recorrente: "sem_prazo" ou "prazo" (repetir por N meses, usa recorrencia_meses). */
+  recorrencia_duracao: "sem_prazo" as "sem_prazo" | "prazo",
+  recorrencia_meses: "12",
   reajuste_tipo: "nenhum" as "nenhum" | ModoReajuste,
   reajuste_percentual: "",
   reajuste_valor_fixo: "",
@@ -146,6 +154,15 @@ function ReceitasPage() {
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<any>(emptyForm);
   const [duplicata, setDuplicata] = useState<any | null>(null);
+  // 07/11/2026: conta de destino e tags no formulário.
+  const contasPg = useContasComSaldo(receitas as any, []);
+  const contasDisponiveis = contasPg.tabelaPendente ? [] : contasPg.linhas;
+  const { tabelaPendente: tagsPendentes } = useTags();
+  const [tagsForm, setTagsForm] = useState<string[]>([]);
+  const tagsAtuais = useTagsDoLancamento("receita", editId);
+  useEffect(() => {
+    if (editId && tagsAtuais.data) setTagsForm(tagsAtuais.data);
+  }, [editId, tagsAtuais.data]);
   // Item 3 (backlog 2026-09-27): filtros e modo de exibição lembrados por
   // sessão (localStorage) e restaurados quando o usuário volta pra tela.
   const [tab, setTab] = usePersistedState<"total" | "fixa" | "variavel" | "pix">("receitas.tab", "total");
@@ -323,12 +340,12 @@ function ReceitasPage() {
     );
   }, [receitas, editId, form.valor, form.data_recebimento]);
 
-  function tentarSalvar() {
+  function tentarSalvar(continuar = false) {
     if (possivelDuplicata && !duplicata) {
       setDuplicata(possivelDuplicata);
       return;
     }
-    salvar.mutate();
+    salvar.mutate({ continuar });
   }
 
   const searchRec = Route.useSearch();
@@ -338,6 +355,7 @@ function ReceitasPage() {
     setEditId(null);
     setForm(emptyForm);
     setDuplicata(null);
+    setTagsForm([]);
     setOpen(true);
     void navegarRec({ search: {} as never, replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -347,6 +365,7 @@ function ReceitasPage() {
     setEditId(null);
     setForm(emptyForm);
     setDuplicata(null);
+    setTagsForm([]);
     setOpen(true);
   }
 
@@ -354,6 +373,7 @@ function ReceitasPage() {
     if (!can("receitas", "editar")) return;
     setEditId(r.id);
     setDuplicata(null);
+    setTagsForm([]);
     setForm({
       descricao: r.descricao ?? "",
       valor: String(r.valor ?? ""),
@@ -365,6 +385,9 @@ function ReceitasPage() {
       responsavel: r.responsavel ?? "",
       observacoes: r.observacoes ?? "",
       cartao_id: r.cartao_id ?? "",
+      conta_id: r.conta_id ?? "",
+      recorrencia_duracao: r.recorrencia_meses ? "prazo" : "sem_prazo",
+      recorrencia_meses: String(r.recorrencia_meses ?? 12),
       reajuste_tipo:
         r.reajuste_modo === "fixo" ? "fixo" : r.reajuste_percentual ? "percentual" : "nenhum",
       reajuste_percentual: r.reajuste_percentual ? String(r.reajuste_percentual) : "",
@@ -380,14 +403,17 @@ function ReceitasPage() {
   const valorDigitado = Number(String(form.valor).replace(",", ".")) || 0;
   const percentualReajuste = Number(String(form.reajuste_percentual).replace(",", ".")) || 0;
   const valorFixoReajuste = Number(String(form.reajuste_valor_fixo).replace(",", ".")) || 0;
+  const recorrenciaComPrazo = ehMensalRecorrente && form.recorrencia_duracao === "prazo";
+  const mesesRecorrencia = Math.max(1, Math.min(600, Number(form.recorrencia_meses) || 1));
 
-  /** Recorrência mensal sem prazo configurada no formulário (só quando frequência = mensal). */
+  /** Recorrência mensal configurada no formulário (só quando frequência = mensal).
+   * Sem prazo por padrão; "repetir por N meses" grava recorrencia_meses (já lido por recorrenciaDaReceita). */
   const recorrencia: RecorrenciaFixa | null = ehMensalRecorrente
     ? {
         valor: valorDigitado,
         inicio: form.data_recebimento,
-        semPrazo: true,
-        meses: null,
+        semPrazo: !recorrenciaComPrazo,
+        meses: recorrenciaComPrazo ? mesesRecorrencia : null,
         reajuste:
           form.reajuste_tipo !== "nenhum" &&
           ((form.reajuste_tipo === "percentual" && percentualReajuste !== 0) ||
@@ -427,7 +453,7 @@ function ReceitasPage() {
   });
 
   const salvar = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (_opcoes?: { continuar?: boolean }): Promise<string[]> => {
       const parsed = schema.parse({
         ...form,
         valor: Number(String(form.valor).replace(",", ".")),
@@ -435,10 +461,29 @@ function ReceitasPage() {
         observacoes: form.observacoes || null,
         cartao_id: form.cartao_id || null,
       });
+      // conta_id só entra no payload com conta escolhida e módulo Contas disponível;
+      // na edição, limpa a conta antiga se o usuário tirou a escolha.
+      const receitaOriginal: any = editId ? receitas.find((r: any) => r.id === editId) : null;
+      const vinculoConta: { conta_id?: string | null } =
+        form.conta_id && !contasPg.tabelaPendente
+          ? { conta_id: form.conta_id }
+          : receitaOriginal?.conta_id
+            ? { conta_id: null }
+            : {};
+      const gravarTags = async (ids: string[]) => {
+        const tinhaTags = !!editId && (tagsAtuais.data?.length ?? 0) > 0;
+        if (tagsPendentes || !ids.length || (!tagsForm.length && !tinhaTags)) return;
+        try {
+          for (const id of ids) await definirTagsDoLancamento("receita", id, tagsForm);
+        } catch {
+          toast.error("Receita salva, mas as tags não foram gravadas.");
+        }
+      };
 
       if (editId) {
         const payload: any = {
           ...parsed,
+          ...vinculoConta,
           recorrencia_inicio: recorrencia ? recorrencia.inicio : null,
           recorrencia_sem_prazo: Boolean(recorrencia?.semPrazo),
           recorrencia_meses: recorrencia?.meses ?? null,
@@ -453,20 +498,21 @@ function ReceitasPage() {
         };
         const { error } = await supabase.from("receitas").update(payload).eq("id", editId);
         if (error) throw error;
-        return;
+        await gravarTags([editId]);
+        return [editId];
       }
 
-      const base = { ...parsed, created_by: user?.id ?? null };
+      const base: any = { ...parsed, ...vinculoConta, created_by: user?.id ?? null };
       let rows: any[];
 
       if (recorrencia && parsed.recorrente && parsed.frequencia === "mensal") {
-        // Mensal recorrente: salva apenas 1 row indeterminada, projeção dinâmica em tempo real
+        // Mensal recorrente: salva apenas 1 row (sem prazo ou por N meses), projeção dinâmica em tempo real
         rows = [
           {
             ...base,
             recorrencia_inicio: recorrencia.inicio,
-            recorrencia_sem_prazo: true,
-            recorrencia_meses: null,
+            recorrencia_sem_prazo: recorrencia.semPrazo,
+            recorrencia_meses: recorrencia.meses ?? null,
             reajuste_modo: recorrencia.reajuste?.modo ?? null,
             reajuste_percentual:
               recorrencia.reajuste?.modo === "percentual" ? recorrencia.reajuste.percentual : null,
@@ -512,15 +558,36 @@ function ReceitasPage() {
         rows = [base];
       }
 
-      const { error } = await supabase.from("receitas").insert(rows);
+      const { data: inseridas, error } = await supabase.from("receitas").insert(rows).select("id");
       if (error) throw error;
+      const ids = (inseridas ?? []).map((r: any) => String(r.id));
+      await gravarTags(ids);
+      return ids;
     },
-    onSuccess: () => {
+    onSuccess: (_ids, opcoes) => {
+      if (opcoes?.continuar && !editId) {
+        // "Salvar e adicionar outro": mantém data, conta/cartão, categoria e responsável.
+        toast.success("Receita salva. Pode lançar a próxima.");
+        setDuplicata(null);
+        setTagsForm([]);
+        setForm((f: any) => ({
+          ...emptyForm,
+          data_recebimento: f.data_recebimento,
+          cartao_id: f.cartao_id,
+          conta_id: f.conta_id,
+          categoria: f.categoria,
+          responsavel: f.responsavel,
+          moeda: f.moeda,
+        }));
+        qc.invalidateQueries();
+        return;
+      }
       toast.success(editId ? "Receita atualizada" : "Receita cadastrada");
       setOpen(false);
       setEditId(null);
       setForm(emptyForm);
       setDuplicata(null);
+      setTagsForm([]);
       qc.invalidateQueries();
     },
     onError: (e: any) => toast.error(e?.errors?.[0]?.message ?? e.message ?? "Erro ao salvar"),
@@ -996,6 +1063,24 @@ function ReceitasPage() {
                 </SelectContent>
               </Select>
             </Field>
+            {contasDisponiveis.length > 0 && (
+              <Field label="Conta de destino (opcional)">
+                <Select
+                  value={form.conta_id || "sem"}
+                  onValueChange={(v) => setForm({ ...form, conta_id: v === "sem" ? "" : v })}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="sem">Não informar</SelectItem>
+                    {contasDisponiveis.map(({ conta }) => (
+                      <SelectItem key={conta.id} value={conta.id}>
+                        {conta.nome}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+            )}
             <Field label="Frequência">
               <div className="flex items-center gap-3">
                 <Switch
@@ -1020,12 +1105,47 @@ function ReceitasPage() {
                   <span className="text-sm text-muted-foreground">Lançamento único</span>
                 )}
               </div>
-              {ehMensalRecorrente && (
+              {ehMensalRecorrente && !recorrenciaComPrazo && (
                 <p className="mt-1.5 text-xs text-muted-foreground">
                   Sem data fim: lançamentos gerados por {HORIZONTE_SEM_PRAZO} meses à frente.
                 </p>
               )}
             </Field>
+            {ehMensalRecorrente && (
+              <Field label="Duração">
+                <div className="flex items-center gap-2">
+                  <Select
+                    value={form.recorrencia_duracao}
+                    onValueChange={(v) => setForm({ ...form, recorrencia_duracao: v })}
+                  >
+                    <SelectTrigger className="flex-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="sem_prazo">Sem prazo</SelectItem>
+                      <SelectItem value="prazo">Repetir por N meses</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {recorrenciaComPrazo && (
+                    <Input
+                      type="number"
+                      min={1}
+                      max={600}
+                      className="w-20"
+                      aria-label="Repetir por quantos meses"
+                      value={form.recorrencia_meses}
+                      onChange={(e) => setForm({ ...form, recorrencia_meses: e.target.value })}
+                    />
+                  )}
+                </div>
+                {recorrenciaComPrazo && (
+                  <p className="mt-1.5 text-xs text-muted-foreground">
+                    {mesesRecorrencia} {mesesRecorrencia === 1 ? "mês" : "meses"} a partir de{" "}
+                    {monthLabelLong(competenciaDe(form.data_recebimento))}.
+                  </p>
+                )}
+              </Field>
+            )}
 
             {ehMensalRecorrente && (
               <div className="space-y-3 rounded-lg border p-3 sm:col-span-2">
@@ -1126,6 +1246,11 @@ function ReceitasPage() {
               </div>
             )}
 
+            {!tagsPendentes && (
+              <Field label="Tags" className="sm:col-span-2">
+                <SeletorTags valor={tagsForm} onChange={setTagsForm} />
+              </Field>
+            )}
             <Field label="Observações" className="sm:col-span-2">
               <Textarea
                 value={form.observacoes}
@@ -1134,8 +1259,13 @@ function ReceitasPage() {
               />
             </Field>
           </div>
-          <DialogFooter>
-            <Button onClick={tentarSalvar} disabled={salvar.isPending}>
+          <DialogFooter className="gap-2">
+            {!editId && (
+              <Button variant="outline" onClick={() => tentarSalvar(true)} disabled={salvar.isPending}>
+                Salvar e adicionar outro
+              </Button>
+            )}
+            <Button onClick={() => tentarSalvar()} disabled={salvar.isPending}>
               {duplicata ? "Salvar mesmo assim" : editId ? "Salvar alterações" : "Salvar receita"}
             </Button>
           </DialogFooter>
