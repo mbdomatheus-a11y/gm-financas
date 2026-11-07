@@ -24,21 +24,24 @@ export function LinksAdminHabilitar() {
   });
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="text-sm">Módulo Links (anotações)</CardTitle>
+      <CardHeader className="space-y-1">
+        <CardTitle className="text-base font-bold">Módulo Links</CardTitle>
+        <p className="text-sm text-muted-foreground">Anotações que os outros usuários podem ler.</p>
       </CardHeader>
       <CardContent className="space-y-3 text-sm">
-        <p className="text-muted-foreground">
-          Quando ligado, os outros usuários veem a lista de anotações ativas, só para leitura. Criar, editar,
-          arquivar, excluir e unificar anotações é feito por você na própria tela de Links.
-        </p>
-        <label className="flex items-center gap-3">
-          <Switch checked={ligado} disabled={!data || m.isPending} onCheckedChange={(v) => m.mutate(v)} />
-          <span>Habilitar para os outros usuários</span>
-        </label>
-        <Link to="/links" className="inline-block text-primary underline">
-          Abrir a tela de Links
-        </Link>
+        <div className="divide-y rounded-2xl border">
+          <label className="flex cursor-pointer items-center justify-between gap-4 px-4 py-3">
+            <span className="min-w-0">
+              <span className="block text-sm font-medium">Habilitar para os outros usuários</span>
+              <span className="block text-xs text-muted-foreground">Só leitura. Criar, editar e arquivar continua com você.</span>
+            </span>
+            <Switch checked={ligado} disabled={!data || m.isPending} onCheckedChange={(v) => m.mutate(v)} />
+          </label>
+          <Link to="/links" className="flex items-center justify-between gap-4 px-4 py-3 text-sm font-medium text-primary transition-colors hover:bg-muted/40">
+            Abrir a tela de Links
+            <span aria-hidden="true">›</span>
+          </Link>
+        </div>
       </CardContent>
     </Card>
   );

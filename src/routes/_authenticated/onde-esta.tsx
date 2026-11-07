@@ -377,12 +377,12 @@ function OndeEsta() {
 
       {/* Dialog: novo/editar local */}
       <Dialog open={!!dialogLocal} onOpenChange={(v) => !v && setDialogLocal(null)}>
-        <DialogContent>
+        <DialogContent className="gap-5 rounded-2xl">
           <DialogHeader>
             <DialogTitle>{dialogLocal === "novo" ? "Novo local" : "Editar local"}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
-            <div className="space-y-1.5">
+          <div className="space-y-4">
+            <div className="space-y-2">
               <Label htmlFor="local-nome">Nome</Label>
               <Input
                 id="local-nome"
@@ -391,7 +391,7 @@ function OndeEsta() {
                 onChange={(e) => setFormLocal({ ...formLocal, nome: e.target.value })}
               />
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <Label htmlFor="local-detalhe">Detalhes (opcional)</Label>
               <Textarea
                 id="local-detalhe"
@@ -400,7 +400,7 @@ function OndeEsta() {
                 onChange={(e) => setFormLocal({ ...formLocal, detalhe: e.target.value })}
               />
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <Label>Fica dentro de (opcional)</Label>
               <Select
                 value={formLocal.local_pai_id ?? "none"}
@@ -421,12 +421,11 @@ function OndeEsta() {
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
-                Use isso pra criar hierarquia: ex. "Guarda-roupa" dentro de "Quarto", ou "Caixa de
-                sapato" dentro de "Guarda-roupa".
+                Ex.: "Guarda-roupa" dentro de "Quarto".
               </p>
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="gap-3 sm:space-x-0">
             <Button variant="ghost" onClick={() => setDialogLocal(null)}>Cancelar</Button>
             <Button onClick={() => salvarLocal.mutate()} disabled={salvarLocal.isPending}>Salvar</Button>
           </DialogFooter>
@@ -435,12 +434,12 @@ function OndeEsta() {
 
       {/* Dialog: novo/editar item */}
       <Dialog open={!!dialogItem} onOpenChange={(v) => !v && setDialogItem(null)}>
-        <DialogContent>
+        <DialogContent className="gap-5 rounded-2xl">
           <DialogHeader>
             <DialogTitle>{dialogItem === "novo" ? "Novo item" : "Editar item"}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
-            <div className="space-y-1.5">
+          <div className="space-y-4">
+            <div className="space-y-2">
               <Label htmlFor="item-nome">Nome</Label>
               <Input
                 id="item-nome"
@@ -449,7 +448,7 @@ function OndeEsta() {
                 onChange={(e) => setFormItem({ ...formItem, nome: e.target.value })}
               />
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <Label>Onde está</Label>
               <Select
                 value={formItem.local_id}
@@ -467,11 +466,12 @@ function OndeEsta() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
                 <Label htmlFor="item-qtd">Quantidade</Label>
                 <Input
                   id="item-qtd"
+                  className="tabular-nums"
                   type="number"
                   min={0}
                   value={formItem.quantidade}
@@ -479,7 +479,7 @@ function OndeEsta() {
                 />
               </div>
               <div />
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <Label htmlFor="item-compra">Comprado em (opcional)</Label>
                 <Input
                   id="item-compra"
@@ -488,7 +488,7 @@ function OndeEsta() {
                   onChange={(e) => setFormItem({ ...formItem, data_compra: e.target.value })}
                 />
               </div>
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <Label htmlFor="item-validade">Validade (opcional)</Label>
                 <Input
                   id="item-validade"
@@ -498,7 +498,7 @@ function OndeEsta() {
                 />
               </div>
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <Label htmlFor="item-obs">Observações (opcional)</Label>
               <Textarea
                 id="item-obs"
@@ -508,7 +508,7 @@ function OndeEsta() {
               />
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="gap-3 sm:space-x-0">
             <Button variant="ghost" onClick={() => setDialogItem(null)}>Cancelar</Button>
             <Button onClick={() => salvarItem.mutate()} disabled={salvarItem.isPending}>Salvar</Button>
           </DialogFooter>

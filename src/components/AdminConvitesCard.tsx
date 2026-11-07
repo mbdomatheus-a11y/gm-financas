@@ -38,50 +38,51 @@ export function AdminConvitesCard() {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-sm">
-          <ShieldAlert className="size-4" /> Todos os convites (visão do admin)
+      <CardHeader className="space-y-1">
+        <CardTitle className="flex items-center gap-2 text-base font-bold">
+          <ShieldAlert className="size-4 text-muted-foreground" aria-hidden="true" /> Todos os convites
         </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-2">
-        <p className="text-xs text-muted-foreground">
-          Todo código gerado por qualquer pessoa aparece aqui, com quem gerou. Como admin, você
-          pode cancelar qualquer convite ainda não usado.
+        <p className="text-sm text-muted-foreground">
+          Códigos gerados por qualquer pessoa. Você pode cancelar os que ainda não foram usados.
         </p>
+      </CardHeader>
+      <CardContent>
         {isLoading ? (
-          <p className="text-xs text-muted-foreground">Carregando…</p>
+          <p className="text-sm text-muted-foreground">Carregando…</p>
         ) : convites.length === 0 ? (
-          <p className="text-xs text-muted-foreground">Nenhum convite gerado ainda.</p>
+          <p className="rounded-2xl border px-4 py-6 text-center text-sm text-muted-foreground">Nenhum convite gerado ainda.</p>
         ) : (
-          <div className="max-h-80 space-y-2 overflow-y-auto">
+          <div className="max-h-96 divide-y overflow-y-auto rounded-2xl border">
             {convites.map((c: any) => {
               const expirado = !c.usado && new Date(c.expiraEm).getTime() < agora;
               const podeCancelar = !c.usado && !expirado;
               return (
-                <div key={c.id} className="flex items-center gap-2 rounded-lg border px-3 py-2 text-xs">
-                  <KeyRound className="size-3.5 shrink-0 text-muted-foreground" />
+                <div key={c.id} className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/40">
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                    <KeyRound className="size-4" aria-hidden="true" />
+                  </span>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate font-mono">{c.token}</p>
-                    <p className="text-muted-foreground">
-                      Gerado por <strong>{c.criadoPorNome}</strong> em {formatDate(c.criadoEm)}
+                    <p className="truncate font-mono text-sm">{c.token}</p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      Gerado por <span className="font-medium text-foreground">{c.criadoPorNome}</span> em <span className="tabular-nums">{formatDate(c.criadoEm)}</span>
                     </p>
                   </div>
                   <Badge
                     variant={c.usado ? "default" : expirado ? "destructive" : "secondary"}
-                    className="shrink-0 text-[10px]"
+                    className="shrink-0 rounded-full text-xs font-medium"
                   >
-                    {c.usado ? "usado" : expirado ? "expirado" : "pendente"}
+                    {c.usado ? "Usado" : expirado ? "Expirado" : "Pendente"}
                   </Badge>
                   {podeCancelar && (
                     <Button
                       size="icon"
                       variant="ghost"
-                      className="size-7 shrink-0 text-destructive hover:text-destructive"
+                      className="size-9 shrink-0 text-destructive hover:text-destructive"
                       disabled={cancelarMutation.isPending}
                       onClick={() => cancelarMutation.mutate(c.id)}
                       aria-label="Cancelar convite"
                     >
-                      <X className="size-3.5" />
+                      <X className="size-4" />
                     </Button>
                   )}
                 </div>

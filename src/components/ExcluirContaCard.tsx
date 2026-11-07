@@ -55,19 +55,21 @@ export function ExcluirContaCard({ className }: { className?: string }) {
   return (
     <>
       <Card className={className ?? "border-destructive/30"}>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-sm text-destructive">
-            <Trash2 className="size-4" /> Excluir minha conta
+        <CardHeader className="space-y-1">
+          <CardTitle className="flex items-center gap-2 text-base font-bold text-destructive">
+            <Trash2 className="size-4" aria-hidden="true" /> Excluir minha conta
           </CardTitle>
+          <p className="text-sm text-muted-foreground">A conta fica guardada por 90 dias antes de ser apagada.</p>
         </CardHeader>
-        <CardContent className="space-y-3">
-          <p className="text-sm text-muted-foreground">
+        <CardContent className="space-y-4">
+          <p className="text-sm leading-relaxed text-muted-foreground">
             Ao excluir, sua sessão é encerrada e a conta fica marcada para exclusão em 90 dias.
             Se você entrar de novo nesse período, perguntamos se quer cancelar e manter tudo.
             Passados os 90 dias, a conta e os dados pessoais são apagados de vez. Lançamentos
             compartilhados permanecem para os demais membros do grupo. A administração do site não
             pode excluir a própria conta.
           </p>
+          <div className="flex justify-end gap-3">
           <Button
             variant="destructive"
             disabled={isSiteAdmin}
@@ -76,6 +78,7 @@ export function ExcluirContaCard({ className }: { className?: string }) {
           >
             Excluir minha conta
           </Button>
+          </div>
         </CardContent>
       </Card>
 
@@ -97,7 +100,7 @@ export function ExcluirContaCard({ className }: { className?: string }) {
               <Input value={c2} onChange={(e) => setC2(e.target.value)} />
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="gap-3">
             <Button variant="outline" onClick={() => setAberto(false)}>
               Cancelar
             </Button>

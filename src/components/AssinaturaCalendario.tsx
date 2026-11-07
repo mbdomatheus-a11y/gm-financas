@@ -70,33 +70,32 @@ export function AssinaturaCalendario() {
 
   return (
     <Card className="mt-4">
-      <CardContent className="space-y-3 p-4">
+      <CardContent className="space-y-4 p-5">
         <div className="flex items-start gap-3">
-          <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
-            <CalendarPlus className="size-4" />
+          <span className="grid size-10 shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
+            <CalendarPlus className="size-4.5" aria-hidden="true" />
           </span>
-          <div>
+          <div className="min-w-0 space-y-1">
             <p className="text-sm font-semibold">Ver no seu calendário</p>
             <p className="text-xs leading-5 text-muted-foreground">
-              Faturas, vencimentos, receitas previstas, garantias e lista de compras aparecem no Google Agenda, no
-              Outlook ou no Calendário do iPhone/Mac e se atualizam sozinhos. O link é privado: não compartilhe.
+              Faturas, vencimentos e compras no Google Agenda, Outlook ou iPhone, sempre atualizados. O link é privado.
             </p>
           </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button size="sm" disabled={!!carregando} onClick={() => executar("google")}>
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+          <Button size="sm" className="h-10 rounded-full px-4" disabled={!!carregando} onClick={() => executar("google")}>
             {carregando === "google" ? "Abrindo..." : "Adicionar ao Google Agenda"}
           </Button>
-          <Button size="sm" variant="outline" disabled={!!carregando} onClick={() => executar("abrir")}>
+          <Button size="sm" variant="outline" className="h-10 rounded-full px-4" disabled={!!carregando} onClick={() => executar("abrir")}>
             {carregando === "abrir" ? "Abrindo..." : "Abrir no app de calendário"}
           </Button>
-          <Button size="sm" variant="outline" disabled={!!carregando} onClick={() => executar("copiar")}>
+          <Button size="sm" variant="outline" className="h-10 rounded-full px-4" disabled={!!carregando} onClick={() => executar("copiar")}>
             <Copy className="size-4" /> Copiar link
           </Button>
           <Button
             size="sm"
             variant="ghost"
-            className="text-destructive"
+            className="h-10 rounded-full px-4 text-destructive hover:bg-destructive/10 hover:text-destructive sm:ml-auto"
             disabled={!!carregando}
             onClick={() => setConfirmar(true)}
           >
@@ -105,16 +104,15 @@ export function AssinaturaCalendario() {
         </div>
       </CardContent>
       <AlertDialog open={confirmar} onOpenChange={setConfirmar}>
-        <AlertDialogContent>
+        <AlertDialogContent className="gap-4 rounded-2xl">
           <AlertDialogHeader>
             <AlertDialogTitle>Gerar novo link?</AlertDialogTitle>
             <AlertDialogDescription>
-              O link atual para de funcionar: as agendas que assinaram com ele (e quem mais tiver o link) deixam de
-              receber os eventos. Depois é só assinar de novo com o link novo.
+              O link atual para de funcionar e você precisará assinar de novo na sua agenda.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogFooter className="gap-3 sm:space-x-0">
+            <AlertDialogCancel className="mt-0">Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={renovar}>Gerar novo link</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

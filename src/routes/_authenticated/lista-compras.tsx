@@ -983,52 +983,57 @@ function ListaComprasPage() {
         )}
       </div>
       <Dialog open={!!editando} onOpenChange={(o) => !o && setEditando(null)}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="gap-5 rounded-2xl max-w-md">
           <DialogHeader>
             <DialogTitle>Editar item</DialogTitle>
           </DialogHeader>
           {(editando?.aprovado_por ?? []).length > 0 && (
-            <p className="rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">
-              Este item já tem aprovações. Ao salvar, elas são zeradas e ele precisa de nova
-              aprovação.
+            <p className="rounded-xl bg-destructive/10 p-3 text-xs text-destructive">
+              Este item já tem aprovações. Ao salvar, ele precisa ser aprovado de novo.
             </p>
           )}
-          <div className="space-y-3">
-            <div className="space-y-1.5">
-              <Label>Nome</Label>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="lc-editar-nome">Nome</Label>
               <Input
+                id="lc-editar-nome"
                 value={edicao.nome}
                 onChange={(e) => setEdicao((p) => ({ ...p, nome: e.target.value }))}
               />
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>Quantidade</Label>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="lc-editar-qtd">Quantidade</Label>
                 <Input
+                  id="lc-editar-qtd"
+                  className="tabular-nums"
                   type="number"
                   min={1}
                   value={edicao.quantidade}
                   onChange={(e) => setEdicao((p) => ({ ...p, quantidade: e.target.value }))}
                 />
               </div>
-              <div className="space-y-1.5">
-                <Label>Valor estimado (R$)</Label>
+              <div className="space-y-2">
+                <Label htmlFor="lc-editar-valor">Valor estimado (R$)</Label>
                 <Input
+                  id="lc-editar-valor"
+                  className="tabular-nums"
                   inputMode="decimal"
                   value={edicao.valor}
                   onChange={(e) => setEdicao((p) => ({ ...p, valor: e.target.value }))}
                 />
               </div>
             </div>
-            <div className="space-y-1.5">
-              <Label>Observação</Label>
+            <div className="space-y-2">
+              <Label htmlFor="lc-editar-obs">Observação</Label>
               <Input
+                id="lc-editar-obs"
                 value={edicao.observacao}
                 onChange={(e) => setEdicao((p) => ({ ...p, observacao: e.target.value }))}
               />
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="gap-3 sm:space-x-0">
             <Button variant="outline" onClick={() => setEditando(null)}>
               Cancelar
             </Button>

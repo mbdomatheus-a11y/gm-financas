@@ -31,7 +31,7 @@ export function AvisoDuplicata({ motivo }: { motivo: string | null | undefined }
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="mt-1 inline-flex items-center gap-1 rounded-full border border-warning/40 bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning-foreground dark:text-warning hover:bg-warning/20"
+          className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-warning/40 bg-warning/15 px-2.5 py-1 text-xs font-medium text-warning-foreground dark:text-warning hover:bg-warning/20"
         >
           <AlertTriangle className="size-3 shrink-0" aria-hidden="true" /> Possível duplicata
         </button>
@@ -101,7 +101,7 @@ export function AvisoCorrespondenciaFixa({
         <button
           type="button"
           className={cn(
-            "mt-1 inline-flex max-w-full items-center gap-1 rounded-md border px-2 py-1 text-left text-xs font-semibold",
+            "mt-2 inline-flex max-w-full items-center gap-1.5 rounded-full border px-2.5 py-1 text-left text-xs font-medium transition-colors",
             acao === "manter"
               ? "border-warning/50 bg-warning/15 text-warning-foreground dark:text-warning hover:bg-warning/25"
               : "border-primary/40 bg-primary/10 text-primary hover:bg-primary/20",

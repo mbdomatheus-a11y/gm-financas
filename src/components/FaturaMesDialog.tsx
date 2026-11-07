@@ -209,16 +209,16 @@ export function FaturaMesDialog({ trigger }: { trigger?: React.ReactNode }) {
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="gap-5 rounded-2xl sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Fatura do mês</DialogTitle>
           <DialogDescription>
-            Informe só o total da fatura. As parcelas em andamento continuam nos meses seguintes.
+            Informe o total. As parcelas em andamento seguem nos próximos meses.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-3">
-          <div className="grid gap-1.5">
+        <div className="grid gap-4">
+          <div className="grid gap-2">
             <Label>Cartão</Label>
             <Select value={cartaoId} onValueChange={setCartaoId}>
               <SelectTrigger>
@@ -236,8 +236,8 @@ export function FaturaMesDialog({ trigger }: { trigger?: React.ReactNode }) {
             </Select>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="grid gap-1.5">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="grid gap-2">
               <Label>Mês</Label>
               <Select value={competencia} onValueChange={setCompetencia}>
                 <SelectTrigger>
@@ -252,9 +252,11 @@ export function FaturaMesDialog({ trigger }: { trigger?: React.ReactNode }) {
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid gap-1.5">
-              <Label>Valor total da fatura</Label>
+            <div className="grid gap-2">
+              <Label htmlFor="fatura-mes-valor">Valor total</Label>
               <Input
+                id="fatura-mes-valor"
+                className="tabular-nums"
                 inputMode="decimal"
                 placeholder="0,00"
                 value={valor}
@@ -263,8 +265,8 @@ export function FaturaMesDialog({ trigger }: { trigger?: React.ReactNode }) {
             </div>
           </div>
 
-          <div className="grid gap-1.5">
-            <Label>Esse total…</Label>
+          <div className="grid gap-2">
+            <Label>Esse total</Label>
             <Select value={modo} onValueChange={(v) => setModo(v as typeof modo)}>
               <SelectTrigger>
                 <SelectValue />
@@ -281,8 +283,8 @@ export function FaturaMesDialog({ trigger }: { trigger?: React.ReactNode }) {
             </Select>
           </div>
 
-          <div className="grid gap-1.5">
-            <Label>Duração desse lançamento</Label>
+          <div className="grid gap-2">
+            <Label>Duração</Label>
             <Select
               value={tipoLancamento}
               onValueChange={(v) => setTipoLancamento(v as typeof tipoLancamento)}
@@ -291,10 +293,8 @@ export function FaturaMesDialog({ trigger }: { trigger?: React.ReactNode }) {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="fixo">
-                  Fixo — continua até eu excluir manualmente
-                </SelectItem>
-                <SelectItem value="temporario">Temporário — só até um mês específico</SelectItem>
+                <SelectItem value="fixo">Fixo: continua até eu excluir</SelectItem>
+                <SelectItem value="temporario">Temporário: só até um mês específico</SelectItem>
               </SelectContent>
             </Select>
             {tipoLancamento === "temporario" && (
@@ -311,19 +311,18 @@ export function FaturaMesDialog({ trigger }: { trigger?: React.ReactNode }) {
                 </SelectContent>
               </Select>
             )}
-            <p className="text-[11px] text-muted-foreground">
-              Isso não cria nenhuma recorrência automática — é só pra marcar na tela de Despesas
-              que esse total ainda não foi detalhado item a item, e (se temporário) te lembrar de
-              voltar a detalhar depois da data escolhida.
+            <p className="text-xs leading-5 text-muted-foreground">
+              Não cria recorrência. Só marca em Despesas que o total ainda não foi detalhado e, se
+              temporário, lembra você de detalhar depois.
             </p>
           </div>
 
-          <div className="rounded-lg border bg-muted/30 p-3 text-sm">
-            <p className="flex justify-between">
+          <div className="space-y-2 rounded-xl bg-muted p-4 text-sm">
+            <p className="flex justify-between gap-3">
               <span className="text-muted-foreground">Parcelas já previstas</span>
               <span className="tabular-nums">{formatBRL(previstas)}</span>
             </p>
-            <p className="flex justify-between">
+            <p className="flex justify-between gap-3">
               <span className="text-muted-foreground">
                 {modo === "somente_total"
                   ? "Total manual que substituirá os itens"
@@ -333,12 +332,12 @@ export function FaturaMesDialog({ trigger }: { trigger?: React.ReactNode }) {
                 {formatBRL(avulso)}
               </span>
             </p>
-            <p className="mt-1 flex justify-between border-t pt-1 font-semibold">
+            <p className="flex justify-between gap-3 border-t pt-2 font-semibold">
               <span>Total do mês nesse cartão</span>
               <span className="tabular-nums">{formatBRL(totalMes)}</span>
             </p>
             {negativo && (
-              <p className="mt-2 text-xs text-destructive">
+              <p className="text-xs text-destructive">
                 O total informado é menor que as parcelas já lançadas. Revise o valor ou escolha
                 “Não inclui as parcelas”.
               </p>
@@ -346,7 +345,7 @@ export function FaturaMesDialog({ trigger }: { trigger?: React.ReactNode }) {
           </div>
         </div>
 
-        <div className="flex justify-end gap-2">
+        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
           <Button variant="outline" onClick={() => setOpen(false)}>
             Cancelar
           </Button>

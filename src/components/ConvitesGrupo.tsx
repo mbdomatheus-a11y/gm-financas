@@ -48,15 +48,15 @@ export function ConvitesRecebidosAviso() {
   });
   if (pendentes.length === 0) return null;
   return (
-    <div className="space-y-2 border-b border-primary/40 bg-primary/5 px-4 py-3">
+    <div className="space-y-3 border-b border-primary/40 bg-primary/5 px-4 py-3">
       {pendentes.map((c) => (
-        <div key={c.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+        <div key={c.id} className="flex flex-wrap items-center justify-between gap-4 text-sm">
           <p className="min-w-0 flex-1">
             <strong>{c.de}</strong> convidou você para integrar o workspace dele(a). Ao aceitar, você
             passa a ver os dados do grupo e o seu workspace atual fica guardado, sem alterações, até
             você sair do grupo.
           </p>
-          <div className="flex gap-2">
+          <div className="flex justify-end gap-3">
             <Button size="sm" disabled={aceitando.isPending} onClick={() => aceitando.mutate(c.id)}>
               Aceitar
             </Button>
@@ -93,17 +93,22 @@ export function HistoricoConvitesGrupo() {
   ].sort((a, b) => b.em.localeCompare(a.em));
   if (itens.length === 0) return null;
   return (
-    <div className="space-y-2 border-t pt-3">
-      <p className="text-xs font-semibold">Histórico de convites</p>
+    <div className="space-y-3 pt-2">
+      <p className="text-base font-bold">Histórico de convites</p>
+      <div className="divide-y rounded-2xl border">
       {itens.map((c) => (
-        <div key={`${c.texto}-${c.id}`} className="flex items-center justify-between gap-2 rounded-lg border p-2 text-xs">
-          <span className="min-w-0 truncate">
-            {c.texto} · {ROTULO[c.status] ?? c.status} · {new Date(c.em).toLocaleDateString("pt-BR")}
-          </span>
+        <div key={`${c.texto}-${c.id}`} className="flex items-center justify-between gap-4 px-4 py-3 transition-colors hover:bg-muted/40">
+          <div className="min-w-0">
+            <p className="truncate text-sm font-medium">{c.texto}</p>
+            <p className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium">{ROTULO[c.status] ?? c.status}</span>
+              <span className="tabular-nums">{new Date(c.em).toLocaleDateString("pt-BR")}</span>
+            </p>
+          </div>
           <Button
             size="sm"
             variant="ghost"
-            className="h-7 text-xs text-destructive"
+            className="h-8 shrink-0 text-xs text-destructive hover:text-destructive"
             disabled={del.isPending}
             onClick={() => {
               if (window.confirm("Excluir definitivamente este registro? Isso não altera o acesso ao grupo.")) del.mutate(c.id);
@@ -113,6 +118,7 @@ export function HistoricoConvitesGrupo() {
           </Button>
         </div>
       ))}
+      </div>
     </div>
   );
 }
@@ -134,11 +140,12 @@ export function SairDoGrupoCard() {
   });
   if (!data?.emGrupoDeOutro) return null;
   return (
-    <div className="space-y-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs">
-      <p>
+    <div className="space-y-3 rounded-2xl border border-warning/40 bg-warning/10 px-4 py-3 text-sm">
+      <p className="text-sm">
         Você está usando o workspace de outro grupo. O seu workspace original está guardado, sem
         alterações, e volta quando você sair do grupo.
       </p>
+      <div className="flex justify-end gap-3">
       <Button
         size="sm"
         variant="outline"
@@ -149,6 +156,7 @@ export function SairDoGrupoCard() {
       >
         Sair do grupo e voltar ao meu workspace
       </Button>
+      </div>
     </div>
   );
 }

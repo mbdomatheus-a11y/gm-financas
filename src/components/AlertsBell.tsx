@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Bell, X } from "lucide-react";
+import { Bell, BellOff, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { alertasDosVeiculos } from "@/lib/veiculo-alertas";
 import { diasRestantes } from "@/lib/nfe";
@@ -327,23 +327,26 @@ export function AlertsBell() {
           variant="ghost"
           size="icon"
           aria-label={`${naoLidos.length} alertas não lidos`}
-          className="relative"
+          title="Alertas"
+          className="relative size-9 rounded-full text-muted-foreground transition-colors duration-150 hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/50"
         >
-          <Bell className="size-5" />
+          <Bell className="size-4.5" />
           {naoLidos.length > 0 && (
-            <span className="absolute -right-1 -top-1 rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground">
+            <span className="absolute right-0.5 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-xs leading-none font-semibold tabular-nums text-destructive-foreground ring-2 ring-background">
               {naoLidos.length}
             </span>
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="flex max-h-96 w-80 flex-col overflow-hidden p-2">
-        <div className="flex items-center justify-between px-2 py-1">
-          <p className="text-sm font-semibold">Alertas ({visiveis.length})</p>
+      <PopoverContent align="end" sideOffset={8} className="flex max-h-[28rem] w-80 flex-col overflow-hidden rounded-2xl border bg-background/95 shadow-lg backdrop-blur-xl p-2">
+        <div className="flex items-center justify-between px-3 pb-1 pt-2">
+          <p className="text-sm font-semibold">
+            Alertas <span className="font-normal tabular-nums text-muted-foreground">{visiveis.length}</span>
+          </p>
           {visiveis.length > 0 && (
             <button
               type="button"
-              className="text-xs text-primary hover:underline"
+              className="rounded-md px-1 text-xs font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
               onClick={() => {
                 setSelecionando((s) => !s);
                 setSelecionados([]);
@@ -354,26 +357,31 @@ export function AlertsBell() {
           )}
         </div>
         {visiveis.length > 0 && !selecionando && (
-          <div className="flex flex-wrap gap-3 px-2 pb-2 text-xs">
+          <div className="flex flex-wrap gap-4 px-3 pb-2 text-xs">
             {naoLidos.length > 0 && (
-              <button type="button" className="text-primary hover:underline" onClick={() => void marcarLidos(visiveis)}>
+              <button type="button" className="rounded-md text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50" onClick={() => void marcarLidos(visiveis)}>
                 Marcar todos como lidos
               </button>
             )}
-            <button type="button" className="text-destructive hover:underline" onClick={() => confirmarLimpeza(visiveis)}>
+            <button type="button" className="rounded-md text-destructive hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50" onClick={() => confirmarLimpeza(visiveis)}>
               Limpar todos
             </button>
           </div>
         )}
         <div className="min-h-0 flex-1 overflow-y-auto">
           {visiveis.length === 0 ? (
-            <p className="px-2 py-3 text-sm text-muted-foreground">Nenhum alerta no momento.</p>
+            <div className="flex flex-col items-center gap-3 px-4 py-8 text-center">
+              <span className="flex size-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                <BellOff className="size-4.5" aria-hidden="true" />
+              </span>
+              <p className="text-sm text-muted-foreground">Nenhum alerta no momento.</p>
+            </div>
           ) : (
             visiveis.map((aviso) => {
               const lido = chavesLidas.includes(aviso.chave);
               const marcado = selecionados.includes(aviso.chave);
               return (
-                <div key={aviso.chave} className="flex items-start gap-2 rounded-md px-2 py-2 text-sm hover:bg-accent">
+                <div key={aviso.chave} className="flex min-h-10 items-start gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors hover:bg-muted">
                   {selecionando && (
                     <input
                       type="checkbox"
@@ -410,10 +418,10 @@ export function AlertsBell() {
                     <button
                       type="button"
                       aria-label="Limpar alerta"
-                      className="text-muted-foreground hover:text-foreground"
+                      className="-mr-1 flex size-6 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
                       onClick={() => confirmarLimpeza([aviso])}
                     >
-                      <X className="size-4" />
+                      <X className="size-3.5" />
                     </button>
                   )}
                 </div>
@@ -422,7 +430,7 @@ export function AlertsBell() {
           )}
         </div>
         {selecionando && itensSelecionados.length > 0 && (
-          <div className="mt-2 flex gap-2 border-t pt-2">
+          <div className="mt-2 flex gap-2 border-t px-1 pt-2">
             <Button
               size="sm"
               variant="outline"
@@ -444,24 +452,24 @@ export function AlertsBell() {
           <Button
             variant="outline"
             size="sm"
-            className="mt-2 w-full"
+            className="mt-2 h-10 w-full rounded-xl"
             onClick={() => void limparFn().then(() => refetchVersoes())}
           >
             Limpar versões para todos
           </Button>
         )}
         {ehApp && (
-          <Button variant="outline" size="sm" className="mt-2 w-full" onClick={testarNotificacao}>
+          <Button variant="outline" size="sm" className="mt-2 h-10 w-full rounded-xl" onClick={testarNotificacao}>
             Testar notificação no iPhone
           </Button>
         )}
         {historico.length > 0 && (
           <>
-            <p className="mt-2 border-t px-2 py-2 text-xs font-semibold text-muted-foreground">
+            <p className="mt-2 border-t px-3 pb-1 pt-3 text-xs font-medium text-muted-foreground">
               Histórico (últimos 7 dias)
             </p>
             {historico.slice(0, 8).map((aviso: any) => (
-              <div key={aviso.id} className="rounded-md px-2 py-2 text-sm">
+              <div key={aviso.id} className="rounded-xl px-3 py-2 text-sm">
                 <p className="font-medium">{aviso.titulo}</p>
                 <p className="line-clamp-2 text-xs text-muted-foreground">{aviso.mensagem}</p>
               </div>

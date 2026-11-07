@@ -364,8 +364,8 @@ export function DestaquesBeta({
     : undefined;
   return (
     <div className={cn("native:hidden flex flex-col gap-3 lg:flex-row empty:hidden", className)}>
-      {plataforma !== "ios" && <DestaqueAndroid {...(onAndroid ? { onAbrir: onAndroid } : {})} onFechar={fechar} />}
-      {plataforma !== "android" && <DestaqueIos {...(onIos ? { onAbrir: onIos } : {})} onFechar={fechar} />}
+      {plataforma !== "ios" && <DestaqueAndroid {...(onAndroid ? { onAbrir: onAndroid } : {})} {...(fechar ? { onFechar: fechar } : {})} />}
+      {plataforma !== "android" && <DestaqueIos {...(onIos ? { onAbrir: onIos } : {})} {...(fechar ? { onFechar: fechar } : {})} />}
     </div>
   );
 }

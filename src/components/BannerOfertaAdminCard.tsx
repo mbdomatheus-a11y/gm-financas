@@ -83,42 +83,46 @@ export function BannerOfertaAdminCard() {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-sm">
-          <Timer className="size-4" /> Banner de oferta com contador (home)
+      <CardHeader className="space-y-1">
+        <CardTitle className="flex items-center gap-2 text-base font-bold">
+          <Timer className="size-4 text-muted-foreground" aria-hidden="true" /> Banner de oferta na home
         </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <p className="text-xs text-muted-foreground">
-          O contador conta até o fim fixo da janela. Desligar no meio não zera o tempo; ligar de novo
-          mostra o que falta. Para uma nova campanha, grave novo início e duração.
+        <p className="text-sm text-muted-foreground">
+          Contador até um fim fixo. Desligar não zera o tempo; nova campanha pede novo início e duração.
         </p>
-        <div className="grid gap-3">
-          <div className="space-y-1">
-            <Label htmlFor="banner-oferta-titulo" className="text-xs">Título (acima do contador)</Label>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="divide-y rounded-2xl border">
+          <div className="flex items-center justify-between gap-4 px-4 py-3">
+            <div className="min-w-0">
+              <Label htmlFor="banner-oferta-ativo" className="text-sm font-medium">Exibir banner na home</Label>
+              <p className="text-xs text-muted-foreground">Mostra o contador para todos os visitantes.</p>
+            </div>
+            <Switch
+              id="banner-oferta-ativo"
+              checked={ativoAtual}
+              disabled={!data || mutacao.isPending}
+              onCheckedChange={(v) => setAtivo(v)}
+            />
+          </div>
+        </div>
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="banner-oferta-titulo" className="text-sm font-medium">Título (acima do contador)</Label>
             <Input id="banner-oferta-titulo" maxLength={80} value={tituloAtual} onChange={(e) => setTitulo(e.target.value)} />
           </div>
-          <div className="space-y-1">
-            <Label htmlFor="banner-oferta-texto" className="text-xs">Texto (abaixo do contador)</Label>
+          <div className="space-y-1.5">
+            <Label htmlFor="banner-oferta-texto" className="text-sm font-medium">Texto (abaixo do contador)</Label>
             <Input id="banner-oferta-texto" maxLength={160} value={textoAtual} onChange={(e) => setTexto(e.target.value)} />
           </div>
-          <div className="space-y-1">
-            <Label htmlFor="banner-oferta-botao" className="text-xs">Texto do botão</Label>
+          <div className="space-y-1.5">
+            <Label htmlFor="banner-oferta-botao" className="text-sm font-medium">Texto do botão</Label>
             <Input id="banner-oferta-botao" maxLength={32} value={botaoAtual} onChange={(e) => setBotao(e.target.value)} />
           </div>
         </div>
-        <div className="flex items-center justify-between gap-3">
-          <Label htmlFor="banner-oferta-ativo" className="text-sm">Exibir banner na home</Label>
-          <Switch
-            id="banner-oferta-ativo"
-            checked={ativoAtual}
-            disabled={!data || mutacao.isPending}
-            onCheckedChange={(v) => setAtivo(v)}
-          />
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="space-y-1">
-            <Label htmlFor="banner-oferta-inicio" className="text-xs">Início</Label>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="banner-oferta-inicio" className="text-sm font-medium">Início</Label>
             <Input
               id="banner-oferta-inicio"
               type="datetime-local"
@@ -126,8 +130,8 @@ export function BannerOfertaAdminCard() {
               onChange={(e) => setInicio(e.target.value)}
             />
           </div>
-          <div className="space-y-1">
-            <Label htmlFor="banner-oferta-duracao" className="text-xs">Duração total (horas)</Label>
+          <div className="space-y-1.5">
+            <Label htmlFor="banner-oferta-duracao" className="text-sm font-medium">Duração total (horas)</Label>
             <Input
               id="banner-oferta-duracao"
               type="number"
@@ -140,9 +144,9 @@ export function BannerOfertaAdminCard() {
         </div>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-xs text-muted-foreground">
-            Fim previsto: <span className="font-medium text-foreground">{formatarData(fimPrevisto)}</span>
+            Fim previsto: <span className="font-medium tabular-nums text-foreground">{formatarData(fimPrevisto)}</span>
             {data?.fim && (
-              <> · Fim gravado: <span className="font-medium text-foreground">{formatarData(data.fim)}</span></>
+              <> · Fim gravado: <span className="font-medium tabular-nums text-foreground">{formatarData(data.fim)}</span></>
             )}
           </p>
           <Button size="sm" onClick={() => mutacao.mutate()} disabled={mutacao.isPending || !data}>

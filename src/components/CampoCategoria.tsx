@@ -166,11 +166,11 @@ export function CampoCategoria({
         type="button"
         aria-label={ariaLabel ?? "Categoria"}
         onClick={() => setAberto(true)}
-        className="flex h-9 w-full items-center gap-2 rounded-md border border-input bg-background px-3 text-left text-sm shadow-xs hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="flex h-11 w-full items-center gap-3 rounded-xl border border-input bg-background px-4 text-left text-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
       >
         <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: atual?.cor || "var(--primary)" }} />
         <span className={cn("flex-1 truncate", !valor && "text-muted-foreground")}>{valor || "Escolher categoria"}</span>
-        <span className="text-xs font-semibold text-primary">Trocar</span>
+        <span className="text-xs font-medium text-primary">Trocar</span>
       </button>
     );
   }
@@ -178,7 +178,7 @@ export function CampoCategoria({
   return (
     <div
       ref={caixa}
-      className="overflow-hidden rounded-md border-2 border-primary bg-background shadow-sm"
+      className="overflow-hidden rounded-2xl border bg-background shadow-lg ring-2 ring-primary/30"
     >
       <input
         autoFocus
@@ -197,15 +197,15 @@ export function CampoCategoria({
             else if (podeCriar) void criar();
           }
         }}
-        className="w-full border-b bg-transparent px-3 py-2 text-sm outline-none"
+        className="h-11 w-full border-b bg-transparent px-4 text-sm outline-none placeholder:text-muted-foreground"
       />
-      <div className="max-h-64 overflow-y-auto">
+      <div className="max-h-64 overflow-y-auto p-1.5">
         {resultados.length === 0 && !podeCriar ? (
-          <p className="px-3 py-3 text-sm text-muted-foreground">Nenhuma categoria encontrada.</p>
+          <p className="px-3 py-6 text-center text-sm text-muted-foreground">Nenhuma categoria encontrada.</p>
         ) : (
           resultados.map((r) =>
             editando === r.nome ? (
-              <div key={r.nome} className="flex items-center gap-2 px-3 py-2">
+              <div key={r.nome} className="flex min-h-10 items-center gap-3 px-2 py-1">
                 <input
                   autoFocus
                   value={novoNome}
@@ -220,24 +220,24 @@ export function CampoCategoria({
                       setEditando(null);
                     }
                   }}
-                  className="h-8 flex-1 rounded border border-primary bg-transparent px-2 text-sm outline-none"
+                  className="h-8 min-w-0 flex-1 rounded-lg border bg-background px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
                 />
                 {salvando ? (
                   <Loader2 className="size-4 animate-spin" />
                 ) : (
                   <>
-                    <button type="button" className="text-xs font-semibold text-primary" onClick={() => void renomear(r.nome)}>
+                    <button type="button" className="rounded-md text-xs font-medium text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50" onClick={() => void renomear(r.nome)}>
                       Salvar
                     </button>
-                    <button type="button" className="text-xs text-muted-foreground" onClick={() => setEditando(null)}>
+                    <button type="button" className="rounded-md text-xs text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50" onClick={() => setEditando(null)}>
                       Cancelar
                     </button>
                   </>
                 )}
               </div>
             ) : (
-              <div key={r.nome} className="group flex items-center gap-2 px-3 py-2 text-sm hover:bg-accent">
-                <button type="button" className="flex flex-1 items-center gap-2 text-left" onClick={() => escolher(r.nome)}>
+              <div key={r.nome} className="group flex h-10 items-center gap-2 rounded-lg px-3 text-sm transition-colors hover:bg-muted">
+                <button type="button" className="flex h-full min-w-0 flex-1 items-center gap-3 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50" onClick={() => escolher(r.nome)}>
                   <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: r.cor || "var(--primary)" }} />
                   <span className="flex-1 truncate">{r.nome}</span>
                   {r.nome === valor && <Check className="size-4 text-primary" />}
@@ -247,7 +247,7 @@ export function CampoCategoria({
                     type="button"
                     aria-label={`Renomear ${r.nome}`}
                     title="Renomear"
-                    className="rounded p-1 text-muted-foreground hover:text-foreground"
+                    className="flex size-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
                     onClick={() => {
                       setEditando(r.nome);
                       setNovoNome(r.nome);
@@ -265,14 +265,14 @@ export function CampoCategoria({
             type="button"
             disabled={salvando}
             onClick={() => void criar()}
-            className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-medium text-primary hover:bg-accent"
+            className="flex h-10 w-full items-center gap-3 rounded-lg px-3 text-left text-sm font-medium text-primary transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
           >
             {salvando ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
             {salvando ? "Criando..." : `Criar categoria "${termoLimpo}"`}
           </button>
         )}
       </div>
-      <button type="button" onClick={fechar} className="w-full border-t py-2 text-xs text-muted-foreground hover:bg-accent">
+      <button type="button" onClick={fechar} className="h-10 w-full border-t text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50">
         Cancelar
       </button>
     </div>

@@ -620,35 +620,35 @@ function EditarEventoDialog({
 
   return (
     <Dialog open={!!evento} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="gap-5 rounded-2xl sm:max-w-md">
         {evento && (
           <>
             <DialogHeader>
               <DialogTitle>{evento.titulo}</DialogTitle>
-              <DialogDescription>
+              <DialogDescription className="tabular-nums">
                 {formatDate(evento.data)}
                 {evento.valor != null ? ` · ${formatBRL(evento.valor)}` : ""}
               </DialogDescription>
             </DialogHeader>
 
             {evento.tipo === "fatura" && (
-              <div className="space-y-2">
-                <div className="max-h-56 divide-y overflow-y-auto rounded-lg border text-sm">
+              <div className="space-y-4">
+                <div className="max-h-56 divide-y overflow-y-auto rounded-xl border text-sm">
                   {(evento.ref.itens as any[]).map((l) => (
-                    <div key={l.id} className="flex items-center justify-between gap-2 px-3 py-1.5">
+                    <div key={l.id} className="flex min-h-10 items-center justify-between gap-3 px-4 py-2">
                       <span className="truncate">{l.despesa?.descricao}</span>
                       <span className="shrink-0 tabular-nums">{formatBRL(Number(l.valor))}</span>
                     </div>
                   ))}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Para editar lançamentos ou o dia de vencimento do cartão, use as telas abaixo.
+                  Para editar lançamentos ou o vencimento do cartão, use as telas abaixo.
                 </p>
-                <div className="flex flex-wrap gap-2">
-                  <Button asChild variant="outline" size="sm">
+                <div className="flex flex-wrap gap-3">
+                  <Button asChild variant="outline" size="sm" className="rounded-full px-4">
                     <Link to="/despesas">Abrir Despesas</Link>
                   </Button>
-                  <Button asChild variant="outline" size="sm">
+                  <Button asChild variant="outline" size="sm" className="rounded-full px-4">
                     <Link to="/cartoes">Abrir Cartões</Link>
                   </Button>
                 </div>
@@ -656,31 +656,32 @@ function EditarEventoDialog({
             )}
 
             {(evento.tipo === "nota" || evento.tipo === "garantia") && (
-              <div className="grid gap-3">
-                <div className="space-y-1.5">
-                  <Label>Data da compra</Label>
-                  <Input type="date" value={dataCompra} onChange={(e) => setDataCompra(e.target.value)} />
+              <div className="grid gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="cal-ev-compra">Data da compra</Label>
+                  <Input id="cal-ev-compra" type="date" value={dataCompra} onChange={(e) => setDataCompra(e.target.value)} />
                 </div>
-                <div className="space-y-1.5">
-                  <Label>Fim da garantia</Label>
-                  <Input type="date" value={garantiaFim} onChange={(e) => setGarantiaFim(e.target.value)} />
+                <div className="space-y-2">
+                  <Label htmlFor="cal-ev-garantia">Fim da garantia</Label>
+                  <Input id="cal-ev-garantia" type="date" value={garantiaFim} onChange={(e) => setGarantiaFim(e.target.value)} />
                 </div>
-                <div className="space-y-1.5">
-                  <Label>Valor total (R$)</Label>
-                  <Input inputMode="decimal" value={valor} onChange={(e) => setValor(e.target.value)} />
+                <div className="space-y-2">
+                  <Label htmlFor="cal-ev-valor">Valor total (R$)</Label>
+                  <Input id="cal-ev-valor" className="tabular-nums" inputMode="decimal" value={valor} onChange={(e) => setValor(e.target.value)} />
                 </div>
               </div>
             )}
 
             {evento.tipo === "lista" && (
-              <div className="grid gap-3">
-                <div className="space-y-1.5">
-                  <Label>Data prevista da compra</Label>
-                  <Input type="date" value={alerta} onChange={(e) => setAlerta(e.target.value)} />
+              <div className="grid gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="cal-ev-prevista">Data prevista da compra</Label>
+                  <Input id="cal-ev-prevista" type="date" value={alerta} onChange={(e) => setAlerta(e.target.value)} />
                 </div>
                 <Button
                   variant="outline"
                   size="sm"
+                  className="justify-self-start rounded-full px-4"
                   onClick={() => marcarComprado.mutate()}
                   disabled={marcarComprado.isPending}
                 >
@@ -689,7 +690,7 @@ function EditarEventoDialog({
               </div>
             )}
 
-            <DialogFooter>
+            <DialogFooter className="gap-3 sm:space-x-0">
               <Button variant="outline" onClick={onClose}>
                 Fechar
               </Button>

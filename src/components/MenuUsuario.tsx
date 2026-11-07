@@ -64,7 +64,7 @@ export function MenuUsuario({
         aria-label="Abrir menu da conta"
         title={nome ? `${nome}: conta, configurações e idioma` : "Conta, configurações e idioma"}
         className={cn(
-          "flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full border bg-muted text-sm font-semibold text-muted-foreground outline-none ring-primary transition hover:ring-2 focus-visible:ring-2",
+          "flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full border bg-muted text-sm font-semibold text-muted-foreground outline-none ring-primary/50 transition hover:ring-2 focus-visible:ring-2",
           className,
         )}
       >
@@ -76,11 +76,15 @@ export function MenuUsuario({
           <User className="size-4" aria-hidden="true" />
         )}
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-64">
-        <DropdownMenuLabel className="truncate">
+      <DropdownMenuContent
+        align="end"
+        sideOffset={8}
+        className="w-64 rounded-2xl border bg-background/95 shadow-lg backdrop-blur-xl p-1.5 [&_[role=menuitem]]:h-10 [&_[role=menuitem]]:rounded-lg [&_[role=menuitem]]:px-3 [&_[role=menuitem]:focus]:bg-muted"
+      >
+        <DropdownMenuLabel className="truncate px-3 py-2">
           {nome || "Minha conta"}
           {usuarioSessao?.email ? (
-            <span className="block truncate text-xs font-normal text-muted-foreground">Conectado como {usuarioSessao.email}</span>
+            <span className="mt-0.5 block truncate text-xs font-normal text-muted-foreground">Conectado como {usuarioSessao.email}</span>
           ) : null}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
@@ -99,7 +103,7 @@ export function MenuUsuario({
             <Languages className="size-4" aria-hidden="true" /> Idioma
             <span className="ml-auto text-xs text-muted-foreground">{infoIdioma(idioma).bandeira}</span>
           </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent className="w-52">
+          <DropdownMenuSubContent className="w-52 rounded-2xl border bg-background/95 p-1.5 shadow-lg backdrop-blur-xl [&_[role=menuitem]]:h-10 [&_[role=menuitem]]:rounded-lg [&_[role=menuitem]]:px-3 [&_[role=menuitem]:focus]:bg-muted">
             {IDIOMAS.map((i) => (
               <DropdownMenuItem
                 key={i.codigo}

@@ -23,22 +23,27 @@ export function AvisoCalculadoraAdminCard() {
   });
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-sm">
-          <Info className="size-4" /> Aviso do simulador da calculadora
+      <CardHeader className="space-y-1">
+        <CardTitle className="flex items-center gap-2 text-base font-bold">
+          <Info className="size-4 text-muted-foreground" aria-hidden="true" /> Simulador da calculadora
         </CardTitle>
+        <p className="text-sm text-muted-foreground">Aviso exibido ao abrir o Simulador de dose/diluição.</p>
       </CardHeader>
-      <CardContent className="flex items-center justify-between gap-3">
-        <p className="text-xs text-muted-foreground">
-          Mostra ou esconde, para todos os usuários, o aviso de uso acadêmico que
-          aparece ao abrir o Simulador de dose/diluição (Ferramentas).
-        </p>
+      <CardContent>
+        <div className="divide-y rounded-2xl border">
+          <div className="flex items-center justify-between gap-4 px-4 py-3">
+            <div className="min-w-0">
+              <p className="text-sm font-medium">Mostrar aviso de uso acadêmico</p>
+              <p className="text-xs text-muted-foreground">Vale para todos os usuários, em Ferramentas.</p>
+            </div>
         <Switch
           checked={data?.exibir ?? false}
           disabled={mudar.isPending || !data}
           onCheckedChange={(v) => mudar.mutate(v)}
           aria-label="Exibir aviso da calculadora"
         />
+          </div>
+        </div>
       </CardContent>
     </Card>
   );

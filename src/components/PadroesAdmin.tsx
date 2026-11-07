@@ -129,9 +129,9 @@ export function PadroesAdmin() {
               <Plus className="size-4" /> Adicionar
             </Button>
           </div>
-          <ul className="max-h-80 space-y-1.5 overflow-y-auto">
+          <ul className="max-h-80 divide-y overflow-y-auto rounded-2xl border">
             {lista.map((c) => (
-              <li key={c.id} className="flex items-start gap-2 rounded-lg border p-2 text-sm">
+              <li key={c.id} className="flex items-center gap-3 px-4 py-3 text-sm transition-colors hover:bg-muted/40">
                 <div className="min-w-0 flex-1">
                   <p className="font-medium">{c.nome}</p>
                   {c.subcategorias.length > 0 && (
@@ -142,6 +142,7 @@ export function PadroesAdmin() {
                   <Button
                     variant="ghost"
                     size="icon"
+                    className="size-9 shrink-0"
                     aria-label={`Remover ${c.nome}`}
                     onClick={() => delCategoria.mutate(c.id)}
                   >
@@ -184,13 +185,13 @@ export function PadroesAdmin() {
             ))}
           </datalist>
           {depara.length === 0 ? (
-            <p className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
+            <p className="rounded-2xl border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">
               Nenhum de-para padrão cadastrado.
             </p>
           ) : (
-            <ul className="max-h-80 space-y-1.5 overflow-y-auto">
+            <ul className="max-h-80 divide-y overflow-y-auto rounded-2xl border">
               {depara.map((d) => (
-                <li key={d.id} className="flex items-center gap-2 rounded-lg border p-2 text-sm">
+                <li key={d.id} className="flex items-center gap-3 px-4 py-3 text-sm transition-colors hover:bg-muted/40">
                   <span className="min-w-0 flex-1 truncate">
                     <strong>{d.texto}</strong> → {d.categoria}
                     {d.subcategoria ? ` / ${d.subcategoria}` : ""}
@@ -198,6 +199,7 @@ export function PadroesAdmin() {
                   <Button
                     variant="ghost"
                     size="icon"
+                    className="size-9 shrink-0"
                     aria-label={`Remover ${d.texto}`}
                     onClick={() => delDePara.mutate(d.id)}
                   >

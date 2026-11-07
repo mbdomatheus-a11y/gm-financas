@@ -55,24 +55,27 @@ export function IaLancamentoModoSiteCard() {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-sm">
-          <Sparkles className="size-4" /> Lançamento por IA — padrão do site
+      <CardHeader className="space-y-1">
+        <CardTitle className="flex items-center gap-2 text-base font-bold">
+          <Sparkles className="size-4 text-muted-foreground" aria-hidden="true" /> Lançamento por IA
         </CardTitle>
+        <p className="text-sm text-muted-foreground">Padrão do site, que cada grupo pode trocar em Minha conta.</p>
       </CardHeader>
-      <CardContent className="space-y-3">
-        <p className="text-xs text-muted-foreground">
-          Define o que todos os grupos podem usar no lançamento rápido por IA e no resumo
-          financeiro, a menos que o admin de um grupo específico escolha algo diferente em "Minha
-          conta". Desativado bloqueia o módulo de IA inteiro (texto, áudio e resumo) pra quem não
-          tiver um override de grupo liberando.
-        </p>
+      <CardContent>
+        <div className="divide-y rounded-2xl border">
+          <div className="flex items-center justify-between gap-4 px-4 py-3">
+            <div className="min-w-0">
+              <p className="text-sm font-medium">Modo padrão</p>
+              <p className="text-xs text-muted-foreground">
+                Desativado bloqueia texto, áudio e resumo para quem não tiver liberação do grupo.
+              </p>
+            </div>
         <Select
           value={data?.modoPadrao ?? "ambos"}
           onValueChange={(v) => mudar.mutate(v as ModoIaLancamento)}
           disabled={mudar.isPending}
         >
-          <SelectTrigger className="max-w-xs">
+          <SelectTrigger className="w-44 shrink-0 sm:w-56" aria-label="Modo padrão do lançamento por IA">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -83,6 +86,8 @@ export function IaLancamentoModoSiteCard() {
             ))}
           </SelectContent>
         </Select>
+          </div>
+        </div>
       </CardContent>
     </Card>
   );

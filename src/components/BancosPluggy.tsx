@@ -108,6 +108,27 @@ function agruparHistorico(historico: any[], conectorDoItem: (itemId: string) => 
 
 
 /** Moldura: na rota /pluggy vira página; dentro da Administração, só o conteúdo. */
+/** Estado vazio padrão: ícone em círculo, texto curto e uma ação opcional. */
+function Vazio({
+  icone: Icone,
+  texto,
+  children,
+}: {
+  icone: React.ComponentType<{ className?: string }>;
+  texto: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div className="col-span-full flex flex-col items-center gap-3 py-8 text-center">
+      <span className="flex size-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
+        <Icone className="size-4.5" aria-hidden="true" />
+      </span>
+      <p className="text-sm text-muted-foreground">{texto}</p>
+      {children}
+    </div>
+  );
+}
+
 function Moldura({ embutido, title, description, children }: { embutido: boolean; title: string; description?: string; children: React.ReactNode }) {
   if (embutido) return <>{children}</>;
   return (
@@ -311,8 +332,14 @@ export function ConteudoBancosPluggy({ embutido = false }: { embutido?: boolean 
               </Button>
             </div>
           </CardHeader>
-          <CardContent className="grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-3">
-            {itens.itens.length === 0 && <p className="text-muted-foreground">Nenhum banco conectado ainda.</p>}
+          <CardContent className="grid gap-4 text-sm sm:grid-cols-2 xl:grid-cols-3">
+            {itens.itens.length === 0 && (
+              <Vazio icone={Landmark} texto="Nenhum banco conectado ainda.">
+                <Button asChild size="sm" variant="outline" className="rounded-full">
+                  <a href="#conectar-banco">Conectar banco</a>
+                </Button>
+              </Vazio>
+            )}
             {itens.itens.map((i) => {
               const u = ultimaDaConexao(i.item_id);
               const emAndamento = sincronizarItem.isPending && sincronizarItem.variables === i.item_id;
@@ -343,7 +370,7 @@ export function ConteudoBancosPluggy({ embutido = false }: { embutido?: boolean 
                           value={editandoItem.nome}
                           onChange={(e) => setEditandoItem({ itemId: i.item_id, nome: e.target.value })}
                           placeholder="Nome do banco (ex.: Itaú)"
-                          className="h-8"
+                          className="h-9"
                           maxLength={120}
                         />
                         <Button size="sm" type="submit" disabled={renomear.isPending || !editandoItem.nome.trim()}>
@@ -358,7 +385,7 @@ export function ConteudoBancosPluggy({ embutido = false }: { embutido?: boolean 
                         {tituloDaConexao(contas?.contas ?? [], i)}
                         <button
                           type="button"
-                          className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                          className="flex size-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
                           aria-label="Editar nome da conexão"
                           onClick={() => setEditandoItem({ itemId: i.item_id, nome: i.conector ?? "" })}
                         >
@@ -366,11 +393,11 @@ export function ConteudoBancosPluggy({ embutido = false }: { embutido?: boolean 
                         </button>
                       </p>
                     )}
-                    <p className="flex items-center gap-1 text-[11px] text-muted-foreground/80">
+                    <p className="flex items-center gap-1 text-xs text-muted-foreground">
                       Chave: <code className="break-all">{i.item_id}</code>
                       <button
                         type="button"
-                        className="rounded p-1 hover:bg-muted hover:text-foreground"
+                        className="flex size-7 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
                         aria-label="Copiar chave da conexão"
                         onClick={() => {
                           void navigator.clipboard.writeText(i.item_id).then(
@@ -414,7 +441,7 @@ export function ConteudoBancosPluggy({ embutido = false }: { embutido?: boolean 
                   <Button
                     size="icon"
                     variant="ghost"
-                    className="size-8"
+                    className="size-9 rounded-full text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                     aria-label="Remover conexão"
                     disabled={apagar.isPending || ocupado}
                     onClick={() => {
@@ -439,28 +466,26 @@ export function ConteudoBancosPluggy({ embutido = false }: { embutido?: boolean 
           <CardHeader className="pb-3">
             <CardTitle className="text-base">Contas e cartões</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2">
-            {(contas?.contas.length ?? 0) === 0 && (
-              <p className="text-sm text-muted-foreground">Nenhuma conta sincronizada ainda.</p>
-            )}
-            <div className="grid gap-2 sm:grid-cols-2">
+          <CardContent className="space-y-4">
+            {(contas?.contas.length ?? 0) === 0 && <Vazio icone={Landmark} texto="Nenhuma conta sincronizada ainda." />}
+            <div className="grid gap-3 sm:grid-cols-2">
               {contas?.contas.map((c: any) => (
-                <div key={c.id} className="rounded-lg border p-3 text-sm">
+                <div key={c.id} className="space-y-1 rounded-xl border p-4 text-sm">
                   <p className="font-medium">{c.banco_nome ?? "Banco não definido"}</p>
                   <p className="text-xs text-muted-foreground">
                     {identificadorConta(c)}
                     {c.titular ? ` · Titular: ${c.titular}` : ""}
                   </p>
-                  <p className="text-[11px] text-muted-foreground/80">Nome no Open Finance: {c.nome ?? "não informado"}</p>
+                  <p className="text-xs text-muted-foreground">Nome no Open Finance: {c.nome ?? "não informado"}</p>
                   {c.tipo === "CREDIT" ? (
-                    <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
+                    <ul className="space-y-0.5 pt-1 text-xs tabular-nums text-muted-foreground">
                       <li>Limite: {c.limite != null ? formatBRL(c.limite) : "não informado"}</li>
                       <li>Disponível: {c.limite_disponivel != null ? formatBRL(c.limite_disponivel) : "não informado"}</li>
                       <li>Fatura atual: {c.fatura_valor != null ? formatBRL(c.fatura_valor) : "não informado"}</li>
                       <li>Vencimento: {c.fatura_vencimento ? dataBR(c.fatura_vencimento) : "não informado"}</li>
                     </ul>
                   ) : (
-                    <p className="mt-1 text-xs text-muted-foreground">
+                    <p className="pt-1 text-xs tabular-nums text-muted-foreground">
                       Saldo em conta: {c.saldo != null ? formatBRL(c.saldo) : "não informado"}
                     </p>
                   )}
@@ -471,38 +496,37 @@ export function ConteudoBancosPluggy({ embutido = false }: { embutido?: boolean 
         </Card>
 
         {/* 3. Conectar (link agrupado e resumido) */}
-        <Card className={cn(ADMIN_ONLY_CARD)}>
+        <Card id="conectar-banco" className={cn(ADMIN_ONLY_CARD, "scroll-mt-24")}>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
               <Landmark className="size-4" aria-hidden="true" /> Conectar banco ou cartão
               <span className={ADMIN_ONLY_TAG}>Só admin</span>
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3 text-sm">
+          <CardContent className="space-y-4 text-sm">
             {st && !st.configurado && (
-              <p className="rounded-md border border-warning/40 bg-warning/10 p-3 text-xs">
+              <p className="rounded-xl bg-warning/15 p-3 text-xs text-warning-foreground">
                 Faltam as variáveis PLUGGY_CLIENT_ID e PLUGGY_CLIENT_SECRET no servidor (Vercel). Veja docs/PENDENCIAS.md.
               </p>
             )}
-            <ul className="grid gap-2 rounded-lg border bg-muted/30 p-3 text-xs sm:grid-cols-2">
+            <ul className="grid gap-2 rounded-xl bg-muted p-4 text-xs sm:grid-cols-2">
               <li>Conexão protegida pelo Open Finance.</li>
               <li>Sistema regulamentado pelo Banco Central.</li>
               <li>Sua senha do banco não passa pelo Control ALL.</li>
               <li>Você desconecta quando quiser.</li>
             </ul>
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-3">
               <Button disabled={!st?.configurado || conectar.isPending} onClick={() => conectar.mutate()}>
                 <Link2 className="mr-1.5 size-4" aria-hidden="true" />
                 {conectar.isPending ? "Preparando…" : "Conectar um banco"}
               </Button>
               <span className="text-xs text-muted-foreground">
-                A aplicação da Pluggy está em modo demo: esta janela só conecta o banco de teste (Sandbox). Bancos reais entram pelo
-                Item ID do conector MeuPluggy, logo abaixo.
+                Modo demo: aqui só conecta o banco de teste (Sandbox). Bancos reais entram pelo Item ID abaixo.
               </span>
             </div>
             <details className="text-xs">
-              <summary className="cursor-pointer text-muted-foreground">Usar dados reais pelo Meu Pluggy (gratuito)</summary>
-              <div className="mt-2 space-y-2">
+              <summary className="cursor-pointer rounded-md text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50">Usar dados reais pelo Meu Pluggy (gratuito)</summary>
+              <div className="mt-3 space-y-3">
                 <p className="text-muted-foreground">
                   Conecte o banco no meu.pluggy.ai. Depois, no dashboard.pluggy.ai, abra sua aplicação, crie uma conexão com o conector
                   MeuPluggy (login com sua conta do Meu Pluggy), autorize o banco e copie o Item ID da conexão. Cole o Item ID aqui.
@@ -549,13 +573,13 @@ export function ConteudoBancosPluggy({ embutido = false }: { embutido?: boolean 
           <CardHeader className="pb-3">
             <CardTitle className="text-base">Investimentos e empréstimos</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3 text-sm">
-            <div className="grid gap-2 sm:grid-cols-2">
-              <div className="rounded-md bg-muted/40 p-3">
+          <CardContent className="space-y-4 text-sm">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-xl bg-muted p-4">
                 <p className="text-xs text-muted-foreground">Investimentos ({investimentos.length})</p>
                 <p className="text-lg font-semibold tabular-nums">{formatBRL(totalInvestido)}</p>
               </div>
-              <div className="rounded-md bg-muted/40 p-3">
+              <div className="rounded-xl bg-muted p-4">
                 <p className="text-xs text-muted-foreground">Saldo devedor ({emprestimos.length})</p>
                 <p className="text-lg font-semibold tabular-nums">{formatBRL(totalDevedor)}</p>
               </div>
@@ -611,14 +635,12 @@ export function ConteudoBancosPluggy({ embutido = false }: { embutido?: boolean 
             <CardTitle className="text-base">Histórico de sincronizações</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
-            {historicoPorBanco.length === 0 && (
-              <p className="text-muted-foreground">Nenhuma sincronização registrada ainda.</p>
-            )}
+            {historicoPorBanco.length === 0 && <Vazio icone={RefreshCw} texto="Nenhuma sincronização registrada ainda." />}
             {historicoPorBanco.map((g) => (
               <div key={g.nome}>
                 <p className="font-medium">
                   {g.nome}{" "}
-                  <span className="text-xs font-normal text-muted-foreground">
+                  <span className="text-xs font-normal tabular-nums text-muted-foreground">
                     · {g.ok} ok · {g.falhas} com falha
                   </span>
                 </p>
@@ -646,24 +668,24 @@ export function ConteudoBancosPluggy({ embutido = false }: { embutido?: boolean 
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base">
-              Lançamentos importados <span className="text-xs font-normal text-muted-foreground">({totalImportados})</span>
+              Lançamentos importados <span className="text-xs font-normal tabular-nums text-muted-foreground">({totalImportados})</span>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
             <p className="text-xs text-muted-foreground">
               Entram já aprovados. Você pode rejeitar o que não for seu; depois de 30 dias o lançamento fica congelado.
             </p>
-            {grupos.length === 0 && <p className="text-muted-foreground">Nenhum lançamento importado ainda.</p>}
+            {grupos.length === 0 && <Vazio icone={Landmark} texto="Nenhum lançamento importado ainda." />}
             {grupos.map((g) => (
-              <section key={g.nome} className="rounded-lg border">
-                <header className="flex flex-wrap items-center justify-between gap-2 border-b bg-muted/40 px-3 py-2">
+              <section key={g.nome} className="overflow-hidden rounded-xl border">
+                <header className="flex flex-wrap items-center justify-between gap-2 border-b bg-muted px-4 py-2.5">
                   <span className="font-medium">{g.nome}</span>
                   <span className="text-xs tabular-nums text-muted-foreground">
                     {g.quantidade} lançamento(s) · {formatBRL(g.total)}
                   </span>
                 </header>
                 {g.dias.map((dia) => (
-                  <div key={dia.data} className="border-b px-3 py-2 last:border-b-0">
+                  <div key={dia.data} className="border-b px-4 py-2 last:border-b-0">
                     <div className="mb-1 flex justify-between text-xs">
                       <span className="font-medium text-muted-foreground">{dataBR(dia.data)}</span>
                       <span className="tabular-nums text-muted-foreground">{formatBRL(dia.total)}</span>
@@ -703,7 +725,13 @@ export function ConteudoBancosPluggy({ embutido = false }: { embutido?: boolean 
             <CardTitle className="text-base">Extrato dos últimos 30 dias</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
-            {itens.itens.length === 0 && <p className="text-muted-foreground">Nenhum banco conectado ainda.</p>}
+            {itens.itens.length === 0 && (
+              <Vazio icone={Landmark} texto="Nenhum banco conectado ainda.">
+                <Button asChild size="sm" variant="outline" className="rounded-full">
+                  <a href="#conectar-banco">Conectar banco</a>
+                </Button>
+              </Vazio>
+            )}
             <div className="flex flex-wrap gap-2">
               {itens.itens.map((i) => (
                 <Button
@@ -721,10 +749,10 @@ export function ConteudoBancosPluggy({ embutido = false }: { embutido?: boolean 
                 {mov.isLoading && <p className="text-muted-foreground">Consultando…</p>}
                 {mov.error && <p className="text-destructive">{(mov.error as Error).message}</p>}
                 {mov.data?.contas.map(({ conta, transacoes }) => (
-                  <div key={conta.id} className="rounded-md bg-muted/40 p-2">
+                  <div key={conta.id} className="rounded-xl bg-muted p-4">
                     <p className="font-medium">
                       {conta.name} <span className="text-xs text-muted-foreground">({conta.subtype})</span> · saldo/fatura{" "}
-                      {formatBRL(conta.balance)}
+                      <span className="tabular-nums">{formatBRL(conta.balance)}</span>
                     </p>
                     <ul className="mt-1 divide-y text-xs">
                       {transacoes.slice(0, 50).map((t) => (
@@ -732,7 +760,7 @@ export function ConteudoBancosPluggy({ embutido = false }: { embutido?: boolean 
                           <span className="min-w-0 truncate">
                             {dataBR(t.date)} · {t.description}
                           </span>
-                          <span className={t.amount < 0 ? "text-destructive" : "text-success"}>{formatBRL(t.amount)}</span>
+                          <span className={cn("shrink-0 tabular-nums", t.amount < 0 ? "text-destructive" : "text-success")}>{formatBRL(t.amount)}</span>
                         </li>
                       ))}
                       {transacoes.length === 0 && <li className="py-1 text-muted-foreground">Sem movimentos no período.</li>}

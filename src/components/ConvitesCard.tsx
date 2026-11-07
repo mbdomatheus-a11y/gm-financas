@@ -25,7 +25,7 @@ async function copiar(texto: string, mensagem = "Copiado") {
     await navigator.clipboard.writeText(texto);
     toast.success(mensagem);
   } catch {
-    toast.error("Não foi possível copiar — copie manualmente");
+    toast.error("Não foi possível copiar. Copie manualmente.");
   }
 }
 
@@ -119,90 +119,92 @@ export function ConvitesCard() {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-sm">
-          <UserPlus className="size-4" /> Convidar pessoas
+      <CardHeader className="space-y-1">
+        <CardTitle className="flex flex-wrap items-baseline gap-2 text-base font-bold">
+          <UserPlus className="size-4 self-center text-muted-foreground" aria-hidden="true" /> Convidar pessoas
           {totalConvidados > 0 && (
-            <span className="text-xs font-normal text-muted-foreground">
-              ({totalConvidados} {totalConvidados === 1 ? "convidado" : "convidados"} e {totalAceitos} {totalAceitos === 1 ? "aceito" : "aceitos"})
+            <span className="text-sm font-normal tabular-nums text-muted-foreground">
+              {totalConvidados} {totalConvidados === 1 ? "convidado" : "convidados"}, {totalAceitos} {totalAceitos === 1 ? "aceito" : "aceitos"}
             </span>
           )}
         </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <p className="text-xs text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           {isSiteAdmin
             ? "Como admin do site, você pode gerar convites sem limite."
-            : `Você pode convidar até ${cotaConvites} pessoas. Quem você convidar também poderá convidar mais gente, e assim por diante.`}{" "}
-          Gere um código abaixo e envie pra pessoa (WhatsApp, mensagem, ou pelo botão de e-mail) —
-          ela acessa o site e digita o código na tela de cadastro pra criar a própria conta, num
-          grupo separado, com os próprios dados.
+            : `Você pode convidar até ${cotaConvites} pessoas, e elas também poderão convidar.`}
+        </p>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          Gere um código e envie para a pessoa (WhatsApp, mensagem ou e-mail). Ela digita o código
+          no cadastro e cria a própria conta, num grupo separado, com os próprios dados.
         </p>
         {!isSiteAdmin && (
-          <div className="flex items-center justify-between rounded-lg border bg-muted/30 px-3 py-2 text-sm">
+          <div className="flex items-center justify-between gap-4 rounded-2xl border px-4 py-3 text-sm">
             <span className="text-muted-foreground">Convites usados</span>
             <span className="font-semibold tabular-nums">
               {usados} / {cotaConvites}
             </span>
           </div>
         )}
+        <div className="flex flex-wrap justify-end gap-3">
+        {pendentes.length > 0 && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={copiarTodosPendentes}
+          >
+            <Copy className="mr-2 size-3.5" aria-hidden="true" />
+            Copiar pendentes (<span className="tabular-nums">{pendentes.length}</span>)
+          </Button>
+        )}
         <Button
           size="sm"
-          className="w-full"
           disabled={gerar.isPending || restantes === 0}
           onClick={() => gerar.mutate()}
         >
           {gerar.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
           {restantes === 0 ? "Limite de convites atingido" : "Gerar código de convite"}
         </Button>
-
-        {pendentes.length > 0 && (
-          <Button
-            size="sm"
-            variant="outline"
-            className="w-full"
-            onClick={copiarTodosPendentes}
-          >
-            <Copy className="mr-2 size-3.5" />
-            Copiar todos os pendentes ({pendentes.length})
-          </Button>
-        )}
+        </div>
 
         {isLoading ? (
-          <p className="text-xs text-muted-foreground">Carregando…</p>
+          <p className="text-sm text-muted-foreground">Carregando…</p>
         ) : convites.length === 0 ? (
-          <p className="text-xs text-muted-foreground">Nenhum convite gerado ainda.</p>
+          <p className="rounded-2xl border px-4 py-6 text-center text-sm text-muted-foreground">Nenhum convite gerado ainda.</p>
         ) : (
-          <div className="space-y-2">
+          <div className="divide-y rounded-2xl border">
             {convites.map((c, index) => {
               const expirado = !c.usado && new Date(c.expira_em).getTime() < agora;
               const podeAgir = !c.usado && !expirado;
               return (
-                <div key={c.id} className="rounded-lg border px-3 py-2 text-xs">
-                  <div className="flex items-center gap-2">
-                    <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-semibold text-muted-foreground">
+                <div key={c.id} className="px-4 py-3 transition-colors hover:bg-muted/40">
+                  <div className="flex items-center gap-3">
+                    <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold tabular-nums text-muted-foreground">
                       {index + 1}
                     </span>
-                    <KeyRound className="size-3.5 shrink-0 text-muted-foreground" />
                     <div className="min-w-0 flex-1">
-                      <p className="truncate font-mono">{c.token}</p>
-                      <p className="text-muted-foreground">
+                      <p className="flex items-center gap-1.5 truncate font-mono text-sm">
+                        <KeyRound className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                        {c.token}
+                      </p>
+                      <p className="truncate text-xs tabular-nums text-muted-foreground">
                         Criado em {formatDate(c.criado_em)}
                         {podeAgir && ` · expira em ${formatDate(c.expira_em)}`}
                       </p>
                     </div>
                     <Badge
                       variant={c.usado ? "default" : expirado ? "destructive" : "secondary"}
-                      className="shrink-0 text-[10px]"
+                      className="shrink-0 rounded-full text-xs font-medium"
                     >
-                      {c.usado ? "usado" : expirado ? "expirado" : "pendente"}
+                      {c.usado ? "Usado" : expirado ? "Expirado" : "Pendente"}
                     </Badge>
                     {podeAgir && (
                       <>
                         <Button
                           size="icon"
                           variant="ghost"
-                          className="size-7 shrink-0"
+                          className="size-9 shrink-0"
                           onClick={() => {
                             setCopiadoId(c.id);
                             copiar(linkConvite(c.token), "Link de convite copiado");
@@ -211,46 +213,47 @@ export function ConvitesCard() {
                           title="Copiar link de convite"
                         >
                           <Copy
-                            className={c.id === copiadoId ? "size-3.5 text-success" : "size-3.5"}
+                            className={c.id === copiadoId ? "size-4 text-success" : "size-4"}
                           />
                         </Button>
                         <Button
                           size="icon"
                           variant="ghost"
-                          className="size-7 shrink-0"
+                          className="size-9 shrink-0"
                           onClick={() => {
                             setEmailAbertoId(emailAbertoId === c.id ? null : c.id);
                             setEmailInput("");
                           }}
                           aria-label="Enviar convite por e-mail"
                         >
-                          <Mail className="size-3.5" />
+                          <Mail className="size-4" />
                         </Button>
                         <Button
                           size="icon"
                           variant="ghost"
-                          className="size-7 shrink-0 text-destructive hover:text-destructive"
+                          className="size-9 shrink-0 text-destructive hover:text-destructive"
                           disabled={cancelarConviteMutation.isPending}
                           onClick={() => cancelarConviteMutation.mutate(c.id)}
                           aria-label="Cancelar convite"
                         >
-                          <X className="size-3.5" />
+                          <X className="size-4" />
                         </Button>
                       </>
                     )}
                   </div>
                   {emailAbertoId === c.id && (
-                    <div className="mt-2 flex items-center gap-1.5 border-t pt-2">
+                    <div className="mt-3 flex items-center gap-2 pl-12">
                       <Input
                         type="email"
-                        placeholder="email@daPessoa.com"
+                        placeholder="email@dapessoa.com"
+                        aria-label="E-mail da pessoa convidada"
                         value={emailInput}
                         onChange={(e) => setEmailInput(e.target.value)}
-                        className="h-8 text-xs"
+                        className="h-9 text-sm"
                       />
                       <Button
                         size="icon"
-                        className="size-8 shrink-0"
+                        className="size-9 shrink-0"
                         disabled={enviar.isPending || !emailInput.includes("@")}
                         onClick={() => enviar.mutate({ conviteId: c.id, email: emailInput.trim() })}
                         aria-label="Confirmar envio do convite por e-mail"

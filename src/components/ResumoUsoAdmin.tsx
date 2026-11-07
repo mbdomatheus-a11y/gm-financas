@@ -205,13 +205,13 @@ export function ResumoUsoAdmin() {
           ) : (
             <div className="flex flex-wrap gap-2">
               {porEvento.map(([ev, n]) => (
-                <span key={ev} className="rounded-full border px-2.5 py-1 text-xs">{ev}: <b>{n}</b></span>
+                <span key={ev} className="rounded-full border px-2.5 py-1 text-xs">{ev}: <b className="tabular-nums">{n}</b></span>
               ))}
             </div>
           )}
         </CardContent>
       </Card>
-      <p className="text-[11px] text-muted-foreground">
+      <p className="text-xs text-muted-foreground">
         Só o nome da tela, a data e site/app de quem está logado. Nenhum valor ou lançamento é registrado.
       </p>
     </div>

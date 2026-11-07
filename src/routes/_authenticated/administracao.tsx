@@ -203,23 +203,23 @@ function TabelaAtividadeUsuarios({ usuarios }: { usuarios: any[] }) {
           titulo: "Situação",
           celula: (u: any) =>
             u.ativo ? (
-              <Badge variant="secondary" className="bg-success/10 text-success">Ativa</Badge>
+              <Badge variant="secondary" className="rounded-full bg-success/10 text-xs font-medium text-success">Ativa</Badge>
             ) : (
-              <Badge variant="secondary" className="bg-destructive/10 text-destructive">Inativa</Badge>
+              <Badge variant="secondary" className="rounded-full bg-destructive/10 text-xs font-medium text-destructive">Inativa</Badge>
             ),
           ordenar: (u: any) => (u.ativo ? "Ativa" : "Inativa"),
         },
         {
           titulo: "Última atividade",
           celula: (u: any) => (
-            <span className="text-xs text-muted-foreground">
+            <span className="text-xs tabular-nums text-muted-foreground">
               {u.ultimaAtividadeEm ? new Date(u.ultimaAtividadeEm).toLocaleString("pt-BR") : "Sem acesso"}
             </span>
           ),
           ordenar: (u: any) => (u.ultimaAtividadeEm ? new Date(u.ultimaAtividadeEm) : null),
         },
-        { titulo: "Arquivos", celula: (u: any) => u.arquivos, ordenar: (u: any) => Number(u.arquivos ?? 0) },
-        { titulo: "Espaço", celula: (u: any) => formatarTamanho(u.bytesArmazenados), ordenar: (u: any) => Number(u.bytesArmazenados ?? 0) },
+        { titulo: "Arquivos", celula: (u: any) => <span className="tabular-nums">{u.arquivos}</span>, ordenar: (u: any) => Number(u.arquivos ?? 0) },
+        { titulo: "Espaço", celula: (u: any) => <span className="tabular-nums">{formatarTamanho(u.bytesArmazenados)}</span>, ordenar: (u: any) => Number(u.bytesArmazenados ?? 0) },
         { titulo: "Grupo", celula: (u: any) => <span className="text-xs text-muted-foreground">{u.grupoNome}</span>, ordenar: (u: any) => u.grupoNome },
       ]}
     />
@@ -244,18 +244,18 @@ function formatarTamanho(bytes: number): string {
 
 const STATUS_PRIVACIDADE: Record<string, { label: string; color: string }> = {
   recebida: { label: "Recebida", color: "bg-primary/10 text-primary" },
-  em_analise: { label: "Em Análise", color: "bg-warning/20 text-warning-foreground" },
-  em_atendimento: { label: "Em Atendimento", color: "bg-warning text-warning-foreground" },
+  em_analise: { label: "Em análise", color: "bg-warning/20 text-warning-foreground" },
+  em_atendimento: { label: "Em atendimento", color: "bg-warning text-warning-foreground" },
   aguardando_ti: { label: "Aguardando TI", color: "bg-muted text-foreground" },
   planejado: { label: "Planejado", color: "bg-primary/5 text-primary" },
-  programado: { label: "Programado", color: "bg-teal-500/10 text-teal-700" },
+  programado: { label: "Programado", color: "bg-success/5 text-success" },
   concluida: { label: "Concluída", color: "bg-success/10 text-success" },
   indeferida: { label: "Indeferida", color: "bg-destructive/10 text-destructive" },
 };
 
 const STATUS_CHAMADO: Record<string, { label: string; color: string }> = {
   recebido: { label: "Recebido", color: "bg-primary/10 text-primary" },
-  em_atendimento: { label: "Em Atendimento", color: "bg-warning text-warning-foreground" },
+  em_atendimento: { label: "Em atendimento", color: "bg-warning text-warning-foreground" },
   aguardando_usuario: { label: "Aguardando usuário", color: "bg-warning/20 text-warning-foreground" },
   resolvido: { label: "Resolvido", color: "bg-success/10 text-success" },
   cancelado: { label: "Cancelado", color: "bg-destructive/10 text-destructive" },
@@ -1065,61 +1065,60 @@ function Admin() {
         {/* ─── ABA 1: DADOS GERAIS ─── */}
         <TabsContent value="dados-gerais" className="space-y-6">
           <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base">Atividade e espaço por usuário</CardTitle>
-
-              </div>
+            <CardHeader className="space-y-1">
+              <CardTitle className="text-base font-bold">Atividade e espaço por usuário</CardTitle>
+              <p className="text-sm text-muted-foreground">Sem CPF, por segurança.</p>
             </CardHeader>
             <CardContent>
-            <div className="max-h-96 overflow-auto">
+            <div className="max-h-96 overflow-auto rounded-2xl border">
               <TabelaAtividadeUsuarios usuarios={(metricas?.usuarios ?? []) as any[]} />
             </div>
-            <p className="mt-2 text-xs text-muted-foreground">
-              Sem CPF exibido por segurança. Armazenamento não atribuído: {formatarTamanho(metricas?.armazenamentoNaoAtribuidoBytes ?? 0)}.
+            <p className="mt-3 text-xs text-muted-foreground">
+              Armazenamento não atribuído: <span className="tabular-nums">{formatarTamanho(metricas?.armazenamentoNaoAtribuidoBytes ?? 0)}</span>.
             </p>
             </CardContent>
           </Card>
           {/* Métricas gerais */}
-          <div className="grid gap-3 sm:grid-cols-3">
-            <Card><CardContent className="p-4"><b>{metricas?.total ?? 0}</b><p className="text-xs text-muted-foreground">usuários cadastrados</p></CardContent></Card>
-            <Card><CardContent className="p-4"><b>{metricas?.ativos ?? 0}</b><p className="text-xs text-muted-foreground">contas ativas</p></CardContent></Card>
-            <Card><CardContent className="p-4"><b>{metricas?.tempoMedioMin ?? 0} min</b><p className="text-xs text-muted-foreground">tempo médio de sessão</p></CardContent></Card>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Card><CardContent className="space-y-1 p-5"><p className="text-sm text-muted-foreground">Usuários cadastrados</p><p className="text-2xl font-semibold tabular-nums">{metricas?.total ?? 0}</p></CardContent></Card>
+            <Card><CardContent className="space-y-1 p-5"><p className="text-sm text-muted-foreground">Contas ativas</p><p className="text-2xl font-semibold tabular-nums">{metricas?.ativos ?? 0}</p></CardContent></Card>
+            <Card><CardContent className="space-y-1 p-5"><p className="text-sm text-muted-foreground">Tempo médio de sessão</p><p className="text-2xl font-semibold tabular-nums">{metricas?.tempoMedioMin ?? 0} min</p></CardContent></Card>
           </div>
 
           {/* Convites */}
           <Card>
-            <CardHeader><CardTitle className="text-base">Convites</CardTitle></CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap gap-4 text-sm mb-3">
-                <span><b>{(convites as any[]).filter((c: any) => c.status === "usado").length}</b> usados</span>
-                <span><b>{(convites as any[]).filter((c: any) => c.status === "pendente").length}</b> pendentes</span>
-                <span><b>{(convites as any[]).filter((c: any) => c.status === "cancelado").length}</b> cancelados</span>
-                <span><b>{(convites as any[]).filter((c: any) => c.status === "expirado").length}</b> expirados</span>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Limite de {config?.cota_convites ?? 3} convites por usuário comum (ajustável na aba
-                "Acesso e Auth"). Você, como admin do site, tem limite ilimitado.
+            <CardHeader className="space-y-1">
+              <CardTitle className="text-base font-bold">Convites</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Limite de <span className="tabular-nums">{config?.cota_convites ?? 3}</span> por usuário comum, ajustável em Acesso e Auth. Você não tem limite.
               </p>
-              <div className="mt-3 max-h-60 overflow-auto">
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                <div><p className="text-xs text-muted-foreground">Usados</p><p className="text-lg font-semibold tabular-nums">{(convites as any[]).filter((c: any) => c.status === "usado").length}</p></div>
+                <div><p className="text-xs text-muted-foreground">Pendentes</p><p className="text-lg font-semibold tabular-nums">{(convites as any[]).filter((c: any) => c.status === "pendente").length}</p></div>
+                <div><p className="text-xs text-muted-foreground">Cancelados</p><p className="text-lg font-semibold tabular-nums">{(convites as any[]).filter((c: any) => c.status === "cancelado").length}</p></div>
+                <div><p className="text-xs text-muted-foreground">Expirados</p><p className="text-lg font-semibold tabular-nums">{(convites as any[]).filter((c: any) => c.status === "expirado").length}</p></div>
+              </div>
+              <div className="max-h-60 overflow-auto rounded-2xl border">
                 <TabelaOrdenavel
                   itens={convites as any[]}
                   getChave={(c: any) => c.id}
                   className="text-xs"
-                  celulaClassName="p-1.5"
+                  celulaClassName="px-3 py-2"
                   colunas={[
                     { titulo: "Criador", celula: (c: any) => c.criador_nome, ordenar: (c: any) => c.criador_nome },
                     {
                       titulo: "Status",
                       celula: (c: any) => (
-                        <span className={`rounded px-2 py-0.5 text-xs font-semibold ${STATUS_CONVITE[c.status]?.color ?? ""}`}>
+                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_CONVITE[c.status]?.color ?? ""}`}>
                           {STATUS_CONVITE[c.status]?.label ?? c.status}
                         </span>
                       ),
                       ordenar: (c: any) => STATUS_CONVITE[c.status]?.label ?? c.status,
                     },
-                    { titulo: "Criado em", celula: (c: any) => new Date(c.criado_em).toLocaleDateString("pt-BR"), ordenar: (c: any) => new Date(c.criado_em) },
-                    { titulo: "Expira em", celula: (c: any) => new Date(c.expira_em).toLocaleDateString("pt-BR"), ordenar: (c: any) => new Date(c.expira_em) },
+                    { titulo: "Criado em", celula: (c: any) => <span className="tabular-nums">{new Date(c.criado_em).toLocaleDateString("pt-BR")}</span>, ordenar: (c: any) => new Date(c.criado_em) },
+                    { titulo: "Expira em", celula: (c: any) => <span className="tabular-nums">{new Date(c.expira_em).toLocaleDateString("pt-BR")}</span>, ordenar: (c: any) => new Date(c.expira_em) },
                   ]}
                 />
               </div>
@@ -1134,15 +1133,31 @@ function Admin() {
 
           {/* Composição dos grupos */}
           <Card>
-            <CardHeader><CardTitle className="text-base">Composição dos grupos</CardTitle></CardHeader>
-            <CardContent className="grid gap-3 md:grid-cols-2">
+            <CardHeader className="space-y-1">
+              <CardTitle className="text-base font-bold">Composição dos grupos</CardTitle>
+              <p className="text-sm text-muted-foreground">Nomes e integrantes, sem nenhum valor financeiro.</p>
+            </CardHeader>
+            <CardContent className="grid gap-4 md:grid-cols-2">
               {(metricas?.grupos ?? []).map((g: any) => (
-                <div key={g.id} className="rounded-lg border p-3">
-                  <b className="text-sm">{g.nome}</b>
-                  <p className="text-xs text-muted-foreground">{g.membros.length} integrante(s)</p>
-                  <div className="mt-2 space-y-1">
+                <div key={g.id} className="overflow-hidden rounded-2xl border">
+                  <div className="flex items-baseline justify-between gap-4 bg-muted/40 px-4 py-3">
+                    <p className="truncate text-sm font-semibold">{g.nome}</p>
+                    <p className="shrink-0 text-xs tabular-nums text-muted-foreground">{g.membros.length} integrante(s)</p>
+                  </div>
+                  <div className="divide-y">
                     {g.membros.map((m: any) => (
-                      <p key={m.id} className="text-xs">{m.nome}{" "}<span className="text-muted-foreground">{m.email ?? "sem e-mail"} · {m.ativo ? "ativo" : "inativo"}</span></p>
+                      <div key={m.id} className="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-muted/40">
+                        <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                          {(m.nome ?? "").trim().charAt(0).toUpperCase() || "?"}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm">{m.nome}</p>
+                          <p className="truncate text-xs text-muted-foreground">{m.email ?? "sem e-mail"}</p>
+                        </div>
+                        <span className={m.ativo ? "shrink-0 rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success" : "shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground"}>
+                          {m.ativo ? "Ativo" : "Inativo"}
+                        </span>
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -1158,19 +1173,22 @@ function Admin() {
         <TabsContent value="consulta" className="space-y-6">
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base">Atividade e espaço por usuário</CardTitle>
-                <Button size="sm" variant="ghost" className="text-xs text-muted-foreground" onClick={() => setConsultaDesbloqueada(false)}>
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-1">
+                  <CardTitle className="text-base font-bold">Atividade e espaço por usuário</CardTitle>
+                  <p className="text-sm text-muted-foreground">Sem CPF, por segurança.</p>
+                </div>
+                <Button size="sm" variant="ghost" className="shrink-0 text-xs text-muted-foreground" onClick={() => setConsultaDesbloqueada(false)}>
                   🔒 Bloquear administração
                 </Button>
               </div>
             </CardHeader>
             <CardContent>
-            <div className="max-h-96 overflow-auto">
+            <div className="max-h-96 overflow-auto rounded-2xl border">
               <TabelaAtividadeUsuarios usuarios={(metricas?.usuarios ?? []) as any[]} />
             </div>
-            <p className="mt-2 text-xs text-muted-foreground">
-              Sem CPF exibido por segurança. Armazenamento não atribuído: {formatarTamanho(metricas?.armazenamentoNaoAtribuidoBytes ?? 0)}.
+            <p className="mt-3 text-xs text-muted-foreground">
+              Armazenamento não atribuído: {formatarTamanho(metricas?.armazenamentoNaoAtribuidoBytes ?? 0)}.
             </p>
             </CardContent>
           </Card>
@@ -1184,16 +1202,17 @@ function Admin() {
         <TabsContent value="acesso" className="space-y-6">
           {/* Card Proteção de Entrada na Administração (Pedido 7) */}
           <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Proteção de entrada na Administração</CardTitle>
+            <CardHeader className="space-y-1">
+              <CardTitle className="text-base font-bold">Proteção da Administração</CardTitle>
+              <p className="text-sm text-muted-foreground">Como a entrada neste painel é protegida.</p>
             </CardHeader>
             <CardContent className="space-y-4">
-              <p className="text-xs text-muted-foreground">
-                Defina se e como a entrada no painel administrativo deve ser protegida.
-              </p>
-              <div className="grid gap-4 sm:grid-cols-3 items-end">
-                <div className="space-y-1.5">
-                  <p className="text-xs font-medium">Tipo de bloqueio</p>
+              <div className="divide-y rounded-2xl border">
+                <div className="flex items-center justify-between gap-4 px-4 py-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">Tipo de bloqueio</p>
+                    <p className="text-xs text-muted-foreground">Pedido ao abrir a Administração.</p>
+                  </div>
                   <Select
                     value={tipoProtecaoInput}
                     onValueChange={(v: any) => {
@@ -1203,7 +1222,7 @@ function Admin() {
                       }
                     }}
                   >
-                    <SelectTrigger className="h-10">
+                    <SelectTrigger className="h-10 w-48 shrink-0 sm:w-60" aria-label="Tipo de bloqueio">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -1215,10 +1234,17 @@ function Admin() {
                 </div>
 
                 {tipoProtecaoInput === "pin" && (
-                  <div className="space-y-1.5 sm:col-span-2">
-                    <p className="text-xs font-medium">
+                  <div className="flex flex-wrap items-center justify-between gap-4 px-4 py-3">
+                    <div className="min-w-0">
+                    <p className="text-sm font-medium">
                       {protecaoAdmin?.temPin ? "Alterar PIN de 4 dígitos" : "Criar PIN de 4 dígitos"}
                     </p>
+                    {protecaoAdmin?.temPin && (
+                      <p className="text-xs text-muted-foreground">
+                        PIN atual ativo. Digite 4 novos números para alterar.
+                      </p>
+                    )}
+                    </div>
                     <div className="flex gap-2">
                       <Input
                         type="password"
@@ -1237,11 +1263,6 @@ function Admin() {
                         {salvarProtecaoMut.isPending ? "Salvando…" : "Salvar PIN"}
                       </Button>
                     </div>
-                    {protecaoAdmin?.temPin && (
-                      <p className="text-xs text-muted-foreground">
-                        PIN atual configurado e ativo. Digite 4 novos números acima caso queira alterar.
-                      </p>
-                    )}
                   </div>
                 )}
               </div>
@@ -1250,15 +1271,22 @@ function Admin() {
 
           {config && (
             <Card>
-              <CardHeader><CardTitle className="text-base">Configurações de acesso e autenticação</CardTitle></CardHeader>
-              <CardContent className="grid gap-4 sm:grid-cols-3">
-                <div>
-                  <p className="mb-2 text-xs text-muted-foreground">Identificador no login</p>
+              <CardHeader className="space-y-1">
+                <CardTitle className="text-base font-bold">Acesso e autenticação</CardTitle>
+                <p className="text-sm text-muted-foreground">Login, verificação, sessão e convites.</p>
+              </CardHeader>
+              <CardContent>
+                <div className="divide-y rounded-2xl border">
+                <div className="flex items-center justify-between gap-4 px-4 py-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">Identificador no login</p>
+                    <p className="text-xs text-muted-foreground">O que a pessoa digita para entrar.</p>
+                  </div>
                   <Select
                     value={config.modo_login}
                     onValueChange={(v) => salvarAcesso.mutate({ modoLogin: v as any, segundoFatorEmail: config.segundo_fator_email, sessaoMaximaMinutos: sessaoMin, cotaConvites: cotaConvitesInput })}
                   >
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="w-44 shrink-0 sm:w-52" aria-label="Identificador no login"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="cpf">Somente CPF</SelectItem>
                       <SelectItem value="email">Somente e-mail</SelectItem>
@@ -1266,48 +1294,64 @@ function Admin() {
                     </SelectContent>
                   </Select>
                 </div>
-                <label className="flex items-center justify-between gap-3 rounded-xl border p-4 text-sm">
-                  2FA por e-mail
+                <label className="flex cursor-pointer items-center justify-between gap-4 px-4 py-3">
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium">Verificação em duas etapas</span>
+                    <span className="block text-xs text-muted-foreground">Código enviado por e-mail no login.</span>
+                  </span>
                   <Switch
                     checked={config.segundo_fator_email}
                     onCheckedChange={(v) => salvarAcesso.mutate({ modoLogin: config.modo_login, segundoFatorEmail: v, sessaoMaximaMinutos: sessaoMin, cotaConvites: cotaConvitesInput })}
                   />
                 </label>
-                <div className="space-y-2">
-                  <p className="text-xs text-muted-foreground">Sessão máxima (minutos)</p>
+                <div className="flex flex-wrap items-center justify-between gap-4 px-4 py-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">Sessão máxima</p>
+                    <p className="text-xs text-muted-foreground">Em minutos, de 15 a 480.</p>
+                  </div>
+                  <div className="flex items-center gap-2">
                   <Input
                     type="number"
                     min={15}
                     max={480}
+                    aria-label="Sessão máxima em minutos"
+                    className="w-24 text-right tabular-nums"
                     value={sessaoMin}
                     onChange={(e) => setSessaoMin(Number(e.target.value))}
                   />
                   <Button
                     size="sm"
+                    variant="outline"
                     onClick={() => salvarAcesso.mutate({ modoLogin: config.modo_login, segundoFatorEmail: config.segundo_fator_email, sessaoMaximaMinutos: sessaoMin, cotaConvites: cotaConvitesInput })}
                   >
-                    Salvar sessão
+                    Salvar
                   </Button>
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <p className="text-xs text-muted-foreground">Cota de convites por usuário</p>
+                <div className="flex flex-wrap items-center justify-between gap-4 px-4 py-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">Cota de convites por usuário</p>
+                    <p className="text-xs text-muted-foreground">Vale para todos. Você convida sem limite.</p>
+                  </div>
+                  <div className="flex items-center gap-2">
                   <Input
                     type="number"
                     min={1}
                     max={1000}
+                    aria-label="Cota de convites por usuário"
+                    className="w-24 text-right tabular-nums"
                     value={cotaConvitesInput}
                     onChange={(e) => setCotaConvitesInput(Number(e.target.value))}
                   />
                   <Button
                     size="sm"
+                    variant="outline"
                     onClick={() => salvarAcesso.mutate({ modoLogin: config.modo_login, segundoFatorEmail: config.segundo_fator_email, sessaoMaximaMinutos: sessaoMin, cotaConvites: cotaConvitesInput })}
                   >
-                    Salvar cota de convites
+                    Salvar
                   </Button>
-                  <p className="text-xs text-muted-foreground">
-                    Vale para todo mundo. Você (admin do site) sempre pode convidar sem limite,
-                    independente deste valor.
-                  </p>
+                  </div>
+                </div>
                 </div>
               </CardContent>
             </Card>
@@ -1316,37 +1360,46 @@ function Admin() {
           <BannerOfertaAdminCard />
           {config && (
             <Card className={cn(!config.google_drive_habilitado && ADMIN_ONLY_CARD)}>
-              <CardHeader><CardTitle className="flex items-center gap-2 text-base">Notas fiscais: Google Drive{!config.google_drive_habilitado && <span className={ADMIN_ONLY_TAG}>Só admin</span>}</CardTitle></CardHeader>
-              <CardContent className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm">Mostrar seção de pasta/Google Drive pros usuários comuns</p>
+              <CardHeader className="space-y-1">
+                <CardTitle className="flex items-center gap-2 text-base font-bold">Notas fiscais: Google Drive{!config.google_drive_habilitado && <span className={ADMIN_ONLY_TAG}>Só admin</span>}</CardTitle>
+                <p className="text-sm text-muted-foreground">Seção de pasta do Drive em Notas fiscais.</p>
+              </CardHeader>
+              <CardContent>
+                <div className="divide-y rounded-2xl border">
+                <div className="flex items-center justify-between gap-4 px-4 py-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium">Mostrar para usuários comuns</p>
                   <p className="text-xs text-muted-foreground">
-                    Desligado por padrão (item 15 do backlog). Enquanto desligado, só você (admin do
-                    site) vê essa seção em Notas fiscais. O fluxo de conexão continua funcionando
-                    normalmente pra quem já tinha conectado antes.
+                    Desligado, só você vê a seção. Quem já conectou continua funcionando.
                   </p>
                 </div>
                 <Switch
                   checked={config.google_drive_habilitado}
                   onCheckedChange={(v) => alternarGoogleDriveNotas.mutate(v)}
+                  aria-label="Mostrar seção do Google Drive para usuários comuns"
                 />
+                </div>
+                </div>
               </CardContent>
             </Card>
           )}
           {config && (
             <Card className={cn(!config.cadastro_livre_habilitado && ADMIN_ONLY_CARD)}>
-              <CardHeader><CardTitle className="flex items-center gap-2 text-base">Cadastro sem convite{!config.cadastro_livre_habilitado && <span className={ADMIN_ONLY_TAG}>Desligado</span>}</CardTitle></CardHeader>
-              <CardContent className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm">Permitir criar conta sem código de convite</p>
+              <CardHeader className="space-y-1">
+                <CardTitle className="flex items-center gap-2 text-base font-bold">Cadastro sem convite{!config.cadastro_livre_habilitado && <span className={ADMIN_ONLY_TAG}>Desligado</span>}</CardTitle>
+                <p className="text-sm text-muted-foreground">Abre a criação de conta para quem não tem código.</p>
+              </CardHeader>
+              <CardContent>
+                <div className="divide-y rounded-2xl border">
+                <div className="flex items-center justify-between gap-4 px-4 py-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium">Permitir criar conta sem código</p>
                   <p className="text-xs text-muted-foreground">
-                    Pensado pra fase de testes/lançamento, pra não burocratizar a entrada de gente
-                    fora da família. Enquanto ligado, a tela de "Criar conta" libera o cadastro sem
-                    pedir convite (quem tiver um código continua podendo usá-lo). Cada pessoa que
-                    entrar assim ganha o próprio grupo novo, isolado, igual quem entra por convite.
+                    Cada pessoa ganha um grupo próprio e isolado. Quem tem código continua podendo usar.
                   </p>
                 </div>
                 <Switch
+                  aria-label="Permitir criar conta sem código de convite"
                   checked={config.cadastro_livre_habilitado}
                   onCheckedChange={(v) =>
                     salvarAcesso.mutate({
@@ -1358,6 +1411,8 @@ function Admin() {
                     })
                   }
                 />
+                </div>
+                </div>
               </CardContent>
             </Card>
           )}
@@ -1371,17 +1426,24 @@ function Admin() {
         <TabsContent value="modulos" className="space-y-6">
           {gestaoModulos && (
             <Card>
-              <CardHeader><CardTitle className="text-base">Módulos globais e exceções por usuário</CardTitle></CardHeader>
-              <CardContent className="space-y-3">
-                <p className="text-xs text-muted-foreground">
-                  Matheus (admin master) sempre enxerga todos os módulos. Desative globalmente e libere para usuários de teste individualmente.
+              <CardHeader className="space-y-1">
+                <CardTitle className="text-base font-bold">Módulos e exceções</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Desative um módulo para todos e libere só para quem vai testar. O admin master sempre vê tudo.
                 </p>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-1.5">
+                <label htmlFor="busca-modulo" className="text-sm font-medium">Buscar usuário</label>
                 <Input
-                  placeholder="Buscar usuário por nome ou e-mail…"
+                  id="busca-modulo"
+                  placeholder="Nome ou e-mail"
                   value={buscaModulo}
                   onChange={(e) => setBuscaModulo(e.target.value)}
                   className="max-w-sm"
                 />
+                </div>
+                <div className="divide-y overflow-hidden rounded-2xl border">
                 {gestaoModulos.modulos.map((m: any) => {
                   const excecoesDoModulo = gestaoModulos.excecoes.filter((x: any) => x.modulo === m.modulo);
                   const liberados = excecoesDoModulo.filter((x: any) => x.habilitado).length;
@@ -1392,27 +1454,28 @@ function Admin() {
                   });
                   const selecionados = selecionadosPorModulo[m.modulo] ?? new Set<string>();
                   return (
-                    <div key={m.modulo} className={cn("rounded-lg border p-3", !m.habilitado && ADMIN_ONLY_CARD)}>
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2">
-                          <b className="text-sm">{m.nome}</b>
+                    <div key={m.modulo} className={cn("px-4 py-3", !m.habilitado && ADMIN_ONLY_CARD)}>
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="flex min-w-0 flex-wrap items-center gap-2">
+                          <span className="text-sm font-medium">{m.nome}</span>
                           {!m.habilitado && <span className={ADMIN_ONLY_TAG}>Só admin</span>}
                           {!m.habilitado && (
-                            <Badge variant="secondary" className="text-xs">
-                              {liberados} usuário(s) com exceção liberada
+                            <Badge variant="secondary" className="rounded-full text-xs font-medium tabular-nums">
+                              {liberados} com exceção liberada
                             </Badge>
                           )}
                         </div>
                         <Switch
+                          aria-label={`Módulo ${m.nome} ligado para todos`}
                           checked={m.habilitado}
                           onCheckedChange={(v) => mudarModulo.mutate({ modulo: m.modulo, habilitado: v, userId: null })}
                         />
                       </div>
                       {!m.habilitado && (
-                        <div className="mt-2 space-y-2">
+                        <div className="mt-3 space-y-3">
                           {selecionados.size > 0 && (
-                            <div className="flex flex-wrap items-center gap-2 rounded-md bg-muted/50 p-2">
-                              <span className="text-xs text-muted-foreground">
+                            <div className="flex flex-wrap items-center gap-2 rounded-xl bg-muted/50 px-3 py-2">
+                              <span className="mr-auto text-xs tabular-nums text-muted-foreground">
                                 {selecionados.size} selecionado(s)
                               </span>
                               <Button
@@ -1452,10 +1515,10 @@ function Admin() {
                               const ex = excecoesDoModulo.find((x: any) => x.user_id === u.id);
                               const selecionado = selecionados.has(u.id);
                               return (
-                                <div key={u.id} className="flex items-center gap-1">
+                                <div key={u.id} className="flex items-center gap-1.5">
                                   <input
                                     type="checkbox"
-                                    className="size-3.5"
+                                    className="size-4 accent-primary"
                                     checked={selecionado}
                                     onChange={() => alternarSelecaoUsuario(m.modulo, u.id)}
                                     aria-label={`Selecionar ${u.nome}`}
@@ -1476,6 +1539,7 @@ function Admin() {
                     </div>
                   );
                 })}
+                </div>
               </CardContent>
             </Card>
           )}
@@ -1484,33 +1548,32 @@ function Admin() {
         {/* ─── ABA: ARMAZENAMENTO ORACLE ─── */}
         <TabsContent value="armazenamento" className="space-y-6">
           <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Armazenamento Oracle por grupo familiar</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <p className="text-xs text-muted-foreground">
-                Grupos com o Oracle habilitado usam o Object Storage do Oracle Cloud como destino
-                preferencial dos comprovantes de notas fiscais (antes do Google Drive e do
-                armazenamento do site). Ao habilitar pela primeira vez, a cota sugerida é 500 MB
-                por membro do grupo. Depois disso fica fixa até você ajustar manualmente aqui.
+            <CardHeader className="space-y-1">
+              <CardTitle className="text-base font-bold">Armazenamento Oracle por grupo</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Destino preferencial dos comprovantes de notas fiscais. Cota inicial de 500 MB por membro.
               </p>
+            </CardHeader>
+            <CardContent>
               {armazenamentoOracle.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Nenhum grupo encontrado.</p>
               ) : (
-                armazenamentoOracle.map((g) => {
+                <div className="divide-y overflow-hidden rounded-2xl border">
+                {armazenamentoOracle.map((g) => {
                   const percentual = g.cotaBytes > 0 ? Math.min(100, (g.usadoBytes / g.cotaBytes) * 100) : 0;
                   const cotaMbAtual = Math.round(g.cotaBytes / (1024 * 1024));
                   const inputAtual = cotaOracleInput[g.grupoId] ?? String(cotaMbAtual);
                   return (
-                    <div key={g.grupoId} className={cn("rounded-lg border p-3 space-y-2", !g.habilitado && ADMIN_ONLY_CARD)}>
-                      <div className="flex items-center justify-between gap-2">
-                        <div>
-                          <b className="text-sm">{g.nome}</b>
-                          <span className="ml-2 text-xs text-muted-foreground">
+                    <div key={g.grupoId} className={cn("space-y-3 px-4 py-3", !g.habilitado && ADMIN_ONLY_CARD)}>
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium">{g.nome}</p>
+                          <p className="text-xs tabular-nums text-muted-foreground">
                             {g.membros} membro(s)
-                          </span>
+                          </p>
                         </div>
                         <Switch
+                          aria-label={`Oracle habilitado para ${g.nome}`}
                           checked={g.habilitado}
                           onCheckedChange={(v) => alternarOracle.mutate({ grupoId: g.grupoId, habilitado: v })}
                         />
@@ -1523,8 +1586,8 @@ function Admin() {
                               style={{ width: `${percentual}%` }}
                             />
                           </div>
-                          <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-                            <span>
+                          <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
+                            <span className="tabular-nums">
                               {formatarTamanho(g.usadoBytes)} usados de {formatarTamanho(g.cotaBytes)}{" "}
                               ({percentual.toFixed(1)}%)
                             </span>
@@ -1532,7 +1595,8 @@ function Admin() {
                               <Input
                                 type="number"
                                 min={1}
-                                className="h-7 w-24 text-xs"
+                                aria-label={`Cota em MB de ${g.nome}`}
+                                className="h-8 w-24 text-right text-xs tabular-nums"
                                 value={inputAtual}
                                 onChange={(e) =>
                                   setCotaOracleInput((atual) => ({ ...atual, [g.grupoId]: e.target.value }))
@@ -1560,7 +1624,8 @@ function Admin() {
                       )}
                     </div>
                   );
-                })
+                })}
+                </div>
               )}
             </CardContent>
           </Card>
@@ -1569,10 +1634,10 @@ function Admin() {
         {/* ─── ABA 5: PERSONALIZAÇÃO ─── */}
         <TabsContent value="personalizacao" className="space-y-6">
           <Card>
-            <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
-              <div>
-                <h2 className="font-semibold">Logo do Control ALL</h2>
-                <p className="text-xs text-muted-foreground">A imagem será usada na Home, login e áreas internas. JPG, PNG, WEBP ou GIF, até 5 MB.</p>
+            <CardContent className="flex flex-wrap items-center justify-between gap-4 p-6">
+              <div className="min-w-0 space-y-1">
+                <h2 className="text-base font-bold">Logo do Control ALL</h2>
+                <p className="text-sm text-muted-foreground">Usada na home, no login e nas áreas internas. JPG, PNG, WEBP ou GIF, até 5 MB.</p>
               </div>
               <input
                 ref={logoInput}
@@ -1586,15 +1651,15 @@ function Admin() {
           </Card>
 
           <Card>
-            <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
-              <div>
-                <h2 className="font-semibold">Vídeo de demonstração da home</h2>
-                <p className="text-xs text-muted-foreground">
-                  Exibido na seção "Demonstração" da home pública. MP4, WEBM ou MOV, até 100 MB.
+            <CardContent className="flex flex-wrap items-center justify-between gap-4 p-6">
+              <div className="min-w-0 space-y-1">
+                <h2 className="text-base font-bold">Vídeo de demonstração</h2>
+                <p className="text-sm text-muted-foreground">
+                  Seção "Demonstração" da home pública. MP4, WEBM ou MOV, até 100 MB.
                   {identidadeVisual?.video_demonstracao_path ? " Há um vídeo publicado agora." : " Nenhum vídeo publicado ainda."}
                 </p>
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-3">
                 <input
                   ref={videoInput}
                   className="hidden"
@@ -1616,42 +1681,42 @@ function Admin() {
               itens (lista de benefícios) e texto do botão — tudo editável
               aqui, sem precisar tocar em código pra mudar o preço exibido. */}
           <Card>
-            <CardContent className="space-y-4 p-4">
-              <div className="flex items-center gap-2">
-                <Tag className="size-4 text-primary" />
-                <h2 className="font-semibold">Preços na home</h2>
+            <CardContent className="space-y-6 p-6">
+              <div className="space-y-1">
+                <h2 className="flex items-center gap-2 text-base font-bold">
+                  <Tag className="size-4 text-muted-foreground" aria-hidden="true" /> Preços na home
+                </h2>
+                <p className="text-sm text-muted-foreground">Card da seção "Preços" da home pública.</p>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Card exibido na seção "Preços" da home pública. Um item por linha na lista de
-                benefícios.
-              </p>
 
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Nome do plano</label>
+                  <label className="text-sm font-medium">Nome do plano</label>
                   <Input value={precoNomeInput} onChange={(e) => setPrecoNomeInput(e.target.value)} placeholder="Control ALL" />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Texto do botão</label>
+                  <label className="text-sm font-medium">Texto do botão</label>
                   <Input value={precoBotaoInput} onChange={(e) => setPrecoBotaoInput(e.target.value)} placeholder="Criar conta" />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Valor (R$)</label>
+                  <label className="text-sm font-medium">Valor (R$)</label>
                   <Input
                     inputMode="decimal"
+                    className="tabular-nums"
                     value={precoValorInput}
                     onChange={(e) => setPrecoValorInput(e.target.value)}
                     placeholder="4.99"
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Sufixo (ex.: /mês)</label>
+                  <label className="text-sm font-medium">Sufixo (ex.: /mês)</label>
                   <Input value={precoSufixoInput} onChange={(e) => setPrecoSufixoInput(e.target.value)} placeholder="/mês" />
                 </div>
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">Descrição (abaixo do preço)</label>
+                <label className="text-sm font-medium">Descrição (abaixo do preço)</label>
                 <Input
                   value={precoDescricaoInput}
                   onChange={(e) => setPrecoDescricaoInput(e.target.value)}
@@ -1660,8 +1725,8 @@ function Admin() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">
-                  Itens listados (um por linha)
+                <label className="text-sm font-medium">
+                  Itens listados <span className="font-normal text-muted-foreground">(um por linha)</span>
                 </label>
                 <Textarea
                   value={precoItensInput}
@@ -1671,8 +1736,10 @@ function Admin() {
                 />
               </div>
 
-              <div className="flex justify-end border-t pt-3">
-                <Button size="sm" onClick={() => salvarPreco.mutate()} disabled={salvarPreco.isPending}>
+              </div>
+
+              <div className="flex justify-end gap-3">
+                <Button onClick={() => salvarPreco.mutate()} disabled={salvarPreco.isPending}>
                   {salvarPreco.isPending ? "Salvando..." : "Salvar preços"}
                 </Button>
               </div>
@@ -1685,19 +1752,30 @@ function Admin() {
               screenshot), slogan editável e contador de cliques. Singleton
               — 1 parceiro por vez. */}
           <Card>
-            <CardContent className="space-y-4 p-4">
-              <div className="flex items-center gap-2">
-                <Handshake className="size-4 text-primary" />
-                <h2 className="font-semibold">Parceria / patrocínio na home</h2>
+            <CardContent className="space-y-6 p-6">
+              <div className="space-y-1">
+                <h2 className="flex items-center gap-2 text-base font-bold">
+                  <Handshake className="size-4 text-muted-foreground" aria-hidden="true" /> Parceria na home
+                </h2>
+                <p className="text-sm text-muted-foreground">Link "Patrocinado" discreto, abre em nova aba e conta cada clique.</p>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Link discreto ("Patrocinado") exibido na home pública, com a prévia enviada abaixo.
-                Abre sempre em nova aba e cada clique é contado.
-              </p>
 
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="divide-y rounded-2xl border">
+                <div className="flex items-center justify-between gap-4 px-4 py-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">{parceriaAtivoInput ? "Visível na home" : "Oculto na home"}</p>
+                    <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <MousePointerClick className="size-3.5" aria-hidden="true" />
+                      <span className="tabular-nums">{parceria?.cliques ?? 0}</span> clique(s) registrado(s)
+                    </p>
+                  </div>
+                  <Switch checked={parceriaAtivoInput} onCheckedChange={setParceriaAtivoInput} aria-label="Parceria visível na home" />
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Link do parceiro</label>
+                  <label className="text-sm font-medium">Link do parceiro</label>
                   <Input
                     value={parceriaUrlInput}
                     onChange={(e) => setParceriaUrlInput(e.target.value)}
@@ -1705,7 +1783,7 @@ function Admin() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Slogan (opcional)</label>
+                  <label className="text-sm font-medium">Slogan <span className="font-normal text-muted-foreground">(opcional)</span></label>
                   <Textarea
                     value={parceriaSloganInput}
                     onChange={(e) => setParceriaSloganInput(e.target.value)}
@@ -1715,26 +1793,15 @@ function Admin() {
                 </div>
               </div>
 
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <Switch checked={parceriaAtivoInput} onCheckedChange={setParceriaAtivoInput} />
-                  <span className="text-sm">{parceriaAtivoInput ? "Visível na home" : "Oculto na home"}</span>
-                </div>
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <MousePointerClick className="size-3.5" />
-                  {parceria?.cliques ?? 0} clique(s) registrado(s)
-                </div>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-3 border-t pt-3">
+              <div className="flex flex-wrap items-center gap-3">
                 {parceria?.preview_imagem_path ? (
                   <img
                     src={supabase.storage.from("site_assets").getPublicUrl(parceria.preview_imagem_path).data.publicUrl}
                     alt="Prévia atual do site parceiro"
-                    className="h-16 w-28 rounded-md border object-cover"
+                    className="h-16 w-28 rounded-xl border object-cover"
                   />
                 ) : (
-                  <div className="flex h-16 w-28 items-center justify-center rounded-md border border-dashed text-xs text-muted-foreground">
+                  <div className="flex h-16 w-28 items-center justify-center rounded-xl border border-dashed text-xs text-muted-foreground">
                     Sem prévia
                   </div>
                 )}
@@ -1748,7 +1815,7 @@ function Admin() {
                 <Button variant="outline" size="sm" onClick={() => parceriaImagemInput.current?.click()}>
                   {parceria?.preview_imagem_path ? "Trocar print" : "Enviar print"}
                 </Button>
-                <Button size="sm" onClick={() => salvarParceria.mutate()} disabled={salvarParceria.isPending}>
+                <Button className="ml-auto" onClick={() => salvarParceria.mutate()} disabled={salvarParceria.isPending}>
                   {salvarParceria.isPending ? "Salvando..." : "Salvar"}
                 </Button>
               </div>
@@ -1756,17 +1823,18 @@ function Admin() {
           </Card>
 
           <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Economia total conquistada (exibida na home)</CardTitle>
+            <CardHeader className="space-y-1">
+              <CardTitle className="text-base font-bold">Economia conquistada na home</CardTitle>
+              <p className="text-sm text-muted-foreground">Só aparece na home pública depois que um valor for salvo.</p>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <p className="text-xs text-muted-foreground">
+            <CardContent className="space-y-4">
+              <p className="text-xs leading-relaxed text-muted-foreground">
                 Valor automático: soma de todas as despesas fixas (recorrentes) marcadas como
                 "Economia Conquistada" por qualquer usuário do site. É só uma referência.{" "}
                 {economiaAutomatica ? (
                   <>
                     Hoje soma{" "}
-                    <span className="font-semibold text-foreground">
+                    <span className="font-semibold tabular-nums text-foreground">
                       {formatBRL(economiaAutomatica.total)}
                     </span>{" "}
                     ({economiaAutomatica.quantidade}{" "}
@@ -1776,20 +1844,20 @@ function Admin() {
                   "Calculando…"
                 )}
               </p>
-              <div className="flex flex-wrap items-end gap-3">
-                <div className="space-y-1">
-                  <label className="text-xs text-muted-foreground" htmlFor="economia-exibida">
+              <div className="space-y-1.5">
+                  <label className="text-sm font-medium" htmlFor="economia-exibida">
                     Valor a exibir publicamente (R$)
                   </label>
                   <Input
                     id="economia-exibida"
-                    className="w-48"
+                    className="w-48 tabular-nums"
                     inputMode="decimal"
                     placeholder="Ex.: 15000"
                     value={economiaExibidaInput}
                     onChange={(e) => setEconomiaExibidaInput(e.target.value.replace(/[^0-9.,]/g, ""))}
                   />
-                </div>
+              </div>
+              <div className="flex flex-wrap justify-end gap-3">
                 <Button
                   variant="outline"
                   onClick={() =>
@@ -1824,9 +1892,6 @@ function Admin() {
                   </Button>
                 )}
               </div>
-              <p className="text-xs text-muted-foreground">
-                Enquanto nenhum valor for salvo aqui, esta estatística não aparece na home pública.
-              </p>
             </CardContent>
           </Card>
         </TabsContent>
@@ -1838,23 +1903,32 @@ function Admin() {
 
         <TabsContent value="avisos" className="space-y-6">
           <Card>
-            <CardHeader>
-              <CardTitle className="text-base">
-                {comunicadoEditandoId ? "Editar aviso" : "Novo aviso (modal ao logar)"}
+            <CardHeader className="space-y-1">
+              <CardTitle className="text-base font-bold">
+                {comunicadoEditandoId ? "Editar aviso" : "Novo aviso"}
               </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                {comunicadoEditandoId
+                  ? "Salvar mostra o aviso de novo a todos, inclusive a quem marcou \"não exibir mais\"."
+                  : "Janela que a pessoa fecha ao entrar no site. Fica ativa até você encerrar."}
+              </p>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <Input placeholder="Título" value={titulo} onChange={(e) => setTitulo(e.target.value)} />
-              <Textarea
-                placeholder="Mensagem para todos os usuários"
-                value={msg}
-                onChange={(e) => setMsg(e.target.value)}
-                rows={6}
-              />
-              <div className="flex gap-2">
-                <Button disabled={!titulo || !msg || comunicadoMut.isPending} onClick={() => comunicadoMut.mutate()}>
-                  {comunicadoEditandoId ? "Salvar alterações" : "Publicar para todos"}
-                </Button>
+            <CardContent className="space-y-4">
+              <div className="space-y-1.5">
+                <label htmlFor="aviso-titulo" className="text-sm font-medium">Título</label>
+                <Input id="aviso-titulo" placeholder="Ex.: Novidade no app" value={titulo} onChange={(e) => setTitulo(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <label htmlFor="aviso-mensagem" className="text-sm font-medium">Mensagem</label>
+                <Textarea
+                  id="aviso-mensagem"
+                  placeholder="Mensagem para todos os usuários"
+                  value={msg}
+                  onChange={(e) => setMsg(e.target.value)}
+                  rows={6}
+                />
+              </div>
+              <div className="flex justify-end gap-3">
                 {comunicadoEditandoId && (
                   <Button
                     variant="ghost"
@@ -1863,25 +1937,27 @@ function Admin() {
                     Cancelar edição
                   </Button>
                 )}
+                <Button disabled={!titulo || !msg || comunicadoMut.isPending} onClick={() => comunicadoMut.mutate()}>
+                  {comunicadoEditandoId ? "Salvar alterações" : "Publicar para todos"}
+                </Button>
               </div>
-              <p className="text-xs text-muted-foreground">
-                {comunicadoEditandoId
-                  ? "Salvar reexibe o aviso pra todo mundo, inclusive quem já tinha marcado \"não exibir mais\"."
-                  : "Aparece como um aviso que a pessoa precisa fechar ao entrar no site. Fica ativo até você encerrar."}
-              </p>
             </CardContent>
           </Card>
           <Card>
-            <CardHeader><CardTitle className="text-base">Avisos ativos</CardTitle></CardHeader>
-            <CardContent className="space-y-2">
+            <CardHeader className="space-y-1">
+              <CardTitle className="text-base font-bold">Avisos ativos</CardTitle>
+              <p className="text-sm text-muted-foreground">Aparecem para quem entra no site agora.</p>
+            </CardHeader>
+            <CardContent>
               {comunicados.filter((c: any) => c.ativo).length === 0 ? (
-                <p className="text-sm text-muted-foreground">Nenhum aviso ativo.</p>
+                <p className="rounded-2xl border px-4 py-6 text-center text-sm text-muted-foreground">Nenhum aviso ativo.</p>
               ) : (
-                comunicados.filter((c: any) => c.ativo).map((c: any) => (
-                  <div key={c.id} className="flex items-center justify-between gap-2 rounded-lg border p-2 text-xs">
-                    <div>
-                      <b>{c.titulo}</b>
-                      <p className="text-muted-foreground">
+                <div className="divide-y rounded-2xl border">
+                {comunicados.filter((c: any) => c.ativo).map((c: any) => (
+                  <div key={c.id} className="flex flex-wrap items-center justify-between gap-4 px-4 py-3 transition-colors hover:bg-muted/40">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">{c.titulo}</p>
+                      <p className="text-xs tabular-nums text-muted-foreground">
                         {new Date(c.criado_em).toLocaleString("pt-BR")} · {c.confirmacoes ?? 0} confirmação(ões)
                       </p>
                     </div>
@@ -1899,20 +1975,24 @@ function Admin() {
                         disabled={reenviarAviso.isPending}
                         onClick={() => reenviarAviso.mutate(c.id)}
                       >
-                        Reenviar p/ todos
+                        Reenviar para todos
                       </Button>
-                      <Button size="sm" variant="ghost" className="text-destructive" onClick={() => limparAviso.mutate(c.id)}>
+                      <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => limparAviso.mutate(c.id)}>
                         Encerrar
                       </Button>
                     </div>
                   </div>
-                ))
+                ))}
+                </div>
               )}
             </CardContent>
           </Card>
           {comunicados.filter((c: any) => !c.ativo).length > 0 && (
             <Card>
-              <CardHeader><CardTitle className="text-base">Histórico de avisos</CardTitle></CardHeader>
+              <CardHeader className="space-y-1">
+                <CardTitle className="text-base font-bold">Histórico de avisos</CardTitle>
+                <p className="text-sm text-muted-foreground">Avisos já encerrados.</p>
+              </CardHeader>
               <CardContent>
                 <LogPainel
                   itens={comunicados.filter((c: any) => !c.ativo) as any[]}
@@ -1924,8 +2004,12 @@ function Admin() {
                     { titulo: "Criado em", valor: (c: any) => new Date(c.criado_em).toLocaleString("pt-BR") },
                   ]}
                   renderItem={(c: any) => (
-                    <div className="border-b py-2 text-xs text-muted-foreground">
-                      <b className="text-foreground">{c.titulo}</b> · encerrado · {new Date(c.criado_em).toLocaleString("pt-BR")}
+                    <div className="flex items-center justify-between gap-4 border-b px-1 py-3 text-sm">
+                      <span className="min-w-0 truncate font-medium">{c.titulo}</span>
+                      <span className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">
+                        <span className="rounded-full bg-muted px-2 py-0.5 font-medium">Encerrado</span>
+                        <span className="tabular-nums">{new Date(c.criado_em).toLocaleString("pt-BR")}</span>
+                      </span>
                     </div>
                   )}
                 />
@@ -1934,29 +2018,40 @@ function Admin() {
           )}
           {tourConfig && (
             <Card>
-              <CardHeader><CardTitle className="text-base">Tour guiado (novos usuários)</CardTitle></CardHeader>
-              <CardContent className="space-y-3">
-                <label className="flex items-center justify-between gap-3 rounded-xl border p-4 text-sm">
-                  <div>
-                    <p>Mostrar o tour depois do aviso de boas-vindas</p>
-                    <p className="text-xs text-muted-foreground">
-                      Destaca onde lançar receita e despesa pra quem é novo. {tourConfig.concluidos}{" "}
-                      pessoa(s) já concluíram ou dispensaram.
-                    </p>
-                  </div>
+              <CardHeader className="space-y-1">
+                <CardTitle className="text-base font-bold">Tour guiado</CardTitle>
+                <p className="text-sm text-muted-foreground">Mostra a quem é novo onde lançar receita e despesa.</p>
+              </CardHeader>
+              <CardContent>
+                <div className="divide-y rounded-2xl border">
+                <label className="flex cursor-pointer items-center justify-between gap-4 px-4 py-3">
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium">Mostrar depois das boas-vindas</span>
+                    <span className="block text-xs text-muted-foreground">
+                      <span className="tabular-nums">{tourConfig.concluidos}</span> pessoa(s) já concluíram ou dispensaram.
+                    </span>
+                  </span>
                   <Switch
                     checked={tourConfig.ativo}
                     onCheckedChange={(v) => alternarTour.mutate(v)}
                   />
                 </label>
+                <div className="flex items-center justify-between gap-4 px-4 py-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">Mostrar de novo para todos</p>
+                    <p className="text-xs text-muted-foreground">Inclusive para quem já concluiu.</p>
+                  </div>
                 <Button
                   size="sm"
-                  variant="ghost"
+                  variant="outline"
+                  className="shrink-0"
                   disabled={reenviarTour.isPending}
                   onClick={() => reenviarTour.mutate()}
                 >
-                  Mostrar tour novamente para todos
+                  Mostrar de novo
                 </Button>
+                </div>
+                </div>
               </CardContent>
             </Card>
           )}
@@ -1966,24 +2061,28 @@ function Admin() {
         <TabsContent value="privacidade" className="space-y-6">
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base">Solicitações de Privacidade (LGPD)</CardTitle>
-                {privPendentes > 0 && <span className="rounded-full bg-destructive/10 px-2.5 py-0.5 text-xs font-medium text-destructive">{privPendentes} pendente(s)</span>}
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-1">
+                  <CardTitle className="text-base font-bold">Solicitações de privacidade (LGPD)</CardTitle>
+                  <p className="text-sm text-muted-foreground">Pedidos dos titulares sobre os próprios dados.</p>
+                </div>
+                {privPendentes > 0 && <span className="shrink-0 rounded-full bg-destructive/10 px-2.5 py-0.5 text-xs font-medium tabular-nums text-destructive">{privPendentes} pendente(s)</span>}
               </div>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent>
               {pedidos.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Nenhuma solicitação de privacidade.</p>
+                <p className="rounded-2xl border px-4 py-6 text-center text-sm text-muted-foreground">Nenhuma solicitação de privacidade.</p>
               ) : (
-                pedidos.map((p: any) => (
-                  <div className="rounded-lg border p-3 space-y-2" key={p.id}>
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <b className="text-sm">{p.email}</b>
-                        <p className="text-xs text-muted-foreground">{p.telefone} · Protocolo: {p.protocolo?.substring(0, 8)}…</p>
-                        <p className="text-xs text-muted-foreground">{p.motivo || "Sem detalhes"} · {new Date(p.criado_em).toLocaleDateString("pt-BR")}</p>
+                <div className="divide-y rounded-2xl border">
+                {pedidos.map((p: any) => (
+                  <div className="space-y-2 px-4 py-3 transition-colors hover:bg-muted/40" key={p.id}>
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">{p.email}</p>
+                        <p className="text-xs tabular-nums text-muted-foreground">{p.telefone} · Protocolo {p.protocolo?.substring(0, 8)}…</p>
+                        <p className="text-xs text-muted-foreground">{p.motivo || "Sem detalhes"} · <span className="tabular-nums">{new Date(p.criado_em).toLocaleDateString("pt-BR")}</span></p>
                       </div>
-                      <span className={`shrink-0 rounded px-2 py-0.5 text-xs font-semibold ${STATUS_PRIVACIDADE[p.status]?.color ?? ""}`}>
+                      <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_PRIVACIDADE[p.status]?.color ?? ""}`}>
                         {STATUS_PRIVACIDADE[p.status]?.label ?? p.status}
                       </span>
                     </div>
@@ -1991,13 +2090,14 @@ function Admin() {
                     {Array.isArray(p.tratativa_historico) && p.tratativa_historico.length > 0 && (
                       <details className="text-xs">
                         <summary className="cursor-pointer text-muted-foreground">Ver histórico ({p.tratativa_historico.length})</summary>
-                        <div className="mt-1 space-y-1 pl-2 border-l">
+                        <div className="mt-2 space-y-1 border-l pl-3">
                           {p.tratativa_historico.map((h: any, i: number) => (
                             <p key={i} className="text-muted-foreground">{new Date(h.data).toLocaleString("pt-BR")} · {STATUS_PRIVACIDADE[h.status]?.label ?? h.status}: {h.mensagem}</p>
                           ))}
                         </div>
                       </details>
                     )}
+                    <div className="flex justify-end">
                     <Button
                       size="sm"
                       variant="outline"
@@ -2005,8 +2105,10 @@ function Admin() {
                     >
                       Tratar solicitação
                     </Button>
+                    </div>
                   </div>
-                ))
+                ))}
+                </div>
               )}
             </CardContent>
           </Card>
@@ -2017,21 +2119,25 @@ function Admin() {
           {/* Faturas para modelagem */}
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base">Faturas enviadas para modelagem</CardTitle>
-                {layoutsPendentes > 0 && <span className="rounded-full bg-warning/20 px-2.5 py-0.5 text-xs font-medium text-warning-foreground">{layoutsPendentes} pendente(s)</span>}
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-1">
+                  <CardTitle className="text-base font-bold">Faturas para modelagem</CardTitle>
+                  <p className="text-sm text-muted-foreground">Arquivos que a importação ainda não reconhece.</p>
+                </div>
+                {layoutsPendentes > 0 && <span className="shrink-0 rounded-full bg-warning/20 px-2.5 py-0.5 text-xs font-medium tabular-nums text-warning-foreground">{layoutsPendentes} pendente(s)</span>}
               </div>
             </CardHeader>
-            <CardContent className="space-y-2">
+            <CardContent>
               {layouts.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Nenhum arquivo aguardando análise.</p>
+                <p className="rounded-2xl border px-4 py-6 text-center text-sm text-muted-foreground">Nenhum arquivo aguardando análise.</p>
               ) : (
-                layouts.map((l: any) => (
-                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3" key={l.id}>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <b className="text-sm">{l.arquivo_nome}</b>
-                        <span className={`rounded px-2 py-0.5 text-xs font-semibold ${STATUS_LAYOUT[l.status]?.color ?? ""}`}>
+                <div className="divide-y rounded-2xl border">
+                {layouts.map((l: any) => (
+                  <div className="flex flex-wrap items-center justify-between gap-4 px-4 py-3 transition-colors hover:bg-muted/40" key={l.id}>
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="truncate text-sm font-medium">{l.arquivo_nome}</span>
+                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_LAYOUT[l.status]?.color ?? ""}`}>
                           {STATUS_LAYOUT[l.status]?.label ?? l.status}
                         </span>
                       </div>
@@ -2040,20 +2146,21 @@ function Admin() {
                       </p>
                       {l.resposta_admin && <p className="mt-1 text-xs italic text-muted-foreground">{l.resposta_admin}</p>}
                     </div>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap justify-end gap-2">
                       {l.status !== "corrigida" && l.status !== "descartada" && (
                         <>
                           <Button size="sm" variant="outline" onClick={() => void abrirLayout(l.id)}>Baixar / Abrir</Button>
                           {l.status !== "em_modelagem" && (
                             <Button size="sm" variant="secondary" onClick={() => atualizarLayout.mutate({ id: l.id, status: "em_modelagem" })}>Em análise</Button>
                           )}
-                          <Button size="sm" className="bg-success text-success-foreground hover:bg-success/90" onClick={() => atualizarLayout.mutate({ id: l.id, status: "corrigida" })}>Concluído & Apagar PDF</Button>
-                          <Button size="sm" variant="ghost" className="text-destructive" onClick={() => atualizarLayout.mutate({ id: l.id, status: "descartada" })}>Descartar</Button>
+                          <Button size="sm" className="bg-success text-success-foreground hover:bg-success/90" onClick={() => atualizarLayout.mutate({ id: l.id, status: "corrigida" })}>Concluir e apagar PDF</Button>
+                          <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => atualizarLayout.mutate({ id: l.id, status: "descartada" })}>Descartar</Button>
                         </>
                       )}
                     </div>
                   </div>
-                ))
+                ))}
+                </div>
               )}
             </CardContent>
           </Card>
@@ -2061,21 +2168,25 @@ function Admin() {
           {/* Chamados de suporte */}
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base">Chamados de Suporte</CardTitle>
-                {chamadosPendentes > 0 && <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">{chamadosPendentes} aberto(s)</span>}
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-1">
+                  <CardTitle className="text-base font-bold">Chamados de suporte</CardTitle>
+                  <p className="text-sm text-muted-foreground">Mensagens enviadas pela Central de ajuda.</p>
+                </div>
+                {chamadosPendentes > 0 && <span className="shrink-0 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium tabular-nums text-primary">{chamadosPendentes} aberto(s)</span>}
               </div>
             </CardHeader>
-            <CardContent className="space-y-2">
+            <CardContent>
               {chamados.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Nenhum chamado de suporte.</p>
+                <p className="rounded-2xl border px-4 py-6 text-center text-sm text-muted-foreground">Nenhum chamado de suporte.</p>
               ) : (
-                chamados.map((c: any) => (
-                  <div className="rounded-lg border p-3 space-y-1" key={c.id}>
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <b className="text-sm">{c.assunto}</b>
-                        <p className="text-xs text-muted-foreground">{c.nome || c.email} · Protocolo: {c.protocolo?.substring(0, 8)}… · {new Date(c.criado_em).toLocaleDateString("pt-BR")}</p>
+                <div className="divide-y rounded-2xl border">
+                {chamados.map((c: any) => (
+                  <div className="space-y-2 px-4 py-3 transition-colors hover:bg-muted/40" key={c.id}>
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium">{c.assunto}</p>
+                        <p className="text-xs text-muted-foreground">{c.nome || c.email} · Protocolo <span className="tabular-nums">{c.protocolo?.substring(0, 8)}…</span> · <span className="tabular-nums">{new Date(c.criado_em).toLocaleDateString("pt-BR")}</span></p>
                         <p className="text-xs text-muted-foreground line-clamp-2">{c.descricao}</p>
                         {c.anexo_path && (
                           <button
@@ -2087,7 +2198,7 @@ function Admin() {
                           </button>
                         )}
                       </div>
-                      <span className={`shrink-0 rounded px-2 py-0.5 text-xs font-semibold ${STATUS_CHAMADO[c.status]?.color ?? ""}`}>
+                      <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_CHAMADO[c.status]?.color ?? ""}`}>
                         {STATUS_CHAMADO[c.status]?.label ?? c.status}
                       </span>
                     </div>
@@ -2150,11 +2261,12 @@ function Admin() {
                         variant="outline"
                         onClick={() => { setDialogChamado({ id: c.id, status: c.status }); setStatusChamado(c.status); setRespostaChamado(""); }}
                       >
-                        Responder / Atualizar
+                        Responder ou atualizar
                       </Button>
                     )}
                   </div>
-                ))
+                ))}
+                </div>
               )}
             </CardContent>
           </Card>
@@ -2164,12 +2276,13 @@ function Admin() {
         <TabsContent value="logs" className="space-y-6">
           {/* 31/10/2026: as falhas de login (e-mail ou senha errados) ficam aqui, na auditoria (pedido do Matheus). */}
           <Card>
-            <CardHeader><CardTitle className="text-base">Tentativas de login com erro (site e app)</CardTitle></CardHeader>
-            <CardContent className="space-y-3">
+            <CardHeader className="space-y-1">
+              <CardTitle className="text-base font-bold">Tentativas de login com erro</CardTitle>
+              <p className="text-sm text-muted-foreground">Site e app. Bloqueio de 15 min após 3 falhas seguidas.</p>
+            </CardHeader>
+            <CardContent className="space-y-4">
               <p className="text-xs text-muted-foreground">
-                Toda tentativa de login com erro é registrada (mesmo a primeira), com o que foi digitado
-                (nunca a senha), o motivo, o IP e a localização aproximada. Bloqueios automáticos ocorrem
-                após 3 tentativas falhas consecutivas (15 min).
+                Registra o que foi digitado (nunca a senha), o motivo, o IP e a localização aproximada.
               </p>
               <LogPainel
                 itens={falhasLogin as any[]}
@@ -2192,20 +2305,20 @@ function Admin() {
                   { titulo: "Navegador", valor: (f: any) => f.user_agent },
                 ]}
                 renderItem={(f: any) => (
-                  <div className="rounded-lg border px-3 py-2 text-xs">
+                  <div className="rounded-xl border px-4 py-3 text-xs transition-colors hover:bg-muted/40">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-semibold text-destructive">
+                      <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive">
                         {MOTIVOS_FALHA_LOGIN[f.motivo] ?? f.motivo}
                       </span>
                       <span className="font-mono">{f.identificador}</span>
-                      <span className="rounded bg-muted px-1.5 py-0.5 text-xs">{origemLogin(f.user_agent)}</span>
+                      <span className="rounded-full bg-muted px-2 py-0.5 text-xs">{origemLogin(f.user_agent)}</span>
                       {f.bloqueou && (
-                        <span className="rounded-full bg-warning/20 px-2 py-0.5 text-xs font-semibold text-warning-foreground">
+                        <span className="rounded-full bg-warning/20 px-2 py-0.5 text-xs font-medium text-warning-foreground">
                           Conta bloqueada
                         </span>
                       )}
                     </div>
-                    <p className="mt-1 text-muted-foreground">
+                    <p className="mt-1.5 tabular-nums text-muted-foreground">
                       {new Date(f.criado_em).toLocaleString("pt-BR")} · IP {f.ip ?? "n/d"}
                       {f.cidade ? ` · ${f.cidade}${f.regiao ? `/${f.regiao}` : ""}${f.pais ? ` (${f.pais})` : ""}` : ""}
                     </p>
@@ -2216,10 +2329,14 @@ function Admin() {
           </Card>
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between gap-2">
-                <CardTitle className="text-base">Log administrativo</CardTitle>
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="space-y-1">
+                  <CardTitle className="text-base font-bold">Log administrativo</CardTitle>
+                  <p className="text-sm text-muted-foreground">Ações registradas no site, mais recentes primeiro.</p>
+                </div>
                 <Input
-                  className="w-48 h-8 text-xs"
+                  className="h-9 w-full text-sm sm:w-56"
+                  aria-label="Filtrar log"
                   placeholder="Filtrar por ação ou usuário"
                   value={filtroLog}
                   onChange={(e) => setFiltroLog(e.target.value)}
@@ -2242,26 +2359,26 @@ function Admin() {
                   { titulo: "Detalhes", valor: (l: any) => (l.detalhes ? JSON.stringify(l.detalhes) : "") },
                 ]}
                 renderItem={(l: any) => (
-                  <details className="group rounded-lg border px-3 py-2 text-xs">
-                    <summary className="flex cursor-pointer list-none items-start justify-between gap-2">
-                      <div className="flex-1">
-                        <span className="font-semibold capitalize">{l.acao.replaceAll("_", " ")}</span>
-                        <span className="ml-2 text-muted-foreground">
+                  <details className="group rounded-xl border px-4 py-3 text-xs transition-colors hover:bg-muted/40">
+                    <summary className="flex cursor-pointer list-none items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <span className="font-semibold first-letter:uppercase">{l.acao.replaceAll("_", " ")}</span>
+                        <span className="ml-2 tabular-nums text-muted-foreground">
                           {l.profiles?.nome ?? l.profiles?.email ?? "Sistema"} · {new Date(l.criado_em).toLocaleString("pt-BR")}
                         </span>
                         {l.detalhes?.ip && (
-                          <span className="ml-2 rounded bg-muted px-1.5 py-0.5 font-mono text-xs">
+                          <span className="ml-2 rounded-full bg-muted px-2 py-0.5 font-mono text-xs">
                             {l.detalhes.ip}{l.detalhes.cidade ? ` · ${l.detalhes.cidade}` : ""}
                           </span>
                         )}
                         {l.acao?.includes("falha") || l.acao?.includes("bloqueado") || l.acao?.includes("login_falhou") ? (
-                          <span className="ml-2 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-semibold text-destructive">⚠ Falha</span>
+                          <span className="ml-2 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive">Falha</span>
                         ) : null}
                       </div>
-                      <span className="shrink-0 text-xs text-muted-foreground group-open:hidden">▼ detalhes</span>
+                      <span className="shrink-0 text-xs text-muted-foreground group-open:hidden">Detalhes</span>
                     </summary>
                     {l.detalhes && Object.keys(l.detalhes).length > 0 && (
-                      <div className="mt-2 rounded bg-muted/60 p-2 font-mono text-xs whitespace-pre-wrap">
+                      <div className="mt-3 whitespace-pre-wrap rounded-lg bg-muted/60 p-3 font-mono text-xs">
                         {JSON.stringify(l.detalhes, null, 2)}
                       </div>
                     )}
@@ -2277,26 +2394,33 @@ function Admin() {
       <Dialog open={!!dialogPriv} onOpenChange={(o) => { if (!o) { setDialogPriv(null); setRespostaPriv(""); } }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Tratar Solicitação de Privacidade</DialogTitle>
+            <DialogTitle>Tratar solicitação de privacidade</DialogTitle>
             <DialogDescription>{dialogPriv?.email}</DialogDescription>
           </DialogHeader>
-          <div className="space-y-3">
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+            <label className="text-sm font-medium">Situação</label>
             <Select value={statusPriv} onValueChange={setStatusPriv}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger aria-label="Situação da solicitação"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {Object.entries(STATUS_PRIVACIDADE).map(([v, s]) => (
                   <SelectItem key={v} value={v}>{s.label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            </div>
+            <div className="space-y-1.5">
+            <label htmlFor="resposta-priv" className="text-sm font-medium">Resposta <span className="font-normal text-muted-foreground">(opcional, vai por e-mail)</span></label>
             <Textarea
-              placeholder="Tratativa / resposta (opcional, enviada por e-mail se preenchida)"
+              id="resposta-priv"
+              placeholder="Tratativa ou resposta ao titular"
               value={respostaPriv}
               onChange={(e) => setRespostaPriv(e.target.value)}
               rows={4}
             />
+            </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="gap-3">
             <Button variant="outline" onClick={() => { setDialogPriv(null); setRespostaPriv(""); }}>Cancelar</Button>
             <Button
               disabled={tratarPriv.isPending}
@@ -2325,16 +2449,16 @@ function Admin() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Atualizar Chamado de Suporte</DialogTitle>
+            <DialogTitle>Atualizar chamado de suporte</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
+          <div className="space-y-4">
             {(mensagensChamadoAdmin as any[]).length > 0 && (
-              <div className="max-h-48 space-y-2 overflow-y-auto rounded-lg border bg-muted/30 p-2">
+              <div className="max-h-48 space-y-2 overflow-y-auto rounded-2xl border bg-muted/30 p-3">
                 {(mensagensChamadoAdmin as any[]).map((m) => (
-                  <div key={m.id} className="rounded-lg border bg-background p-2 text-xs">
+                  <div key={m.id} className="rounded-xl border bg-background px-3 py-2 text-xs">
                     <p className="font-semibold">
                       {m.autor_tipo === "admin" ? "Você (admin)" : "Usuário"} ·{" "}
-                      <span className="font-normal text-muted-foreground">
+                      <span className="font-normal tabular-nums text-muted-foreground">
                         {new Date(m.criado_em).toLocaleString("pt-BR")}
                       </span>
                     </p>
@@ -2352,20 +2476,27 @@ function Admin() {
                 ))}
               </div>
             )}
+            <div className="space-y-1.5">
+            <label className="text-sm font-medium">Situação</label>
             <Select value={statusChamado} onValueChange={setStatusChamado}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger aria-label="Situação do chamado"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {Object.entries(STATUS_CHAMADO).map(([v, s]) => (
                   <SelectItem key={v} value={v}>{s.label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            </div>
+            <div className="space-y-1.5">
+            <label htmlFor="resposta-chamado" className="text-sm font-medium">Resposta <span className="font-normal text-muted-foreground">(opcional, vai por e-mail)</span></label>
             <Textarea
-              placeholder="Resposta ao usuário (opcional, enviada por e-mail se preenchida)"
+              id="resposta-chamado"
+              placeholder="Resposta ao usuário"
               value={respostaChamado}
               onChange={(e) => setRespostaChamado(e.target.value)}
               rows={4}
             />
+            </div>
             <input
               ref={arquivoChamadoRef}
               type="file"
@@ -2389,12 +2520,13 @@ function Admin() {
               }}
             />
             {arquivoChamado ? (
-              <div className="flex items-center gap-2 rounded-lg border p-2 text-xs">
+              <div className="flex items-center gap-2 rounded-xl border px-3 py-2 text-xs">
                 <Paperclip className="size-3.5 shrink-0 text-muted-foreground" />
                 <span className="min-w-0 flex-1 truncate">{arquivoChamado.name}</span>
                 <button
                   type="button"
-                  className="text-muted-foreground hover:text-destructive"
+                  className="flex size-9 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-destructive"
+                  aria-label="Remover anexo"
                   onClick={() => {
                     setArquivoChamado(null);
                     if (arquivoChamadoRef.current) arquivoChamadoRef.current.value = "";
@@ -2415,7 +2547,7 @@ function Admin() {
               </Button>
             )}
           </div>
-          <DialogFooter>
+          <DialogFooter className="gap-3">
             <Button
               variant="outline"
               onClick={() => {

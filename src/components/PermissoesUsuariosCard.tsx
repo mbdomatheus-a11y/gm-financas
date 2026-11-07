@@ -102,42 +102,40 @@ export function PermissoesUsuariosCard({ compact = false }: { compact?: boolean 
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-sm">
-          <ShieldCheck className="size-4" /> Permissões de outros usuários
+      <CardHeader className="space-y-1">
+        <CardTitle className="flex items-center gap-2 text-base font-bold">
+          <ShieldCheck className="size-4 text-muted-foreground" aria-hidden="true" /> Permissões de outros usuários
         </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
         {!compact && (
-          <p className="text-xs text-muted-foreground">
-            Atalho rápido para o mesmo controle que existe em "Usuários e Privilégios" — dê ou
-            revogue acesso por módulo sem sair do seu perfil. Criar usuário, redefinir senha ou
-            editar nome continua em Usuários e Privilégios.
+          <p className="text-sm text-muted-foreground">
+            Dê ou revogue acesso por módulo. Criar usuário, senha e nome ficam em Usuários e Privilégios.
           </p>
         )}
-        <div className="max-h-[28rem] space-y-2 overflow-y-auto">
+      </CardHeader>
+      <CardContent>
+        <div className="max-h-[28rem] divide-y overflow-y-auto rounded-2xl border">
           {perfis.map((p: any) => {
             const role = roleDe(p.id);
             const aberto = detalhe === p.id;
             return (
-              <div key={p.id} className="rounded-lg border p-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-                    <Users className="size-4 text-primary" />
+              <div key={p.id} className="px-4 py-3 transition-colors hover:bg-muted/40">
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
+                    {(p.nome ?? "").trim().charAt(0).toUpperCase() || <Users className="size-4" aria-hidden="true" />}
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">{p.nome}</p>
-                    <p className="text-[11px] text-muted-foreground">CPF {maskCpf(p.cpf)}</p>
+                    <p className="text-xs tabular-nums text-muted-foreground">CPF {maskCpf(p.cpf)}</p>
                   </div>
-                  <Badge variant={role === "admin" ? "default" : "secondary"}>
+                  <Badge className="rounded-full text-xs font-medium" variant={role === "admin" ? "default" : "secondary"}>
                     {role === "admin" ? "Administrador" : "Comum"}
                   </Badge>
                 </div>
-                <div className="mt-2 flex flex-wrap gap-2">
+                <div className="mt-3 flex flex-wrap justify-end gap-2">
                   <Button
                     size="sm"
                     variant="outline"
-                    className="h-7 text-xs"
+                    className="h-8 text-xs"
                     onClick={() =>
                       alterarRole.mutate({ id: p.id, role: role === "admin" ? "comum" : "admin" })
                     }
@@ -148,16 +146,16 @@ export function PermissoesUsuariosCard({ compact = false }: { compact?: boolean 
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="h-7 text-xs"
+                    className="h-8 text-xs"
                     onClick={() => setDetalhe(aberto ? null : p.id)}
                   >
                     {aberto ? "Ocultar módulos" : "Editar por módulo"}
                   </Button>
                 </div>
                 {aberto && (
-                  <div className="mt-2 overflow-x-auto rounded-lg border">
+                  <div className="mt-3 overflow-x-auto rounded-xl border">
                     <table className="w-full text-xs">
-                      <thead className="bg-muted/50 text-[11px] text-muted-foreground">
+                      <thead className="bg-muted/50 text-xs text-muted-foreground">
                         <tr>
                           <th className="p-1.5 text-left font-medium">Módulo</th>
                           <th className="p-1.5 font-medium">Ver</th>
@@ -191,7 +189,7 @@ export function PermissoesUsuariosCard({ compact = false }: { compact?: boolean 
                                 (campo) => (
                                   <td key={campo} className="p-1.5 text-center">
                                     {campo !== "pode_ver" && ehImportar ? (
-                                      <span className="text-muted-foreground">—</span>
+                                      <span className="text-muted-foreground" aria-label="Não se aplica">·</span>
                                     ) : (
                                       <Switch
                                         checked={atual[campo]}
@@ -213,7 +211,7 @@ export function PermissoesUsuariosCard({ compact = false }: { compact?: boolean 
                                       }
                                     />
                                   ) : (
-                                    <span className="text-muted-foreground">—</span>
+                                    <span className="text-muted-foreground" aria-label="Não se aplica">·</span>
                                   )}
                                 </td>
                               ))}

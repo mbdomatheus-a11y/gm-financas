@@ -3659,8 +3659,8 @@ function ImportarPage() {
                 será calibrado com o PDF de referência.
               </p>
             ) : (
-              <div>
-                <div className="flex items-center justify-between border-b bg-muted/30 px-3 py-1.5 text-xs text-muted-foreground">
+              <div className="pb-4 md:pb-6">
+                <div className="flex flex-wrap items-center gap-3 px-4 pb-3 text-sm text-muted-foreground md:px-6">
                   <span>
                     <span className="font-medium text-foreground">
                       {f.lancamentos.filter((l) => l.incluir).length}
@@ -3668,23 +3668,23 @@ function ImportarPage() {
                     de {f.lancamentos.length} lançamento(s) selecionado(s) nesta fatura
                   </span>
                 </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[920px] table-fixed text-xs">
-                    <thead className="bg-muted/50 text-xs text-muted-foreground">
-                      <tr>
-                        <th className="w-6 p-0.5"></th>
-                        <th className="w-[96px] p-0.5 text-left">Data</th>
-                        <th className="w-[22%] p-1 text-left">Descrição</th>
-                        <th className="w-[72px] p-0.5 text-left">Parcela</th>
-                        <th className="w-[9%] p-1 text-left">Tipo</th>
-                        <th className="w-[7%] p-1 text-left">Final</th>
-                        <th className="w-[9%] p-1 text-left">Responsável</th>
-                        <th className="w-[16%] p-1 text-left">Categoria</th>
-                        <th className="w-[11%] p-1 text-left">Subcategoria</th>
-                        <th className="w-[12%] p-1 text-right">Valor</th>
+                <div className="px-4 md:mx-6 md:max-h-[70vh] md:overflow-auto md:rounded-2xl md:border md:px-0">
+                  <table className="block w-full text-sm md:table md:min-w-[1320px] md:table-fixed">
+                    <thead className="hidden md:table-header-group">
+                      <tr className="text-left text-xs font-medium text-muted-foreground">
+                        <th className="sticky top-0 z-10 w-12 border-b bg-background/90 py-3 pl-4 pr-2 backdrop-blur"><span className="sr-only">Incluir</span></th>
+                        <th className="sticky top-0 z-10 w-[148px] border-b bg-background/90 px-2 py-3 font-medium backdrop-blur">Data</th>
+                        <th className="sticky top-0 z-10 border-b bg-background/90 px-2 py-3 font-medium backdrop-blur">Descrição</th>
+                        <th className="sticky top-0 z-10 w-[124px] border-b bg-background/90 px-2 py-3 font-medium backdrop-blur">Parcela</th>
+                        <th className="sticky top-0 z-10 w-[124px] border-b bg-background/90 px-2 py-3 font-medium backdrop-blur">Tipo</th>
+                        <th className="sticky top-0 z-10 w-[88px] border-b bg-background/90 px-2 py-3 font-medium backdrop-blur">Final</th>
+                        <th className="sticky top-0 z-10 w-[140px] border-b bg-background/90 px-2 py-3 font-medium backdrop-blur">Responsável</th>
+                        <th className="sticky top-0 z-10 w-[200px] border-b bg-background/90 px-2 py-3 font-medium backdrop-blur">Categoria</th>
+                        <th className="sticky top-0 z-10 w-[170px] border-b bg-background/90 px-2 py-3 font-medium backdrop-blur">Subcategoria</th>
+                        <th className="sticky top-0 z-10 w-[156px] border-b bg-background/90 py-3 pl-2 pr-4 text-right font-medium backdrop-blur">Valor</th>
                       </tr>
                     </thead>
-                    <tbody>
+                    <tbody className="block space-y-3 md:table-row-group md:space-y-0 md:divide-y md:divide-border">
                       {f.lancamentos.map((l) => {
                         // Etapa D: lançamento com parcela_total > 1 é um
                         // parcelamento; parcela_total === 1 é lançamento
@@ -3698,13 +3698,13 @@ function ImportarPage() {
                             key={l.id}
                             id={`linha-${l.id}`}
                             className={cn(
-                              "border-t align-top",
+                              "grid grid-cols-2 gap-x-3 gap-y-4 rounded-2xl border p-4 transition-colors md:table-row md:rounded-none md:border-0 md:p-0 md:align-top md:hover:bg-muted/40",
                               l.categoria === CATEGORIA_A_CONFIRMAR && "bg-violet-500/10",
                               linhaComErro === l.id &&
                                 "bg-destructive/10 outline outline-2 -outline-offset-2 outline-destructive",
                             )}
                           >
-                            <td className="p-0.5">
+                            <td className="order-1 col-span-2 flex items-center gap-3 md:table-cell md:py-3.5 md:pl-4 md:pr-2">
                               <Checkbox
                                 checked={l.incluir && permitidoPorTipo}
                                 disabled={!permitidoPorTipo}
@@ -3721,20 +3721,23 @@ function ImportarPage() {
                                   })
                                 }
                               />
+                              <span className="text-sm text-muted-foreground md:hidden">Incluir nesta importação</span>
                             </td>
-                            <td className="p-0.5">
+                            <td className="order-4 block md:table-cell md:px-2 md:py-3">
+                              <span className="mb-1.5 block text-xs font-medium text-muted-foreground md:hidden">Data</span>
                               <Input
                                 type="date"
-                                className="h-6 w-full min-w-0 px-1 text-xs"
+                                className="h-9 w-full min-w-0 rounded-lg px-3 text-sm tabular-nums"
                                 value={l.data_compra}
                                 onChange={(e) =>
                                   atualizarLancamento(idx, l.id, { data_compra: e.target.value })
                                 }
                               />
                             </td>
-                            <td className="p-0.5">
+                            <td className="order-2 col-span-2 block md:table-cell md:px-2 md:py-3">
+                              <span className="mb-1.5 block text-xs font-medium text-muted-foreground md:hidden">Descrição</span>
                               <Textarea
-                                className="min-h-7 w-full min-w-0 resize-none overflow-hidden rounded-md px-1.5 py-1 text-xs leading-tight"
+                                className="min-h-9 w-full min-w-0 resize-none overflow-hidden rounded-lg px-3 py-2 text-sm leading-snug"
                                 rows={1}
                                 value={l.descricao}
                                 onChange={(e) => {
@@ -3765,7 +3768,7 @@ function ImportarPage() {
                                       setDuplicataAberta({ faturaIdx: idx, lancamentoId: l.id })
                                     }
                                     className={cn(
-                                      "mt-1 inline-flex max-w-full items-center gap-1 rounded-md border px-2 py-1 text-left text-xs font-semibold",
+                                      "mt-2 inline-flex max-w-full items-center gap-1.5 rounded-full border px-2.5 py-1 text-left text-xs font-medium transition-colors",
                                       acao === "decidir"
                                         ? "border-warning/50 bg-warning/15 text-warning-foreground dark:text-warning hover:bg-warning/25"
                                         : "border-primary/40 bg-primary/10 text-primary hover:bg-primary/20",
@@ -3777,12 +3780,13 @@ function ImportarPage() {
                                 );
                               })()}
                             </td>
-                            <td className="p-0.5">
-                              <div className="flex items-center gap-0.5">
+                            <td className="order-5 block md:table-cell md:px-2 md:py-3">
+                              <span className="mb-1.5 block text-xs font-medium text-muted-foreground md:hidden">Parcela</span>
+                              <div className="flex items-center gap-1.5">
                                 <Input
                                   type="number"
                                   min={1}
-                                  className="h-6 w-9 min-w-0 px-0.5 text-center text-xs [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                  className="h-9 w-12 min-w-0 rounded-lg px-1 text-center text-sm tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                                   value={l.parcela_numero}
                                   onChange={(e) =>
                                     atualizarLancamento(idx, l.id, {
@@ -3794,7 +3798,7 @@ function ImportarPage() {
                                 <Input
                                   type="number"
                                   min={1}
-                                  className="h-6 w-9 min-w-0 px-0.5 text-center text-xs [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                  className="h-9 w-12 min-w-0 rounded-lg px-1 text-center text-sm tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                                   value={l.parcela_total}
                                   onChange={(e) =>
                                     atualizarLancamento(idx, l.id, {
@@ -3804,14 +3808,15 @@ function ImportarPage() {
                                 />
                               </div>
                             </td>
-                            <td className="p-0.5">
+                            <td className="order-6 block md:table-cell md:px-2 md:py-3">
+                              <span className="mb-1.5 block text-xs font-medium text-muted-foreground md:hidden">Tipo</span>
                               <Select
                                 value={l.tipo ?? "variavel"}
                                 onValueChange={(v) =>
                                   atualizarLancamento(idx, l.id, { tipo: v as "fixa" | "variavel" })
                                 }
                               >
-                                <SelectTrigger className="h-6 w-full min-w-0 px-1 text-xs">
+                                <SelectTrigger className="h-9 w-full min-w-0 rounded-lg px-3 text-sm">
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -3870,9 +3875,10 @@ function ImportarPage() {
                                 ) : null;
                               })()}
                             </td>
-                            <td className="p-0.5">
+                            <td className="order-7 block md:table-cell md:px-2 md:py-3">
+                              <span className="mb-1.5 block text-xs font-medium text-muted-foreground md:hidden">Final do cartão</span>
                               <Input
-                                className="h-6 w-full min-w-0 px-1 text-xs"
+                                className="h-9 w-full min-w-0 rounded-lg px-3 text-sm tabular-nums"
                                 placeholder="0000"
                                 maxLength={4}
                                 value={l.cartao_final ?? ""}
@@ -3884,7 +3890,8 @@ function ImportarPage() {
                                 }
                               />
                             </td>
-                            <td className="p-0.5">
+                            <td className="order-8 block md:table-cell md:px-2 md:py-3">
+                              <span className="mb-1.5 block text-xs font-medium text-muted-foreground md:hidden">Responsável</span>
                               <Select
                                 value={l.responsavel ?? "none"}
                                 onValueChange={(v) =>
@@ -3893,7 +3900,7 @@ function ImportarPage() {
                                   })
                                 }
                               >
-                                <SelectTrigger className="h-6 w-full min-w-0 px-1 text-xs">
+                                <SelectTrigger className="h-9 w-full min-w-0 rounded-lg px-3 text-sm">
                                   <SelectValue placeholder="-" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -3906,11 +3913,12 @@ function ImportarPage() {
                                 </SelectContent>
                               </Select>
                             </td>
-                            <td className="p-0.5">
-                              <div className="flex items-center gap-1">
+                            <td className="order-9 col-span-2 block md:table-cell md:px-2 md:py-3 md:col-span-1">
+                              <span className="mb-1.5 block text-xs font-medium text-muted-foreground md:hidden">Categoria</span>
+                              <div className="flex items-center gap-2">
                                 <SeletorCategoria
                                   campo="categoria"
-                                  className="h-7 min-w-0 px-1 text-xs"
+                                  className="h-9 min-w-0 rounded-lg px-3 text-sm"
                                   ariaLabel="Categoria do lançamento"
                                   placeholder="Categoria"
                                   valor={l.categoria}
@@ -3928,15 +3936,16 @@ function ImportarPage() {
                                 />
                               </div>
                               {l.confianca_categoria && (
-                                <p className="mt-1 text-xs text-muted-foreground">
+                                <p className="mt-1.5 text-xs text-muted-foreground">
                                   Confiança: {CONFIANCA_LABEL[l.confianca_categoria]}
                                 </p>
                               )}
                             </td>
-                            <td className="p-0.5">
+                            <td className="order-10 col-span-2 block md:table-cell md:px-2 md:py-3 md:col-span-1">
+                              <span className="mb-1.5 block text-xs font-medium text-muted-foreground md:hidden">Subcategoria</span>
                               <SeletorCategoria
                                 campo="subcategoria"
-                                className="h-6 w-full min-w-0 px-1 text-xs"
+                                className="h-9 w-full min-w-0 rounded-lg px-3 text-sm"
                                 ariaLabel="Subcategoria do lançamento"
                                 placeholder="-"
                                 valor={l.subcategoria ?? null}
@@ -3954,11 +3963,12 @@ function ImportarPage() {
                                 }
                               />
                             </td>
-                            <td className="p-0.5 text-right">
+                            <td className="order-3 col-span-2 block text-right md:table-cell md:py-3 md:pl-2 md:pr-4">
+                              <span className="mb-1.5 block text-left text-xs font-medium text-muted-foreground md:hidden">Valor</span>
                               <Input
                                 type="number"
                                 step="0.01"
-                                className={`h-7 w-full min-w-0 px-1 text-right text-xs font-medium ${
+                                className={`h-9 w-full min-w-0 rounded-lg px-3 text-right text-sm font-semibold tabular-nums ${
                                   l.direcao === "credito" ? "text-success" : "text-destructive"
                                 }`}
                                 value={l.valor}
@@ -3969,7 +3979,7 @@ function ImportarPage() {
                                 }
                               />
                               <p
-                                className={`mt-1 text-xs font-medium ${
+                                className={`mt-1.5 text-xs font-medium tabular-nums ${
                                   l.direcao === "credito" ? "text-success" : "text-destructive"
                                 }`}
                               >
@@ -3980,7 +3990,7 @@ function ImportarPage() {
                                 type="button"
                                 title="Inverter o sinal: débito vira crédito e vice-versa"
                                 aria-label="Inverter o sinal deste lançamento"
-                                className="mt-0.5 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                                className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
                                 onClick={() =>
                                   atualizarLancamento(idx, l.id, {
                                     direcao: l.direcao === "credito" ? "debito" : "credito",

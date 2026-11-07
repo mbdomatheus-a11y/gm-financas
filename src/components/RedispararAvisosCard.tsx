@@ -54,53 +54,100 @@ export function RedispararAvisosCard() {
 
   return (
     <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="flex items-center gap-2 text-base">
-          <BellRing className="size-4" aria-hidden="true" /> Avisos dispensáveis
+      <CardHeader className="space-y-1">
+        <CardTitle className="flex items-center gap-2 text-base font-bold">
+          <BellRing className="size-4 text-muted-foreground" aria-hidden="true" /> Avisos dispensáveis
         </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3 text-sm">
-        <p className="text-muted-foreground">
-          Quem marca "não mostrar mais" no aviso do app beta ou no convite de amigos, ou responde o aviso de cookies, não vê mais (vale em qualquer aparelho). Use os botões abaixo para
-          mostrar de novo a todos (por exemplo, depois de mudar a política de privacidade).
+        <p className="text-sm text-muted-foreground">
+          Quem dispensa um aviso não vê mais em nenhum aparelho. Aqui você mostra de novo para todos.
         </p>
-        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-          <Button
-            className="bg-emerald-600 text-white hover:bg-emerald-700"
-            disabled={redisparar.isPending}
-            onClick={() => redisparar.mutate("beta")}
-          >
-            {Number(config?.rodada_aviso_beta ?? 0) > 0
-              ? `Disparar de novo o aviso do app beta (rodada atual ${config?.rodada_aviso_beta})`
-              : "Disparar aviso do app beta (TestFlight)"}
-          </Button>
-          <Button
-            variant={config?.beta_android_aberto ? "outline" : "default"}
-            disabled={betaAndroid.isPending}
-            onClick={() => betaAndroid.mutate(!config?.beta_android_aberto)}
-          >
-            {config?.beta_android_aberto ? "Fechar vagas do beta Android" : "Abrir vagas do beta Android (Google Play, 50 vagas)"}
-          </Button>
-          <Button
-            variant="outline"
-            disabled={redisparar.isPending}
-            onClick={() => redisparar.mutate("convite")}
-          >
-            Redisparar convite de amigos (rodada atual {config?.rodada_aviso_convite ?? 1})
-          </Button>
-          <Button
-            variant="outline"
-            disabled={redisparar.isPending}
-            onClick={() => redisparar.mutate("privacidade")}
-          >
-            Redisparar aviso de cookies (rodada atual {config?.rodada_aviso_privacidade ?? 1})
-          </Button>
+      </CardHeader>
+      <CardContent className="space-y-6 text-sm">
+        <div className="divide-y rounded-2xl border">
+          <div className="flex items-center justify-between gap-4 px-4 py-3">
+            <div className="min-w-0">
+              <p className="text-sm font-medium">Aviso do app beta (TestFlight)</p>
+              <p className="text-xs text-muted-foreground">
+                {Number(config?.rodada_aviso_beta ?? 0) > 0 ? (
+                  <>Rodada atual <span className="tabular-nums">{config?.rodada_aviso_beta}</span></>
+                ) : (
+                  "Ainda não disparado"
+                )}
+              </p>
+            </div>
+            <Button
+              size="sm"
+              className="shrink-0"
+              disabled={redisparar.isPending}
+              onClick={() => redisparar.mutate("beta")}
+            >
+              {Number(config?.rodada_aviso_beta ?? 0) > 0 ? "Disparar de novo" : "Disparar"}
+            </Button>
+          </div>
+          <div className="flex items-center justify-between gap-4 px-4 py-3">
+            <div className="min-w-0">
+              <p className="text-sm font-medium">Vagas do beta Android</p>
+              <p className="text-xs text-muted-foreground">
+                {config?.beta_android_aberto ? (
+                  <span className="text-success">Abertas no site, Google Play, até 50 vagas</span>
+                ) : (
+                  "Fechadas no site"
+                )}
+              </p>
+            </div>
+            <Button
+              size="sm"
+              className="shrink-0"
+              variant={config?.beta_android_aberto ? "outline" : "default"}
+              disabled={betaAndroid.isPending}
+              onClick={() => betaAndroid.mutate(!config?.beta_android_aberto)}
+            >
+              {config?.beta_android_aberto ? "Fechar vagas" : "Abrir vagas"}
+            </Button>
+          </div>
+          <div className="flex items-center justify-between gap-4 px-4 py-3">
+            <div className="min-w-0">
+              <p className="text-sm font-medium">Convite de amigos</p>
+              <p className="text-xs text-muted-foreground">
+                Rodada atual <span className="tabular-nums">{config?.rodada_aviso_convite ?? 1}</span>
+              </p>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="shrink-0"
+              disabled={redisparar.isPending}
+              onClick={() => redisparar.mutate("convite")}
+            >
+              Redisparar
+            </Button>
+          </div>
+          <div className="flex items-center justify-between gap-4 px-4 py-3">
+            <div className="min-w-0">
+              <p className="text-sm font-medium">Aviso de cookies</p>
+              <p className="text-xs text-muted-foreground">
+                Rodada atual <span className="tabular-nums">{config?.rodada_aviso_privacidade ?? 1}</span>. Use após mudar a política de privacidade.
+              </p>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="shrink-0"
+              disabled={redisparar.isPending}
+              onClick={() => redisparar.mutate("privacidade")}
+            >
+              Redisparar
+            </Button>
+          </div>
         </div>
         <RedefinirAvisosUsuario />
       </CardContent>
     </Card>
   );
 }
+
+/** Campos usados aqui da lista de adminListarUsuarios (o retorno chega sem tipo). */
+type UsuarioAviso = { id: string; nome: string | null; email: string | null; ativo: boolean };
 
 /**
  * Redefine os avisos de um usuário escolhido ou de todos os ativos (28/10/2026, para gravar vídeos).
@@ -114,17 +161,17 @@ function RedefinirAvisosUsuario() {
   const [busca, setBusca] = useState("");
   const [alvo, setAlvo] = useState<string>("");
   const [confirmarTodos, setConfirmarTodos] = useState(false);
-  const ativos = useMemo(() => usuarios.filter((u) => u.ativo), [usuarios]);
+  const ativos = useMemo(() => usuarios.filter((u: UsuarioAviso) => u.ativo), [usuarios]);
   const filtrados = useMemo(() => {
     const t = busca.trim().toLowerCase();
     if (!t) return ativos;
-    return ativos.filter((u) => `${u.nome ?? ""} ${u.email ?? ""}`.toLowerCase().includes(t));
+    return ativos.filter((u: UsuarioAviso) => `${u.nome ?? ""} ${u.email ?? ""}`.toLowerCase().includes(t));
   }, [ativos, busca]);
   const redefinir = useMutation({
     mutationFn: (a: string) => redefinirFn({ data: { alvo: a } }),
     onSuccess: (_r, a) => {
       setConfirmarTodos(false);
-      const nome = ativos.find((u) => u.id === a)?.nome;
+      const nome = ativos.find((u: UsuarioAviso) => u.id === a)?.nome;
       toast.success(
         a === "todos"
           ? `Avisos redefinidos para os ${ativos.length} usuários ativos. Aparecem de novo na próxima abertura do site ou do app.`
@@ -144,39 +191,48 @@ function RedefinirAvisosUsuario() {
   }
 
   return (
-    <div className="space-y-2 border-t pt-3">
-      <p className="flex items-center gap-2 font-medium">
-        <RotateCcw className="size-4" aria-hidden="true" /> Redefinir avisos de um usuário
-      </p>
-      <p className="text-muted-foreground">
-        Faz voltar tudo que a pessoa já viu ou dispensou (cookies, convite de amigos, app beta, tour, primeiros passos,
-        instalar o app, primeira fatura). Útil para gravar vídeos. Vale no site e no app na próxima vez que abrir.
-      </p>
-      <div className="flex flex-col gap-2 sm:flex-row">
-        <Input
-          placeholder="Buscar por nome ou e-mail"
-          value={busca}
-          onChange={(e) => setBusca(e.target.value)}
-          className="sm:max-w-56"
-        />
+    <div className="space-y-4">
+      <div className="space-y-1">
+        <p className="flex items-center gap-2 text-base font-bold">
+          <RotateCcw className="size-4 text-muted-foreground" aria-hidden="true" /> Redefinir avisos de um usuário
+        </p>
+        <p className="text-sm text-muted-foreground">
+          Volta tudo que a pessoa já viu ou dispensou (cookies, convites, tour, primeiros passos). Útil para gravar vídeos.
+        </p>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-1.5">
+          <label htmlFor="redefinir-busca" className="text-sm font-medium">Buscar</label>
+          <Input
+            id="redefinir-busca"
+            placeholder="Nome ou e-mail"
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+          />
+        </div>
+        <div className="space-y-1.5">
+        <label htmlFor="redefinir-alvo" className="text-sm font-medium">Usuário</label>
         <select
+          id="redefinir-alvo"
           value={alvo}
           onChange={(e) => {
             setAlvo(e.target.value);
             setConfirmarTodos(false);
           }}
-          className="h-9 min-w-0 flex-1 rounded-md border border-input bg-background px-3 text-sm"
-          aria-label="Usuário"
+          className="h-10 w-full min-w-0 rounded-xl border border-input bg-background px-3 text-sm"
         >
           <option value="">{isLoading ? "Carregando usuários..." : "Escolha o usuário"}</option>
           <option value="todos">Todos os usuários ativos ({ativos.length})</option>
-          {filtrados.map((u) => (
+          {filtrados.map((u: UsuarioAviso) => (
             <option key={u.id} value={u.id}>
               {u.nome || "Sem nome"}
               {u.email ? ` · ${u.email}` : ""}
             </option>
           ))}
         </select>
+        </div>
+      </div>
+      <div className="flex justify-end gap-3">
         <Button
           variant={confirmarTodos ? "destructive" : "default"}
           disabled={!alvo || redefinir.isPending}

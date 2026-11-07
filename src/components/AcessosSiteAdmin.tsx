@@ -123,13 +123,13 @@ export function AcessosSiteAdmin() {
             <p className="flex items-center gap-1 text-xs text-muted-foreground">
               <Users className="size-3.5" /> Visitas (sessões)
             </p>
-            <p className="text-2xl font-bold">{resumo.sessoes}</p>
+            <p className="text-2xl font-bold tabular-nums">{resumo.sessoes}</p>
           </div>
           <div className="rounded-xl border p-3">
             <p className="flex items-center gap-1 text-xs text-muted-foreground">
               <MapPin className="size-3.5" /> IPs diferentes
             </p>
-            <p className="text-2xl font-bold">{resumo.ips}</p>
+            <p className="text-2xl font-bold tabular-nums">{resumo.ips}</p>
           </div>
         </div>
 
@@ -140,7 +140,7 @@ export function AcessosSiteAdmin() {
             {resumo.porDia.map(([dia, qtd]) => (
               <div key={dia} className="flex flex-1 flex-col items-center gap-1" title={`${dia}: ${qtd}`}>
                 <div className="w-full rounded-t bg-primary/80" style={{ height: `${(qtd / maxDia) * 80}px` }} />
-                <span className="text-[9px] text-muted-foreground">{dia.slice(8, 10)}/{dia.slice(5, 7)}</span>
+                <span className="hidden text-xs tabular-nums text-muted-foreground sm:block">{dia.slice(8, 10)}</span>
               </div>
             ))}
           </div>

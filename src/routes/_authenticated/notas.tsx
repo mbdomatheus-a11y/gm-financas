@@ -29,7 +29,7 @@ import { LeitorNota } from "@/components/LeitorNota";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { classificarItemNota, calcularDepreciacao } from "@/lib/nota-itens-classificacao";
@@ -1160,21 +1160,24 @@ function NotasPage() {
 
       {/* Escolha foto x leitura */}
       <Dialog open={escolha} onOpenChange={setEscolha}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-w-sm gap-5 rounded-2xl">
           <DialogHeader>
             <DialogTitle>Nova nota</DialogTitle>
+            <DialogDescription>Como você quer adicionar?</DialogDescription>
           </DialogHeader>
           <div className="grid gap-3">
             <Button
               variant="outline"
-              className="h-auto justify-start gap-3 py-4"
+              className="h-auto justify-start gap-4 rounded-xl px-4 py-3"
               onClick={() => {
                 setEscolha(false);
                 notaAlvoUpload.current = null;
                 fileRef.current?.click();
               }}
             >
-              <Camera className="size-5 text-primary" />
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <Camera className="size-5" aria-hidden="true" />
+              </span>
               <span className="text-left">
                 <span className="block text-sm font-semibold">Foto do comprovante</span>
                 <span className="block text-xs text-muted-foreground">Câmera ou arquivo</span>
@@ -1182,17 +1185,17 @@ function NotasPage() {
             </Button>
             <Button
               variant="outline"
-              className="h-auto justify-start gap-3 py-4"
+              className="h-auto justify-start gap-4 rounded-xl px-4 py-3"
               onClick={() => {
                 setEscolha(false);
                 setLeitor(true);
               }}
             >
-              <QrCode className="size-5 text-primary" />
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <QrCode className="size-5" aria-hidden="true" />
+              </span>
               <span className="text-left">
-                <span className="block text-sm font-semibold">
-                  Ler nota (QR / código de barras)
-                </span>
+                <span className="block text-sm font-semibold">Ler QR ou código de barras</span>
                 <span className="block text-xs text-muted-foreground">
                   Captura a chave de acesso
                 </span>
@@ -1200,6 +1203,7 @@ function NotasPage() {
             </Button>
             <Button
               variant="ghost"
+              className="rounded-xl text-muted-foreground"
               onClick={() => {
                 setEscolha(false);
                 setForm({ ...FORM_VAZIO });
@@ -1226,34 +1230,34 @@ function NotasPage() {
           }
         }}
       >
-        <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+        <DialogContent className="max-h-[90vh] max-w-lg gap-5 overflow-y-auto rounded-2xl">
           <DialogHeader>
             <DialogTitle>{editandoId ? "Editar nota" : "Nova nota"}</DialogTitle>
           </DialogHeader>
           {form && (
-            <div className="space-y-3">
+            <div className="space-y-4">
               {form.chave_acesso && (
-                <div className="rounded-xl border bg-muted/40 p-3 text-xs">
+                <div className="space-y-1 rounded-xl bg-muted p-4 text-xs">
                   <p className="font-medium">Chave de acesso</p>
-                  <p className="break-all text-muted-foreground">
+                  <p className="break-all tabular-nums text-muted-foreground">
                     {formatarChave(form.chave_acesso)}
                   </p>
-                  <p className="mt-1 text-muted-foreground">
+                  <p className="text-muted-foreground">
                     {form.status_captura === "auto"
                       ? "Dados obtidos automaticamente"
                       : "Preencher manualmente"}
                   </p>
                 </div>
               )}
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="space-y-1.5">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
                   <Label>Estabelecimento</Label>
                   <Input
                     value={form.estabelecimento}
                     onChange={(e) => setForm({ ...form, estabelecimento: e.target.value })}
                   />
                 </div>
-                <div className="space-y-1.5">
+                <div className="space-y-2">
                   <Label>Data da compra</Label>
                   <Input
                     type="date"
@@ -1261,15 +1265,16 @@ function NotasPage() {
                     onChange={(e) => setForm({ ...form, data_compra: e.target.value })}
                   />
                 </div>
-                <div className="space-y-1.5">
-                  <Label>Valor</Label>
+                <div className="space-y-2">
+                  <Label>Valor (R$)</Label>
                   <Input
+                    className="tabular-nums"
                     inputMode="decimal"
                     value={form.valor_total}
                     onChange={(e) => setForm({ ...form, valor_total: e.target.value })}
                   />
                 </div>
-                <div className="space-y-1.5">
+                <div className="space-y-2">
                   <Label>Categoria</Label>
                   <Select
                     value={form.categoria}
@@ -1287,7 +1292,7 @@ function NotasPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-1.5">
+                <div className="space-y-2">
                   <Label>Garantia</Label>
                   <Select
                     value={form.garantia_meses}
@@ -1305,10 +1310,11 @@ function NotasPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-1.5">
+                <div className="space-y-2">
                   <Label>Fim da garantia</Label>
                   <Input
                     readOnly
+                    className="bg-muted tabular-nums text-muted-foreground"
                     value={
                       calcularFimGarantia(form.data_compra, Number(form.garantia_meses) || 0)
                         ? formatDate(
@@ -1322,14 +1328,14 @@ function NotasPage() {
                   />
                 </div>
               </div>
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <Label>Descrição</Label>
                 <Input
                   value={form.descricao}
                   onChange={(e) => setForm({ ...form, descricao: e.target.value })}
                 />
               </div>
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <Label>Agrupamento</Label>
                 <Select
                   value={form.nota_grupo_id || "nenhum"}
@@ -1348,11 +1354,11 @@ function NotasPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="flex items-start justify-between gap-3 rounded-xl border p-3">
-                <div>
+              <div className="flex items-start justify-between gap-4 rounded-xl border p-4">
+                <div className="space-y-1">
                   <Label>Só guardar</Label>
                   <p className="text-xs text-muted-foreground">
-                    Guarda a nota sem garantia e sem alertas. Não afeta despesas nem o financeiro.
+                    Sem garantia nem alertas. Não afeta despesas nem o financeiro.
                   </p>
                 </div>
                 <Switch
@@ -1360,8 +1366,8 @@ function NotasPage() {
                   onCheckedChange={(v) => setForm({ ...form, so_guardar: v })}
                 />
               </div>
-              <div className="space-y-1.5">
-                <Label>Cartão ou conta usada na compra</Label>
+              <div className="space-y-2">
+                <Label>Cartão ou conta usada</Label>
                 <Select
                   value={form.pagamento || "nenhum"}
                   onValueChange={(v) => setForm({ ...form, pagamento: v === "nenhum" ? "" : v })}
@@ -1385,7 +1391,7 @@ function NotasPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <Label>Observações</Label>
                 <Textarea
                   rows={2}
@@ -1395,13 +1401,13 @@ function NotasPage() {
               </div>
 
               {itensLidos.length > 0 && (
-                <div className="rounded-xl border p-3 space-y-3">
+                <div className="space-y-3 rounded-xl border p-4">
                   <p className="text-xs font-semibold">
                     {itensLidos.length} {itensLidos.length === 1 ? "item identificado" : "itens identificados"}
                   </p>
                   <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
                     {itensLidos.map((item, idx) => (
-                      <div key={idx} className="rounded-lg border bg-muted/30 p-2.5 space-y-1.5">
+                      <div key={idx} className="space-y-2 rounded-xl bg-muted p-3">
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0 flex-1">
                             <p className="text-xs font-medium truncate">
@@ -1428,7 +1434,7 @@ function NotasPage() {
                                 ),
                               )
                             }
-                            className="size-3.5 accent-primary"
+                            className="size-4 rounded accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
                           />
                           <span className="text-xs text-muted-foreground">
                             Este item deprecia?
@@ -1437,7 +1443,7 @@ function NotasPage() {
                         {item.deprecia && (
                           <div className="flex items-center gap-2">
                             <label className="text-xs text-muted-foreground shrink-0">
-                              Vida útil (meses):
+                              Vida útil (meses)
                             </label>
                             <input
                               type="number"
@@ -1453,7 +1459,7 @@ function NotasPage() {
                                 )
                               }
                               placeholder="Ex: 36"
-                              className="w-20 rounded border bg-background px-2 py-0.5 text-xs"
+                              className="h-8 w-20 rounded-lg border bg-background px-2 text-xs tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
                             />
                             {item.meses_depreciacao && (
                               <span className="text-xs text-muted-foreground tabular-nums">
@@ -1488,7 +1494,7 @@ function NotasPage() {
               )}
 
               <Button
-                className="w-full"
+                className="h-11 w-full rounded-xl"
                 onClick={() => salvar.mutate(form)}
                 disabled={salvar.isPending}
               >
@@ -1501,7 +1507,7 @@ function NotasPage() {
 
       {/* Detalhe */}
       <Dialog open={!!notaDetalhe} onOpenChange={(v) => !v && setDetalhe(null)}>
-        <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+        <DialogContent className="max-h-[90vh] max-w-lg gap-5 overflow-y-auto rounded-2xl">
           {notaDetalhe && (
             <>
               <DialogHeader>
@@ -1511,22 +1517,22 @@ function NotasPage() {
               </DialogHeader>
               <div className="space-y-4">
                 <div className="flex flex-wrap items-center gap-2 text-sm">
-                  <Badge variant="secondary">{formatDate(notaDetalhe.data_compra)}</Badge>
-                  <Badge variant="secondary">{formatBRL(Number(notaDetalhe.valor_total))}</Badge>
+                  <Badge variant="secondary" className="tabular-nums">{formatDate(notaDetalhe.data_compra)}</Badge>
+                  <Badge variant="secondary" className="tabular-nums">{formatBRL(Number(notaDetalhe.valor_total))}</Badge>
                   <SeloGarantia fim={notaDetalhe.garantia_fim} />
                 </div>
 
                 {notaDetalhe.chave_acesso && (
-                  <div className="rounded-xl border p-3 text-xs">
+                  <div className="rounded-xl bg-muted p-4 text-xs">
                     <p className="mb-1 font-medium">Chave de acesso</p>
-                    <p className="break-all text-muted-foreground">
+                    <p className="break-all tabular-nums text-muted-foreground">
                       {formatarChave(notaDetalhe.chave_acesso)}
                     </p>
-                    <div className="mt-2 flex gap-2">
+                    <div className="mt-3 flex flex-wrap gap-3">
                       <Button
                         size="sm"
                         variant="outline"
-                        className="gap-1"
+                        className="gap-1.5 rounded-full bg-background px-4"
                         onClick={() => {
                           void navigator.clipboard.writeText(notaDetalhe.chave_acesso!);
                           toast.success("Chave copiada.");
@@ -1534,29 +1540,29 @@ function NotasPage() {
                       >
                         <Copy className="size-3.5" /> Copiar
                       </Button>
-                      <a
-                        href={notaDetalhe.url_consulta ?? linkConsulta(notaDetalhe.chave_acesso)}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        <Button size="sm" variant="outline" className="gap-1">
+                      <Button asChild size="sm" variant="outline" className="gap-1.5 rounded-full bg-background px-4">
+                        <a
+                          href={notaDetalhe.url_consulta ?? linkConsulta(notaDetalhe.chave_acesso)}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
                           <ExternalLink className="size-3.5" /> Consultar
-                        </Button>
-                      </a>
+                        </a>
+                      </Button>
                     </div>
                   </div>
                 )}
 
                 <div>
                   <p className="mb-2 text-xs font-medium">Comprovantes</p>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-3">
                     {(notaDetalhe.nota_arquivos ?? []).map((a) => (
                       <a
                         key={a.id}
                         href={a.link ?? "#"}
                         target="_blank"
                         rel="noreferrer"
-                        className="size-20 overflow-hidden rounded-xl border bg-muted"
+                        className="size-20 overflow-hidden rounded-xl border bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
                       >
                         {a.thumbnail_link ? (
                           <img
@@ -1574,7 +1580,7 @@ function NotasPage() {
                     ))}
                     <Button
                       variant="outline"
-                      className="size-20 flex-col gap-1 text-xs"
+                      className="size-20 flex-col gap-1 rounded-xl text-xs"
                       disabled={anexar.isPending}
                       onClick={() => {
                         notaAlvoUpload.current = notaDetalhe.id;
@@ -1600,7 +1606,7 @@ function NotasPage() {
                             })
                           : null;
                         return (
-                          <div key={i.id} className="rounded-lg border bg-muted/20 px-2.5 py-2 space-y-1">
+                          <div key={i.id} className="space-y-1 rounded-xl bg-muted px-3 py-2.5">
                             <div className="flex items-start justify-between gap-2">
                               <div className="min-w-0 flex-1">
                                 <p className="text-xs truncate">
@@ -1641,7 +1647,7 @@ function NotasPage() {
                   <p className="text-xs text-muted-foreground">{notaDetalhe.observacoes}</p>
                 )}
 
-                <div className="space-y-1.5">
+                <div className="space-y-2">
                   <Label>Agrupamento</Label>
                   <Select
                     value={(notaDetalhe as any).nota_grupo_id ?? "nenhum"}
@@ -1667,7 +1673,7 @@ function NotasPage() {
                 </div>
                 <Button
                   variant="outline"
-                  className="w-full gap-2"
+                  className="h-11 w-full gap-2 rounded-xl"
                   disabled={atualizarNota.isPending}
                   onClick={() => {
                     if ((notaDetalhe as any).arquivada) {
@@ -1686,10 +1692,10 @@ function NotasPage() {
                   {(notaDetalhe as any).arquivada ? "Desarquivar" : "Arquivar"}
                 </Button>
 
-                <div className="flex gap-2">
+                <div className="flex flex-col gap-3 sm:flex-row">
                   <Button
                     variant="outline"
-                    className="flex-1 gap-2"
+                    className="h-11 flex-1 gap-2 rounded-xl"
                     onClick={() => {
                       setDetalhe(null);
                       setEditandoId(notaDetalhe.id);
@@ -1717,7 +1723,7 @@ function NotasPage() {
                   </Button>
                   <Button
                     variant="destructive"
-                    className="gap-2"
+                    className="h-11 gap-2 rounded-xl"
                     onClick={() => excluir.mutate(notaDetalhe.id)}
                   >
                     <Trash2 className="size-4" /> Excluir
@@ -1729,39 +1735,35 @@ function NotasPage() {
         </DialogContent>
       </Dialog>
       <Dialog open={!!perguntaArquivo} onOpenChange={(v) => !v && setPerguntaArquivo(null)}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-w-sm gap-5 rounded-2xl">
           <DialogHeader>
-            <DialogTitle>Arquivar nota</DialogTitle>
+            <DialogTitle>Arquivar nota?</DialogTitle>
+            <DialogDescription>Ela sai da lista e dos alertas. Continua somando em Gastos por tipo?</DialogDescription>
           </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            A nota sai da lista principal e dos alertas. Ela deve continuar entrando nos totais de Gastos por tipo?
-          </p>
-          <div className="grid gap-2">
-            <Button onClick={() => arquivarNota(perguntaArquivo, false)}>Parar de somar</Button>
-            <Button variant="outline" onClick={() => arquivarNota(perguntaArquivo, true)}>
+          <div className="grid gap-3">
+            <Button className="h-11 rounded-xl" onClick={() => arquivarNota(perguntaArquivo, false)}>Parar de somar</Button>
+            <Button variant="outline" className="h-11 rounded-xl" onClick={() => arquivarNota(perguntaArquivo, true)}>
               Continuar somando
             </Button>
           </div>
         </DialogContent>
       </Dialog>
       <Dialog open={gerirGrupos} onOpenChange={setGerirGrupos}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-w-sm gap-5 rounded-2xl">
           <DialogHeader>
-            <DialogTitle>Agrupamentos de notas</DialogTitle>
+            <DialogTitle>Agrupamentos</DialogTitle>
+            <DialogDescription>Separe as notas por assunto, como Casa ou Carro.</DialogDescription>
           </DialogHeader>
-          <p className="text-xs text-muted-foreground">
-            Separe as notas por assunto, como Casa, Carro ou Eletrônicos. Isso não mexe em despesas nem no financeiro.
-          </p>
-          <div className="flex gap-2">
+          <div className="flex gap-3">
             <Input
               value={novoGrupo}
               onChange={(e) => setNovoGrupo(e.target.value)}
               placeholder="Novo agrupamento"
-              className="h-9"
+              aria-label="Nome do novo agrupamento"
               maxLength={40}
             />
             <Button
-              size="sm"
+              className="h-11 shrink-0 rounded-xl px-5"
               disabled={!novoGrupo.trim() || criarGrupo.isPending}
               onClick={() => criarGrupo.mutate(novoGrupo.trim())}
             >
@@ -1770,15 +1772,21 @@ function NotasPage() {
           </div>
           <div className="space-y-2">
             {(grupos as any[]).length === 0 ? (
-              <p className="text-sm text-muted-foreground">Nenhum agrupamento ainda.</p>
+              <div className="flex flex-col items-center gap-3 py-6 text-center">
+                <span className="flex size-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                  <Tags className="size-4.5" aria-hidden="true" />
+                </span>
+                <p className="text-sm text-muted-foreground">Nenhum agrupamento ainda. Crie o primeiro acima.</p>
+              </div>
             ) : (
               (grupos as any[]).map((g) => (
-                <div key={g.id} className="flex items-center justify-between rounded-lg border p-2">
-                  <span className="text-sm">{g.nome}</span>
+                <div key={g.id} className="flex min-h-12 items-center justify-between gap-3 rounded-xl border py-1 pl-4 pr-1">
+                  <span className="min-w-0 truncate text-sm">{g.nome}</span>
                   <Button
-                    size="sm"
+                    size="icon"
                     variant="ghost"
-                    className="text-destructive"
+                    aria-label={`Excluir agrupamento ${g.nome}`}
+                    className="size-9 rounded-full text-destructive hover:bg-destructive/10 hover:text-destructive"
                     onClick={() => {
                       if (window.confirm(`Excluir o agrupamento "${g.nome}"? As notas continuam guardadas, só saem do grupo.`))
                         excluirGrupo.mutate(g.id);

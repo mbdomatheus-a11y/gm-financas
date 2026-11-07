@@ -49,21 +49,25 @@ export function TelaInicialPadraoCard() {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-sm">
-          <Home className="size-4" /> Tela de abertura padrão
+      <CardHeader className="space-y-1">
+        <CardTitle className="flex items-center gap-2 text-base font-bold">
+          <Home className="size-4 text-muted-foreground" aria-hidden="true" /> Tela de abertura
         </CardTitle>
+        <p className="text-sm text-muted-foreground">Para onde o login leva, em vez do seletor de módulos.</p>
       </CardHeader>
-      <CardContent className="space-y-2">
-        <p className="text-xs text-muted-foreground">
-          Pra onde o login leva por padrão, em vez do seletor de módulos (Início).
-        </p>
+      <CardContent>
+        <div className="divide-y rounded-2xl border">
+          <div className="flex items-center justify-between gap-4 px-4 py-3">
+            <div className="min-w-0">
+              <p className="text-sm font-medium">Tela padrão</p>
+              <p className="text-xs text-muted-foreground">Vale para todos os usuários.</p>
+            </div>
         <Select
           value={data?.tela_inicial_padrao ?? "financas"}
           onValueChange={(v) => salvar.mutate(v as TelaInicialPadrao)}
           disabled={salvar.isPending}
         >
-          <SelectTrigger className="w-full sm:w-64">
+          <SelectTrigger className="w-44 shrink-0 sm:w-56" aria-label="Tela de abertura padrão">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -74,6 +78,8 @@ export function TelaInicialPadraoCard() {
             ))}
           </SelectContent>
         </Select>
+          </div>
+        </div>
       </CardContent>
     </Card>
   );

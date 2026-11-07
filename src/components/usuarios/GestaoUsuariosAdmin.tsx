@@ -137,7 +137,7 @@ export function GestaoUsuariosAdmin() {
       await resetar({ data: { userId: reset.id, senha } });
     },
     onSuccess: () => {
-      toast.success("Senha redefinida — o usuário deverá trocá-la no próximo acesso");
+      toast.success("Senha redefinida. O usuário deverá trocá-la no próximo acesso.");
       setReset(null);
       setSenha("");
       qc.invalidateQueries();
@@ -200,49 +200,57 @@ export function GestaoUsuariosAdmin() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-muted-foreground">{perfis.length} usuário(s) cadastrado(s)</p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm tabular-nums text-muted-foreground">{perfis.length} usuário(s) cadastrado(s)</p>
         <Button size="sm" onClick={() => setOpen(true)}>
           <UserPlus className="size-4" /> Novo usuário
         </Button>
       </div>
       <div className="grid gap-4">
         <Card>
-          <CardContent className="space-y-3 p-4">
-            <p className="flex items-center gap-2 text-sm font-semibold">
-              <Users2 className="size-4" /> Cadastro de todos os usuários
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Só cadastro (nome, CPF, contato) — os dados financeiros de cada grupo continuam
-              visíveis só pra quem está naquele grupo.
-            </p>
+          <CardContent className="space-y-4 p-6">
+            <div className="space-y-1">
+              <p className="flex items-center gap-2 text-base font-bold">
+                <Users2 className="size-4 text-muted-foreground" aria-hidden="true" /> Cadastro de todos os usuários
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Só nome, CPF e contato. Os dados financeiros ficam visíveis apenas dentro de cada grupo.
+              </p>
+            </div>
             {carregandoRoster ? (
-              <p className="text-xs text-muted-foreground">Carregando…</p>
+              <p className="text-sm text-muted-foreground">Carregando…</p>
             ) : (
-              <div className="max-h-[70vh] space-y-2 overflow-y-auto">
+              <div className="max-h-[70vh] divide-y overflow-y-auto rounded-2xl border">
                 {roster.map((u: any) => (
-                  <div key={u.id} className="rounded-lg border px-3 py-2 text-xs">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-medium">{u.nome}</span>
-                      <Badge
-                        variant={u.ativo ? "secondary" : "destructive"}
-                        className="text-[10px]"
-                      >
-                        {u.ativo ? "ativo" : "inativo"}
-                      </Badge>
+                  <div key={u.id} className="px-4 py-3 text-xs transition-colors hover:bg-muted/40">
+                    <div className="flex items-start gap-3">
+                      <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
+                        {(u.nome ?? "").trim().charAt(0).toUpperCase() || "?"}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="truncate text-sm font-medium">{u.nome}</span>
+                          <Badge
+                            variant={u.ativo ? "secondary" : "destructive"}
+                            className="shrink-0 rounded-full text-xs font-medium"
+                          >
+                            {u.ativo ? "Ativo" : "Inativo"}
+                          </Badge>
+                        </div>
+                        <p className="truncate text-muted-foreground">{u.email || "sem e-mail"}</p>
+                        <p className="tabular-nums text-muted-foreground">
+                          CPF {u.cpfMascarado}
+                          {u.telefone ? ` · ${u.telefone}` : ""}
+                        </p>
+                        <p className="text-muted-foreground">
+                          Grupo {u.grupoNome ?? "não definido"} · desde <span className="tabular-nums">{formatDate(u.criadoEm)}</span>
+                        </p>
+                      </div>
                     </div>
-                    <p className="mt-0.5 text-muted-foreground">
-                      CPF {u.cpfMascarado}
-                      {u.email ? ` · ${u.email}` : ""}
-                      {u.telefone ? ` · ${u.telefone}` : ""}
-                    </p>
-                    <p className="text-muted-foreground">
-                      Grupo: {u.grupoNome ?? "—"} · desde {formatDate(u.criadoEm)}
-                    </p>
-                    <div className="mt-2 flex items-center justify-between gap-2">
+                    <div className="mt-3 flex flex-wrap items-center justify-end gap-2 pl-12">
                       <Badge
                         variant={u.role === "admin" ? "default" : "outline"}
-                        className="text-[10px]"
+                        className="mr-auto rounded-full text-xs font-medium"
                       >
                         {u.role === "admin" ? "Administrador" : "Usuário comum"}
                       </Badge>
@@ -264,7 +272,7 @@ export function GestaoUsuariosAdmin() {
                             toggleAtivo.mutate({ id: u.id, ativo: !u.ativo });
                         }}
                       >
-                        {u.ativo ? "Inativar / bloquear login" : "Reativar conta"}
+                        {u.ativo ? "Bloquear login" : "Reativar conta"}
                       </Button>
                       {u.grupoId && roster.filter((r: any) => r.grupoId === u.grupoId).length > 1 && (
                         <Button
@@ -282,7 +290,7 @@ export function GestaoUsuariosAdmin() {
                         </Button>
                       )}
                       {u.exclusaoPrevistaEm && (
-                        <Badge variant="destructive" className="text-[10px]">
+                        <Badge variant="destructive" className="rounded-full text-xs font-medium tabular-nums">
                           Exclusão em {diasRestantes(u.exclusaoPrevistaEm)} dias
                         </Badge>
                       )}
@@ -332,54 +340,60 @@ export function GestaoUsuariosAdmin() {
       </div>
 
       <div className="mb-4 space-y-3">
+        <div className="space-y-1">
+          <p className="text-base font-bold">Usuários do seu grupo</p>
+          <p className="text-sm text-muted-foreground">Acesso, nome e senha de cada pessoa.</p>
+        </div>
+        <div className="divide-y rounded-2xl border bg-card">
         {perfis.map((p: any) => {
           const role = roleDe(p.id);
           return (
-            <Card key={p.id}>
-              <CardContent className="space-y-3 p-4">
-                <div className="flex flex-wrap items-center gap-3">
-                  <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10">
-                    <Users className="size-5 text-primary" />
+            <div key={p.id} className="flex flex-wrap items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/40">
+                  <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
+                    {(p.nome ?? "").trim().charAt(0).toUpperCase() || <Users className="size-4" aria-hidden="true" />}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold">{p.nome}</p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="truncate text-sm font-medium">{p.nome}</p>
+                    <p className="text-xs tabular-nums text-muted-foreground">
                       CPF {maskCpf(p.cpf)}
                       {p.senha_temporaria ? " · senha temporária pendente" : ""}
                     </p>
                   </div>
-                  <Badge variant={role === "admin" ? "default" : "secondary"}>
+                  <Badge className="rounded-full text-xs font-medium" variant={role === "admin" ? "default" : "secondary"}>
                     {role === "admin" ? "Administrador" : "Comum"}
                   </Badge>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">Ativo</span>
+                  <div className="flex items-center gap-1">
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="size-9"
+                    aria-label={`Editar nome de ${p.nome}`}
+                    title="Editar nome"
+                    onClick={() => setEditar({ id: p.id, nome: p.nome })}
+                  >
+                    <Pencil className="size-4" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="size-9"
+                    aria-label={`Redefinir senha de ${p.nome}`}
+                    title="Redefinir senha"
+                    onClick={() => setReset({ id: p.id, nome: p.nome })}
+                  >
+                    <KeyRound className="size-4" />
+                  </Button>
                     <Switch
+                      className="ml-2"
+                      aria-label={`Conta de ${p.nome} ativa`}
                       checked={p.ativo}
                       onCheckedChange={(v) => toggleAtivo.mutate({ id: p.id, ativo: v })}
                     />
                   </div>
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setEditar({ id: p.id, nome: p.nome })}
-                  >
-                    <Pencil className="size-4" /> Editar nome
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setReset({ id: p.id, nome: p.nome })}
-                  >
-                    <KeyRound className="size-4" /> Redefinir senha
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+            </div>
           );
         })}
+        </div>
       </div>
 
       <div className="mb-4">
@@ -419,7 +433,7 @@ export function GestaoUsuariosAdmin() {
                 </SelectContent>
               </Select>
             </Field>
-            <p className="rounded-lg bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
+            <p className="rounded-xl bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
               Uma senha provisória única será gerada e exibida uma única vez após a criação. O
               usuário precisará definir a própria senha no primeiro acesso.
             </p>
@@ -437,10 +451,10 @@ export function GestaoUsuariosAdmin() {
           <DialogHeader>
             <DialogTitle>Senha provisória</DialogTitle>
             <DialogDescription>
-              Anote e entregue esta senha ao usuário agora — ela não será exibida novamente.
+              Anote e entregue esta senha ao usuário agora. Ela não será exibida novamente.
             </DialogDescription>
           </DialogHeader>
-          <p className="select-all rounded-lg border bg-muted/60 px-3 py-3 text-center font-mono text-lg">
+          <p className="select-all rounded-2xl border bg-muted/60 px-4 py-4 text-center font-mono text-lg tracking-wider">
             {senhaGerada}
           </p>
           <DialogFooter>

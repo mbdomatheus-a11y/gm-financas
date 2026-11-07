@@ -106,7 +106,7 @@ export function LogPainel<T>({
       </div>
 
       {itens.length > 1 && (
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
           <span>Ordenar por:</span>
           {colunas.map((c) => (
             <BotaoOrdenar
@@ -128,13 +128,13 @@ export function LogPainel<T>({
       {itens.length === 0 ? (
         <p className="text-sm text-muted-foreground">{vazio}</p>
       ) : (
-        <div className="max-h-[420px] space-y-1 overflow-y-auto rounded-lg border p-2">
+        <div className="max-h-[420px] space-y-2 overflow-y-auto rounded-2xl border p-2">
           {recentes.map((item) => (
             <div key={getChave(item)}>{renderItem(item)}</div>
           ))}
           {restantes.length > 0 && (
             <details
-              className="rounded-lg border bg-muted/30 px-3 py-2 text-xs"
+              className="rounded-xl border bg-muted/30 px-4 py-3 text-xs"
               open={abertoTudo}
               onToggle={(e) => setAbertoTudo((e.target as HTMLDetailsElement).open)}
             >
@@ -144,9 +144,9 @@ export function LogPainel<T>({
               <div className="mt-2 space-y-1">
                 {abertoTudo &&
                   porDia.map(([dia, lista]) => (
-                    <details key={dia} className="rounded-md border bg-background px-2 py-1">
+                    <details key={dia} className="rounded-xl border bg-background px-3 py-2">
                       <summary className="cursor-pointer text-xs font-medium">
-                        {dia} <span className="text-muted-foreground">({lista.length})</span>
+                        {dia} <span className="tabular-nums text-muted-foreground">({lista.length})</span>
                       </summary>
                       <div className="mt-1 space-y-1">
                         {lista.map((item) => (
