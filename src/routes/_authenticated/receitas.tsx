@@ -79,6 +79,7 @@ import {
 } from "@/hooks/useFinance";
 import { usePermissoes, useSession } from "@/hooks/useAuthData";
 import { usePreferencias } from "@/hooks/usePreferencias";
+import { receitasDoCiclo } from "@/lib/numeros-ciclo";
 import { CartaoCarregando } from "@/components/CartaoCarregando";
 import { useCotacao } from "@/hooks/useCotacao";
 import { addMonths, currentMonthKey, formatBRL, formatDate, formatMoeda, monthKey, monthLabelLong, toBRL, toISODate, competenciaDaReceita, mesDoCiclo } from "@/lib/format";
@@ -148,7 +149,7 @@ function ReceitasPage() {
   const { user } = useSession();
   const { can } = usePermissoes();
   const { data: receitas = [], isSuccess: receitasOk } = useReceitas();
-  const { pronto: prefsOk } = usePreferencias();
+  const { pronto: prefsOk, prefs: prefsCiclo } = usePreferencias();
   const receitasProntas = receitasOk && prefsOk;
   const { data: categorias = [] } = useCategorias("receita");
   const { data: cartoes = [] } = useCartoes();
@@ -230,7 +231,11 @@ function ReceitasPage() {
   }, [filtroMes, filtroMesCustom, meses]);
 
   const lista = useMemo(() => {
-    const projetadas = receitasPorCompetencias(receitas as any[], competenciasParaFiltro);
+    // 08/11/2026: um ciclo só usa a janela da regra do ciclo (data prevista de D até D-1 do mês seguinte).
+    const projetadas =
+      competenciasParaFiltro.length === 1
+        ? receitasDoCiclo(receitas as any[], competenciasParaFiltro[0]!, prefsCiclo.dia_virada)
+        : receitasPorCompetencias(receitas as any[], competenciasParaFiltro);
     return projetadas.filter((r) => {
       if (tab !== "total" && r.tipo !== tab) return false;
       if (filtroCat !== "todas" && r.categoria !== filtroCat) return false;
@@ -246,7 +251,7 @@ function ReceitasPage() {
         return false;
       return true;
     });
-  }, [receitas, competenciasParaFiltro, tab, filtroCat, filtroResp, buscaAdiada]);
+  }, [receitas, competenciasParaFiltro, tab, filtroCat, filtroResp, buscaAdiada, prefsCiclo.dia_virada]);
 
   const chips = [
     filtroMes !== currentMonthKey() &&

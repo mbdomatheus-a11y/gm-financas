@@ -17,6 +17,8 @@ import { ConciliacaoFaturasCard } from "@/components/ConciliacaoFaturasCard";
 import { IaLancamentoModoGrupoCard } from "@/components/IaLancamentoModoGrupoCard";
 import { Field } from "@/routes/_authenticated/receitas";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CicloDoMesCard } from "@/components/ciclo/CicloDoMesCard";
+import { useRegraCiclo } from "@/hooks/useRegraCiclo";
 import { Button } from "@/components/ui/button";
 import { baixarTodosOsDados } from "@/lib/exportar-dados";
 import { Input } from "@/components/ui/input";
@@ -145,6 +147,8 @@ function ContaPage() {
   // configuração salva (dia_virada null), o comportamento é o mês calendário
   // normal, igual a antes desta funcionalidade existir.
   const { prefs: preferencias, save: salvarPreferencias } = usePreferencias();
+  // 08/11/2026: com a regra do ciclo do grupo disponível, a seção "Ciclo do mês" substitui o "Mês do sistema".
+  const cicloGrupo = useRegraCiclo();
   const [usarDiaVirada, setUsarDiaVirada] = useState(false);
   const [diaViradaInput, setDiaViradaInput] = useState("");
   // 30/10/2026: receitas do fim do ciclo (ex.: salário do dia 30) contam para o próximo ciclo.
@@ -526,6 +530,9 @@ function ContaPage() {
           </CardContent>
         </Card>
 
+        {cicloGrupo.disponivel ? (
+          <CicloDoMesCard />
+        ) : (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
@@ -604,6 +611,7 @@ function ContaPage() {
             </Button>
           </CardContent>
         </Card>
+        )}
 
         {moduloVeiculoAtivo && (
         <Card>

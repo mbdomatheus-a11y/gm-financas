@@ -22,12 +22,16 @@ export const cartaoSchema = z.object({
 export type CartaoDados = z.infer<typeof cartaoSchema>;
 
 /** Insere (sem id) ou atualiza (com id) um cartão. O fechamento informado à mão vale como confirmado. */
-export async function salvarCartao(dados: CartaoDados, id?: string | null): Promise<void> {
+export async function salvarCartao(dados: CartaoDados, id?: string | null): Promise<string | null> {
   const linha = { ...dados, fechamento_confirmado: true };
-  const { error } = id
-    ? await supabase.from("cartoes").update(linha as any).eq("id", id)
-    : await supabase.from("cartoes").insert(linha as any);
+  if (id) {
+    const { error } = await supabase.from("cartoes").update(linha as any).eq("id", id);
+    if (error) throw error;
+    return id;
+  }
+  const { data, error } = await supabase.from("cartoes").insert(linha as any).select("id").maybeSingle();
   if (error) throw error;
+  return (data as any)?.id ?? null;
 }
 
 /** Melhor dia de compra: o dia seguinte ao fechamento (a compra cai só na fatura seguinte). */

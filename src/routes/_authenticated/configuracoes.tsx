@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { CicloDoMesCard } from "@/components/ciclo/CicloDoMesCard";
 import { ArrowRight, Palette, Settings } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
@@ -78,6 +79,7 @@ function ConfiguracoesPage() {
           })}
         </CardContent>
       </Card>
+      <CicloDoMesCard className="mt-4" />
     </AppLayout>
   );
 }

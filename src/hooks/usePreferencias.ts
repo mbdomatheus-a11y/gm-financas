@@ -1,8 +1,9 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { definirCicloDoUsuario } from "@/lib/format";
 import { useSession } from "./useAuthData";
+import { useRegraCiclo } from "./useRegraCiclo";
 
 export type Preferencias = {
   user_id: string;
@@ -127,21 +128,31 @@ export function usePreferencias() {
 
   // Mês do sistema: aplica o dia de virada em todo o cálculo. Se mudou, recarrega as consultas financeiras
   // para que os totais já calculados sejam refeitos com a regra nova.
+  // 08/11/2026: a regra do ciclo do GRUPO (regra_ciclo_grupo) vale no lugar da virada pessoal. Sem regra
+  // (ou com a migration pendente), segue a virada antiga das preferências.
+  const ciclo = useRegraCiclo();
+  const diaGrupo = ciclo.regra?.dia_virada ?? null;
   useEffect(() => {
     if (!query.data) return;
-    const novo = query.data.dia_virada ?? null;
-    const valido = novo && novo >= 2 && novo <= 28 ? novo : null;
-    definirCicloDoUsuario(novo, query.data.receitas_proximo_ciclo_dia ?? null);
+    const novo = diaGrupo ?? query.data.dia_virada ?? null;
+    const valido = novo && novo >= 1 && novo <= 28 ? novo : null;
+    definirCicloDoUsuario(query.data.dia_virada ?? null, query.data.receitas_proximo_ciclo_dia ?? null);
     // Rodada 2 (07/11/2026): na primeira carga NÃO refaz as consultas (era o que baixava tudo de novo,
     // 2 a 4 vezes). Os totais são calculados na tela, e as telas esperam as preferências (useFinancasProntas).
     // Só uma troca feita pelo usuário depois força a releitura.
+    if (!ciclo.carregado) return;
     if (viradaAplicada !== undefined && viradaAplicada !== valido) {
-      qc.resetQueries({ predicate: (q) => q.queryKey[0] !== "preferencias" });
+      qc.resetQueries({ predicate: (q) => q.queryKey[0] !== "preferencias" && q.queryKey[0] !== "regra-ciclo-grupo" });
     }
     viradaAplicada = valido;
-  }, [query.data, qc]);
+  }, [query.data, qc, diaGrupo, ciclo.carregado]);
 
-  return { prefs: query.data ?? { user_id: "", ...DEFAULT_PREFS }, save, pronto: query.isSuccess || query.isError };
+  const prefs = useMemo<Preferencias>(() => {
+    const base = query.data ?? { user_id: "", ...DEFAULT_PREFS };
+    return diaGrupo ? { ...base, dia_virada: diaGrupo, receitas_proximo_ciclo_dia: null } : base;
+  }, [query.data, diaGrupo]);
+
+  return { prefs, save, pronto: (query.isSuccess || query.isError) && ciclo.carregado };
 }
 
 export function useApplyPreferencias() {

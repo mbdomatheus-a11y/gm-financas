@@ -3,7 +3,7 @@ import { guardarMesSite } from "@/lib/mes-escolhido";
 import { usePreferencias } from "@/hooks/usePreferencias";
 import { datasDoCiclo } from "@/lib/previsao-mes";
 import { useNumerosCiclo } from "@/hooks/useNumerosCiclo";
-import { ROTULO_SOBRA_PREVISTA, ROTULO_SOBRA_REAL } from "@/lib/numeros-ciclo";
+import { ROTULO_SOBRA_PREVISTA, ROTULO_SOBRA_REAL, janelasDoCiclo, lancamentosDoCiclo, textoDisponivel, textoPrevisto } from "@/lib/numeros-ciclo";
 import { CampoCategoria } from "@/components/CampoCategoria";
 import { useEffect, useMemo, useState } from "react";
 import { useValorAdiado } from "@/hooks/useValorAdiado";
@@ -275,10 +275,9 @@ function DespesasPage() {
   const numerosCiclo = useNumerosCiclo(filtroMes === "todos" ? undefined : filtroMes);
   const cicloTexto = useMemo(() => {
     if (filtroMes === "todos") return "";
-    const dias = datasDoCiclo(filtroMes, prefsCiclo.dia_virada);
-    if (!dias.length) return "";
-    const f = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
-    return ` · ciclo ${f(dias[0]!)} a ${f(dias[dias.length - 1]!)}`;
+    // 08/11/2026: regra do ciclo: contas pelo vencimento de D+1 até D do mês seguinte.
+    const j = janelasDoCiclo(filtroMes, prefsCiclo.dia_virada);
+    return ` · ciclo ${j.rotulo}`;
   }, [filtroMes, prefsCiclo.dia_virada]);
   // 28/10/2026: o mês escolhido fica salvo e vale também em Receitas e Calendário.
   useEffect(() => {
@@ -839,8 +838,8 @@ function DespesasPage() {
   }, []);
 
   const lancamentosDoFiltro = useMemo(
-    () => (filtroMes === "todos" ? [] : lancamentosPorCompetencias(despesas as any[], [filtroMes], { incluirEconomia: true })),
-    [despesas, filtroMes],
+    () => (filtroMes === "todos" ? [] : lancamentosDoCiclo(despesas as any[], filtroMes, prefsCiclo.dia_virada, { incluirEconomia: true })),
+    [despesas, filtroMes, prefsCiclo.dia_virada],
   );
   const lancamentoPorDespesa = useMemo(
     () => new Map(lancamentosDoFiltro.map((p) => [p.despesa_id, p])),
@@ -1246,11 +1245,11 @@ function DespesasPage() {
           { filtro: null, label: "Receitas", valor: formatar(receitaDoFiltro), cor: "text-success", hint: "" },
           {
             filtro: null,
-            label: ROTULO_SOBRA_REAL,
+            label: filtroMes !== "todos" ? textoDisponivel(numerosCiclo) : ROTULO_SOBRA_REAL,
             valor: semFiltrosDeLista && filtroMes !== "todos" ? formatar(numerosCiclo.real.sobra) : "-",
             cor: numerosCiclo.real.sobra >= 0 ? "text-success" : "text-destructive",
             hint: semFiltrosDeLista && filtroMes !== "todos"
-              ? `${ROTULO_SOBRA_PREVISTA}: ${formatar(numerosCiclo.previsto.sobra)}`
+              ? textoPrevisto(numerosCiclo, formatar)
               : "tire os filtros para ver a sobra",
           },
           { filtro: "pago" as const, label: "Pago", valor: formatar(resumo.pago), cor: "text-success", hint: "" },

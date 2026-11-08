@@ -54,11 +54,33 @@ function viradaValida(d: number | null | undefined): number | null {
   return d && d >= 2 && d <= 28 ? d : null;
 }
 
+let diaViradaUsuario: number | null = null;
+let diaReceitaUsuario: number | null = null;
+/** Regra do ciclo do GRUPO (08/11/2026, tabela regra_ciclo_grupo). Quando existe, vale no lugar da preferência. */
+let diaViradaGrupo: number | null = null;
+
+function aplicarCicloEfetivo() {
+  diaViradaCiclo = diaViradaGrupo ?? diaViradaUsuario;
+  // A regra do grupo substitui "receitas a partir do dia N": receitas contam pela data prevista.
+  diaReceitaProximoCiclo = diaViradaGrupo ? null : diaReceitaUsuario;
+}
+
 export function definirCicloDoUsuario(diaVirada: number | null | undefined, receitasProximoCicloDia?: number | null) {
-  diaViradaCiclo = viradaValida(diaVirada);
-  diaReceitaProximoCiclo = receitasProximoCicloDia && receitasProximoCicloDia >= 1 && receitasProximoCicloDia <= 31
+  diaViradaUsuario = viradaValida(diaVirada);
+  diaReceitaUsuario = receitasProximoCicloDia && receitasProximoCicloDia >= 1 && receitasProximoCicloDia <= 31
     ? receitasProximoCicloDia
     : null;
+  aplicarCicloEfetivo();
+}
+
+/** Dia de virada da regra do grupo (1 a 28) ou null quando o grupo ainda não configurou. */
+export function definirViradaDoGrupo(dia: number | null | undefined) {
+  diaViradaGrupo = dia && dia >= 1 && dia <= 28 ? dia : null;
+  aplicarCicloEfetivo();
+}
+
+export function viradaDoGrupo(): number | null {
+  return diaViradaGrupo;
 }
 
 export function diaViradaDefinida(): number | null {

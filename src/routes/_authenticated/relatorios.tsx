@@ -677,7 +677,7 @@ function AbaSaldo({ dias, serie, formatar }: { dias: ReturnType<typeof saldoDiar
         <Indicador rotulo="Entradas" valor={formatar(entradas)} tom="success" />
         <Indicador rotulo="Saídas" valor={formatar(saidas)} tom="destructive" />
         <Indicador
-          rotulo="Previsto no fim do ciclo"
+          rotulo="Previsto para sobrar"
           valor={formatar(serie[serie.length - 1]?.resultado ?? 0)}
           tom={(serie[serie.length - 1]?.resultado ?? 0) >= 0 ? "success" : "destructive"}
           dica={serie.length ? monthLabel(serie[serie.length - 1]!.key) : ""}

@@ -1,4 +1,4 @@
-# Números do ciclo (sobra) - 07/11/2026
+# Números do ciclo (sobra) - 07/11/2026, regra do ciclo de 08/11/2026
 
 Uma só função calcula "sobra" no site e no app:
 - Site: `src/lib/numeros-ciclo.ts` (`calcularNumerosCiclo`, `calcularNumerosDosCiclos`). Hook: `src/hooks/useNumerosCiclo.ts`. Bloco visual: `src/components/SobraCiclo.tsx`.
@@ -15,7 +15,64 @@ Nenhuma tela soma receitas menos despesas por conta própria. Período: sempre o
 6. Perfil financeiro/lista de compras: "sobra livre" = renda informada menos comprometido.
 7. Crédito/estorno e pagamento de fatura entravam em umas telas e não em outras.
 
-## Regras
+## Regra do ciclo (08/11/2026, substitui as regras abaixo de 07/11)
+Especificação aprovada: `docs/regra-ciclo-2026-11-08.md`. Frase: "O salário do dia D paga as contas que vencem até o próximo dia D. O que sobrar no dia D é economia."
+
+- Dia D: regra do GRUPO (`regra_ciclo_grupo`, migration `20261108100000_regra_ciclo_grupo.sql`). Sem regra (ou migration pendente), vale a virada antiga das preferências e o assistente não abre. Com regra, a preferência "receitas a partir do dia N" deixa de valer (`definirViradaDoGrupo` em `format.ts`; `usePreferencias` devolve `dia_virada` do grupo).
+- Ciclo "AAAA-MM" = começa no dia D desse mês. Rótulo "15/nov a 15/dez" (`janelasDoCiclo`).
+- RECEITAS pela DATA PREVISTA de D até D-1 do mês seguinte (`receitasDoCiclo`, `dataPrevistaReceita`): fixa projetada pela data prevista; fixa lançada com atraso ou adiantada conta na data prevista (dia de `recorrencia_inicio`, até 16 dias de diferença); avulsa pela data em que entrou. A projeção sai quando a lançada ocupa a mesma data prevista.
+- DESPESAS pelo VENCIMENTO de D+1 até D do mês seguinte (`lancamentosDoCiclo`). Cartão pelo vencimento da fatura (`vencimentoDaFatura`: compra depois do fechamento vai para a fatura seguinte). Fatura que vence no próprio dia D fica no ciclo que termina.
+- DISPONÍVEL ATÉ HOJE (`real.sobra`) = receitas do ciclo já recebidas - contas do ciclo já vencidas (vencimento até hoje, lançadas ou recorrentes). Simetria: receita FIXA conta como recebida quando a data prevista chega, lançada ou não (como a conta fixa conta como vencida); receita avulsa só quando lançada e com data até hoje. Ainda não existe controle de "fixa não recebida/adiada" na receita; quando existir, a regra deve respeitá-lo (ponto marcado em `calcularComBase`).
+- PREVISTO PARA SOBRAR (`previsto.sobra`) = Disponível + ainda vão entrar - ainda vão vencer (com fatura aberta estimada) - caixinhas do ciclo. Sem forecast por ritmo.
+- Resultado / economia (`resultado`, `economiaDoCiclo`) X = receitas do ciclo - despesas do ciclo. Detalhe (`detalheEconomia`): A = caixinhas do ciclo, B = X - A ficaram livres (igual ao último "Previsto para sobrar" quando tudo se realizou). Gravado em `economia_ciclos` (upsert) na primeira abertura da Início depois da virada; "Economia acumulada" = soma de X (`economiaAcumulada`). Economia NÃO entra como receita do ciclo novo.
+- Outras funções: `cicloAtual` (início, fim, rótulo, dias restantes, "15/nov a 15/dez · faltam N dias"), `cicloAnterior`, `mesDoCicloEm`.
+- Telas Receitas e Despesas, num ciclo só, usam as mesmas janelas (`receitasDoCiclo`, `lancamentosDoCiclo`).
+- Fixas nos dias 29, 30 e 31 (`vencimentoDaCompetencia` em `recorrencia.ts`, receitas e despesas recorrentes): usam o próprio dia ou o último dia do mês menor (30 em fevereiro vira 28 ou 29). Antes eram limitadas a 28.
+
+Moedas convertidas pela cotação. Pagamento de fatura e investimentos seguem as regras de Personalização (resgate na janela de receitas, aporte na de despesas). Crédito (estorno) fica fora.
+
+## Rótulos (iguais em todas as telas)
+- Ciclo: "15/nov a 15/dez · faltam N dias" (`textoCiclo`)
+- Destaque: "Disponível até DD/MM" (`textoDisponivel`)
+- Abaixo: "Previsto para sobrar em DD/MM: R$ X" (`textoPrevisto`, `rotuloPrevisto`)
+- Linha: "Inclui R$ X que ainda vão entrar e R$ Y de contas que ainda vão vencer." (+ caixinhas; partes zeradas somem) (`textoDiferenca`)
+- Virada (dia D+1 até fechar): "Você economizou R$ X no ciclo 15/out a 15/nov" (ou "O ciclo 15/out a 15/nov fechou R$ X no vermelho"), abaixo "R$ A foram para caixinhas e R$ B ficaram livres", e "Economia acumulada" (`components/ciclo/CicloInicio.tsx`).
+
+## Assistente e cartões
+- `components/ciclo/ConfigurarCiclo.tsx`: obrigatório quando o grupo não tem regra (montado em `_authenticated/route.tsx`). (a) "Qual é o seu principal dia de pagamento?" com sugestão do dia da maior receita fixa; (b) prévia com os números reais do ciclo atual; (c) cartões e em que ciclo cada fatura cai. Salvar grava `regra_ciclo_grupo` e marca os cartões (`regra_revisada_em`, `vencimento_revisado`).
+- Cartão novo ou vencimento alterado (tela Cartões): confirmação de um toque "O Nubank vence dia 20, depois da sua virada (dia 15)..." com Confirmar ou Mudar a virada. Cartões sem revisão: lista para revisar uma vez por sessão.
+- Configurações e Conta: seção "Ciclo do mês" (`CicloDoMesCard`) com a regra, quem configurou e quando, e Alterar (qualquer membro). Alteração gera aviso em `notificacoes_usuario` (trigger) e na Início ("Fulano mudou a virada para o dia N", "já vi" em `localStorage.avisos_vistos`).
+
+## Conferência com o exemplo da regra (teste: `npx tsx scripts/teste-regra-ciclo.ts`)
+Virada 15. Salário 15 = 5.000 (lançado atrasado em 17/nov), salário 30 = 3.000, Itaú fecha 3 vence 10, Nubank fecha 13 vence 20, aluguel 25 = 2.000, condomínio 10 = 500, luz 18 = 300. Compras: Itaú 01/nov 400 e 05/nov 600, Nubank 10/nov 800 e 14/nov 200. Hoje 08/12/2026, ciclo 15/nov a 15/dez.
+
+| Item | Data no ciclo | Entra? | Já aconteceu em 08/12? |
+|---|---|---|---|
+| Salário 15 (prevista 15/nov, lançado 17/nov) | 15/nov | receita 5.000 | sim |
+| Salário 30 (prevista 30/nov) | 30/nov | receita 3.000 | sim |
+| Salário 15 de dezembro | 15/dez | não (próximo ciclo) | |
+| Luz | 18/nov | 300 | vencida |
+| Nubank (compra 10/nov, fecha 13/nov) | 20/nov | 800 | vencida |
+| Aluguel | 25/nov | 2.000 | vencida |
+| Condomínio | 10/dez | 500 | a vencer |
+| Itaú (compra 05/nov, depois do fechamento de 03/nov) | 10/dez | 600 | a vencer |
+| Itaú (compra 01/nov) | 10/nov | não (ciclo anterior) | |
+| Nubank (compra 14/nov, depois do fechamento) | 20/dez | não (próximo ciclo) | |
+
+| Número | Valor |
+|---|---|
+| Ciclo | 15/nov a 15/dez · faltam 7 dias |
+| Receitas do ciclo / recebidas | 8.000 / 8.000 |
+| Contas do ciclo / vencidas | 4.200 / 3.100 |
+| Disponível até 08/12 | 4.900 |
+| Ainda vão entrar / vencer | 0 / 1.100 |
+| Previsto para sobrar em 15/12 | 3.800 (3.300 com 500 de caixinhas) |
+| Em 16/nov (salário 15 fixo ainda não lançado, conta pela data prevista) | Disponível 5.000, a entrar 3.000, Previsto 3.800 |
+| Economia do ciclo 15/out a 15/nov | X = 8.000 - (luz 300 + aluguel 2.000 + condomínio 500 + Itaú 400) = 4.800 |
+| Com 500 de caixinhas | A = 500, B = 4.300 = Previsto para sobrar em 15/11 |
+| Avulsa de 1.000 lançada para 10/dez | não recebida em 08/12, entra em "ainda vão entrar" |
+
+## Regras de 07/11/2026 (histórico)
 Todas as moedas convertidas pela cotação. Pagamento de fatura e investimentos seguem as regras de Personalização. Crédito (estorno) fica fora das despesas.
 
 REAL ATÉ HOJE ("Sobra até agora")
@@ -36,7 +93,7 @@ Regra única para receitas do dia 28 em diante: vale a competência da receita (
 
 Forecast por ritmo de gasto removido. O gráfico da previsão usa real até hoje e previsto depois, sem ritmo.
 
-## Rótulos (iguais em todas as telas)
+### Rótulos de 07/11 (substituídos)
 - Destaque: "Sobra até agora" (real)
 - Menor, abaixo: "Previsto no fim do ciclo: R$ X"
 - Linha: "Inclui R$ Y que ainda vão entrar, R$ Z de contas que ainda vão vencer e R$ W guardados nas caixinhas." (partes zeradas somem)

@@ -10,6 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { SobraCiclo } from "@/components/SobraCiclo";
 import { FaturaMesDialog } from "@/components/FaturaMesDialog";
 import { useDadosCiclo } from "@/hooks/useNumerosCiclo";
+import { rotuloPrevisto } from "@/lib/numeros-ciclo";
 import { useFinancasProntas } from "@/hooks/useFinancasProntas";
 import { usePrivacidadeValores } from "@/hooks/usePrivacidadeValores";
 import { useCompetenciaVigente } from "@/lib/periodo-vigente";
@@ -41,13 +42,13 @@ export function ResumoPrevisaoHome({ mes: mesEscolhido, className }: { mes?: str
     [dados, mes, caixinhasCiclo, diaVirada],
   );
   // 03/11/2026: mostra de qual mês/ciclo é a previsão (ex.: outubro = 08/10 a 07/11 com virada no dia 8).
-  const diasCiclo = datasDoCiclo(mes, prefs.dia_virada);
+  // 08/11/2026: regra do ciclo: "15/nov a 15/dez · faltam N dias" (receitas desde D, contas até D).
   const fmtDia = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
-  const cicloTexto = diasCiclo.length ? `${fmtDia(diasCiclo[0]!)} a ${fmtDia(diasCiclo[diasCiclo.length - 1]!)}` : "";
+  const cicloTexto = p.numeros.textoCiclo;
   const serie = p.serie.map((s) => ({
     dia: s.dia,
     rotulo: s.rotulo,
-    data: diasCiclo[s.dia - 1] ? fmtDia(diasCiclo[s.dia - 1]!) : String(s.rotulo),
+    data: s.iso ? fmtDia(s.iso) : String(s.rotulo),
     real: s.projetado ? null : s.saldo,
     previsto: s.dia >= p.diaHoje ? s.saldo : null,
   }));
@@ -97,7 +98,7 @@ export function ResumoPrevisaoHome({ mes: mesEscolhido, className }: { mes?: str
           )}
         </header>
 
-        <SobraCiclo numeros={p.numeros} formatar={formatar} />
+        <SobraCiclo numeros={p.numeros} formatar={formatar} mostrarCiclo={false} />
 
         <div className="space-y-4">
           <div className="space-y-1.5">
@@ -153,7 +154,7 @@ export function ResumoPrevisaoHome({ mes: mesEscolhido, className }: { mes?: str
           <Linha rotulo="Receitas previstas no ciclo" valor={`+${formatar(p.receitas)}`} tom="text-success" />
           <Linha rotulo="Despesas previstas no ciclo" valor={formatar(-p.comprometido)} tom="text-destructive" />
           {temMeta && <Linha rotulo="A guardar nas caixinhas" valor={formatar(-p.meta)} tom="text-primary" />}
-          <Linha rotulo="Previsto no fim do ciclo" valor={formatar(p.numeros.previsto.sobra)} forte tom={semLivre ? "text-destructive" : "text-success"} />
+          <Linha rotulo={rotuloPrevisto(p.numeros)} valor={formatar(p.numeros.previsto.sobra)} forte tom={semLivre ? "text-destructive" : "text-success"} />
         </dl>
 
         <div className="space-y-2">

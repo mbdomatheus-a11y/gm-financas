@@ -191,7 +191,7 @@ export function GamificacaoFinanceira() {
               <p className="text-lg font-semibold">{formatBRL(g.comprometido)}</p>
             </div>
             <div>
-              <p className="flex items-center gap-1 text-xs text-muted-foreground"><Wallet className="size-3" /> Previsto no fim do ciclo</p>
+              <p className="flex items-center gap-1 text-xs text-muted-foreground"><Wallet className="size-3" /> Previsto para sobrar</p>
               <p className="text-lg font-semibold text-success">{formatBRL(g.sobra)}</p>
             </div>
           </div>

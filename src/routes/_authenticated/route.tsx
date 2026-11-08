@@ -18,6 +18,7 @@ import { ExclusaoAgendadaModal } from "@/components/ExclusaoAgendadaModal";
 import { BoasVindasExemplos } from "@/components/BoasVindasExemplos";
 import { BoasVindas } from "@/components/boas-vindas/BoasVindas";
 import { PrimeirosPassos } from "@/components/retencao/PrimeirosPassos";
+import { ConfigurarCicloGate } from "@/components/ciclo/ConfigurarCiclo";
 import { useUltimaTela } from "@/lib/ultima-tela";
 import { useModulosGlobais, useSession, type ModuloGlobal } from "@/hooks/useAuthData";
 import { useAplicarRedefinicaoAvisos } from "@/lib/redefinir-avisos";
@@ -99,6 +100,8 @@ function Protegido() {
       <ComunicadosModal onVisibilityChange={setAvisoAberto} />
       <BoasVindas bloqueado={avisoAberto} onVisibilityChange={setBoasVindas} />
       <BoasVindasExemplos bloqueado={avisoAberto || boasVindas} onVisibilityChange={setExemplosAberto} />
+      {/* 08/11/2026: ciclo do mês do grupo (obrigatório quando o grupo ainda não tem regra). */}
+      <ConfigurarCicloGate bloqueado={avisoAberto || boasVindas} />
       <PrimeirosPassos bloqueado={avisoAberto || boasVindas || exemplosAberto} onPendenteChange={setPrimeirosPassos} />
       <TourGuiado bloqueado={avisoAberto || boasVindas || exemplosAberto || primeirosPassos} />
       <AvisoBetaApp bloqueado={avisoAberto || boasVindas || exemplosAberto} onVisibilityChange={setBetaAberto} />

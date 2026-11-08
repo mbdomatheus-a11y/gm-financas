@@ -22,7 +22,7 @@ CREATE POLICY desempenho_insert ON public.desempenho_metricas
 
 DROP POLICY IF EXISTS desempenho_select_admin ON public.desempenho_metricas;
 CREATE POLICY desempenho_select_admin ON public.desempenho_metricas
-  FOR SELECT TO authenticated USING (public.has_role(auth.uid(), 'admin'));
+  FOR SELECT TO authenticated USING (private.is_admin(auth.uid()));
 
 GRANT INSERT, SELECT ON public.desempenho_metricas TO authenticated;
 GRANT ALL ON public.desempenho_metricas TO service_role;
@@ -43,7 +43,7 @@ CREATE OR REPLACE FUNCTION public.resumo_desempenho(dias int DEFAULT 7)
 RETURNS TABLE (plataforma text, tela text, metrica text, amostras bigint, p50 numeric, p75 numeric, p95 numeric)
 LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $$
 BEGIN
-  IF NOT public.has_role(auth.uid(), 'admin') THEN
+  IF NOT private.is_admin(auth.uid()) THEN
     RAISE EXCEPTION 'acesso negado' USING ERRCODE = '42501';
   END IF;
   RETURN QUERY
@@ -62,7 +62,7 @@ GRANT EXECUTE ON FUNCTION public.resumo_desempenho(int) TO authenticated, servic
 CREATE OR REPLACE FUNCTION public.limpar_desempenho_admin()
 RETURNS integer LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 BEGIN
-  IF NOT public.has_role(auth.uid(), 'admin') THEN
+  IF NOT private.is_admin(auth.uid()) THEN
     RAISE EXCEPTION 'acesso negado' USING ERRCODE = '42501';
   END IF;
   RETURN public.limpar_desempenho_antigo();

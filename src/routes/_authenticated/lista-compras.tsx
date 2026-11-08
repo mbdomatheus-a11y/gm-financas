@@ -699,7 +699,7 @@ function ListaComprasPage() {
         </p>
       ) : (
         <p className="mb-6 rounded-2xl bg-muted p-4 text-sm tabular-nums">
-          Sua hora líquida: <strong>{formatBRL(finCalculado.valorHora)}</strong> · Previsto no fim do ciclo:{" "}
+          Sua hora líquida: <strong>{formatBRL(finCalculado.valorHora)}</strong> · Previsto para sobrar:{" "}
           <strong>{formatBRL(finCalculado.sobraLivre)}</strong> · Na lista:{" "}
           <strong>{formatBRL(totalEstimadoPendentes)}</strong> ({pendentes.length} pendente(s))
         </p>

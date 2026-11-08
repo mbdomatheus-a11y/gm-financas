@@ -45,6 +45,8 @@ import { usePermissoes, useProfile } from "@/hooks/useAuthData";
 import { useCotacao } from "@/hooks/useCotacao";
 import { formatBRL, toBRL } from "@/lib/format";
 import { cartaoSchema, melhorDiaCompra, salvarCartao as gravarCartao } from "@/lib/cartao-salvar";
+import { ConfirmarCartaoCiclo } from "@/components/ciclo/ConfigurarCiclo";
+import { nomeCartao } from "@/lib/regra-ciclo";
 import { Switch } from "@/components/ui/switch";
 import { LogoBanco } from "@/components/LogoBanco";
 import { nomeBanco } from "@/lib/bancos-catalogo";
@@ -124,6 +126,8 @@ function CartoesPage() {
   const [openCartao, setOpenCartao] = useState(false);
   const [openBanco, setOpenBanco] = useState(false);
   const [editCartaoId, setEditCartaoId] = useState<string | null>(null);
+  // 08/11/2026: cartão novo ou vencimento alterado pede a confirmação do ciclo (regra do grupo).
+  const [confirmarCiclo, setConfirmarCiclo] = useState<{ id: string | null; nome: string; dia_vencimento: number } | null>(null);
   const [editBancoId, setEditBancoId] = useState<string | null>(null);
   const cartaoVazio = {
     apelido: "",
@@ -199,9 +203,13 @@ function CartoesPage() {
         titular: fc.titular || perfilNome,
         tipo: "credito",
       });
-      await gravarCartao(parsed, editCartaoId);
+      const anterior = editCartaoId ? (cartoes as any[]).find((c) => c.id === editCartaoId) : null;
+      const id = await gravarCartao(parsed, editCartaoId);
+      const mudouVencimento = !anterior || Number(anterior.dia_vencimento) !== parsed.dia_vencimento;
+      return mudouVencimento ? { id, nome: nomeCartao(parsed), dia_vencimento: parsed.dia_vencimento } : null;
     },
-    onSuccess: () => {
+    onSuccess: (confirmar) => {
+      if (confirmar) setConfirmarCiclo(confirmar);
       toast.success(editCartaoId ? "Cartão atualizado" : "Cartão cadastrado");
       setOpenCartao(false);
       setEditCartaoId(null);
@@ -819,6 +827,7 @@ function CartoesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <ConfirmarCartaoCiclo cartao={confirmarCiclo} onClose={() => setConfirmarCiclo(null)} />
     </AppLayout>
   );
 }

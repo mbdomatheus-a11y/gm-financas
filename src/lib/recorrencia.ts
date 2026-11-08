@@ -227,16 +227,21 @@ export interface LancamentoCompetencia {
   despesa: any;
 }
 
-/** Data de vencimento do dia do início dentro da competência (ciclo): dias antes da virada caem no mês seguinte. */
+/**
+ * Data de vencimento do dia do início dentro da competência (ciclo): dias antes da virada caem no mês seguinte.
+ * 08/11/2026: dias 29, 30 e 31 não são mais limitados a 28; usam o próprio dia ou o último dia do mês
+ * quando o mês é menor (30 em fevereiro vira 28 ou 29).
+ */
 export function vencimentoDaCompetencia(inicio: string, competencia: string): string {
-  const dia = Math.min(28, Number(inicio.slice(8, 10)) || 1);
+  const diaBase = Math.max(1, Math.min(31, Number(inicio.slice(8, 10)) || 1));
   const virada = diaViradaDefinida();
   let [ano, mes] = competencia.split("-").map(Number) as [number, number];
-  if (virada && dia < virada) {
+  if (virada && diaBase < virada) {
     const prox = new Date(ano, mes, 1);
     ano = prox.getFullYear();
     mes = prox.getMonth() + 1;
   }
+  const dia = Math.min(diaBase, new Date(ano, mes, 0).getDate());
   return `${ano}-${String(mes).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
 }
 

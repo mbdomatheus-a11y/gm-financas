@@ -385,7 +385,7 @@ function FinancasShareCard() {
 
     box(320, "Receitas do mês", formatBRL(resumo.rec), "#4ade80");
     box(500, "Despesas do mês", formatBRL(resumo.desp), "#f87171");
-    box(680, "Sobra até agora", formatBRL(resumo.saldo), resumo.saldo >= 0 ? "#38bdf8" : "#fbbf24");
+    box(680, "Disponível", formatBRL(resumo.saldo), resumo.saldo >= 0 ? "#38bdf8" : "#fbbf24");
 
     ctx.fillStyle = "rgba(255,255,255,0.75)";
     ctx.font = "600 32px system-ui, sans-serif";
@@ -434,7 +434,7 @@ function FinancasShareCard() {
           /* cancelado pelo usuário */
         }
       } else {
-        const texto = `Resumo ${monthLabel(mes)}%0AReceitas: ${formatBRL(resumo.rec)}%0ADespesas: ${formatBRL(resumo.desp)}%0ASobra até agora: ${formatBRL(resumo.saldo)}%0APrevisto no fim do ciclo: ${formatBRL(resumo.previsto)}`;
+        const texto = `Resumo ${monthLabel(mes)}%0AReceitas: ${formatBRL(resumo.rec)}%0ADespesas: ${formatBRL(resumo.desp)}%0ADisponível: ${formatBRL(resumo.saldo)}%0APrevisto para sobrar: ${formatBRL(resumo.previsto)}`;
         window.open(`https://wa.me/?text=${texto}`, "_blank", "noopener");
       }
     }, "image/png");
@@ -499,7 +499,7 @@ function FinancasShareCard() {
             <Preview label="Receitas" value={formatBRL(resumo.rec)} tone="text-success" />
             <Preview label="Despesas" value={formatBRL(resumo.desp)} tone="text-destructive" />
             <Preview
-              label="Sobra até agora"
+              label="Disponível"
               value={formatBRL(resumo.saldo)}
               tone={resumo.saldo >= 0 ? "text-primary" : "text-destructive"}
             />
@@ -1075,8 +1075,8 @@ function ResumoInteligenteShareCard() {
       "",
       `💰 Receitas: ${formatBRL(resumo.rec)}`,
       `💸 Despesas: ${formatBRL(resumo.desp)}`,
-      `${resumo.saldo >= 0 ? "✅" : "🔴"} Sobra até agora: ${formatBRL(resumo.saldo)}`,
-      `Previsto no fim do ciclo: ${formatBRL(resumo.previsto)}`,
+      `${resumo.saldo >= 0 ? "✅" : "🔴"} Disponível: ${formatBRL(resumo.saldo)}`,
+      `Previsto para sobrar: ${formatBRL(resumo.previsto)}`,
     ];
     if (habilitado("lista")) {
       linhas.push(
