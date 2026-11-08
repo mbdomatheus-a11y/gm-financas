@@ -117,7 +117,7 @@ export function useProfilesList() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("ativo,created_at,email,foto_url,grupo_id,grupo_secundario_id,id,nome")
+        .select("ativo,cpf,created_at,email,foto_url,grupo_id,grupo_secundario_id,id,nome,senha_temporaria")
         .eq("grupo_id", meuPerfil!.grupo_id!)
         .order("nome");
       if (error) throw error;

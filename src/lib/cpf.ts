@@ -1,8 +1,8 @@
-export function onlyDigits(value: string): string {
-  return value.replace(/\D/g, "");
+export function onlyDigits(value: string | null | undefined): string {
+  return (value ?? "").replace(/\D/g, "");
 }
 
-export function maskCpf(value: string): string {
+export function maskCpf(value: string | null | undefined): string {
   const d = onlyDigits(value).slice(0, 11);
   return d
     .replace(/(\d{3})(\d)/, "$1.$2")
