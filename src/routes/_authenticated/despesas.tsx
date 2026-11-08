@@ -5,7 +5,7 @@ import { datasDoCiclo } from "@/lib/previsao-mes";
 import { useNumerosCiclo } from "@/hooks/useNumerosCiclo";
 import { ROTULO_SOBRA_PREVISTA, ROTULO_SOBRA_REAL, janelasDoCiclo, lancamentosDoCiclo, textoPorDia, textoVaiSobrar } from "@/lib/numeros-ciclo";
 import { CampoCategoria } from "@/components/CampoCategoria";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useValorAdiado } from "@/hooks/useValorAdiado";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -124,6 +124,7 @@ import {
 import { useCotacao } from "@/hooks/useCotacao";
 import { addMonths, dividirParcelas, formatBRL, formatDate, formatUSD, identificacaoDespesa, monthKey, monthLabelLong, parseDate, toBRL, toISODate, competenciaAtual, competenciaDoDia, mesDoCiclo } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { lancamentosDoCardMes } from "@/lib/lancamentos-card";
 import { PixDespesas, usePix } from "@/components/pix/AbaPix";
 
 export const Route = createFileRoute("/_authenticated/despesas")({
@@ -136,10 +137,12 @@ export const Route = createFileRoute("/_authenticated/despesas")({
     economia?: boolean;
     novo?: boolean;
     busca?: string;
+    filtro?: "parcelas" | "aberto";
   } => ({
     ...(s["novo"] === true || s["novo"] === "true" || s["novo"] === 1 ? { novo: true } : {}),
     ...(typeof s["cartao"] === "string" && s["cartao"] ? { cartao: s["cartao"] } : {}),
     ...(s["modo"] === "cartao" || s["modo"] === "lista" ? { modo: s["modo"] } : {}),
+    ...(s["filtro"] === "parcelas" || s["filtro"] === "aberto" ? { filtro: s["filtro"] } : {}),
     ...(typeof s["mes"] === "string" && s["mes"] ? { mes: s["mes"] } : {}),
     // Bloco 3 (plano-mega-2026-09-14.md): o card "Economia Conquistada" da
     // Início usa isso pra levar direto aos lançamentos que geraram a economia.
@@ -332,7 +335,9 @@ function DespesasPage() {
   }, [modoDaUrl]);
   const [expandida, setExpandida] = useState<string | null>(null);
   const [grupoExpandido, setGrupoExpandido] = useState<string | null>(null);
-  const [filtroResumo, setFiltroResumo] = useState<null | "pago" | "aberto" | "proximo">(null);
+  const [filtroResumo, setFiltroResumo] = useState<null | "pago" | "aberto" | "proximo" | "parcelas">(null);
+  // 08/11/2026: filtro vindo dos cards do dashboard (?filtro=&mes=); usa a mesma função do card.
+  const origemCardRef = useRef<{ filtro: "parcelas" | "aberto"; mes: string } | null>(null);
 
   const filtroCartao = search.cartao ?? "todos";
   const setFiltroCartao = (v: string) =>
@@ -1005,6 +1010,8 @@ function DespesasPage() {
   const lancamentosDoResumo = useMemo(() => {
     const itens: { despesa: any; parcela: any; valor: number }[] = [];
     if (!filtroResumo) return itens;
+    if (filtroResumo === "parcelas" || (origemCardRef.current?.filtro === filtroResumo && origemCardRef.current.mes === filtroMes))
+      return lancamentosDoCardMes(despesas as any[], faturasMes as any[], filtroMes, filtroResumo as "parcelas" | "aberto", cotacao, prefsCiclo.somar_pagamento_fatura);
     for (const d of listaVisivel as any[]) {
       if (idsIgnoradosPorTotal.has(d.id) || d.economia_conquistada) continue;
       const parcelasVisiveis =
@@ -1020,7 +1027,7 @@ function DespesasPage() {
       }
     }
     return itens.sort((a, b) => String(a.parcela.vencimento).localeCompare(String(b.parcela.vencimento)));
-  }, [filtroResumo, listaVisivel, idsIgnoradosPorTotal, filtroMes, lancamentosDoFiltro, resumo.proximo, cotacao]);
+  }, [filtroResumo, listaVisivel, idsIgnoradosPorTotal, filtroMes, lancamentosDoFiltro, resumo.proximo, cotacao, despesas, faturasMes, prefsCiclo.somar_pagamento_fatura]);
   const somaDoResumo = lancamentosDoResumo.reduce((s, i) => s + i.valor, 0);
 
   // Receitas do período, do mesmo jeito que a Home: pela data de recebimento e convertidas para BRL.
@@ -1069,8 +1076,24 @@ function DespesasPage() {
   useEffect(() => {
     setSimulandoCortes(false);
     setIdsExcluidosSimulacao(new Set());
-    setFiltroResumo(null);
+    const o = origemCardRef.current;
+    setFiltroResumo(o && o.mes === filtroMes ? o.filtro : null);
   }, [tab, filtroMes]);
+
+  const filtroCardUrl = search.filtro;
+  useEffect(() => {
+    if (!filtroCardUrl) return;
+    const mes = search.mes ?? competenciaAtual();
+    origemCardRef.current = { filtro: filtroCardUrl, mes };
+    setTab("total");
+    setFiltroMes(mes);
+    setFiltroResumo(filtroCardUrl);
+    navigate({ search: (atual: any) => {
+      const { filtro: _f, mes: _m, ...resto } = atual;
+      return resto;
+    }, replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtroCardUrl]);
 
   const simulacao = useMemo(() => {
     if (!simulandoCortes) return null;
@@ -1571,7 +1594,7 @@ function DespesasPage() {
           <CardContent className="p-0">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b px-3 py-2">
               <p className="text-xs text-muted-foreground">
-                {({ pago: "Pagos", aberto: "Em aberto", proximo: "Próximo vencimento" } as const)[filtroResumo]}
+                {({ pago: "Pagos", aberto: "Em aberto", proximo: "Próximo vencimento", parcelas: "Parcelas do mês" } as const)[filtroResumo]}
                 {" · "}
                 {lancamentosDoResumo.length} lançamento(s) · <span className="font-semibold text-foreground">{formatar(somaDoResumo)}</span>
               </p>

@@ -63,6 +63,7 @@ import { contaComoDespesa, movimentosDeInvestimentos, totaisInvestimentos } from
 import { useEstruturaCategorias } from "@/hooks/useEstruturaCategorias";
 import { criarCorPorCategoria, nomeBaseDoGrupo } from "@/lib/categorias-cor";
 import { aplicarRegrasFaturaMes } from "@/lib/fatura-mes";
+import { lancamentosDoCardMes, somaLancamentosCard } from "@/lib/lancamentos-card";
 import { opacidadePorPosicao, posicaoTemporalDoMes } from "@/lib/tempo-visual";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -266,15 +267,6 @@ function DashboardPage() {
     });
   }
 
-  // Item 2 (backlog 2026-09-27): "Dívida total em aberto" nasce projetando
-  // até a última parcela variável/parcelada que realmente existe nos dados
-  // (não um horizonte arbitrário fixo). O usuário pode escolher outro
-  // mês/ano nessa própria caixa — se escolher uma data além dessa última
-  // parcela real, só o custo FIXO (recorrente) é projetado dali em diante,
-  // nunca parcelas variáveis inventadas.
-  const [mesLimiteDividaOverride, setMesLimiteDividaOverride] = useState<string | null>(null);
-  const DIVIDA_DESDE = "2026-10";
-
   // Item 10 (backlog 2026-09-27): agrupamentos nascem recolhidos por padrão;
   // a escolha do usuário (expandido/recolhido) é lembrada entre sessões.
   const AGRUPAMENTOS_ABERTO_KEY = "financas_agrupamentos_dashboard_aberto";
@@ -342,6 +334,11 @@ function DashboardPage() {
     [agrupamento, macroDeCategoria],
   );
 
+  const lancamentosAbertoMes = useMemo(
+    () => lancamentosDoCardMes(despesas as any[], faturasMes as any[], mesAtual, "aberto", cotacao, somarPagamentoFatura),
+    [despesas, faturasMes, mesAtual, cotacao, somarPagamentoFatura],
+  );
+
   const dados = useMemo(() => {
     const receitasMes = receitasProjetadas.filter((r) => r.competencia === mesAtual);
     const totalReceitas = receitasMes.reduce(
@@ -376,9 +373,6 @@ function DashboardPage() {
       .filter((p: any) => p.despesa.tipo !== "fixa" && p.despesa.total_parcelas > 1)
       .reduce((s: number, p: any) => s + toBRL(Number(p.valor), p.despesa.moeda, cotacao), 0);
 
-    const dividaTotal = parcelas
-      .filter((p: any) => !p.paga && p.despesa.tipo !== "fixa")
-      .reduce((s: number, p: any) => s + toBRL(Number(p.valor), p.despesa.moeda, cotacao), 0);
 
     const porCategoria = new Map<string, number>();
     for (const p of parcelas.filter((p: any) => competenciaDoDia(p.vencimento) === mesPie)) {
@@ -625,7 +619,6 @@ function DashboardPage() {
       parcelados,
       variaveisPuras,
       mensalizado,
-      dividaTotal,
       mediaDespesas,
       deltaReceitas: recAntTotal > 0 ? ((recTotal - recAntTotal) / recAntTotal) * 100 : null,
       deltaDespesas: desAntTotal > 0 ? ((desTotal - desAntTotal) / desAntTotal) * 100 : null,
@@ -652,61 +645,6 @@ function DashboardPage() {
   const mesFimGrafico = useMemo(() => {
     return meses[meses.length - 1] ?? mesAtual;
   }, [meses, mesAtual]);
-
-  // Sempre que o filtro do gráfico mudar (janela ou intervalo customizado),
-  // o gráfico manda na data ("aqui deveria ser sempre a data do filtro do grafico"):
-  useEffect(() => {
-    setMesLimiteDividaOverride(null);
-  }, [janela, mesInicioCustom, mesFimCustom]);
-
-  // Última parcela variável/parcelada real nos dados persistidos
-  const ultimaParcelaRealDivida = useMemo(() => {
-    let maior: string | null = null;
-    for (const d of despesas as any[]) {
-      if (d.tipo === "fixa") continue;
-      for (const p of d.parcelas ?? []) {
-        const chave = competenciaDoDia(p.vencimento);
-        if (!maior || chave > maior) maior = chave;
-      }
-    }
-    return maior ?? mesAtual;
-  }, [despesas, mesAtual]);
-
-  // A data padrão da dívida é o mês final do gráfico. O usuário pode alterar manualmente se quiser.
-  const mesLimiteDivida = mesLimiteDividaOverride ?? mesAtual;
-
-  const mesesParaDivida = useMemo(() => {
-    const now = new Date();
-    // Dívida só conta parcelas a partir de DIVIDA_DESDE (pedido 2026-11-02: antes de outubro não entra).
-    const padrao12 = mesDoCiclo(-12);
-    const inicioPadrao = padrao12 > DIVIDA_DESDE ? padrao12 : DIVIDA_DESDE;
-    const fim = mesLimiteDivida > ultimaParcelaRealDivida ? mesLimiteDivida : ultimaParcelaRealDivida;
-    return monthRange(inicioPadrao, fim);
-  }, [mesLimiteDivida, ultimaParcelaRealDivida]);
-
-  const dividaInfo = useMemo(() => {
-    const parcelasDivida = aplicarRegrasFaturaMes(
-      lancamentosPorCompetencias(despesas as any[], mesesParaDivida),
-      faturasMes as any[],
-    );
-    // Nunca inventa parcela variável além da última que realmente existe —
-    // se o mês escolhido for mais longe, o limite pro cálculo da parte
-    // variável fica travado na última parcela real.
-    const limiteVariavel =
-      mesLimiteDivida < ultimaParcelaRealDivida ? mesLimiteDivida : ultimaParcelaRealDivida;
-    const variavel = parcelasDivida
-      .filter((p: any) => p.despesa.tipo !== "fixa" && !p.paga && competenciaDoDia(p.vencimento) <= limiteVariavel)
-      .reduce((s: number, p: any) => s + toBRL(Number(p.valor), p.despesa.moeda, cotacao), 0);
-    const fixa = parcelasDivida
-      .filter((p: any) => p.despesa.tipo === "fixa" && !p.paga && competenciaDoDia(p.vencimento) <= mesLimiteDivida)
-      .reduce((s: number, p: any) => s + toBRL(Number(p.valor), p.despesa.moeda, cotacao), 0);
-    return {
-      total: variavel + fixa,
-      variavel,
-      fixa,
-      alemDaUltimaParcela: mesLimiteDivida > ultimaParcelaRealDivida,
-    };
-  }, [despesas, faturasMes, mesesParaDivida, mesLimiteDivida, ultimaParcelaRealDivida, cotacao]);
 
   // Pedido 3 (2026-10-03): Alívio de parcelas que terminam no período selecionado no gráfico
   const alivioPeriodo = useMemo(() => {
@@ -813,16 +751,16 @@ function DashboardPage() {
           tone="warning"
           hint={`Fixas ${fmtGlobal(dados.fixas)} · Variáveis ${fmtGlobal(dados.variaveis)}`}
           to="/despesas"
-          search={{ modo: "cartao" }}
+          search={{ filtro: "parcelas", mes: mesAtual }}
         />
-        <CardDividaTotal
-          info={dividaInfo}
-          mesLimite={mesLimiteDivida}
-          mesPadrao={mesAtual}
-          ultimaParcelaReal={ultimaParcelaRealDivida}
-          onMesChange={setMesLimiteDividaOverride}
-          onRestaurarPadrao={() => setMesLimiteDividaOverride(null)}
-          temOverride={mesLimiteDividaOverride !== null}
+        <StatCard
+          label="Dívida em aberto do mês"
+          value={somaLancamentosCard(lancamentosAbertoMes)}
+          icon={Landmark}
+          tone="destructive"
+          hint={`${lancamentosAbertoMes.length} lançamento(s) a pagar no ciclo`}
+          to="/despesas"
+          search={{ filtro: "aberto", mes: mesAtual }}
         />
         <StatCard
           label="Parcelas que terminam"
@@ -1624,94 +1562,6 @@ function EmptyChart() {
     <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
       Sem lançamentos neste mês.
     </div>
-  );
-}
-
-/**
- * Item 2 (backlog 2026-09-27): card dedicado pra "Dívida total em aberto",
- * com seletor de mês/ano próprio (por isso não usa o `StatCard` genérico,
- * cujo corpo inteiro é um link clicável — não daria pra ter um MonthPicker
- * interativo dentro). Por padrão mostra o total projetado até a última
- * parcela variável/parcelada que realmente existe; ao escolher uma data
- * além dela, some com o custo fixo recorrente, sem inventar parcela
- * variável nenhuma.
- */
-function CardDividaTotal({
-  info,
-  mesLimite,
-  mesPadrao,
-  ultimaParcelaReal,
-  onMesChange,
-  onRestaurarPadrao,
-  temOverride,
-}: {
-  info: { total: number; variavel: number; fixa: number; alemDaUltimaParcela: boolean };
-  mesLimite: string;
-  mesPadrao: string;
-  ultimaParcelaReal: string;
-  onMesChange: (mes: string) => void;
-  onRestaurarPadrao: () => void;
-  temOverride: boolean;
-}) {
-  const [visao, setVisao] = useState<"total" | "fixa" | "variavel">("total");
-  const { formatar } = usePrivacidadeValores();
-  const valorExibido = visao === "fixa" ? info.fixa : visao === "variavel" ? info.variavel : info.total;
-  const rotuloVisao = visao === "fixa" ? "Somente fixas" : visao === "variavel" ? "Somente variáveis" : "Total";
-
-  return (
-    <Card className="overflow-hidden">
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between gap-2">
-          <p className="text-xs font-medium text-muted-foreground">Dívida total em aberto</p>
-          <Landmark className="size-4 text-destructive" />
-        </div>
-        {/* Seletor Total / Fixas / Variáveis */}
-        <div className="mt-2 flex gap-1.5">
-          {(["total", "fixa", "variavel"] as const).map((v) => (
-            <button
-              key={v}
-              type="button"
-              onClick={() => setVisao(v)}
-              className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors touch-manipulation ${
-                visao === v
-                  ? "bg-destructive/15 text-destructive font-semibold"
-                  : "text-muted-foreground hover:bg-muted"
-              }`}
-            >
-              {v === "total" ? "Total" : v === "fixa" ? "Fixas" : "Variáveis"}
-            </button>
-          ))}
-        </div>
-        <div className="mt-2 flex flex-wrap items-baseline gap-2">
-          <p className="text-xl font-bold tracking-tight">{formatar(valorExibido)}</p>
-        </div>
-        <p className="mt-1 text-xs text-muted-foreground">
-          {rotuloVisao} · Fixas {formatar(info.fixa)} · Variáveis {formatar(info.variavel)}
-        </p>
-        <div className="mt-2 flex flex-wrap items-center gap-1.5">
-          <MonthPicker value={mesLimite} onChange={onMesChange} ariaLabel="Projetar dívida até" className="h-7" />
-          {temOverride && (
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              className="h-7 text-xs"
-              onClick={onRestaurarPadrao}
-              title={`Restaurar data do mês em aberto (${monthLabel(mesPadrao)})`}
-            >
-              Mês aberto ({monthLabel(mesPadrao)})
-            </Button>
-          )}
-        </div>
-        <p className="mt-1 text-xs text-muted-foreground">
-          {temOverride
-            ? `Personalizado até ${monthLabelLong(mesLimite)} (padrão: ${monthLabel(mesPadrao)}).`
-            : info.alemDaUltimaParcela
-              ? `Além da última parcela real (${monthLabel(ultimaParcelaReal)}) - só custo fixo projetado.`
-              : `Dívida em aberto até o mês vigente (${monthLabel(mesPadrao)}).`}
-        </p>
-      </CardContent>
-    </Card>
   );
 }
 

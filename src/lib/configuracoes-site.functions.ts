@@ -49,7 +49,7 @@ export const obterConfiguracaoAcesso = createServerFn({ method: "GET" }).handler
     cadastro_livre_habilitado: boolean;
     /** Tela em que o login cai por padrão (Item 1 da Frente 4, plano de
      * 2026-10-02) — ver `src/lib/tela-inicial-padrao.ts`. */
-    tela_inicial_padrao: "financas" | "lista-compras" | "notas";
+    tela_inicial_padrao: "inicio" | "financas" | "lista-compras" | "notas";
     /** Rodada dos avisos dispensáveis: o admin aumenta para mostrar de novo a todos. */
     rodada_aviso_convite: number;
     rodada_aviso_privacidade: number;
@@ -91,7 +91,7 @@ export const adminRedispararAviso = createServerFn({ method: "POST" })
 export const adminSalvarTelaInicialPadrao = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((v: unknown) =>
-    z.object({ tela: z.enum(["financas", "lista-compras", "notas"]) }).parse(v),
+    z.object({ tela: z.enum(["inicio", "financas", "lista-compras", "notas"]) }).parse(v),
   )
   .handler(async ({ data, context }) => {
     await exigirAdmin(context);

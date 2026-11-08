@@ -37,6 +37,62 @@ function minutosAgoraBrasilia(agora = new Date()): number {
   return (h % 24) * 60 + m;
 }
 
+/** Data de hoje no horário de Brasília (YYYY-MM-DD), com deslocamento em dias. */
+export function diaBrasilia(somaDias = 0, agora = new Date()): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(
+    new Date(agora.getTime() + somaDias * 86400000),
+  );
+}
+
+export { minutosAgoraBrasilia };
+
+export type DecisaoEnvio = { acao: "enviar" } | { acao: "ignorar" } | { acao: "agendar"; para: Date };
+
+/**
+ * Preferência de horário (08/11/2026): modo_horario "sempre" (padrão), "janela" (só entre
+ * janela_inicio e janela_fim; fora disso guarda e entrega no início da janela) ou "desligado".
+ * Linha antiga sem modo_horario (migration pendente) segue o "Não perturbe" (silencio_*).
+ */
+export function decidirEnvio(p: any, opcoes: OpcoesPush = {}, agora = new Date()): DecisaoEnvio {
+  if (!p) return { acao: "enviar" };
+  if (p.receber_todas === false || p.canal_push === false) return { acao: "ignorar" };
+  if (opcoes.tipo && p.lembretes && typeof p.lembretes === "object" && p.lembretes[opcoes.tipo] === false)
+    return { acao: "ignorar" };
+  if (opcoes.urgente) return { acao: "enviar" };
+  const agoraMin = minutosAgoraBrasilia(agora);
+  const modo = typeof p.modo_horario === "string" ? p.modo_horario : null;
+  if (modo === "desligado") return { acao: "ignorar" };
+  if (modo === "janela") {
+    const i = minutosDe(p.janela_inicio);
+    const f = minutosDe(p.janela_fim);
+    if (i === null || f === null || i === f) return { acao: "enviar" };
+    const dentro = i < f ? agoraMin >= i && agoraMin < f : agoraMin >= i || agoraMin < f;
+    if (dentro) return { acao: "enviar" };
+    const delta = (i - agoraMin + 1440) % 1440;
+    const para = new Date(agora.getTime() + delta * 60000);
+    para.setSeconds(0, 0);
+    return { acao: "agendar", para };
+  }
+  if (!modo && p.silencio_ativo && dentroDoSilencio(p.silencio_inicio, p.silencio_fim, agoraMin)) {
+    const f = minutosDe(p.silencio_fim)!;
+    const para = new Date(agora.getTime() + ((f - agoraMin + 1440) % 1440) * 60000);
+    para.setSeconds(0, 0);
+    return { acao: "agendar", para };
+  }
+  return { acao: "enviar" };
+}
+
+/** Preferências de vários usuários (select * tolera colunas novas ainda não criadas). */
+export async function carregarPreferencias(db: any, ids: string[]): Promise<Map<string, any> | null> {
+  const prefs = new Map<string, any>();
+  for (let i = 0; i < ids.length; i += 200) {
+    const { data, error } = await db.from("preferencias_notificacao").select("*").in("user_id", ids.slice(i, i + 200));
+    if (error) return null;
+    for (const r of data ?? []) prefs.set(r.user_id, r);
+  }
+  return prefs;
+}
+
 /** Está dentro do silêncio? Aceita intervalo que cruza a meia-noite (ex.: 22:00 a 08:00). */
 export function dentroDoSilencio(inicio: unknown, fim: unknown, agoraMin = minutosAgoraBrasilia()): boolean {
   const i = minutosDe(inicio);
@@ -50,24 +106,10 @@ export function dentroDoSilencio(inicio: unknown, fim: unknown, agoraMin = minut
  * (migration pendente) ou a consulta falhar, devolve todos (comportamento anterior).
  */
 async function filtrarPorPreferencias(db: any, ids: string[], opcoes: OpcoesPush): Promise<string[]> {
-  const prefs = new Map<string, any>();
-  for (let i = 0; i < ids.length; i += 200) {
-    const { data, error } = await db
-      .from("preferencias_notificacao")
-      .select("user_id,receber_todas,canal_push,silencio_ativo,silencio_inicio,silencio_fim,lembretes")
-      .in("user_id", ids.slice(i, i + 200));
-    if (error) return ids; // 42P01/PGRST205 (tabela pendente) ou outra falha: envia como antes
-    for (const r of data ?? []) prefs.set(r.user_id, r);
-  }
-  const agoraMin = minutosAgoraBrasilia();
-  return ids.filter((id) => {
-    const p = prefs.get(id);
-    if (!p) return true; // sem linha = padrões (tudo ligado, sem silêncio)
-    if (p.receber_todas === false || p.canal_push === false) return false;
-    if (opcoes.tipo && p.lembretes && typeof p.lembretes === "object" && p.lembretes[opcoes.tipo] === false) return false;
-    if (!opcoes.urgente && p.silencio_ativo && dentroDoSilencio(p.silencio_inicio, p.silencio_fim, agoraMin)) return false;
-    return true;
-  });
+  const prefs = await carregarPreferencias(db, ids);
+  if (!prefs) return ids; // 42P01/PGRST205 (tabela pendente) ou outra falha: envia como antes
+  // Envio direto (admin): fora da janela não envia agora; avisos da caixa usam despacharAvisos (guarda e entrega depois).
+  return ids.filter((id) => decidirEnvio(prefs.get(id), opcoes).acao === "enviar");
 }
 
 export async function enviarPush(
@@ -81,6 +123,13 @@ export async function enviarPush(
   const ids = await filtrarPorPreferencias(db, todos, opcoes).catch(() => todos);
   const ignorados = todos.length - ids.length;
   if (ids.length === 0) return { enviados: 0, falhas: 0, ignorados };
+  const r = await enviarSemFiltro(db, ids, msg);
+  return { ...r, ignorados };
+}
+
+/** Envia para os aparelhos dos usuários, sem consultar preferências (quem chama já decidiu). */
+export async function enviarSemFiltro(db: any, ids: string[], msg: MensagemPush): Promise<ResultadoPush> {
+  const ignorados = 0;
   const tokens: string[] = [];
   for (let i = 0; i < ids.length; i += 200) {
     const { data } = await db.from("push_tokens").select("token").in("user_id", ids.slice(i, i + 200));

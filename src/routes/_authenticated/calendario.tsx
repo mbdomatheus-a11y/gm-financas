@@ -52,7 +52,7 @@ import {
 export const Route = createFileRoute("/_authenticated/calendario")({
   head: () => ({
     meta: [
-      { title: "Calendário | Control ALL" },
+      { title: "Agenda | Control ALL" },
       {
         name: "description",
         content:
@@ -237,7 +237,7 @@ function CalendarioPage() {
 
   return (
     <AppLayout
-      title="Calendário"
+      title="Agenda"
       description="Faturas, notas fiscais, garantias e lista de compras em um só lugar"
     >
       <div className="mb-4 inline-flex rounded-full bg-muted p-1" role="group" aria-label="Tipo de visão">

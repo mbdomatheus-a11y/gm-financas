@@ -66,13 +66,13 @@ import { addMonths, formatDate, formatBRL, monthKey, toBRL, toISODate, competenc
 export const Route = createFileRoute("/_authenticated/lista-compras")({
   head: () => ({
     meta: [
-      { title: "Lista de compras | Control ALL" },
+      { title: "Lista | Control ALL" },
       {
         name: "description",
         content:
           "Lista de compras compartilhada do casal com datas, alertas de recompra, itens únicos e exportação.",
       },
-      { property: "og:title", content: "Lista de compras | Control ALL" },
+      { property: "og:title", content: "Lista | Control ALL" },
       {
         property: "og:description",
         content: "Adicione, marque, repita e exporte os itens que o casal precisa comprar.",
@@ -672,7 +672,7 @@ function ListaComprasPage() {
 
   return (
     <AppLayout
-      title="Lista de compras"
+      title="Lista"
       description={`${itens.length} de ${LIMITE} itens`}
       actions={
         <div className="flex flex-wrap items-center gap-3">

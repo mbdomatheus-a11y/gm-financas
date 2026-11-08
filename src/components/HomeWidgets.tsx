@@ -178,7 +178,7 @@ function AreaCard({ id }: { id: AreaId }) {
 function Atalhos() {
   const { can } = usePermissoes();
   const atalhos = [
-    { to: "/calendario" as const, label: "Calendário", icon: CalendarDays, ok: true },
+    { to: "/calendario" as const, label: "Agenda", icon: CalendarDays, ok: true },
     { to: "/compartilhar" as const, label: "Compartilhar", icon: Share2, ok: can("compartilhar", "ver") },
     { to: "/configuracoes" as const, label: "Configurações", icon: Settings, ok: true },
     { to: "/suporte" as const, label: "Suporte", icon: Headphones, ok: true },

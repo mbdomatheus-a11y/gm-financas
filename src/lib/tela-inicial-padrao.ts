@@ -9,12 +9,13 @@
  * pessoa cai numa tela sem acesso — mesmo risco que já existe ao configurar
  * módulos globais, não uma regressão desta função.
  */
-export const TELAS_INICIAIS = ["financas", "lista-compras", "notas"] as const;
+export const TELAS_INICIAIS = ["inicio", "financas", "lista-compras", "notas"] as const;
 export type TelaInicialPadrao = (typeof TELAS_INICIAIS)[number];
 
 export const ROTULOS_TELA_INICIAL: Record<TelaInicialPadrao, string> = {
+  inicio: "Padrão original (Início)",
   financas: "Finanças (Dashboard)",
-  "lista-compras": "Lista de compras",
+  "lista-compras": "Lista",
   notas: "Notas fiscais",
 };
 
@@ -24,6 +25,8 @@ export function rotaDaTelaInicial(tela: TelaInicialPadrao | null | undefined): s
       return "/lista-compras";
     case "notas":
       return "/notas";
+    case "inicio":
+      return "/inicio";
     case "financas":
     default:
       return "/dashboard";

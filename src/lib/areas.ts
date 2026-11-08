@@ -26,7 +26,7 @@ export const MODULOS_INFO = {
   },
   lista: {
     to: "/lista-compras",
-    titulo: "Lista de compras",
+    titulo: "Lista",
     descricao: "Lista compartilhada e aprovações.",
     icon: ShoppingCart,
   },

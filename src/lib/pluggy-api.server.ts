@@ -1006,6 +1006,27 @@ async function sincronizarItemTravado(
         mensagem: `faturas do banco: ${DIAG.faturas} · compras novas na fatura do banco: ${DIAG.comFatura} · sem fatura: ${DIAG.semFatura}`,
       })
       .eq("id", log?.id);
+    // 08/11/2026: aviso (e push) na hora em que o Open Finance trouxe lançamentos novos.
+    if (r.criadas > 0) {
+      try {
+        const { gravarAvisos } = await import("@/lib/avisos.server");
+        const banco = meu.conector || "seu banco";
+        await gravarAvisos(db, [
+          {
+            user_id: meu.user_id,
+            tipo: "open_finance",
+            titulo: "Lançamentos novos do banco",
+            mensagem: `${r.criadas} ${r.criadas === 1 ? "lançamento chegou" : "lançamentos chegaram"} de ${banco} pelo Open Finance.`,
+            chave: `pluggy:${log?.id ?? itemId + ":" + Date.now()}`,
+            lembrete: "revisar_transacoes",
+            referencia_tipo: "pluggy_item",
+            referencia_id: null,
+          },
+        ]);
+      } catch {
+        // aviso é extra: nunca derruba a sincronização
+      }
+    }
     return r;
   } catch (e) {
     const msg = e instanceof Error ? e.message.slice(0, 300) : "Erro desconhecido";

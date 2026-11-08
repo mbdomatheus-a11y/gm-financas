@@ -303,8 +303,8 @@ const MUNDOS: Record<MundoId, { titulo: string; home: NavTo; items: NavItem[] }>
     items: [
       {
         to: "/lista-compras",
-        label: "Lista de compras",
-        short: "Compras",
+        label: "Lista",
+        short: "Lista",
         icon: ShoppingCart,
         moduloGlobal: "lista",
       },
@@ -464,7 +464,7 @@ function VersaoDoApp() {
 
 const CALENDARIO: NavItem = {
   to: "/calendario",
-  label: "Calendário",
+  label: "Agenda",
   short: "Agenda",
   icon: CalendarDays,
 };
@@ -961,7 +961,7 @@ export function AppLayout({
                 size="icon"
                 className="hidden size-9 rounded-full text-muted-foreground transition-colors duration-150 hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/50 sm:inline-flex"
               >
-                <Link to="/calendario" aria-label="Abrir calendário" title="Calendário">
+                <Link to="/calendario" aria-label="Abrir agenda" title="Agenda">
                   <CalendarDays className="size-4.5" aria-hidden="true" />
                 </Link>
               </Button>

@@ -51,7 +51,7 @@ export const TEXTOS = {
     "pt-BR": "Para onde vai meu dinheiro", en: "Where my money goes", es: "Adónde va mi dinero", hi: "मेरा पैसा कहाँ जाता है", fr: "Où va mon argent", de: "Wohin mein Geld geht", it: "Dove vanno i miei soldi", zh: "我的钱去哪了", ar: "أين يذهب مالي",
   },
   "nav.lista": {
-    "pt-BR": "Lista de compras", en: "Shopping list", es: "Lista de compras", hi: "खरीदारी सूची", fr: "Liste de courses", de: "Einkaufsliste", it: "Lista della spesa", zh: "购物清单", ar: "قائمة التسوق",
+    "pt-BR": "Lista", en: "Shopping list", es: "Lista de compras", hi: "खरीदारी सूची", fr: "Liste de courses", de: "Einkaufsliste", it: "Lista della spesa", zh: "购物清单", ar: "قائمة التسوق",
   },
   "nav.veiculo": {
     "pt-BR": "Veículo", en: "Vehicle", es: "Vehículo", hi: "वाहन", fr: "Véhicule", de: "Fahrzeug", it: "Veicolo", zh: "车辆", ar: "المركبة",

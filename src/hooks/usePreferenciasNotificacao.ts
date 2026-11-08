@@ -33,8 +33,17 @@ export type PreferenciasNotificacao = {
   silencio_inicio: string;
   /** "HH:MM" */
   silencio_fim: string;
+  /** 08/11/2026: "sempre" (padrão, na hora), "janela" (só entre início e fim) ou "desligado". */
+  modo_horario: ModoHorario;
+  /** "HH:MM" */
+  janela_inicio: string;
+  /** "HH:MM" */
+  janela_fim: string;
   lembretes: Lembretes;
 };
+
+export type ModoHorario = "sempre" | "janela" | "desligado";
+const MODOS: ModoHorario[] = ["sempre", "janela", "desligado"];
 
 export const LEMBRETES_PADRAO: Lembretes = Object.fromEntries(
   LEMBRETES_CHAVES.map((k) => [k, true]),
@@ -47,6 +56,9 @@ export const PREFERENCIAS_NOTIFICACAO_PADRAO: PreferenciasNotificacao = {
   silencio_ativo: false,
   silencio_inicio: "22:00",
   silencio_fim: "08:00",
+  modo_horario: "sempre",
+  janela_inicio: "08:00",
+  janela_fim: "22:00",
   lembretes: LEMBRETES_PADRAO,
 };
 
@@ -69,9 +81,18 @@ export function lembreteLiberado(
   tipo: LembreteChave | null,
   quando?: string,
 ): boolean {
-  if (!prefs.receber_todas || !prefs.canal_push) return false;
+  if (!prefs.receber_todas || !prefs.canal_push || prefs.modo_horario === "desligado") return false;
   if (tipo && prefs.lembretes[tipo] === false) return false;
-  if (prefs.silencio_ativo && quando) {
+  if (prefs.modo_horario === "janela" && quando) {
+    const i = paraMinutos(prefs.janela_inicio);
+    const f = paraMinutos(prefs.janela_fim);
+    const agora = paraMinutos(quando.slice(11, 16));
+    if (i !== null && f !== null && agora !== null && i !== f) {
+      const dentro = i < f ? agora >= i && agora < f : agora >= i || agora < f;
+      if (!dentro) return false;
+    }
+  }
+  if (prefs.modo_horario !== "janela" && prefs.silencio_ativo && quando) {
     const i = paraMinutos(prefs.silencio_inicio);
     const f = paraMinutos(prefs.silencio_fim);
     const agora = paraMinutos(quando.slice(11, 16));
@@ -104,6 +125,9 @@ function normalizar(row: any): PreferenciasNotificacao {
     silencio_ativo: row.silencio_ativo ?? p.silencio_ativo,
     silencio_inicio: hhmm(row.silencio_inicio, p.silencio_inicio),
     silencio_fim: hhmm(row.silencio_fim, p.silencio_fim),
+    modo_horario: MODOS.includes(row.modo_horario) ? row.modo_horario : p.modo_horario,
+    janela_inicio: hhmm(row.janela_inicio, p.janela_inicio),
+    janela_fim: hhmm(row.janela_fim, p.janela_fim),
     lembretes,
   };
 }
@@ -133,12 +157,13 @@ export function usePreferenciasNotificacao() {
   const salvar = useMutation({
     mutationFn: async (proximas: PreferenciasNotificacao) => {
       if (!user?.id) throw new Error("Entre de novo para salvar.");
-      const { error } = await db()
-        .from("preferencias_notificacao")
-        .upsert(
-          { user_id: user.id, ...proximas, updated_at: new Date().toISOString() },
-          { onConflict: "user_id" },
-        );
+      const linha: Record<string, unknown> = { user_id: user.id, ...proximas, updated_at: new Date().toISOString() };
+      let { error } = await db().from("preferencias_notificacao").upsert(linha, { onConflict: "user_id" });
+      // Migration 20261108120000 ainda não rodou (coluna nova ausente): salva o resto.
+      if (error?.code === "PGRST204") {
+        const { modo_horario: _m, janela_inicio: _i, janela_fim: _f, ...antigo } = linha;
+        ({ error } = await db().from("preferencias_notificacao").upsert(antigo, { onConflict: "user_id" }));
+      }
       if (error) {
         if (tabelaAusente(error)) throw new Error("As preferências ainda não estão disponíveis. Tente mais tarde.");
         throw error;
