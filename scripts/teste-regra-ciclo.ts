@@ -17,6 +17,8 @@ import {
   janelasDoCiclo,
   textoDiferenca,
   textoDisponivel,
+  textoPorDia,
+  textoVaiSobrar,
   textoPrevisto,
 } from "../src/lib/numeros-ciclo";
 
@@ -90,10 +92,25 @@ igual("Disponível", n.real.sobra, 4900);
 igual("ainda vão entrar", n.previsto.aindaVaoEntrar, 0);
 igual("ainda vão vencer", n.previsto.aindaVaoVencer, 1100);
 igual("Previsto para sobrar", n.previsto.sobra, 3800);
-igual("rótulo destaque", textoDisponivel(n), "Disponível até 08/12");
+igual("rótulo em conta", textoDisponivel(n), "Em conta agora");
+igual("rótulo destaque", textoVaiSobrar(n), "Vai sobrar em 15/12");
+// Por dia = previsto para sobrar / dias restantes (incluindo hoje). 08/12 a 15/12 = 8 dias.
+igual("dias restantes", n.diasRestantes, 8);
+igual("por dia = previsto / dias restantes", n.porDia, 475);
+igual("frase por dia", textoPorDia(n, brl), "Pode gastar R$ 475.00 por dia até 15/12");
+igual("falta para fechar zerada", n.faltaParaFechar, 0);
 igual("rótulo previsto", textoPrevisto(n, brl), "Previsto para sobrar em 15/12: R$ 3800.00");
 igual("linha", textoDiferenca(n, brl), "Inclui R$ 1100.00 de contas que ainda vão vencer.");
 igual("ciclo na tela", n.textoCiclo, "15/nov a 15/dez · faltam 7 dias");
+
+// Previsto negativo: por dia = 0 e frase de falta.
+{
+  const neg = calcularNumerosCiclo(dados, "2026-11", 5000, D, hoje);
+  igual("negativo: previsto", neg.previsto.sobra, -1200);
+  igual("negativo: por dia 0", neg.porDia, 0);
+  igual("negativo: falta", neg.faltaParaFechar, 1200);
+  igual("negativo: frase", textoPorDia(neg, brl), "Faltam R$ 1200.00 para fechar o ciclo");
+}
 
 // Com caixinhas de 500 no ciclo.
 igual("Previsto com caixinhas 500", calcularNumerosCiclo(dados, "2026-11", 500, D, hoje).previsto.sobra, 3300);

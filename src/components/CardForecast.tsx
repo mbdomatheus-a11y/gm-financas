@@ -28,6 +28,8 @@ interface CardForecastProps {
   /** Variável puro: já sem fixas e sem parcelados. */
   variaveis: number;
   saldoAtual: number;
+  /** Previsto para sobrar no fim do ciclo (numeros-ciclo). Quando informado, o teto diário usa ele. */
+  previstoSobrar?: number;
 }
 
 export function CardForecast({
@@ -36,6 +38,7 @@ export function CardForecast({
   fixas,
   parcelados = 0,
   variaveis,
+  previstoSobrar,
 }: CardForecastProps) {
   const { formatar } = usePrivacidadeValores();
   const ciclo = useCicloVigente();
@@ -73,8 +76,8 @@ export function CardForecast({
 
     // 5. Teto diário seguro exclusivo para o variável
     const tetoDiarioSeguro =
-      diasRestantes > 0 && saldoVariavelRestante > 0
-        ? saldoVariavelRestante / diasRestantes
+      diasRestantes > 0
+        ? Math.max(0, (previstoSobrar ?? saldoVariavelRestante)) / diasRestantes
         : 0;
 
     // 6. Projeção de despesas variáveis ao final do ciclo
@@ -169,7 +172,7 @@ export function CardForecast({
       statusTexto,
       tomBadge,
     };
-  }, [mesAtual, competenciaCiclo, totalReceitas, fixas, parcelados, variaveis, ciclo, formatar]);
+  }, [mesAtual, competenciaCiclo, totalReceitas, fixas, parcelados, variaveis, previstoSobrar, ciclo, formatar]);
 
   return (
     <Card className="mt-4 overflow-hidden border-primary/20 bg-gradient-to-b from-card via-card to-muted/20 shadow-sm">

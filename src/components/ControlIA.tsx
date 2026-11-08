@@ -278,7 +278,7 @@ function useContexto(ativo: boolean) {
           receitas: prev.receitas,
           despesasComprometidas: prev.comprometido,
           aGuardarNasCaixinhas: prev.meta,
-          sobraAteAgora: prev.numeros.real.sobra,
+          emContaAgora: prev.numeros.real.sobra,
           previstoNoFimDoCiclo: prev.numeros.previsto.sobra,
           podeGastarPorDia: prev.porDia,
         },

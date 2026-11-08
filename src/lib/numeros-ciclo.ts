@@ -23,7 +23,7 @@ import { contaComoDespesa, totaisInvestimentos, type MovimentoInvestimento } fro
  * D vem da regra do grupo (regra_ciclo_grupo); sem regra, da virada antiga das preferências.
  */
 
-export const ROTULO_SOBRA_REAL = "Disponível";
+export const ROTULO_SOBRA_REAL = "Em conta agora";
 export const ROTULO_SOBRA_PREVISTA = "Previsto para sobrar";
 
 const MESES_CURTOS = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
@@ -253,8 +253,10 @@ export type NumerosCiclo = {
   estimativas: EstimativaFatura[];
   /** O REAL, se positivo. Para uso futuro (investir a sobra). */
   sobraParaInvestir: number;
-  /** Previsto livre dividido pelos dias restantes (0 se não sobra nada). */
+  /** Previsto para sobrar dividido pelos dias restantes (incluindo hoje). Nunca negativo: 0 se não sobra nada. */
   porDia: number;
+  /** Quanto falta para fechar o ciclo no zero (previsto negativo, em positivo). 0 se o previsto é >= 0. */
+  faltaParaFechar: number;
   /** Saldo acumulado dia a dia (sem caixinhas): real até hoje, previsto depois. dia = posição (1..N). */
   serie: { dia: number; rotulo: number; iso: string; saldo: number; projetado: boolean }[];
   /** Resultado final do ciclo (receitas − despesas do ciclo, sem tirar caixinhas). Vale como economia quando encerrado. */
@@ -300,7 +302,7 @@ export function competenciaDaData(iso: string, diaVirada?: number | null): strin
   return `${ant.getFullYear()}-${pad2(ant.getMonth() + 1)}`;
 }
 
-/** O DISPONÍVEL, se positivo; senão 0. */
+/** O saldo "Em conta agora", se positivo; senão 0. */
 export function sobraParaInvestir(n: Pick<NumerosCiclo, "real">): number {
   return n.real.sobra > 0 ? n.real.sobra : 0;
 }
@@ -310,9 +312,32 @@ function dataDoDisponivel(n: Pick<NumerosCiclo, "hoje" | "inicio" | "fim">): str
   return n.hoje < n.inicio ? n.inicio : n.hoje > n.fim ? n.fim : n.hoje;
 }
 
-/** Destaque: "Disponível até DD/MM". */
-export function textoDisponivel(n: Pick<NumerosCiclo, "hoje" | "inicio" | "fim">): string {
-  return `${ROTULO_SOBRA_REAL} até ${diaMesNum(dataDoDisponivel(n))}`;
+/** Rótulo do saldo em conta: "Em conta agora" (já recebido menos já pago). Não é o destaque. */
+export function textoDisponivel(_n?: Pick<NumerosCiclo, "hoje" | "inicio" | "fim">): string {
+  return ROTULO_SOBRA_REAL;
+}
+
+/** DESTAQUE: "Vai sobrar em DD/MM" (o previsto para sobrar no fim do ciclo). */
+export function textoVaiSobrar(n: Pick<NumerosCiclo, "fim">): string {
+  return `Vai sobrar em ${diaMesNum(n.fim)}`;
+}
+
+/** Abaixo do destaque: "Pode gastar R$ Y por dia até DD/MM", ou "Faltam R$ X para fechar o ciclo" se o previsto é negativo. */
+export function textoPorDia(n: Pick<NumerosCiclo, "fim" | "porDia" | "faltaParaFechar" | "previsto" | "encerrado">, formatar: (v: number) => string): string {
+  if (n.previsto.sobra < 0) return `Faltam ${formatar(n.faltaParaFechar)} para fechar o ciclo`;
+  if (n.encerrado) return "Ciclo encerrado";
+  if (n.porDia <= 0) return "Sem folga para gastar até o fim do ciclo";
+  return `Pode gastar ${formatar(n.porDia)} por dia até ${diaMesNum(n.fim)}`;
+}
+
+/** Detalhe secundário: "Em conta agora: R$ X (já recebido menos já pago). Ainda vão entrar R$ A e vencer R$ B." */
+export function textoEmConta(n: NumerosCiclo, formatar: (v: number) => string): string {
+  const p = n.previsto;
+  const base = `${ROTULO_SOBRA_REAL}: ${formatar(n.real.sobra)} (já recebido menos já pago).`;
+  const partes: string[] = [];
+  if (p.aindaVaoEntrar >= 0.5) partes.push(`entrar ${formatar(p.aindaVaoEntrar)}`);
+  if (p.aindaVaoVencer >= 0.5) partes.push(`vencer ${formatar(p.aindaVaoVencer)}`);
+  return partes.length ? `${base} Ainda vão ${partes.join(" e ")}.` : base;
 }
 
 /** Rótulo do previsto: "Previsto para sobrar em DD/MM". */
@@ -325,14 +350,14 @@ export function textoPrevisto(n: NumerosCiclo, formatar: (v: number) => string):
   return `${rotuloPrevisto(n)}: ${formatar(n.previsto.sobra)}`;
 }
 
-/** Explica a diferença entre o previsto e o disponível, sempre com as mesmas palavras. */
+/** Explica a diferença entre o previsto e o que está em conta, sempre com as mesmas palavras. */
 export function textoDiferenca(n: NumerosCiclo, formatar: (v: number) => string): string {
   const p = n.previsto;
   const partes: string[] = [];
   if (p.aindaVaoEntrar >= 0.5) partes.push(`${formatar(p.aindaVaoEntrar)} que ainda vão entrar`);
   if (p.aindaVaoVencer >= 0.5) partes.push(`${formatar(p.aindaVaoVencer)} de contas que ainda vão vencer`);
   if (p.caixinhas >= 0.5) partes.push(`${formatar(p.caixinhas)} guardados nas caixinhas`);
-  if (partes.length === 0) return "Igual ao disponível: nada mais entra ou vence no ciclo.";
+  if (partes.length === 0) return "Igual ao que está em conta: nada mais entra ou vence no ciclo.";
   const lista = partes.length > 1 ? `${partes.slice(0, -1).join(", ")} e ${partes[partes.length - 1]}` : partes[0];
   return `Inclui ${lista}.`;
 }
@@ -540,7 +565,7 @@ function calcularComBase(
   const sobraReal = recReal - desReal;
   const aindaVaoEntrar = recPrev - recReal;
   const aindaVaoVencer = desPrev - desReal;
-  // Previsto para sobrar = Disponível + a entrar − a vencer − caixinhas (= receitas − despesas − caixinhas).
+  // Previsto para sobrar = Em conta agora + a entrar − a vencer − caixinhas (= receitas − despesas − caixinhas).
   const sobraPrevista = sobraReal + aindaVaoEntrar - aindaVaoVencer - meta;
 
   // Série: disponível até hoje; depois, o previsto (o que ainda falta entra nos dias que faltam).
@@ -590,6 +615,7 @@ function calcularComBase(
     estimativas,
     sobraParaInvestir: sobraParaInvestir({ real }),
     porDia: r2(porDia),
+    faltaParaFechar: r2(sobraPrevista < 0 ? -sobraPrevista : 0),
     serie,
     resultado: r2(recPrev - desPrev),
   };

@@ -1,10 +1,10 @@
-import { textoDiferenca, textoDisponivel, textoPrevisto, type NumerosCiclo } from "@/lib/numeros-ciclo";
+import { textoEmConta, textoPorDia, textoVaiSobrar, type NumerosCiclo } from "@/lib/numeros-ciclo";
 
 /**
  * Bloco único de sobra. TODA tela que mostra sobra usa este componente, que só lê calcularNumerosCiclo.
- * Regra do ciclo (08/11/2026): destaque "Disponível até DD/MM" (recebidas menos vencidas), abaixo
- * "Previsto para sobrar em DD/MM: R$ X" e a linha "Inclui R$ X que ainda vão entrar e R$ Y de contas que
- * ainda vão vencer". Ciclo como "15/nov a 15/dez · faltam N dias".
+ * Regra do ciclo (08/11/2026): destaque "Vai sobrar em DD/MM" (previsto para sobrar no fim do ciclo, verde ou
+ * vermelho), abaixo "Pode gastar R$ Y por dia até DD/MM" (ou "Faltam R$ X para fechar o ciclo") e, menor,
+ * "Em conta agora: R$ X (já recebido menos já pago). Ainda vão entrar R$ A e vencer R$ B."
  */
 export function SobraCiclo({
   numeros,
@@ -19,22 +19,21 @@ export function SobraCiclo({
   className?: string;
   mostrarCiclo?: boolean;
 }) {
-  const real = numeros.real.sobra;
   const prev = numeros.previsto.sobra;
   const grande = tamanho === "grande";
   return (
     <div className={`space-y-1.5 ${className}`}>
       {mostrarCiclo && <p className="text-xs text-muted-foreground">Ciclo {numeros.textoCiclo}</p>}
-      <p className="text-sm font-medium text-muted-foreground">{textoDisponivel(numeros)}</p>
+      <p className="text-sm font-medium text-muted-foreground">{textoVaiSobrar(numeros)}</p>
       <p
-        className={`${grande ? "text-5xl sm:text-6xl" : "text-3xl"} font-extrabold leading-none tabular-nums tracking-tight ${real >= 0 ? "text-success" : "text-destructive"}`}
+        className={`${grande ? "text-5xl sm:text-6xl" : "text-3xl"} font-extrabold leading-none tabular-nums tracking-tight ${prev >= 0 ? "text-success" : "text-destructive"}`}
       >
-        {formatar(real)}
+        {formatar(prev)}
       </p>
       <p className={`text-sm font-semibold tabular-nums ${prev >= 0 ? "text-foreground" : "text-destructive"}`}>
-        {textoPrevisto(numeros, formatar)}
+        {textoPorDia(numeros, formatar)}
       </p>
-      <p className="text-xs text-muted-foreground">{textoDiferenca(numeros, formatar)}</p>
+      <p className="text-xs text-muted-foreground">{textoEmConta(numeros, formatar)}</p>
     </div>
   );
 }

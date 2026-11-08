@@ -3,7 +3,7 @@ import { guardarMesSite } from "@/lib/mes-escolhido";
 import { usePreferencias } from "@/hooks/usePreferencias";
 import { datasDoCiclo } from "@/lib/previsao-mes";
 import { useNumerosCiclo } from "@/hooks/useNumerosCiclo";
-import { ROTULO_SOBRA_PREVISTA, ROTULO_SOBRA_REAL, janelasDoCiclo, lancamentosDoCiclo, textoDisponivel, textoPrevisto } from "@/lib/numeros-ciclo";
+import { ROTULO_SOBRA_PREVISTA, ROTULO_SOBRA_REAL, janelasDoCiclo, lancamentosDoCiclo, textoPorDia, textoVaiSobrar } from "@/lib/numeros-ciclo";
 import { CampoCategoria } from "@/components/CampoCategoria";
 import { useEffect, useMemo, useState } from "react";
 import { useValorAdiado } from "@/hooks/useValorAdiado";
@@ -1245,11 +1245,11 @@ function DespesasPage() {
           { filtro: null, label: "Receitas", valor: formatar(receitaDoFiltro), cor: "text-success", hint: "" },
           {
             filtro: null,
-            label: filtroMes !== "todos" ? textoDisponivel(numerosCiclo) : ROTULO_SOBRA_REAL,
-            valor: semFiltrosDeLista && filtroMes !== "todos" ? formatar(numerosCiclo.real.sobra) : "-",
-            cor: numerosCiclo.real.sobra >= 0 ? "text-success" : "text-destructive",
+            label: filtroMes !== "todos" ? textoVaiSobrar(numerosCiclo) : ROTULO_SOBRA_PREVISTA,
+            valor: semFiltrosDeLista && filtroMes !== "todos" ? formatar(numerosCiclo.previsto.sobra) : "-",
+            cor: numerosCiclo.previsto.sobra >= 0 ? "text-success" : "text-destructive",
             hint: semFiltrosDeLista && filtroMes !== "todos"
-              ? textoPrevisto(numerosCiclo, formatar)
+              ? textoPorDia(numerosCiclo, formatar)
               : "tire os filtros para ver a sobra",
           },
           { filtro: "pago" as const, label: "Pago", valor: formatar(resumo.pago), cor: "text-success", hint: "" },

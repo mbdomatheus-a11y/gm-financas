@@ -23,7 +23,7 @@ Especificação aprovada: `docs/regra-ciclo-2026-11-08.md`. Frase: "O salário d
 - RECEITAS pela DATA PREVISTA de D até D-1 do mês seguinte (`receitasDoCiclo`, `dataPrevistaReceita`): fixa projetada pela data prevista; fixa lançada com atraso ou adiantada conta na data prevista (dia de `recorrencia_inicio`, até 16 dias de diferença); avulsa pela data em que entrou. A projeção sai quando a lançada ocupa a mesma data prevista.
 - DESPESAS pelo VENCIMENTO de D+1 até D do mês seguinte (`lancamentosDoCiclo`). Cartão pelo vencimento da fatura (`vencimentoDaFatura`: compra depois do fechamento vai para a fatura seguinte). Fatura que vence no próprio dia D fica no ciclo que termina.
 - DISPONÍVEL ATÉ HOJE (`real.sobra`) = receitas do ciclo já recebidas - contas do ciclo já vencidas (vencimento até hoje, lançadas ou recorrentes). Simetria: receita FIXA conta como recebida quando a data prevista chega, lançada ou não (como a conta fixa conta como vencida); receita avulsa só quando lançada e com data até hoje. Ainda não existe controle de "fixa não recebida/adiada" na receita; quando existir, a regra deve respeitá-lo (ponto marcado em `calcularComBase`).
-- PREVISTO PARA SOBRAR (`previsto.sobra`) = Disponível + ainda vão entrar - ainda vão vencer (com fatura aberta estimada) - caixinhas do ciclo. Sem forecast por ritmo.
+- PREVISTO PARA SOBRAR (`previsto.sobra`) = Em conta agora + ainda vão entrar - ainda vão vencer (com fatura aberta estimada) - caixinhas do ciclo. Sem forecast por ritmo.
 - Resultado / economia (`resultado`, `economiaDoCiclo`) X = receitas do ciclo - despesas do ciclo. Detalhe (`detalheEconomia`): A = caixinhas do ciclo, B = X - A ficaram livres (igual ao último "Previsto para sobrar" quando tudo se realizou). Gravado em `economia_ciclos` (upsert) na primeira abertura da Início depois da virada; "Economia acumulada" = soma de X (`economiaAcumulada`). Economia NÃO entra como receita do ciclo novo.
 - Outras funções: `cicloAtual` (início, fim, rótulo, dias restantes, "15/nov a 15/dez · faltam N dias"), `cicloAnterior`, `mesDoCicloEm`.
 - Telas Receitas e Despesas, num ciclo só, usam as mesmas janelas (`receitasDoCiclo`, `lancamentosDoCiclo`).
@@ -33,8 +33,10 @@ Moedas convertidas pela cotação. Pagamento de fatura e investimentos seguem as
 
 ## Rótulos (iguais em todas as telas)
 - Ciclo: "15/nov a 15/dez · faltam N dias" (`textoCiclo`)
-- Destaque: "Disponível até DD/MM" (`textoDisponivel`)
-- Abaixo: "Previsto para sobrar em DD/MM: R$ X" (`textoPrevisto`, `rotuloPrevisto`)
+- Destaque: "Vai sobrar em DD/MM" com o Previsto para sobrar (`textoVaiSobrar`), verde se positivo, vermelho se negativo.
+- Abaixo: "Pode gastar R$ Y por dia até DD/MM" (`textoPorDia`). Y = `porDia` = Previsto para sobrar / `diasRestantes` (inclui hoje), nunca negativo. Se o previsto é negativo: "Faltam R$ X para fechar o ciclo" em vermelho (`faltaParaFechar`).
+- Detalhe menor: "Em conta agora: R$ X (já recebido menos já pago). Ainda vão entrar R$ A e vencer R$ B." (`textoEmConta`). "Disponível" foi renomeado para "Em conta agora" em todas as telas.
+- Forecast, por dia, simuladores e textos da IA usam só o Previsto para sobrar (`previsto.sobra`, `porDia`); o "Em conta agora" nunca vira base de conta de sobra.
 - Linha: "Inclui R$ X que ainda vão entrar e R$ Y de contas que ainda vão vencer." (+ caixinhas; partes zeradas somem) (`textoDiferenca`)
 - Virada (dia D+1 até fechar): "Você economizou R$ X no ciclo 15/out a 15/nov" (ou "O ciclo 15/out a 15/nov fechou R$ X no vermelho"), abaixo "R$ A foram para caixinhas e R$ B ficaram livres", e "Economia acumulada" (`components/ciclo/CicloInicio.tsx`).
 
@@ -64,10 +66,11 @@ Virada 15. Salário 15 = 5.000 (lançado atrasado em 17/nov), salário 30 = 3.00
 | Ciclo | 15/nov a 15/dez · faltam 7 dias |
 | Receitas do ciclo / recebidas | 8.000 / 8.000 |
 | Contas do ciclo / vencidas | 4.200 / 3.100 |
-| Disponível até 08/12 | 4.900 |
+| Em conta agora (08/12) | 4.900 |
 | Ainda vão entrar / vencer | 0 / 1.100 |
-| Previsto para sobrar em 15/12 | 3.800 (3.300 com 500 de caixinhas) |
-| Em 16/nov (salário 15 fixo ainda não lançado, conta pela data prevista) | Disponível 5.000, a entrar 3.000, Previsto 3.800 |
+| Vai sobrar em 15/12 | 3.800 (3.300 com 500 de caixinhas) |
+| Pode gastar por dia (8 dias restantes) | 475 (3.800 / 8) |
+| Em 16/nov (salário 15 fixo ainda não lançado, conta pela data prevista) | Em conta agora 5.000, a entrar 3.000, Previsto 3.800 |
 | Economia do ciclo 15/out a 15/nov | X = 8.000 - (luz 300 + aluguel 2.000 + condomínio 500 + Itaú 400) = 4.800 |
 | Com 500 de caixinhas | A = 500, B = 4.300 = Previsto para sobrar em 15/11 |
 | Avulsa de 1.000 lançada para 10/dez | não recebida em 08/12, entra em "ainda vão entrar" |

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { CalendarClock, CreditCard } from "lucide-react";
+import { CalendarClock, Check } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -9,8 +9,10 @@ import { useCartoes, useReceitas } from "@/hooks/useFinance";
 import { useDadosCiclo } from "@/hooks/useNumerosCiclo";
 import { useFinancasProntas } from "@/hooks/useFinancasProntas";
 import { useRegraCiclo, useSalvarRegraCiclo } from "@/hooks/useRegraCiclo";
+import { LogoBanco } from "@/components/LogoBanco";
+import { cartaoSchema, salvarCartao } from "@/lib/cartao-salvar";
 import { formatBRL } from "@/lib/format";
-import { calcularNumerosCiclo, mesDoCicloEm, rotuloPrevisto, textoDisponivel } from "@/lib/numeros-ciclo";
+import { calcularNumerosCiclo, mesDoCicloEm, textoVaiSobrar } from "@/lib/numeros-ciclo";
 import { metaDoMes } from "@/lib/poupar";
 import {
   EVENTO_ABRIR_CICLO,
@@ -46,6 +48,129 @@ export function diaSugerido(receitas: any[]): number | null {
 }
 
 const DIAS = Array.from({ length: 28 }, (_, i) => i + 1);
+
+const DIAS31 = Array.from({ length: 31 }, (_, i) => i + 1);
+
+function fraseLinhaCartao(venc: number, dia: number): string {
+  const base = textoFaturaNoCiclo(venc, dia);
+  return venc > dia ? `${base}, paga com o salário do dia ${dia} anterior` : base;
+}
+
+/** Uma linha por cartão: fechamento e vencimento editáveis, salva ao mudar. */
+function LinhaCartao({ c, dia }: { c: any; dia: number }) {
+  const qc = useQueryClient();
+  const [fech, setFech] = useState<number>(Number(c.dia_fechamento) || 0);
+  const [venc, setVenc] = useState<number>(Number(c.dia_vencimento) || 0);
+  const [estado, setEstado] = useState<"" | "salvando" | "salvo">("");
+
+  async function gravar(f: number, v: number) {
+    if (!f || !v) return;
+    setEstado("salvando");
+    try {
+      const dados = cartaoSchema.parse({
+        apelido: c.apelido ?? nomeCartao(c),
+        bandeira: c.bandeira ?? "Outra",
+        final: String(c.final ?? ""),
+        limite: c.limite == null ? null : Number(c.limite),
+        dia_fechamento: f,
+        dia_vencimento: v,
+        banco_id: c.banco_id ?? null,
+        cor: c.cor ?? "",
+        titular: c.titular ?? "",
+        tipo: c.tipo ?? "credito",
+      });
+      await salvarCartao(dados, String(c.id));
+      await marcarCartaoRevisado(String(c.id), v);
+      await Promise.all([qc.invalidateQueries({ queryKey: ["cartoes"] }), qc.invalidateQueries({ queryKey: ["despesas"] })]);
+      setEstado("salvo");
+    } catch (e: any) {
+      setEstado("");
+      toast.error(e?.errors?.[0]?.message ?? e?.message ?? "Não foi possível salvar o cartão.");
+    }
+  }
+
+  const sel = "h-8 rounded-md border bg-background px-1.5 text-sm";
+  return (
+    <div className="rounded-xl border p-2.5">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+        <LogoBanco nome={c.bancos?.nome ?? c.apelido} className="size-6" />
+        <p className="min-w-0 flex-1 truncate font-medium">{nomeCartao(c)}</p>
+        {estado === "salvo" && (
+          <span className="flex items-center gap-1 text-xs text-success">
+            <Check className="size-3" /> Salvo
+          </span>
+        )}
+        {estado === "salvando" && <span className="text-xs text-muted-foreground">Salvando...</span>}
+      </div>
+      <div className="mt-1.5 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+        <label className="flex items-center gap-1">
+          Fecha dia
+          <select
+            className={sel}
+            value={fech || ""}
+            onChange={(e) => {
+              const n = Number(e.target.value);
+              setFech(n);
+              gravar(n, venc);
+            }}
+          >
+            {!fech && <option value="">?</option>}
+            {DIAS31.map((d) => (
+              <option key={d} value={d}>
+                {d}
+              </option>
+            ))}
+          </select>
+        </label>
+        <span>·</span>
+        <label className="flex items-center gap-1">
+          Vence dia
+          <select
+            className={sel}
+            value={venc || ""}
+            onChange={(e) => {
+              const n = Number(e.target.value);
+              setVenc(n);
+              gravar(fech, n);
+            }}
+          >
+            {!venc && <option value="">?</option>}
+            {DIAS31.map((d) => (
+              <option key={d} value={d}>
+                {d}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <p className="mt-1 text-xs text-muted-foreground">{venc ? fraseLinhaCartao(venc, dia) : "Informe o dia de vencimento."}</p>
+    </div>
+  );
+}
+
+/** Lista compacta por cartão; os já revisados ficam recolhidos. A divisão é fixada na abertura. */
+function ListaCartoes({ cartoes, dia }: { cartoes: any[]; dia: number }) {
+  const [pendentes] = useState(() => new Set(cartoes.filter(cartaoPrecisaRevisao).map((c) => String(c.id))));
+  const novos = cartoes.filter((c) => pendentes.has(String(c.id)));
+  const revisados = cartoes.filter((c) => !pendentes.has(String(c.id)));
+  return (
+    <div className="space-y-2 text-sm">
+      {novos.map((c) => (
+        <LinhaCartao key={c.id} c={c} dia={dia} />
+      ))}
+      {revisados.length > 0 && (
+        <details className="rounded-xl border p-2.5">
+          <summary className="cursor-pointer text-muted-foreground">Já revisados ({revisados.length})</summary>
+          <div className="mt-2 space-y-2">
+            {revisados.map((c) => (
+              <LinhaCartao key={c.id} c={c} dia={dia} />
+            ))}
+          </div>
+        </details>
+      )}
+    </div>
+  );
+}
 
 export function ConfigurarCicloDialog({
   open,
@@ -114,7 +239,7 @@ export function ConfigurarCicloDialog({
             <CalendarClock className="size-5" /> Ciclo do mês
           </DialogTitle>
           <DialogDescription>
-            {passo === "a" ? "Passo 1 de 3" : passo === "b" ? "Passo 2 de 3: prévia com os seus números" : "Passo 3 de 3: seus cartões"}
+            {passo === "a" ? `Passo 1 de ${credito.length ? 3 : 2}` : passo === "b" ? `Passo 2 de ${credito.length ? 3 : 2}: prévia com os seus números` : "Passo 3 de 3: seus cartões"}
           </DialogDescription>
         </DialogHeader>
 
@@ -157,13 +282,13 @@ export function ConfigurarCicloDialog({
                 <p className="font-semibold tabular-nums">{formatBRL(numeros.previsto.despesas)}</p>
               </div>
               <div className="rounded-xl bg-muted p-3">
-                <p className="text-xs text-muted-foreground">{textoDisponivel(numeros)}</p>
+                <p className="text-xs text-muted-foreground">Em conta agora</p>
                 <p className={`font-semibold tabular-nums ${numeros.real.sobra < 0 ? "text-destructive" : "text-success"}`}>
                   {formatBRL(numeros.real.sobra)}
                 </p>
               </div>
               <div className="rounded-xl bg-muted p-3">
-                <p className="text-xs text-muted-foreground">{rotuloPrevisto(numeros)}</p>
+                <p className="text-xs text-muted-foreground">{textoVaiSobrar(numeros)}</p>
                 <p className={`font-semibold tabular-nums ${numeros.previsto.sobra < 0 ? "text-destructive" : ""}`}>
                   {formatBRL(numeros.previsto.sobra)}
                 </p>
@@ -179,24 +304,10 @@ export function ConfigurarCicloDialog({
         )}
 
         {passo === "c" && (
-          <div className="space-y-2 text-sm">
-            {credito.length === 0 && <p className="text-muted-foreground">Você ainda não tem cartão de crédito cadastrado.</p>}
-            {credito.map((c) => (
-              <div key={c.id} className="flex items-start gap-3 rounded-xl border p-3">
-                <CreditCard className="mt-0.5 size-4 shrink-0" />
-                <div>
-                  <p className="font-medium">
-                    {nomeCartao(c)} · fecha dia {c.dia_fechamento ?? "?"}, vence dia {c.dia_vencimento ?? "?"}
-                  </p>
-                  {c.dia_vencimento ? (
-                    <p className="text-muted-foreground">{textoFaturaNoCiclo(Number(c.dia_vencimento), dia)}</p>
-                  ) : (
-                    <p className="text-muted-foreground">Sem dia de vencimento cadastrado.</p>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
+          <>
+            {credito.length === 0 && <p className="text-sm text-muted-foreground">Você ainda não tem cartão de crédito cadastrado.</p>}
+            {credito.length > 0 && <ListaCartoes cartoes={credito} dia={dia} />}
+          </>
         )}
 
         <DialogFooter className="gap-2 sm:gap-2">
@@ -220,7 +331,7 @@ export function ConfigurarCicloDialog({
               <Button variant="outline" onClick={() => setPasso("a")}>
                 Voltar
               </Button>
-              <Button onClick={() => setPasso("c")}>Continuar</Button>
+              <Button onClick={() => (credito.length ? setPasso("c") : concluir())} disabled={salvando}>{credito.length ? "Continuar" : "Salvar"}</Button>
             </>
           )}
           {passo === "c" && (
@@ -229,7 +340,7 @@ export function ConfigurarCicloDialog({
                 Voltar
               </Button>
               <Button onClick={concluir} disabled={salvando}>
-                {salvando ? "Salvando..." : credito.length ? "Confirmar e salvar" : "Salvar"}
+                {salvando ? "Salvando..." : "Está tudo certo"}
               </Button>
             </>
           )}
@@ -251,19 +362,21 @@ export function ConfirmarCartaoCiclo({
   onClose: () => void;
 }) {
   const { regra, disponivel } = useRegraCiclo();
+  const { data: lista = [] } = useCartoes();
   const qc = useQueryClient();
   const aberto = !!cartao && disponivel && !!regra;
   useEffect(() => {
     if (cartao && !(disponivel && regra)) onClose();
   }, [cartao, disponivel, regra, onClose]);
   if (!aberto || !cartao || !regra) return null;
+  const todos = lista as any[];
+  const achado =
+    todos.find((c) => cartao.id && String(c.id) === String(cartao.id)) ??
+    todos.slice().reverse().find((c) => nomeCartao(c) === cartao.nome) ??
+    null;
   const confirmar = async () => {
-    let id = cartao.id ?? null;
-    if (!id) {
-      const lista = (await qc.fetchQuery({ queryKey: ["cartoes"] }).catch(() => [])) as any[];
-      id = lista.slice().reverse().find((c) => nomeCartao(c) === cartao.nome)?.id ?? null;
-    }
-    if (id) await marcarCartaoRevisado(String(id), cartao.dia_vencimento).catch(() => undefined);
+    const id = achado?.id ?? cartao.id ?? null;
+    if (id) await marcarCartaoRevisado(String(id), achado?.dia_vencimento ?? cartao.dia_vencimento).catch(() => undefined);
     await qc.invalidateQueries({ queryKey: ["cartoes"] });
     onClose();
   };
@@ -273,8 +386,13 @@ export function ConfirmarCartaoCiclo({
       <DialogContent hideCloseButton onEscapeKeyDown={bloquear} onInteractOutside={bloquear} className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Em que ciclo as faturas caem</DialogTitle>
-          <DialogDescription>{fraseCartaoNoCiclo(cartao.nome, cartao.dia_vencimento, regra.dia_virada)}</DialogDescription>
+          <DialogDescription>Confira os dias do cartão. Se algo estiver errado, corrija aqui mesmo.</DialogDescription>
         </DialogHeader>
+        {achado ? (
+          <LinhaCartao c={achado} dia={regra.dia_virada} />
+        ) : (
+          <p className="rounded-xl border p-3 text-sm">{fraseCartaoNoCiclo(cartao.nome, cartao.dia_vencimento, regra.dia_virada)}</p>
+        )}
         <DialogFooter className="gap-2 sm:gap-2">
           <Button
             variant="outline"
@@ -285,20 +403,22 @@ export function ConfirmarCartaoCiclo({
           >
             Mudar a virada
           </Button>
-          <Button onClick={confirmar}>Confirmar</Button>
+          <Button onClick={confirmar}>Está tudo certo</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
 
-function RevisarCartoesDialog({ cartoes, dia, onClose }: { cartoes: any[]; dia: number; onClose: () => void }) {
+function RevisarCartoesDialog({ cartoes, todosCartoes, dia, onClose }: { cartoes: any[]; todosCartoes: any[]; dia: number; onClose: () => void }) {
   const qc = useQueryClient();
   const [salvando, setSalvando] = useState(false);
   const bloquear = (e: Event) => e.preventDefault();
   async function confirmar() {
     setSalvando(true);
-    await Promise.all(cartoes.map((c) => marcarCartaoRevisado(String(c.id), c.dia_vencimento).catch(() => undefined)));
+    await Promise.all(
+      cartoes.filter(cartaoPrecisaRevisao).map((c) => marcarCartaoRevisado(String(c.id), c.dia_vencimento).catch(() => undefined)),
+    );
     await qc.invalidateQueries({ queryKey: ["cartoes"] });
     setSalvando(false);
     onClose();
@@ -308,15 +428,9 @@ function RevisarCartoesDialog({ cartoes, dia, onClose }: { cartoes: any[]; dia: 
       <DialogContent hideCloseButton onEscapeKeyDown={bloquear} onInteractOutside={bloquear} className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Revise seus cartões</DialogTitle>
-          <DialogDescription>Confira em que ciclo as faturas de cada cartão caem com a virada no dia {dia}.</DialogDescription>
+          <DialogDescription>Ajuste o fechamento e o vencimento se precisar. Virada no dia {dia}.</DialogDescription>
         </DialogHeader>
-        <div className="space-y-2 text-sm">
-          {cartoes.map((c) => (
-            <p key={c.id} className="rounded-xl border p-3">
-              {c.dia_vencimento ? fraseCartaoNoCiclo(nomeCartao(c), Number(c.dia_vencimento), dia) : `${nomeCartao(c)}: sem dia de vencimento cadastrado.`}
-            </p>
-          ))}
-        </div>
+        <ListaCartoes cartoes={todosCartoes} dia={dia} />
         <DialogFooter className="gap-2 sm:gap-2">
           <Button
             variant="outline"
@@ -329,7 +443,7 @@ function RevisarCartoesDialog({ cartoes, dia, onClose }: { cartoes: any[]; dia: 
             Mudar a virada
           </Button>
           <Button onClick={confirmar} disabled={salvando}>
-            Confirmar
+            Está tudo certo
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -392,7 +506,7 @@ export function ConfigurarCicloGate({ bloqueado = false }: { bloqueado?: boolean
         diaAtual={regra?.dia_virada ?? null}
         onClose={() => setAberto(false)}
       />
-      {revisar && !aberto && regra && <RevisarCartoesDialog cartoes={pendentes} dia={regra.dia_virada} onClose={fecharRevisao} />}
+      {revisar && !aberto && regra && <RevisarCartoesDialog cartoes={pendentes} todosCartoes={(cartoes as any[]).filter((c) => !c.tipo || c.tipo === "credito")} dia={regra.dia_virada} onClose={fecharRevisao} />}
     </>
   );
 }

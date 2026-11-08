@@ -41,7 +41,7 @@ export function useResumoFinanceiroMes(): {
     queryFn: async () => {
       const { data } = await supabase
         .from("notas_fiscais")
-        .select("descricao,emitente,valor_total,data_compra,garantia_ate")
+        .select("descricao,emitente:estabelecimento,valor_total,data_compra,garantia_ate:garantia_fim")
         .eq("arquivada", false)
         .eq("so_guardar", false)
         .order("created_at", { ascending: false })
