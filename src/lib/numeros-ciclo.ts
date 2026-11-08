@@ -620,3 +620,93 @@ function calcularComBase(
     resultado: r2(recPrev - desPrev),
   };
 }
+
+/** Ritmo de gasto do ciclo (14/11/2026). Mesma base e mesmas regras da conta única. */
+export type RitmoCiclo = {
+  /** Gasto variável médio por dia no ciclo atual (até hoje). */
+  porDiaAtual: number;
+  /** Idem, ciclo anterior inteiro. 0 se não houve gasto variável. */
+  porDiaAnterior: number;
+  /** (atual − anterior) / anterior em %, arredondado. null sem ciclo anterior com dados. */
+  variacaoPct: number | null;
+  /** Previsto para sobrar menos o gasto variável novo esperado pelo ritmo. */
+  projecaoNoRitmo: number;
+  /** Gasto novo esperado até o fim (já sem o que está comprometido). */
+  adicional: number;
+  /** Dias ainda por viver no ciclo, sem contar hoje (base da projeção). */
+  diasRestantes: number;
+  /** Ciclo com 3 dias ou menos (ou ainda não começou): ritmo não é confiável. */
+  cedo: boolean;
+};
+
+/**
+ * Variável = despesa tipo "variavel", não projetada de recorrência, não crédito/estorno, não parcela 2+
+ * (parcelas futuras já são compromisso, estão no previsto). Data do gasto = data_compra (senão vencimento).
+ * Projeção = previsto.sobra − max(0, porDiaAtual × dias que faltam − variáveis já agendadas depois de hoje).
+ */
+export function ritmoDoCiclo(
+  dados: DadosCiclo,
+  mes: string,
+  n: Pick<NumerosCiclo, "previsto" | "diaHoje" | "diasNoCiclo" | "encerrado" | "futuro" | "inicio" | "fim" | "hoje">,
+  diaVirada?: number | null,
+  agora: Date = new Date(),
+): RitmoCiclo {
+  const ant = janelasDoCiclo(somarMeses(mes, -1), diaVirada);
+  const { parcelas } = montarBase(dados, [mes, somarMeses(mes, -1)], agora);
+  const variaveis: { iso: string; val: number }[] = [];
+  for (const p of parcelas) {
+    const d = p.despesa;
+    if (p.projetada || d?.direcao === "credito" || d?.tipo !== "variavel") continue;
+    if (!contaComoDespesa(d, dados.somarPagamentoFatura)) continue;
+    if (Number(p.numero ?? 1) > 1) continue;
+    const iso = String(d.data_compra ?? p.vencimento ?? "").slice(0, 10);
+    variaveis.push({ iso, val: toBRL(Number(p.valor), p.despesa.moeda, dados.cotacao) });
+  }
+  const soma = (ini: string, fim: string) => variaveis.reduce((s, x) => (x.iso >= ini && x.iso <= fim ? s + x.val : s), 0);
+  const decorridos = n.futuro ? 0 : Math.max(1, n.encerrado ? n.diasNoCiclo : n.diaHoje);
+  const ate = n.hoje < n.fim ? n.hoje : n.fim;
+  const porDiaAtual = decorridos > 0 ? soma(n.inicio, ate) / decorridos : 0;
+  const diasAnt = datasEntre(ant.inicio, ant.fim).length;
+  const totalAnt = soma(ant.inicio, ant.fim);
+  const porDiaAnterior = diasAnt > 0 ? totalAnt / diasAnt : 0;
+  const variacaoPct = porDiaAnterior > 0 ? Math.round(((porDiaAtual - porDiaAnterior) / porDiaAnterior) * 100) : null;
+  const diasRestantes = n.encerrado ? 0 : Math.max(0, n.diasNoCiclo - n.diaHoje);
+  const agendado = soma(addDiaIso(n.hoje), n.fim);
+  const adicional = Math.max(0, porDiaAtual * diasRestantes - agendado);
+  return {
+    porDiaAtual: r2(porDiaAtual),
+    porDiaAnterior: r2(porDiaAnterior),
+    variacaoPct,
+    projecaoNoRitmo: r2(n.previsto.sobra - adicional),
+    adicional: r2(adicional),
+    diasRestantes,
+    cedo: n.futuro || decorridos <= 3,
+  };
+}
+
+function addDiaIso(iso: string): string {
+  const [a = 1970, m = 1, d = 1] = iso.split("-").map(Number);
+  return isoDe(new Date(a, m - 1, d + 1));
+}
+
+/** Frase do ritmo (abaixo do gráfico). tom: "neutro" | "negativo" | "positivo". */
+export function textoRitmo(
+  r: RitmoCiclo,
+  fim: string,
+  formatar: (v: number) => string,
+): { linha1: string; linha2: string | null; tom: "neutro" | "negativo" | "positivo" } {
+  if (r.cedo) return { linha1: "Ainda é cedo para medir o ritmo deste ciclo.", linha2: null, tom: "neutro" };
+  let linha1 = `Em média, neste ciclo você está gastando ${formatar(r.porDiaAtual)} por dia`;
+  if (r.variacaoPct !== null && r.variacaoPct !== 0) {
+    linha1 += `, ${Math.abs(r.variacaoPct)}% ${r.variacaoPct < 0 ? "menor" : "maior"} que no ciclo anterior`;
+  } else if (r.variacaoPct === 0) linha1 += ", igual ao ciclo anterior";
+  linha1 += ".";
+  if (r.projecaoNoRitmo < 0) {
+    return {
+      linha1,
+      linha2: `Nesse ritmo, o ciclo fecha negativo em ${formatar(-r.projecaoNoRitmo)}, a não ser que comece a poupar agora.`,
+      tom: "negativo",
+    };
+  }
+  return { linha1, linha2: `Nesse ritmo, sobram ${formatar(r.projecaoNoRitmo)} em ${diaMesNum(fim)}.`, tom: "positivo" };
+}

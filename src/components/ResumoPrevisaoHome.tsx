@@ -2,7 +2,7 @@ import { usePreferencias } from "@/hooks/usePreferencias";
 import { Link } from "@tanstack/react-router";
 import { Info, PiggyBank } from "lucide-react";
 import { useMemo, useState } from "react";
-import { Area, AreaChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Area, CartesianGrid, ComposedChart, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import { CartaoCarregando } from "@/components/CartaoCarregando";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { SobraCiclo } from "@/components/SobraCiclo";
 import { FaturaMesDialog } from "@/components/FaturaMesDialog";
 import { useDadosCiclo } from "@/hooks/useNumerosCiclo";
-import { rotuloPrevisto } from "@/lib/numeros-ciclo";
+import { ritmoDoCiclo, rotuloPrevisto, textoRitmo } from "@/lib/numeros-ciclo";
 import { useFinancasProntas } from "@/hooks/useFinancasProntas";
 import { usePrivacidadeValores } from "@/hooks/usePrivacidadeValores";
 import { useCompetenciaVigente } from "@/lib/periodo-vigente";
@@ -45,12 +45,22 @@ export function ResumoPrevisaoHome({ mes: mesEscolhido, className }: { mes?: str
   // 08/11/2026: regra do ciclo: "15/nov a 15/dez · faltam N dias" (receitas desde D, contas até D).
   const fmtDia = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
   const cicloTexto = p.numeros.textoCiclo;
+  const ritmo = useMemo(
+    () => ritmoDoCiclo(dados, mes, p.numeros, diaVirada),
+    [dados, mes, p.numeros, diaVirada],
+  );
+  const frase = textoRitmo(ritmo, p.numeros.fim, formatar);
+  const mostrarRitmo = (!ritmo.cedo && !p.numeros.encerrado && !p.numeros.futuro && ritmo.adicional > 0);
   const serie = p.serie.map((s) => ({
     dia: s.dia,
     rotulo: s.rotulo,
     data: s.iso ? fmtDia(s.iso) : String(s.rotulo),
     real: s.projetado ? null : s.saldo,
     previsto: s.dia >= p.diaHoje ? s.saldo : null,
+    ritmo:
+      mostrarRitmo && s.dia >= p.diaHoje && p.diasNoMes > p.diaHoje
+        ? Math.round((s.saldo - (ritmo.adicional * (s.dia - p.diaHoje)) / (p.diasNoMes - p.diaHoje)) * 100) / 100
+        : null,
   }));
   // 05/11/2026: apresentação apenas. Progresso do ciclo e composição das receitas, sem mudar a conta.
   const totalDias = serie.length || p.diasNoMes;
@@ -160,7 +170,7 @@ export function ResumoPrevisaoHome({ mes: mesEscolhido, className }: { mes?: str
         <div className="space-y-2">
           <div className="h-[200px] w-full" role="img" aria-label="Gráfico do saldo acumulado dia a dia no ciclo">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={serie} margin={{ top: 18, right: 12, left: 12, bottom: 0 }}>
+              <ComposedChart data={serie} margin={{ top: 18, right: 12, left: 12, bottom: 0 }}>
                 <defs>
                   <linearGradient id="previsao-area-real" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="var(--primary)" stopOpacity={0.28} />
@@ -228,6 +238,21 @@ export function ResumoPrevisaoHome({ mes: mesEscolhido, className }: { mes?: str
                   connectNulls={false}
                   isAnimationActive={false}
                 />
+                {mostrarRitmo && (
+                  <Line
+                    type="monotone"
+                    dataKey="ritmo"
+                    name="No ritmo atual"
+                    stroke="var(--destructive)"
+                    strokeOpacity={0.8}
+                    strokeWidth={2}
+                    strokeDasharray="2 4"
+                    dot={false}
+                    activeDot={false}
+                    connectNulls={false}
+                    isAnimationActive={false}
+                  />
+                )}
                 <Area
                   type="monotone"
                   dataKey="previsto"
@@ -242,7 +267,7 @@ export function ResumoPrevisaoHome({ mes: mesEscolhido, className }: { mes?: str
                   connectNulls={false}
                   isAnimationActive={false}
                 />
-              </AreaChart>
+              </ComposedChart>
             </ResponsiveContainer>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-xs text-muted-foreground">
@@ -253,6 +278,11 @@ export function ResumoPrevisaoHome({ mes: mesEscolhido, className }: { mes?: str
               <li className="flex items-center gap-1.5">
                 <span className="w-4 border-t-2 border-dashed border-primary" aria-hidden /> Previsto
               </li>
+              {mostrarRitmo && (
+                <li className="flex items-center gap-1.5">
+                  <span className="w-4 border-t-2 border-dotted border-destructive" aria-hidden /> No ritmo atual
+                </li>
+              )}
               {temMeta && (
                 <li className="flex items-center gap-1.5">
                   <span className="w-4 border-t-2 border-dashed border-success" aria-hidden /> Meta {formatar(p.meta)}
@@ -266,6 +296,15 @@ export function ResumoPrevisaoHome({ mes: mesEscolhido, className }: { mes?: str
               <PiggyBank className="size-3.5" /> {temMeta ? "Ver caixinhas" : "Criar uma caixinha"}
             </Link>
           </div>
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            {frase.linha1}
+            {frase.linha2 && (
+              <>
+                {" "}
+                <span className={frase.tom === "negativo" ? "text-destructive/90" : "text-success"}>{frase.linha2}</span>
+              </>
+            )}
+          </p>
         </div>
         </div>
       </CardContent>

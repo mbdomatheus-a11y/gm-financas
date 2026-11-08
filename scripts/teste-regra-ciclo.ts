@@ -15,6 +15,8 @@ import {
   economiaDoCiclo,
   dataPrevistaReceita,
   janelasDoCiclo,
+  ritmoDoCiclo,
+  textoRitmo,
   textoDiferenca,
   textoDisponivel,
   textoPorDia,
@@ -70,6 +72,7 @@ const receitas = [
   { id: "s30", descricao: "Salário dia 30", responsavel: "Ana", recorrente: true, recorrencia_inicio: "2026-01-30", data_recebimento: "2026-11-30", valor: 3000, moeda: "BRL" },
 ];
 const dados = { despesas, receitas, faturas: [], cotacao: 5, cartoes: [itau, nubank] };
+const r2s = (v: number) => Math.round(v * 100) / 100;
 const brl = (v: number) => `R$ ${v.toFixed(2)}`;
 
 const hoje = new Date(2026, 11, 8, 12);
@@ -150,6 +153,26 @@ igual("caixinhas A", det.caixinhas, 500);
 igual("livre B", det.livre, 4300);
 igual("B = Previsto para sobrar no último dia", det.livre, ultimoDia.previsto.sobra);
 igual("no último dia não falta nada", [ultimoDia.previsto.aindaVaoEntrar, ultimoDia.previsto.aindaVaoVencer], [0, 0]);
+
+// Ritmo (14/11/2026): só despesas variáveis. Ciclo anterior: 2.000 em 32 dias; ciclo atual: 600 em 24 dias.
+{
+  const dr = { ...dados, despesas: [...despesas, compra("ra", nubank, "2026-11-20", 300), compra("rb", nubank, "2026-12-01", 300), compra("rc", nubank, "2026-12-12", 100)] };
+  const nr = calcularNumerosCiclo(dr, "2026-11", 0, D, hoje);
+  const r = ritmoDoCiclo(dr, "2026-11", nr, D, hoje);
+  igual("ritmo atual por dia", r.porDiaAtual, 25);
+  igual("ritmo anterior por dia", r.porDiaAnterior, 62.5);
+  igual("ritmo variação %", r.variacaoPct, -60);
+  igual("ritmo dias restantes", r.diasRestantes, 7);
+  igual("ritmo adicional (25 x 7 menos 100 agendado)", r.adicional, 75);
+  igual("ritmo projeção", r.projecaoNoRitmo, r2s(nr.previsto.sobra - 75));
+  igual("frase positiva", textoRitmo(r, nr.fim, brl).linha2, `Nesse ritmo, sobram R$ ${(nr.previsto.sobra - 75).toFixed(2)} em 15/12.`);
+  igual("frase ritmo", textoRitmo(r, nr.fim, brl).linha1, "Em média, neste ciclo você está gastando R$ 25.00 por dia, 60% menor que no ciclo anterior.");
+  igual("frase negativa", textoRitmo({ ...r, projecaoNoRitmo: -50 }, nr.fim, brl).linha2, "Nesse ritmo, o ciclo fecha negativo em R$ 50.00, a não ser que comece a poupar agora.");
+  igual("sem ciclo anterior omite comparação", textoRitmo({ ...r, variacaoPct: null }, nr.fim, brl).linha1, "Em média, neste ciclo você está gastando R$ 25.00 por dia.");
+  igual("cedo", textoRitmo({ ...r, cedo: true }, nr.fim, brl).linha1, "Ainda é cedo para medir o ritmo deste ciclo.");
+  const cedo = calcularNumerosCiclo(dr, "2026-11", 0, D, new Date(2026, 10, 17, 12));
+  igual("dia 3 do ciclo é cedo", ritmoDoCiclo(dr, "2026-11", cedo, D, new Date(2026, 10, 17, 12)).cedo, true);
+}
 
 if (falhas) {
   console.error(`\n${falhas} verificação(ões) falharam.`);

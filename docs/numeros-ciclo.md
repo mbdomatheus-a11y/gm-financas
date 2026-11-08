@@ -125,3 +125,16 @@ Ciclo atual do usuário. Não rodei SQL, então os valores em reais dependem dos
 | ControlIA / assistente | saldoLivre, fimDoMesPrevisto (ritmo), saldo | sobraAteAgora, previstoNoFimDoCiclo |
 
 Para o ciclo atual: Sobra até agora = recebido - vencido até hoje. Previsto = Sobra até agora + (receitas ainda por entrar) - (contas ainda por vencer, incluindo fatura estimada) - caixinhas. Diferença entre "4 mil" e "2,5 mil" costuma ser: receita fixa do dia 28+ contada ou não, fatura estimada e caixinhas.
+
+## Ritmo (14/11/2026)
+
+Frase abaixo do gráfico da Previsão do mês. Código: `ritmoDoCiclo` e `textoRitmo` em `src/lib/numeros-ciclo.ts` (o app copia as duas). O destaque "Vai sobrar em DD/MM" continua sendo o previsto.
+
+- Gasto variável = despesa `tipo === "variavel"`, não projetada, não crédito/estorno, só parcela 1 (parcelas 2+ são compromisso, já estão no previsto). Data do gasto = `data_compra` (senão vencimento).
+- `porDiaAtual` = variáveis de `inicio` até hoje / dias decorridos (mínimo 1). `porDiaAnterior` = variáveis do ciclo anterior inteiro / dias dele (janela inclusiva, como `datasEntre`).
+- `variacaoPct` = (atual − anterior) / anterior, arredondado; `null` se o anterior não tem gasto variável (omitir a comparação).
+- `diasRestantes` = dias do ciclo depois de hoje. `adicional` = max(0, porDiaAtual × diasRestantes − variáveis já agendadas depois de hoje). `projecaoNoRitmo` = `previsto.sobra − adicional`.
+- `cedo` (3 dias ou menos, ou ciclo futuro): "Ainda é cedo para medir o ritmo deste ciclo."
+- Texto: "Em média, neste ciclo você está gastando R$ X por dia, N% menor|maior que no ciclo anterior." Depois, se `projecaoNoRitmo < 0` (vermelho discreto): "Nesse ritmo, o ciclo fecha negativo em R$ Y, a não ser que comece a poupar agora."; senão (verde): "Nesse ritmo, sobram R$ Y em DD/MM."
+- Gráfico: linha pontilhada "No ritmo atual" de hoje até o fim: `saldo previsto − adicional × (dia − hoje) / (dias − hoje)`. Só aparece com `adicional > 0`, ciclo em andamento e fora do "cedo".
+- Teste: bloco "Ritmo" em `scripts/teste-regra-ciclo.ts`.
