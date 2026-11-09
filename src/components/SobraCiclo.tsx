@@ -24,6 +24,7 @@ export function SobraCiclo({
   return (
     <div className={`space-y-1.5 ${className}`}>
       {mostrarCiclo && <p className="text-xs text-muted-foreground">Ciclo {numeros.textoCiclo}</p>}
+      {mostrarCiclo && <p className="text-xs text-muted-foreground">{numeros.janelas.descricao}</p>}
       <p className="text-sm font-medium text-muted-foreground">{textoVaiSobrar(numeros)}</p>
       <p
         className={`${grande ? "text-5xl sm:text-6xl" : "text-3xl"} font-extrabold leading-none tabular-nums tracking-tight ${prev >= 0 ? "text-success" : "text-destructive"}`}

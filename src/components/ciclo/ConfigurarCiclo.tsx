@@ -31,7 +31,7 @@ import {
  */
 
 export const FRASE_REGRA = (d: number) =>
-  `O salário do dia ${d} paga as contas que vencem até o próximo dia ${d}. O que sobrar no dia ${d} é economia.`;
+  `Ciclo do dia ${d + 1} ao dia ${d}: receitas e contas que vencem nesse período, mais as faturas de cartão que fecham no mês em que o ciclo termina. O que sobrar é economia.`;
 
 /** Dia da maior receita fixa cadastrada (1 a 28), ou null. */
 export function diaSugerido(receitas: any[]): number | null {
@@ -51,9 +51,8 @@ const DIAS = Array.from({ length: 28 }, (_, i) => i + 1);
 
 const DIAS31 = Array.from({ length: 31 }, (_, i) => i + 1);
 
-function fraseLinhaCartao(venc: number, dia: number): string {
-  const base = textoFaturaNoCiclo(venc, dia);
-  return venc > dia ? `${base}, paga com o salário do dia ${dia} anterior` : base;
+function fraseLinhaCartao(venc: number, dia: number, fech?: number | null): string {
+  return `${textoFaturaNoCiclo(venc, dia, new Date(), fech)} (faturas entram pelo mês de fechamento)`;
 }
 
 /** Uma linha por cartão: fechamento e vencimento editáveis, salva ao mudar. */
@@ -143,7 +142,7 @@ function LinhaCartao({ c, dia }: { c: any; dia: number }) {
           </select>
         </label>
       </div>
-      <p className="mt-1 text-xs text-muted-foreground">{venc ? fraseLinhaCartao(venc, dia) : "Informe o dia de vencimento."}</p>
+      <p className="mt-1 text-xs text-muted-foreground">{venc ? fraseLinhaCartao(venc, dia, fech || null) : "Informe o dia de vencimento."}</p>
     </div>
   );
 }
@@ -272,6 +271,7 @@ export function ConfigurarCicloDialog({
         {passo === "b" && (
           <div className="space-y-3 text-sm">
             <p className="font-medium">Ciclo {numeros.textoCiclo}</p>
+            <p className="text-xs text-muted-foreground">{numeros.janelas.descricao}</p>
             <div className="grid grid-cols-2 gap-2">
               <div className="rounded-xl bg-muted p-3">
                 <p className="text-xs text-muted-foreground">Receitas que entram</p>
@@ -298,7 +298,9 @@ export function ConfigurarCicloDialog({
               Receitas contam pela data prevista, de {numeros.janelas.receitas.inicio.slice(8, 10)}/{numeros.janelas.receitas.inicio.slice(5, 7)} a{" "}
               {numeros.janelas.receitas.fim.slice(8, 10)}/{numeros.janelas.receitas.fim.slice(5, 7)}. Contas contam pelo vencimento, de{" "}
               {numeros.janelas.despesas.inicio.slice(8, 10)}/{numeros.janelas.despesas.inicio.slice(5, 7)} a{" "}
-              {numeros.janelas.despesas.fim.slice(8, 10)}/{numeros.janelas.despesas.fim.slice(5, 7)}. {FRASE_REGRA(dia)}
+              {numeros.janelas.despesas.fim.slice(8, 10)}/{numeros.janelas.despesas.fim.slice(5, 7)}. Faturas de cartão pelo fechamento, de{" "}
+              {numeros.janelas.faturas.inicio.slice(8, 10)}/{numeros.janelas.faturas.inicio.slice(5, 7)} a{" "}
+              {numeros.janelas.faturas.fim.slice(8, 10)}/{numeros.janelas.faturas.fim.slice(5, 7)}. {FRASE_REGRA(dia)}
             </p>
           </div>
         )}
@@ -391,7 +393,7 @@ export function ConfirmarCartaoCiclo({
         {achado ? (
           <LinhaCartao c={achado} dia={regra.dia_virada} />
         ) : (
-          <p className="rounded-xl border p-3 text-sm">{fraseCartaoNoCiclo(cartao.nome, cartao.dia_vencimento, regra.dia_virada)}</p>
+          <p className="rounded-xl border p-3 text-sm">{fraseCartaoNoCiclo(cartao.nome, cartao.dia_vencimento, regra.dia_virada, new Date(), (cartao as any).dia_fechamento ?? null)}</p>
         )}
         <DialogFooter className="gap-2 sm:gap-2">
           <Button

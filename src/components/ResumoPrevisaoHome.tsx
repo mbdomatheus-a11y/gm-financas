@@ -87,6 +87,7 @@ export function ResumoPrevisaoHome({ mes: mesEscolhido, className }: { mes?: str
                   ciclo {cicloTexto}
                 </span>
               )}
+              {cicloTexto && <span className="basis-full text-xs">{p.numeros.janelas.descricao}</span>}
             </p>
           </div>
           {podeTrocar && (

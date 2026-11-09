@@ -53,11 +53,11 @@ import { useCotacao } from "@/hooks/useCotacao";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { useFinancasProntas } from "@/hooks/useFinancasProntas";
 import { CartaoCarregando } from "@/components/CartaoCarregando";
-import { useCategorias, useDespesas, useFaturasMes, useInvestimentos, useReceitas } from "@/hooks/useFinance";
+import { useCartoes, useCategorias, useDespesas, useFaturasMes, useInvestimentos, useReceitas } from "@/hooks/useFinance";
 import { usePreferencias } from "@/hooks/usePreferencias";
 import { SobraCiclo } from "@/components/SobraCiclo";
 import { useDadosCiclo, useNumerosCiclo } from "@/hooks/useNumerosCiclo";
-import { calcularNumerosDosCiclos, type NumerosCiclo } from "@/lib/numeros-ciclo";
+import { calcularNumerosDosCiclos, despesaNoCiclo, janelasDoCiclo, type NumerosCiclo } from "@/lib/numeros-ciclo";
 import { metaDoMes } from "@/lib/poupar";
 import { contaComoDespesa, movimentosDeInvestimentos, totaisInvestimentos } from "@/lib/regras-saldo";
 import { useEstruturaCategorias } from "@/hooks/useEstruturaCategorias";
@@ -334,9 +334,10 @@ function DashboardPage() {
     [agrupamento, macroDeCategoria],
   );
 
+  const { data: cartoesCiclo = [] } = useCartoes();
   const lancamentosAbertoMes = useMemo(
-    () => lancamentosDoCardMes(despesas as any[], faturasMes as any[], mesAtual, "aberto", cotacao, somarPagamentoFatura),
-    [despesas, faturasMes, mesAtual, cotacao, somarPagamentoFatura],
+    () => lancamentosDoCardMes(despesas as any[], faturasMes as any[], mesAtual, "aberto", cotacao, somarPagamentoFatura, cartoesCiclo as any[]),
+    [despesas, faturasMes, mesAtual, cotacao, somarPagamentoFatura, cartoesCiclo],
   );
 
   const dados = useMemo(() => {
@@ -349,7 +350,9 @@ function DashboardPage() {
       .filter((r: any) => r.moeda === "USD")
       .reduce((s: number, r: any) => s + Number(r.valor), 0);
 
-    const parcelasMes = parcelas.filter((p: any) => competenciaDoDia(p.vencimento) === mesAtual);
+    // 09/11/2026: mesmas janelas do ciclo (faturas pelo mês de fechamento, contas pelo vencimento de D+1 a D).
+    const janelaMes = janelasDoCiclo(mesAtual, diaViradaCiclo);
+    const parcelasMes = parcelas.filter((p: any) => despesaNoCiclo(p, janelaMes, cartoesCiclo as any[]));
     const totalDespesas = parcelasMes.reduce(
       (s: number, p: any) => s + toBRL(Number(p.valor), p.despesa.moeda, cotacao),
       0,
@@ -634,7 +637,7 @@ function DashboardPage() {
       top5,
       alivioParcelamentos,
     };
-  }, [receitasProjetadas, despesas, parcelas, cotacao, mesAtual, mesPie, meses, grupoDe, macroDeCategoria, movimentosInvest, dadosCiclo, caixinhasCiclo, diaViradaCiclo]);
+  }, [receitasProjetadas, despesas, parcelas, cotacao, mesAtual, mesPie, meses, grupoDe, macroDeCategoria, movimentosInvest, dadosCiclo, caixinhasCiclo, diaViradaCiclo, cartoesCiclo]);
 
   // Pedido 3 (2026-10-03): O último mês do gráfico comanda o horizonte padrão da dívida
   const mesAtualRotulo = useMemo(

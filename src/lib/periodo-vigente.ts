@@ -18,7 +18,8 @@ export function competenciaVigente(
   diaVirada: number | null | undefined,
 ): string {
   if (!diaVirada || diaVirada < 1 || diaVirada > 28) return monthKey(referencia);
-  if (referencia.getDate() < diaVirada) {
+  // 09/11/2026 (regra final do ciclo): o ciclo vai de D+1 a D; no próprio dia D ainda vale o ciclo que termina.
+  if (referencia.getDate() <= diaVirada) {
     return monthKey(new Date(referencia.getFullYear(), referencia.getMonth() - 1, 1));
   }
   return monthKey(referencia);

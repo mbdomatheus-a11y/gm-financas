@@ -278,9 +278,9 @@ function DespesasPage() {
   const numerosCiclo = useNumerosCiclo(filtroMes === "todos" ? undefined : filtroMes);
   const cicloTexto = useMemo(() => {
     if (filtroMes === "todos") return "";
-    // 08/11/2026: regra do ciclo: contas pelo vencimento de D+1 até D do mês seguinte.
+    // 09/11/2026: regra final do ciclo: faturas pelo mês de fechamento, contas pelo vencimento de D+1 a D.
     const j = janelasDoCiclo(filtroMes, prefsCiclo.dia_virada);
-    return ` · ciclo ${j.rotulo}`;
+    return ` · ciclo ${j.rotulo} (${j.descricao})`;
   }, [filtroMes, prefsCiclo.dia_virada]);
   // 28/10/2026: o mês escolhido fica salvo e vale também em Receitas e Calendário.
   useEffect(() => {
@@ -843,8 +843,11 @@ function DespesasPage() {
   }, []);
 
   const lancamentosDoFiltro = useMemo(
-    () => (filtroMes === "todos" ? [] : lancamentosDoCiclo(despesas as any[], filtroMes, prefsCiclo.dia_virada, { incluirEconomia: true })),
-    [despesas, filtroMes, prefsCiclo.dia_virada],
+    () =>
+      filtroMes === "todos"
+        ? []
+        : lancamentosDoCiclo(despesas as any[], filtroMes, prefsCiclo.dia_virada, { incluirEconomia: true, cartoes: cartoes as any[] }),
+    [despesas, filtroMes, prefsCiclo.dia_virada, cartoes],
   );
   const lancamentoPorDespesa = useMemo(
     () => new Map(lancamentosDoFiltro.map((p) => [p.despesa_id, p])),
@@ -1011,7 +1014,7 @@ function DespesasPage() {
     const itens: { despesa: any; parcela: any; valor: number }[] = [];
     if (!filtroResumo) return itens;
     if (filtroResumo === "parcelas" || (origemCardRef.current?.filtro === filtroResumo && origemCardRef.current.mes === filtroMes))
-      return lancamentosDoCardMes(despesas as any[], faturasMes as any[], filtroMes, filtroResumo as "parcelas" | "aberto", cotacao, prefsCiclo.somar_pagamento_fatura);
+      return lancamentosDoCardMes(despesas as any[], faturasMes as any[], filtroMes, filtroResumo as "parcelas" | "aberto", cotacao, prefsCiclo.somar_pagamento_fatura, cartoes as any[]);
     for (const d of listaVisivel as any[]) {
       if (idsIgnoradosPorTotal.has(d.id) || d.economia_conquistada) continue;
       const parcelasVisiveis =

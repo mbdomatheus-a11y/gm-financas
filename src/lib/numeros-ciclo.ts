@@ -8,14 +8,15 @@ import { contaComoDespesa, totaisInvestimentos, type MovimentoInvestimento } fro
  * Site: src/lib/numeros-ciclo.ts. App: controlall/src/lib/numeros-ciclo.ts (cópia, mesma lógica).
  * Documentação: docs/numeros-ciclo.md. Nenhuma tela pode somar receitas menos despesas por conta própria.
  *
- * REGRA ÚNICA DO CICLO (08/11/2026, docs/regra-ciclo-2026-11-08.md):
- * "O salário do dia D paga as contas que vencem até o próximo dia D. O que sobrar no dia D é economia."
- * O ciclo "AAAA-MM" com virada D:
- *   RECEITAS pela DATA PREVISTA de D/MM até D-1 do mês seguinte (fixa projetada pela data prevista;
- *     recebimento atrasado conta na data prevista; avulsa pela data em que entrou).
- *   DESPESAS pelo VENCIMENTO de D+1/MM até D do mês seguinte (cartão pelo vencimento da fatura, que já
- *     respeita o fechamento: compra depois do fechamento vai para a fatura seguinte).
- *   Rótulo: "15/nov a 15/dez".
+ * REGRA ÚNICA DO CICLO (versão final do usuário, 09/11/2026, docs/regra-ciclo-2026-11-08.md):
+ * O ciclo "AAAA-MM" (mês M, ex. "2026-10") com virada D (ex. 15) vai de D+1/M a D/M+1 (16/out a 15/nov,
+ * o "ciclo de novembro"); aparece até o dia D e vira no dia D+1.
+ *   RECEITAS pela DATA PREVISTA de D+1/M até D/M+1 (salário de 30/out e de 15/nov; o do dia 15 pertence ao
+ *     ciclo que TERMINA no dia 15). Atrasada conta na data prevista; avulsa pela data em que entrou.
+ *   FATURAS de cartão pelo FECHAMENTO em qualquer dia do mês M+1 (fecha 07/nov, 28/nov: entram; fechou em
+ *     outubro: ciclo anterior, mesmo vencendo depois de 15/out).
+ *   CONTAS fora do cartão pelo VENCIMENTO de D+1/M até D/M+1.
+ *   Linha: "Receitas de 16/out a 15/nov · faturas que fecham em novembro · contas que vencem de 16/out a 15/nov".
  * DISPONÍVEL ATÉ HOJE = receitas do ciclo já recebidas (fixa: data prevista chegou; avulsa: lançada) − despesas
  *   do ciclo já vencidas (vencimento até hoje).
  * PREVISTO PARA SOBRAR = Disponível + o que ainda vai entrar − o que ainda vai vencer − caixinhas do ciclo.
@@ -27,6 +28,7 @@ export const ROTULO_SOBRA_REAL = "Em conta agora";
 export const ROTULO_SOBRA_PREVISTA = "Previsto para sobrar";
 
 const MESES_CURTOS = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+const MESES_LONGOS = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
 
 /** "2026-11-15" → "15/nov". */
 export function diaMesCurto(iso: string): string {
@@ -45,9 +47,14 @@ export type JanelasCiclo = {
   /** Último dia do ciclo (dia D do mês seguinte, última data de vencimento). */
   fim: string;
   receitas: { inicio: string; fim: string };
+  /** Contas fora do cartão: vencimento de D+1/M até D/M+1. */
   despesas: { inicio: string; fim: string };
-  /** "15/nov a 15/dez". */
+  /** Faturas de cartão: fechamento no mês M+1 inteiro (com virada). Sem virada: vencimento no mês. */
+  faturas: { inicio: string; fim: string; porFechamento: boolean };
+  /** "16/out a 15/nov". */
   rotulo: string;
+  /** "Receitas de 16/out a 15/nov · faturas que fecham em novembro · contas que vencem de 16/out a 15/nov". */
+  descricao: string;
 };
 
 function isoDe(x: Date): string {
@@ -65,26 +72,39 @@ export function janelasDoCiclo(mes: string, diaVirada?: number | null): JanelasC
   if (!d) {
     const ini = isoDe(new Date(ano, m - 1, 1));
     const fim = isoDe(new Date(ano, m, 0));
-    return { mes, inicio: ini, fim, receitas: { inicio: ini, fim }, despesas: { inicio: ini, fim }, rotulo: `${diaMesCurto(ini)} a ${diaMesCurto(fim)}` };
+    return {
+      mes,
+      inicio: ini,
+      fim,
+      receitas: { inicio: ini, fim },
+      despesas: { inicio: ini, fim },
+      faturas: { inicio: ini, fim, porFechamento: false },
+      rotulo: `${diaMesCurto(ini)} a ${diaMesCurto(fim)}`,
+      descricao: `Receitas, contas e faturas de ${MESES_LONGOS[m - 1] ?? mes}`,
+    };
   }
-  const recIni = isoDe(new Date(ano, m - 1, d));
-  const recFim = isoDe(new Date(ano, m, d - 1));
-  const desIni = isoDe(new Date(ano, m - 1, d + 1));
-  const desFim = isoDe(new Date(ano, m, d));
+  const ini = isoDe(new Date(ano, m - 1, d + 1));
+  const fim = isoDe(new Date(ano, m, d));
+  // Faturas de cartão: fechamento no mês seguinte inteiro (M+1).
+  const fatIni = isoDe(new Date(ano, m, 1));
+  const fatFim = isoDe(new Date(ano, m + 1, 0));
+  const rotulo = `${diaMesCurto(ini)} a ${diaMesCurto(fim)}`;
   return {
     mes,
-    inicio: recIni,
-    fim: desFim,
-    receitas: { inicio: recIni, fim: recFim },
-    despesas: { inicio: desIni, fim: desFim },
-    rotulo: `${diaMesCurto(recIni)} a ${diaMesCurto(desFim)}`,
+    inicio: ini,
+    fim,
+    receitas: { inicio: ini, fim },
+    despesas: { inicio: ini, fim },
+    faturas: { inicio: fatIni, fim: fatFim, porFechamento: true },
+    rotulo,
+    descricao: `Receitas de ${rotulo} · faturas que fecham em ${MESES_LONGOS[new Date(ano, m, 1).getMonth()]} · contas que vencem de ${rotulo}`,
   };
 }
 
-/** Competência do ciclo em andamento hoje: a partir do dia D vale o ciclo novo. */
+/** Competência do ciclo em andamento hoje: até o dia D vale o ciclo que termina; a partir de D+1, o novo. */
 export function mesDoCicloEm(agora: Date, diaVirada?: number | null): string {
   const d = diaValido(diaVirada);
-  const ref = d && agora.getDate() < d ? new Date(agora.getFullYear(), agora.getMonth() - 1, 1) : agora;
+  const ref = d && agora.getDate() <= d ? new Date(agora.getFullYear(), agora.getMonth() - 1, 1) : agora;
   return `${ref.getFullYear()}-${String(ref.getMonth() + 1).padStart(2, "0")}`;
 }
 
@@ -172,19 +192,39 @@ export function receitasDoCiclo(receitas: any[], mes: string, diaVirada?: number
   return filtrarReceitasNaJanela(receitasPorCompetencias(receitas, comps), j.receitas.inicio, j.receitas.fim);
 }
 
-/** Lançamentos de despesa do ciclo pela regra única (vencimento de D+1 até D do mês seguinte). */
+/** Fechamento da fatura da parcela, se ela é de cartão de crédito; null para conta fora do cartão. */
+export function fechamentoDaParcela(p: any, cartoes?: any[] | null): string | null {
+  const venc = String(p?.vencimento ?? "").slice(0, 10);
+  const cartaoId = p?.despesa?.cartao_id ?? p?.cartao_id;
+  if (!cartaoId || !/^\d{4}-\d{2}-\d{2}$/.test(venc)) return null;
+  const c = (cartoes ?? []).find((x: any) => x?.id === cartaoId);
+  if (c?.tipo && c.tipo !== "credito") return null;
+  return fechamentoDaFatura(venc, c?.dia_fechamento ?? null);
+}
+
+/**
+ * A parcela é despesa do ciclo? Fatura de cartão: FECHAMENTO no mês M+1. Conta fora do cartão:
+ * VENCIMENTO de D+1/M até D/M+1. Sem virada: vencimento no mês do calendário.
+ */
+export function despesaNoCiclo(p: any, j: Pick<JanelasCiclo, "despesas" | "faturas">, cartoes?: any[] | null): boolean {
+  const fech = j.faturas.porFechamento ? fechamentoDaParcela(p, cartoes) : null;
+  if (fech) return fech >= j.faturas.inicio && fech <= j.faturas.fim;
+  const iso = String(p?.vencimento ?? "").slice(0, 10);
+  return iso >= j.despesas.inicio && iso <= j.despesas.fim;
+}
+
+/** Lançamentos de despesa do ciclo pela regra única (faturas que fecham em M+1 e contas que vencem no ciclo). */
 export function lancamentosDoCiclo(
   despesas: any[],
   mes: string,
   diaVirada?: number | null,
-  opcoes: { incluirEconomia?: boolean } = {},
+  opcoes: { incluirEconomia?: boolean; cartoes?: any[] | null } = {},
 ) {
   const j = janelasDoCiclo(mes, diaVirada);
-  const comps = [somarMeses(mes, -1), mes, somarMeses(mes, 1)];
-  return lancamentosPorCompetencias(despesas, comps, opcoes).filter((p) => {
-    const v = String(p.vencimento ?? "").slice(0, 10);
-    return v >= j.despesas.inicio && v <= j.despesas.fim;
-  });
+  const comps = [-1, 0, 1, 2].map((i) => somarMeses(mes, i));
+  return lancamentosPorCompetencias(despesas, comps, { incluirEconomia: Boolean(opcoes.incluirEconomia) }).filter((p) =>
+    despesaNoCiclo(p, j, opcoes.cartoes),
+  );
 }
 
 /** Fatura de cartão ainda aberta e sem total informado: entra no previsto pela média das últimas faturas. */
@@ -453,6 +493,7 @@ function calcularComBase(
   const diaHoje = indice.get(hojeIso) ?? (encerrado ? dias : 0);
   const posicao = (iso: string) => indice.get(iso) ?? (iso < datas[0]! ? 1 : dias);
   const naJanelaDesp = (iso: string) => iso >= jan.despesas.inicio && iso <= jan.despesas.fim;
+  const noCiclo = (p: any) => despesaNoCiclo(p, jan, dados.cartoes);
 
   const entPrev = new Array(dias + 1).fill(0);
   const saiPrev = new Array(dias + 1).fill(0);
@@ -480,14 +521,15 @@ function calcularComBase(
       entReal[i] += val;
     }
   }
-  // Despesas: pelo VENCIMENTO na janela de despesas. Vencida = vencimento até hoje (lançada ou recorrente).
-  // Crédito (estorno) e pagamento de fatura (regra) ficam fora.
+  // Despesas: faturas que FECHAM no mês M+1 e contas que VENCEM no ciclo. Vencida = vencimento até hoje.
+  // Na série, o que vence depois do fim do ciclo fica no último dia (comprometido). Crédito (estorno) e
+  // pagamento de fatura (regra) ficam fora.
   for (const p of parcelas) {
     if (p.despesa?.direcao === "credito") continue;
     if (!contaComoDespesa(p.despesa, dados.somarPagamentoFatura)) continue;
+    if (!noCiclo(p)) continue;
     const iso = String(p.vencimento ?? "").slice(0, 10);
-    if (!naJanelaDesp(iso)) continue;
-    const i = indice.get(iso)!;
+    const i = posicao(iso);
     const val = v(p);
     desPrev += val;
     saiPrev[i] += val;
@@ -502,7 +544,7 @@ function calcularComBase(
       const entrada = totaisInvestimentos([m], () => true).entradas > 0;
       const dentro = entrada ? m.data >= jan.receitas.inicio && m.data <= jan.receitas.fim : naJanelaDesp(m.data);
       if (!dentro) continue;
-      const i = indice.get(m.data)!;
+      const i = posicao(m.data);
       const feito = m.data <= hojeIso;
       if (entrada) {
         recPrev += m.valor;
@@ -522,18 +564,17 @@ function calcularComBase(
   if (!encerrado && Array.isArray(dados.cartoes) && dados.mostrarFaturaAberta !== false) {
     const janelaSet = (mm: string) => {
       const jj = janelasDoCiclo(mm, diaVirada);
-      return (iso: string) => iso >= jj.despesas.inicio && iso <= jj.despesas.fim;
+      return (p: any) => despesaNoCiclo(p, jj, dados.cartoes);
     };
-    const soma = (lista: any[], dentro: (iso: string) => boolean) =>
-      lista.reduce((s, p) => (dentro(String(p.vencimento ?? "").slice(0, 10)) ? s + v(p) : s), 0);
+    const soma = (lista: any[], dentro: (p: any) => boolean) => lista.reduce((s, p) => (dentro(p) ? s + v(p) : s), 0);
     for (const c of dados.cartoes as any[]) {
       if (c.tipo && c.tipo !== "credito") continue;
       if (faturas.some((f: any) => f.cartao_id === c.id && f.competencia === mes && f.modo_calculo === "somente_total")) continue;
       const doCartao = parcelas.filter(
         (p) => p.despesa?.cartao_id === c.id && p.despesa?.direcao !== "credito" && contaComoDespesa(p.despesa, dados.somarPagamentoFatura),
       );
-      const noPeriodo = doCartao.filter((p) => naJanelaDesp(String(p.vencimento ?? "").slice(0, 10)));
-      const real = soma(doCartao, naJanelaDesp);
+      const noPeriodo = doCartao.filter(noCiclo);
+      const real = soma(doCartao, noCiclo);
       const vencs = [...new Set(noPeriodo.map((p) => String(p.vencimento).slice(0, 10)))];
       const abertas = vencs.length === 0 || vencs.some((venc) => hojeIso <= fechamentoDaFatura(venc, c.dia_fechamento));
       if (!abertas) continue;
@@ -548,7 +589,7 @@ function calcularComBase(
       const extra = media - real;
       if (extra < 1) continue;
       const dia = Number(c.dia_vencimento) || 0;
-      const pos = datas.findIndex((d) => naJanelaDesp(d) && Number(d.slice(8, 10)) === dia);
+      const pos = datas.findIndex((d) => Number(d.slice(8, 10)) === dia);
       saiPrev[(pos >= 0 ? pos : dias - 1) + 1] += extra;
       desPrev += extra;
       estimativas.push({

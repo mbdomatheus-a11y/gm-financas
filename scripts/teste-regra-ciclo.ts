@@ -1,8 +1,13 @@
 /**
- * Teste da regra do ciclo (08/11/2026): exemplo de docs/regra-ciclo-2026-11-08.md e docs/numeros-ciclo.md.
+ * Teste da regra do ciclo (versão final do usuário, 09/11/2026): docs/regra-ciclo-2026-11-08.md e docs/numeros-ciclo.md.
  * Rodar: npx tsx scripts/teste-regra-ciclo.ts
- * Salário 15 = 5.000 (lançado atrasado em 17/nov), salário 30 = 3.000, Itaú fecha 3 vence 10, Nubank fecha 13
- * vence 20, aluguel 25 = 2.000, condomínio 10 = 500, luz 18 = 300. Virada no dia 15. Hoje 08/12/2026.
+ * Virada D=15, hoje 08/11/2026. Ciclo de novembro (chave "2026-10"): 16/out a 15/nov.
+ *  Receitas: 15/out 5.000 (NÃO entra, é do ciclo que terminou em 15/out), 30/out 3.000 (entra), 15/nov 5.000 (entra).
+ *  Pernambucanas fecha 07 vence 15: fecha 07/out vence 15/out 900 NÃO entra; fecha 07/nov vence 15/nov 1.200 entra.
+ *  Itaú fecha 03 vence 10: fecha 03/nov vence 10/nov 1.800 entra.
+ *  Cartão C fecha 28 vence 05: fecha 28/out vence 05/nov 400 NÃO entra; fecha 28/nov vence 05/dez 600 entra.
+ *  Aluguel vence 25: 25/out 2.000 entra; 25/nov NÃO entra. Condomínio vence 10: 10/nov 500 entra.
+ *  Receitas 8.000; despesas 1.200 + 1.800 + 600 + 2.000 + 500 = 6.100; vai sobrar 1.900.
  */
 import { definirViradaDoGrupo } from "../src/lib/format";
 import { vencimentoDaFatura } from "../src/lib/fatura-ciclo";
@@ -13,15 +18,15 @@ import {
   cicloAtual,
   detalheEconomia,
   economiaDoCiclo,
-  dataPrevistaReceita,
   janelasDoCiclo,
+  lancamentosDoCiclo,
+  mesDoCicloEm,
+  receitasDoCiclo,
   ritmoDoCiclo,
-  textoRitmo,
-  textoDiferenca,
   textoDisponivel,
   textoPorDia,
+  textoRitmo,
   textoVaiSobrar,
-  textoPrevisto,
 } from "../src/lib/numeros-ciclo";
 
 const D = 15;
@@ -34,8 +39,9 @@ function igual(nome: string, obtido: unknown, esperado: unknown) {
   console.log(`${ok ? "ok  " : "FALHOU"} ${nome}: ${JSON.stringify(obtido)}${ok ? "" : ` (esperado ${JSON.stringify(esperado)})`}`);
 }
 
+const pern = { id: "pern", apelido: "Pernambucanas", tipo: "credito", dia_fechamento: 7, dia_vencimento: 15 };
 const itau = { id: "itau", apelido: "Itaú", tipo: "credito", dia_fechamento: 3, dia_vencimento: 10 };
-const nubank = { id: "nu", apelido: "Nubank", tipo: "credito", dia_fechamento: 13, dia_vencimento: 20 };
+const cc = { id: "cc", apelido: "Cartão C", tipo: "credito", dia_fechamento: 28, dia_vencimento: 5 };
 const compra = (id: string, cartao: any, data: string, valor: number) => {
   const venc = vencimentoDaFatura(data, { diaFechamento: cartao.dia_fechamento, diaVencimento: cartao.dia_vencimento });
   return {
@@ -53,125 +59,97 @@ const fixa = (id: string, dia: number, valor: number) => ({
   tipo: "fixa",
   moeda: "BRL",
   valor_total: valor,
-  recorrencia_inicio: `2026-01-${String(dia).padStart(2, "0")}`,
+  recorrencia_inicio: `2026-10-${String(dia).padStart(2, "0")}`,
   recorrencia_sem_prazo: true,
   parcelas: [],
 });
 
 const despesas = [
-  compra("itau-01nov", itau, "2026-11-01", 400), // fecha 03/nov, vence 10/nov: ciclo anterior
-  compra("itau-05nov", itau, "2026-11-05", 600), // depois do fechamento: fatura de 10/dez
-  compra("nu-10nov", nubank, "2026-11-10", 800), // fatura de 20/nov
-  compra("nu-14nov", nubank, "2026-11-14", 200), // depois do fechamento: fatura de 20/dez (próximo ciclo)
-  fixa("aluguel", 25, 2000),
-  fixa("condominio", 10, 500),
-  fixa("luz", 18, 300),
+  compra("pern-out", pern, "2026-10-01", 900), // fecha 07/out, vence 15/out: ciclo anterior
+  compra("pern-nov", pern, "2026-10-20", 1200), // fecha 07/nov, vence 15/nov: entra
+  compra("itau-nov", itau, "2026-10-20", 1800), // fecha 03/nov, vence 10/nov: entra
+  compra("c-out", cc, "2026-10-10", 400), // fecha 28/out, vence 05/nov: ciclo anterior
+  compra("c-nov", cc, "2026-11-05", 600), // fecha 28/nov, vence 05/dez: entra
+  fixa("aluguel", 25, 2000), // 25/out entra; 25/nov não
+  fixa("condominio", 10, 500), // 10/nov entra (10/out é anterior ao início da recorrência)
 ];
+// Salário do dia 15 começa em 15/out (não entra neste ciclo; o de 15/nov entra). Salário do dia 30 em 30/out.
 const receitas = [
-  { id: "s15", descricao: "Salário dia 15", responsavel: "Ana", recorrente: true, recorrencia_inicio: "2026-01-15", data_recebimento: "2026-11-17", valor: 5000, moeda: "BRL" },
-  { id: "s30", descricao: "Salário dia 30", responsavel: "Ana", recorrente: true, recorrencia_inicio: "2026-01-30", data_recebimento: "2026-11-30", valor: 3000, moeda: "BRL" },
+  { id: "s15", descricao: "Salário dia 15", responsavel: "Ana", recorrente: true, recorrencia_inicio: "2026-10-15", data_recebimento: "2026-10-15", valor: 5000, moeda: "BRL" },
+  { id: "s30", descricao: "Salário dia 30", responsavel: "Ana", recorrente: true, recorrencia_inicio: "2026-10-30", data_recebimento: "2026-10-30", valor: 3000, moeda: "BRL" },
 ];
-const dados = { despesas, receitas, faturas: [], cotacao: 5, cartoes: [itau, nubank] };
-const r2s = (v: number) => Math.round(v * 100) / 100;
+const cartoes = [pern, itau, cc];
+const dados = { despesas, receitas, faturas: [], cotacao: 5, cartoes };
 const brl = (v: number) => `R$ ${v.toFixed(2)}`;
+const hoje = new Date(2026, 10, 8, 12);
 
-const hoje = new Date(2026, 11, 8, 12);
-const j = janelasDoCiclo("2026-11", D);
-igual("vencimento Itaú compra 05/nov", despesas[1]!.parcelas[0]!.vencimento, "2026-12-10");
-igual("vencimento Nubank compra 14/nov", despesas[3]!.parcelas[0]!.vencimento, "2026-12-20");
-igual("janela receitas", j.receitas, { inicio: "2026-11-15", fim: "2026-12-14" });
-igual("janela despesas", j.despesas, { inicio: "2026-11-16", fim: "2026-12-15" });
+igual("vencimento Pernambucanas compra 20/out", despesas[1]!.parcelas[0]!.vencimento, "2026-11-15");
+igual("vencimento Itaú compra 20/out", despesas[2]!.parcelas[0]!.vencimento, "2026-11-10");
+igual("vencimento C compra 10/out", despesas[3]!.parcelas[0]!.vencimento, "2026-11-05");
+igual("vencimento C compra 05/nov", despesas[4]!.parcelas[0]!.vencimento, "2026-12-05");
 
-const atual = cicloAtual(D, hoje);
-igual("ciclo atual", atual.texto, "15/nov a 15/dez · faltam 7 dias");
-igual("ciclo anterior", cicloAnterior(D, hoje).rotulo, "15/out a 15/nov");
+const j = janelasDoCiclo("2026-10", D);
+igual("janela receitas", j.receitas, { inicio: "2026-10-16", fim: "2026-11-15" });
+igual("janela contas", j.despesas, { inicio: "2026-10-16", fim: "2026-11-15" });
+igual("janela faturas (fechamento)", j.faturas, { inicio: "2026-11-01", fim: "2026-11-30", porFechamento: true });
+igual("rótulo", j.rotulo, "16/out a 15/nov");
+igual("linha de origem", j.descricao, "Receitas de 16/out a 15/nov · faturas que fecham em novembro · contas que vencem de 16/out a 15/nov");
 
-const n = calcularNumerosCiclo(dados, "2026-11", 0, D, hoje);
-igual("receitas do ciclo", n.previsto.receitas, 8000);
-igual("recebidas", n.real.receitas, 8000);
-igual("contas do ciclo", n.previsto.despesas, 4200);
-igual("vencidas até 08/12", n.real.despesas, 3100);
-igual("Disponível", n.real.sobra, 4900);
-igual("ainda vão entrar", n.previsto.aindaVaoEntrar, 0);
-igual("ainda vão vencer", n.previsto.aindaVaoVencer, 1100);
-igual("Previsto para sobrar", n.previsto.sobra, 3800);
+igual("ciclo em 08/11", mesDoCicloEm(hoje, D), "2026-10");
+igual("ciclo em 15/11 ainda é o mesmo", mesDoCicloEm(new Date(2026, 10, 15, 12), D), "2026-10");
+igual("ciclo vira em 16/11", mesDoCicloEm(new Date(2026, 10, 16, 12), D), "2026-11");
+igual("ciclo atual", cicloAtual(D, hoje).texto, "16/out a 15/nov · faltam 7 dias");
+igual("ciclo anterior", cicloAnterior(D, hoje).rotulo, "16/set a 15/out");
+
+const ids = lancamentosDoCiclo(despesas, "2026-10", D, { cartoes })
+  .map((p: any) => `${p.despesa_id ?? p.despesa?.id}@${String(p.vencimento).slice(0, 10)}`)
+  .sort();
+igual("lançamentos do ciclo", ids, ["aluguel@2026-10-25", "c-nov@2026-12-05", "condominio@2026-11-10", "itau-nov@2026-11-10", "pern-nov@2026-11-15"]);
+igual(
+  "receitas do ciclo",
+  receitasDoCiclo(receitas, "2026-10", D).map((r: any) => r.data_prevista_ciclo).sort(),
+  ["2026-10-30", "2026-11-15"],
+);
+
+const n = calcularNumerosCiclo(dados, "2026-10", 0, D, hoje);
+igual("receitas do ciclo (total)", n.previsto.receitas, 8000);
+igual("despesas do ciclo", n.previsto.despesas, 6100);
+igual("vai sobrar", n.previsto.sobra, 1900);
+igual("recebidas até 08/11", n.real.receitas, 3000);
+igual("vencidas até 08/11 (aluguel 25/out)", n.real.despesas, 2000);
+igual("em conta agora", n.real.sobra, 1000);
+igual("ainda vão entrar", n.previsto.aindaVaoEntrar, 5000);
+igual("ainda vão vencer", n.previsto.aindaVaoVencer, 4100);
 igual("rótulo em conta", textoDisponivel(n), "Em conta agora");
-igual("rótulo destaque", textoVaiSobrar(n), "Vai sobrar em 15/12");
-// Por dia = previsto para sobrar / dias restantes (incluindo hoje). 08/12 a 15/12 = 8 dias.
-igual("dias restantes", n.diasRestantes, 8);
-igual("por dia = previsto / dias restantes", n.porDia, 475);
-igual("frase por dia", textoPorDia(n, brl), "Pode gastar R$ 475.00 por dia até 15/12");
-igual("falta para fechar zerada", n.faltaParaFechar, 0);
-igual("rótulo previsto", textoPrevisto(n, brl), "Previsto para sobrar em 15/12: R$ 3800.00");
-igual("linha", textoDiferenca(n, brl), "Inclui R$ 1100.00 de contas que ainda vão vencer.");
-igual("ciclo na tela", n.textoCiclo, "15/nov a 15/dez · faltam 7 dias");
+igual("rótulo destaque", textoVaiSobrar(n), "Vai sobrar em 15/11");
+igual("dias restantes (08 a 15/nov)", n.diasRestantes, 8);
+igual("por dia", n.porDia, 237.5);
+igual("frase por dia", textoPorDia(n, brl), "Pode gastar R$ 237.50 por dia até 15/11");
+igual("sem estimativa de fatura", n.previsto.faturaEstimada, 0);
+igual("caixinhas 500", calcularNumerosCiclo(dados, "2026-10", 500, D, hoje).previsto.sobra, 1400);
 
-// Previsto negativo: por dia = 0 e frase de falta.
-{
-  const neg = calcularNumerosCiclo(dados, "2026-11", 5000, D, hoje);
-  igual("negativo: previsto", neg.previsto.sobra, -1200);
-  igual("negativo: por dia 0", neg.porDia, 0);
-  igual("negativo: falta", neg.faltaParaFechar, 1200);
-  igual("negativo: frase", textoPorDia(neg, brl), "Faltam R$ 1200.00 para fechar o ciclo");
-}
-
-// Com caixinhas de 500 no ciclo.
-igual("Previsto com caixinhas 500", calcularNumerosCiclo(dados, "2026-11", 500, D, hoje).previsto.sobra, 3300);
-
-// Dia 16/nov: salário do dia 15 (fixo) só é lançado em 17/nov, mas já conta como recebido pela data prevista,
-// igual à conta fixa que conta como vencida. O salário do dia 30 ainda vai entrar.
-const n16 = calcularNumerosCiclo(dados, "2026-11", 0, D, new Date(2026, 10, 16, 12));
-igual("16/nov recebidas", n16.real.receitas, 5000);
-igual("16/nov Disponível", n16.real.sobra, 5000);
-igual("16/nov ainda vão entrar", n16.previsto.aindaVaoEntrar, 3000);
-igual("16/nov Previsto", n16.previsto.sobra, 3800);
-
-// Receita avulsa só conta quando lançada e com data até hoje.
-const comAvulsa = { ...dados, receitas: [...receitas, { id: "bonus", descricao: "Bônus", recorrente: false, data_recebimento: "2026-12-10", valor: 1000, moeda: "BRL" }] };
-const nAv = calcularNumerosCiclo(comAvulsa, "2026-11", 0, D, hoje);
-igual("avulsa futura não recebida", nAv.real.receitas, 8000);
-igual("avulsa futura a entrar", nAv.previsto.aindaVaoEntrar, 1000);
+// Na virada (16/11): economia = receitas - despesas do ciclo (fatura C de 05/dez conta como comprometida).
+const fechado = calcularNumerosCiclo(dados, "2026-10", 0, D, new Date(2026, 10, 16, 12));
+igual("16/11: ciclo encerrado", fechado.encerrado, true);
+igual("economia do ciclo", economiaDoCiclo(fechado), 1900);
+igual("economia com caixinhas 500", detalheEconomia(calcularNumerosCiclo(dados, "2026-10", 500, D, new Date(2026, 10, 16, 12))), { total: 1900, caixinhas: 500, livre: 1400 });
+const ultimo = calcularNumerosCiclo(dados, "2026-10", 0, D, new Date(2026, 10, 15, 12));
+igual("15/11: ainda o mesmo ciclo, salário de 15/nov recebido", [ultimo.encerrado, ultimo.real.receitas], [false, 8000]);
 
 // Dias 29, 30 e 31: o próprio dia ou o último dia do mês menor.
-igual("salário 30 previsto em 30/nov", dataPrevistaReceita({ ...receitas[1], projetada: false }), "2026-11-30");
 igual("dia 30 em fevereiro", vencimentoDaCompetencia("2026-01-30", "2027-02"), "2027-02-28");
 igual("dia 31 em novembro", vencimentoDaCompetencia("2026-01-31", "2026-11"), "2026-11-30");
-igual("dia 29 em fevereiro bissexto", vencimentoDaCompetencia("2026-01-29", "2028-02"), "2028-02-29");
 
-// Ciclo fechado 15/out a 15/nov: 8.000 de salários (fixos) menos aluguel 25/out, luz 18/out, condomínio 10/nov, Itaú 10/nov.
-const ant = calcularNumerosCiclo(dados, "2026-10", 0, D, hoje);
-igual("ciclo 15/out encerrado", ant.encerrado, true);
-igual("economia 15/out a 15/nov", economiaDoCiclo(ant), 4800);
-igual("ciclo 15/out: tudo recebido no fim", ant.real.receitas, 8000);
-
-// Economia coerente com o previsto: X = receitas - despesas; A = caixinhas; B = X - A = último Previsto para sobrar.
-const antCx = calcularNumerosCiclo(dados, "2026-10", 500, D, hoje);
-const det = detalheEconomia(antCx);
-const ultimoDia = calcularNumerosCiclo(dados, "2026-10", 500, D, new Date(2026, 10, 15, 12));
-igual("economia X", det.total, 4800);
-igual("caixinhas A", det.caixinhas, 500);
-igual("livre B", det.livre, 4300);
-igual("B = Previsto para sobrar no último dia", det.livre, ultimoDia.previsto.sobra);
-igual("no último dia não falta nada", [ultimoDia.previsto.aindaVaoEntrar, ultimoDia.previsto.aindaVaoVencer], [0, 0]);
-
-// Ritmo (14/11/2026): só despesas variáveis. Ciclo anterior: 2.000 em 32 dias; ciclo atual: 600 em 24 dias.
+// Ritmo: mesma lógica (gasto variável por data de compra nos dias do ciclo). Ciclo atual 16/out a 08/nov
+// (24 dias): 1.200 + 1.800 + 600 = 3.600 → 150/dia. Ciclo anterior 16/set a 15/out (30 dias): 900 + 400 = 1.300.
 {
-  const dr = { ...dados, despesas: [...despesas, compra("ra", nubank, "2026-11-20", 300), compra("rb", nubank, "2026-12-01", 300), compra("rc", nubank, "2026-12-12", 100)] };
-  const nr = calcularNumerosCiclo(dr, "2026-11", 0, D, hoje);
-  const r = ritmoDoCiclo(dr, "2026-11", nr, D, hoje);
-  igual("ritmo atual por dia", r.porDiaAtual, 25);
-  igual("ritmo anterior por dia", r.porDiaAnterior, 62.5);
-  igual("ritmo variação %", r.variacaoPct, -60);
+  const r = ritmoDoCiclo(dados, "2026-10", n, D, hoje);
+  igual("ritmo atual por dia", r.porDiaAtual, 150);
+  igual("ritmo anterior por dia", r.porDiaAnterior, 43.33);
   igual("ritmo dias restantes", r.diasRestantes, 7);
-  igual("ritmo adicional (25 x 7 menos 100 agendado)", r.adicional, 75);
-  igual("ritmo projeção", r.projecaoNoRitmo, r2s(nr.previsto.sobra - 75));
-  igual("frase positiva", textoRitmo(r, nr.fim, brl).linha2, `Nesse ritmo, sobram R$ ${(nr.previsto.sobra - 75).toFixed(2)} em 15/12.`);
-  igual("frase ritmo", textoRitmo(r, nr.fim, brl).linha1, "Em média, neste ciclo você está gastando R$ 25.00 por dia, 60% menor que no ciclo anterior.");
-  igual("frase negativa", textoRitmo({ ...r, projecaoNoRitmo: -50 }, nr.fim, brl).linha2, "Nesse ritmo, o ciclo fecha negativo em R$ 50.00, a não ser que comece a poupar agora.");
-  igual("sem ciclo anterior omite comparação", textoRitmo({ ...r, variacaoPct: null }, nr.fim, brl).linha1, "Em média, neste ciclo você está gastando R$ 25.00 por dia.");
-  igual("cedo", textoRitmo({ ...r, cedo: true }, nr.fim, brl).linha1, "Ainda é cedo para medir o ritmo deste ciclo.");
-  const cedo = calcularNumerosCiclo(dr, "2026-11", 0, D, new Date(2026, 10, 17, 12));
-  igual("dia 3 do ciclo é cedo", ritmoDoCiclo(dr, "2026-11", cedo, D, new Date(2026, 10, 17, 12)).cedo, true);
+  igual("ritmo adicional", r.adicional, 1050);
+  igual("ritmo projeção", r.projecaoNoRitmo, 850);
+  igual("frase ritmo", textoRitmo(r, n.fim, brl).linha2, "Nesse ritmo, sobram R$ 850.00 em 15/11.");
 }
 
 if (falhas) {

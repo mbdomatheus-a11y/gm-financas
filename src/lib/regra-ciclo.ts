@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import { diaMesCurto, janelasDoCiclo } from "@/lib/numeros-ciclo";
+import { diaMesCurto, fechamentoDaFatura, janelasDoCiclo } from "@/lib/numeros-ciclo";
 
 /**
  * Regra do ciclo do GRUPO (08/11/2026, docs/regra-ciclo-2026-11-08.md).
@@ -97,23 +97,30 @@ export function nomeCartao(c: any): string {
 }
 
 /**
- * Frase da confirmação do cartão: "O Nubank vence dia 20, depois da sua virada (dia 15). As faturas dele
- * vão ser pagas com o salário do dia 15 do mesmo mês (ex.: fatura de 20/nov, salário de 15/nov)."
+ * Frase da confirmação do cartão (regra corrigida em 09/11/2026: receitas do mês pagam as contas e faturas
+ * do mês seguinte; fatura de cartão entra pelo FECHAMENTO): "O Nubank fecha dia 13 e vence dia 20. A fatura
+ * entra no ciclo pelo mês do fechamento (fecha em novembro: ciclo 16/out a 15/nov)
+ *  (ex.: fatura que fecha em 13/nov e vence em 20/nov, receitas de 16/out a 15/nov)."
  */
-export function fraseCartaoNoCiclo(nome: string, diaVencimento: number, diaVirada: number, agora: Date = new Date()): string {
+export function fraseCartaoNoCiclo(
+  nome: string,
+  diaVencimento: number,
+  diaVirada: number,
+  agora: Date = new Date(),
+  diaFechamento?: number | null,
+): string {
   const v = Number(diaVencimento);
   const d = Number(diaVirada);
-  const ex = exemploFaturaNoCiclo(v, d, agora);
-  const posicao = v > d ? "depois da sua virada" : v === d ? "no dia da sua virada" : "antes da sua virada";
-  const salario = v > d ? `o salário do dia ${d} do mesmo mês` : `o salário do dia ${d} do mês anterior`;
-  return `O ${nome} vence dia ${v}, ${posicao} (dia ${d}). As faturas dele vão ser pagas com ${salario} (ex.: fatura de ${diaMesCurto(ex.fatura)}, salário de ${diaMesCurto(ex.salario)}).`;
+  const ex = exemploFaturaNoCiclo(v, d, agora, diaFechamento);
+  const dias = diaFechamento ? `fecha dia ${diaFechamento} e vence dia ${v}` : `vence dia ${v}`;
+  return `O ${nome} ${dias}. A fatura entra no ciclo pelo mês do fechamento (ex.: fatura que fecha em ${diaMesCurto(ex.fechamento)} e vence em ${diaMesCurto(ex.fatura)} é paga com as receitas de ${ex.ciclo.rotulo}).`;
 }
 
 const iso = (x: Date) =>
   `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`;
 
-/** Próxima fatura (a partir de hoje) e o dia D do ciclo em que ela é paga. */
-export function exemploFaturaNoCiclo(diaVencimento: number, diaVirada: number, agora: Date = new Date()) {
+/** Próxima fatura (a partir de hoje), o fechamento dela e o dia D do ciclo em que ela é paga (mês anterior ao fechamento). */
+export function exemploFaturaNoCiclo(diaVencimento: number, diaVirada: number, agora: Date = new Date(), diaFechamento?: number | null) {
   const ultimo = (a: number, m: number) => new Date(a, m + 1, 0).getDate();
   let a = agora.getFullYear();
   let m = agora.getMonth();
@@ -122,16 +129,18 @@ export function exemploFaturaNoCiclo(diaVencimento: number, diaVirada: number, a
     m += 1;
     f = new Date(a, m, Math.min(diaVencimento, ultimo(a, m)));
   }
-  // Vencimento depois de D: ciclo começa no dia D do mesmo mês; até D: no dia D do mês anterior.
-  const sal = f.getDate() > diaVirada ? new Date(f.getFullYear(), f.getMonth(), diaVirada) : new Date(f.getFullYear(), f.getMonth() - 1, diaVirada);
+  // A fatura entra no ciclo pelo mês do fechamento (fecha em nov: ciclo 16/out a 15/nov, chave "AAAA-10").
+  const fech = fechamentoDaFatura(iso(f), diaFechamento ?? null);
+  const [fa = 1970, fm = 1] = fech.split("-").map(Number);
+  const sal = new Date(fa, fm - 2, diaVirada + 1);
   const mes = `${sal.getFullYear()}-${String(sal.getMonth() + 1).padStart(2, "0")}`;
-  return { fatura: iso(f), salario: iso(sal), ciclo: janelasDoCiclo(mes, diaVirada) };
+  return { fatura: iso(f), fechamento: fech, salario: iso(sal), ciclo: janelasDoCiclo(mes, diaVirada) };
 }
 
-/** Em qual ciclo cai a fatura do cartão: "Fatura de 20/nov entra no ciclo 15/nov a 15/dez". */
-export function textoFaturaNoCiclo(diaVencimento: number, diaVirada: number, agora: Date = new Date()): string {
-  const ex = exemploFaturaNoCiclo(diaVencimento, diaVirada, agora);
-  return `Fatura de ${diaMesCurto(ex.fatura)} entra no ciclo ${ex.ciclo.rotulo}`;
+/** Em qual ciclo cai a fatura do cartão: "Fatura que fecha em 13/nov (vence 20/nov) entra no ciclo 16/out a 15/nov". */
+export function textoFaturaNoCiclo(diaVencimento: number, diaVirada: number, agora: Date = new Date(), diaFechamento?: number | null): string {
+  const ex = exemploFaturaNoCiclo(diaVencimento, diaVirada, agora, diaFechamento);
+  return `Fatura que fecha em ${diaMesCurto(ex.fechamento)} (vence ${diaMesCurto(ex.fatura)}) entra no ciclo ${ex.ciclo.rotulo}`;
 }
 
 /** Evento para abrir o assistente do ciclo de qualquer tela (Configurações, "Mudar a virada"). */
