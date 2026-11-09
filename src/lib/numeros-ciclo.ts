@@ -370,14 +370,18 @@ export function textoPorDia(n: Pick<NumerosCiclo, "fim" | "porDia" | "faltaParaF
   return `Pode gastar ${formatar(n.porDia)} por dia até ${diaMesNum(n.fim)}`;
 }
 
-/** Detalhe secundário: "Em conta agora: R$ X (já recebido menos já pago). Ainda vão entrar R$ A e vencer R$ B." */
+/**
+ * Detalhe secundário: "Em conta agora: R$ X (já recebido menos já pago). Ainda vão entrar R$ A e vencer R$ B.
+ * Caixinhas do ciclo R$ Y." Fecha com o destaque: em conta + a entrar − a vencer − caixinhas = vai sobrar.
+ */
 export function textoEmConta(n: NumerosCiclo, formatar: (v: number) => string): string {
   const p = n.previsto;
   const base = `${ROTULO_SOBRA_REAL}: ${formatar(n.real.sobra)} (já recebido menos já pago).`;
   const partes: string[] = [];
   if (p.aindaVaoEntrar >= 0.5) partes.push(`entrar ${formatar(p.aindaVaoEntrar)}`);
   if (p.aindaVaoVencer >= 0.5) partes.push(`vencer ${formatar(p.aindaVaoVencer)}`);
-  return partes.length ? `${base} Ainda vão ${partes.join(" e ")}.` : base;
+  const caixinhas = p.caixinhas >= 0.5 ? ` Caixinhas do ciclo ${formatar(p.caixinhas)}.` : "";
+  return `${partes.length ? `${base} Ainda vão ${partes.join(" e ")}.` : base}${caixinhas}`;
 }
 
 /** Rótulo do previsto: "Previsto para sobrar em DD/MM". */

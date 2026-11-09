@@ -72,7 +72,7 @@ import { Label } from "@/components/ui/label";
 
 import { formatBRL, formatDate, formatUSD, identificacaoDespesa, monthKey, monthLabel, monthLabelLong, toBRL, competenciaDoDia, mesDoCiclo } from "@/lib/format";
 import { useCompetenciaVigente } from "@/lib/periodo-vigente";
-import { lancamentosPorCompetencias, receitasPorCompetencias } from "@/lib/recorrencia";
+import { lancamentosPorCompetencias, receitasPorCompetencias, somarMeses } from "@/lib/recorrencia";
 import { usePrivacidadeValores } from "@/hooks/usePrivacidadeValores";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
@@ -220,6 +220,8 @@ function DashboardPage() {
   const mesAtual = useCompetenciaVigente();
   // 07/11/2026: a sobra do topo vem só de numeros-ciclo.ts (mesmos números do Início).
   const numerosCiclo = useNumerosCiclo(mesAtual);
+  // 09/11/2026: cards Receitas e Despesas = receitas e despesas do ciclo da mesma função; comparação com o ciclo anterior idem.
+  const numerosCicloAnterior = useNumerosCiclo(somarMeses(mesAtual, -1));
   const { dados: dadosCiclo, caixinhas: caixinhasCiclo, diaVirada: diaViradaCiclo } = useDadosCiclo();
   // Item 10 (2026-10-05): a última opção escolhida fica salva neste navegador.
   const [janela, setJanela] = usePersistedState("dashboard.janela2", "m1p1");
@@ -727,10 +729,10 @@ function DashboardPage() {
       ) : (
       <HeroMes
         numeros={numerosCiclo}
-        receitas={dados.totalReceitas}
-        despesas={dados.totalDespesas}
-        deltaReceitas={dados.deltaReceitas}
-        deltaDespesas={dados.deltaDespesas}
+        receitas={numerosCiclo.previsto.receitas}
+        despesas={numerosCiclo.previsto.despesas}
+        deltaReceitas={variacaoPct(numerosCiclo.previsto.receitas, numerosCicloAnterior.previsto.receitas)}
+        deltaDespesas={variacaoPct(numerosCiclo.previsto.despesas, numerosCicloAnterior.previsto.despesas)}
         fixas={dados.fixas}
         variaveis={dados.variaveis}
         mesRotulo={monthLabel(mesAtual)}
@@ -1568,6 +1570,11 @@ function EmptyChart() {
   );
 }
 
+/** Variação % contra o ciclo anterior (null sem base). */
+function variacaoPct(atual: number, anterior: number): number | null {
+  return anterior > 0 ? ((atual - anterior) / anterior) * 100 : null;
+}
+
 /** Topo do Finanças: saldo do mês em destaque, com receitas e despesas ao lado (visual 04/11/2026). */
 function HeroMes({
   numeros,
@@ -1597,7 +1604,7 @@ function HeroMes({
         }`}
       >
         {delta >= 0 ? <ArrowUpRight className="size-3" /> : <ArrowDownRight className="size-3" />}
-        {Math.abs(delta).toFixed(0)}% vs. mês anterior
+        {Math.abs(delta).toFixed(0)}% vs. ciclo anterior
       </span>
     ) : null;
 

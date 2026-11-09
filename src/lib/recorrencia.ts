@@ -478,7 +478,11 @@ export function receitasPorCompetencias(
       const valor = valorNaCompetencia(recorrencia, competencia);
       if (valor == null) continue;
 
-      const dataRecebimento = vencimentoDaCompetencia(recorrencia.inicio, competencia);
+      // 09/11/2026: o DIA da projeção vem do início da série vigente (registro mais recente), não do início
+      // mais antigo da chave. Ex.: "Dia 15 - Matheus" teve série antiga iniciada em 01/01 e a vigente em 15/10;
+      // com o dia 01 a projeção de novembro caía em 01/dez (fora do ciclo 16/out a 15/nov) e sumia o 15/nov.
+      const inicioDaSerie = String(rec.recorrencia_inicio ?? rec.data_recebimento ?? recorrencia.inicio).slice(0, 10);
+      const dataRecebimento = vencimentoDaCompetencia(inicioDaSerie, competencia);
       out.push({
         id: `rec_proj:${rec.id}:${competencia}`,
         receita_id: String(rec.id),

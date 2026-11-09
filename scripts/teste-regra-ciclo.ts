@@ -152,6 +152,44 @@ igual("dia 31 em novembro", vencimentoDaCompetencia("2026-01-31", "2026-11"), "2
   igual("frase ritmo", textoRitmo(r, n.fim, brl).linha2, "Nesse ritmo, sobram R$ 850.00 em 15/11.");
 }
 
+// 09/11/2026 (bug em produção): receita fixa sem prazo cuja série vigente começou meses antes (15/10) e que
+// tem uma série antiga da mesma descrição iniciada em 01/01. A projeção de novembro precisa cair em 15/nov
+// (dia da série vigente), dentro do ciclo 16/out a 15/nov. Dados reais do grupo (só as receitas).
+{
+  const rec = (id: string, descricao: string, responsavel: string, valor: number, data: string, extra: any) => ({
+    id, descricao, responsavel, valor, moeda: "BRL", data_recebimento: data, ...extra,
+  });
+  const fixaR = (inicio: string, semPrazo: boolean, meses: number | null, origem = "manual") => ({
+    recorrente: true, recorrencia_inicio: inicio, recorrencia_sem_prazo: semPrazo, recorrencia_meses: meses, frequencia: "mensal", origem,
+  });
+  const avulsa = { recorrente: false, recorrencia_inicio: null, origem: "pluggy" };
+  const receitasReais = [
+    rec("r1", "Dia 15 - Guilherme", "Guilherme", 2874, "2026-01-15", fixaR("2026-01-01", false, 3, "pluggy")),
+    rec("r2", "Dia 15 - Matheus", "Matheus", 9156, "2026-01-15", fixaR("2026-01-01", false, 2, "pluggy")),
+    rec("r3", "Dia 30 - Matheus", "Matheus", 7448, "2026-01-31", fixaR("2026-01-31", true, null)),
+    rec("r4", "Dia 30 - Guilherme", "Guilherme", 2492, "2026-01-31", fixaR("2026-01-31", true, null)),
+    rec("r5", "Dia 15 - Matheus", "Matheus", 8000, "2026-03-01", avulsa),
+    rec("r6", "Dia 15 - Matheus", "Matheus", 9156, "2026-04-01", fixaR("2026-04-01", false, 5)),
+    rec("r7", "Dia 15 - Guilherme", "Guilherme", 3067.81, "2026-04-02", avulsa),
+    rec("r8", "Dia 15 - Guilherme", "Guilherme", 2874, "2026-05-01", fixaR("2026-05-01", false, 4)),
+    rec("r9", "Dia 15 - Guilherme", "Guilherme", 2874, "2026-09-15", avulsa),
+    rec("r10", "Dia 15 - Matheus", "Matheus", 9156, "2026-09-15", avulsa),
+    rec("r11", "Dia 15 - Matheus", "Matheus", 9156, "2026-10-15", fixaR("2026-10-15", true, null)),
+    rec("r12", "Dia 15 - Guilherme", "Guilherme", 2874, "2026-10-15", fixaR("2026-10-15", true, null)),
+  ];
+  const dadosReais = { despesas: [], receitas: receitasReais, faturas: [], cotacao: null } as any;
+  const nr = calcularNumerosCiclo(dadosReais, "2026-10", 0, D, new Date(2026, 10, 9, 12));
+  igual("real: receitas do ciclo 16/out a 15/nov", nr.previsto.receitas, 21970);
+  igual("real: já recebidas (30/out)", nr.real.receitas, 9940);
+  igual("real: ainda vão entrar (15/nov)", nr.previsto.aindaVaoEntrar, 12030);
+  igual("real: vai sobrar = receitas - despesas - caixinhas", nr.previsto.sobra, 21970);
+  igual(
+    "real: datas previstas no ciclo",
+    receitasDoCiclo(receitasReais, "2026-10", D).map((r: any) => `${r.descricao}@${r.data_prevista_ciclo}`).sort(),
+    ["Dia 15 - Guilherme@2026-11-15", "Dia 15 - Matheus@2026-11-15", "Dia 30 - Guilherme@2026-10-31", "Dia 30 - Matheus@2026-10-31"],
+  );
+}
+
 if (falhas) {
   console.error(`\n${falhas} verificação(ões) falharam.`);
   process.exit(1);
