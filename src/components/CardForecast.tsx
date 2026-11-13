@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { usePrivacidadeValores } from "@/hooks/usePrivacidadeValores";
 import { monthLabelLong } from "@/lib/format";
+import { nomeDoCiclo, rotuloDoCiclo } from "@/lib/rotulo-ciclo";
 import { useCicloVigente, useCompetenciaVigente } from "@/lib/periodo-vigente";
 
 interface CardForecastProps {
@@ -186,7 +187,7 @@ export function CardForecast({
               Forecast & Previsão de Fechamento
             </CardTitle>
             <p className="text-xs text-muted-foreground">
-              {monthLabelLong(mesAtual)} · {forecast.ehMesVigente ? `Ciclo ${ciclo.rotuloPeriodo} (dia ${forecast.diaAtualNoCiclo} de ${forecast.diasTotais} · ${forecast.diasRestantes} dias restantes)` : "Competência de referência"}
+              {nomeDoCiclo(mesAtual)} · {forecast.ehMesVigente ? `Ciclo ${ciclo.rotuloPeriodo} (dia ${forecast.diaAtualNoCiclo} de ${forecast.diasTotais} · ${forecast.diasRestantes} dias restantes)` : "Competência de referência"}
             </p>
           </div>
         </div>

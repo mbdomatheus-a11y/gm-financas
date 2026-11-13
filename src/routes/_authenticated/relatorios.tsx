@@ -46,6 +46,7 @@ import { useCartoes, useDespesas, useFaturasMes, useInvestimentos, useReceitas }
 import { usePreferencias } from "@/hooks/usePreferencias";
 import { usePrivacidadeValores } from "@/hooks/usePrivacidadeValores";
 import { abreviarValor, competenciaDoDia, monthLabel, monthLabelLong } from "@/lib/format";
+import { nomeDoCiclo, rotuloDoCiclo } from "@/lib/rotulo-ciclo";
 import { useCompetenciaVigente } from "@/lib/periodo-vigente";
 import { somarMeses } from "@/lib/recorrencia";
 import {
@@ -185,7 +186,7 @@ function RelatoriosPage() {
 
   const rotuloPeriodo =
     competencias.length === 1
-      ? monthLabelLong(competencias[0]!)
+      ? rotuloDoCiclo(competencias[0]!)
       : `${monthLabel(competencias[0]!)} a ${monthLabel(fimPeriodo)}`;
 
   function escolherMes(key: string) {
@@ -841,7 +842,7 @@ function AbaPrevisao({
           </Painel>
 
           <div className="grid gap-4 lg:grid-cols-2">
-            <Painel titulo={`Detalhe de ${monthLabelLong(sel.key)}`}>
+            <Painel titulo={`Detalhe do ${rotuloDoCiclo(sel.key).replace("Ciclo", "ciclo")}`}>
               <div className="space-y-4 text-sm">
                 <div>
                   <div className="flex justify-between font-semibold">
@@ -973,8 +974,8 @@ function AbaParcelas({
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
         <Indicador rotulo="Já pago" valor={formatar(jaPago)} tom="success" />
-        <Indicador rotulo="Este mês" valor={formatar(esteMes)} dica={monthLabelLong(mesAtual)} />
-        <Indicador rotulo="Próximo mês" valor={formatar(proxMes)} dica={monthLabelLong(proximo)} />
+        <Indicador rotulo="Este mês" valor={formatar(esteMes)} dica={rotuloDoCiclo(mesAtual)} />
+        <Indicador rotulo="Próximo mês" valor={formatar(proxMes)} dica={rotuloDoCiclo(proximo)} />
       </div>
 
       <Painel titulo="Compromisso mensal">

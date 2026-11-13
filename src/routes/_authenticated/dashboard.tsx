@@ -71,6 +71,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 import { formatBRL, formatDate, formatUSD, identificacaoDespesa, monthKey, monthLabel, monthLabelLong, toBRL, competenciaDoDia, mesDoCiclo } from "@/lib/format";
+import { nomeDoCiclo, rotuloDoCiclo } from "@/lib/rotulo-ciclo";
 import { useCompetenciaVigente } from "@/lib/periodo-vigente";
 import { lancamentosPorCompetencias, receitasPorCompetencias, somarMeses } from "@/lib/recorrencia";
 import { usePrivacidadeValores } from "@/hooks/usePrivacidadeValores";
@@ -717,7 +718,7 @@ function DashboardPage() {
   return (
     <AppLayout
       title="Finanças"
-      description={`Resumo de ${monthLabel(mesAtual)} · USD ${cotacao.toFixed(2)}`}
+      description={`Resumo do ${rotuloDoCiclo(mesAtual).replace("Ciclo", "ciclo")} · USD ${cotacao.toFixed(2)}`}
       actions={
         <Button variant="outline" size="sm" className="rounded-full" asChild>
           <Link to="/relatorios">Ver em Relatórios</Link>
@@ -735,7 +736,7 @@ function DashboardPage() {
         deltaDespesas={variacaoPct(numerosCiclo.previsto.despesas, numerosCicloAnterior.previsto.despesas)}
         fixas={dados.fixas}
         variaveis={dados.variaveis}
-        mesRotulo={monthLabel(mesAtual)}
+        mesRotulo={rotuloDoCiclo(mesAtual)}
       />
       )}
       <div className="mt-4">
@@ -774,8 +775,8 @@ function DashboardPage() {
           tone="success"
           hint={
             alivioPeriodo.qtdContratos > 0
-              ? `${alivioPeriodo.qtdContratos} ${alivioPeriodo.qtdContratos === 1 ? "parcelamento encerra" : "parcelamentos encerram"} em ${monthLabel(mesAtual)}`
-              : `Nenhum término em ${monthLabel(mesAtual)}`
+              ? `${alivioPeriodo.qtdContratos} ${alivioPeriodo.qtdContratos === 1 ? "parcelamento encerra" : "parcelamentos encerram"} no ${nomeDoCiclo(mesAtual).toLowerCase()}`
+              : `Nenhum término no ${nomeDoCiclo(mesAtual).toLowerCase()}`
           }
           display={
             alivioPeriodo.totalAlivio > 0
@@ -1609,10 +1610,10 @@ function HeroMes({
     ) : null;
 
   return (
-    <section aria-label={`Resumo de ${mesRotulo}`} className="grid gap-px overflow-hidden rounded-3xl border bg-border shadow-[var(--shadow-card)] lg:grid-cols-[1.3fr_1fr]">
+    <section aria-label={`Resumo: ${mesRotulo}`} className="grid gap-px overflow-hidden rounded-3xl border bg-border shadow-[var(--shadow-card)] lg:grid-cols-[1.3fr_1fr]">
       <a href="#fluxo-caixa" className="block bg-card p-6 transition-colors hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 sm:p-8">
         <SobraCiclo numeros={numeros} formatar={formatar} />
-        <p className="mt-3 text-xs text-muted-foreground">Ciclo de {mesRotulo}. Toque para ver o fluxo de caixa.</p>
+        <p className="mt-3 text-xs text-muted-foreground">{mesRotulo}. Toque para ver o fluxo de caixa.</p>
       </a>
       <div className="grid grid-rows-2 gap-px">
         <Link to="/receitas" className="flex items-center justify-between gap-4 bg-card px-6 py-5 transition-colors hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50">

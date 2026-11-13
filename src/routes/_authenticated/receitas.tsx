@@ -83,6 +83,7 @@ import { receitasDoCiclo } from "@/lib/numeros-ciclo";
 import { CartaoCarregando } from "@/components/CartaoCarregando";
 import { useCotacao } from "@/hooks/useCotacao";
 import { addMonths, currentMonthKey, formatBRL, formatDate, formatMoeda, monthKey, monthLabelLong, toBRL, toISODate, competenciaDaReceita, mesDoCiclo } from "@/lib/format";
+import { nomeDoCiclo, rotuloDoCiclo } from "@/lib/rotulo-ciclo";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/receitas")({
@@ -258,7 +259,7 @@ function ReceitasPage() {
       filtroMes !== "todos" &&
       filtroMes !== "custom" &&
       filtroMes !== "atual_proximo" && {
-        label: monthLabelLong(filtroMes),
+        label: rotuloDoCiclo(filtroMes),
         clear: () => setFiltroMes(currentMonthKey()),
       },
     filtroMes === "todos" && {
@@ -316,7 +317,7 @@ function ReceitasPage() {
                 ? `${cartao.apelido ?? cartao.bandeira ?? "Cartão"} •${cartao.final ?? ""} · ${primeiroNome(cartao.titular)}`
                 : "Sem atribuição";
             })()
-          : monthLabelLong(key),
+          : rotuloDoCiclo(key),
       itens: itens.sort(
         (a, b) => new Date(b.data_recebimento).getTime() - new Date(a.data_recebimento).getTime(),
       ),
@@ -721,7 +722,7 @@ function ReceitasPage() {
               <SelectItem value="custom">Mês específico…</SelectItem>
               {meses.map((m) => (
                 <SelectItem key={m} value={m}>
-                  {monthLabelLong(m)}
+                  {rotuloDoCiclo(m)}
                 </SelectItem>
               ))}
             </SelectContent>

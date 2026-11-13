@@ -2,6 +2,7 @@ import { ChevronLeft, ChevronRight, CalendarDays } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { currentMonthKey, monthLabelLong } from "@/lib/format";
+import { nomeDoCiclo, rotuloDoCiclo } from "@/lib/rotulo-ciclo";
 
 function deslocar(key: string, delta: number): string {
   const [a = 0, m = 1] = key.split("-").map(Number);
@@ -32,20 +33,20 @@ export function NavegadorMes({
         variant="ghost"
         size="icon"
         className="size-8 shrink-0 rounded-full"
-        aria-label="Mês anterior"
+        aria-label="Ciclo anterior"
         onClick={() => onChange(deslocar(base, -1))}
       >
         <ChevronLeft className="size-4" />
       </Button>
       <span className="min-w-[8.5rem] px-2 text-center text-sm font-medium">
-        {valor ? monthLabelLong(valor) : "Todos os meses"}
+        {valor ? rotuloDoCiclo(valor) : "Todos os meses"}
       </span>
       <Button
         type="button"
         variant="ghost"
         size="icon"
         className="size-8 shrink-0 rounded-full"
-        aria-label="Próximo mês"
+        aria-label="Próximo ciclo"
         onClick={() => onChange(deslocar(base, 1))}
       >
         <ChevronRight className="size-4" />

@@ -105,7 +105,8 @@ export function competenciaDoDia(value: Date | string): string {
     dia = value.getDate();
   }
   const v = viradaValida(diaViradaCiclo);
-  if (!v || dia >= v) return `${y}-${pad2(m)}`;
+  // 13/11/2026 (regra do ciclo): o ciclo vai de D+1 a D; o próprio dia D ainda é do ciclo que termina.
+  if (!v || dia > v) return `${y}-${pad2(m)}`;
   const anterior = new Date(y, m - 2, 1);
   return `${anterior.getFullYear()}-${pad2(anterior.getMonth() + 1)}`;
 }

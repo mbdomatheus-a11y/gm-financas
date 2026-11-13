@@ -97,12 +97,13 @@ export function calcularCicloVigente(
   let inicio: Date;
   let fim: Date;
 
-  if (hoje.getDate() < diaVirada) {
-    inicio = new Date(hoje.getFullYear(), hoje.getMonth() - 1, diaVirada);
-    fim = new Date(hoje.getFullYear(), hoje.getMonth(), diaVirada - 1);
+  // 13/11/2026: mesmo ciclo de hoje de mesDoCicloEm (D+1 a D; no dia D ainda vale o ciclo que termina).
+  if (hoje.getDate() <= diaVirada) {
+    inicio = new Date(hoje.getFullYear(), hoje.getMonth() - 1, diaVirada + 1);
+    fim = new Date(hoje.getFullYear(), hoje.getMonth(), diaVirada);
   } else {
-    inicio = new Date(hoje.getFullYear(), hoje.getMonth(), diaVirada);
-    fim = new Date(hoje.getFullYear(), hoje.getMonth() + 1, diaVirada - 1);
+    inicio = new Date(hoje.getFullYear(), hoje.getMonth(), diaVirada + 1);
+    fim = new Date(hoje.getFullYear(), hoje.getMonth() + 1, diaVirada);
   }
 
   const msPorDia = 24 * 60 * 60 * 1000;

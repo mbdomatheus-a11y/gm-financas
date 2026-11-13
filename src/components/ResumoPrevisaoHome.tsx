@@ -17,6 +17,7 @@ import { useCompetenciaVigente } from "@/lib/periodo-vigente";
 import { metaDoMes } from "@/lib/poupar";
 import { calcularPrevisaoMes, datasDoCiclo } from "@/lib/previsao-mes";
 import { monthLabelLong } from "@/lib/format";
+import { nomeDoCiclo, rotuloDoCiclo } from "@/lib/rotulo-ciclo";
 import { somarMeses } from "@/lib/recorrencia";
 
 /**
@@ -81,7 +82,7 @@ export function ResumoPrevisaoHome({ mes: mesEscolhido, className }: { mes?: str
           <div className="min-w-0">
             <h2 className="text-balance text-lg font-semibold tracking-tight">Previsão do mês</h2>
             <p className="mt-0.5 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-              {monthLabelLong(mes)}
+              {rotuloDoCiclo(mes)}
               {cicloTexto && (
                 <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium tabular-nums text-foreground">
                   ciclo {cicloTexto}

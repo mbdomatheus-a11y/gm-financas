@@ -123,6 +123,7 @@ import {
 } from "@/lib/recorrencia";
 import { useCotacao } from "@/hooks/useCotacao";
 import { addMonths, dividirParcelas, formatBRL, formatDate, formatUSD, identificacaoDespesa, monthKey, monthLabelLong, parseDate, toBRL, toISODate, competenciaAtual, competenciaDoDia, mesDoCiclo } from "@/lib/format";
+import { nomeDoCiclo, rotuloDoCiclo } from "@/lib/rotulo-ciclo";
 import { cn } from "@/lib/utils";
 import { lancamentosDoCardMes } from "@/lib/lancamentos-card";
 import { PixDespesas, usePix } from "@/components/pix/AbaPix";
@@ -1196,7 +1197,7 @@ function DespesasPage() {
       clear: () => setFiltroEconomia(false),
     },
     filtroMes !== "todos" && {
-      label: monthLabelLong(filtroMes),
+      label: rotuloDoCiclo(filtroMes),
       clear: () => setFiltroMes("todos"),
     },
     !!busca && { label: `"${busca}"`, clear: () => setBusca("") },
@@ -1529,7 +1530,7 @@ function DespesasPage() {
               <SelectItem value="todos">Todos os meses</SelectItem>
               {meses.map((m) => (
                 <SelectItem key={m} value={m}>
-                  {monthLabelLong(m)}
+                  {rotuloDoCiclo(m)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -1562,8 +1563,8 @@ function DespesasPage() {
         lista.length > 0 && (
           <div className="mb-6 flex flex-wrap items-center gap-3 rounded-2xl border bg-muted/20 px-4 py-3">
             <span className="text-xs text-muted-foreground">
-              {tab === "total" ? "Todas" : tab === "fixa" ? "Fixas" : "Variáveis"} de{" "}
-              {monthLabelLong(filtroMes)}:
+              {tab === "total" ? "Todas" : tab === "fixa" ? "Fixas" : "Variáveis"} do{" "}
+              {nomeDoCiclo(filtroMes).toLowerCase()}:
             </span>
             <Button
               size="sm"

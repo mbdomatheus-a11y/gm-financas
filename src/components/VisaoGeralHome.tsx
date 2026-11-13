@@ -32,6 +32,7 @@ import { useDespesas, useFaturasMes, useReceitas } from "@/hooks/useFinance";
 import { usePrivacidadeValores } from "@/hooks/usePrivacidadeValores";
 import { aplicarRegrasFaturaMes } from "@/lib/fatura-mes";
 import { formatBRL, formatDate, identificacaoDespesa, monthKey, monthLabel, monthLabelLong, toBRL, competenciaDoDia, mesDoCiclo } from "@/lib/format";
+import { nomeDoCiclo, rotuloDoCiclo } from "@/lib/rotulo-ciclo";
 import { useCompetenciaVigente } from "@/lib/periodo-vigente";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { lancamentosPorCompetencias, receitasPorCompetencias } from "@/lib/recorrencia";
@@ -430,7 +431,7 @@ export function VisaoGeralHome({
         <CardHeader className="flex flex-col gap-2 space-y-0 pb-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <div className="flex items-center gap-1">
-              <CardTitle className="text-base">{monthLabelLong(mes)}</CardTitle>
+              <CardTitle className="text-base">{rotuloDoCiclo(mes)}</CardTitle>
               {!ocultarValores && (
                 <BotaoOlhoItem oculto={ocultoDespesas} onClick={despesasPrivacidade.toggleItem} />
               )}
