@@ -35,6 +35,8 @@ import { formatBRL, formatDate, identificacaoDespesa, monthKey, monthLabel, mont
 import { nomeDoCiclo, rotuloDoCiclo } from "@/lib/rotulo-ciclo";
 import { useCompetenciaVigente } from "@/lib/periodo-vigente";
 import { usePersistedState } from "@/hooks/usePersistedState";
+import { OrdemGastosControle } from "@/components/OrdemGastosControle";
+import { ORDEM_GASTOS_PADRAO, type OrdemGastos, ordenarGastos } from "@/lib/ordem-gastos";
 import { lancamentosPorCompetencias, receitasPorCompetencias } from "@/lib/recorrencia";
 import { usePreferencias } from "@/hooks/usePreferencias";
 import { contaComoDespesa } from "@/lib/regras-saldo";
@@ -163,6 +165,7 @@ export function VisaoGeralHome({
     setMes(competenciaVigente);
   }, [competenciaVigente]);
   const [aberto, setAberto] = useState<string | null>(null);
+  const [ordemGastos, setOrdemGastos] = usePersistedState<OrdemGastos>("gastos.ordem2", ORDEM_GASTOS_PADRAO);
   const [editando, setEditando] = useState<any | null>(null);
 
   const grupoDe = useMemo(
@@ -251,7 +254,7 @@ export function VisaoGeralHome({
     const lista = Array.from(atualMap, ([grupo, v]) => ({
       grupo,
       total: v.total,
-      itens: v.itens.sort((a, b) => b.valorBRL - a.valorBRL),
+      itens: v.itens,
       delta: variacao(v.total, antMap.get(grupo) ?? 0),
     })).sort((a, b) => b.total - a.total);
     const total = lista.reduce((s, g) => s + g.total, 0);
@@ -462,6 +465,7 @@ export function VisaoGeralHome({
           </Select>
         </CardHeader>
         <CardContent className="space-y-2 pt-2">
+          {grupos.lista.length > 0 && <OrdemGastosControle ordem={ordemGastos} onChange={setOrdemGastos} />}
           {grupos.lista.length === 0 && (
             <p className="py-6 text-center text-sm text-muted-foreground">
               Nenhum gasto neste mês.
@@ -505,7 +509,11 @@ export function VisaoGeralHome({
                 </button>
                 {expandido && (
                   <div className="border-t">
-                    {g.itens.map((p: any) => (
+                    {ordenarGastos(g.itens as any[], ordemGastos, {
+                      data: (p: any) => String(p.despesa?.data_compra ?? p.vencimento ?? ""),
+                      valor: (p: any) => p.valorBRL,
+                      nome: (p: any) => String(p.despesa?.descricao ?? ""),
+                    }).map((p: any) => (
                       <button
                         key={p.id}
                         type="button"

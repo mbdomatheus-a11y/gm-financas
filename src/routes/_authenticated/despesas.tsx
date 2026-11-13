@@ -51,6 +51,8 @@ import { PrimeiraCategoriaGuia } from "@/components/PrimeiraCategoriaGuia";
 import { AppLayout } from "@/components/AppLayout";
 import { BarraSoma, useSelecaoSoma } from "@/components/BarraSoma";
 import { usePersistedState } from "@/hooks/usePersistedState";
+import { OrdemGastosControle } from "@/components/OrdemGastosControle";
+import { ORDEM_GASTOS_PADRAO, type OrdemGastos, ordenarGastos } from "@/lib/ordem-gastos";
 import { usePrivacidadeValores } from "@/hooks/usePrivacidadeValores";
 import { Field } from "@/routes/_authenticated/receitas";
 import { Button } from "@/components/ui/button";
@@ -239,10 +241,7 @@ function DespesasPage() {
   // persistir por localStorage entraria em conflito com esse comportamento.
   const [tab, setTab] = usePersistedState<"total" | "fixa" | "variavel" | "pix">("despesas.tab", "total");
   // Ordenação da lista (vale dentro de cada grupo); padrão = ordem original. Lembrada em localStorage.
-  const [ordem, setOrdem] = usePersistedState<"padrao" | "valor_desc" | "valor_asc" | "nome_asc" | "nome_desc">(
-    "despesas.ordem",
-    "padrao",
-  );
+  const [ordem, setOrdem] = usePersistedState<OrdemGastos>("gastos.ordem2", ORDEM_GASTOS_PADRAO);
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   // Bloco 6 (plano-mega 2026-09-14): simulação visual de corte em despesas
@@ -1147,17 +1146,13 @@ function DespesasPage() {
       mapa.set(key, g);
     }
     const arr = Array.from(mapa.values()).sort((a, b) => b.total - a.total);
-    if (ordem !== "padrao") {
-      const val = (d: any) => toBRL(valorVisivel(d), d.moeda, cotacao);
-      const nome = (d: any) => String(d.descricao ?? "");
-      const cmp: Record<string, (a: any, b: any) => number> = {
-        valor_desc: (a, b) => val(b) - val(a),
-        valor_asc: (a, b) => val(a) - val(b),
-        nome_asc: (a, b) => nome(a).localeCompare(nome(b), "pt-BR", { sensitivity: "base" }),
-        nome_desc: (a, b) => nome(b).localeCompare(nome(a), "pt-BR", { sensitivity: "base" }),
-      };
-      for (const g of arr) g.itens = [...g.itens].sort(cmp[ordem]);
-    }
+    const val = (d: any) => toBRL(valorVisivel(d), d.moeda, cotacao);
+    for (const g of arr)
+      g.itens = ordenarGastos(g.itens, ordem, {
+        data: (d: any) => String(d.data_compra ?? ""),
+        valor: val,
+        nome: (d: any) => String(d.descricao ?? ""),
+      });
     return arr;
   }, [ordem, listaVisivel, modoLista, cotacao, resumo.total, filtroMes, lancamentoPorDespesa, idsIgnoradosPorTotal]);
 
@@ -1660,19 +1655,7 @@ function DespesasPage() {
       ) : (
         <div className="space-y-4">
           <div className="flex items-center justify-end gap-2">
-            <span className="text-xs text-muted-foreground">Ordenar</span>
-            <Select value={ordem} onValueChange={(v) => setOrdem(v as typeof ordem)}>
-              <SelectTrigger className="h-8 w-[170px] text-xs" aria-label="Ordenar lista">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="padrao">Padrão</SelectItem>
-                <SelectItem value="valor_desc">Valor: maior primeiro</SelectItem>
-                <SelectItem value="valor_asc">Valor: menor primeiro</SelectItem>
-                <SelectItem value="nome_asc">Nome: A a Z</SelectItem>
-                <SelectItem value="nome_desc">Nome: Z a A</SelectItem>
-              </SelectContent>
-            </Select>
+            <OrdemGastosControle ordem={ordem} onChange={setOrdem} />
           </div>
           {gruposLista.map((grupo) => (
             <div key={grupo.key} className="overflow-hidden rounded-2xl border bg-card">
