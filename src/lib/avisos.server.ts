@@ -7,6 +7,8 @@
  */
 import { macroDe } from "@/lib/macro-categorias";
 import { carregarPreferencias, decidirEnvio, diaBrasilia, enviarSemFiltro, minutosAgoraBrasilia } from "@/lib/push.server";
+import { DIAS_DO_PERIODO, itemCatalogo, type ConfigAlerta } from "@/lib/alertas-catalogo";
+import { alertaDoAviso, carregarConfigAlertas, momentoDoResumo, tituloResumo } from "@/lib/config-alertas.server";
 
 export type NovoAviso = {
   user_id: string;
@@ -38,10 +40,14 @@ const HORA_AVISOS_DE_DATA = 7;
 
 /** Grava avisos (ignora os que já existem pela chave). O gatilho do banco manda o push. */
 export async function gravarAvisos(db: any, avisos: NovoAviso[]): Promise<number> {
+  // config_alertas: tipo desligado não grava (o gatilho do banco também confere e decide push/lote).
+  const cfg = await carregarConfigAlertas(db).catch(() => null);
+  const validos = avisos.filter((a) => cfg?.porTipo.get(alertaDoAviso(a.tipo, a.chave))?.ativo !== false);
   let n = 0;
-  for (let i = 0; i < avisos.length; i += 500) {
-    const lote = avisos.slice(i, i + 500).map((a) => ({
+  for (let i = 0; i < validos.length; i += 500) {
+    const lote = validos.slice(i, i + 500).map((a) => ({
       ...a,
+      ...(cfg?.daTabela ? { alerta: alertaDoAviso(a.tipo, a.chave) } : {}),
       destino: a.destino ?? DESTINO_POR_TIPO[a.tipo] ?? null,
       titulo: a.titulo.slice(0, 120),
       mensagem: a.mensagem.slice(0, 1000),
@@ -137,88 +143,221 @@ function diaDoMesEfetivo(iso: string, dia: number): number {
 const diasEntre = (de: string, ate: string) =>
   Math.round((Date.parse(`${ate.slice(0, 10)}T12:00:00Z`) - Date.parse(`${de}T12:00:00Z`)) / 86400000);
 
-/** Avisos de data que entraram na janela: parcela vence hoje/amanhã, fatura fecha hoje ou vence, garantia acabando. */
-export async function gerarAvisosDeData(db: any): Promise<number> {
-  if (minutosAgoraBrasilia() < HORA_AVISOS_DE_DATA * 60) return 0;
+const quando = (dias: number) => (dias <= 0 ? "hoje" : dias === 1 ? "amanhã" : `em ${dias} dias`);
+const dataCurta = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
+
+/** O tipo pode ser gerado agora? Desligado não; "na hora" só a partir da hora configurada. */
+function liberado(cfg: ConfigAlerta | undefined): boolean {
+  if (!cfg || !cfg.ativo) return false;
+  const hora = cfg.frequencia === "na_hora" ? (cfg.hora ?? HORA_AVISOS_DE_DATA) : HORA_AVISOS_DE_DATA;
+  return minutosAgoraBrasilia() >= hora * 60;
+}
+
+/**
+ * Avisos de data que entraram na janela (antecedência de config_alertas): parcela vence, fatura fecha
+ * ou vence, garantia acabando, parcelas que terminam. Padrões: parcela e fatura vence hoje/amanhã,
+ * fatura fecha hoje, garantia 30/7/1 dia (igual ao comportamento anterior).
+ */
+export async function gerarAvisosDeData(db: any, agora = new Date()): Promise<number> {
+  const { porTipo } = await carregarConfigAlertas(db);
+  const cfgParcela = porTipo.get("parcela_vence");
+  const cfgFecha = porTipo.get("fatura_fecha");
+  const cfgVence = porTipo.get("fatura_vence");
+  const cfgGarantia = porTipo.get("garantia_acabando");
   const hoje = diaBrasilia(0);
-  const amanha = diaBrasilia(1);
-  const em30 = diaBrasilia(30);
   const novos: (Omit<NovoAviso, "user_id"> & { grupo_id: string })[] = [];
 
-  const { data: parcelas } = await db
-    .from("parcelas")
-    .select("id,vencimento,grupo_id,despesa:despesas(descricao,cartao_id,direcao)")
-    .eq("paga", false)
-    .gte("vencimento", hoje)
-    .lte("vencimento", amanha)
-    .not("grupo_id", "is", null)
-    .limit(5000);
-  for (const p of parcelas ?? []) {
-    const d = Array.isArray(p.despesa) ? p.despesa[0] : p.despesa;
-    if (!d || d.cartao_id || (d.direcao && d.direcao !== "debito")) continue; // compra no cartão: avisa pela fatura
-    const venc = String(p.vencimento).slice(0, 10);
-    novos.push({
-      grupo_id: p.grupo_id,
-      tipo: "parcela",
-      titulo: venc === hoje ? "Parcela vence hoje" : "Parcela vence amanhã",
-      mensagem: String(d.descricao ?? "Despesa"),
-      chave: `parcela:${p.id}:${venc}`,
-      lembrete: "despesa_perto_vencer",
-      referencia_tipo: "parcela",
-      referencia_id: p.id,
-    });
+  if (liberado(cfgParcela)) {
+    const ant = Math.max(0, cfgParcela!.antecedencia_dias ?? 1);
+    const { data: parcelas } = await db
+      .from("parcelas")
+      .select("id,vencimento,grupo_id,despesa:despesas(descricao,cartao_id,direcao)")
+      .eq("paga", false)
+      .gte("vencimento", hoje)
+      .lte("vencimento", diaBrasilia(ant))
+      .not("grupo_id", "is", null)
+      .limit(5000);
+    for (const p of parcelas ?? []) {
+      const d = Array.isArray(p.despesa) ? p.despesa[0] : p.despesa;
+      if (!d || d.cartao_id || (d.direcao && d.direcao !== "debito")) continue; // compra no cartão: avisa pela fatura
+      const venc = String(p.vencimento).slice(0, 10);
+      novos.push({
+        grupo_id: p.grupo_id,
+        tipo: "parcela",
+        titulo: `Parcela vence ${quando(diasEntre(hoje, venc))}`,
+        mensagem: String(d.descricao ?? "Despesa"),
+        chave: `parcela:${p.id}:${venc}`,
+        lembrete: "despesa_perto_vencer",
+        referencia_tipo: "parcela",
+        referencia_id: p.id,
+      });
+    }
   }
 
-  const { data: cartoes } = await db
-    .from("cartoes")
-    .select("id,apelido,final,dia_fechamento,dia_vencimento,grupo_id")
-    .not("grupo_id", "is", null)
-    .limit(5000);
-  const diaHoje = Number(hoje.slice(8, 10));
-  const diaAmanha = Number(amanha.slice(8, 10));
-  for (const c of cartoes ?? []) {
-    const nome = c.apelido || (c.final ? `Cartão final ${c.final}` : "Cartão");
-    if (c.dia_fechamento && diaDoMesEfetivo(hoje, Number(c.dia_fechamento)) === diaHoje)
-      novos.push({ grupo_id: c.grupo_id, tipo: "fatura", titulo: "Fatura fecha hoje", mensagem: `${nome}: o fechamento da fatura é hoje.`, chave: `fatura:${c.id}:fecha:${hoje}`, lembrete: "revisar_faturas", referencia_tipo: "cartao", referencia_id: c.id });
-    if (c.dia_vencimento) {
-      const venceHoje = diaDoMesEfetivo(hoje, Number(c.dia_vencimento)) === diaHoje;
-      const venceAmanha = diaDoMesEfetivo(amanha, Number(c.dia_vencimento)) === diaAmanha;
-      if (venceHoje || venceAmanha) {
-        const data = venceHoje ? hoje : amanha;
-        novos.push({ grupo_id: c.grupo_id, tipo: "fatura", titulo: venceHoje ? "Fatura vence hoje" : "Fatura vence amanhã", mensagem: `${nome}: a fatura vence ${venceHoje ? "hoje" : "amanhã"}.`, chave: `fatura:${c.id}:venc:${data}`, lembrete: "despesa_perto_vencer", referencia_tipo: "cartao", referencia_id: c.id });
+  const querFecha = liberado(cfgFecha);
+  const querVence = liberado(cfgVence);
+  if (querFecha || querVence) {
+    const { data: cartoes } = await db
+      .from("cartoes")
+      .select("id,apelido,final,dia_fechamento,dia_vencimento,grupo_id")
+      .not("grupo_id", "is", null)
+      .limit(5000);
+    /** Primeiro dia (0..ant) em que o dia do mês do cartão cai. */
+    const proximo = (diaCartao: number, ant: number): number | null => {
+      for (let k = 0; k <= ant; k++) {
+        const iso = diaBrasilia(k);
+        if (diaDoMesEfetivo(iso, diaCartao) === Number(iso.slice(8, 10))) return k;
+      }
+      return null;
+    };
+    const antFecha = Math.max(0, cfgFecha?.antecedencia_dias ?? 0);
+    const antVence = Math.max(0, cfgVence?.antecedencia_dias ?? 1);
+    for (const c of cartoes ?? []) {
+      const nome = c.apelido || (c.final ? `Cartão final ${c.final}` : "Cartão");
+      const kf = querFecha && c.dia_fechamento ? proximo(Number(c.dia_fechamento), antFecha) : null;
+      if (kf !== null) {
+        const data = diaBrasilia(kf);
+        novos.push({ grupo_id: c.grupo_id, tipo: "fatura", titulo: `Fatura fecha ${quando(kf)}`, mensagem: `${nome}: o fechamento da fatura é ${kf <= 1 ? quando(kf) : `em ${dataCurta(data)}`}.`, chave: `fatura:${c.id}:fecha:${data}`, lembrete: "revisar_faturas", referencia_tipo: "cartao", referencia_id: c.id });
+      }
+      const kv = querVence && c.dia_vencimento ? proximo(Number(c.dia_vencimento), antVence) : null;
+      if (kv !== null) {
+        const data = diaBrasilia(kv);
+        novos.push({ grupo_id: c.grupo_id, tipo: "fatura", titulo: `Fatura vence ${quando(kv)}`, mensagem: `${nome}: a fatura vence ${kv <= 1 ? quando(kv) : `em ${dataCurta(data)}`}.`, chave: `fatura:${c.id}:venc:${data}`, lembrete: "despesa_perto_vencer", referencia_tipo: "cartao", referencia_id: c.id });
       }
     }
   }
 
-  const { data: notas } = await db
-    .from("notas_fiscais")
-    .select("id,estabelecimento,descricao,garantia_fim,grupo_id,arquivada")
-    .gte("garantia_fim", hoje)
-    .lte("garantia_fim", em30)
-    .not("grupo_id", "is", null)
-    .limit(5000);
-  for (const n of notas ?? []) {
-    if (n.arquivada) continue;
-    const dias = diasEntre(hoje, String(n.garantia_fim));
-    const marco = dias <= 1 ? 1 : dias <= 7 ? 7 : 30;
-    const nome = n.descricao || n.estabelecimento || "Produto";
-    novos.push({
-      grupo_id: n.grupo_id,
-      tipo: "garantia",
-      titulo: "Garantia acabando",
-      mensagem: dias <= 0 ? `${nome}: a garantia acaba hoje.` : `${nome}: a garantia acaba em ${dias} dia${dias === 1 ? "" : "s"}.`,
-      chave: `garantia:${n.id}:${String(n.garantia_fim).slice(0, 10)}:${marco}`,
-      lembrete: "garantia_vencendo",
-      referencia_tipo: "nota_fiscal",
-      referencia_id: n.id,
-    });
+  if (liberado(cfgGarantia)) {
+    const ant = Math.max(0, cfgGarantia!.antecedencia_dias ?? 30);
+    const marcos = [...new Set([1, 7, 30, ant].filter((m) => m <= ant))].sort((a, b) => a - b);
+    const { data: notas } = await db
+      .from("notas_fiscais")
+      .select("id,estabelecimento,descricao,garantia_fim,grupo_id,arquivada")
+      .gte("garantia_fim", hoje)
+      .lte("garantia_fim", diaBrasilia(ant))
+      .not("grupo_id", "is", null)
+      .limit(5000);
+    for (const n of notas ?? []) {
+      if (n.arquivada) continue;
+      const dias = diasEntre(hoje, String(n.garantia_fim));
+      const marco = marcos.find((m) => dias <= m) ?? ant;
+      const nome = n.descricao || n.estabelecimento || "Produto";
+      novos.push({
+        grupo_id: n.grupo_id,
+        tipo: "garantia",
+        titulo: "Garantia acabando",
+        mensagem: dias <= 0 ? `${nome}: a garantia acaba hoje.` : `${nome}: a garantia acaba em ${dias} dia${dias === 1 ? "" : "s"}.`,
+        chave: `garantia:${n.id}:${String(n.garantia_fim).slice(0, 10)}:${marco}`,
+        lembrete: "garantia_vencendo",
+        referencia_tipo: "nota_fiscal",
+        referencia_id: n.id,
+      });
+    }
   }
+
+  novos.push(...(await parcelasQueTerminam(db, porTipo.get("parcelas_terminam"), agora)));
 
   if (novos.length === 0) return 0;
   const membros = await membrosPorGrupo(db, [...new Set(novos.map((n) => n.grupo_id))]);
   const avisos: NovoAviso[] = [];
   for (const { grupo_id, ...a } of novos) for (const uid of membros.get(grupo_id) ?? []) avisos.push({ ...a, user_id: uid });
   return gravarAvisos(db, avisos);
+}
+
+/**
+ * Parcelas que terminam: última parcela (numero = total_parcelas, compra parcelada) no período.
+ * Agregado: gera no momento do resumo (ex.: segunda 9h, próximos 7 dias) e o resumo sai em seguida.
+ * "Na hora": todo dia a partir da hora, com a antecedência.
+ */
+async function parcelasQueTerminam(db: any, cfg: ConfigAlerta | undefined, agora: Date) {
+  if (!cfg || !cfg.ativo) return [];
+  if (cfg.frequencia === "na_hora" ? !liberado(cfg) : !momentoDoResumo(cfg, agora)) return [];
+  const periodo = Math.max(1, cfg.antecedencia_dias ?? (DIAS_DO_PERIODO[cfg.frequencia] || 7));
+  const hoje = diaBrasilia(0);
+  const { data } = await db
+    .from("parcelas")
+    .select("id,numero,vencimento,grupo_id,despesa:despesas(descricao,total_parcelas,tipo)")
+    .eq("paga", false)
+    .gte("vencimento", hoje)
+    .lte("vencimento", diaBrasilia(periodo - 1))
+    .not("grupo_id", "is", null)
+    .limit(5000);
+  const out: (Omit<NovoAviso, "user_id"> & { grupo_id: string })[] = [];
+  for (const p of data ?? []) {
+    const d = Array.isArray(p.despesa) ? p.despesa[0] : p.despesa;
+    const total = Number(d?.total_parcelas) || 1;
+    if (!d || d.tipo === "fixa" || total < 2 || Number(p.numero) !== total) continue;
+    const venc = String(p.vencimento).slice(0, 10);
+    out.push({
+      grupo_id: p.grupo_id,
+      tipo: "parcela_fim",
+      titulo: "Última parcela",
+      mensagem: `${d.descricao ?? "Compra parcelada"}: parcela ${total}/${total} em ${dataCurta(venc)}.`,
+      destino: "/mais/despesas",
+      chave: `parcela_fim:${p.id}`,
+      lembrete: "despesa_perto_vencer",
+      referencia_tipo: "parcela",
+      referencia_id: p.id,
+    });
+  }
+  return out;
+}
+
+/**
+ * Resumos dos tipos agregados (frequência diferente de "na hora"): os avisos ficam em 'lote' (gatilho
+ * do banco) e, no dia/hora configurados, cada pessoa recebe um push só ("3 parcelas terminam nesta
+ * semana"), respeitando as preferências (tipo desligado, modo de horário).
+ */
+export async function despacharLotes(db: any, agora = new Date()) {
+  const { porTipo, daTabela } = await carregarConfigAlertas(db);
+  if (!daTabela) return { resumos: 0, lote: 0 };
+  let resumos = 0;
+  let lote = 0;
+  for (const cfg of porTipo.values()) {
+    if (cfg.frequencia === "na_hora") continue;
+    const semPush = !cfg.ativo || !cfg.canais.includes("push");
+    if (!semPush && !momentoDoResumo(cfg, agora)) continue;
+    const { data: fila } = await db
+      .from("notificacoes_usuario")
+      .update({ push_status: semPush ? "ignorado" : "processando" })
+      .eq("push_status", "lote")
+      .eq("alerta", cfg.tipo)
+      .select(CAMPOS);
+    if (semPush || !fila?.length) continue;
+    lote += fila.length;
+    const porUsuario = new Map<string, any[]>();
+    for (const a of fila) porUsuario.set(a.user_id, [...(porUsuario.get(a.user_id) ?? []), a]);
+    const prefs = (await carregarPreferencias(db, [...porUsuario.keys()])) ?? new Map();
+    const lembrete = itemCatalogo(cfg.tipo)?.lembrete ?? undefined;
+    const feitos: string[] = [];
+    const ignorados: string[] = [];
+    const agendados = new Map<string, string[]>();
+    for (const [uid, avisos] of porUsuario) {
+      const ids = avisos.map((a) => a.id);
+      const d = decidirEnvio(prefs.get(uid), { tipo: avisos[0]?.lembrete ?? lembrete }, agora);
+      if (d.acao === "ignorar") {
+        ignorados.push(...ids);
+        continue;
+      }
+      if (d.acao === "agendar") {
+        // Fora da janela da pessoa: entrega no início da janela (despacharAvisos junta em um resumo).
+        const k = d.para.toISOString();
+        agendados.set(k, [...(agendados.get(k) ?? []), ...ids]);
+        continue;
+      }
+      const m =
+        avisos.length === 1
+          ? { titulo: avisos[0].titulo, corpo: avisos[0].mensagem, destino: avisos[0].destino ?? "/mais/avisos" }
+          : { titulo: tituloResumo(cfg, avisos.length), corpo: avisos.slice(0, 3).map((a) => a.mensagem).join(" · "), destino: avisos[0].destino ?? "/mais/avisos" };
+      await enviarSemFiltro(db, [uid], m).catch(() => null);
+      resumos++;
+      feitos.push(...ids);
+    }
+    await marcar(db, feitos, { push_status: "enviado", push_enviado_em: agora.toISOString() });
+    await marcar(db, ignorados, { push_status: "ignorado" });
+    for (const [para, lista] of agendados) await marcar(db, lista, { push_status: "agendado", push_agendado_para: para });
+  }
+  return { resumos, lote };
 }
 
 const chaveTexto = (t: string) =>

@@ -29,6 +29,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { LeitorNota } from "@/components/LeitorNota";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { CompartilharNotas } from "@/components/CompartilharModulos";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -745,9 +746,12 @@ function NotasPage() {
       title="Notas fiscais"
       description="Comprovantes, chave de acesso e garantias."
       actions={
-        <Button size="sm" className="hidden gap-2 lg:inline-flex" onClick={() => setEscolha(true)} data-tour="nova-nota">
-          <Plus className="size-4" /> Nova nota
-        </Button>
+        <div className="flex items-center gap-1">
+          <CompartilharNotas notas={lista as any} />
+          <Button size="sm" className="hidden gap-2 lg:inline-flex" onClick={() => setEscolha(true)} data-tour="nova-nota">
+            <Plus className="size-4" /> Nova nota
+          </Button>
+        </div>
       }
     >
       <input

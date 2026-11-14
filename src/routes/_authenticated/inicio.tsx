@@ -13,6 +13,7 @@ import { LimitesResumoCard } from "@/components/LimitesResumoCard";
 import { useProfile } from "@/hooks/useAuthData";
 import { TempoInicioCard } from "@/components/GamificacaoFinanceira";
 import { CicloInicio } from "@/components/ciclo/CicloInicio";
+import { CompartilharResumoGeral } from "@/components/CompartilharModulos";
 import { SimuladorRendimento } from "@/components/SimuladorRendimento";
 
 // Componentes com gráficos (recharts) carregam sob demanda para aliviar o JS inicial.
@@ -56,6 +57,7 @@ function InicioPage() {
     <AppLayout
       title={primeiroNome ? `${saudacao(hoje)}, ${primeiroNome}` : saudacao(hoje)}
       description={dataLonga.charAt(0).toUpperCase() + dataLonga.slice(1)}
+      actions={<CompartilharResumoGeral />}
     >
       <div data-entrada className="space-y-6">
         {naoLida && (

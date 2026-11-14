@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { PiggyBank, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { BotaoCompartilhar } from "@/components/BotaoCompartilhar";
 import { Card, CardContent } from "@/components/ui/card";
 import { useProfile, useSession } from "@/hooks/useAuthData";
 import { useDadosCiclo } from "@/hooks/useNumerosCiclo";
@@ -125,6 +126,16 @@ export function CicloInicio() {
                 );
               })()}
             </div>
+            <BotaoCompartilhar
+              titulo={valor >= 0 ? "Economizei no meu ciclo" : "Meu ciclo fechou"}
+              arquivo="economia-ciclo"
+              className="size-7 rounded-full text-muted-foreground"
+              gerar={(fmt) => [
+                valor >= 0 ? `Economizei ${fmt(valor)} neste ciclo` : `O ciclo fechou ${fmt(Math.abs(valor))} no vermelho`,
+                `Ciclo ${anterior.rotulo}`,
+                economia.data?.disponivel ? `Economia acumulada: ${fmt(acumulada)}` : "",
+              ]}
+            />
             <button
               type="button"
               aria-label="Fechar"

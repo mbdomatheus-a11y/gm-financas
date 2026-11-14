@@ -28,6 +28,7 @@ import { toast } from "sonner";
 import { AppLayout } from "@/components/AppLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { BotaoCompartilhar } from "@/components/BotaoCompartilhar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -676,6 +677,13 @@ function ListaComprasPage() {
       description={`${itens.length} de ${LIMITE} itens`}
       actions={
         <div className="flex flex-wrap items-center gap-3">
+          <BotaoCompartilhar
+            titulo="Lista de compras"
+            arquivo="lista-compras"
+            temValores={false}
+            desativado={pendentes.length === 0}
+            gerar={() => pendentes.map((i) => `• ${i.nome}${(i.quantidade ?? 1) > 1 ? ` (${i.quantidade}x)` : ""}`)}
+          />
           <Button size="sm" variant="outline" onClick={exportar}>
             <Download className="size-4" /> Exportar
           </Button>

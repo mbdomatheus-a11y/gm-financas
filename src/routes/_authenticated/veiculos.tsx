@@ -19,6 +19,7 @@ import { z } from "zod";
 import { AppLayout } from "@/components/AppLayout";
 import { Field } from "@/routes/_authenticated/receitas";
 import { Button } from "@/components/ui/button";
+import { CompartilharVeiculos } from "@/components/CompartilharModulos";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -389,11 +390,14 @@ function VeiculosPage() {
       title="Meu veículo"
       description="Documentos, quilometragem e alertas de IPVA, seguro e revisão."
       actions={
-        can("veiculos", "editar") && (
-          <Button size="sm" onClick={abrirNovo}>
-            <Plus className="size-4" /> Novo veículo
-          </Button>
-        )
+        <div className="flex items-center gap-1">
+          <CompartilharVeiculos />
+          {can("veiculos", "editar") && (
+            <Button size="sm" onClick={abrirNovo}>
+              <Plus className="size-4" /> Novo veículo
+            </Button>
+          )}
+        </div>
       }
     >
       <div className="space-y-6">

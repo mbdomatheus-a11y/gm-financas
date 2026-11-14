@@ -95,9 +95,9 @@ async function fezPrimeiroLancamento(db: any, p: Perfil): Promise<boolean> {
 }
 
 /** Lembrete diário: parcelas em aberto que vencem daqui a 3 dias. */
-export async function enviarLembretesVencimento(db: any, hoje = new Date()): Promise<number> {
+export async function enviarLembretesVencimento(db: any, hoje = new Date(), antecedencia = 3): Promise<number> {
   const alvo = new Date(hoje);
-  alvo.setDate(alvo.getDate() + 3);
+  alvo.setDate(alvo.getDate() + antecedencia);
   const dia = isoDia(alvo);
   let enviados = 0;
   const perfis = await perfisAtivos(db);
@@ -126,7 +126,7 @@ export async function enviarLembretesVencimento(db: any, hoje = new Date()): Pro
       `<p style="margin:0;line-height:1.6">São ${g.itens} ${g.itens === 1 ? "lançamento em aberto" : "lançamentos em aberto"} com vencimento em ${dataBR(dia)}. Confira se a conta ou fatura já está separada.</p>${botao("Ver vencimentos", "/calendario")}`,
       p.id,
     );
-    const r = await enviarEmail({ to: p.email!, subject: `Vence em 3 dias: ${brl(g.total)}`, html });
+    const r = await enviarEmail({ to: p.email!, subject: `Vence em ${antecedencia} dia${antecedencia === 1 ? "" : "s"}: ${brl(g.total)}`, html });
     if (r.ok) {
       await registrar(db, p.id, "vencimento", dia);
       enviados++;
@@ -307,8 +307,20 @@ async function saldoDoMes(db: any, grupoId: string, mes: string): Promise<{ rece
 /** Chamado pelo cron diário. Horário do Brasil para decidir se é segunda-feira. */
 export async function rodarEmailsRetencao(db: any): Promise<{ lembretes: number; ativacao: number; semanais: number }> {
   const agoraBR = new Date(Date.now() - 3 * 3_600_000);
-  const lembretes = await enviarLembretesVencimento(db, agoraBR).catch(() => 0);
-  const ativacao = await enviarAtivacao(db, agoraBR).catch(() => 0);
-  const semanais = agoraBR.getUTCDay() === 1 ? await enviarResumosSemanais(db, agoraBR).catch(() => 0) : 0;
+  // config_alertas (14/11/2026): liga/desliga, antecedência e dia da semana. Sem a tabela, padrões de antes.
+  const { carregarConfigAlertas } = await import("@/lib/config-alertas.server");
+  const { porTipo } = await carregarConfigAlertas(db).catch(() => ({ porTipo: new Map() }));
+  const ligado = (t: string) => {
+    const c = porTipo.get(t);
+    return !c || (c.ativo && c.canais.includes("email"));
+  };
+  const venc = porTipo.get("vencimento_email");
+  const lembretes = ligado("vencimento_email")
+    ? await enviarLembretesVencimento(db, agoraBR, Math.max(0, venc?.antecedencia_dias ?? 3)).catch(() => 0)
+    : 0;
+  const ativacao = ligado("ativacao_email") ? await enviarAtivacao(db, agoraBR).catch(() => 0) : 0;
+  const diaResumo = porTipo.get("resumo_semanal_email")?.dia_semana ?? 1;
+  const semanais =
+    ligado("resumo_semanal_email") && agoraBR.getUTCDay() === diaResumo ? await enviarResumosSemanais(db, agoraBR).catch(() => 0) : 0;
   return { lembretes, ativacao, semanais };
 }

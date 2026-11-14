@@ -18,6 +18,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { MonthPicker } from "@/components/MonthPicker";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { BotaoCompartilhar } from "@/components/BotaoCompartilhar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
@@ -375,9 +376,17 @@ function ParaOndeVaiPage() {
       title="Para onde vai meu dinheiro"
       description="Gastos por categoria, cobranças que se repetem e o que deixou de sair."
       actions={
+        <div className="flex items-center gap-1">
+          <BotaoCompartilhar
+            titulo="Para onde vai meu dinheiro"
+            arquivo="para-onde-vai"
+            desativado={resumoRetangulo.length === 0}
+            gerar={(fmt) => resumoRetangulo.slice(0, 8).map((r) => `${r.categoria}: ${fmt(r.total)}`)}
+          />
         <Button variant="outline" size="sm" className="rounded-full" asChild>
           <Link to="/relatorios">Ver em Relatórios</Link>
         </Button>
+        </div>
       }
     >
       <div className="mb-6 flex flex-wrap items-center gap-3">

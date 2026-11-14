@@ -33,6 +33,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { CartaoCarregando } from "@/components/CartaoCarregando";
 import { MonthPicker } from "@/components/MonthPicker";
 import { Button } from "@/components/ui/button";
+import { BotaoCompartilhar } from "@/components/BotaoCompartilhar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
@@ -198,7 +199,31 @@ function RelatoriosPage() {
   const mostraPeriodo = aba !== "previsao" && aba !== "parcelas";
 
   return (
-    <AppLayout title="Relatórios" description="Seu dinheiro visto por período, categoria, saldo, previsão e parcelas.">
+    <AppLayout
+      title="Relatórios"
+      description="Seu dinheiro visto por período, categoria, saldo, previsão e parcelas."
+      actions={
+        <BotaoCompartilhar
+          titulo={`Meu período: ${rotuloPeriodo}`}
+          arquivo="relatorio-periodo"
+          gerar={(fmt) => {
+            const porCat = new Map<string, number>();
+            let totalDesp = 0;
+            for (const d of noPeriodo.desp) {
+              porCat.set(d.categoria, (porCat.get(d.categoria) ?? 0) + d.valor);
+              totalDesp += d.valor;
+            }
+            const totalRec = noPeriodo.rec.reduce((s, r: any) => s + Number(r.valor ?? 0), 0);
+            return [
+              `Receitas: ${fmt(totalRec)}`,
+              `Despesas: ${fmt(totalDesp)}`,
+              "",
+              ...[...porCat.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([c, v]) => `${c}: ${fmt(v)}`),
+            ];
+          }}
+        />
+      }
+    >
       <Tabs value={aba} onValueChange={(v) => setAba(v as Aba)}>
         <div className="-mx-4 mb-4 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0 [scrollbar-width:none]">
           <TabsList className="w-max">

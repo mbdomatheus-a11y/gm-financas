@@ -401,8 +401,8 @@ const MUNDOS: Record<MundoId, { titulo: string; home: NavTo; items: NavItem[] }>
 const GLOBAL: NavItem[] = [
   {
     to: "/compartilhar",
-    label: "Compartilhar",
-    short: "Compart.",
+    label: "Indicar o Control ALL",
+    short: "Indicar",
     icon: Share2,
     modulo: "compartilhar",
   },

@@ -114,6 +114,7 @@ import {
 } from "@/components/ui/dialog";
 import { TabelaOrdenavel } from "@/components/TabelaOrdenavel";
 import { EnviarPushCard } from "@/components/EnviarPushCard";
+import { AlertasAdmin } from "@/components/AlertasAdmin";
 
 // Item 8: `?aba=` permite que o botão "Tratar solicitação" dos e-mails de
 // notificação abra a Administração já na aba certa (privacidade/central).
@@ -156,6 +157,7 @@ const GRUPOS_ADMIN: {
       { id: "modulos", rotulo: "Módulos" },
       { id: "personalizacao", rotulo: "Personalização" },
       { id: "avisos", rotulo: "Avisos" },
+      { id: "alertas", rotulo: "Alertas" },
       { id: "links", rotulo: "Links" },
       { id: "padroes", rotulo: "Categorias e De-para" },
     ],
@@ -1929,6 +1931,10 @@ function Admin() {
         {/* ─── ABA 6: AVISOS ─── */}
         <TabsContent value="links" className="space-y-6">
           <LinksAdminHabilitar />
+        </TabsContent>
+
+        <TabsContent value="alertas" className="space-y-6">
+          <AlertasAdmin />
         </TabsContent>
 
         <TabsContent value="avisos" className="space-y-6">

@@ -30,6 +30,7 @@ import { toast } from "sonner";
 
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
+import { BotaoCompartilhar } from "@/components/BotaoCompartilhar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -254,6 +255,20 @@ function CaixinhasPage() {
                       </p>
                     </div>
                     <div className="flex shrink-0">
+                      <BotaoCompartilhar
+                        titulo={`Minha meta: ${c.nome}`}
+                        arquivo={`meta-${c.id}`}
+                        className="size-9 rounded-full text-white hover:bg-white/20 hover:text-white"
+                        gerar={(fmt) =>
+                          prog
+                            ? [
+                                `Guardei ${fmt(prog.guardado)} de ${fmt(prog.alvo)}`,
+                                `${Math.round(prog.percentual)}% da meta${prog.concluida ? " (concluída!)" : ""}`,
+                                prog.concluida ? "" : `Faltam ${fmt(prog.falta)}`,
+                              ]
+                            : [`Já guardei ${fmt(total)}`]
+                        }
+                      />
                       <Button variant="ghost" size="icon" className="rounded-full text-white hover:bg-white/20 hover:text-white" aria-label="Editar" onClick={() => setEditando(c)}>
                         <Pencil className="size-4" />
                       </Button>

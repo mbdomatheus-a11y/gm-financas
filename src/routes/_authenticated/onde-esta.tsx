@@ -5,6 +5,7 @@ import { Boxes, Calendar, MapPin, Pencil, Plus, Search, Trash2, X } from "lucide
 import { toast } from "sonner";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
+import { CompartilharOndeEsta } from "@/components/CompartilharModulos";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -262,6 +263,7 @@ function OndeEsta() {
     <AppLayout
       title="Onde está?"
       description="Onde cada coisa está guardada, com detalhes e validade."
+      actions={<CompartilharOndeEsta />}
     >
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="relative flex-1">

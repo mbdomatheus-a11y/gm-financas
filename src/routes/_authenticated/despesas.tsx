@@ -30,6 +30,8 @@ import {
 import { FaturaMesDialog } from "@/components/FaturaMesDialog";
 import { IndiceReajusteField } from "@/components/IndiceReajusteField";
 import { toast } from "sonner";
+import { abrirConfigurarCiclo } from "@/lib/regra-ciclo";
+import { useRegraCiclo } from "@/hooks/useRegraCiclo";
 import { useQuery } from "@tanstack/react-query";
 import { JuntarLancamentoDialog } from "@/components/JuntarLancamentoDialog";
 import { useIsSiteAdmin, useModulosGlobais } from "@/hooks/useAuthData";
@@ -1203,6 +1205,25 @@ function DespesasPage() {
     !!busca && { label: `"${busca}"`, clear: () => setBusca("") },
   ].filter(Boolean) as { label: string; clear: () => void }[];
 
+  const { disponivel: cicloDisponivel, regra: regraCicloAviso } = useRegraCiclo();
+  const [avisoCicloOculto, setAvisoCicloOculto] = useState(() => {
+    try {
+      return typeof window !== "undefined" && window.localStorage.getItem("aviso-ciclo-despesas-oculto") === "1";
+    } catch {
+      return false;
+    }
+  });
+  const avisoCicloVisivel = cicloDisponivel && !!regraCicloAviso && !avisoCicloOculto;
+  function fecharAvisoCiclo() {
+    setAvisoCicloOculto(true);
+    try {
+      window.localStorage.setItem("aviso-ciclo-despesas-oculto", "1");
+    } catch {
+      /* sem armazenamento: some só nesta sessão */
+    }
+    toast("Você encontra isso em Configurações > Ciclo do mês");
+  }
+
   function limparFiltros() {
     setFiltroCartao("todos");
     setFiltroBanco("todos");
@@ -1242,6 +1263,19 @@ function DespesasPage() {
         </div>
       }
     >
+      {avisoCicloVisivel && (
+        <div className="mb-3 flex items-center gap-2 text-xs text-muted-foreground">
+          <span>
+            Ciclo vira no dia {regraCicloAviso!.dia_virada} ·{" "}
+            <button type="button" className="font-medium text-primary hover:underline" onClick={abrirConfigurarCiclo}>
+              Ajustar
+            </button>
+          </span>
+          <button type="button" aria-label="Ocultar aviso do ciclo" className="rounded p-0.5 hover:bg-muted" onClick={fecharAvisoCiclo}>
+            <X className="size-3.5" />
+          </button>
+        </div>
+      )}
       {divisaoJusta && (
         <Card className="mb-6">
           <CardContent className="space-y-2 p-4">
