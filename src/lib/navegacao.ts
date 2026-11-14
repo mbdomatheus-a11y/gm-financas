@@ -2,7 +2,7 @@
 // e no app (controlall/src/lib/navegacao.ts). Sem imports, só dados. Edite nos dois e rode scripts/checar-navegacao.mjs
 // no app. Ver docs/navegacao.md.
 
-export type GrupoNavId = 'inicio' | 'financas' | 'casa' | 'documentos' | 'ferramentas' | 'geral' | 'config' | 'admin';
+export type GrupoNavId = 'inicio' | 'financas' | 'planejar' | 'analisar' | 'organizar' | 'casa' | 'documentos' | 'ferramentas' | 'geral' | 'config' | 'admin';
 export type ModuloGlobalNav = 'financas' | 'lista' | 'notas' | 'calculadora' | 'pet' | 'onde_esta' | 'veiculo' | 'exames' | 'links' | 'open_finance';
 export type PermNav = 'receitas' | 'despesas' | 'cartoes' | 'investimentos' | 'veiculos' | 'compartilhar' | 'importar';
 
@@ -27,10 +27,13 @@ export type ItemNav = {
 
 export const GRUPOS_NAV: { id: GrupoNavId; titulo: string | null }[] = [
   { id: 'inicio', titulo: null },
-  { id: 'financas', titulo: 'Finanças' },
+  { id: 'financas', titulo: 'Dia a dia' },
+  { id: 'planejar', titulo: 'Planejar' },
+  { id: 'analisar', titulo: 'Analisar' },
   { id: 'casa', titulo: 'Casa e vida' },
   { id: 'documentos', titulo: 'Documentos' },
   { id: 'ferramentas', titulo: 'Ferramentas' },
+  { id: 'organizar', titulo: 'Organizar' },
   { id: 'geral', titulo: 'Geral' },
   { id: 'config', titulo: null },
   { id: 'admin', titulo: 'Administração' },
@@ -44,16 +47,13 @@ export const ITENS_NAV: ItemNav[] = [
   { id: 'receitas', titulo: 'Receitas', grupo: 'financas', site: '/receitas', app: '/mais/receitas', iconeSite: 'TrendingUp', iconeApp: 'arrow.down.circle.fill', global: 'financas', perm: 'receitas' },
   { id: 'despesas', titulo: 'Despesas', grupo: 'financas', site: '/despesas', app: '/mais/despesas', iconeSite: 'TrendingDown', iconeApp: 'cart.fill', global: 'financas', perm: 'despesas' },
   { id: 'cartoes', titulo: 'Cartões/Conta', grupo: 'financas', site: '/cartoes', app: '/mais/cartoes', iconeSite: 'CreditCard', iconeApp: 'creditcard.fill', global: 'financas', perm: 'cartoes' },
-  { id: 'caixinhas', titulo: 'Caixinhas e metas', grupo: 'financas', site: '/caixinhas', app: '/mais/poupar', iconeSite: 'PiggyBank', iconeApp: 'banknote.fill', global: 'financas' },
-  { id: 'limites', titulo: 'Limites de gastos', grupo: 'financas', site: '/limites', app: '/mais/limites', iconeSite: 'Gauge', iconeApp: 'slider.horizontal.3', global: 'financas', perm: 'despesas' },
-  { id: 'relatorios', titulo: 'Relatórios', grupo: 'financas', site: '/relatorios', app: '/mais/relatorios', iconeSite: 'BarChart3', iconeApp: 'chart.bar.fill', global: 'financas', perm: 'despesas' },
-  { id: 'para-onde-vai', titulo: 'Para onde vai', grupo: 'financas', site: '/para-onde-vai', app: '/mais/para-onde-vai', iconeSite: 'PieChart', iconeApp: 'chart.pie.fill', global: 'financas', perm: 'despesas' },
-  { id: 'investimentos', titulo: 'Investimentos', grupo: 'financas', site: '/investimentos', app: '/mais/investimentos', iconeSite: 'LineChart', iconeApp: 'chart.line.uptrend.xyaxis', global: 'financas', perm: 'investimentos' },
-  { id: 'indices', titulo: 'Indicadores econômicos', grupo: 'financas', app: '/mais/indices', iconeSite: 'TrendingUp', iconeApp: 'chart.line.uptrend.xyaxis' },
   { id: 'importar', titulo: 'Importar faturas', grupo: 'financas', site: '/importar', app: '/mais/faturas', iconeSite: 'FileUp', iconeApp: 'doc.richtext.fill', global: 'financas', perm: 'importar' },
-  { id: 'categorias', titulo: 'Categorias', grupo: 'financas', site: '/categorias', app: '/mais/categorias', iconeSite: 'Tags', iconeApp: 'tag.fill', global: 'financas' },
-  { id: 'tags', titulo: 'Tags', grupo: 'financas', site: '/tags', app: '/mais/tags', iconeSite: 'Hash', iconeApp: 'tag', global: 'financas', perm: 'despesas' },
-  { id: 'de-para', titulo: 'De-para', grupo: 'financas', site: '/de-para', app: '/mais/de-para', iconeSite: 'ArrowLeftRight', iconeApp: 'arrow.triangle.branch', global: 'financas', perm: 'despesas' },
+  { id: 'caixinhas', titulo: 'Caixinhas e metas', grupo: 'planejar', site: '/caixinhas', app: '/mais/poupar', iconeSite: 'PiggyBank', iconeApp: 'banknote.fill', global: 'financas' },
+  { id: 'limites', titulo: 'Limites de gastos', grupo: 'planejar', site: '/limites', app: '/mais/limites', iconeSite: 'Gauge', iconeApp: 'slider.horizontal.3', global: 'financas', perm: 'despesas' },
+  { id: 'relatorios', titulo: 'Relatórios', grupo: 'analisar', site: '/relatorios', app: '/mais/relatorios', iconeSite: 'BarChart3', iconeApp: 'chart.bar.fill', global: 'financas', perm: 'despesas' },
+  { id: 'para-onde-vai', titulo: 'Para onde vai', grupo: 'analisar', site: '/para-onde-vai', app: '/mais/para-onde-vai', iconeSite: 'PieChart', iconeApp: 'chart.pie.fill', global: 'financas', perm: 'despesas' },
+  { id: 'investimentos', titulo: 'Investimentos', grupo: 'planejar', site: '/investimentos', app: '/mais/investimentos', iconeSite: 'LineChart', iconeApp: 'chart.line.uptrend.xyaxis', global: 'financas', perm: 'investimentos' },
+  { id: 'indices', titulo: 'Indicadores econômicos', grupo: 'planejar', app: '/mais/indices', iconeSite: 'TrendingUp', iconeApp: 'chart.line.uptrend.xyaxis' },
 
   { id: 'lista', titulo: 'Lista', grupo: 'casa', site: '/lista-compras', app: '/lista', iconeSite: 'ShoppingCart', iconeApp: 'list.bullet.clipboard.fill', global: 'lista' },
   { id: 'veiculo', titulo: 'Veículo', grupo: 'casa', site: '/veiculos', app: '/mais/veiculos', iconeSite: 'Car', iconeApp: 'car.fill', global: 'veiculo', perm: 'veiculos' },
@@ -66,6 +66,10 @@ export const ITENS_NAV: ItemNav[] = [
 
   { id: 'ferramentas', titulo: 'Ferramentas', grupo: 'ferramentas', site: '/ferramentas', app: '/mais/ferramentas', iconeSite: 'Calculator', iconeApp: 'plus.forwardslash.minus', global: 'calculadora' },
   { id: 'link-temporario', titulo: 'Link temporário', grupo: 'ferramentas', site: '/links-temporarios', iconeSite: 'Link2', iconeApp: 'link', global: 'calculadora' },
+
+  { id: 'categorias', titulo: 'Categorias', grupo: 'organizar', site: '/categorias', app: '/mais/categorias', iconeSite: 'Tags', iconeApp: 'tag.fill', global: 'financas' },
+  { id: 'tags', titulo: 'Tags', grupo: 'organizar', site: '/tags', app: '/mais/tags', iconeSite: 'Hash', iconeApp: 'tag', global: 'financas', perm: 'despesas' },
+  { id: 'de-para', titulo: 'De-para', grupo: 'organizar', site: '/de-para', app: '/mais/de-para', iconeSite: 'ArrowLeftRight', iconeApp: 'arrow.triangle.branch', global: 'financas', perm: 'despesas' },
 
   { id: 'indicar', titulo: 'Indicar o Control ALL', grupo: 'geral', site: '/compartilhar', app: '/mais/compartilhar', iconeSite: 'Share2', iconeApp: 'square.and.arrow.up', perm: 'compartilhar' },
   { id: 'notificacoes', titulo: 'Notificações', grupo: 'geral', site: '/notificacoes', app: '/mais/notificacoes', iconeSite: 'BellRing', iconeApp: 'bell.fill' },
@@ -92,7 +96,9 @@ export const BARRAS_NAV: Record<AreaBarraId, [string, string, string]> = {
 };
 /** Atalhos que entram no lugar de um indisponível (módulo desligado). */
 export const RESERVAS_BARRA_NAV = ['inicio', 'notas', 'agenda', 'lista'];
-/** Rotas do app que, além dos itens do grupo Finanças, contam como a área Finanças. */
+/** Grupos do menu que formam a área Finanças (barra contextual). */
+export const GRUPOS_FINANCAS_NAV: GrupoNavId[] = ['financas', 'planejar', 'analisar', 'organizar'];
+/** Rotas do app que, além dos itens dos grupos de Finanças, contam como a área Finanças. */
 export const ROTAS_EXTRA_FINANCAS_NAV = ['/mais/nova-despesa', '/mais/contas'];
 /** Ordem global usada para encaixar a própria tela da área na sequência do deslizar. */
 const ORDEM_DESLIZAR = ['inicio', 'notas', 'agenda', 'lista', 'limites', 'relatorios', 'mais'];
@@ -111,7 +117,7 @@ export function areaBarraNav(pathname: string): AreaBarraId {
   if (p.startsWith('/notas')) return 'notas';
   if (p === '/calendario' || p === '/mais/calendario') return 'agenda';
   if (p.startsWith('/lista') || p === '/mais/lista-compras') return 'lista';
-  const fin = ITENS_NAV.filter((i) => i.grupo === 'financas' && i.app).map((i) => i.app as string);
+  const fin = ITENS_NAV.filter((i) => GRUPOS_FINANCAS_NAV.includes(i.grupo) && i.app).map((i) => i.app as string);
   if ([...fin, ...ROTAS_EXTRA_FINANCAS_NAV].includes(p)) return 'financas';
   return 'demais';
 }

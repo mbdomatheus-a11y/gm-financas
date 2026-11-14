@@ -4,7 +4,8 @@ Fonte única: `src/lib/navegacao.ts`, arquivo IDÊNTICO no site (gm-financas) e 
 Depois de editar, copie para o outro lado e rode `node scripts/checar-navegacao.mjs` no app (também roda dentro de `checar-travamento`, como aviso se o site não estiver acessível).
 
 ## Grupos e ordem
-Início, Agenda | Finanças: Lançamentos, Receitas, Despesas, Cartões/Conta, Caixinhas e metas, Limites de gastos, Relatórios, Para onde vai, Investimentos, Importar faturas, Categorias, Tags, De-para | Casa e vida: Lista, Veículo, Pet, Exames, Onde está | Documentos: Notas fiscais, Links/Anotações | Ferramentas | Geral: Indicar o Control ALL, Notificações, Ajuda, Novidades | Configurações | Administração (só admin).
+Início, Agenda | Dia a dia: Lançamentos, Receitas, Despesas, Cartões/Conta, Importar faturas | Planejar: Caixinhas e metas, Limites de gastos, Investimentos, Indicadores econômicos | Analisar: Relatórios, Para onde vai | Casa e vida: Lista, Veículo, Pet, Exames, Onde está | Documentos: Notas fiscais, Links/Anotações | Ferramentas | Organizar: Categorias, Tags, De-para | Geral: Indicar o Control ALL, Notificações, Ajuda, Novidades | Configurações | Administração (só admin).
+Os grupos Dia a dia, Planejar, Analisar e Organizar formam a área Finanças da barra do app (`GRUPOS_FINANCAS_NAV`).
 Itens que existem só num lado (Lançamentos, Indicadores econômicos e Avisos só no app; Link temporário e Administração só no site) ficam na lista com `site` ou `app` ausente. Módulos desligados e permissões seguem `global`, `perm`, `soAdmin`, `grupoAdmin`.
 
 ## Quem usa

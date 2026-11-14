@@ -515,3 +515,9 @@ Detalhes em docs/AUDITORIA-SEGURANCA-2026-11-01.md. Pendente de decisão ou aç�
 6. [FALTA DEPLOY] Login escalonado por conta e por IP: publicar login-seguro. O site (seguranca-conta.functions.ts) já usa o escalonamento por conta, mas ainda não tem o bloqueio por IP.
 7. [PENDENTE] Remover zz_teste_fn; revogar EXECUTE de anon em increment_parceria_cliques.
 
+
+
+---
+
+## Revisão final para lançamento (aberta em 14/11/2026)
+Plano, blocos e estado em `docs/REVISAO-FINAL-2026-11.md`. Bloco 1 (menu de Finanças dividido em Dia a dia, Planejar, Analisar e Organizar) feito no código do site e do app, aguardando commit, push e eas update do Matheus. Próximo: bloco 2 (identidade visual nova).
