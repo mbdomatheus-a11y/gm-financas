@@ -261,7 +261,7 @@ function OndeEsta() {
 
   return (
     <AppLayout
-      title="Onde está?"
+      title="Onde está"
       description="Onde cada coisa está guardada, com detalhes e validade."
       actions={<CompartilharOndeEsta />}
     >

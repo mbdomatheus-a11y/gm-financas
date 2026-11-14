@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AlertTriangle, CheckCircle2, Gauge, Pencil, Plus, Trash2, TrendingUp } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -11,6 +13,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { LogoBanco } from "@/components/LogoBanco";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useCartoes, useDespesas, useFaturasImportadas } from "@/hooks/useFinance";
+import { useCotacao } from "@/hooks/useCotacao";
+import { pluggyListarContas } from "@/lib/pluggy.functions";
+import { calcularLimitesCartoes } from "@/lib/limites-cartoes";
+import { toBRL } from "@/lib/format";
 import { Slider } from "@/components/ui/slider";
 import { useEstruturaCategorias } from "@/hooks/useEstruturaCategorias";
 import { type LimiteGasto, useUsoDosLimites } from "@/hooks/useLimites";
@@ -27,21 +36,147 @@ function pct(v: number): string {
   return `${Math.round(v)}%`;
 }
 
+function corUso(p: number): string {
+  return p > 100 ? "bg-destructive" : p >= 80 ? "bg-warning" : "bg-success";
+}
+
+function textoUso(p: number): string {
+  return p > 100 ? "text-destructive" : p >= 80 ? "text-warning-foreground dark:text-warning" : "text-success";
+}
+
+function BarraUso({ percentual }: { percentual: number }) {
+  return (
+    <div
+      role="progressbar"
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={Math.round(percentual)}
+      className="h-2 overflow-hidden rounded-full bg-muted"
+    >
+      <div className={cn("h-full rounded-full", corUso(percentual))} style={{ width: `${Math.max(0, Math.min(100, percentual))}%` }} />
+    </div>
+  );
+}
+
+function LimitesCartoes() {
+  const { formatarResumo } = usePrivacidadeValores("limites");
+  const { data: cartoes = [], isLoading: l1 } = useCartoes();
+  const { data: faturas = [], isLoading: l2 } = useFaturasImportadas();
+  const { data: despesas = [] } = useDespesas();
+  const cotacao = useCotacao();
+  const listarContas = useServerFn(pluggyListarContas);
+  const { data: contasPluggy = [] } = useQuery({
+    queryKey: ["pluggy-contas-limites"],
+    retry: false,
+    queryFn: async () => {
+      try {
+        const r: any = await listarContas();
+        return (r?.contas ?? []) as any[];
+      } catch {
+        return [] as any[];
+      }
+    },
+  });
+  const { itens, consolidado } = useMemo(
+    () =>
+      calcularLimitesCartoes({
+        cartoes: cartoes as any[],
+        faturas: faturas as any[],
+        contasPluggy,
+        despesas: despesas as any[],
+        conv: (v, m) => toBRL(v, m, cotacao),
+      }),
+    [cartoes, faturas, contasPluggy, despesas, cotacao],
+  );
+
+  if (l1 || l2) return <p className="text-sm text-muted-foreground">Carregando…</p>;
+  if (itens.length === 0)
+    return (
+      <Card className="rounded-3xl">
+        <CardContent className="p-8 text-center text-sm text-muted-foreground">
+          Nenhum limite de cartão ainda. Informe o limite no cadastro do cartão, importe uma fatura ou conecte o Open Finance.
+        </CardContent>
+      </Card>
+    );
+  return (
+    <div className="space-y-4">
+      <Card className="rounded-3xl">
+        <CardContent className="space-y-4 p-6">
+          <p className="text-xs text-muted-foreground">Todos os cartões</p>
+          <div className="grid gap-4 sm:grid-cols-4">
+            <Resumo rotulo="Limite total" valor={formatarResumo(consolidado.total)} />
+            <Resumo rotulo="Consumido" valor={formatarResumo(consolidado.consumido)} classe={textoUso(consolidado.percentual)} />
+            <Resumo rotulo="Disponível" valor={formatarResumo(consolidado.disponivel)} />
+            <Resumo rotulo="Usado" valor={pct(consolidado.percentual)} classe={textoUso(consolidado.percentual)} />
+          </div>
+          <BarraUso percentual={consolidado.percentual} />
+        </CardContent>
+      </Card>
+      <div className="grid gap-4 md:grid-cols-2">
+        {itens.map((c) => {
+          const perc = c.total > 0 ? (c.consumido / c.total) * 100 : 0;
+          return (
+            <Card key={c.key} className="rounded-3xl">
+              <CardContent className="space-y-3 p-5">
+                <div className="flex items-center gap-3">
+                  <LogoBanco nome={c.banco} className="size-9" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-semibold">{c.nome}</p>
+                    <p className="truncate text-xs text-muted-foreground">{c.origemRotulo}</p>
+                  </div>
+                  <span className={cn("text-sm font-semibold tabular-nums", textoUso(perc))}>{pct(perc)}</span>
+                </div>
+                <BarraUso percentual={perc} />
+                <div className="grid grid-cols-3 gap-2 text-xs tabular-nums">
+                  <Resumo pequeno rotulo="Total" valor={formatarResumo(c.total)} />
+                  <Resumo pequeno rotulo="Consumido" valor={formatarResumo(c.consumido)} />
+                  <Resumo pequeno rotulo="Disponível" valor={formatarResumo(c.disponivel)} />
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function Resumo({ rotulo, valor, classe, pequeno }: { rotulo: string; valor: string; classe?: string; pequeno?: boolean }) {
+  return (
+    <div>
+      <p className="text-xs text-muted-foreground">{rotulo}</p>
+      <p className={cn("font-semibold tabular-nums", pequeno ? "text-sm" : "text-xl", classe)}>{valor}</p>
+    </div>
+  );
+}
+
 function LimitesPage() {
   const { formatar } = usePrivacidadeValores("limites");
+  const [aba, setAba] = useState("cartoes");
   const { usos, resumo, competencia, tabelaPendente, isLoading, excluir } = useUsoDosLimites();
   const [editando, setEditando] = useState<LimiteGasto | "novo" | null>(null);
 
   return (
     <AppLayout
-      title="Limites de gastos"
-      description="Defina quanto gastar por categoria e acompanhe o ciclo"
+      title="Limites"
+      description="Limite dos cartões e quanto gastar por categoria"
       actions={
+        aba !== "categorias" ? undefined : (
         <Button size="sm" className="gap-1.5 rounded-full" onClick={() => setEditando("novo")} disabled={tabelaPendente}>
           <Plus className="size-4" /> Novo limite
         </Button>
+        )
       }
     >
+      <Tabs value={aba} onValueChange={setAba}>
+        <TabsList className="mb-6 w-full sm:w-auto">
+          <TabsTrigger value="cartoes" className="flex-1 sm:flex-none">Cartões</TabsTrigger>
+          <TabsTrigger value="categorias" className="flex-1 sm:flex-none">Limites por categoria</TabsTrigger>
+        </TabsList>
+        <TabsContent value="cartoes">
+          <LimitesCartoes />
+        </TabsContent>
+        <TabsContent value="categorias">
       {tabelaPendente && (
         <Card className="mb-6 rounded-3xl border-warning/40 bg-warning/10">
           <CardContent className="flex items-start gap-3 p-5 text-sm">
@@ -145,6 +280,9 @@ function LimitesPage() {
           </Card>
         ))}
       </div>
+
+        </TabsContent>
+      </Tabs>
 
       {editando && (
         <FormLimite

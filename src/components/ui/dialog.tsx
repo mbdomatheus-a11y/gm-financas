@@ -38,7 +38,7 @@ const DialogContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 sm:rounded-lg",
+        "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg overflow-x-hidden [&_.grid>*]:min-w-0 translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 sm:rounded-lg",
         className,
         // No app iOS: tela cheia, enquadrada, rolando por dentro (não "samba" com o teclado).
         "native:inset-0 native:h-full native:max-h-none native:w-full native:max-w-none native:translate-x-0 native:translate-y-0 native:content-start native:overflow-y-auto native:overscroll-contain native:rounded-none native:border-0 native:px-5 native:pt-16 native:pb-[calc(1.5rem+var(--app-inset-bottom,0px))] native:shadow-none",

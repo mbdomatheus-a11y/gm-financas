@@ -387,7 +387,7 @@ function VeiculosPage() {
 
   return (
     <AppLayout
-      title="Meu veículo"
+      title="Veículo"
       description="Documentos, quilometragem e alertas de IPVA, seguro e revisão."
       actions={
         <div className="flex items-center gap-1">

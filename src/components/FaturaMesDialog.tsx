@@ -24,6 +24,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/hooks/useAuthData";
 import { useCartoes, useDespesas } from "@/hooks/useFinance";
+import { calcularFaturaMes, fechamentoDaCompetencia } from "@/lib/fatura-mes";
 import { currentMonthKey, formatBRL, monthKey, monthLabelLong, competenciaDoDia, mesDoCiclo } from "@/lib/format";
 
 /** Último dia do mês da competência, ou o dia de vencimento do cartão quando houver. */
@@ -48,7 +49,8 @@ export function FaturaMesDialog({ trigger }: { trigger?: React.ReactNode }) {
   // "temporário" (com uma data-limite só pra te lembrar de voltar a
   // detalhar esse cartão depois dela — não apaga nem bloqueia nada
   // automaticamente, é só um aviso visual em /despesas).
-  const [tipoLancamento, setTipoLancamento] = useState<"temporario" | "fixo">("fixo");
+  const [tipoLancamento, setTipoLancamento] = useState<"temporario" | "fixo">("temporario");
+  // Data final escolhida pelo usuário; vazio = usa a sugestão (fechamento da fatura do cartão).
   const [dataLimite, setDataLimite] = useState<string>("");
 
   const qc = useQueryClient();
@@ -88,17 +90,15 @@ export function FaturaMesDialog({ trigger }: { trigger?: React.ReactNode }) {
   }, [despesas, cartaoId, competencia, fatura.data]);
 
   const totalInformado = Number(String(valor).replace(",", ".")) || 0;
-  const avulso = modo === "inclui_parcelas" ? totalInformado - previstas : totalInformado;
-  const totalMes = modo === "somar_parcelas" ? totalInformado + previstas : totalInformado;
-  const negativo = avulso < -0.005;
+  const { avulso, totalMes } = calcularFaturaMes(modo, totalInformado, previstas);
+  const fechamentoSugerido = fechamentoDaCompetencia(competencia, cartao?.dia_fechamento);
+  const dataFinal = dataLimite || fechamentoSugerido;
 
   const salvar = useMutation({
     mutationFn: async () => {
       if (!cartaoId) throw new Error("Escolha o cartão.");
       if (totalInformado <= 0) throw new Error("Informe o valor total da fatura.");
-      if (negativo) throw new Error("O total informado é menor que as parcelas já previstas.");
-      if (tipoLancamento === "temporario" && !dataLimite)
-        throw new Error("Escolha até qual mês esse total vale.");
+      if (tipoLancamento === "temporario" && !dataFinal) throw new Error("Escolha a data final.");
 
       const vencimento = vencimentoDoMes(competencia, cartao?.dia_vencimento);
       const registro = fatura.data as any;
@@ -123,7 +123,7 @@ export function FaturaMesDialog({ trigger }: { trigger?: React.ReactNode }) {
         if (pErr) throw pErr;
       }
 
-      if (!despesaId && valorAvulso > 0.005) {
+      if (!despesaId && Math.abs(valorAvulso) > 0.005) {
         const { data: nova, error } = await supabase
           .from("despesas")
           .insert({
@@ -172,7 +172,7 @@ export function FaturaMesDialog({ trigger }: { trigger?: React.ReactNode }) {
         despesa_avulsa_id: despesaId,
         created_by: user?.id ?? null,
         tipo_lancamento: tipoLancamento,
-        data_limite: tipoLancamento === "temporario" && dataLimite ? `${dataLimite}-01` : null,
+        data_limite: tipoLancamento === "temporario" ? dataFinal : null,
       };
       if (registro) {
         const { error } = await supabase.from("fatura_mes").update(payload).eq("id", registro.id);
@@ -220,7 +220,7 @@ export function FaturaMesDialog({ trigger }: { trigger?: React.ReactNode }) {
         <div className="grid gap-4">
           <div className="grid gap-2">
             <Label>Cartão</Label>
-            <Select value={cartaoId} onValueChange={setCartaoId}>
+            <Select value={cartaoId} onValueChange={(v) => { setCartaoId(v); setDataLimite(""); }}>
               <SelectTrigger>
                 <SelectValue placeholder="Escolha o cartão" />
               </SelectTrigger>
@@ -239,7 +239,7 @@ export function FaturaMesDialog({ trigger }: { trigger?: React.ReactNode }) {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="grid gap-2">
               <Label>Mês</Label>
-              <Select value={competencia} onValueChange={setCompetencia}>
+              <Select value={competencia} onValueChange={(v) => { setCompetencia(v); setDataLimite(""); }}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -281,6 +281,13 @@ export function FaturaMesDialog({ trigger }: { trigger?: React.ReactNode }) {
                 </SelectItem>
               </SelectContent>
             </Select>
+            <p className="text-xs leading-5 text-muted-foreground">
+              {modo === "inclui_parcelas"
+                ? "O valor é o total real da fatura. Lançamos só a diferença sobre o que já existe no cartão."
+                : modo === "somar_parcelas"
+                  ? "O valor entra como uma despesa fixa sem categoria, somada às parcelas do cartão."
+                  : "O valor substitui tudo o que está lançado nesse cartão neste mês."}
+            </p>
           </div>
 
           <div className="grid gap-2">
@@ -293,27 +300,28 @@ export function FaturaMesDialog({ trigger }: { trigger?: React.ReactNode }) {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="fixo">Fixo: continua até eu excluir</SelectItem>
-                <SelectItem value="temporario">Temporário: só até um mês específico</SelectItem>
+                <SelectItem value="temporario">Temporário</SelectItem>
+                <SelectItem value="fixo">Fixo</SelectItem>
               </SelectContent>
             </Select>
             {tipoLancamento === "temporario" && (
-              <Select value={dataLimite} onValueChange={setDataLimite}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Até qual mês?" />
-                </SelectTrigger>
-                <SelectContent>
-                  {meses.map((m) => (
-                    <SelectItem key={m} value={m}>
-                      Até {monthLabelLong(m)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="grid gap-1">
+                <Label htmlFor="fatura-mes-data-final">Data final</Label>
+                <Input
+                  id="fatura-mes-data-final"
+                  type="date"
+                  value={dataFinal}
+                  onChange={(e) => setDataLimite(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Sugerida: fechamento da fatura deste cartão.
+                </p>
+              </div>
             )}
             <p className="text-xs leading-5 text-muted-foreground">
-              Não cria recorrência. Só marca em Despesas que o total ainda não foi detalhado e, se
-              temporário, lembra você de detalhar depois.
+              {tipoLancamento === "temporario"
+                ? "Vale até a data final e depois lembra você de detalhar a fatura."
+                : "Fica até você excluir."}
             </p>
           </div>
 
@@ -328,7 +336,7 @@ export function FaturaMesDialog({ trigger }: { trigger?: React.ReactNode }) {
                   ? "Total manual que substituirá os itens"
                   : "Gastos do cartão (avulso)"}
               </span>
-              <span className={`tabular-nums ${negativo ? "text-destructive" : ""}`}>
+              <span className="tabular-nums">
                 {formatBRL(avulso)}
               </span>
             </p>
@@ -336,12 +344,6 @@ export function FaturaMesDialog({ trigger }: { trigger?: React.ReactNode }) {
               <span>Total do mês nesse cartão</span>
               <span className="tabular-nums">{formatBRL(totalMes)}</span>
             </p>
-            {negativo && (
-              <p className="text-xs text-destructive">
-                O total informado é menor que as parcelas já lançadas. Revise o valor ou escolha
-                “Não inclui as parcelas”.
-              </p>
-            )}
           </div>
         </div>
 
@@ -349,7 +351,7 @@ export function FaturaMesDialog({ trigger }: { trigger?: React.ReactNode }) {
           <Button variant="outline" onClick={() => setOpen(false)}>
             Cancelar
           </Button>
-          <Button onClick={() => salvar.mutate()} disabled={salvar.isPending || negativo}>
+          <Button onClick={() => salvar.mutate()} disabled={salvar.isPending}>
             {salvar.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
             Salvar fatura
           </Button>

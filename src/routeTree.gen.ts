@@ -71,8 +71,8 @@ import { Route as NotaTokenRouteImport } from './routes/nota/$token'
 import { Route as AuthenticatedLinksIndexRouteImport } from './routes/_authenticated/links/index'
 import { Route as AuthenticatedLinksIdRouteImport } from './routes/_authenticated/links/$id'
 import { Route as ApiCronAlertasRouteImport } from './routes/api/cron/alertas'
-import { Route as ApiCronLogosBancosRouteImport } from './routes/api/cron/logos-bancos'
 import { Route as ApiCronDescarteLayoutsRouteImport } from './routes/api/cron/descarte-layouts'
+import { Route as ApiCronLogosBancosRouteImport } from './routes/api/cron/logos-bancos'
 import { Route as ApiCronPluggySincronizarRouteImport } from './routes/api/cron/pluggy-sincronizar'
 import { Route as ApiEmailPararRouteImport } from './routes/api/email/parar'
 import { Route as ApiPluggyConectarRouteImport } from './routes/api/pluggy/conectar'
@@ -402,14 +402,14 @@ const ApiCronAlertasRoute = ApiCronAlertasRouteImport.update({
   path: '/api/cron/alertas',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiCronLogosBancosRoute = ApiCronLogosBancosRouteImport.update({
-  id: '/api/cron/logos-bancos',
-  path: '/api/cron/logos-bancos',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ApiCronDescarteLayoutsRoute = ApiCronDescarteLayoutsRouteImport.update({
   id: '/api/cron/descarte-layouts',
   path: '/api/cron/descarte-layouts',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiCronLogosBancosRoute = ApiCronLogosBancosRouteImport.update({
+  id: '/api/cron/logos-bancos',
+  path: '/api/cron/logos-bancos',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiCronPluggySincronizarRoute =
@@ -505,8 +505,8 @@ export interface FileRoutesByFullPath {
   '/links-temporarios/': typeof LinksTemporariosIndexRoute
   '/links/$id': typeof AuthenticatedLinksIdRoute
   '/api/cron/alertas': typeof ApiCronAlertasRoute
-  '/api/cron/logos-bancos': typeof ApiCronLogosBancosRoute
   '/api/cron/descarte-layouts': typeof ApiCronDescarteLayoutsRoute
+  '/api/cron/logos-bancos': typeof ApiCronLogosBancosRoute
   '/api/cron/pluggy-sincronizar': typeof ApiCronPluggySincronizarRoute
   '/api/email/parar': typeof ApiEmailPararRoute
   '/api/pluggy/conectar': typeof ApiPluggyConectarRoute
@@ -576,8 +576,8 @@ export interface FileRoutesByTo {
   '/links-temporarios': typeof LinksTemporariosIndexRoute
   '/links/$id': typeof AuthenticatedLinksIdRoute
   '/api/cron/alertas': typeof ApiCronAlertasRoute
-  '/api/cron/logos-bancos': typeof ApiCronLogosBancosRoute
   '/api/cron/descarte-layouts': typeof ApiCronDescarteLayoutsRoute
+  '/api/cron/logos-bancos': typeof ApiCronLogosBancosRoute
   '/api/cron/pluggy-sincronizar': typeof ApiCronPluggySincronizarRoute
   '/api/email/parar': typeof ApiEmailPararRoute
   '/api/pluggy/conectar': typeof ApiPluggyConectarRoute
@@ -649,8 +649,8 @@ export interface FileRoutesById {
   '/links-temporarios/': typeof LinksTemporariosIndexRoute
   '/_authenticated/links/$id': typeof AuthenticatedLinksIdRoute
   '/api/cron/alertas': typeof ApiCronAlertasRoute
-  '/api/cron/logos-bancos': typeof ApiCronLogosBancosRoute
   '/api/cron/descarte-layouts': typeof ApiCronDescarteLayoutsRoute
+  '/api/cron/logos-bancos': typeof ApiCronLogosBancosRoute
   '/api/cron/pluggy-sincronizar': typeof ApiCronPluggySincronizarRoute
   '/api/email/parar': typeof ApiEmailPararRoute
   '/api/pluggy/conectar': typeof ApiPluggyConectarRoute
@@ -722,8 +722,8 @@ export interface FileRouteTypes {
     | '/links-temporarios/'
     | '/links/$id'
     | '/api/cron/alertas'
-    | '/api/cron/logos-bancos'
     | '/api/cron/descarte-layouts'
+    | '/api/cron/logos-bancos'
     | '/api/cron/pluggy-sincronizar'
     | '/api/email/parar'
     | '/api/pluggy/conectar'
@@ -793,8 +793,8 @@ export interface FileRouteTypes {
     | '/links-temporarios'
     | '/links/$id'
     | '/api/cron/alertas'
-    | '/api/cron/logos-bancos'
     | '/api/cron/descarte-layouts'
+    | '/api/cron/logos-bancos'
     | '/api/cron/pluggy-sincronizar'
     | '/api/email/parar'
     | '/api/pluggy/conectar'
@@ -865,8 +865,8 @@ export interface FileRouteTypes {
     | '/links-temporarios/'
     | '/_authenticated/links/$id'
     | '/api/cron/alertas'
-    | '/api/cron/logos-bancos'
     | '/api/cron/descarte-layouts'
+    | '/api/cron/logos-bancos'
     | '/api/cron/pluggy-sincronizar'
     | '/api/email/parar'
     | '/api/pluggy/conectar'
@@ -898,8 +898,8 @@ export interface RootRouteChildren {
   CalculadorasIndexRoute: typeof CalculadorasIndexRoute
   LinksTemporariosIndexRoute: typeof LinksTemporariosIndexRoute
   ApiCronAlertasRoute: typeof ApiCronAlertasRoute
-  ApiCronLogosBancosRoute: typeof ApiCronLogosBancosRoute
   ApiCronDescarteLayoutsRoute: typeof ApiCronDescarteLayoutsRoute
+  ApiCronLogosBancosRoute: typeof ApiCronLogosBancosRoute
   ApiCronPluggySincronizarRoute: typeof ApiCronPluggySincronizarRoute
   ApiEmailPararRoute: typeof ApiEmailPararRoute
   ApiPluggyConectarRoute: typeof ApiPluggyConectarRoute
@@ -1344,18 +1344,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiCronAlertasRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/cron/logos-bancos': {
-      id: '/api/cron/logos-bancos'
-      path: '/api/cron/logos-bancos'
-      fullPath: '/api/cron/logos-bancos'
-      preLoaderRoute: typeof ApiCronLogosBancosRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/cron/descarte-layouts': {
       id: '/api/cron/descarte-layouts'
       path: '/api/cron/descarte-layouts'
       fullPath: '/api/cron/descarte-layouts'
       preLoaderRoute: typeof ApiCronDescarteLayoutsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/cron/logos-bancos': {
+      id: '/api/cron/logos-bancos'
+      path: '/api/cron/logos-bancos'
+      fullPath: '/api/cron/logos-bancos'
+      preLoaderRoute: typeof ApiCronLogosBancosRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/cron/pluggy-sincronizar': {
@@ -1517,8 +1517,8 @@ const rootRouteChildren: RootRouteChildren = {
   CalculadorasIndexRoute: CalculadorasIndexRoute,
   LinksTemporariosIndexRoute: LinksTemporariosIndexRoute,
   ApiCronAlertasRoute: ApiCronAlertasRoute,
-  ApiCronLogosBancosRoute: ApiCronLogosBancosRoute,
   ApiCronDescarteLayoutsRoute: ApiCronDescarteLayoutsRoute,
+  ApiCronLogosBancosRoute: ApiCronLogosBancosRoute,
   ApiCronPluggySincronizarRoute: ApiCronPluggySincronizarRoute,
   ApiEmailPararRoute: ApiEmailPararRoute,
   ApiPluggyConectarRoute: ApiPluggyConectarRoute,
@@ -1529,3 +1529,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

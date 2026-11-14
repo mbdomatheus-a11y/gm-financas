@@ -36,7 +36,7 @@ export const Route = createFileRoute("/_authenticated/ferramentas")({
 function FerramentasPage() {
   return (
     <AppLayout
-      title="Utilidades"
+      title="Ferramentas"
       description="Quanto vale o seu tempo, calculadoras e link temporário."
     >
       <div className="space-y-6">

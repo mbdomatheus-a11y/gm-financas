@@ -25,6 +25,33 @@ export const CORES_TAGS: { valor: string; nome: string }[] = [
 ];
 export const COR_TAG_PADRAO = CORES_TAGS[0]!.valor;
 
+/** Tags sugeridas (14/11/2026): criadas de uma vez no grupo, com cor e ícone. Iguais às do app. */
+export type TagSugerida = { nome: string; cor: string };
+export const TAGS_SUGERIDAS: TagSugerida[] = [
+  { nome: "Viagem", cor: "#0EA5A4" },
+  { nome: "Reforma", cor: "#EA580C" },
+  { nome: "Presente", cor: "#DB2777" },
+  { nome: "Saúde", cor: "#DC2626" },
+  { nome: "Educação", cor: "#1670B8" },
+  { nome: "Trabalho", cor: "#7C3AED" },
+  { nome: "Assinatura", cor: "#1670B8" },
+  { nome: "Emergência", cor: "#DC2626" },
+  { nome: "Casa", cor: "#CA8A04" },
+  { nome: "Carro", cor: "#0EA5A4" },
+  { nome: "Pet", cor: "#EA580C" },
+  { nome: "Filhos", cor: "#DB2777" },
+  { nome: "Lazer", cor: "#16A34A" },
+  { nome: "Festas", cor: "#7C3AED" },
+  { nome: "Natal", cor: "#16A34A" },
+  { nome: "Black Friday", cor: "#CA8A04" },
+  { nome: "Investimento", cor: "#16A34A" },
+  { nome: "Reembolsável", cor: "#1670B8" },
+];
+
+export function chaveNomeTag(nome: string): string {
+  return nome.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+}
+
 const CHAVE_TAGS = ["tags"] as const;
 
 function tabelaVinculo(tipo: TipoLancamentoTag) {
@@ -107,6 +134,31 @@ export function useTags() {
     onSuccess: invalidar,
   });
 
+  /** Cria as sugeridas que o grupo ainda não tem. Devolve quantas criou. */
+  const criarSugeridas = useMutation({
+    mutationFn: async (): Promise<number> => {
+      const { data, error } = await (supabase as any).from("tags").select("nome");
+      if (error) throw erroAmigavel(error);
+      const existentes = new Set<string>((data ?? []).map((t: any) => chaveNomeTag(String(t.nome))));
+      const novas = TAGS_SUGERIDAS.filter((s) => !existentes.has(chaveNomeTag(s.nome)));
+      if (novas.length === 0) return 0;
+      const r = await (supabase as any).from("tags").insert(novas);
+      if (r.error) throw erroAmigavel(r.error);
+      return novas.length;
+    },
+    onSuccess: invalidar,
+  });
+
+  /** Exclui várias tags (os vínculos saem, os lançamentos ficam). */
+  const excluirVarias = useMutation({
+    mutationFn: async (ids: string[]) => {
+      if (ids.length === 0) return;
+      const { error } = await (supabase as any).from("tags").delete().in("id", ids);
+      if (error) throw erroAmigavel(error);
+    },
+    onSuccess: invalidar,
+  });
+
   return {
     tags: query.data?.tags ?? [],
     tabelaPendente: query.data?.tabelaPendente ?? false,
@@ -114,6 +166,8 @@ export function useTags() {
     criar,
     editar,
     excluir,
+    criarSugeridas,
+    excluirVarias,
   };
 }
 

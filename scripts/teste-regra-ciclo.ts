@@ -1,3 +1,4 @@
+import { calcularFaturaMes, fechamentoDaCompetencia, aplicarRegrasFaturaMes } from "../src/lib/fatura-mes";
 /**
  * Teste da regra do ciclo (versão final do usuário, 09/11/2026): docs/regra-ciclo-2026-11-08.md e docs/numeros-ciclo.md.
  * Rodar: npx tsx scripts/teste-regra-ciclo.ts
@@ -10,7 +11,7 @@
  *  Receitas 8.000; despesas 1.200 + 1.800 + 600 + 2.000 + 500 = 6.100; vai sobrar 1.900.
  */
 import { ehPagamentoDeFatura, contaComoDespesa } from "../src/lib/regras-saldo";
-import { definirViradaDoGrupo } from "../src/lib/format";
+import { definirViradaDoGrupo, competenciaDoDia } from "../src/lib/format";
 import { vencimentoDaFatura } from "../src/lib/fatura-ciclo";
 import { vencimentoDaCompetencia } from "../src/lib/recorrencia";
 import {
@@ -237,6 +238,23 @@ igual("dia 31 em novembro", vencimentoDaCompetencia("2026-01-31", "2026-11"), "2
     parcelas: [{ id: "pf-1", despesa_id: "pf", numero: 1, total: 1, valor: 800, vencimento: "2026-10-20", paga: true }] };
   const comPf = (soma: boolean) => calcularNumerosCiclo({ ...dados, despesas: [...despesas, pf], somarPagamentoFatura: soma } as any, "2026-10", 0, D, hoje) as any;
   igual("sobra do ciclo: regra desligada ignora o pagamento", comPf(false).real.despesas, comPf(true).real.despesas - 800);
+}
+{
+  // Fatura do mês (14/11/2026): A informa o total real e lança só a diferença; B soma por cima; C substitui tudo do cartão/mês.
+  const parc = (id: string, valor: number, cartao = "c1") => ({ id: id + "-1", despesa_id: id, numero: 1, total: 1, valor, vencimento: "2026-11-10", despesa: { id, cartao_id: cartao } });
+  const existentes = [parc("d1", 300), parc("d2", 200)];
+  const prev = 500;
+  igual("fatura A: informado 800 lança diferença 300", calcularFaturaMes("inclui_parcelas", 800, prev), { avulso: 300, totalMes: 800 });
+  igual("fatura A: informado 400 reduz 100 e total fica 400", calcularFaturaMes("inclui_parcelas", 400, prev), { avulso: -100, totalMes: 400 });
+  igual("fatura A: total do cartão = informado", prev + calcularFaturaMes("inclui_parcelas", 800, prev).avulso, 800);
+  igual("fatura B: informado soma por cima", calcularFaturaMes("somar_parcelas", 100, prev), { avulso: 100, totalMes: 600 });
+  igual("fatura C: informado substitui", calcularFaturaMes("somente_total", 900, prev), { avulso: 900, totalMes: 900 });
+  const avulsa = { ...parc("av", 900), despesa_id: "av" };
+  const regra = [{ cartao_id: "c1", competencia: competenciaDoDia("2026-11-10"), modo_calculo: "somente_total", status: "aberta", despesa_avulsa_id: "av" }];
+  const lista = [...existentes, avulsa, parc("outro", 50, "c2")];
+  igual("fatura C: só o total do cartão c1 fica, c2 intacto", aplicarRegrasFaturaMes(lista as any[], regra).map((p: any) => p.despesa_id), ["av", "outro"]);
+  igual("fatura: fechamento sugerido dia 07", fechamentoDaCompetencia("2026-11", 7), "2026-11-07");
+  igual("fatura: fechamento 31 em fevereiro", fechamentoDaCompetencia("2027-02", 31), "2027-02-28");
 }
 
 if (falhas) {

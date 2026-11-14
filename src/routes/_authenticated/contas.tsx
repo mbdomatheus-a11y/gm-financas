@@ -54,7 +54,7 @@ import { LogoBanco } from "@/components/LogoBanco";
 import { nomeBanco } from "@/lib/bancos-catalogo";
 
 export const Route = createFileRoute("/_authenticated/contas")({
-  head: () => ({ meta: [{ title: "Cartões e contas | Control ALL" }] }),
+  head: () => ({ meta: [{ title: "Cartões/Conta | Control ALL" }] }),
   // 07/11/2026: Contas virou aba de "Cartões e contas".
   beforeLoad: () => {
     throw redirect({ to: "/cartoes", search: { tab: "contas" } });

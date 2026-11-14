@@ -361,7 +361,7 @@ function DeParaPage() {
 
   return (
     <AppLayout
-      title="De-para de categorias"
+      title="De-para"
       description="Envie a planilha estabelecimento → categoria. As importações passam a usar essas regras."
     >
       <AvisoPrimeiraVezDePara />

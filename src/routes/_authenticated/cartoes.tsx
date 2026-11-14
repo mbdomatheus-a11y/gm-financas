@@ -55,12 +55,12 @@ import { ContasConteudo } from "@/routes/_authenticated/contas";
 export const Route = createFileRoute("/_authenticated/cartoes")({
   head: () => ({
     meta: [
-      { title: "Cartões e contas | Control ALL" },
+      { title: "Cartões/Conta | Control ALL" },
       {
         name: "description",
         content: "Cadastre cartões de crédito, contas bancárias e acompanhe a fatura de cada um.",
       },
-      { property: "og:title", content: "Cartões e contas | Control ALL" },
+      { property: "og:title", content: "Cartões/Conta | Control ALL" },
       {
         property: "og:description",
         content: "Gestão de cartões, limites, faturas e contas bancárias do casal.",
@@ -330,7 +330,7 @@ function CartoesPage() {
 
   return (
     <AppLayout
-      title="Cartões e contas"
+      title="Cartões/Conta"
       description="Formas de pagamento usadas nas despesas"
       actions={
         can("cartoes", "editar") && tab !== "contas" && (

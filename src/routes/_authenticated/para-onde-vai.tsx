@@ -373,12 +373,12 @@ function ParaOndeVaiPage() {
 
   return (
     <AppLayout
-      title="Para onde vai meu dinheiro"
+      title="Para onde vai"
       description="Gastos por categoria, cobranças que se repetem e o que deixou de sair."
       actions={
         <div className="flex items-center gap-1">
           <BotaoCompartilhar
-            titulo="Para onde vai meu dinheiro"
+            titulo="Para onde vai"
             arquivo="para-onde-vai"
             desativado={resumoRetangulo.length === 0}
             gerar={(fmt) => resumoRetangulo.slice(0, 8).map((r) => `${r.categoria}: ${fmt(r.total)}`)}

@@ -40,7 +40,8 @@ import {
   PieChart,
 } from "lucide-react";
 
-import { BarChart3, BellRing, Gauge, Hash, LifeBuoy, Plus } from "lucide-react";
+import { BarChart3, BellRing, Gauge, Hash, LifeBuoy, LineChart, ListChecks, Plus, Sparkles } from "lucide-react";
+import { GRUPOS_NAV, ITENS_NAV } from "@/lib/navegacao";
 import { Fragment } from "react";
 import { MenuUsuario } from "@/components/MenuUsuario";
 import { Pin } from "lucide-react";
@@ -170,6 +171,25 @@ type NavItem = {
   grupoAdmin?: boolean;
   moduloGlobal?: ModuloGlobal;
 };
+
+/** Menu lateral gerado de lib/navegacao.ts (igual ao Mais do app): mesmos grupos, ordem, nomes e ícones equivalentes. */
+const ICONES_NAV: Record<string, typeof Home> = {
+  Home, CalendarDays, ListChecks, TrendingUp, TrendingDown, CreditCard, PiggyBank, Gauge, BarChart3, PieChart, LineChart,
+  FileUp, Tags, Hash, ArrowLeftRight, ShoppingCart, Car, PawPrint, FileHeart, MapPin, ReceiptText, Link2, Calculator,
+  Share2, BellRing, LifeBuoy, Sparkles, Settings, ShieldCheck, Landmark,
+};
+type ItemMenu = NavItem & { grupo: string };
+const MENU_SITE: ItemMenu[] = ITENS_NAV.filter((i) => i.site).map((i) => ({
+  to: i.site as NavTo,
+  label: i.titulo,
+  short: i.titulo,
+  icon: ICONES_NAV[i.iconeSite] ?? Home,
+  grupo: i.grupo,
+  ...(i.global ? { moduloGlobal: i.global } : {}),
+  ...(i.perm ? { modulo: i.perm as Modulo } : {}),
+  ...(i.soAdmin ? { adminOnly: true } : {}),
+  ...(i.grupoAdmin ? { grupoAdmin: true } : {}),
+}));
 
 type MundoId =
   "financas" | "lista" | "notas" | "calculadora" | "pet" | "onde_esta" | "veiculo" | "exames" | "links";
@@ -691,7 +711,7 @@ export function AppLayout({
             active ? "text-primary" : "text-muted-foreground/80 group-hover:text-foreground",
           )}
         />
-        <span className="truncate">{rotuloNav(item)}</span>
+        <span className="truncate">{ITENS_NAV.some((n) => n.site === item.to && n.titulo === item.label) ? item.label : rotuloNav(item)}</span>
         {soAdmin && <span className={cn(ADMIN_ONLY_TAG, "ml-auto")}>Admin</span>}
         {aberto !== undefined && (
           <ChevronDown
@@ -705,70 +725,18 @@ export function AppLayout({
 
   const NavLinks = ({ onNavigate }: { onNavigate?: (() => void) | undefined }) => (
     <nav className="-mx-1 flex flex-1 flex-col gap-0.5 overflow-y-auto px-1">
-      <NavLink item={INICIO} onNavigate={onNavigate} />
-      <NavLink item={CALENDARIO} onNavigate={onNavigate} />
-
-      {areasVisiveis.length > 0 && (
-        <div className="mb-1 mt-5 flex items-center justify-between pl-3 pr-1.5">
-          <p className="text-xs font-medium text-muted-foreground">Áreas</p>
-          <button
-            type="button"
-            onClick={alternarMenusFixos}
-            aria-pressed={menusFixos}
-            title={menusFixos ? "Menus fixados abertos: clique para soltar" : "Fixar os menus abertos (alfinete)"}
-            aria-label={menusFixos ? "Soltar menus fixados" : "Fixar menus abertos"}
-            className={cn(
-              "rounded-md p-1 outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-primary/50",
-              menusFixos ? "bg-primary/10 text-primary" : "text-muted-foreground/70 hover:bg-muted hover:text-foreground",
-            )}
-          >
-            {/* Alfinete: em pé quando fixado, deitado quando solto. */}
-            <Pin
-              className={cn("size-3.5 transition-transform", menusFixos ? "fill-current" : "rotate-45")}
-              aria-hidden="true"
-            />
-          </button>
-        </div>
-      )}
-      {areasVisiveis.map((id) => {
-        const a = AREAS[id];
-        const ativa = areaId === id;
-        const aberta = abertas[id] ?? (menusFixos || ativa);
-        const entrada: NavItem = { to: a.to, label: a.titulo, short: a.titulo, icon: a.icon };
-        const filhos = a.modulos
-          .filter((m) => mundosVisiveis.includes(m as MundoId))
-          .flatMap((m) => MUNDOS[m as MundoId].items)
-          .filter(podeVer)
-          .filter((i) => i.to !== a.to);
+      {GRUPOS_NAV.map((g) => {
+        const itens = MENU_SITE.filter((i) => i.grupo === g.id).filter(podeVer);
+        if (itens.length === 0) return null;
         return (
-          <div key={id} className="flex flex-col gap-0.5">
-            <NavLink
-              item={entrada}
-              onNavigate={onNavigate}
-              ativo={ativa && pathname === a.to}
-              aberto={filhos.length > 0 ? aberta : undefined}
-              aoClicar={(e) => {
-                // Segundo clique na área já aberta recolhe as opções.
-                if (aberta && pathname === a.to) {
-                  e.preventDefault();
-                  setAbertas((s) => ({ ...s, [id]: false }));
-                } else {
-                  setAbertas((s) => ({ ...s, [id]: true }));
-                }
-              }}
-            />
-            {aberta &&
-              filhos.map((item) => (
-                <NavLink key={item.to} item={item} onNavigate={onNavigate} recuo soAdmin={soAdminItem(item)} />
-              ))}
+          <div key={g.id} className="flex flex-col gap-0.5">
+            {g.titulo && <p className="mb-1 mt-5 px-3 text-xs font-medium text-muted-foreground">{g.titulo}</p>}
+            {itens.map((item) => (
+              <NavLink key={item.to} item={item} onNavigate={onNavigate} soAdmin={item.grupo === "admin" ? false : soAdminItem(item)} />
+            ))}
           </div>
         );
       })}
-
-      <p className="mb-1 mt-5 px-3 text-xs font-medium text-muted-foreground">Geral</p>
-      {itensGlobais.map((item) => (
-        <NavLink key={item.to} item={item} onNavigate={onNavigate} />
-      ))}
 
     </nav>
   );

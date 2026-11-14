@@ -2752,7 +2752,7 @@ function ImportarPage() {
 
   if (!podeVerImportar) {
     return (
-      <AppLayout title="Importar Lançamentos">
+      <AppLayout title="Importar faturas">
         <Card>
           <CardContent className="flex flex-col items-center gap-4 py-16 text-center">
             <span className="grid size-14 place-items-center rounded-full bg-muted text-muted-foreground">
@@ -2769,7 +2769,7 @@ function ImportarPage() {
 
   return (
     <AppLayout
-      title="Importar Lançamentos"
+      title="Importar faturas"
       description="Envie PDFs, planilha ou cole lançamentos. Revise e confirme."
       actions={
         faturas.length > 0 ? (

@@ -27,17 +27,17 @@ function LinksPage() {
     enabled: !carregandoAdmin && !isSiteAdmin,
   });
   if (carregandoAdmin) {
-    return <AppLayout title="Links" description="Anotações">{null}</AppLayout>;
+    return <AppLayout title="Links/Anotações" description="Anotações">{null}</AppLayout>;
   }
   if (isSiteAdmin) {
     return (
-      <AppLayout title="Links" description="Anotações com link: criar, histórico e unificar">
+      <AppLayout title="Links/Anotações" description="Anotações com link: criar, histórico e unificar">
         <LinksAdminPainel abaInicial={aba ?? "ativas"} novo={!!novo} />
       </AppLayout>
     );
   }
   return (
-    <AppLayout title="Links" description="Anotações publicadas pela administração">
+    <AppLayout title="Links/Anotações" description="Anotações publicadas pela administração">
       <div className="space-y-3">
         {isLoading && <p className="text-sm text-muted-foreground">Carregando…</p>}
         {!isLoading && data.length === 0 && (

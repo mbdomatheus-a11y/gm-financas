@@ -2,7 +2,7 @@ import { usePreferencias } from "@/hooks/usePreferencias";
 import { Link } from "@tanstack/react-router";
 import { Info, PiggyBank } from "lucide-react";
 import { useMemo, useState } from "react";
-import { CartesianGrid, ComposedChart, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { CartesianGrid, ComposedChart, Line, ReferenceDot, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import { CartaoCarregando } from "@/components/CartaoCarregando";
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,7 @@ import { usePrivacidadeValores } from "@/hooks/usePrivacidadeValores";
 import { useCompetenciaVigente } from "@/lib/periodo-vigente";
 import { metaDoMes } from "@/lib/poupar";
 import { calcularPrevisaoMes, datasDoCiclo } from "@/lib/previsao-mes";
-import { monthLabelLong } from "@/lib/format";
+import { abreviarValor, monthLabelLong } from "@/lib/format";
 import { nomeDoCiclo, rotuloDoCiclo } from "@/lib/rotulo-ciclo";
 import { somarMeses } from "@/lib/recorrencia";
 
@@ -28,7 +28,7 @@ import { somarMeses } from "@/lib/recorrencia";
  */
 export function ResumoPrevisaoHome({ mes: mesEscolhido, className }: { mes?: string; className?: string } = {}) {
   const financasProntas = useFinancasProntas();
-  const { formatar } = usePrivacidadeValores("resumo-previsao-home");
+  const { formatar, ocultoNesteItem } = usePrivacidadeValores("resumo-previsao-home");
   const mesVigente = useCompetenciaVigente();
   const { prefs } = usePreferencias();
   // Na tela Finanças segue o mês escolhido no filtro; no Início, a competência vigente.
@@ -74,7 +74,28 @@ export function ResumoPrevisaoHome({ mes: mesEscolhido, className }: { mes?: str
   const pctCiclo = totalDias > 0 ? Math.round((diasPassados / totalDias) * 100) : 0;
   const rotuloDia = (d: number) => serie[d - 1]?.data ?? String(d);
   const corAcerto = rp.cor === "verde" ? "bg-success" : rp.cor === "amarelo" ? "bg-warning" : "bg-destructive";
-  const ticksX = Array.from(new Set([1, p.diaHoje > 1 && p.diaHoje < totalDias ? p.diaHoje : 1, totalDias])).filter((d) => d >= 1);
+  // 14/11/2026: rótulos a cada N dias (sem sobrepor "Hoje") e vencimentos maiores (saltos do previsto fixo, sem mudar a conta).
+  const passoX = Math.max(2, Math.ceil(totalDias / 6));
+  const ticksX = Array.from(
+    new Set(
+      [
+        ...Array.from({ length: totalDias }, (_, i) => i + 1).filter((d) => (d - 1) % passoX === 0 && Math.abs(d - p.diaHoje) >= passoX / 2 && totalDias - d >= passoX / 2),
+        totalDias,
+        ...(p.diaHoje > 0 && p.diaHoje <= totalDias ? [p.diaHoje] : []),
+      ].filter((d) => d >= 1),
+    ),
+  ).sort((x, y) => x - y);
+  const vencimentos = new Map<number, number>();
+  {
+    const pts = rp.pontos;
+    const total = pts.length ? pts[pts.length - 1]!.fixoPrevisto : 0;
+    pts
+      .map((x, i) => ({ dia: x.dia, delta: x.fixoPrevisto - (i > 0 ? pts[i - 1]!.fixoPrevisto : 0) }))
+      .filter((x) => x.delta >= Math.max(1, total * 0.08))
+      .sort((x, y) => y.delta - x.delta)
+      .slice(0, 4)
+      .forEach((x) => vencimentos.set(x.dia, x.delta));
+  }
 
   if (!financasProntas) return <CartaoCarregando alturaGrafico="h-44" />;
   const encerrado = p.diaHoje >= p.diasNoMes && p.diasRestantes === 0;
@@ -167,15 +188,13 @@ export function ResumoPrevisaoHome({ mes: mesEscolhido, className }: { mes?: str
           </details>
         )}
 
-        <div className="grid gap-4 md:grid-cols-2 md:items-start">
-        <dl className="overflow-hidden rounded-2xl border border-border/70 text-sm">
-          <Linha rotulo="Receitas previstas no ciclo" valor={`+${formatar(p.receitas)}`} tom="text-success" />
-          <Linha rotulo="Despesas previstas no ciclo" valor={formatar(-p.comprometido)} tom="text-destructive" />
-          {temMeta && <Linha rotulo="A guardar nas caixinhas" valor={formatar(-p.meta)} tom="text-primary" />}
-          <Linha rotulo={rotuloPrevisto(p.numeros)} valor={formatar(p.numeros.previsto.sobra)} forte tom={semLivre ? "text-destructive" : "text-success"} />
-        </dl>
-
-        <div className="space-y-2">
+        <div className="space-y-3 rounded-2xl border border-border/70 p-3 sm:p-4">
+          <dl className={`grid gap-2 text-sm ${temMeta ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-3"}`}>
+            <Indicador rotulo="Receitas" valor={`+${formatar(p.receitas)}`} tom="text-success" />
+            <Indicador rotulo="Despesas" valor={formatar(-p.comprometido)} tom="text-destructive" />
+            {temMeta && <Indicador rotulo="Caixinhas" valor={formatar(-p.meta)} tom="text-primary" />}
+            <Indicador rotulo={rotuloPrevisto(p.numeros)} valor={formatar(p.numeros.previsto.sobra)} forte tom={semLivre ? "text-destructive" : "text-success"} />
+          </dl>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             {rp.acerto != null ? (
               <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 font-semibold text-foreground">
@@ -195,22 +214,30 @@ export function ResumoPrevisaoHome({ mes: mesEscolhido, className }: { mes?: str
             </button>
           </div>
           {ajudaAcerto && <p className="whitespace-pre-line text-xs leading-relaxed text-muted-foreground">{TEXTO_ACERTO}</p>}
-          <div className="h-[200px] w-full" role="img" aria-label="Gráfico do gasto real e do previsto, acumulados dia a dia no ciclo">
+          <div className="h-[260px] w-full" role="img" aria-label="Gráfico do gasto real e do previsto, acumulados dia a dia no ciclo">
             <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={serie} margin={{ top: 18, right: 12, left: 12, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" strokeOpacity={0.6} />
+              <ComposedChart data={serie} margin={{ top: 18, right: 12, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" strokeOpacity={0.5} />
                 <XAxis
                   dataKey="dia"
                   type="number"
                   domain={[1, Math.max(1, totalDias)]}
                   ticks={ticksX}
-                  tickFormatter={(d: number) => rotuloDia(d)}
+                  tickFormatter={(d: number) => (d === p.diaHoje && !encerrado ? "Hoje" : rotuloDia(d))}
                   tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
                   tickLine={false}
                   axisLine={false}
                   interval={0}
                 />
-                <YAxis hide domain={[0, "auto"]} />
+                <YAxis
+                  width={48}
+                  domain={[0, "auto"]}
+                  tickCount={5}
+                  tickLine={false}
+                  axisLine={false}
+                  tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                  tickFormatter={(v: number) => (ocultoNesteItem ? "••••" : v === 0 ? "0" : abreviarValor(v))}
+                />
                 {!encerrado && p.diaHoje > 0 && (
                   <ReferenceLine
                     x={p.diaHoje}
@@ -225,11 +252,19 @@ export function ResumoPrevisaoHome({ mes: mesEscolhido, className }: { mes?: str
                     if (!active || !payload?.length) return null;
                     const ponto = payload[0]?.payload as (typeof serie)[number] | undefined;
                     if (!ponto) return null;
+                    const dif = ponto.real != null ? ponto.real - ponto.previsto : null;
+                    const venc = vencimentos.get(ponto.dia);
                     return (
-                      <div className="rounded-xl border border-border/70 bg-popover px-3 py-2 text-xs shadow-md">
-                        <p className="text-muted-foreground">{ponto.data}</p>
-                        {ponto.real != null && <p className="mt-0.5 text-sm font-semibold tabular-nums">Real {formatar(ponto.real)}</p>}
+                      <div className="space-y-0.5 rounded-xl border border-border/70 bg-popover px-3 py-2 text-xs shadow-md">
+                        <p className="font-medium text-muted-foreground">{ponto.data}</p>
+                        {ponto.real != null && <p className="text-sm font-semibold tabular-nums">Real {formatar(ponto.real)}</p>}
                         <p className="text-sm tabular-nums text-muted-foreground">Previsto {formatar(ponto.previsto)}</p>
+                        {dif != null && (
+                          <p className={`tabular-nums ${dif > 0 ? "text-destructive" : "text-success"}`}>
+                            Diferença {dif > 0 ? "+" : ""}{formatar(dif)}
+                          </p>
+                        )}
+                        {venc != null && <p className="tabular-nums text-warning-foreground">Vencimentos do dia {formatar(venc)}</p>}
                       </div>
                     );
                   }}
@@ -272,6 +307,11 @@ export function ResumoPrevisaoHome({ mes: mesEscolhido, className }: { mes?: str
                   connectNulls={false}
                   isAnimationActive={false}
                 />
+                {serie
+                  .filter((x) => vencimentos.has(x.dia))
+                  .map((x) => (
+                    <ReferenceDot key={x.dia} x={x.dia} y={x.previsto} r={4} fill="var(--warning)" stroke="var(--card)" strokeWidth={2} ifOverflow="visible" />
+                  ))}
               </ComposedChart>
             </ResponsiveContainer>
           </div>
@@ -286,6 +326,11 @@ export function ResumoPrevisaoHome({ mes: mesEscolhido, className }: { mes?: str
               {mostrarRitmo && (
                 <li className="flex items-center gap-1.5">
                   <span className="w-4 border-t-2 border-dotted border-destructive" aria-hidden /> No ritmo atual
+                </li>
+              )}
+              {vencimentos.size > 0 && (
+                <li className="flex items-center gap-1.5">
+                  <span className="size-2.5 rounded-full bg-warning" aria-hidden /> Vencimentos maiores
                 </li>
               )}
             </ul>
@@ -306,9 +351,17 @@ export function ResumoPrevisaoHome({ mes: mesEscolhido, className }: { mes?: str
             )}
           </p>
         </div>
-        </div>
       </CardContent>
     </Card>
+  );
+}
+
+function Indicador({ rotulo, valor, forte, tom }: { rotulo: string; valor: string; forte?: boolean; tom?: string }) {
+  return (
+    <div className={`min-w-0 rounded-xl px-3 py-2 ${forte ? "bg-muted/60" : "bg-muted/30"}`}>
+      <dt className="truncate text-[11px] leading-tight text-muted-foreground">{rotulo}</dt>
+      <dd className={`mt-0.5 truncate tabular-nums ${forte ? "text-base font-bold" : "text-sm font-semibold"} ${tom ?? ""}`}>{valor}</dd>
+    </div>
   );
 }
 

@@ -1038,6 +1038,88 @@ function DespesasPage() {
   }, [filtroResumo, tipoCard, listaVisivel, idsIgnoradosPorTotal, filtroMes, lancamentosDoFiltro, resumo.proximo, cotacao, despesas, faturasMes, prefsCiclo.somar_pagamento_fatura]);
   const somaDoResumo = lancamentosDoResumo.reduce((s, i) => s + i.valor, 0);
 
+  // 14/11/2026: filtro "Pago" agrupado por cartão/conta, com reverter (item e lote) e desfazer.
+  const [selPago, setSelPago] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    if (filtroResumo !== "pago") setSelPago(new Set());
+  }, [filtroResumo]);
+  const gruposPago = useMemo(() => {
+    if (filtroResumo !== "pago") return [] as { key: string; label: string; itens: typeof lancamentosDoResumo; total: number }[];
+    const m = new Map<string, { key: string; label: string; itens: typeof lancamentosDoResumo; total: number }>();
+    for (const it of lancamentosDoResumo) {
+      const d: any = it.despesa;
+      const key = d.cartao_id ? `cartao:${d.cartao_id}` : d.banco_id ? `banco:${d.banco_id}` : "sem";
+      const label = d.cartoes
+        ? `${d.cartoes.apelido || d.cartoes.bandeira || "Cartão"} •${d.cartoes.final ?? ""}`
+        : d.bancos?.nome
+          ? `${d.bancos.nome} (conta)`
+          : "Sem cartão ou conta";
+      const g = m.get(key) ?? { key, label, itens: [], total: 0 };
+      g.itens.push(it);
+      g.total += it.valor;
+      m.set(key, g);
+    }
+    return Array.from(m.values()).sort((a, b) => b.total - a.total);
+  }, [filtroResumo, lancamentosDoResumo]);
+  const idPagoReal = (it: { parcela: any }) => (it.parcela?.projetada || !it.parcela?.id ? null : String(it.parcela.id));
+  async function reverterPagos(itens: { parcela: any }[]) {
+    const alvo = itens.filter((i) => idPagoReal(i));
+    if (alvo.length === 0) return;
+    const ids = alvo.map((i) => idPagoReal(i)!);
+    const anteriores = alvo.map((i) => ({ id: idPagoReal(i)!, data: i.parcela.data_pagamento ?? toISODate(new Date()) }));
+    const { error } = await supabase.from("parcelas").update({ paga: false, data_pagamento: null }).in("id", ids);
+    if (error) {
+      toast.error(error.message ?? "Não foi possível reverter");
+      return;
+    }
+    setSelPago(new Set());
+    qc.invalidateQueries();
+    toast.success(`${ids.length} lançamento(s) voltaram para em aberto`, {
+      action: {
+        label: "Desfazer",
+        onClick: async () => {
+          for (const a of anteriores) await supabase.from("parcelas").update({ paga: true, data_pagamento: a.data }).eq("id", a.id);
+          qc.invalidateQueries();
+        },
+      },
+    });
+  }
+
+  // 14/11/2026: possível duplicidade entre "Fatura do mês" manual e lançamentos do Open Finance do mesmo cartão/período.
+  const [revisarDup, setRevisarDup] = useState<any | null>(null);
+  const [confirmarRemoverDup, setConfirmarRemoverDup] = useState(false);
+  const duplicidadesOF = useMemo(() => {
+    if (!podeJuntarOF) return [] as any[];
+    const out: any[] = [];
+    for (const f of faturasMes as any[]) {
+      if (!f.despesa_avulsa_id || !f.cartao_id || f.status !== "aberta") continue;
+      if (filtroMes !== "todos" && f.competencia !== filtroMes) continue;
+      const avulsa = (despesas as any[]).find((d) => d.id === f.despesa_avulsa_id);
+      if (!avulsa) continue;
+      let totalOF = 0;
+      let qtd = 0;
+      for (const d of despesas as any[]) {
+        if (d.origem !== "pluggy" || d.cartao_id !== f.cartao_id) continue;
+        for (const pa of d.parcelas ?? []) {
+          if (competenciaDoDia(pa.vencimento) !== f.competencia) continue;
+          totalOF += Number(pa.valor);
+          qtd++;
+        }
+      }
+      if (qtd === 0) continue;
+      const cartao: any = (cartoes as any[]).find((c) => c.id === f.cartao_id);
+      out.push({
+        fatura: f,
+        avulsa,
+        totalManual: Number(f.total_informado ?? avulsa.valor_total ?? 0),
+        totalOF,
+        qtd,
+        nome: cartao ? `${cartao.apelido || cartao.bandeira || "Cartão"} •${cartao.final ?? ""}` : "Cartão",
+      });
+    }
+    return out;
+  }, [podeJuntarOF, faturasMes, despesas, cartoes, filtroMes]);
+
   // Receitas do período, do mesmo jeito que a Home: pela data de recebimento e convertidas para BRL.
   // Igual à tela Receitas e ao Dashboard: inclui as receitas fixas projetadas para o mês.
   const receitaDoFiltro = useMemo(() => {
@@ -1263,6 +1345,25 @@ function DespesasPage() {
         </div>
       }
     >
+      {duplicidadesOF.length > 0 && (
+        <Alert className="mb-3 border-warning/40 bg-warning/10">
+          <AlertTriangle className="size-4 text-warning" />
+          <AlertTitle className="text-sm">Possível duplicidade: fatura manual + Open Finance</AlertTitle>
+          <AlertDescription className="text-xs">
+            <div className="mt-1 flex flex-wrap gap-2">
+              {duplicidadesOF.map((x) => (
+                <span key={x.fatura.id} className="inline-flex items-center gap-2 rounded-full border bg-background px-2.5 py-1">
+                  <Badge variant="outline" className="border-warning/50 text-[10px] text-warning">Possível duplicidade</Badge>
+                  {x.nome}
+                  <button type="button" className="font-medium text-primary hover:underline" onClick={() => setRevisarDup(x)}>
+                    Revisar
+                  </button>
+                </span>
+              ))}
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
       {avisoCicloVisivel && (
         <div className="mb-3 flex items-center gap-2 text-xs text-muted-foreground">
           <span>
@@ -1638,6 +1739,16 @@ function DespesasPage() {
                 {" · "}
                 {lancamentosDoResumo.length} lançamento(s) · <span className="font-semibold text-foreground">{formatar(somaDoResumo)}</span>
               </p>
+              {filtroResumo === "pago" && selPago.size > 0 && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs"
+                  onClick={() => void reverterPagos(lancamentosDoResumo.filter((i) => { const id = idPagoReal(i); return id && selPago.has(id); }))}
+                >
+                  <RotateCcw className="size-3.5" /> Reverter selecionados ({selPago.size})
+                </Button>
+              )}
               <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { setTipoCard(null); setFiltroResumo(null); }}>
                 Limpar filtro
               </Button>
@@ -1646,12 +1757,57 @@ function DespesasPage() {
               <p className="p-6 text-center text-sm text-muted-foreground">Nenhum lançamento neste filtro.</p>
             ) : (
               <div className="divide-y">
-                {lancamentosDoResumo.map(({ despesa: d, parcela: p, valor }) => (
+                {filtroResumo === "pago" ? (
+                  gruposPago.map((g) => {
+                    const ids = g.itens.map((i) => idPagoReal(i)).filter(Boolean) as string[];
+                    const todos = ids.length > 0 && ids.every((id) => selPago.has(id));
+                    const selNoGrupo = g.itens.filter((i) => { const id = idPagoReal(i); return id && selPago.has(id); });
+                    return (
+                      <div key={g.key}>
+                        <div className="flex flex-wrap items-center gap-2 bg-muted/30 px-3 py-2">
+                          <Checkbox
+                            checked={todos}
+                            disabled={ids.length === 0}
+                            aria-label="Selecionar todos do grupo"
+                            onCheckedChange={(v) =>
+                              setSelPago((prev) => {
+                                const n = new Set(prev);
+                                for (const id of ids) v ? n.add(id) : n.delete(id);
+                                return n;
+                              })
+                            }
+                          />
+                          <span className="text-sm font-semibold">{g.label}</span>
+                          <span className="text-xs text-muted-foreground">{g.itens.length} · {formatar(g.total)}</span>
+                          {selNoGrupo.length > 0 && (
+                            <Button size="sm" variant="outline" className="ml-auto h-7 text-xs" onClick={() => void reverterPagos(selNoGrupo)}>
+                              <RotateCcw className="size-3.5" /> Reverter selecionados ({selNoGrupo.length})
+                            </Button>
+                          )}
+                        </div>
+                        <div className="divide-y">
+                          {g.itens.map(({ despesa: d, parcela: p, valor }) => (
+                  <div key={`${d.id}-${p.id ?? p.numero}`} className="flex items-center hover:bg-muted/40">
+                    {filtroResumo === "pago" && (
+                      <Checkbox
+                        className="ml-3"
+                        disabled={!idPagoReal({ parcela: p })}
+                        checked={selPago.has(String(p.id))}
+                        aria-label="Selecionar"
+                        onCheckedChange={(v) =>
+                          setSelPago((prev) => {
+                            const n = new Set(prev);
+                            if (v) n.add(String(p.id));
+                            else n.delete(String(p.id));
+                            return n;
+                          })
+                        }
+                      />
+                    )}
                   <button
-                    key={`${d.id}-${p.id ?? p.numero}`}
                     type="button"
                     onClick={() => abrirEdicao(d)}
-                    className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-muted/40"
+                    className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2 text-left"
                   >
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium">{d.descricao}</p>
@@ -1668,7 +1824,64 @@ function DespesasPage() {
                     </Badge>
                     <span className="shrink-0 text-sm font-semibold tabular-nums">{formatar(valor)}</span>
                   </button>
-                ))}
+                    {filtroResumo === "pago" && idPagoReal({ parcela: p }) && (
+                      <Button size="sm" variant="ghost" className="mr-2 h-7 shrink-0 text-xs" onClick={() => void reverterPagos([{ parcela: p }])}>
+                        <RotateCcw className="size-3.5" /> Reverter
+                      </Button>
+                    )}
+                  </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  lancamentosDoResumo.map(({ despesa: d, parcela: p, valor }) => (
+                  <div key={`${d.id}-${p.id ?? p.numero}`} className="flex items-center hover:bg-muted/40">
+                    {(filtroResumo as string) === "pago" && (
+                      <Checkbox
+                        className="ml-3"
+                        disabled={!idPagoReal({ parcela: p })}
+                        checked={selPago.has(String(p.id))}
+                        aria-label="Selecionar"
+                        onCheckedChange={(v) =>
+                          setSelPago((prev) => {
+                            const n = new Set(prev);
+                            if (v) n.add(String(p.id));
+                            else n.delete(String(p.id));
+                            return n;
+                          })
+                        }
+                      />
+                    )}
+                  <button
+                    type="button"
+                    onClick={() => abrirEdicao(d)}
+                    className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2 text-left"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">{d.descricao}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatDate(p.vencimento)} ·{" "}
+                        {d.cartoes
+                          ? `${d.cartoes.apelido || d.cartoes.bandeira || "Cartão"} •${d.cartoes.final ?? ""}`
+                          : "Sem cartão"}
+                        {d.total_parcelas > 1 ? ` · parcela ${p.numero}/${d.total_parcelas}` : ""}
+                      </p>
+                    </div>
+                    <Badge variant={p.paga ? "secondary" : "outline"} className="text-xs">
+                      {p.paga ? "Paga" : "Em aberto"}
+                    </Badge>
+                    <span className="shrink-0 text-sm font-semibold tabular-nums">{formatar(valor)}</span>
+                  </button>
+                    {(filtroResumo as string) === "pago" && idPagoReal({ parcela: p }) && (
+                      <Button size="sm" variant="ghost" className="mr-2 h-7 shrink-0 text-xs" onClick={() => void reverterPagos([{ parcela: p }])}>
+                        <RotateCcw className="size-3.5" /> Reverter
+                      </Button>
+                    )}
+                  </div>
+                  ))
+                )}
               </div>
             )}
           </CardContent>
@@ -2160,6 +2373,53 @@ function DespesasPage() {
         </div>
       )}
 
+      <Dialog open={!!revisarDup} onOpenChange={(v) => !v && setRevisarDup(null)}>
+        <DialogContent className="sm:max-w-[480px]">
+          <DialogHeader>
+            <DialogTitle>Revisar duplicidade · {revisarDup?.nome}</DialogTitle>
+          </DialogHeader>
+          {revisarDup && (
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="rounded-xl border p-3">
+                <p className="text-xs text-muted-foreground">Fatura manual</p>
+                <p className="text-lg font-semibold tabular-nums">{formatBRL(revisarDup.totalManual)}</p>
+              </div>
+              <div className="rounded-xl border p-3">
+                <p className="text-xs text-muted-foreground">Open Finance ({revisarDup.qtd} lanç.)</p>
+                <p className="text-lg font-semibold tabular-nums">{formatBRL(revisarDup.totalOF)}</p>
+              </div>
+            </div>
+          )}
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setRevisarDup(null)}>Manter os dois</Button>
+            <Button variant="destructive" onClick={() => setConfirmarRemoverDup(true)}>Remover fatura manual</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <AlertDialog open={confirmarRemoverDup} onOpenChange={setConfirmarRemoverDup}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remover a fatura manual deste mês?</AlertDialogTitle>
+            <AlertDialogDescription>
+              O lançamento manual da fatura sai da lista e os lançamentos do Open Finance continuam. Você poderá desfazer logo depois.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                const a = revisarDup?.avulsa;
+                setConfirmarRemoverDup(false);
+                setRevisarDup(null);
+                if (a) void executarExclusaoComUndo(a);
+              }}
+            >
+              Remover
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <JuntarLancamentoDialog
         of={juntarOF}
         lancamentos={juntarOF ? poolPorCompetencia(juntarOF.competencia) : []}
@@ -2167,12 +2427,13 @@ function DespesasPage() {
       />
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+        <DialogContent className="flex max-h-[90vh] w-[calc(100vw-1.5rem)] flex-col gap-3 overflow-hidden p-4 sm:max-w-[560px]">
           <DialogHeader>
             <DialogTitle>
               {editId ? "Editar despesa" : `Nova despesa ${tab === "fixa" ? "fixa" : "variável"}`}
             </DialogTitle>
           </DialogHeader>
+          <div className="-mx-1 min-h-0 flex-1 space-y-3 overflow-y-auto overflow-x-hidden px-1">
           {!editId && <PrimeiraCategoriaGuia tipo="despesa" />}
 
           {duplicata && (
@@ -2187,7 +2448,7 @@ function DespesasPage() {
             </Alert>
           )}
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Descrição" className="sm:col-span-2">
               <Input
                 value={form.descricao}
@@ -2348,6 +2609,9 @@ function DespesasPage() {
               </Field>
             )}
             {!ehFixa && nParcelas > 1 && (
+              <details className="group sm:col-span-2 rounded-xl border px-3 py-2">
+                <summary className="cursor-pointer text-sm font-medium">Opções de parcelas</summary>
+                <div className="mt-2 grid gap-3 sm:grid-cols-2">
               <div className="flex items-center justify-between gap-3 rounded-2xl bg-muted px-3 py-2 sm:col-span-2">
                 <div>
                   <p className="text-sm font-medium">Informar valor da parcela</p>
@@ -2363,8 +2627,7 @@ function DespesasPage() {
                   aria-label="Informar valor da parcela"
                 />
               </div>
-            )}
-            {!ehFixa && nParcelas > 1 && (
+            {(
               <Field label="Parcela atual / Já pagas">
                 <Input
                   type="number"
@@ -2375,6 +2638,9 @@ function DespesasPage() {
                 />
               </Field>
             )}
+                </div>
+              </details>
+            )}
             <Field label={ehFixa ? "Data de início" : "Data da 1ª parcela"}>
               <Input
                 type="date"
@@ -2383,6 +2649,9 @@ function DespesasPage() {
               />
             </Field>
             {ehFixa && (
+              <details className="group sm:col-span-2 rounded-xl border px-3 py-2">
+                <summary className="cursor-pointer text-sm font-medium">Reajuste</summary>
+                <div className="mt-2 grid gap-3 sm:grid-cols-2">
               <Field label="Reajuste" className="sm:col-span-2">
                 <Select
                   value={form.reajuste_tipo}
@@ -2397,8 +2666,7 @@ function DespesasPage() {
                   </SelectContent>
                 </Select>
               </Field>
-            )}
-            {ehFixa && form.reajuste_tipo === "composto" && (
+            {form.reajuste_tipo === "composto" && (
               <>
                 {/* Ordem pedida em 24/10: índice primeiro; ao escolher índice e periodicidade o % é buscado sozinho. */}
                 <Field label="Índice" className="sm:col-span-2">
@@ -2455,6 +2723,9 @@ function DespesasPage() {
                 </Field>
               </>
             )}
+                </div>
+              </details>
+            )}
             <Field label="Responsável">
               <Select
                 value={form.responsavel}
@@ -2472,6 +2743,9 @@ function DespesasPage() {
                 </SelectContent>
               </Select>
             </Field>
+            <details className="group sm:col-span-2 rounded-xl border px-3 py-2">
+              <summary className="cursor-pointer text-sm font-medium">Tags, observações e economia</summary>
+              <div className="mt-2 grid gap-3">
             {!tagsPendentes && (
               <Field label="Tags" className="sm:col-span-2">
                 <SeletorTags valor={tagsForm} onChange={setTagsForm} />
@@ -2496,6 +2770,8 @@ function DespesasPage() {
                 Marque se negociou ou cancelou a cobrança. Ela fica riscada no histórico.
               </p>
             </div>
+              </div>
+            </details>
           </div>
 
           {valorDigitado > 0 && (ehFixa || nParcelas > 1) && (
@@ -2511,8 +2787,9 @@ function DespesasPage() {
                 : `${nParcelas}x de ${formatBRL(previewParcela)}, total ${formatBRL(valorNum)}.`}
             </p>
           )}
+          </div>
 
-          <DialogFooter className="gap-2">
+          <DialogFooter className="gap-2 border-t pt-3">
             {!editId && (
               <Button variant="outline" onClick={() => tentarSalvar(true)} disabled={salvar.isPending}>
                 Salvar e adicionar outro
