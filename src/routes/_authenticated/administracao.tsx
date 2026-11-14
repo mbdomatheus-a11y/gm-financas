@@ -1,5 +1,7 @@
 import { ConteudoBancosPluggy } from "@/components/BancosPluggy";
+import { LogosBancosAdmin } from "@/components/LogosBancosAdmin";
 import { ResumoUsoAdmin } from "@/components/ResumoUsoAdmin";
+import { AvaliacoesTelaAdmin } from "@/components/AvaliacoesTelaAdmin";
 import { DesempenhoAdmin } from "@/components/DesempenhoAdmin";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ModoClienteControle } from "@/components/ModoClienteControle";
@@ -128,6 +130,7 @@ const GRUPOS_ADMIN: {
     abas: [
       { id: "dados-gerais", rotulo: "Dados Gerais" },
       { id: "resumo-uso", rotulo: "Resumo de uso" },
+      { id: "avaliacoes-telas", rotulo: "Avaliações das telas" },
       { id: "desempenho", rotulo: "Desempenho" },
       { id: "consulta", rotulo: "Consulta" },
       { id: "funil", rotulo: "Funil e retenção" },
@@ -161,7 +164,10 @@ const GRUPOS_ADMIN: {
     id: "openfinance",
     titulo: "4. Open Finance",
     descricao: "Bancos e cartões conectados (teste)",
-    abas: [{ id: "bancos", rotulo: "Bancos e cartões" }],
+    abas: [
+      { id: "bancos", rotulo: "Bancos e cartões" },
+      { id: "logos-bancos", rotulo: "Bancos e logos" },
+    ],
   },
   {
     id: "infra",
@@ -1056,12 +1062,20 @@ function Admin() {
           <DesempenhoAdmin />
         </TabsContent>
 
+        <TabsContent value="avaliacoes-telas" className="space-y-6">
+          <AvaliacoesTelaAdmin />
+        </TabsContent>
+
         <TabsContent value="resumo-uso" className="space-y-6">
           <ResumoUsoAdmin />
         </TabsContent>
 
         <TabsContent value="bancos" className="space-y-6">
           <ConteudoBancosPluggy embutido />
+        </TabsContent>
+
+        <TabsContent value="logos-bancos" className="space-y-6">
+          <LogosBancosAdmin />
         </TabsContent>
 
         <TabsContent value="funil" className="space-y-6">

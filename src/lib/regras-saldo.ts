@@ -28,12 +28,18 @@ function normalizarTexto(texto: unknown): string {
  * (mesmas palavras de detectarTipoLancamento em categorizacao.ts e do "credit card payment" da Pluggy):
  * "PAGAMENTO DE FATURA", "PAG FATURA", "PGTO FATURA NUBANK", "PAGAMENTO CARTAO DE CREDITO",
  * "DEBITO AUTOMATICO FATURA", "FATURA DO CARTAO", "CREDIT CARD PAYMENT".
- * "Fatura Nubank" sozinho NÃO entra: pode ser o total do cartão lançado à mão no lugar das compras.
+ * "Fatura Nubank" (sem cartão e fora das origens de total de fatura) também entra, via PADRAO_FATURA_BANCO.
  */
 const PADRAO_PAGAMENTO_FATURA =
   /\b(PAGAMENTO|PAGTO|PGTO|PAG|PGT)\s+(D[AEO]S?\s+)?(FATURA|CARTAO|CARTOES)\b|\bDEBITO\s+AUTOMATICO\s+(D[AEO]\s+)?(FATURA|CARTAO)\b|\bFATURA\s+(D[OE]\s+)?CARTAO\b|\bCREDIT\s+CARD\s+PAYMENT\b/;
 
 /** Origens que SÃO a despesa do cartão (total da fatura no lugar das compras): nunca são pagamento. */
+/**
+ * "Fatura <banco>" no começo da descrição ("Fatura Itaú", "FATURA NUBANK"): pagamento vindo do Open Finance ou lançado à mão.
+ * Só vale para lançamento fora de cartão (sem cartao_id): compra no cartão chamada "Fatura X" não é pagamento.
+ */
+const PADRAO_FATURA_BANCO = /^FATURA\s+(D[AEO]S?\s+)?[A-Z0-9]+( [A-Z0-9]+){0,3}$/;
+
 const ORIGENS_FATURA_DO_CARTAO = new Set(["fatura_rapida", "fatura_total_manual", "fatura_total_concluida"]);
 
 /**
@@ -46,6 +52,7 @@ export function ehPagamentoDeFatura(despesa: any): boolean {
   if (!d) return false;
   if (d.direcao === "credito") return false;
   if (ORIGENS_FATURA_DO_CARTAO.has(String(d.origem ?? ""))) return false;
+  if (!d.cartao_id && [d.descricao, d.estabelecimento].some((t) => PADRAO_FATURA_BANCO.test(normalizarTexto(t)))) return true;
   if (String(d.categoria_pluggy ?? "").toLowerCase() === "credit card payment") return true;
   return [d.descricao, d.estabelecimento, d.categoria, d.subcategoria].some((t) =>
     PADRAO_PAGAMENTO_FATURA.test(normalizarTexto(t)),

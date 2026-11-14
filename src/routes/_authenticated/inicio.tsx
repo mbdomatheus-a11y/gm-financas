@@ -13,6 +13,7 @@ import { LimitesResumoCard } from "@/components/LimitesResumoCard";
 import { useProfile } from "@/hooks/useAuthData";
 import { TempoInicioCard } from "@/components/GamificacaoFinanceira";
 import { CicloInicio } from "@/components/ciclo/CicloInicio";
+import { SimuladorRendimento } from "@/components/SimuladorRendimento";
 
 // Componentes com gráficos (recharts) carregam sob demanda para aliviar o JS inicial.
 const ResumoPrevisaoHome = lazy(() =>
@@ -74,9 +75,12 @@ function InicioPage() {
         <CicloInicio />
         {/* Duas colunas no computador: previsão em destaque e, ao lado, assistente, contas e limites */}
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)] xl:items-start">
-          <Suspense fallback={<CartaoCarregando />}>
-            <ResumoPrevisaoHome className="overflow-hidden" />
-          </Suspense>
+          <div className="space-y-6">
+            <Suspense fallback={<CartaoCarregando />}>
+              <ResumoPrevisaoHome className="overflow-hidden" />
+            </Suspense>
+            <SimuladorRendimento />
+          </div>
           <div className="space-y-6 xl:sticky xl:top-24">
             <AssistenteHome />
             <MinhasContasCard />

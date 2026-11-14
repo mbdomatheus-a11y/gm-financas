@@ -111,7 +111,7 @@ function RelatoriosPage() {
   const { data: faturasMes = [] } = useFaturasMes();
   const { data: cartoes = [] } = useCartoes();
   const { macroDe } = useEstruturaCategorias("despesa");
-  const { formatar } = usePrivacidadeValores();
+  const { formatarResumo: formatar } = usePrivacidadeValores();
   const mesAtual = useCompetenciaVigente();
   // 07/11/2026: resultado de cada mês = previsto no fim do ciclo (numeros-ciclo.ts), igual ao Início.
   const { dados: dadosCiclo, caixinhas: caixinhasCiclo, diaVirada: diaViradaCiclo } = useDadosCiclo();

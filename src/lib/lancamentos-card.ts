@@ -21,12 +21,14 @@ export function lancamentosDoCardMes(
   somarPagamentoFatura: boolean,
   cartoes?: any[] | null,
   diaVirada: number | null = diaViradaDefinida(),
+  tipo?: "fixa" | "variavel",
 ): LancamentoCard[] {
   const j = janelasDoCiclo(mes, diaVirada);
   const comps = [-1, 0, 1, 2].map((i) => somarMeses(mes, i));
   return aplicarRegrasFaturaMes(lancamentosPorCompetencias(despesas, comps), faturas)
     .filter((p: any) => contaComoDespesa(p.despesa, somarPagamentoFatura))
     .filter((p: any) => despesaNoCiclo(p, j, cartoes) && (filtro === "parcelas" || !p.paga))
+    .filter((p: any) => !tipo || (tipo === "fixa") === (p.despesa.tipo === "fixa"))
     .map((p: any) => ({ despesa: p.despesa, parcela: p, valor: toBRL(Number(p.valor), p.despesa.moeda, cotacao) }))
     .sort((a, b) => String(a.parcela.vencimento).localeCompare(String(b.parcela.vencimento)));
 }

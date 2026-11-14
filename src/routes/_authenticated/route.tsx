@@ -17,7 +17,6 @@ import { IdiomaProvider } from "@/hooks/useIdioma";
 import { ExclusaoAgendadaModal } from "@/components/ExclusaoAgendadaModal";
 import { BoasVindasExemplos } from "@/components/BoasVindasExemplos";
 import { BoasVindas } from "@/components/boas-vindas/BoasVindas";
-import { PrimeirosPassos } from "@/components/retencao/PrimeirosPassos";
 import { ConfigurarCicloGate } from "@/components/ciclo/ConfigurarCiclo";
 import { useUltimaTela } from "@/lib/ultima-tela";
 import { useModulosGlobais, useSession, type ModuloGlobal } from "@/hooks/useAuthData";
@@ -78,7 +77,6 @@ function Protegido() {
   const [avisoAberto, setAvisoAberto] = useState(true);
   // Plano de retenção (2026-10-17): conta nova faz o 1º lançamento antes do tour.
   const [exemplosAberto, setExemplosAberto] = useState(false);
-  const [primeirosPassos, setPrimeirosPassos] = useState(false);
   const [betaAberto, setBetaAberto] = useState(false);
   // 07/11/2026: boas-vindas em tela cheia (conta nova, uma vez) vem antes dos outros avisos.
   const [boasVindas, setBoasVindas] = useState(false);
@@ -102,8 +100,7 @@ function Protegido() {
       <BoasVindasExemplos bloqueado={avisoAberto || boasVindas} onVisibilityChange={setExemplosAberto} />
       {/* 08/11/2026: ciclo do mês do grupo (obrigatório quando o grupo ainda não tem regra). */}
       <ConfigurarCicloGate bloqueado={avisoAberto || boasVindas} />
-      <PrimeirosPassos bloqueado={avisoAberto || boasVindas || exemplosAberto} onPendenteChange={setPrimeirosPassos} />
-      <TourGuiado bloqueado={avisoAberto || boasVindas || exemplosAberto || primeirosPassos} />
+      <TourGuiado bloqueado={avisoAberto || boasVindas || exemplosAberto} />
       <AvisoBetaApp bloqueado={avisoAberto || boasVindas || exemplosAberto} onVisibilityChange={setBetaAberto} />
       <ConviteAposTresDias bloqueado={avisoAberto || boasVindas || betaAberto} />
       <Outlet />

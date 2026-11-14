@@ -183,6 +183,32 @@ function PersonalizacaoPage() {
       </div>
 
       <section className="mt-8 max-w-2xl">
+        <h2 className="mb-2 px-4 text-sm font-semibold text-muted-foreground">Unidade dos valores</h2>
+        <div className="rounded-3xl border bg-card px-5 py-4">
+          <div className="flex flex-wrap gap-2">
+            {([
+              ["completo", "Completo (R$ 12.345,67)"],
+              ["mil", "Mil (R$ 12,3 mil)"],
+              ["k", "K (R$ 12,3k)"],
+            ] as const).map(([id, rotulo]) => (
+              <Button
+                key={id}
+                size="sm"
+                variant={prefs.formato_valores === id ? "default" : "outline"}
+                disabled={save.isPending}
+                onClick={() => save.mutate({ formato_valores: id }, { onSuccess: () => toast.success("Preferências salvas") })}
+              >
+                {rotulo}
+              </Button>
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Vale para cards de resumo e gráficos. Listas, formulários e faturas continuam completos.
+          </p>
+        </div>
+      </section>
+
+      <section className="mt-8 max-w-2xl">
         <h2 className="mb-2 px-4 text-sm font-semibold text-muted-foreground">Saldos e valores</h2>
         <div className="divide-y overflow-hidden rounded-3xl border bg-card">
           {REGRAS_SALDO.map((r) => (

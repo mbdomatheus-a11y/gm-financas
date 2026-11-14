@@ -35,6 +35,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { classificarItemNota, calcularDepreciacao } from "@/lib/nota-itens-classificacao";
 import { DepreciacaoItem, PresetsVidaUtil } from "@/components/notas/DepreciacaoItem";
+import {
+  AcompanharDepreciacaoCampo,
+  CategoriaCombobox,
+  EnviarParaDepreciacaoDialog,
+  depreciarNotaNoBanco,
+  notaEmDepreciacao,
+  notaTodaEmDepreciacao,
+  vidaUtilSugerida,
+} from "@/components/notas/NotaDepreciacao";
 import { LISTA_CATEGORIAS } from "@/lib/categorizacao";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -124,6 +133,8 @@ type NotaForm = {
   nota_grupo_id: string;
   /** 02/11/2026: só guardar a nota, sem garantia nem alertas. */
   so_guardar: boolean;
+  /** Vida útil em meses quando "Acompanhar depreciação" está ligado; null = desligado. */
+  depreciar_meses: number | null;
 };
 
 const FORM_VAZIO: NotaForm = {
@@ -141,6 +152,7 @@ const FORM_VAZIO: NotaForm = {
   status_captura: "manual",
   nota_grupo_id: "",
   so_guardar: false,
+  depreciar_meses: null,
 };
 
 /** 02/11/2026: agrupamentos próprios das notas. Não entram em despesas nem no financeiro. */
@@ -295,6 +307,7 @@ function NotasPage() {
   };
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [detalhe, setDetalhe] = useState<string | null>(null);
+  const [depNotaId, setDepNotaId] = useState<string | null>(null);
   const [itensLidos, setItensLidos] = useState<
     {
       descricao: string;
@@ -469,6 +482,13 @@ function NotasPage() {
             }),
           );
         }
+      }
+
+      if (dados.depreciar_meses) {
+        await depreciarNotaNoBanco(
+          { id: notaId!, descricao: dados.descricao || dados.estabelecimento || "Nota fiscal", valor: payload.valor_total },
+          dados.depreciar_meses,
+        );
       }
 
       if (fotosPendentes.length) {
@@ -689,6 +709,34 @@ function NotasPage() {
     const st = statusGarantia(n.garantia_fim);
     return st === "critica" || st === "atencao";
   });
+
+  const depNota = notas.find((n) => n.id === depNotaId) ?? null;
+
+  const usosCategoria = useMemo(() => {
+    const u: Record<string, number> = {};
+    for (const n of notas) u[n.categoria ?? "outros"] = (u[n.categoria ?? "outros"] ?? 0) + 1;
+    return u;
+  }, [notas]);
+
+  /** Agrupa a lista filtrada por ano e mês (mais recente primeiro). */
+  const gruposPorAno = useMemo(() => {
+    const MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+    const porMes = new Map<string, typeof lista>();
+    for (const n of lista) {
+      const k = String(n.data_compra).slice(0, 7);
+      porMes.set(k, [...(porMes.get(k) ?? []), n]);
+    }
+    const anos = new Map<string, { chave: string; mes: string; notas: typeof lista; total: number }[]>();
+    for (const k of [...porMes.keys()].sort().reverse()) {
+      const ano = k.slice(0, 4);
+      const ns = porMes.get(k)!;
+      anos.set(ano, [
+        ...(anos.get(ano) ?? []),
+        { chave: k, mes: MESES[Number(k.slice(5, 7)) - 1] ?? k, notas: ns, total: ns.reduce((t, n) => t + Number(n.valor_total), 0) },
+      ]);
+    }
+    return [...anos.entries()];
+  }, [lista]);
 
   const notaDetalhe = notas.find((n) => n.id === detalhe) ?? null;
 
@@ -914,8 +962,20 @@ function NotasPage() {
                 </CardContent>
               </Card>
             ) : (
-              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                {lista.map((n) => {
+              <div className="space-y-6">
+                {gruposPorAno.map(([ano, meses]) => (
+                  <section key={ano} className="space-y-4">
+                    <h2 className="text-xl font-bold">{ano}</h2>
+                    {meses.map((m) => (
+                      <div key={m.chave} className="space-y-3">
+                        <div className="sticky top-0 z-10 flex items-baseline justify-between bg-background/95 py-1.5 backdrop-blur">
+                          <h3 className="text-sm font-semibold text-muted-foreground">
+                            {m.mes} · {m.notas.length} {m.notas.length === 1 ? "nota" : "notas"}
+                          </h3>
+                          <span className="text-sm font-semibold tabular-nums text-muted-foreground">{formatBRL(m.total)}</span>
+                        </div>
+                        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                {m.notas.map((n) => {
                   const foto = (n.nota_arquivos ?? [])[0];
                   const temGarantia = !!n.garantia_fim;
                   return (
@@ -960,11 +1020,30 @@ function NotasPage() {
                             {nomeDoGrupo((n as any).nota_grupo_id) ? ` · ${nomeDoGrupo((n as any).nota_grupo_id)}` : ""}
                           </p>
                           {!(n as any).so_guardar && <SeloGarantia fim={n.garantia_fim} />}
+                          <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                            {notaEmDepreciacao(n as any) && (
+                              <Badge variant="secondary" className="px-2 text-xs">Em depreciação</Badge>
+                            )}
+                            {!notaTodaEmDepreciacao(n as any) && (
+                              <button
+                                type="button"
+                                className="text-xs font-medium text-primary hover:underline"
+                                onClick={(e) => { e.stopPropagation(); setDepNotaId(n.id); }}
+                              >
+                                Enviar para depreciação
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
                   );
                 })}
+                        </div>
+                      </div>
+                    ))}
+                  </section>
+                ))}
               </div>
             )}
           </TabsContent>
@@ -1278,21 +1357,7 @@ function NotasPage() {
                 </div>
                 <div className="space-y-2">
                   <Label>Categoria</Label>
-                  <Select
-                    value={form.categoria}
-                    onValueChange={(v) => setForm({ ...form, categoria: v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CATEGORIAS.map((c) => (
-                        <SelectItem key={c} value={c}>
-                          {c.charAt(0).toUpperCase() + c.slice(1)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <CategoriaCombobox valor={form.categoria} opcoes={CATEGORIAS} usos={usosCategoria} onChange={(v) => setForm({ ...form, categoria: v })} />
                 </div>
                 <div className="space-y-2">
                   <Label>Garantia</Label>
@@ -1356,6 +1421,13 @@ function NotasPage() {
                   </SelectContent>
                 </Select>
               </div>
+              {!form.so_guardar && (
+                <AcompanharDepreciacaoCampo
+                  meses={form.depreciar_meses}
+                  sugerido={vidaUtilSugerida(form.descricao || form.estabelecimento, form.categoria)}
+                  onChange={(m) => setForm({ ...form, depreciar_meses: m })}
+                />
+              )}
               <div className="flex items-start justify-between gap-4 rounded-xl border p-4">
                 <div className="space-y-1">
                   <Label>Só guardar</Label>
@@ -1508,6 +1580,8 @@ function NotasPage() {
       </Dialog>
 
       {/* Detalhe */}
+      <EnviarParaDepreciacaoDialog nota={depNota as any} onClose={() => setDepNotaId(null)} />
+
       <Dialog open={!!notaDetalhe} onOpenChange={(v) => !v && setDetalhe(null)}>
         <DialogContent className="max-h-[90vh] max-w-lg gap-5 overflow-y-auto rounded-2xl">
           {notaDetalhe && (
@@ -1718,6 +1792,7 @@ function NotasPage() {
                         status_captura: notaDetalhe.status_captura ?? "manual",
                         nota_grupo_id: (notaDetalhe as any).nota_grupo_id ?? "",
                         so_guardar: !!(notaDetalhe as any).so_guardar,
+                        depreciar_meses: null,
                       });
                     }}
                   >

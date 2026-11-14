@@ -385,7 +385,7 @@ function CriarContaForm({ token }: { token: string | undefined }) {
         toast.info("Conta criada — faça login na aba Entrar.");
         return;
       }
-      navigate({ to: "/inicio" });
+      window.location.assign("/inicio");
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Não foi possível criar a conta");
     } finally {
@@ -542,7 +542,7 @@ function OnboardingWizard({
   }
 
   return (
-    <form onSubmit={onSubmit} onKeyDown={handleKeyDown}>
+    <form id="form-cadastro" method="post" action="/entrar" onSubmit={onSubmit} onKeyDown={handleKeyDown}>
       <div className="rounded-2xl border bg-card shadow-card overflow-hidden">
         {/* Barra de progresso vibrante verde */}
         <div className="h-1.5 bg-muted">
@@ -722,6 +722,7 @@ function OnboardingWizard({
                 </Label>
                 <Input
                   id="c-email"
+                  name="email"
                   type="email"
                   placeholder="voce@email.com"
                   autoComplete="email"
@@ -743,6 +744,18 @@ function OnboardingWizard({
 
               {/* Campo Senha */}
               <div className="space-y-1">
+                {/* Campo de usuário oculto: o navegador associa a senha nova ao e-mail digitado no passo anterior. */}
+                <input
+                  type="email"
+                  name="email"
+                  id="c-email-oculto"
+                  autoComplete="username"
+                  value={form.email}
+                  readOnly
+                  tabIndex={-1}
+                  aria-hidden="true"
+                  className="sr-only"
+                />
                 <Label htmlFor="c-senha" className="text-xs font-semibold">
                   Senha
                 </Label>
@@ -750,6 +763,7 @@ function OnboardingWizard({
                   <Input
                     autoFocus
                     id="c-senha"
+                    name="password"
                     type={mostrarSenha ? "text" : "password"}
                     placeholder="Sua senha secreta"
                     autoComplete="new-password"
@@ -800,6 +814,7 @@ function OnboardingWizard({
                 <div className="relative">
                   <Input
                     id="c-confirma"
+                    name="confirm-password"
                     type={mostrarConfirma ? "text" : "password"}
                     placeholder="Repita a senha"
                     autoComplete="new-password"

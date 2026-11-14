@@ -1,5 +1,6 @@
 import * as React from "react";
 import * as RechartsPrimitive from "recharts";
+import { valoresOcultosNaArea } from "@/lib/format";
 
 import { cn } from "@/lib/utils";
 
@@ -222,7 +223,7 @@ const ChartTooltipContent = React.forwardRef<
                         </div>
                         {item.value && (
                           <span className="font-mono font-medium tabular-nums text-foreground">
-                            {item.value.toLocaleString()}
+                            {valoresOcultosNaArea() ? "••••" : item.value.toLocaleString()}
                           </span>
                         )}
                       </div>

@@ -9,6 +9,7 @@
  *  Aluguel vence 25: 25/out 2.000 entra; 25/nov NÃO entra. Condomínio vence 10: 10/nov 500 entra.
  *  Receitas 8.000; despesas 1.200 + 1.800 + 600 + 2.000 + 500 = 6.100; vai sobrar 1.900.
  */
+import { ehPagamentoDeFatura, contaComoDespesa } from "../src/lib/regras-saldo";
 import { definirViradaDoGrupo } from "../src/lib/format";
 import { vencimentoDaFatura } from "../src/lib/fatura-ciclo";
 import { vencimentoDaCompetencia } from "../src/lib/recorrencia";
@@ -22,7 +23,9 @@ import {
   lancamentosDoCiclo,
   mesDoCicloEm,
   receitasDoCiclo,
+  acertoRealPrevisto,
   ritmoDoCiclo,
+  serieRealPrevisto,
   textoDisponivel,
   textoPorDia,
   textoRitmo,
@@ -188,6 +191,52 @@ igual("dia 31 em novembro", vencimentoDaCompetencia("2026-01-31", "2026-11"), "2
     receitasDoCiclo(receitasReais, "2026-10", D).map((r: any) => `${r.descricao}@${r.data_prevista_ciclo}`).sort(),
     ["Dia 15 - Guilherme@2026-11-15", "Dia 15 - Matheus@2026-11-15", "Dia 30 - Guilherme@2026-10-31", "Dia 30 - Matheus@2026-10-31"],
   );
+}
+
+// Gráfico Gasto real x Previsto (14/11/2026): acerto = max(0, 100 - |real - previsto| / previsto x 100).
+{
+  const merc = (id: string, data: string, valor: number) => ({
+    id, tipo: "variavel", moeda: "BRL", valor_total: valor, data_compra: data,
+    parcelas: [{ id: `${id}-1`, despesa_id: id, numero: 1, total: 1, valor, vencimento: data, paga: true }],
+  });
+  const dadosV = { ...dados, despesas: [...despesas, merc("m-ant", "2026-10-14", 300), merc("m-nov", "2026-11-05", 360)] } as any;
+  const sr = serieRealPrevisto(dadosV, "2026-10", D, hoje);
+  igual("série: dias do ciclo", sr.pontos.length, 31);
+  igual("série: hoje é o dia 24", sr.diaHoje, 24);
+  igual("série: real até hoje (aluguel 2000 + fechadas 3.000 + mercado 360)", sr.realHoje, 5360);
+  igual("série: previsto até hoje (5.000 + 10/dia x 24)", sr.previstoHoje, 5240);
+  igual("série: real nulo depois de hoje", sr.pontos[24]!.real, null);
+  igual("série: previsto no último dia (aluguel+faturas+cond+C+310)", sr.pontos[30]!.previsto, 6410);
+  igual("acerto 98 verde", { a: sr.acerto, c: sr.cor }, { a: 98, c: "verde" });
+  igual("acerto 80 amarelo", acertoRealPrevisto(80, 100), { acerto: 80, cor: "amarelo" });
+  igual("acerto 90 verde", acertoRealPrevisto(110, 100), { acerto: 90, cor: "verde" });
+  igual("acerto 26 vermelho", acertoRealPrevisto(174, 100), { acerto: 26, cor: "vermelho" });
+  igual("acerto nunca negativo", acertoRealPrevisto(500, 100), { acerto: 0, cor: "vermelho" });
+  igual("acerto sem previsto", acertoRealPrevisto(10, 0), { acerto: null, cor: null });
+  const cedo = serieRealPrevisto(dadosV, "2026-10", D, new Date(2026, 9, 18, 12));
+  igual("3 primeiros dias: sem selo", { cedo: cedo.cedo, acerto: cedo.acerto }, { cedo: true, acerto: null });
+  const dia4 = serieRealPrevisto(dadosV, "2026-10", D, new Date(2026, 9, 19, 12));
+  igual("dia 4: já tem selo", dia4.cedo, false);
+}
+
+{
+  // Pagamento de fatura reconhecido (07/11 regra "Somar pagamento de fatura"), sem somar em dobro com as compras do cartão.
+  const e = (descricao: string, extra: any = {}) => ehPagamentoDeFatura({ descricao, direcao: "debito", ...extra });
+  igual("fatura: Fatura Itaú", e("Fatura Itaú"), true);
+  igual("fatura: Pagamento fatura Nubank", e("Pagamento fatura Nubank"), true);
+  igual("fatura: PAG FATURA CARTAO", e("PAG FATURA CARTAO"), true);
+  igual("fatura: sem acento/maiúsculas", e("fatura   do cartão"), true);
+  igual("fatura: categoria Pluggy", ehPagamentoDeFatura({ descricao: "X", categoria_pluggy: "Credit card payment" }), true);
+  igual("fatura: compra no cartão chamada Fatura X não é pagamento", e("Fatura Itaú", { cartao_id: "c1" }), false);
+  igual("fatura: total manual da fatura não é pagamento", e("Fatura Itaú", { origem: "fatura_total_manual" }), false);
+  igual("fatura: crédito não é pagamento", ehPagamentoDeFatura({ descricao: "Fatura Itaú", direcao: "credito" }), false);
+  igual("fatura: mercado não é pagamento", e("Mercado do bairro"), false);
+  igual("regra desligada exclui o pagamento", contaComoDespesa({ descricao: "Fatura Itaú" }, false), false);
+  igual("regra ligada soma o pagamento", contaComoDespesa({ descricao: "Fatura Itaú" }, true), true);
+  const pf = { id: "pf", tipo: "variavel", moeda: "BRL", valor_total: 800, data_compra: "2026-10-20", descricao: "Pagamento fatura Nubank", direcao: "debito",
+    parcelas: [{ id: "pf-1", despesa_id: "pf", numero: 1, total: 1, valor: 800, vencimento: "2026-10-20", paga: true }] };
+  const comPf = (soma: boolean) => calcularNumerosCiclo({ ...dados, despesas: [...despesas, pf], somarPagamentoFatura: soma } as any, "2026-10", 0, D, hoje) as any;
+  igual("sobra do ciclo: regra desligada ignora o pagamento", comPf(false).real.despesas, comPf(true).real.despesas - 800);
 }
 
 if (falhas) {

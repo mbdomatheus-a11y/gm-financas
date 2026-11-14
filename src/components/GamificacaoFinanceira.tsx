@@ -1,11 +1,11 @@
 import { useNumerosCiclo } from "@/hooks/useNumerosCiclo";
 import { useFinancasProntas } from "@/hooks/useFinancasProntas";
 import { CartaoCarregando } from "@/components/CartaoCarregando";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Clock, Pencil, Wallet } from "lucide-react";
+import { Clock, Pencil, Wallet, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -55,14 +55,14 @@ export function useGamificacaoFinanceira() {
     // Comprometido: o maior entre o que o usuário já lançou e o que ele informou.
     const comprometido = Math.max(despesasReais, fixosInformados);
     // Maiores despesas do ciclo (para mostrar em horas de trabalho na Início).
-    const maiores = parcelasMes
+    const todos = parcelasMes
       .map((x: any) => ({
         id: String(x.id),
         descricao: String(x.despesa?.descricao ?? "Despesa"),
         valor: toBRL(Number(x.valor), x.despesa?.moeda ?? "BRL", cotacao),
       }))
-      .sort((a, b) => b.valor - a.valor)
-      .slice(0, 3);
+      .sort((a, b) => b.valor - a.valor);
+    const maiores = todos.slice(0, 3);
     const valorHora = renda > 0 ? renda / horas : 0;
     return {
       respondido,
@@ -71,6 +71,7 @@ export function useGamificacaoFinanceira() {
       fixosInformados,
       comprometido,
       maiores,
+      todos,
       valorHora,
       valorMinuto: valorHora / 60,
       sobra: Math.max(0, numeros.previsto.sobra),
@@ -210,9 +211,73 @@ function formatarHoras(h: number): string {
  * Cartão da Início: só aparece quando a pessoa já respondeu "Quanto vale o seu tempo" (que fica em Ferramentas).
  * Mostra o valor da hora e as 3 maiores despesas do ciclo em horas de trabalho.
  */
+const CHAVE_FIXADOS = "control-all.tempo-fixados";
+type Fixado = { id: string; descricao: string; valor: number };
+
 export function TempoInicioCard() {
   const g = useGamificacaoFinanceira();
+  const [fixados, setFixados] = useState<Fixado[]>([]);
+  const [aberto, setAberto] = useState(false);
+  const [busca, setBusca] = useState("");
+  const [buscaAtiva, setBuscaAtiva] = useState("");
+  const [nomeLivre, setNomeLivre] = useState("");
+  const [valorLivre, setValorLivre] = useState("");
+  const [escolhido, setEscolhido] = useState<Fixado | null>(null);
+
+  useEffect(() => {
+    try {
+      const lista = JSON.parse(localStorage.getItem(CHAVE_FIXADOS) ?? "[]");
+      if (Array.isArray(lista)) setFixados(lista.filter((x) => x && typeof x.valor === "number").slice(0, 3));
+    } catch {
+      // Armazenamento indisponível: os itens fixados só valem nesta visita.
+    }
+  }, []);
+  // Busca com debounce enquanto digita.
+  useEffect(() => {
+    const t = setTimeout(() => setBuscaAtiva(busca.trim().toLowerCase()), 250);
+    return () => clearTimeout(t);
+  }, [busca]);
+  const resultados = useMemo(
+    () => (buscaAtiva.length < 2 ? [] : g.todos.filter((d) => d.descricao.toLowerCase().includes(buscaAtiva)).slice(0, 5)),
+    [g.todos, buscaAtiva],
+  );
+
   if (!g.respondido || g.valorHora <= 0) return null;
+
+  function salvarFixados(lista: Fixado[]) {
+    setFixados(lista);
+    try {
+      localStorage.setItem(CHAVE_FIXADOS, JSON.stringify(lista));
+    } catch {
+      // Sem armazenamento local, segue sem guardar.
+    }
+  }
+  const valorDigitado = paraNumero(valorLivre);
+  const previa: Fixado | null =
+    escolhido ?? (valorDigitado > 0 ? { id: "livre", descricao: nomeLivre.trim() || "Compra", valor: valorDigitado } : null);
+  function fixar() {
+    if (!previa || fixados.length >= 3) return;
+    salvarFixados([...fixados, { ...previa, id: `${Date.now()}` }]);
+    setEscolhido(null);
+    setBusca("");
+    setNomeLivre("");
+    setValorLivre("");
+  }
+  const linha = (m: Fixado, remover?: () => void) => (
+    <li key={m.id} className="flex items-center justify-between gap-3 text-sm">
+      <span className="min-w-0 truncate">{m.descricao}</span>
+      <span className="flex shrink-0 items-center gap-2 tabular-nums text-muted-foreground">
+        <span>
+          {formatBRL(m.valor)} · <span className="font-semibold text-foreground">{formatarHoras(m.valor / g.valorHora)} de trabalho</span>
+        </span>
+        {remover && (
+          <button type="button" onClick={remover} aria-label={`Remover ${m.descricao}`} className="rounded-full p-1 hover:bg-muted">
+            <X className="size-3.5" />
+          </button>
+        )}
+      </span>
+    </li>
+  );
   return (
     <Card className="border-primary/30">
       <CardContent className="space-y-3 p-4 sm:p-5">
@@ -224,17 +289,81 @@ export function TempoInicioCard() {
             Refazer
           </Link>
         </div>
-        {g.maiores.length > 0 && (
+        {(g.maiores.length > 0 || fixados.length > 0) && (
           <ul className="space-y-1.5">
-            {g.maiores.map((m) => (
-              <li key={m.id} className="flex items-center justify-between gap-3 text-sm">
-                <span className="min-w-0 truncate">{m.descricao}</span>
-                <span className="shrink-0 tabular-nums text-muted-foreground">
-                  {formatBRL(m.valor)} · <span className="font-semibold text-foreground">{formatarHoras(m.valor / g.valorHora)} de trabalho</span>
-                </span>
-              </li>
-            ))}
+            {g.maiores.map((m) => linha(m))}
+            {fixados.map((m) => linha(m, () => salvarFixados(fixados.filter((x) => x.id !== m.id))))}
           </ul>
+        )}
+        {aberto ? (
+          <div className="space-y-2 rounded-xl border bg-muted/30 p-3">
+            <Input
+              value={busca}
+              onChange={(e) => {
+                setBusca(e.target.value);
+                setEscolhido(null);
+              }}
+              placeholder="Buscar entre os lançamentos"
+              aria-label="Buscar lançamento"
+            />
+            {resultados.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {resultados.map((d) => (
+                  <Button
+                    key={d.id}
+                    type="button"
+                    size="sm"
+                    variant={escolhido?.id === d.id ? "default" : "outline"}
+                    onClick={() => setEscolhido(d)}
+                  >
+                    {d.descricao} · {formatBRL(d.valor)}
+                  </Button>
+                ))}
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground">Ou digite um nome e um valor (ex.: Tênis, 600)</p>
+            <div className="flex gap-2">
+              <Input
+                value={nomeLivre}
+                onChange={(e) => {
+                  setNomeLivre(e.target.value);
+                  setEscolhido(null);
+                }}
+                placeholder="Nome"
+                aria-label="Nome da compra"
+              />
+              <Input
+                className="w-32"
+                inputMode="decimal"
+                value={valorLivre}
+                onChange={(e) => {
+                  setValorLivre(e.target.value);
+                  setEscolhido(null);
+                }}
+                placeholder="Valor"
+                aria-label="Valor da compra"
+              />
+            </div>
+            {previa && (
+              <p className="text-sm font-semibold">
+                {previa.descricao}: {formatBRL(previa.valor)} = {formatarHoras(previa.valor / g.valorHora)} de trabalho
+              </p>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button type="button" size="sm" variant="ghost" onClick={() => setAberto(false)}>
+                Fechar
+              </Button>
+              {previa && fixados.length < 3 && (
+                <Button type="button" size="sm" onClick={fixar}>
+                  Fixar
+                </Button>
+              )}
+            </div>
+          </div>
+        ) : (
+          <Button type="button" size="sm" variant="outline" onClick={() => setAberto(true)}>
+            Comparar outra compra
+          </Button>
         )}
       </CardContent>
     </Card>

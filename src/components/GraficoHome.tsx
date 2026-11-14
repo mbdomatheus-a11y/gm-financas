@@ -3,7 +3,7 @@ import { useDadosCiclo } from "@/hooks/useNumerosCiclo";
 import { calcularNumerosDosCiclos } from "@/lib/numeros-ciclo";
 import { metaDoMes } from "@/lib/poupar";
 import { CartaoCarregando } from "@/components/CartaoCarregando";
-import { useMemo } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 import { BarChart3 } from "lucide-react";
 import {
   Area,
@@ -26,7 +26,7 @@ import { useDespesas, useFaturasMes, useReceitas } from "@/hooks/useFinance";
 import { useEstruturaCategorias } from "@/hooks/useEstruturaCategorias";
 import { usePrivacidadeValores } from "@/hooks/usePrivacidadeValores";
 import { aplicarRegrasFaturaMes } from "@/lib/fatura-mes";
-import { formatBRL, monthKey, monthLabel, toBRL, competenciaDaReceita, competenciaDoDia, mesDoCiclo } from "@/lib/format";
+import { assinarFormatoValores, formatarResumoValor, formatoValoresDoUsuario, monthKey, monthLabel, toBRL, competenciaDaReceita, competenciaDoDia, mesDoCiclo } from "@/lib/format";
 import { useCompetenciaVigente } from "@/lib/periodo-vigente";
 import { lancamentosPorCompetencias } from "@/lib/recorrencia";
 import { usePreferencias } from "@/hooks/usePreferencias";
@@ -48,6 +48,7 @@ export function GraficoHome({
   const { data: faturasMes = [] } = useFaturasMes();
   const { data: receitas = [] } = useReceitas();
   const { ocultarValores } = usePrivacidadeValores();
+  useSyncExternalStore(assinarFormatoValores, formatoValoresDoUsuario, () => "completo" as const);
   const vigente = useCompetenciaVigente();
 
   const meses = useMemo(() => {
@@ -100,7 +101,7 @@ export function GraficoHome({
       .slice(0, 6);
   }, [parcelas, vigente, cotacao, macroDeCategoria]);
 
-  const fmt = (v: unknown) => (ocultarValores ? "R$ ••••••" : formatBRL(Number(v)));
+  const fmt = (v: unknown) => (ocultarValores ? "R$ ••••••" : formatarResumoValor(Number(v)));
   const vazio =
     opcao === "categorias" ? categorias.length === 0 : serie.every((s) => !s.Receitas && !s.Despesas);
 

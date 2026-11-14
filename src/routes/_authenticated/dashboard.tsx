@@ -63,14 +63,14 @@ import { contaComoDespesa, movimentosDeInvestimentos, totaisInvestimentos } from
 import { useEstruturaCategorias } from "@/hooks/useEstruturaCategorias";
 import { criarCorPorCategoria, nomeBaseDoGrupo } from "@/lib/categorias-cor";
 import { aplicarRegrasFaturaMes } from "@/lib/fatura-mes";
-import { lancamentosDoCardMes, somaLancamentosCard } from "@/lib/lancamentos-card";
+import { lancamentosDoCardMes, somaLancamentosCard, type LancamentoCard } from "@/lib/lancamentos-card";
 import { opacidadePorPosicao, posicaoTemporalDoMes } from "@/lib/tempo-visual";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-import { formatBRL, formatDate, formatUSD, identificacaoDespesa, monthKey, monthLabel, monthLabelLong, toBRL, competenciaDoDia, mesDoCiclo } from "@/lib/format";
+import { formatarResumoValor, valoresOcultosNaArea, formatDate, formatUSD, identificacaoDespesa, monthKey, monthLabel, monthLabelLong, toBRL, competenciaDoDia, mesDoCiclo } from "@/lib/format";
 import { nomeDoCiclo, rotuloDoCiclo } from "@/lib/rotulo-ciclo";
 import { useCompetenciaVigente } from "@/lib/periodo-vigente";
 import { lancamentosPorCompetencias, receitasPorCompetencias, somarMeses } from "@/lib/recorrencia";
@@ -171,6 +171,7 @@ function monthRange(inicio: string, fim: string): string[] {
 const compact = (v: any) => {
   const n = Number(v);
   if (!n) return "";
+  if (valoresOcultosNaArea()) return "••••";
   const a = Math.abs(n);
   const f = (x: number) => x.toLocaleString("pt-BR", { maximumFractionDigits: 1 });
   if (a >= 1_000_000) return `${f(n / 1_000_000)}M`;
@@ -713,7 +714,7 @@ function DashboardPage() {
   const corGrupo = (g: string) =>
     agrupamento === "categoria" ? corPorCategoria(g) : corPorCategoria(`__grupo__${g}`);
 
-  const { formatar: fmtGlobal } = usePrivacidadeValores();
+  const { formatarResumo: fmtGlobal } = usePrivacidadeValores();
 
   return (
     <AppLayout
@@ -759,15 +760,7 @@ function DashboardPage() {
           to="/despesas"
           search={{ filtro: "parcelas", mes: mesAtual }}
         />
-        <StatCard
-          label="Dívida em aberto do mês"
-          value={somaLancamentosCard(lancamentosAbertoMes)}
-          icon={Landmark}
-          tone="destructive"
-          hint={`${lancamentosAbertoMes.length} lançamento(s) a pagar no ciclo`}
-          to="/despesas"
-          search={{ filtro: "aberto", mes: mesAtual }}
-        />
+        <DividaEmAbertoCard itens={lancamentosAbertoMes} mes={mesAtual} />
         <StatCard
           label="Parcelas que terminam"
           value={alivioPeriodo.totalAlivio}
@@ -781,7 +774,7 @@ function DashboardPage() {
           display={
             alivioPeriodo.totalAlivio > 0
               ? `+${fmtGlobal(alivioPeriodo.totalAlivio)}/mês`
-              : "R$ 0,00"
+              : fmtGlobal(0)
           }
           href="#parcelamentos-terminando"
         />
@@ -872,7 +865,7 @@ function DashboardPage() {
                 <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
                 <XAxis dataKey="mes" fontSize={11} tickLine={false} axisLine={false} />
                 <YAxis fontSize={11} tickLine={false} axisLine={false} width={60} domain={[(m: number) => Math.min(0, m), (m: number) => Math.ceil(Math.max(0, m) * 1.15)]} />
-                <Tooltip formatter={(v: any, n: any) => [formatBRL(Number(v)), n]} />
+                <Tooltip formatter={(v: any, n: any) => [formatarResumoValor(Number(v)), n]} />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
                 {mesAtualRotulo && (
                   <ReferenceArea
@@ -940,7 +933,7 @@ function DashboardPage() {
                 />
                 <YAxis fontSize={11} tickLine={false} axisLine={false} width={60} domain={[(m: number) => Math.min(0, m), (m: number) => Math.ceil(Math.max(0, m) * 1.15)]} />
                 <Tooltip
-                  formatter={(v: any, n: any) => [formatBRL(Number(v)), n]}
+                  formatter={(v: any, n: any) => [formatarResumoValor(Number(v)), n]}
                   cursor={{ fill: "var(--muted)", opacity: 0.4 }}
                 />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
@@ -1042,7 +1035,7 @@ function DashboardPage() {
                   {alivioSel.size} selecionado(s):{" "}
                   <strong className="tabular-nums text-success">
                     +
-                    {formatBRL(
+                    {formatarResumoValor(
                       dados.alivioParcelamentos
                         .flatMap((g) => g.itens)
                         .filter((it) => alivioSel.has(it.id))
@@ -1086,7 +1079,7 @@ function DashboardPage() {
                       {g.itens.length} parcela{g.itens.length > 1 ? "s" : ""}
                     </Badge>
                     <span className="shrink-0 text-sm font-bold tabular-nums text-success">
-                      +{formatBRL(g.total)}/mês
+                      +{formatarResumoValor(g.total)}/mês
                     </span>
                   </button>
                   </div>
@@ -1108,7 +1101,7 @@ function DashboardPage() {
                             </p>
                           </div>
                           <span className="shrink-0 font-semibold tabular-nums text-success">
-                            +{formatBRL(item.valor)}/mês
+                            +{formatarResumoValor(item.valor)}/mês
                           </span>
                         </div>
                       ))}
@@ -1163,7 +1156,7 @@ function DashboardPage() {
                   >
                     <div className="flex items-center justify-between gap-3 text-sm">
                       <span className="truncate font-medium capitalize">{g.grupo}</span>
-                      <span className="shrink-0 font-semibold tabular-nums">{formatBRL(g.total)}</span>
+                      <span className="shrink-0 font-semibold tabular-nums">{formatarResumoValor(g.total)}</span>
                     </div>
                     <Progress value={pct} className="mt-1.5 h-1.5" />
                     <p className="mt-1 text-xs text-muted-foreground">
@@ -1211,7 +1204,7 @@ function DashboardPage() {
                   <Badge variant={d.paga ? "secondary" : "outline"}>
                     {d.paga ? "paga" : "em aberto"}
                   </Badge>
-                  <span className="font-semibold tabular-nums">{formatBRL(d.valor)}</span>
+                  <span className="font-semibold tabular-nums">{formatarResumoValor(d.valor)}</span>
                 </div>
               </button>
             ))}
@@ -1259,7 +1252,7 @@ function DashboardPage() {
                 <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
                 <XAxis dataKey="mes" fontSize={11} tickLine={false} axisLine={false} />
                 <YAxis fontSize={11} tickLine={false} axisLine={false} width={60} domain={[(m: number) => Math.min(0, m), (m: number) => Math.ceil(Math.max(0, m) * 1.15)]} />
-                <Tooltip formatter={(v: any) => formatBRL(Number(v))} />
+                <Tooltip formatter={(v: any) => formatarResumoValor(Number(v))} />
                 {mesAtualRotulo && (
                   <ReferenceArea
                     x1={mesAtualRotulo}
@@ -1308,7 +1301,7 @@ function DashboardPage() {
                     <p className="truncate text-xs text-muted-foreground">{t.identificacao}</p>
                   )}
                 </div>
-                <span className="shrink-0 font-semibold tabular-nums">{formatBRL(t.valor)}</span>
+                <span className="shrink-0 font-semibold tabular-nums">{formatarResumoValor(t.valor)}</span>
               </div>
             ))}
           </CardContent>
@@ -1327,7 +1320,7 @@ function DashboardPage() {
                 <div className="flex items-center justify-between gap-2 text-sm">
                   <span className="truncate font-medium">{p.descricao}</span>
                   <span className="shrink-0 font-semibold tabular-nums">
-                    {formatBRL(p.valorParcela)}
+                    {formatarResumoValor(p.valorParcela)}
                     <span className="text-xs font-normal text-muted-foreground">/parcela</span>
                   </span>
                 </div>
@@ -1335,7 +1328,7 @@ function DashboardPage() {
                 <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
                   <span className="truncate">{p.cartao}</span>
                   <span className="shrink-0">
-                    {p.pagas} de {p.total} pagas · restam {formatBRL(p.restante)}
+                    {p.pagas} de {p.total} pagas · restam {formatarResumoValor(p.restante)}
                   </span>
                 </div>
               </div>
@@ -1364,7 +1357,7 @@ function DashboardPage() {
                     />
                     <span className="min-w-0 flex-1 truncate text-sm font-medium">{c.nome}</span>
                     <span className="shrink-0 text-sm font-bold tabular-nums">
-                      {formatBRL(c.valor)}
+                      {formatarResumoValor(c.valor)}
                     </span>
                   </div>
                   <Progress value={pct} className="h-1.5" />
@@ -1409,7 +1402,7 @@ function DashboardPage() {
                     axisLine={false}
                   />
                   <Tooltip
-                    formatter={(v: any) => formatBRL(Number(v))}
+                    formatter={(v: any) => formatarResumoValor(Number(v))}
                     cursor={{ fill: "var(--muted)", opacity: 0.4 }}
                   />
                   <Bar maxBarSize={44} isAnimationActive={false} dataKey="valor" radius={[0, 6, 6, 0]}>
@@ -1450,7 +1443,7 @@ function DashboardPage() {
                   />
                   <YAxis fontSize={11} tickLine={false} axisLine={false} width={60} domain={[(m: number) => Math.min(0, m), (m: number) => Math.ceil(Math.max(0, m) * 1.15)]} />
                   <Tooltip
-                    formatter={(v: any, n: any) => [formatBRL(Number(v)), n]}
+                    formatter={(v: any, n: any) => [formatarResumoValor(Number(v)), n]}
                     cursor={{ fill: "var(--muted)", opacity: 0.4 }}
                   />
                   <Legend verticalAlign="top" height={32} wrapperStyle={{ fontSize: 12 }} />
@@ -1476,7 +1469,7 @@ function DashboardPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
             <CardTitle className="text-base">Próximos 30 dias</CardTitle>
-            <Badge variant="secondary">{formatBRL(dados.totalProximos)}</Badge>
+            <Badge variant="secondary">{formatarResumoValor(dados.totalProximos)}</Badge>
           </CardHeader>
           <CardContent className="space-y-1.5">
             {dados.proximos.length === 0 && (
@@ -1495,7 +1488,7 @@ function DashboardPage() {
                       .join(" · ")}
                   </p>
                 </div>
-                <span className="shrink-0 font-semibold tabular-nums">{formatBRL(p.valor)}</span>
+                <span className="shrink-0 font-semibold tabular-nums">{formatarResumoValor(p.valor)}</span>
               </div>
             ))}
           </CardContent>
@@ -1543,7 +1536,7 @@ function RankingCategorias({
             <div className="flex items-baseline justify-between gap-2 text-sm">
               <span className="min-w-0 truncate font-medium">{l.name}</span>
               <span className="shrink-0 tabular-nums">
-                <strong>{formatBRL(l.value)}</strong>
+                <strong>{formatarResumoValor(l.value)}</strong>
                 <span className="ml-1.5 text-xs text-muted-foreground">{pct.toFixed(0)}%</span>
               </span>
             </div>
@@ -1675,7 +1668,7 @@ function StatCard({
   /** Âncora na própria página (ex.: "#fluxo-caixa"), pra quando o destino natural é um gráfico já visível no dashboard, não outra rota. */
   href?: string;
 }) {
-  const { formatar } = usePrivacidadeValores();
+  const { formatarResumo: formatar } = usePrivacidadeValores();
   const toneClass =
     tone === "success" ? "text-success" : tone === "warning" ? "text-warning" : "text-destructive";
 
@@ -1835,5 +1828,67 @@ function EditarDespesaDialog({ despesa, onClose }: { despesa: any | null; onClos
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** 14/11/2026: "Dívida em aberto do mês" em barra empilhada (fixas x variáveis). Cada segmento abre Despesas já filtrada. */
+function DividaEmAbertoCard({ itens, mes }: { itens: LancamentoCard[]; mes: string }) {
+  const { formatarResumo, ocultoNesteItem } = usePrivacidadeValores("divida-aberto");
+  const { prefs, save } = usePreferencias();
+  const fixas = itens.filter((i) => i.despesa.tipo === "fixa").reduce((s, i) => s + i.valor, 0);
+  const total = somaLancamentosCard(itens);
+  const variaveis = total - fixas;
+  const pct = (v: number) => (total > 0 ? Math.round((v / total) * 100) : 0);
+  const alternar = () => {
+    const prox = prefs.formato_valores === "completo" ? "mil" : prefs.formato_valores === "mil" ? "k" : "completo";
+    save.mutate({ formato_valores: prox });
+  };
+  const segmentos = [
+    { tipo: "fixa" as const, rotulo: "Fixas", valor: fixas, cor: "bg-primary" },
+    { tipo: "variavel" as const, rotulo: "Variáveis", valor: variaveis, cor: "bg-warning" },
+  ];
+  return (
+    <Card className="overflow-hidden">
+      <div className="p-4">
+        <div className="flex items-start justify-between gap-2">
+          <p className="text-xs font-medium text-muted-foreground">Dívida em aberto do mês</p>
+          <Landmark className="size-4 text-destructive" />
+        </div>
+        <button
+          type="button"
+          onClick={alternar}
+          title="Tocar para alternar a unidade (completo, mil, k)"
+          className="mt-2 text-left text-xl font-bold tracking-tight"
+        >
+          {formatarResumo(total)}
+        </button>
+        <p className="mt-1 text-xs text-muted-foreground">{itens.length} lançamento(s) a pagar no ciclo</p>
+        <div className="mt-3 flex h-4 w-full overflow-hidden rounded-full bg-muted" role="img" aria-label="Dívida em aberto: fixas e variáveis">
+          {segmentos.map((s) =>
+            s.valor > 0 ? (
+              <Link
+                key={s.tipo}
+                to="/despesas"
+                search={{ filtro: "aberto", mes, tipo: s.tipo }}
+                className={`${s.cor} h-full transition-[width] duration-500 hover:opacity-80`}
+                style={{ width: `${(s.valor / total) * 100}%` }}
+                title={`${s.rotulo} ${formatarResumo(s.valor)}`}
+                aria-label={`${s.rotulo}: abrir despesas em aberto`}
+              />
+            ) : null,
+          )}
+        </div>
+        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs">
+          {segmentos.map((s) => (
+            <Link key={s.tipo} to="/despesas" search={{ filtro: "aberto", mes, tipo: s.tipo }} className="inline-flex items-center gap-1.5 hover:underline">
+              <span className={`size-2 rounded-full ${s.cor}`} />
+              <span className="text-muted-foreground">{s.rotulo}</span>
+              <span className="font-semibold tabular-nums">{formatarResumo(s.valor)}</span>
+              <span className="text-muted-foreground">{ocultoNesteItem ? "" : `${pct(s.valor)}%`}</span>
+            </Link>
+          ))}
+        </div>
+      </div>
+    </Card>
   );
 }

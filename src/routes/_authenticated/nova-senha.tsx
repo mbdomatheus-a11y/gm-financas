@@ -60,7 +60,7 @@ function NovaSenhaPage() {
     await qc.invalidateQueries();
     setLoading(false);
     toast.success("Senha atualizada!");
-    navigate({ to: "/inicio" });
+    window.location.assign("/inicio");
   }
 
   return (
@@ -76,14 +76,26 @@ function NovaSenhaPage() {
         onSubmit={handleSubmit}
         className="space-y-5 rounded-3xl border bg-card p-8 shadow-card"
       >
+        <input
+          type="email"
+          name="email"
+          id="s-usuario"
+          autoComplete="username"
+          value={user?.email ?? ""}
+          readOnly
+          tabIndex={-1}
+          aria-hidden="true"
+          className="sr-only"
+        />
         <div className="space-y-2">
           <Label htmlFor="s1">Nova senha</Label>
-          <InputSenha id="s1" autoComplete="new-password" value={senha} onChange={(e) => setSenha(e.target.value)} />
+          <InputSenha id="s1" name="new-password" autoComplete="new-password" value={senha} onChange={(e) => setSenha(e.target.value)} />
         </div>
         <div className="space-y-2">
           <Label htmlFor="s2">Confirmar nova senha</Label>
           <InputSenha
             id="s2"
+            name="confirm-password"
             autoComplete="new-password"
             value={confirma}
             onChange={(e) => setConfirma(e.target.value)}

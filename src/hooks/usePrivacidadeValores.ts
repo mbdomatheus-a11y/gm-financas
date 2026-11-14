@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
-import { formatBRLSemMascara } from "@/lib/format";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { assinarFormatoValores, formatarValor, formatBRLSemMascara, formatoValoresDoUsuario } from "@/lib/format";
 
 const STORAGE_KEY = "financas_ocultar_valores";
 const STORAGE_KEY_ITENS = "financas_ocultar_valores_itens";
@@ -43,6 +43,7 @@ function notificarMudanca() {
 export function usePrivacidadeValores(itemId?: string) {
   const [ocultarValores, setOcultarValoresState] = useState<boolean>(() => lerGlobal());
   const [overrides, setOverridesState] = useState<OverridesPorItem>(() => lerOverrides());
+  const formatoValores = useSyncExternalStore(assinarFormatoValores, formatoValoresDoUsuario, () => "completo" as const);
 
   // Escuta mudanças de outras instâncias (ex: botão do header alterando, e páginas reagindo)
   useEffect(() => {
@@ -116,7 +117,18 @@ export function usePrivacidadeValores(itemId?: string) {
     [ocultoNesteItem],
   );
 
+  /** Igual a `formatar`, mas na unidade escolhida (completo, mil ou k). Só para cards de resumo e gráficos. */
+  const formatarResumo = useCallback(
+    (valor: number | null | undefined) => {
+      if (valor == null) return "—";
+      if (ocultoNesteItem) return "R$ ••••••";
+      return formatarValor(valor, formatoValores);
+    },
+    [ocultoNesteItem, formatoValores],
+  );
+
   return {
+    formatarResumo,
     /** Preferência global (o botão "olho" do cabeçalho). */
     ocultarValores,
     toggle,

@@ -755,3 +755,104 @@ export function textoRitmo(
   }
   return { linha1, linha2: `Nesse ritmo, sobram ${formatar(r.projecaoNoRitmo)} em ${diaMesNum(fim)}.`, tom: "positivo" };
 }
+
+/** Gráfico "Gasto real x Previsto" (14/11/2026). Pontos por dia do ciclo e o acerto. */
+export type PontoRealPrevisto = {
+  dia: number;
+  iso: string;
+  /** Despesas do ciclo acumuladas até o dia. null depois de hoje. */
+  real: number | null;
+  /** Gasto esperado acumulado até o dia (contas e faturas + variável médio do ciclo anterior). */
+  previsto: number;
+  /** Parte fixa (contas e faturas) do previsto acumulado; base da linha "No ritmo atual". */
+  fixoPrevisto: number;
+};
+export type CorAcerto = "verde" | "amarelo" | "vermelho";
+export type SerieRealPrevisto = {
+  pontos: PontoRealPrevisto[];
+  /** 0 a 100, arredondado. null nos 3 primeiros dias, ciclo futuro ou sem previsto. */
+  acerto: number | null;
+  cor: CorAcerto | null;
+  /** Ciclo com 3 dias ou menos: sem selo ("ainda é cedo"). */
+  cedo: boolean;
+  diaHoje: number;
+  realHoje: number;
+  previstoHoje: number;
+};
+export const TEXTO_ACERTO = "Compara o gasto real até hoje com o previsto até hoje.\nAcerto = 100% menos a diferença entre os dois, em % do previsto.";
+
+/** acerto = max(0, 100 - |real - previsto| / previsto x 100). Verde >= 90, amarelo 75 a 89, vermelho < 75. */
+export function acertoRealPrevisto(real: number, previsto: number): { acerto: number | null; cor: CorAcerto | null } {
+  if (!(previsto > 0)) return { acerto: null, cor: null };
+  const a = Math.round(Math.max(0, 100 - (Math.abs(real - previsto) / previsto) * 100));
+  return { acerto: a, cor: a >= 90 ? "verde" : a >= 75 ? "amarelo" : "vermelho" };
+}
+
+/**
+ * Real: despesas do ciclo (regra única) acumuladas por dia. Contas e faturas caem no vencimento (conta) ou no
+ * fechamento (fatura, o que vence/fecha depois do fim fica no último dia); o gasto variável fora do cartão (mesmo critério do
+ * ritmo; no cartão ele já está na fatura) cai na data da compra. Previsto: as mesmas contas e faturas + gasto variável médio por dia do ciclo anterior.
+ */
+export function serieRealPrevisto(
+  dados: DadosCiclo,
+  mes: string,
+  diaVirada?: number | null,
+  agora: Date = new Date(),
+): SerieRealPrevisto {
+  const jan = janelasDoCiclo(mes, diaVirada);
+  const ant = janelasDoCiclo(somarMeses(mes, -1), diaVirada);
+  const datas = datasEntre(jan.inicio, jan.fim);
+  const dias = datas.length;
+  const hojeIso = isoDe(agora);
+  const encerrado = hojeIso > jan.fim;
+  const futuro = hojeIso < jan.inicio;
+  const diaHoje = futuro ? 0 : encerrado ? dias : datas.indexOf(hojeIso) + 1;
+  const pos = (iso: string) => Math.min(dias, Math.max(1, datas.indexOf(iso) + 1 || (iso < jan.inicio ? 1 : dias)));
+  const { parcelas } = montarBase(dados, [mes, somarMeses(mes, -1)], agora);
+  const fixoPrev = new Array(dias + 1).fill(0);
+  const fixoReal = new Array(dias + 1).fill(0);
+  const varReal = new Array(dias + 1).fill(0);
+  let varAnt = 0;
+  for (const p of parcelas) {
+    const d = p.despesa;
+    if (d?.direcao === "credito" || !contaComoDespesa(d, dados.somarPagamentoFatura)) continue;
+    const valor = toBRL(Number(p.valor), d.moeda, dados.cotacao);
+    const variavel = !p.projetada && d?.tipo === "variavel" && Number(p.numero ?? 1) <= 1 && !(d?.cartao_id ?? p.cartao_id);
+    if (variavel) {
+      const iso = String(d.data_compra ?? p.vencimento ?? "").slice(0, 10);
+      if (iso >= jan.inicio && iso <= jan.fim) varReal[pos(iso)] += valor;
+      else if (iso >= ant.inicio && iso <= ant.fim) varAnt += valor;
+      continue;
+    }
+    if (!despesaNoCiclo(p, jan, dados.cartoes)) continue;
+    const fech = jan.faturas.porFechamento ? fechamentoDaParcela(p, dados.cartoes) : null;
+    const iso = fech ?? String(p.vencimento ?? "").slice(0, 10);
+    const i = pos(iso);
+    fixoPrev[i] += valor;
+    if (iso <= hojeIso) fixoReal[i] += valor;
+  }
+  const diasAnt = datasEntre(ant.inicio, ant.fim).length;
+  const mediaVar = diasAnt > 0 ? varAnt / diasAnt : 0;
+  const pontos: PontoRealPrevisto[] = [];
+  let fp = 0;
+  let fr = 0;
+  let vr = 0;
+  for (let d = 1; d <= dias; d++) {
+    fp += fixoPrev[d];
+    fr += fixoReal[d];
+    vr += varReal[d];
+    pontos.push({
+      dia: d,
+      iso: datas[d - 1]!,
+      real: d <= diaHoje ? r2(fr + vr) : null,
+      previsto: r2(fp + mediaVar * d),
+      fixoPrevisto: r2(fp),
+    });
+  }
+  const hojePonto = pontos[Math.max(0, diaHoje - 1)];
+  const realHoje = hojePonto?.real ?? 0;
+  const previstoHoje = diaHoje > 0 ? hojePonto?.previsto ?? 0 : 0;
+  const cedo = futuro || (!encerrado && diaHoje <= 3);
+  const { acerto, cor } = cedo ? { acerto: null, cor: null } : acertoRealPrevisto(realHoje, previstoHoje);
+  return { pontos, acerto, cor, cedo, diaHoje, realHoje, previstoHoje };
+}

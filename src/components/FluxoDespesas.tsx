@@ -40,7 +40,7 @@ export function FluxoDespesas() {
   const cotacao = useCotacao();
   const { data: despesas = [] } = useDespesas();
   const { data: faturasMes = [] } = useFaturasMes();
-  const { formatar } = usePrivacidadeValores();
+  const { formatarResumo: formatar } = usePrivacidadeValores();
   const vigente = useCompetenciaVigente();
   const { macroDe } = useEstruturaCategorias("despesa");
 

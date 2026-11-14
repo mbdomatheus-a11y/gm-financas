@@ -31,7 +31,7 @@ import { useCotacao } from "@/hooks/useCotacao";
 import { useDespesas, useFaturasMes, useReceitas } from "@/hooks/useFinance";
 import { usePrivacidadeValores } from "@/hooks/usePrivacidadeValores";
 import { aplicarRegrasFaturaMes } from "@/lib/fatura-mes";
-import { formatBRL, formatDate, identificacaoDespesa, monthKey, monthLabel, monthLabelLong, toBRL, competenciaDoDia, mesDoCiclo } from "@/lib/format";
+import { formatBRL, formatarResumoValor, formatDate, identificacaoDespesa, monthKey, monthLabel, monthLabelLong, toBRL, competenciaDoDia, mesDoCiclo } from "@/lib/format";
 import { nomeDoCiclo, rotuloDoCiclo } from "@/lib/rotulo-ciclo";
 import { useCompetenciaVigente } from "@/lib/periodo-vigente";
 import { usePersistedState } from "@/hooks/usePersistedState";
@@ -145,8 +145,8 @@ export function VisaoGeralHome({
   const ocultoEconomia = ocultarValores ?? economiaPrivacidade.ocultoNesteItem;
   const ocultoReceitas = ocultarValores ?? receitasPrivacidade.ocultoNesteItem;
   const ocultoDespesas = ocultarValores ?? despesasPrivacidade.ocultoNesteItem;
-  const valorFmt = (v: number) => (globalHook.ocultarValores ? "R$ ••••••" : formatBRL(v));
-  const valorFmtItem = (v: number, oculto: boolean) => (oculto ? "R$ ••••••" : formatBRL(v));
+  const valorFmt = (v: number) => (globalHook.ocultarValores ? "R$ ••••••" : formatarResumoValor(v));
+  const valorFmtItem = (v: number, oculto: boolean) => (oculto ? "R$ ••••••" : formatarResumoValor(v));
 
   // Item 3 (backlog 2026-09-27): agrupamento lembrado por sessão
   // (localStorage) e restaurado quando o usuário volta pra tela.

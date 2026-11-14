@@ -9,6 +9,7 @@ import { useCotacao } from "@/hooks/useCotacao";
 import { useDespesas } from "@/hooks/useFinance";
 import { useFinancasProntas } from "@/hooks/useFinancasProntas";
 import { sugerirEconomias } from "@/lib/sugestoes-economia";
+import { formatBRL } from "@/lib/format";
 
 const CHAVE = "controlall:sugestoes-dispensadas";
 const CHAVE_REVISADAS = "controlall:sugestoes-revisadas";
@@ -86,7 +87,7 @@ export function SugestoesEconomia({ className }: { className?: string }) {
                 <p className="text-xs text-muted-foreground">{s.texto}</p>
               </button>
               <span className="shrink-0 text-right text-sm font-semibold tabular-nums text-destructive">
-                {s.anual.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                {formatBRL(s.anual)}
                 <span className="block text-[11px] font-normal text-muted-foreground">por ano</span>
               </span>
               <Button

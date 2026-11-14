@@ -121,3 +121,14 @@ export function visualBanco(texto: string | null | undefined) {
     icone: b?.dominio ? `https://www.google.com/s2/favicons?domain=${b.dominio}&sz=128` : null,
   };
 }
+
+/** Id do banco no catálogo (14/11/2026): slug do nome ("Banco do Brasil" vira "banco-do-brasil"). Chave da tabela logos_bancos. */
+export function idBanco(nome: string): string {
+  return nome
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/&/g, " e ")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}

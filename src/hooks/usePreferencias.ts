@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { definirCicloDoUsuario } from "@/lib/format";
+import { definirCicloDoUsuario, definirFormatoValores, formatoValoresDoUsuario, type FormatoValores } from "@/lib/format";
 import { useSession } from "./useAuthData";
 import { useRegraCiclo } from "./useRegraCiclo";
 
@@ -35,6 +35,8 @@ export type Preferencias = {
   mostrar_fatura_aberta: boolean;
   /** Aportes e resgates de investimentos entram no saldo. */
   somar_investimentos: boolean;
+  /** 14/11/2026: unidade dos valores em resumos e gráficos (coluna nova; sem ela vale 'completo'). */
+  formato_valores: FormatoValores;
 };
 
 /** Chaves das regras de saldo (colunas novas, podem não existir no banco ainda). */
@@ -70,6 +72,7 @@ export const DEFAULT_PREFS: Omit<Preferencias, "user_id"> = {
   somar_pagamento_fatura: false,
   mostrar_fatura_aberta: true,
   somar_investimentos: false,
+  formato_valores: "completo",
 };
 
 /** Último dia de virada aplicado nesta sessão (undefined = ainda não carregou). */
@@ -97,7 +100,10 @@ export function usePreferencias() {
       const regras = Object.fromEntries(
         CHAVES_REGRAS_SALDO.map((k) => [k, typeof linha[k] === "boolean" ? linha[k] : DEFAULT_PREFS[k]]),
       ) as Pick<Preferencias, ChaveRegraSaldo>;
-      const prefs = { ...(data as unknown as Preferencias), ...regras };
+      const fv = (data as any).formato_valores;
+      const temColuna = "formato_valores" in (data as object);
+      const prefs = { ...(data as unknown as Preferencias), ...regras, formato_valores: (temColuna ? (fv === "mil" || fv === "k" ? fv : "completo") : formatoValoresDoUsuario()) as FormatoValores };
+      if (temColuna) definirFormatoValores(prefs.formato_valores);
       // Aplica o ciclo ANTES de a tela receber as preferências: os totais já saem do período certo.
       definirCicloDoUsuario(prefs.dia_virada ?? null, prefs.receitas_proximo_ciclo_dia ?? null);
       return prefs;
@@ -111,17 +117,31 @@ export function usePreferencias() {
       const { error } = await supabase.from("preferencias_usuario").upsert(next as any);
       if (error && colunaAusente(error)) {
         // Migration das regras de saldo pendente: salva o resto sem as colunas novas.
+        if ("formato_valores" in values) {
+          // Coluna ainda não existe: a escolha vale só neste aparelho (definirFormatoValores guarda localmente).
+          definirFormatoValores(values["formato_valores"]);
+          const sem: Record<string, unknown> = { ...next };
+          delete sem["formato_valores"];
+          for (const k of CHAVES_REGRAS_SALDO) delete sem[k];
+          const r = await supabase.from("preferencias_usuario").upsert(sem as any);
+          if (r.error) throw r.error;
+          return next;
+        }
         if (CHAVES_REGRAS_SALDO.some((k) => k in values)) {
           throw new Error("As regras de saldo ainda não estão disponíveis. Tente mais tarde.");
         }
         const semRegras: Record<string, unknown> = { ...next };
         for (const k of CHAVES_REGRAS_SALDO) delete semRegras[k];
+        delete semRegras["formato_valores"];
         const segunda = await supabase.from("preferencias_usuario").upsert(semRegras as any);
         if (segunda.error) throw segunda.error;
         return next;
       }
       if (error) throw error;
       return next;
+    },
+    onMutate: (values) => {
+      if (values.formato_valores) definirFormatoValores(values["formato_valores"]);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["preferencias"] }),
   });

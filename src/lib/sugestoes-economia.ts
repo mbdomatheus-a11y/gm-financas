@@ -1,4 +1,4 @@
-import { competenciaAtual, toBRL } from "@/lib/format";
+import { competenciaAtual, formatBRL, toBRL } from "@/lib/format";
 import { lancamentosPorCompetencias, somarMeses } from "@/lib/recorrencia";
 
 /**
@@ -31,7 +31,7 @@ const RE_CAT_TAXA = /TAXA|JUROS|ANUIDADE/;
 
 const semAcento = (t: string) => t.normalize("NFD").replace(/[̀-ͯ]/g, "");
 const normalizar = (t: string) => semAcento(t).toUpperCase().replace(/[^A-Z\/ ]/g, " ").replace(/\s+/g, " ").trim();
-const reais = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const reais = (v: number) => formatBRL(v);
 const media = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / (xs.length || 1);
 
 export function sugerirEconomias(despesas: any[], cotacao: any, hoje: Date = new Date()): SugestaoEconomia[] {

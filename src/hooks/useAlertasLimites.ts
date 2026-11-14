@@ -1,5 +1,7 @@
 import { useMemo } from "react";
 
+import { formatBRL } from "@/lib/format";
+
 import { useUsoDosLimites, type UsoLimite } from "@/hooks/useLimites";
 import { usePreferenciasNotificacao } from "@/hooks/usePreferenciasNotificacao";
 
@@ -10,7 +12,7 @@ import { usePreferenciasNotificacao } from "@/hooks/usePreferenciasNotificacao";
  */
 export type AlertaLimite = { chave: string; texto: string; destino: "/limites" };
 
-const brl = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const brl = (v: number) => formatBRL(v);
 
 /** Função pura: limites em "alerta" ou "estourado" viram itens do sino. */
 export function alertasDosLimites(usos: UsoLimite[], competencia: string): AlertaLimite[] {

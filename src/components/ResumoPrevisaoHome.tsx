@@ -2,7 +2,7 @@ import { usePreferencias } from "@/hooks/usePreferencias";
 import { Link } from "@tanstack/react-router";
 import { Info, PiggyBank } from "lucide-react";
 import { useMemo, useState } from "react";
-import { Area, CartesianGrid, ComposedChart, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { CartesianGrid, ComposedChart, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import { CartaoCarregando } from "@/components/CartaoCarregando";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { SobraCiclo } from "@/components/SobraCiclo";
 import { FaturaMesDialog } from "@/components/FaturaMesDialog";
 import { useDadosCiclo } from "@/hooks/useNumerosCiclo";
-import { ritmoDoCiclo, rotuloPrevisto, textoRitmo } from "@/lib/numeros-ciclo";
+import { ritmoDoCiclo, rotuloPrevisto, serieRealPrevisto, TEXTO_ACERTO, textoRitmo } from "@/lib/numeros-ciclo";
 import { useFinancasProntas } from "@/hooks/useFinancasProntas";
 import { usePrivacidadeValores } from "@/hooks/usePrivacidadeValores";
 import { useCompetenciaVigente } from "@/lib/periodo-vigente";
@@ -34,6 +34,7 @@ export function ResumoPrevisaoHome({ mes: mesEscolhido, className }: { mes?: str
   // Na tela Finanças segue o mês escolhido no filtro; no Início, a competência vigente.
   // 03/11/2026: no Início dá para ver o ciclo atual ou planejar o próximo (na tela Finanças vale o mês escolhido).
   const [proximo, setProximo] = useState(false);
+  const [ajudaAcerto, setAjudaAcerto] = useState(false);
   const podeTrocar = mesEscolhido === undefined;
   const mes = mesEscolhido ?? (proximo ? somarMeses(mesVigente, 1) : mesVigente);
 
@@ -52,15 +53,19 @@ export function ResumoPrevisaoHome({ mes: mesEscolhido, className }: { mes?: str
   );
   const frase = textoRitmo(ritmo, p.numeros.fim, formatar);
   const mostrarRitmo = (!ritmo.cedo && !p.numeros.encerrado && !p.numeros.futuro && ritmo.adicional > 0);
-  const serie = p.serie.map((s) => ({
+  // 14/11/2026: duas linhas por dia do ciclo: gasto real acumulado (até hoje) e previsto acumulado (serieRealPrevisto).
+  const rp = useMemo(() => serieRealPrevisto(dados, mes, diaVirada), [dados, mes, diaVirada]);
+  const realHoje = rp.pontos[rp.diaHoje - 1]?.real ?? 0;
+  const fixoHoje = rp.pontos[rp.diaHoje - 1]?.fixoPrevisto ?? 0;
+  const serie = rp.pontos.map((s) => ({
     dia: s.dia,
-    rotulo: s.rotulo,
-    data: s.iso ? fmtDia(s.iso) : String(s.rotulo),
-    real: s.projetado ? null : s.saldo,
-    previsto: s.dia >= p.diaHoje ? s.saldo : null,
+    data: fmtDia(s.iso),
+    real: s.real,
+    previsto: s.previsto,
+    // No ritmo atual: o real de hoje + as contas e faturas que ainda vencem + o gasto variável médio de hoje por dia.
     ritmo:
-      mostrarRitmo && s.dia >= p.diaHoje && p.diasNoMes > p.diaHoje
-        ? Math.round((s.saldo - (ritmo.adicional * (s.dia - p.diaHoje)) / (p.diasNoMes - p.diaHoje)) * 100) / 100
+      mostrarRitmo && s.dia >= rp.diaHoje && rp.pontos.length > rp.diaHoje
+        ? Math.round((realHoje + (s.fixoPrevisto - fixoHoje) + ritmo.porDiaAtual * (s.dia - rp.diaHoje)) * 100) / 100
         : null,
   }));
   // 05/11/2026: apresentação apenas. Progresso do ciclo e composição das receitas, sem mudar a conta.
@@ -68,6 +73,7 @@ export function ResumoPrevisaoHome({ mes: mesEscolhido, className }: { mes?: str
   const diasPassados = Math.min(totalDias, Math.max(0, totalDias - p.diasRestantes));
   const pctCiclo = totalDias > 0 ? Math.round((diasPassados / totalDias) * 100) : 0;
   const rotuloDia = (d: number) => serie[d - 1]?.data ?? String(d);
+  const corAcerto = rp.cor === "verde" ? "bg-success" : rp.cor === "amarelo" ? "bg-warning" : "bg-destructive";
   const ticksX = Array.from(new Set([1, p.diaHoje > 1 && p.diaHoje < totalDias ? p.diaHoje : 1, totalDias])).filter((d) => d >= 1);
 
   if (!financasProntas) return <CartaoCarregando alturaGrafico="h-44" />;
@@ -170,19 +176,28 @@ export function ResumoPrevisaoHome({ mes: mesEscolhido, className }: { mes?: str
         </dl>
 
         <div className="space-y-2">
-          <div className="h-[200px] w-full" role="img" aria-label="Gráfico do saldo acumulado dia a dia no ciclo">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            {rp.acerto != null ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 font-semibold text-foreground">
+                <span className={`size-2.5 rounded-full ${corAcerto}`} aria-hidden /> {rp.acerto}% de acerto
+              </span>
+            ) : (
+              <span className="rounded-full bg-muted px-2.5 py-1">Acerto: ainda é cedo</span>
+            )}
+            <button
+              type="button"
+              aria-expanded={ajudaAcerto}
+              aria-label="Como o acerto é calculado"
+              onClick={() => setAjudaAcerto((v) => !v)}
+              className="inline-flex size-5 items-center justify-center rounded-full border border-border text-[11px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+            >
+              ?
+            </button>
+          </div>
+          {ajudaAcerto && <p className="whitespace-pre-line text-xs leading-relaxed text-muted-foreground">{TEXTO_ACERTO}</p>}
+          <div className="h-[200px] w-full" role="img" aria-label="Gráfico do gasto real e do previsto, acumulados dia a dia no ciclo">
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart data={serie} margin={{ top: 18, right: 12, left: 12, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="previsao-area-real" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="var(--primary)" stopOpacity={0.28} />
-                    <stop offset="100%" stopColor="var(--primary)" stopOpacity={0.02} />
-                  </linearGradient>
-                  <linearGradient id="previsao-area-prevista" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="var(--primary)" stopOpacity={0.12} />
-                    <stop offset="100%" stopColor="var(--primary)" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" strokeOpacity={0.6} />
                 <XAxis
                   dataKey="dia"
@@ -195,9 +210,7 @@ export function ResumoPrevisaoHome({ mes: mesEscolhido, className }: { mes?: str
                   axisLine={false}
                   interval={0}
                 />
-                <YAxis hide domain={["auto", "auto"]} />
-                <ReferenceLine y={0} stroke="var(--muted-foreground)" strokeOpacity={0.5} strokeDasharray="2 3" />
-                {temMeta && <ReferenceLine y={p.meta} stroke="var(--success)" strokeDasharray="4 4" />}
+                <YAxis hide domain={[0, "auto"]} />
                 {!encerrado && p.diaHoje > 0 && (
                   <ReferenceLine
                     x={p.diaHoje}
@@ -212,29 +225,21 @@ export function ResumoPrevisaoHome({ mes: mesEscolhido, className }: { mes?: str
                     if (!active || !payload?.length) return null;
                     const ponto = payload[0]?.payload as (typeof serie)[number] | undefined;
                     if (!ponto) return null;
-                    const valor = ponto.real ?? ponto.previsto;
-                    if (valor == null) return null;
-                    const previsto = ponto.real == null;
                     return (
                       <div className="rounded-xl border border-border/70 bg-popover px-3 py-2 text-xs shadow-md">
-                        <p className="text-muted-foreground">
-                          {ponto.data}
-                          {previsto ? " · previsto" : ""}
-                        </p>
-                        <p className={`mt-0.5 text-sm font-semibold tabular-nums ${valor < 0 ? "text-destructive" : "text-foreground"}`}>
-                          {formatar(valor)}
-                        </p>
+                        <p className="text-muted-foreground">{ponto.data}</p>
+                        {ponto.real != null && <p className="mt-0.5 text-sm font-semibold tabular-nums">Real {formatar(ponto.real)}</p>}
+                        <p className="text-sm tabular-nums text-muted-foreground">Previsto {formatar(ponto.previsto)}</p>
                       </div>
                     );
                   }}
                 />
-                <Area
+                <Line
                   type="monotone"
                   dataKey="real"
-                  name="Realizado"
+                  name="Real"
                   stroke="var(--primary)"
                   strokeWidth={2.5}
-                  fill="url(#previsao-area-real)"
                   dot={false}
                   activeDot={{ r: 4, strokeWidth: 2, stroke: "var(--card)" }}
                   connectNulls={false}
@@ -255,15 +260,13 @@ export function ResumoPrevisaoHome({ mes: mesEscolhido, className }: { mes?: str
                     isAnimationActive={false}
                   />
                 )}
-                <Area
+                <Line
                   type="monotone"
                   dataKey="previsto"
                   name="Previsto"
-                  stroke="var(--primary)"
-                  strokeOpacity={0.7}
+                  stroke="var(--muted-foreground)"
                   strokeWidth={2}
                   strokeDasharray="5 5"
-                  fill="url(#previsao-area-prevista)"
                   dot={false}
                   activeDot={{ r: 4, strokeWidth: 2, stroke: "var(--card)" }}
                   connectNulls={false}
@@ -275,19 +278,14 @@ export function ResumoPrevisaoHome({ mes: mesEscolhido, className }: { mes?: str
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-xs text-muted-foreground">
             <ul className="flex flex-wrap items-center gap-x-4 gap-y-1">
               <li className="flex items-center gap-1.5">
-                <span className="h-0.5 w-4 rounded bg-primary" aria-hidden /> Realizado
+                <span className="h-0.5 w-4 rounded bg-primary" aria-hidden /> Real
               </li>
               <li className="flex items-center gap-1.5">
-                <span className="w-4 border-t-2 border-dashed border-primary" aria-hidden /> Previsto
+                <span className="w-4 border-t-2 border-dashed border-muted-foreground" aria-hidden /> Previsto
               </li>
               {mostrarRitmo && (
                 <li className="flex items-center gap-1.5">
                   <span className="w-4 border-t-2 border-dotted border-destructive" aria-hidden /> No ritmo atual
-                </li>
-              )}
-              {temMeta && (
-                <li className="flex items-center gap-1.5">
-                  <span className="w-4 border-t-2 border-dashed border-success" aria-hidden /> Meta {formatar(p.meta)}
                 </li>
               )}
             </ul>

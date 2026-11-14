@@ -90,6 +90,7 @@ function RedefinirSenhaPage() {
               <Label htmlFor="senha">Nova senha</Label>
               <InputSenha
                 id="senha"
+                name="new-password"
                 autoComplete="new-password"
                 value={senha}
                 onChange={(e) => setSenha(e.target.value)}
@@ -99,6 +100,7 @@ function RedefinirSenhaPage() {
               <Label htmlFor="confirmar">Confirmar nova senha</Label>
               <InputSenha
                 id="confirmar"
+                name="confirm-password"
                 autoComplete="new-password"
                 value={confirmar}
                 onChange={(e) => setConfirmar(e.target.value)}

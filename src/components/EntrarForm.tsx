@@ -182,7 +182,7 @@ export function EntrarForm({
     toast.success("Bem-vindo de volta!");
     onSucesso?.();
     if (resultado.senhaTemporaria) {
-      navigate({ to: "/nova-senha" });
+      window.location.assign("/nova-senha");
     } else {
       window.location.assign(urlRetornoSegura(next) ?? rotaDaTelaInicial(config?.tela_inicial_padrao));
     }
@@ -249,7 +249,13 @@ export function EntrarForm({
     );
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 rounded-2xl border bg-card p-6 shadow-card">
+    <form
+      id="form-login"
+      method="post"
+      action="/entrar"
+      onSubmit={handleSubmit}
+      className="space-y-4 rounded-2xl border bg-card p-6 shadow-card"
+    >
       <div className="space-y-2">
         <Label htmlFor="identificador">
           E-mail

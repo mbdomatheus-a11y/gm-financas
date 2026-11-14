@@ -243,9 +243,60 @@ export function identificacaoDespesa(
 export function abreviarValor(v: unknown): string {
   const n = Number(v);
   if (!n) return "";
+  if (ocultarNaArea) return "••••";
   const a = Math.abs(n);
   const f = (x: number) => x.toLocaleString("pt-BR", { maximumFractionDigits: 1 });
   if (a >= 1_000_000) return `${f(n / 1_000_000)}M`;
-  if (a >= 1_000) return `${f(n / 1_000)}K`;
+  if (a >= 1_000) return formatoValoresAtual === "mil" ? `${f(n / 1_000)} mil` : `${f(n / 1_000)}K`;
   return f(n);
+}
+
+// 14/11/2026: unidade de exibição dos valores (preferencias_usuario.formato_valores).
+// Vale só para cards de resumo e gráficos; listas, formulários e faturas seguem em formato completo.
+export type FormatoValores = "completo" | "mil" | "k";
+export const FORMATOS_VALORES: FormatoValores[] = ["completo", "mil", "k"];
+const CHAVE_FORMATO_VALORES = "financas_formato_valores";
+function lerFormatoSalvo(): FormatoValores {
+  try {
+    const v = typeof window !== "undefined" ? localStorage.getItem(CHAVE_FORMATO_VALORES) : null;
+    return v === "mil" || v === "k" ? v : "completo";
+  } catch {
+    return "completo";
+  }
+}
+let formatoValoresAtual: FormatoValores = lerFormatoSalvo();
+const ouvintesFormato = new Set<() => void>();
+export function definirFormatoValores(f: FormatoValores | null | undefined) {
+  const novo: FormatoValores = f === "mil" || f === "k" ? f : "completo";
+  if (novo === formatoValoresAtual) return;
+  formatoValoresAtual = novo;
+  try {
+    localStorage.setItem(CHAVE_FORMATO_VALORES, novo);
+  } catch {}
+  ouvintesFormato.forEach((fn) => fn());
+}
+export function formatoValoresDoUsuario(): FormatoValores {
+  return formatoValoresAtual;
+}
+export function assinarFormatoValores(fn: () => void): () => void {
+  ouvintesFormato.add(fn);
+  return () => {
+    ouvintesFormato.delete(fn);
+  };
+}
+
+/** "Completo": R$ 12.345,67 · "Mil": R$ 12,3 mil · "K": R$ 12,3k. Abaixo de mil, sempre completo. */
+export function formatarValor(v: number, formato: FormatoValores = "completo"): string {
+  if (ocultarNaArea) return "R$ ••••••";
+  const n = Number.isFinite(v) ? v : 0;
+  if (formato === "completo" || Math.abs(n) < 1000) return formatBRLSemMascara(n);
+  const x = Math.abs(n) / 1000;
+  const s = x.toLocaleString("pt-BR", { maximumFractionDigits: 1 });
+  return `${n < 0 ? "-" : ""}R$ ${s}${formato === "mil" ? " mil" : "k"}`;
+}
+
+/** Como formatBRL, mas na unidade escolhida pelo usuário (usar só em resumos e gráficos). */
+export function formatarResumoValor(v: number): string {
+  if (ocultarNaArea) return "R$ ••••••";
+  return formatarValor(v, formatoValoresAtual);
 }
