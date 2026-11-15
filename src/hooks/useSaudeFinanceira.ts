@@ -54,9 +54,9 @@ export function useSaudeFinanceira(): { saude: SaudeFinanceira | null; carregand
     if (!saude || saude.semDados || saude.nota <= registrada.current) return;
     registrada.current = saude.nota;
     void (supabase as any)
-      .rpc("registrar_saude", { p_nota: saude.nota })
+      .rpc("registrar_saude", { p_nota: saude.nota, p_ciclo: mes })
       .then(() => qc.invalidateQueries({ queryKey: ["jornada"] }));
-  }, [saude, qc]);
+  }, [saude, qc, mes]);
 
   return { saude, carregando: banco.isLoading };
 }

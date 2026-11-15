@@ -140,7 +140,7 @@ export function ControlIA({ flutuante = true }: { flutuante?: boolean }) {
             registrarEventoUso("controlia/abrir");
             setAberto(true);
           }}
-          className="fixed bottom-6 right-4 z-40 hidden h-14 gap-2 rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-500 px-5 text-base font-bold text-white shadow-lg hover:brightness-110 lg:inline-flex native:hidden"
+          className="fixed bottom-6 right-4 2xl:right-[calc(50%-800px+1.5rem)] z-40 hidden h-14 gap-2 rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-500 px-5 text-base font-bold text-white shadow-lg hover:brightness-110 lg:inline-flex native:hidden"
           aria-label="Abrir o ControlIA"
           title="ControlIA: pergunte por voz ou texto"
         >

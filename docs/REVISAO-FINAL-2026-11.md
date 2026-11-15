@@ -165,3 +165,11 @@ Decisões do Matheus: Receitas e Despesas continuam no menu; saúde com 5 pilare
 7. Site logado com no máximo 1120 px e Início em duas colunas a partir de 1280 px.
 Conferido: tsc sem erro nos dois, build do site ok, anti-travamento ok, cálculos testados (saúde, anéis, vencimento da fatura). Não conferido na tela.
 Diferenças honestas: app não tem filtro "Contas fixas" na lista (o dado da lista não marca recorrência); "Três ciclos no verde" não entrou (precisaria guardar histórico).
+
+## Pendências da proposta, feitas (15/11/2026, noite)
+- Site em monitor grande: o app inteiro (menu, topo e conteúdo) fica numa moldura de 1600 px centralizada; topo e conteúdo alinhados em 1200 px; botões flutuantes dentro da moldura.
+- Saúde: EXP por faixa alcançada em cada ciclo (15 por faixa: Atenção, Boa, Ótima) e conquista "Três ciclos no verde" (tabela saude_ciclos, registrar_saude com p_ciclo). SQL atualizado em docs/sql/2026-11-15-saude-financeira.sql.
+- App Lançamentos: Desfazer por 5 s, filtro Contas fixas, deslizar para Editar e Excluir.
+- Lançamento que se repete (site e app): "Deste mês em diante" (encerra a repetição, mantém os meses anteriores) ou "Todos os meses".
+- Extrato por dia: tocar no dia abre Lançamentos já buscando aquela data (site e app).
+Não feito, com motivo: coluna "Guardou" por dia (os aportes das caixinhas são guardados por mês, não por dia); "só este mês" num lançamento que se repete (o banco não tem como pular um mês da repetição); tour do app com 6 passos (os passos do app apontam posições fixas da tela; Saúde e IA ficam em lugares que mudam com a rolagem).

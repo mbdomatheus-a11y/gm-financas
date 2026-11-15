@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 
@@ -53,10 +54,13 @@ export function ExtratoPorDia() {
             const d = new Date(`${s.iso}T12:00:00`);
             const hoje = s.iso === n.hoje;
             return (
-              <li
-                key={s.iso}
-                className={cn("grid grid-cols-[4.5rem_1fr_1fr_1fr] items-center gap-2 px-4 py-2.5 text-sm tabular-nums", s.projetado && "text-muted-foreground", hoje && "bg-primary/5")}
-              >
+              <li key={s.iso}>
+                <Link
+                  to="/lancamentos"
+                  search={{ busca: s.iso.split("-").reverse().join("/") } as never}
+                  aria-label={`Ver lançamentos de ${s.iso.split("-").reverse().join("/")}`}
+                  className={cn("grid grid-cols-[4.5rem_1fr_1fr_1fr] items-center gap-2 px-4 py-2.5 text-sm tabular-nums transition-colors hover:bg-muted/50", s.projetado && "text-muted-foreground", hoje && "bg-primary/5")}
+                >
                 <span>
                   <strong className={cn(!s.projetado && "text-foreground")}>{s.rotulo}</strong> <span className="text-xs">{DIAS_SEMANA[d.getDay()]}</span>
                   {hoje && <span className="ml-1 text-[10px] font-bold uppercase text-primary">hoje</span>}
@@ -64,6 +68,7 @@ export function ExtratoPorDia() {
                 <span className={cn("text-right", s.entrou > 0 && !s.projetado && "text-success")}>{s.entrou > 0 ? formatBRL(s.entrou) : ""}</span>
                 <span className="text-right">{s.saiu > 0 ? formatBRL(s.saiu) : ""}</span>
                 <span className={cn("text-right font-semibold", s.saldo < 0 ? "text-destructive" : !s.projetado && "text-foreground")}>{formatBRL(s.saldo)}</span>
+                </Link>
               </li>
             );
           })}
@@ -77,7 +82,7 @@ export function ExtratoPorDia() {
           <ChevronDown className={cn("size-4 transition-transform", verTudo && "rotate-180")} aria-hidden="true" />
         </button>
       </div>
-      <p className="text-xs text-muted-foreground">Em cinza, o previsto: contas fixas, receitas que repetem e faturas a vencer.</p>
+      <p className="text-xs text-muted-foreground">Em cinza, o previsto: contas fixas, receitas que repetem e faturas a vencer. Toque num dia para ver os lançamentos.</p>
     </div>
   );
 }

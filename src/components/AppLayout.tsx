@@ -875,14 +875,17 @@ export function AppLayout({
   );
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background 2xl:bg-muted/40">
+      {/* 15/11/2026: em monitor grande o app inteiro (menu, topo e conteúdo) fica numa moldura centralizada,
+          como a home pública. Antes o menu ficava colado à esquerda e os ícones do topo na outra ponta. */}
+      <div className="2xl:mx-auto 2xl:flex 2xl:min-h-screen 2xl:max-w-[1600px] 2xl:border-x 2xl:border-border/60 2xl:bg-background">
       {!topMenu && (
-        <aside data-tour="menu" className="fixed inset-y-0 left-0 z-30 hidden w-64 border-r border-border/60 bg-sidebar/80 backdrop-blur-xl backdrop-saturate-150 lg:block">
+        <aside data-tour="menu" className="fixed inset-y-0 left-0 z-30 hidden w-64 border-r border-border/60 bg-sidebar/80 backdrop-blur-xl backdrop-saturate-150 lg:block 2xl:sticky 2xl:top-0 2xl:h-screen 2xl:shrink-0">
           <SidebarInner />
         </aside>
       )}
 
-      <div className={cn(!topMenu && "lg:pl-64")}>
+      <div className={cn(!topMenu && "lg:pl-64 2xl:pl-0", "2xl:min-w-0 2xl:flex-1")}>
         {topMenu && <TopMenuBar />}
         <ConvitesRecebidosAviso />
         <AvisoSincronizacaoPluggy />
@@ -892,7 +895,7 @@ export function AppLayout({
             topMenu && "lg:top-14",
           )}
         >
-          <div className="flex items-center gap-3 px-4 py-3">
+          <div className="mx-auto flex w-full max-w-[1200px] items-center gap-3 px-4 py-3 lg:px-8">
             {pathname !== "/inicio" && (
               <Button
                 variant="ghost"
@@ -1005,14 +1008,14 @@ export function AppLayout({
         </header>
 
         {modoCliente && (
-          <div className="mx-auto mt-3 flex w-full max-w-[1120px] flex-wrap items-center justify-between gap-2 rounded-md border border-amber-400 bg-amber-100 px-4 py-2 text-sm text-amber-900 dark:bg-amber-900/40 dark:text-amber-100 native:hidden">
+          <div className="mx-auto mt-3 flex w-full max-w-[1200px] flex-wrap items-center justify-between gap-2 rounded-md border border-amber-400 bg-amber-100 px-4 py-2 text-sm text-amber-900 dark:bg-amber-900/40 dark:text-amber-100 native:hidden">
             <span>Modo usuário comum ativo. Itens administrativos ficam ocultos.</span>
             <Button size="sm" variant="outline" onClick={() => definirModoCliente(false)}>
               Voltar à visão admin
             </Button>
           </div>
         )}
-        <main data-entrada className="mx-auto w-full max-w-[1120px] px-4 pb-28 pt-6 lg:px-8 lg:pb-10 lg:pt-10 native:pb-[calc(5.5rem+var(--app-inset-bottom,0px))]">
+        <main data-entrada className="mx-auto w-full max-w-[1200px] px-4 pb-28 pt-6 lg:px-8 lg:pb-10 lg:pt-10 native:pb-[calc(5.5rem+var(--app-inset-bottom,0px))]">
           <div className="mb-6 flex flex-wrap items-start justify-between gap-x-3 gap-y-2 lg:mb-8">
             <div className="min-w-0 flex-1 basis-40">
               <h1 className="text-balance text-2xl font-extrabold leading-tight tracking-[-0.03em] sm:text-3xl lg:text-[2.5rem]">{title}</h1>
@@ -1043,6 +1046,7 @@ export function AppLayout({
             </nav>
           </footer>
         </main>
+      </div>
       </div>
 
       <Sheet open={open} onOpenChange={setOpen}>

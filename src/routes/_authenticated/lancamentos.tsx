@@ -10,7 +10,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { usePermissoes } from "@/hooks/useAuthData";
 import { useCartoes, useDespesas, useReceitas } from "@/hooks/useFinance";
-import { formatBRL } from "@/lib/format";
+import { competenciaDoDia, formatBRL } from "@/lib/format";
+import { useCompetenciaVigente } from "@/lib/periodo-vigente";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
 /**
@@ -20,6 +22,8 @@ import { cn } from "@/lib/utils";
  */
 export const Route = createFileRoute("/_authenticated/lancamentos")({
   head: () => ({ meta: [{ title: "Lançamentos | Control ALL" }] }),
+  // 15/11/2026: o extrato por dia abre esta tela já buscando o dia (?busca=DD/MM/AAAA).
+  validateSearch: (s: Record<string, unknown>): { busca?: string } => (typeof s["busca"] === "string" && s["busca"] ? { busca: s["busca"] } : {}),
   component: LancamentosPage,
 });
 
@@ -42,6 +46,8 @@ type Item = {
   categoria: string;
   cartao: string | null;
   fixa: boolean;
+  /** Início da repetição (AAAA-MM-DD), para "deste mês em diante". */
+  inicio: string | null;
 };
 
 // Exclusão com Desfazer: a remoção espera 5 s fora do componente, então vale mesmo se a pessoa sair da tela.
@@ -57,7 +63,9 @@ function LancamentosPage() {
   const { data: despesas = [] } = useDespesas();
   const { data: receitas = [] } = useReceitas();
   const { data: cartoes = [] } = useCartoes();
-  const [busca, setBusca] = useState("");
+  const vigente = useCompetenciaVigente();
+  const { busca: buscaInicial } = Route.useSearch();
+  const [busca, setBusca] = useState(buscaInicial ?? "");
   const [filtro, setFiltro] = useState<Filtro>("todos");
   const [selecao, setSelecao] = useState<Set<string>>(new Set());
   const [escondidos, setEscondidos] = useState<Set<string>>(new Set());
@@ -81,6 +89,7 @@ function LancamentosPage() {
         categoria: d.categoria ?? "",
         cartao: d.cartao_id ? nomeCartao.get(d.cartao_id) ?? "Cartão" : null,
         fixa: d.tipo === "fixa" || !!d.recorrencia_inicio,
+        inicio: d.recorrencia_inicio ?? d.data_primeira_parcela ?? d.data_compra ?? null,
       });
     }
     for (const r of receitas as any[]) {
@@ -94,6 +103,7 @@ function LancamentosPage() {
         categoria: r.categoria ?? "",
         cartao: null,
         fixa: !!r.recorrente,
+        inicio: r.recorrencia_inicio ?? r.data_recebimento ?? null,
       });
     }
     return lista.sort((a, b) => (a.data < b.data ? 1 : a.data > b.data ? -1 : 0));
@@ -133,7 +143,33 @@ function LancamentosPage() {
     else void navigate({ to: "/receitas", search: { editar: i.id } as never });
   }
 
-  function excluir(lista: Item[]) {
+  // 15/11/2026: lançamento que se repete: "deste mês em diante" encerra a repetição e mantém os meses anteriores.
+  const [repetido, setRepetido] = useState<Item | null>(null);
+  async function encerrarDesteMes(i: Item) {
+    setRepetido(null);
+    const inicioComp = i.inicio ? competenciaDoDia(i.inicio) : vigente;
+    const [ay = 0, am = 0] = inicioComp.split("-").map(Number);
+    const [by = 0, bm = 0] = vigente.split("-").map(Number);
+    const meses = (by - ay) * 12 + (bm - am);
+    if (meses <= 0) return excluir([i], true);
+    const tabela = i.tipo === "despesa" ? "despesas" : "receitas";
+    const { error } = await (supabase as any).from(tabela).update({ recorrencia_sem_prazo: false, recorrencia_meses: meses }).eq("id", i.id);
+    if (error) {
+      toast.error(`Não foi possível: ${error.message}`);
+      return;
+    }
+    if (i.tipo === "despesa") {
+      await supabase.from("parcelas").delete().eq("despesa_id", i.id).eq("paga", false).gte("vencimento", `${vigente}-01`);
+    }
+    toast.success("Repetição encerrada. Os meses anteriores continuam.");
+    void qc.invalidateQueries();
+  }
+
+  function excluir(lista: Item[], jaPerguntou = false) {
+    if (!jaPerguntou && lista.length === 1 && lista[0]!.fixa) {
+      setRepetido(lista[0]!);
+      return;
+    }
     const permitidos = lista.filter(podeExcluir);
     if (permitidos.length === 0) {
       toast.error("Você não tem permissão para excluir estes lançamentos.");
@@ -260,6 +296,26 @@ function LancamentosPage() {
           ))}
         </ul>
         {visiveis.length > 400 && <p className="text-center text-xs text-muted-foreground">Mostrando 400 de {visiveis.length}. Use a busca para achar o resto.</p>}
+
+        <Dialog open={!!repetido} onOpenChange={(v) => !v && setRepetido(null)}>
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Este lançamento se repete</DialogTitle>
+              <DialogDescription>"{repetido?.descricao}" aparece todo mês. O que você quer excluir?</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-2">
+              <Button variant="destructive" className="h-12" onClick={() => repetido && void encerrarDesteMes(repetido)}>
+                Deste mês em diante
+              </Button>
+              <Button variant="outline" className="h-12" onClick={() => { const i = repetido; setRepetido(null); if (i) excluir([i], true); }}>
+                Todos os meses
+              </Button>
+              <Button variant="ghost" className="h-11" onClick={() => setRepetido(null)}>
+                Cancelar
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {selecionados.length > 0 && (
           <div className="sticky bottom-24 z-20 lg:bottom-6">

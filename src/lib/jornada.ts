@@ -36,9 +36,12 @@ export const CONQUISTAS: ConquistaDef[] = [
   // 15/11/2026: ligadas à Saúde financeira. Contam a MELHOR nota já alcançada, então nunca se perdem.
   { id: 'saude-boa', titulo: 'Saúde boa', descricao: 'Chegue a 60 na saúde financeira.', chave: 'melhorSaude', alvo: 60, exp: 60, iconeSite: 'HeartPulse', iconeApp: 'heart.fill' },
   { id: 'saude-otima', titulo: 'Saúde ótima', descricao: 'Chegue a 80 na saúde financeira.', chave: 'melhorSaude', alvo: 80, exp: 120, iconeSite: 'HeartPulse', iconeApp: 'heart.fill' },
+  { id: 'saude-tres-ciclos', titulo: 'Três ciclos no verde', descricao: 'Feche 3 ciclos com saúde 60 ou mais.', chave: 'ciclosBons', alvo: 3, exp: 150, iconeSite: 'HeartPulse', iconeApp: 'heart.fill' },
 ];
 
 export const EXP_POR_DIA = 10;
+/** 15/11/2026: cada faixa de saúde alcançada num ciclo (Atenção, Boa, Ótima) vale EXP uma vez por ciclo. */
+export const EXP_POR_FAIXA_SAUDE = 15;
 const TITULOS_NIVEL = ['Começando', 'Organizado', 'Atento', 'Planejador', 'Estrategista', 'Mestre do controle'];
 
 /** EXP total necessário para ALCANÇAR o nível n (1 = 0, 2 = 100, 3 = 300, 4 = 600, 5 = 1000...). */
@@ -116,7 +119,10 @@ export function calcularJornada(bruta: JornadaBruta, hoje: string = hojeLocal())
   });
   const feitas = conquistas.filter((c) => c.feita).length;
 
-  const exp = dias.length * EXP_POR_DIA + conquistas.reduce((s, c) => s + (c.feita ? c.exp : 0), 0);
+  const exp =
+    dias.length * EXP_POR_DIA +
+    conquistas.reduce((s, c) => s + (c.feita ? c.exp : 0), 0) +
+    Math.max(0, Number(valores['faixasSaude'] ?? 0)) * EXP_POR_FAIXA_SAUDE;
   const nivel = nivelDe(exp);
   const base = expDoNivel(nivel);
   const tamanho = expDoNivel(nivel + 1) - base;

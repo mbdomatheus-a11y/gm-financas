@@ -10,6 +10,16 @@ create table if not exists public.saude_melhor (
 alter table public.saude_melhor enable row level security;
 -- Sem policy de propósito: só pelas funções abaixo.
 
+-- Melhor nota de cada ciclo: dá EXP por faixa alcançada (uma vez por ciclo) e a conquista "Três ciclos no verde".
+create table if not exists public.saude_ciclos (
+  user_id uuid not null references auth.users (id) on delete cascade,
+  ciclo text not null check (ciclo ~ '^\d{4}-\d{2}$'),
+  melhor integer not null default 0 check (melhor between 0 and 100),
+  atualizado_em timestamptz not null default now(),
+  primary key (user_id, ciclo)
+);
+alter table public.saude_ciclos enable row level security;
+
 create or replace function public.meus_dados_saude(p_inicio date, p_hoje date)
 returns jsonb
 language plpgsql
@@ -42,7 +52,7 @@ $$;
 revoke all on function public.meus_dados_saude(date, date) from public, anon;
 grant execute on function public.meus_dados_saude(date, date) to authenticated;
 
-create or replace function public.registrar_saude(p_nota integer)
+create or replace function public.registrar_saude(p_nota integer, p_ciclo text default null)
 returns integer
 language plpgsql
 security definer
@@ -57,11 +67,15 @@ begin
   insert into saude_melhor (user_id, melhor) values (u, n)
   on conflict (user_id) do update set melhor = greatest(saude_melhor.melhor, excluded.melhor), atualizado_em = now()
   returning melhor into r;
+  if p_ciclo ~ '^\d{4}-\d{2}$' then
+    insert into saude_ciclos (user_id, ciclo, melhor) values (u, p_ciclo, n)
+    on conflict (user_id, ciclo) do update set melhor = greatest(saude_ciclos.melhor, excluded.melhor), atualizado_em = now();
+  end if;
   return r;
 end;
 $$;
-revoke all on function public.registrar_saude(integer) from public, anon;
-grant execute on function public.registrar_saude(integer) to authenticated;
+revoke all on function public.registrar_saude(integer, text) from public, anon;
+grant execute on function public.registrar_saude(integer, text) to authenticated;
 
 -- Minha jornada passa a devolver a melhor nota de saúde (conquistas Saúde boa e Saúde ótima).
 create or replace function public.minha_jornada()
@@ -103,7 +117,9 @@ begin
       'notas', (select count(*) from notas_fiscais where created_by = u),
       'limites', (select count(*) from limites_gasto where user_id = u),
       'investimentos', (select count(*) from investimentos where created_by = u),
-      'melhorSaude', coalesce((select s.melhor from saude_melhor s where s.user_id = u), 0)
+      'melhorSaude', coalesce((select s.melhor from saude_melhor s where s.user_id = u), 0),
+      'ciclosBons', (select count(*) from saude_ciclos c where c.user_id = u and c.melhor >= 60),
+      'faixasSaude', coalesce((select sum(case when c.melhor >= 80 then 3 when c.melhor >= 60 then 2 when c.melhor >= 40 then 1 else 0 end) from saude_ciclos c where c.user_id = u), 0)
     )
   );
 end;

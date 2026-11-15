@@ -48,7 +48,7 @@ export function BotaoLancamentoRapido({ flutuante = true }: { flutuante?: boolea
       {flutuante && (
       <Button
         onClick={() => setEscolha(true)}
-        className="hidden lg:inline-flex fixed bottom-6 right-4 z-40 h-14 gap-2 rounded-full px-5 text-base font-bold shadow-lg"
+        className="hidden lg:inline-flex fixed bottom-6 right-4 2xl:right-[calc(50%-800px+1.5rem)] z-40 h-14 gap-2 rounded-full px-5 text-base font-bold shadow-lg"
         aria-label="Lançar uma despesa, uma receita ou usar a IA"
         title="Lançar"
         data-tour="lancamento-ia"
