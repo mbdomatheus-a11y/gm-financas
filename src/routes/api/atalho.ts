@@ -68,7 +68,7 @@ export const Route = createFileRoute("/api/atalho")({
         const listaCartoes = (cartoes ?? []) as { id: string; nome: string }[];
         const listaBancos = (bancos ?? []) as { id: string; nome: string }[];
 
-        const ia = await import("@/lib/lancamento-ia.functions");
+        const ia = await import("@/lib/lancamento-ia-nucleo.server");
         const { RascunhoIASchema } = await import("@/lib/lancamento-ia");
         const { textoNatural } = await import("@/lib/texto-natural");
         const apiKey = ia.chaveOpenAI();

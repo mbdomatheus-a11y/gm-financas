@@ -147,3 +147,7 @@ Não feito: revisão visual do app (sem prints); "confirmar de novo" fora do pri
 8. Início do app mais limpo: previsão e simulador na aba Gráficos, parcelas e dívida em Gastos, botão Escolher o que aparece aqui, receitas e despesas maiores (22) e sobra 32; rótulo do ciclo igual ao do topo (Ciclo de novembro).
 Não resolvido em código: 5.5 (Google parou dentro da página do Google, sem retorno ao servidor); site não confere o e-mail antes do fim do cadastro; limites, cartões, lista de compras, calendário e faturas não remontam ao ocultar (atualizam ao reabrir).
 Publicar: SQL cota-64mb-e-virada-31, bloqueio-login-escalonado, atalho-lancamento; funções cadastro-app, lancamento-ia, login-seguro, recuperar-senha; site antes do app (17.10).
+
+## Correções 15/11/2026 (noite)
+- Site não publicou (Vercel falhou): lancamento-ia.functions.ts passou a exportar funções comuns que puxavam rate-limit.server para o navegador. Funções movidas para src/lib/lancamento-ia-nucleo.server.ts. Build local ok. Por isso /api/entrar-app e /api/atalho davam 404.
+- Android sem atualizações desde 07/11: scripts/publicar-update.mjs publicava o Android com versionCode 5 fixo, mas a build Android instalada é de versionCode mais novo. O script agora descobre o versionCode certo de cada plataforma sozinho e não publica se não bater.
