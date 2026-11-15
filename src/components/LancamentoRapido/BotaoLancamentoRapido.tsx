@@ -58,7 +58,8 @@ export function BotaoLancamentoRapido({ flutuante = true }: { flutuante?: boolea
       )}
 
       <Dialog open={escolha} onOpenChange={setEscolha}>
-        <DialogContent className="max-w-sm">
+        {/* 15/11/2026: no celular a escolha sobe de baixo, perto do polegar; no computador segue no meio. */}
+        <DialogContent className="max-w-sm max-sm:bottom-0 max-sm:top-auto max-sm:max-w-none max-sm:translate-y-0 max-sm:rounded-t-3xl max-sm:border-x-0 max-sm:border-b-0 max-sm:pb-[calc(1.5rem+env(safe-area-inset-bottom))] max-sm:data-[state=open]:slide-in-from-bottom max-sm:data-[state=closed]:slide-out-to-bottom max-sm:data-[state=open]:zoom-in-100 max-sm:data-[state=closed]:zoom-out-100">
           <DialogHeader>
             <DialogTitle>O que você quer lançar?</DialogTitle>
             <DialogDescription>Escolha uma opção. Você confere tudo antes de salvar.</DialogDescription>

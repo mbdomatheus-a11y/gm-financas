@@ -21,7 +21,7 @@ export function OrdemGastosControle({ ordem, onChange }: { ordem: OrdemGastos; o
             type="button"
             aria-pressed={ativo}
             onClick={() => onChange(proximaOrdem(ordem, o.campo))}
-            className={`inline-flex h-7 items-center gap-0.5 rounded-full border px-2.5 font-medium ${
+            className={`inline-flex h-9 items-center gap-0.5 rounded-full border px-3 font-medium sm:h-7 sm:px-2.5 ${
               ativo ? "border-primary bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted"
             }`}
           >

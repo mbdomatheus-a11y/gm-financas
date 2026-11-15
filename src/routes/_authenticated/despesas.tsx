@@ -284,7 +284,8 @@ function DespesasPage() {
     if (filtroMes === "todos") return "";
     // 09/11/2026: regra final do ciclo: faturas pelo mês de fechamento, contas pelo vencimento de D+1 a D.
     const j = janelasDoCiclo(filtroMes, prefsCiclo.dia_virada);
-    return ` · ciclo ${j.rotulo} (${j.descricao})`;
+    // 15/11/2026: o subtítulo ficou curto; a regra completa do ciclo está na Previsão do mês e em Configurações.
+    return ` · ciclo ${j.rotulo}`;
   }, [filtroMes, prefsCiclo.dia_virada]);
   // 28/10/2026: o mês escolhido fica salvo e vale também em Receitas e Calendário.
   useEffect(() => {
@@ -1685,7 +1686,7 @@ function DespesasPage() {
                 <X className="size-3" />
               </button>
             ))}
-            <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={limparFiltros}>
+            <Button variant="ghost" size="sm" className="h-10 text-xs sm:h-8" onClick={limparFiltros}>
               Limpar filtros
             </Button>
           </div>

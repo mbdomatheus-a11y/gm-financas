@@ -110,3 +110,12 @@ Corrigido no código nesta passada:
 - Início no computador: ações rápidas cortavam o nome ("Importar fa...") em telas médias. O nome aparece inteiro.
 - "Cobranças para revisar": o aviso ao lado do título passa para a linha de baixo no celular.
 Visto e não alterado: escolha de lançamento abre no meio da tela (no celular o padrão é subir de baixo); botões de 28 a 32 px em filtros e ordenação de Despesas; subtítulo longo de Despesas; 41 avisos no sino.
+
+## Jornada, terceira passada (15/11)
+Feito no código:
+- Escolha de lançamento (Despesa, Receita, IA): no celular sobe de baixo, perto do polegar. No computador segue no meio.
+- Despesas: subtítulo curto (quantidade, total e ciclo); a regra completa do ciclo continua na Previsão do mês e em Configurações.
+- Botões maiores no celular: setas do ciclo (40 px), ordenação Data, Valor e Nome (36 px), Limpar filtros (40 px).
+Não foi possível conferir o modo escuro por dentro: a sessão do site caiu por inatividade no meio da conferência. A tela de login fica clara mesmo com o aparelho em modo escuro.
+Ponto para decisão do Matheus: o site desloga por inatividade em poucos minutos (configurável na Administração). Para quem usa no celular isso pesa na experiência.
+Sem alteração, por decisão: o número de avisos do sino (41) é real; esconder o número não resolve, o caminho é revisar quais alertas nascem ligados.

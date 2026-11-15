@@ -535,3 +535,5 @@ Jornada pública do site revisada em 15/11 (home reordenada e mais curta, alvos 
 Jornada interna do site no celular revisada em 15/11 (título repetido, ações no topo, ações rápidas cortadas, Configurações duplicado): ver `docs/REVISAO-FINAL-2026-11.md`. Falta publicar e conferir. App aguarda prints do Matheus.
 
 Segunda passada da jornada no site (15/11): botões de Despesas quebrando linha, valor primeiro no formulário, Fechar nas janelas, ações rápidas no computador. Falta publicar. App aguarda prints.
+
+Terceira passada da jornada no site (15/11): lançamento sobe de baixo no celular, subtítulo curto em Despesas, botões maiores em ciclo, ordenação e filtros. Falta publicar. Pendente de decisão: tempo de inatividade do site e quantidade de alertas ligados por padrão. App aguarda prints.

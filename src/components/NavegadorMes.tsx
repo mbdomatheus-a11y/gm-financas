@@ -32,7 +32,7 @@ export function NavegadorMes({
         type="button"
         variant="ghost"
         size="icon"
-        className="size-8 shrink-0 rounded-full"
+        className="size-10 shrink-0 rounded-full sm:size-8"
         aria-label="Ciclo anterior"
         onClick={() => onChange(deslocar(base, -1))}
       >
@@ -45,7 +45,7 @@ export function NavegadorMes({
         type="button"
         variant="ghost"
         size="icon"
-        className="size-8 shrink-0 rounded-full"
+        className="size-10 shrink-0 rounded-full sm:size-8"
         aria-label="Próximo ciclo"
         onClick={() => onChange(deslocar(base, 1))}
       >
@@ -55,7 +55,7 @@ export function NavegadorMes({
         type="button"
         variant="ghost"
         size="icon"
-        className="size-8 shrink-0 rounded-full"
+        className="size-10 shrink-0 rounded-full sm:size-8"
         aria-label="Mês atual"
         title="Mês atual"
         disabled={valor === atual}
