@@ -121,8 +121,8 @@ function AcoesRapidas() {
               <Icone className="size-5" aria-hidden="true" />
             </span>
             <span className="min-w-0">
-              <span className="block text-sm font-semibold leading-tight sm:truncate sm:text-[15px]">{i.rotulo}</span>
-              <span className="hidden truncate text-xs text-muted-foreground sm:block">{i.detalhe}</span>
+              <span className="block text-sm font-semibold leading-tight sm:text-[15px]">{i.rotulo}</span>
+              <span className="hidden truncate text-xs text-muted-foreground sm:block lg:hidden xl:block">{i.detalhe}</span>
             </span>
           </>
         );

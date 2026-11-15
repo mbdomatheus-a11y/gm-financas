@@ -2456,9 +2456,14 @@ function DespesasPage() {
                 placeholder="Ex.: Mercado do mês"
               />
             </Field>
-            <Field label={ehFixa ? "Valor" : nParcelas > 1 && informarParcela ? "Valor da parcela" : nParcelas > 1 ? "Valor total" : "Valor"}>
+            {/* 15/11/2026: no celular o valor vem primeiro e maior (é o que a pessoa tem na cabeça ao lançar). */}
+            <Field
+              label={ehFixa ? "Valor" : nParcelas > 1 && informarParcela ? "Valor da parcela" : nParcelas > 1 ? "Valor total" : "Valor"}
+              className="order-first sm:order-none"
+            >
               <Input
                 inputMode="decimal"
+                className="h-12 text-lg font-semibold tabular-nums sm:h-10 sm:text-sm sm:font-normal"
                 value={form.valor_total}
                 onChange={(e) => setForm({ ...form, valor_total: e.target.value })}
                 placeholder="0,00"
@@ -2503,17 +2508,6 @@ function DespesasPage() {
               </Field>
             )}
 
-            <Field label="Moeda">
-              <Select value={form.moeda} onValueChange={(v) => setForm({ ...form, moeda: v })}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="BRL">R$ Real</SelectItem>
-                  <SelectItem value="USD">US$ Dólar</SelectItem>
-                </SelectContent>
-              </Select>
-            </Field>
             <Field label="Categoria">
               <CampoCategoria
                 tipo="despesa"
@@ -2744,8 +2738,21 @@ function DespesasPage() {
               </Select>
             </Field>
             <details className="group sm:col-span-2 rounded-xl border px-3 py-2">
-              <summary className="cursor-pointer text-sm font-medium">Tags, observações e economia</summary>
+              <summary className="cursor-pointer text-sm font-medium">
+                Mais opções: moeda{form.moeda !== "BRL" ? ` (${form.moeda})` : ""}, tags, observações e economia
+              </summary>
               <div className="mt-2 grid gap-3">
+            <Field label="Moeda">
+              <Select value={form.moeda} onValueChange={(v) => setForm({ ...form, moeda: v })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="BRL">R$ Real</SelectItem>
+                  <SelectItem value="USD">US$ Dólar</SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
             {!tagsPendentes && (
               <Field label="Tags" className="sm:col-span-2">
                 <SeletorTags valor={tagsForm} onChange={setTagsForm} />

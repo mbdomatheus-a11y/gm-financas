@@ -1020,7 +1020,7 @@ export function AppLayout({
             </div>
             {/* 15/11/2026: no celular as ações da página ficam ao lado do título, não na barra do topo
                 (na barra elas empurravam a foto da conta para fora da tela). */}
-            {celular && actions ? <div className="flex shrink-0 items-center gap-1">{actions}</div> : null}
+            {celular && actions ? <div className="flex max-w-full flex-wrap items-center gap-2">{actions}</div> : null}
           </div>
           {rotaAdminBloqueada ? (
             <div className="rounded-md border p-6 text-center text-sm text-muted-foreground">

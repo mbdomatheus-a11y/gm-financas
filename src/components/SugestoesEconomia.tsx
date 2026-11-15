@@ -69,10 +69,10 @@ export function SugestoesEconomia({ className }: { className?: string }) {
   return (
     <Card className={className ?? "mb-4 overflow-hidden"}>
       <CardContent className="p-4 sm:p-5">
-        <header className="mb-3 flex items-center gap-2">
+        <header className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-0.5">
           <Lightbulb className="size-4 text-warning-foreground" aria-hidden />
           <h2 className="text-base font-bold tracking-tight">Cobranças para revisar</h2>
-          <span className="text-xs text-muted-foreground">sugestões automáticas, não é recomendação financeira</span>
+          <span className="basis-full text-xs text-muted-foreground sm:basis-auto">sugestões automáticas, não é recomendação financeira</span>
         </header>
         <ul className="-mx-2 space-y-1">
           {sugestoes.map((s) => (

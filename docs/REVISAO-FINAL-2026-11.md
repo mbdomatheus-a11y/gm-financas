@@ -100,3 +100,13 @@ Problemas encontrados e corrigidos no código:
 - Configurações aparecia duas vezes no menu do celular (na lista e no atalho do fim). Ficou só o atalho.
 Observado e não alterado: 11 botões com menos de 36 px em Despesas e 9 em Cartões; ícones do topo com 36 px; cabeçalho do bloco "Cobranças para revisar" quebrando em duas colunas; subtítulo de Despesas longo; contador de avisos em 39.
 Não conferido: o resultado depois das correções (só após publicar), o fluxo de lançar, o computador e o modo escuro.
+
+## Jornada, segunda passada (15/11, depois da publicação)
+Conferido em produção no celular: Início sem saudação repetida e com as ações rápidas inteiras; Cartões com "Novo cartão" ao lado do título e a foto da conta visível. Banco: os SQLs de 15/11 estão aplicados (código de recuperar senha liberado, zz_teste_fn removida, parceria sem acesso de visitante).
+Corrigido no código nesta passada:
+- Despesas: a fileira de botões ao lado do título (Open Finance, Fatura do mês, Nova despesa) passava da largura da tela e cortava o último. Agora quebra em duas linhas.
+- Formulário de nova despesa no celular: Valor vem primeiro e maior; Moeda foi para "Mais opções" (o padrão é real).
+- Botão de fechar das janelas: lia "Close" para leitor de tela e tinha 16 px. Agora "Fechar", com 36 px.
+- Início no computador: ações rápidas cortavam o nome ("Importar fa...") em telas médias. O nome aparece inteiro.
+- "Cobranças para revisar": o aviso ao lado do título passa para a linha de baixo no celular.
+Visto e não alterado: escolha de lançamento abre no meio da tela (no celular o padrão é subir de baixo); botões de 28 a 32 px em filtros e ordenação de Despesas; subtítulo longo de Despesas; 41 avisos no sino.

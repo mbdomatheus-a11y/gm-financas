@@ -533,3 +533,5 @@ App sem passar pelo site (decisão de 15/11): Esqueci minha senha e troca de e-m
 Jornada pública do site revisada em 15/11 (home reordenada e mais curta, alvos de toque, cookies, botão Entrar no login): ver `docs/REVISAO-FINAL-2026-11.md`. Falta publicar e conferir no celular. Telas internas ainda sem revisão visual.
 
 Jornada interna do site no celular revisada em 15/11 (título repetido, ações no topo, ações rápidas cortadas, Configurações duplicado): ver `docs/REVISAO-FINAL-2026-11.md`. Falta publicar e conferir. App aguarda prints do Matheus.
+
+Segunda passada da jornada no site (15/11): botões de Despesas quebrando linha, valor primeiro no formulário, Fechar nas janelas, ações rápidas no computador. Falta publicar. App aguarda prints.
