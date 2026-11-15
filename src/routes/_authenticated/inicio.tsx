@@ -110,19 +110,19 @@ function AcoesRapidas() {
     { rotulo: "Perguntar à IA", detalhe: "sobre seu mês", icone: Sparkles, cor: "bg-muted text-foreground", acao: () => window.dispatchEvent(new Event("abrir-controlia")) },
   ];
   const classe =
-    "group flex min-h-[4.5rem] items-center gap-3 rounded-2xl border border-border/60 bg-card p-3 pr-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-[0_0_0_1.5px_color-mix(in_oklab,var(--brand)_35%,transparent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 motion-reduce:hover:translate-y-0";
+    "group flex min-h-[4.5rem] items-center gap-2.5 rounded-2xl border border-border/60 bg-card p-3 text-left sm:gap-3 sm:pr-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-[0_0_0_1.5px_color-mix(in_oklab,var(--brand)_35%,transparent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 motion-reduce:hover:translate-y-0";
   return (
     <nav aria-label="Ações rápidas" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
       {itens.map((i) => {
         const Icone = i.icone;
         const conteudo = (
           <>
-            <span className={`grid size-11 shrink-0 place-items-center rounded-xl ${i.cor}`}>
+            <span className={`grid size-10 shrink-0 place-items-center rounded-xl sm:size-11 ${i.cor}`}>
               <Icone className="size-5" aria-hidden="true" />
             </span>
             <span className="min-w-0">
-              <span className="block truncate text-[15px] font-semibold">{i.rotulo}</span>
-              <span className="block truncate text-xs text-muted-foreground">{i.detalhe}</span>
+              <span className="block text-sm font-semibold leading-tight sm:truncate sm:text-[15px]">{i.rotulo}</span>
+              <span className="hidden truncate text-xs text-muted-foreground sm:block">{i.detalhe}</span>
             </span>
           </>
         );

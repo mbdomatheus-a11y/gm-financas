@@ -531,3 +531,5 @@ Bloco 7 (lojas) em 15/11: checklist em `docs/LOJAS-CHECKLIST-2026-11.md`; 12 bot
 App sem passar pelo site (decisão de 15/11): Esqueci minha senha e troca de e-mail por código dentro do app. Código pronto; falta rodar `docs/sql/2026-11-15-recuperar-senha-por-codigo.sql`, publicar as Edge Functions `recuperar-senha` (sem verify_jwt) e `trocar-email` (com verify_jwt) e o update do app.
 
 Jornada pública do site revisada em 15/11 (home reordenada e mais curta, alvos de toque, cookies, botão Entrar no login): ver `docs/REVISAO-FINAL-2026-11.md`. Falta publicar e conferir no celular. Telas internas ainda sem revisão visual.
+
+Jornada interna do site no celular revisada em 15/11 (título repetido, ações no topo, ações rápidas cortadas, Configurações duplicado): ver `docs/REVISAO-FINAL-2026-11.md`. Falta publicar e conferir. App aguarda prints do Matheus.

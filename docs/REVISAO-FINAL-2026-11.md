@@ -90,3 +90,13 @@ Feito no código:
 - Na tela de login, o botão Entrar do topo não aparece mais.
 - Aviso de cookies com texto mais curto (cobria cerca de um terço da tela de login no celular). Os links de Privacidade, Cookies e a escolha de cookies continuam.
 Não conferido na tela: só depois de publicado. Telas internas (Início, lançar, menus) não foram vistas: o navegador do Claude não está logado no site.
+
+## Jornada do usuário, site por dentro no celular (15/11)
+Visto em produção, logado, a 375 px: Início, menu, Despesas, Cartões/Conta, Minha jornada, Configurações e Notas. Nenhuma tela com rolagem lateral. Início com 5.124 px de altura (cerca de 6 telas), sendo 2.248 px só do bloco da Previsão.
+Problemas encontrados e corrigidos no código:
+- Título repetido em todas as telas (pequeno no topo e grande logo abaixo; no Início, a saudação duas vezes). Agora o título pequeno do topo só aparece depois de rolar, como no iPhone.
+- Ações da página (ex.: Open Finance em Despesas, Novo cartão em Cartões) ficavam na barra do topo e empurravam a foto da conta para fora da tela. No celular passaram para o lado do título.
+- Ações rápidas do Início com texto cortado ("Lançar g...", "Nova rec..."). Agora o nome aparece inteiro; a linha de detalhe fica só em telas maiores.
+- Configurações aparecia duas vezes no menu do celular (na lista e no atalho do fim). Ficou só o atalho.
+Observado e não alterado: 11 botões com menos de 36 px em Despesas e 9 em Cartões; ícones do topo com 36 px; cabeçalho do bloco "Cobranças para revisar" quebrando em duas colunas; subtítulo de Despesas longo; contador de avisos em 39.
+Não conferido: o resultado depois das correções (só após publicar), o fluxo de lançar, o computador e o modo escuro.

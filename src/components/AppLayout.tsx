@@ -1,6 +1,7 @@
 import { ConvitesRecebidosAviso } from "@/components/ConvitesGrupo";
 import { AvisoSincronizacaoPluggy } from "@/components/AvisoSincronizacaoPluggy";
 import { useEffect, useState, type MouseEvent, type ReactNode } from "react";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { lembrarUrlRetorno, limparUrlRetorno } from "@/lib/return-url";
 import { useServerFn } from "@tanstack/react-start";
 import { encerrarSessao } from "@/lib/login-protecao.functions";
@@ -535,6 +536,15 @@ export function AppLayout({
   const [open, setOpen] = useState(false);
   const location = useRouterState({ select: (s) => s.location });
   const pathname = location.pathname;
+  const celular = useIsMobile();
+  // Título pequeno do topo: aparece só depois que o título grande da página rolou para fora.
+  const [rolouTitulo, setRolouTitulo] = useState(false);
+  useEffect(() => {
+    const ouvir = () => setRolouTitulo(window.scrollY > 56);
+    ouvir();
+    window.addEventListener("scroll", ouvir, { passive: true });
+    return () => window.removeEventListener("scroll", ouvir);
+  }, [pathname]);
 
   // Preserva o caminho atual e parâmetros para recuperar se a sessão for reconectada
   if (typeof window !== "undefined" && pathname && pathname !== "/entrar" && pathname !== "/") {
@@ -729,7 +739,7 @@ export function AppLayout({
         const itens = MENU_SITE.filter((i) => i.grupo === g.id).filter(podeVer);
         if (itens.length === 0) return null;
         return (
-          <div key={g.id} className="flex flex-col gap-0.5">
+          <div key={g.id} className={cn("flex-col gap-0.5", g.id === "config" ? "hidden lg:flex" : "flex")}>
             {g.titulo && <p className="mb-1 mt-5 px-3 text-xs font-medium text-muted-foreground">{g.titulo}</p>}
             {itens.map((item) => (
               <NavLink key={item.to} item={item} onNavigate={onNavigate} soAdmin={item.grupo === "admin" ? false : soAdminItem(item)} />
@@ -900,7 +910,15 @@ export function AppLayout({
               </Button>
             )}
             <div className="min-w-0 flex-1">
-              <p className="truncate text-base font-bold leading-tight tracking-tight lg:hidden">{title}</p>
+              <p
+                aria-hidden="true"
+                className={cn(
+                  "truncate text-base font-bold leading-tight tracking-tight transition-opacity duration-200 motion-reduce:transition-none lg:hidden",
+                  rolouTitulo ? "opacity-100" : "opacity-0",
+                )}
+              >
+                {title}
+              </p>
             </div>
             <div className="flex shrink-0 items-center gap-1">
               <Button
@@ -938,7 +956,7 @@ export function AppLayout({
                 <ConviteRapidoBotao />
               </span>
               <AlertsBell />
-              {actions}
+              {!celular && actions}
               <MenuUsuario
                 isAdmin={isAdmin}
                 isSiteAdmin={isSiteAdmin}
@@ -995,9 +1013,14 @@ export function AppLayout({
           </div>
         )}
         <main data-entrada className="mx-auto w-full max-w-7xl px-4 pb-28 pt-6 lg:px-8 lg:pb-10 lg:pt-10 native:pb-[calc(5.5rem+var(--app-inset-bottom,0px))]">
-          <div className="mb-6 lg:mb-8">
-            <h1 className="text-balance text-2xl font-extrabold leading-tight tracking-[-0.03em] sm:text-3xl lg:text-[2.5rem]">{title}</h1>
-            {description && <p className="mt-1.5 text-sm text-muted-foreground sm:text-base">{description}</p>}
+          <div className="mb-6 flex flex-wrap items-start justify-between gap-x-3 gap-y-2 lg:mb-8">
+            <div className="min-w-0 flex-1 basis-40">
+              <h1 className="text-balance text-2xl font-extrabold leading-tight tracking-[-0.03em] sm:text-3xl lg:text-[2.5rem]">{title}</h1>
+              {description && <p className="mt-1.5 text-sm text-muted-foreground sm:text-base">{description}</p>}
+            </div>
+            {/* 15/11/2026: no celular as ações da página ficam ao lado do título, não na barra do topo
+                (na barra elas empurravam a foto da conta para fora da tela). */}
+            {celular && actions ? <div className="flex shrink-0 items-center gap-1">{actions}</div> : null}
           </div>
           {rotaAdminBloqueada ? (
             <div className="rounded-md border p-6 text-center text-sm text-muted-foreground">
