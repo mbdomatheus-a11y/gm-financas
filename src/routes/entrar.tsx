@@ -490,8 +490,9 @@ function OnboardingWizard({
   turnstileChave,
 }: WizardProps) {
   const stepsVisiveis: StepId[] = cadastroLivre
-    ? ["boas-vindas", "objetivo", "dados", "senha", "termos"]
-    : ["boas-vindas", "convite", "objetivo", "dados", "senha", "termos"];
+    ? ["boas-vindas", "dados", "senha", "termos"]
+    : ["boas-vindas", "convite", "dados", "senha", "termos"];
+  // 15/11/2026: o passo "objetivo" saiu (não era salvo); só o obrigatório no cadastro, igual ao app.
 
   const [stepIdx, setStepIdx] = useState(0);
   const [objetivoSelecionado, setObjetivoSelecionado] = useState<string>("controle");
@@ -679,7 +680,7 @@ function OnboardingWizard({
             <div className="space-y-3.5">
               <div className="text-center space-y-1">
                 <h2 className="text-xl font-bold">Crie sua conta :)</h2>
-                <p className="text-xs text-muted-foreground">Preencha seus dados para continuar</p>
+                <p className="text-xs text-muted-foreground">Só nome e e-mail. O celular é opcional.</p>
               </div>
 
               <div className="space-y-1">
@@ -698,8 +699,23 @@ function OnboardingWizard({
               </div>
 
               <div className="space-y-1">
+                <Label htmlFor="c-email" className="text-xs font-semibold">
+                  E-mail
+                </Label>
+                <Input
+                  id="c-email"
+                  name="email"
+                  type="email"
+                  placeholder="voce@email.com"
+                  autoComplete="email"
+                  value={form.email}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  className="h-11 text-sm"
+                />
+              </div>
+              <div className="space-y-1">
                 <Label htmlFor="c-telefone" className="text-xs font-semibold">
-                  Número de telefone <span className="text-[10px] text-muted-foreground font-normal">(opcional)</span>
+                  Celular <span className="text-[10px] text-muted-foreground font-normal">(opcional)</span>
                 </Label>
                 <div className="flex items-center rounded-md border bg-background px-3 focus-within:ring-2 focus-within:ring-ring">
                   <span className="text-xs font-medium text-muted-foreground flex items-center gap-1 shrink-0 border-r pr-2 mr-2">
@@ -716,21 +732,6 @@ function OnboardingWizard({
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <Label htmlFor="c-email" className="text-xs font-semibold">
-                  E-mail
-                </Label>
-                <Input
-                  id="c-email"
-                  name="email"
-                  type="email"
-                  placeholder="voce@email.com"
-                  autoComplete="email"
-                  value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  className="h-11 text-sm"
-                />
-              </div>
             </div>
           )}
 

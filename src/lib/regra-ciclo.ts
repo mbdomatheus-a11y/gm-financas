@@ -40,7 +40,7 @@ export async function buscarRegraCiclo(): Promise<EstadoRegraCiclo> {
 
 /** Grava a regra do grupo (insere ou altera). Quem e quando são preenchidos pelo banco. */
 export async function salvarRegraCiclo(dia: number, grupoId?: string | null): Promise<void> {
-  if (!Number.isInteger(dia) || dia < 1 || dia > 28) throw new Error("Escolha um dia entre 1 e 28.");
+  if (!Number.isInteger(dia) || dia < 1 || dia > 31) throw new Error("Escolha um dia entre 1 e 31.");
   const linha: Record<string, unknown> = { dia_virada: dia };
   if (grupoId) linha["grupo_id"] = grupoId;
   const { error } = await (supabase as any).from("regra_ciclo_grupo").upsert(linha, { onConflict: "grupo_id" });
@@ -132,7 +132,7 @@ export function exemploFaturaNoCiclo(diaVencimento: number, diaVirada: number, a
   // A fatura entra no ciclo pelo mês do fechamento (fecha em nov: ciclo 16/out a 15/nov, chave "AAAA-10").
   const fech = fechamentoDaFatura(iso(f), diaFechamento ?? null);
   const [fa = 1970, fm = 1] = fech.split("-").map(Number);
-  const sal = new Date(fa, fm - 2, diaVirada + 1);
+  const sal = new Date(fa, fm - 2, Math.min(diaVirada, new Date(fa, fm - 1, 0).getDate()) + 1);
   const mes = `${sal.getFullYear()}-${String(sal.getMonth() + 1).padStart(2, "0")}`;
   return { fatura: iso(f), fechamento: fech, salario: iso(sal), ciclo: janelasDoCiclo(mes, diaVirada) };
 }

@@ -23,6 +23,7 @@ import { Route as TermosDeUsoRouteImport } from './routes/termos-de-uso'
 import { Route as AuthenticatedAdministracaoRouteImport } from './routes/_authenticated/administracao'
 import { Route as AuthenticatedAjudaRouteImport } from './routes/_authenticated/ajuda'
 import { Route as AuthenticatedAjustesAppRouteImport } from './routes/_authenticated/ajustes-app'
+import { Route as AuthenticatedAtalhoRouteImport } from './routes/_authenticated/atalho'
 import { Route as AuthenticatedBackupRouteImport } from './routes/_authenticated/backup'
 import { Route as AuthenticatedCaixinhasRouteImport } from './routes/_authenticated/caixinhas'
 import { Route as AuthenticatedCalendarioRouteImport } from './routes/_authenticated/calendario'
@@ -60,6 +61,8 @@ import { Route as AuthenticatedSuporteRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedTagsRouteImport } from './routes/_authenticated/tags'
 import { Route as AuthenticatedUsuariosRouteImport } from './routes/_authenticated/usuarios'
 import { Route as AuthenticatedVeiculosRouteImport } from './routes/_authenticated/veiculos'
+import { Route as ApiAtalhoRouteImport } from './routes/api/atalho'
+import { Route as ApiEntrarAppRouteImport } from './routes/api/entrar-app'
 import { Route as CalculadorasIndexRouteImport } from './routes/calculadoras/index'
 import { Route as CalculadorasDiferencaEntreDatasRouteImport } from './routes/calculadoras/diferenca-entre-datas'
 import { Route as CalculadorasSimuladorDeDoseDiluicaoRouteImport } from './routes/calculadoras/simulador-de-dose-diluicao'
@@ -149,6 +152,11 @@ const AuthenticatedAjudaRoute = AuthenticatedAjudaRouteImport.update({
 const AuthenticatedAjustesAppRoute = AuthenticatedAjustesAppRouteImport.update({
   id: '/ajustes-app',
   path: '/ajustes-app',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAtalhoRoute = AuthenticatedAtalhoRouteImport.update({
+  id: '/atalho',
+  path: '/atalho',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedBackupRoute = AuthenticatedBackupRouteImport.update({
@@ -344,6 +352,16 @@ const AuthenticatedVeiculosRoute = AuthenticatedVeiculosRouteImport.update({
   path: '/veiculos',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const ApiAtalhoRoute = ApiAtalhoRouteImport.update({
+  id: '/api/atalho',
+  path: '/api/atalho',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiEntrarAppRoute = ApiEntrarAppRouteImport.update({
+  id: '/api/entrar-app',
+  path: '/api/entrar-app',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CalculadorasIndexRoute = CalculadorasIndexRouteImport.update({
   id: '/calculadoras/',
   path: '/calculadoras/',
@@ -464,6 +482,7 @@ export interface FileRoutesByFullPath {
   '/administracao': typeof AuthenticatedAdministracaoRoute
   '/ajuda': typeof AuthenticatedAjudaRoute
   '/ajustes-app': typeof AuthenticatedAjustesAppRoute
+  '/atalho': typeof AuthenticatedAtalhoRoute
   '/backup': typeof AuthenticatedBackupRoute
   '/caixinhas': typeof AuthenticatedCaixinhasRoute
   '/calendario': typeof AuthenticatedCalendarioRoute
@@ -501,6 +520,8 @@ export interface FileRoutesByFullPath {
   '/tags': typeof AuthenticatedTagsRoute
   '/usuarios': typeof AuthenticatedUsuariosRoute
   '/veiculos': typeof AuthenticatedVeiculosRoute
+  '/api/atalho': typeof ApiAtalhoRoute
+  '/api/entrar-app': typeof ApiEntrarAppRoute
   '/calculadoras/diferenca-entre-datas': typeof CalculadorasDiferencaEntreDatasRoute
   '/calculadoras/simulador-de-dose-diluicao': typeof CalculadorasSimuladorDeDoseDiluicaoRoute
   '/calculadoras/somar-dias-a-data': typeof CalculadorasSomarDiasADataRoute
@@ -536,6 +557,7 @@ export interface FileRoutesByTo {
   '/administracao': typeof AuthenticatedAdministracaoRoute
   '/ajuda': typeof AuthenticatedAjudaRoute
   '/ajustes-app': typeof AuthenticatedAjustesAppRoute
+  '/atalho': typeof AuthenticatedAtalhoRoute
   '/backup': typeof AuthenticatedBackupRoute
   '/caixinhas': typeof AuthenticatedCaixinhasRoute
   '/calendario': typeof AuthenticatedCalendarioRoute
@@ -573,6 +595,8 @@ export interface FileRoutesByTo {
   '/tags': typeof AuthenticatedTagsRoute
   '/usuarios': typeof AuthenticatedUsuariosRoute
   '/veiculos': typeof AuthenticatedVeiculosRoute
+  '/api/atalho': typeof ApiAtalhoRoute
+  '/api/entrar-app': typeof ApiEntrarAppRoute
   '/calculadoras/diferenca-entre-datas': typeof CalculadorasDiferencaEntreDatasRoute
   '/calculadoras/simulador-de-dose-diluicao': typeof CalculadorasSimuladorDeDoseDiluicaoRoute
   '/calculadoras/somar-dias-a-data': typeof CalculadorasSomarDiasADataRoute
@@ -610,6 +634,7 @@ export interface FileRoutesById {
   '/_authenticated/administracao': typeof AuthenticatedAdministracaoRoute
   '/_authenticated/ajuda': typeof AuthenticatedAjudaRoute
   '/_authenticated/ajustes-app': typeof AuthenticatedAjustesAppRoute
+  '/_authenticated/atalho': typeof AuthenticatedAtalhoRoute
   '/_authenticated/backup': typeof AuthenticatedBackupRoute
   '/_authenticated/caixinhas': typeof AuthenticatedCaixinhasRoute
   '/_authenticated/calendario': typeof AuthenticatedCalendarioRoute
@@ -647,6 +672,8 @@ export interface FileRoutesById {
   '/_authenticated/tags': typeof AuthenticatedTagsRoute
   '/_authenticated/usuarios': typeof AuthenticatedUsuariosRoute
   '/_authenticated/veiculos': typeof AuthenticatedVeiculosRoute
+  '/api/atalho': typeof ApiAtalhoRoute
+  '/api/entrar-app': typeof ApiEntrarAppRoute
   '/calculadoras/diferenca-entre-datas': typeof CalculadorasDiferencaEntreDatasRoute
   '/calculadoras/simulador-de-dose-diluicao': typeof CalculadorasSimuladorDeDoseDiluicaoRoute
   '/calculadoras/somar-dias-a-data': typeof CalculadorasSomarDiasADataRoute
@@ -684,6 +711,7 @@ export interface FileRouteTypes {
     | '/administracao'
     | '/ajuda'
     | '/ajustes-app'
+    | '/atalho'
     | '/backup'
     | '/caixinhas'
     | '/calendario'
@@ -721,6 +749,8 @@ export interface FileRouteTypes {
     | '/tags'
     | '/usuarios'
     | '/veiculos'
+    | '/api/atalho'
+    | '/api/entrar-app'
     | '/calculadoras/diferenca-entre-datas'
     | '/calculadoras/simulador-de-dose-diluicao'
     | '/calculadoras/somar-dias-a-data'
@@ -756,6 +786,7 @@ export interface FileRouteTypes {
     | '/administracao'
     | '/ajuda'
     | '/ajustes-app'
+    | '/atalho'
     | '/backup'
     | '/caixinhas'
     | '/calendario'
@@ -793,6 +824,8 @@ export interface FileRouteTypes {
     | '/tags'
     | '/usuarios'
     | '/veiculos'
+    | '/api/atalho'
+    | '/api/entrar-app'
     | '/calculadoras/diferenca-entre-datas'
     | '/calculadoras/simulador-de-dose-diluicao'
     | '/calculadoras/somar-dias-a-data'
@@ -829,6 +862,7 @@ export interface FileRouteTypes {
     | '/_authenticated/administracao'
     | '/_authenticated/ajuda'
     | '/_authenticated/ajustes-app'
+    | '/_authenticated/atalho'
     | '/_authenticated/backup'
     | '/_authenticated/caixinhas'
     | '/_authenticated/calendario'
@@ -866,6 +900,8 @@ export interface FileRouteTypes {
     | '/_authenticated/tags'
     | '/_authenticated/usuarios'
     | '/_authenticated/veiculos'
+    | '/api/atalho'
+    | '/api/entrar-app'
     | '/calculadoras/diferenca-entre-datas'
     | '/calculadoras/simulador-de-dose-diluicao'
     | '/calculadoras/somar-dias-a-data'
@@ -900,6 +936,8 @@ export interface RootRouteChildren {
   RedefinirSenhaRoute: typeof RedefinirSenhaRoute
   SobreRoute: typeof SobreRoute
   TermosDeUsoRoute: typeof TermosDeUsoRoute
+  ApiAtalhoRoute: typeof ApiAtalhoRoute
+  ApiEntrarAppRoute: typeof ApiEntrarAppRoute
   CalculadorasDiferencaEntreDatasRoute: typeof CalculadorasDiferencaEntreDatasRoute
   CalculadorasSimuladorDeDoseDiluicaoRoute: typeof CalculadorasSimuladorDeDoseDiluicaoRoute
   CalculadorasSomarDiasADataRoute: typeof CalculadorasSomarDiasADataRoute
@@ -1018,6 +1056,13 @@ declare module '@tanstack/react-router' {
       path: '/ajustes-app'
       fullPath: '/ajustes-app'
       preLoaderRoute: typeof AuthenticatedAjustesAppRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/atalho': {
+      id: '/_authenticated/atalho'
+      path: '/atalho'
+      fullPath: '/atalho'
+      preLoaderRoute: typeof AuthenticatedAtalhoRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/backup': {
@@ -1279,6 +1324,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedVeiculosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/atalho': {
+      id: '/api/atalho'
+      path: '/api/atalho'
+      fullPath: '/api/atalho'
+      preLoaderRoute: typeof ApiAtalhoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/entrar-app': {
+      id: '/api/entrar-app'
+      path: '/api/entrar-app'
+      fullPath: '/api/entrar-app'
+      preLoaderRoute: typeof ApiEntrarAppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/calculadoras/': {
       id: '/calculadoras/'
       path: '/calculadoras'
@@ -1426,6 +1485,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdministracaoRoute: typeof AuthenticatedAdministracaoRoute
   AuthenticatedAjudaRoute: typeof AuthenticatedAjudaRoute
   AuthenticatedAjustesAppRoute: typeof AuthenticatedAjustesAppRoute
+  AuthenticatedAtalhoRoute: typeof AuthenticatedAtalhoRoute
   AuthenticatedBackupRoute: typeof AuthenticatedBackupRoute
   AuthenticatedCaixinhasRoute: typeof AuthenticatedCaixinhasRoute
   AuthenticatedCalendarioRoute: typeof AuthenticatedCalendarioRoute
@@ -1471,6 +1531,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdministracaoRoute: AuthenticatedAdministracaoRoute,
   AuthenticatedAjudaRoute: AuthenticatedAjudaRoute,
   AuthenticatedAjustesAppRoute: AuthenticatedAjustesAppRoute,
+  AuthenticatedAtalhoRoute: AuthenticatedAtalhoRoute,
   AuthenticatedBackupRoute: AuthenticatedBackupRoute,
   AuthenticatedCaixinhasRoute: AuthenticatedCaixinhasRoute,
   AuthenticatedCalendarioRoute: AuthenticatedCalendarioRoute,
@@ -1527,6 +1588,8 @@ const rootRouteChildren: RootRouteChildren = {
   RedefinirSenhaRoute: RedefinirSenhaRoute,
   SobreRoute: SobreRoute,
   TermosDeUsoRoute: TermosDeUsoRoute,
+  ApiAtalhoRoute: ApiAtalhoRoute,
+  ApiEntrarAppRoute: ApiEntrarAppRoute,
   CalculadorasDiferencaEntreDatasRoute: CalculadorasDiferencaEntreDatasRoute,
   CalculadorasSimuladorDeDoseDiluicaoRoute:
     CalculadorasSimuladorDeDoseDiluicaoRoute,

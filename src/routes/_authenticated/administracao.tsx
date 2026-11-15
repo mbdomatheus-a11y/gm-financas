@@ -192,12 +192,14 @@ function IndiceAdmin({
   ativa,
   onEscolher,
   pendentes,
+  buscaInicial,
 }: {
+  buscaInicial?: string | undefined;
   ativa: string;
   onEscolher: (id: string) => void;
   pendentes: number;
 }) {
-  const [busca, setBusca] = useState("");
+  const [busca, setBusca] = useState(buscaInicial ?? "");
   const termo = semAcento(busca.trim());
   const grupos = GRUPOS_ADMIN.map((g) => ({
     ...g,
@@ -254,8 +256,9 @@ function IndiceAdmin({
 }
 
 export const Route = createFileRoute("/_authenticated/administracao")({
-  validateSearch: (search: Record<string, unknown>) => ({
+  validateSearch: (search: Record<string, unknown>): { aba?: string | undefined; busca?: string | undefined } => ({
     aba: typeof search["aba"] === "string" ? search["aba"] : undefined,
+    busca: typeof search["busca"] === "string" ? search["busca"] : undefined,
   }),
   component: Admin,
 });
@@ -363,7 +366,7 @@ function Admin() {
   const logoInput = useRef<HTMLInputElement>(null);
   const videoInput = useRef<HTMLInputElement>(null);
   const parceriaImagemInput = useRef<HTMLInputElement>(null);
-  const { aba: abaInicial } = Route.useSearch();
+  const { aba: abaInicial, busca: buscaInicial } = Route.useSearch();
   const [abaAtiva, setAbaAtiva] = useState(abaInicial || "usuarios");
 
   // Server functions
@@ -1085,7 +1088,7 @@ function Admin() {
         {/* Grupos (2026-10-06): as 10 abas foram agrupadas por assunto. Primeiro
             escolhe-se o grupo, depois a aba dentro dele. Os valores das abas e
             seus conteudos nao mudaram (links com ?aba= continuam validos). */}
-        <IndiceAdmin ativa={abaAtiva} onEscolher={setAbaAtiva} pendentes={totalPendentes} />
+        <IndiceAdmin ativa={abaAtiva} onEscolher={setAbaAtiva} pendentes={totalPendentes} buscaInicial={buscaInicial} />
         <h2 className="text-xl font-extrabold tracking-tight">
           {GRUPOS_ADMIN.flatMap((g) => g.abas).find((x) => x.id === abaAtiva)?.rotulo ?? "Administração"}
         </h2>
@@ -1612,7 +1615,7 @@ function Admin() {
             <CardHeader className="space-y-1">
               <CardTitle className="text-base font-bold">Armazenamento Oracle por grupo</CardTitle>
               <p className="text-sm text-muted-foreground">
-                Destino preferencial dos comprovantes de notas fiscais. Cota inicial de 500 MB por membro.
+                Destino preferencial dos comprovantes de notas fiscais. Cota inicial de 64 MB por membro.
               </p>
             </CardHeader>
             <CardContent>

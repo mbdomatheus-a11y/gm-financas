@@ -78,7 +78,7 @@ export const criarContaSemConvite = createServerFn({ method: "POST" })
     const nomeGrupo = `${data.nome.trim().split(" ")[0]}'s Group`;
     const { data: grupo, error: grupoErr } = await db
       .from("grupos")
-      .insert({ nome: nomeGrupo, criado_por: userId, oracle_storage_cota_bytes: 536870912 })
+      .insert({ nome: nomeGrupo, criado_por: userId, oracle_storage_cota_bytes: 67108864 })
       .select("id")
       .single();
     if (grupoErr || !grupo) {

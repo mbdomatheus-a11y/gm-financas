@@ -61,8 +61,13 @@ function isoDe(x: Date): string {
   return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`;
 }
 
+/** Dia de virada dentro do mês (31 em novembro vale 30; em fevereiro, 28 ou 29). */
+function viradaNoMes(ano: number, mes0: number, d: number): number {
+  return Math.min(d, new Date(ano, mes0 + 1, 0).getDate());
+}
+
 function diaValido(d: number | null | undefined): number | null {
-  return d && d >= 1 && d <= 28 ? Math.trunc(d) : null;
+  return d && d >= 1 && d <= 31 ? Math.trunc(d) : null;
 }
 
 /** Janelas do ciclo "AAAA-MM" pela regra única. Sem virada: mês do calendário para receitas e despesas. */
@@ -83,8 +88,8 @@ export function janelasDoCiclo(mes: string, diaVirada?: number | null): JanelasC
       descricao: `Receitas, contas e faturas de ${MESES_LONGOS[m - 1] ?? mes}`,
     };
   }
-  const ini = isoDe(new Date(ano, m - 1, d + 1));
-  const fim = isoDe(new Date(ano, m, d));
+  const ini = isoDe(new Date(ano, m - 1, viradaNoMes(ano, m - 1, d) + 1));
+  const fim = isoDe(new Date(ano, m, viradaNoMes(ano, m, d)));
   // Faturas de cartão: fechamento no mês seguinte inteiro (M+1).
   const fatIni = isoDe(new Date(ano, m, 1));
   const fatFim = isoDe(new Date(ano, m + 1, 0));
@@ -104,7 +109,7 @@ export function janelasDoCiclo(mes: string, diaVirada?: number | null): JanelasC
 /** Competência do ciclo em andamento hoje: até o dia D vale o ciclo que termina; a partir de D+1, o novo. */
 export function mesDoCicloEm(agora: Date, diaVirada?: number | null): string {
   const d = diaValido(diaVirada);
-  const ref = d && agora.getDate() <= d ? new Date(agora.getFullYear(), agora.getMonth() - 1, 1) : agora;
+  const ref = d && agora.getDate() <= viradaNoMes(agora.getFullYear(), agora.getMonth(), d) ? new Date(agora.getFullYear(), agora.getMonth() - 1, 1) : agora;
   return `${ref.getFullYear()}-${String(ref.getMonth() + 1).padStart(2, "0")}`;
 }
 
@@ -323,9 +328,9 @@ export function fechamentoDaFatura(venc: string, diaFech: number | null | undefi
  */
 export function datasDoCiclo(mes: string, diaVirada?: number | null): string[] {
   const [ano = 1970, m = 1] = mes.split("-").map(Number);
-  const d = diaVirada && diaVirada >= 2 && diaVirada <= 28 ? diaVirada : 1;
-  const inicio = new Date(ano, m - 1, d);
-  const fim = d === 1 ? new Date(ano, m, 0) : new Date(ano, m, d - 1);
+  const d = diaVirada && diaVirada >= 2 && diaVirada <= 31 ? diaVirada : 1;
+  const inicio = new Date(ano, m - 1, viradaNoMes(ano, m - 1, d));
+  const fim = d === 1 ? new Date(ano, m, 0) : new Date(ano, m, viradaNoMes(ano, m, d) - 1);
   const out: string[] = [];
   for (const x = new Date(inicio); x <= fim; x.setDate(x.getDate() + 1)) {
     out.push(`${x.getFullYear()}-${pad2(x.getMonth() + 1)}-${pad2(x.getDate())}`);
@@ -335,9 +340,9 @@ export function datasDoCiclo(mes: string, diaVirada?: number | null): string[] {
 
 /** Competência (AAAA-MM) em que a data cai, pelo dia de virada. */
 export function competenciaDaData(iso: string, diaVirada?: number | null): string {
-  const d = diaVirada && diaVirada >= 2 && diaVirada <= 28 ? diaVirada : 1;
+  const d = diaVirada && diaVirada >= 2 && diaVirada <= 31 ? diaVirada : 1;
   const [a = 1970, m = 1, dia = 1] = iso.split("-").map(Number);
-  if (dia >= d) return `${a}-${pad2(m)}`;
+  if (dia >= viradaNoMes(a, m - 1, d)) return `${a}-${pad2(m)}`;
   const ant = new Date(a, m - 2, 1);
   return `${ant.getFullYear()}-${pad2(ant.getMonth() + 1)}`;
 }

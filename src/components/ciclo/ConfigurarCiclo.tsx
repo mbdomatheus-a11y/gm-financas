@@ -33,7 +33,7 @@ import {
 export const FRASE_REGRA = (d: number) =>
   `Ciclo do dia ${d + 1} ao dia ${d}: receitas e contas que vencem nesse período, mais as faturas de cartão que fecham no mês em que o ciclo termina. O que sobrar é economia.`;
 
-/** Dia da maior receita fixa cadastrada (1 a 28), ou null. */
+/** Dia da maior receita fixa cadastrada (1 a 31), ou null. */
 export function diaSugerido(receitas: any[]): number | null {
   let melhor: { valor: number; dia: number } | null = null;
   for (const r of receitas ?? []) {
@@ -42,12 +42,12 @@ export function diaSugerido(receitas: any[]): number | null {
     const dia = Number(data.slice(8, 10));
     const valor = Number(r.valor) || 0;
     if (!dia) continue;
-    if (!melhor || valor > melhor.valor) melhor = { valor, dia: Math.min(28, dia) };
+    if (!melhor || valor > melhor.valor) melhor = { valor, dia: Math.min(31, dia) };
   }
   return melhor?.dia ?? null;
 }
 
-const DIAS = Array.from({ length: 28 }, (_, i) => i + 1);
+const DIAS = Array.from({ length: 31 }, (_, i) => i + 1);
 
 const DIAS31 = Array.from({ length: 31 }, (_, i) => i + 1);
 

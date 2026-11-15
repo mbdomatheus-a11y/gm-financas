@@ -167,6 +167,8 @@ export const redefinirSenhaComToken = createServerFn({ method: "POST" })
     if (updError) throw new Error(updError.message);
 
     await supabaseAdmin.from("password_reset_tokens").update({ usado: true }).eq("id", registro.id);
+    // 15/11/2026: senha nova pelo e-mail libera o bloqueio por tentativas na hora.
+    await (supabaseAdmin as any).rpc("liberar_bloqueio_login", { p_user_id: registro.user_id });
     await supabaseAdmin
       .from("profiles")
       .update({ senha_temporaria: false })

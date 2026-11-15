@@ -182,8 +182,8 @@ function ContaPage() {
       return;
     }
     const dia = Number(diaViradaInput);
-    if (!Number.isInteger(dia) || dia < 1 || dia > 28) {
-      toast.error("Informe um dia de virada entre 1 e 28.");
+    if (!Number.isInteger(dia) || dia < 1 || dia > 31) {
+      toast.error("Informe um dia de virada entre 1 e 31.");
       return;
     }
     salvarPreferencias.mutate(
@@ -564,7 +564,7 @@ function ContaPage() {
               </Button>
             </div>
             {usarDiaVirada && (
-              <Field label="Dia de virada (1 a 28)">
+              <Field label="Dia de virada (1 a 31)">
                 <Input
                   type="number"
                   min={1}

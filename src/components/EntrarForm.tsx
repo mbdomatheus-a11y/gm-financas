@@ -137,7 +137,7 @@ export function EntrarForm({
       const mensagem = error instanceof Error ? error.message : "";
       toast.error(
         mensagem.includes("LOGIN_BLOQUEADO")
-          ? "Três tentativas incorretas. O acesso foi bloqueado por 15 minutos."
+          ? "Muitas tentativas incorretas. Espere alguns minutos ou crie uma senha nova em Esqueci minha senha, que libera na hora."
           : mensagem.includes("LOGIN_MODO_CPF")
             ? "O acesso está configurado somente por CPF."
             : mensagem.includes("LOGIN_MODO_EMAIL")

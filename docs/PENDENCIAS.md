@@ -539,3 +539,10 @@ Segunda passada da jornada no site (15/11): botões de Despesas quebrando linha,
 Terceira passada da jornada no site (15/11): lançamento sobe de baixo no celular, subtítulo curto em Despesas, botões maiores em ciclo, ordenação e filtros. Falta publicar. Pendente de decisão: tempo de inatividade do site e quantidade de alertas ligados por padrão. App aguarda prints.
 
 Menos é mais (15/11, noite): menu da foto enxuto, Administração com índice e busca, primeiro acesso mais curto no site e no app, Mais do app sem grupo Administração. Código pronto, falta publicar site e app (17.09) e conferir na tela.
+
+
+## Pendências 15/11/2026 (dependem do Matheus)
+- Rodar SQL: docs/sql/2026-11-15-cota-64mb-e-virada-31.sql, 2026-11-15-bloqueio-login-escalonado.sql, 2026-11-15-atalho-lancamento.sql.
+- Publicar funções: cadastro-app, lancamento-ia, login-seguro, recuperar-senha.
+- Publicar o site antes do app (api/entrar-app e api/atalho), depois a atualização 17.10 do app.
+- Testar login com Google no iPhone de novo (5.5) e o atalho do iPhone com o token.

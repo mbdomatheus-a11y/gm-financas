@@ -8,14 +8,15 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
  * Storage está habilitado para aquele grupo familiar, e ajustar a cota em
  * bytes (grupos.oracle_storage_cota_bytes).
  *
- * Cota padrão sugerida ao habilitar: 500 MB por membro do grupo (incluindo
+ * Cota padrão sugerida ao habilitar: 64 MB por membro do grupo (incluindo
  * o admin do grupo), calculada UMA VEZ no momento de habilitar — depois
  * disso o valor fica fixo em `oracle_storage_cota_bytes` até o admin do
  * site editar manualmente. Não recalcula sozinha se o grupo ganhar ou
  * perder membros depois.
  */
 
-const QUINHENTOS_MB = 512 * 1024 * 1024; // cota padrão: 512 MB por membro
+// 15/11/2026: cota padrão de 64 MB por membro (antes 512 MB).
+const QUINHENTOS_MB = 64 * 1024 * 1024; // nome mantido para não espalhar a troca
 
 async function assertSiteAdmin(context: { supabase: any; userId: string }) {
   const { data } = await context.supabase
@@ -115,7 +116,7 @@ export const adminAlternarArmazenamentoOracle = createServerFn({ method: "POST" 
     // valor padrão de 1GB da migração original): sugere 500MB por membro.
     if (
       data.habilitado &&
-      [1_073_741_824, 524_288_000, 536_870_912].includes(Number(grupo.oracle_storage_cota_bytes))
+      [1_073_741_824, 524_288_000, 536_870_912, 67_108_864].includes(Number(grupo.oracle_storage_cota_bytes))
     ) {
       const { count, error: countError } = await db
         .from("profiles")

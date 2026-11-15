@@ -471,7 +471,7 @@ export const garantirPerfilUsuarioOAuth = createServerFn({ method: "POST" })
     // Cria grupo isolado para o novo usuário OAuth
     const { data: grupoNovo, error: grupoErr } = await db
       .from("grupos")
-      .insert({ nome: `Grupo de ${nome}`, criado_por: context.userId, oracle_storage_cota_bytes: 536870912 })
+      .insert({ nome: `Grupo de ${nome}`, criado_por: context.userId, oracle_storage_cota_bytes: 67108864 })
       .select("id")
       .single();
     if (grupoErr) throw new Error(grupoErr.message);

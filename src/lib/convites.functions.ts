@@ -318,7 +318,7 @@ export const aceitarConvite = createServerFn({ method: "POST" })
     if (!grupoId) {
       const { data: grupoNovo, error: grupoError } = await db
         .from("grupos")
-        .insert({ nome: `Grupo de ${data.nome.trim()}`, oracle_storage_cota_bytes: 536870912 })
+        .insert({ nome: `Grupo de ${data.nome.trim()}`, oracle_storage_cota_bytes: 67108864 })
         .select("id")
         .single();
       if (grupoError) throw new Error(grupoError.message);
@@ -440,7 +440,7 @@ export const criarContaSemConvite = createServerFn({ method: "POST" })
 
     const { data: grupoNovo, error: grupoError } = await db
       .from("grupos")
-      .insert({ nome: `Grupo de ${data.nome.trim()}`, oracle_storage_cota_bytes: 536870912 })
+      .insert({ nome: `Grupo de ${data.nome.trim()}`, oracle_storage_cota_bytes: 67108864 })
       .select("id")
       .single();
     if (grupoError) throw new Error(grupoError.message);

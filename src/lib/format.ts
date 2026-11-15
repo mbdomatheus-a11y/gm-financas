@@ -51,7 +51,7 @@ let diaReceitaProximoCiclo: number | null = null;
 const pad2 = (n: number) => String(n).padStart(2, "0");
 
 function viradaValida(d: number | null | undefined): number | null {
-  return d && d >= 2 && d <= 28 ? d : null;
+  return d && d >= 2 && d <= 31 ? d : null;
 }
 
 let diaViradaUsuario: number | null = null;
@@ -73,9 +73,9 @@ export function definirCicloDoUsuario(diaVirada: number | null | undefined, rece
   aplicarCicloEfetivo();
 }
 
-/** Dia de virada da regra do grupo (1 a 28) ou null quando o grupo ainda não configurou. */
+/** Dia de virada da regra do grupo (1 a 31) ou null quando o grupo ainda não configurou. */
 export function definirViradaDoGrupo(dia: number | null | undefined) {
-  diaViradaGrupo = dia && dia >= 1 && dia <= 28 ? dia : null;
+  diaViradaGrupo = dia && dia >= 1 && dia <= 31 ? dia : null;
   aplicarCicloEfetivo();
 }
 
@@ -106,7 +106,7 @@ export function competenciaDoDia(value: Date | string): string {
   }
   const v = viradaValida(diaViradaCiclo);
   // 13/11/2026 (regra do ciclo): o ciclo vai de D+1 a D; o próprio dia D ainda é do ciclo que termina.
-  if (!v || dia > v) return `${y}-${pad2(m)}`;
+  if (!v || dia > Math.min(v, new Date(y, m, 0).getDate())) return `${y}-${pad2(m)}`;
   const anterior = new Date(y, m - 2, 1);
   return `${anterior.getFullYear()}-${pad2(anterior.getMonth() + 1)}`;
 }

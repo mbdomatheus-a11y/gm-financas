@@ -155,7 +155,7 @@ export function usePreferencias() {
   useEffect(() => {
     if (!query.data) return;
     const novo = diaGrupo ?? query.data.dia_virada ?? null;
-    const valido = novo && novo >= 1 && novo <= 28 ? novo : null;
+    const valido = novo && novo >= 1 && novo <= 31 ? novo : null;
     definirCicloDoUsuario(query.data.dia_virada ?? null, query.data.receitas_proximo_ciclo_dia ?? null);
     // Rodada 2 (07/11/2026): na primeira carga NÃO refaz as consultas (era o que baixava tudo de novo,
     // 2 a 4 vezes). Os totais são calculados na tela, e as telas esperam as preferências (useFinancasProntas).

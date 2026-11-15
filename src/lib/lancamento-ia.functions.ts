@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { textoNatural } from "@/lib/texto-natural";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { aplicarLimite } from "@/lib/rate-limit.server";
 import {
@@ -21,7 +22,7 @@ import { grupoDoUsuario, resolverModoIaLancamento } from "@/lib/ia-lancamento-mo
  * no bundle do client — mesmo esquema de `SUPABASE_SERVICE_ROLE_KEY`).
  */
 
-function chaveOpenAI(): string | null {
+export function chaveOpenAI(): string | null {
   const chave = process.env["OPENAI_API_KEY"];
   return chave && chave.trim() ? chave.trim() : null;
 }
@@ -35,7 +36,7 @@ function chaveOpenAI(): string | null {
  * quem chama decide a mensagem amigável de volta pro usuário.
  */
 const COTA_IA_POR_DIA = 30;
-async function verificarCotaIA(userId: string): Promise<string | null> {
+export async function verificarCotaIA(userId: string): Promise<string | null> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   // 27/10/2026: rajada de 10 pedidos por minuto e cota diária; passou, responde 429 + Retry-After.
   await aplicarLimite(supabaseAdmin as any, {
@@ -92,14 +93,14 @@ async function verificarModoIA(
   return null;
 }
 
-function montarPrompt(ctx: ContextoLancamentoIA): string {
+export function montarPrompt(ctx: ContextoLancamentoIA): string {
   return [
     "Você extrai dados de um lançamento financeiro (despesa ou receita) a partir de um texto escrito por um usuário comum, em português do Brasil.",
     "Responda APENAS com um objeto JSON válido, sem markdown, sem comentários, exatamente com estas chaves:",
     `{"tipo": "despesa" | "receita" | null, "descricao": string | null, "observacao": string | null, "valor": number | null, "data": "AAAA-MM-DD" | null, "categoria": string | null, "responsavel": string | null, "forma_pagamento": string | null, "parcelas": number | null, "confianca": number entre 0 e 1, "campos_faltantes": string[], "observacao_ia": string | null}`,
     "",
     "REGRA DE OURO: nunca invente. Se um campo não puder ser determinado com segurança a partir do texto, devolva null para ele e liste o nome em campos_faltantes. Nunca chute valor, data ou categoria.",
-    'descricao deve ser CURTA e objetiva — poucas palavras, o essencial (ex.: "Almoço com amigos", "Mercado do mês", "Salário"). NUNCA transcreva o texto inteiro do usuário em descricao. Qualquer detalhe adicional que o usuário tenha mencionado (motivo, contexto, combinação feita, quem estava junto etc.) vai em observacao, nunca concatenado em descricao. Se não houver nada além do essencial, observacao fica null.',
+    'descricao deve ser CURTA e objetiva — poucas palavras, o essencial (ex.: "Almoço com amigos", "Mercado do mês", "Salário"). NUNCA transcreva o texto inteiro do usuário em descricao. Qualquer detalhe adicional que o usuário tenha mencionado (motivo, contexto, combinação feita, quem estava junto etc.) vai em observacao, nunca concatenado em descricao. Se não houver nada além do essencial, observacao fica null. Escreva descricao e observacao em português normal: só a primeira letra maiúscula, o resto minúsculo, mantendo siglas (PIX, IPVA) e nomes próprios.',
     `Data de hoje (para resolver "hoje", "ontem", "dia 5" etc.): ${ctx.hoje}.`,
     `Usuário logado (para resolver "eu paguei", "eu recebi"): ${ctx.usuarioAtual ?? "desconhecido"}.`,
     ctx.perfis.length
@@ -124,7 +125,7 @@ function montarPrompt(ctx: ContextoLancamentoIA): string {
 
 /** Extrai o primeiro bloco JSON de uma string (alguns modelos ainda cercam
  * a resposta com ```json apesar da instrução) — nunca confia no formato. */
-function extrairJson(texto: string): unknown {
+export function extrairJson(texto: string): unknown {
   const limpo = texto
     .trim()
     .replace(/^```json\s*/i, "")
@@ -215,7 +216,12 @@ export const interpretarLancamentoIA = createServerFn({ method: "POST" })
           observacao_ia: "Não entendi a resposta da IA. Preencha manualmente.",
         };
       }
-      return parsed.data;
+      // 15/11/2026: descrição no português do dia a dia (primeira maiúscula, sem CAIXA ALTA).
+      return {
+        ...parsed.data,
+        descricao: parsed.data.descricao ? textoNatural(parsed.data.descricao) : parsed.data.descricao,
+        observacao: parsed.data.observacao ? textoNatural(parsed.data.observacao) : parsed.data.observacao,
+      };
     } catch {
       return {
         ...RASCUNHO_VAZIO,

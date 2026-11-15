@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { CicloDoMesCard } from "@/components/ciclo/CicloDoMesCard";
-import { ArrowRight, DatabaseBackup, Palette, Settings, Trophy } from "lucide-react";
+import { ArrowRight, DatabaseBackup, Mic, Palette, Settings, Trophy } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
@@ -62,6 +62,12 @@ function ConfiguracoesPage() {
           },
         ]
       : []),
+    {
+      to: "/atalho" as const,
+      label: "Lançar sem abrir o app",
+      descricao: "Atalho do iPhone: fale o gasto pela Siri ou pelo Botão de Ação.",
+      icon: Mic,
+    },
     {
       to: "/jornada" as const,
       label: "Minha jornada",

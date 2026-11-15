@@ -134,3 +134,16 @@ App:
 - Mais: o grupo Administração saiu da lista; fica só em Configurações > Administração.
 Não conferido na tela: nada disto foi publicado. TypeScript sem erro nos dois projetos.
 Não feito: revisão visual do app (sem prints); "confirmar de novo" fora do primeiro acesso, se houver, precisa de um exemplo do Matheus.
+
+
+## Bloco 15/11/2026 (tarde): 8 itens do Matheus
+1. Busca na Administração: site (índice com busca, aceita ?busca=) e app (campo em Configurações > Administração; sem resultado, procura no site).
+2. IA escreve em português normal (primeira maiúscula, sem CAIXA ALTA, siglas mantidas): lib/texto-natural.ts no site, no app e na Edge Function lancamento-ia; regra também no prompt.
+3. Cota padrão 64 MB: código (convites, cadastro livre, cadastro-app, oracle-admin, texto da Administração) e SQL que ajusta todos os grupos sem admin.
+4. Virada até dia 31: em mês curto a virada cai no último dia (31 vira 30/nov e 28/fev). Site e app; SQL troca a restrição para 1 a 31.
+5. Primeiro acesso do app: boas-vindas com perguntas que engajam; obrigatório antes do opcional (nome, e-mail, celular opcional); e-mail já cadastrado mostra Entrar e Esqueci minha senha na hora; objetivo saiu do cadastro e foi para a pesquisa pós-login com frases novas (garantia, parcelas, dívidas); login social abre por controlall.com.br/api/entrar-app; bloqueio escalonado (4 livres, depois 5, 10, 15, 30, 60 min) e senha nova libera na hora.
+6. Atalho do iPhone: token pessoal em Configurações > Lançar sem abrir o app; POST /api/atalho com o texto, a IA lança a despesa ou receita.
+7. Ocultar valores: telas do app remontam ao alternar; formatarValor mascara tudo (sobra, gráficos, listas).
+8. Início do app mais limpo: previsão e simulador na aba Gráficos, parcelas e dívida em Gastos, botão Escolher o que aparece aqui, receitas e despesas maiores (22) e sobra 32; rótulo do ciclo igual ao do topo (Ciclo de novembro).
+Não resolvido em código: 5.5 (Google parou dentro da página do Google, sem retorno ao servidor); site não confere o e-mail antes do fim do cadastro; limites, cartões, lista de compras, calendário e faturas não remontam ao ocultar (atualizam ao reabrir).
+Publicar: SQL cota-64mb-e-virada-31, bloqueio-login-escalonado, atalho-lancamento; funções cadastro-app, lancamento-ia, login-seguro, recuperar-senha; site antes do app (17.10).

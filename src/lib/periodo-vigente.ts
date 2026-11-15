@@ -17,9 +17,9 @@ export function competenciaVigente(
   referencia: Date,
   diaVirada: number | null | undefined,
 ): string {
-  if (!diaVirada || diaVirada < 1 || diaVirada > 28) return monthKey(referencia);
+  if (!diaVirada || diaVirada < 1 || diaVirada > 31) return monthKey(referencia);
   // 09/11/2026 (regra final do ciclo): o ciclo vai de D+1 a D; no próprio dia D ainda vale o ciclo que termina.
-  if (referencia.getDate() <= diaVirada) {
+  if (referencia.getDate() <= Math.min(diaVirada, new Date(referencia.getFullYear(), referencia.getMonth() + 1, 0).getDate())) {
     return monthKey(new Date(referencia.getFullYear(), referencia.getMonth() - 1, 1));
   }
   return monthKey(referencia);
@@ -33,9 +33,10 @@ export function competenciaVigente(
  * aponta pro mês seguinte.
  */
 export function proximaVirada(referencia: Date, diaVirada: number): Date {
-  const candidato = new Date(referencia.getFullYear(), referencia.getMonth(), diaVirada);
+  const noMes = (a: number, m0: number) => new Date(a, m0, Math.min(diaVirada, new Date(a, m0 + 1, 0).getDate()));
+  const candidato = noMes(referencia.getFullYear(), referencia.getMonth());
   if (candidato <= referencia) {
-    return new Date(referencia.getFullYear(), referencia.getMonth() + 1, diaVirada);
+    return noMes(referencia.getFullYear(), referencia.getMonth() + 1);
   }
   return candidato;
 }
@@ -72,7 +73,7 @@ export function calcularCicloVigente(
   const pad2 = (n: number) => String(n).padStart(2, "0");
   const hoje = new Date(referencia.getFullYear(), referencia.getMonth(), referencia.getDate());
 
-  if (!diaVirada || diaVirada < 1 || diaVirada > 28) {
+  if (!diaVirada || diaVirada < 1 || diaVirada > 31) {
     const ano = hoje.getFullYear();
     const mes = hoje.getMonth();
     const inicio = new Date(ano, mes, 1);
@@ -98,12 +99,16 @@ export function calcularCicloVigente(
   let fim: Date;
 
   // 13/11/2026: mesmo ciclo de hoje de mesDoCicloEm (D+1 a D; no dia D ainda vale o ciclo que termina).
-  if (hoje.getDate() <= diaVirada) {
-    inicio = new Date(hoje.getFullYear(), hoje.getMonth() - 1, diaVirada + 1);
-    fim = new Date(hoje.getFullYear(), hoje.getMonth(), diaVirada);
+  // 15/11/2026: virada até 31; no mês mais curto vale o último dia.
+  const vir = (a: number, m0: number) => Math.min(diaVirada, new Date(a, m0 + 1, 0).getDate());
+  const anoH = hoje.getFullYear();
+  const mesH = hoje.getMonth();
+  if (hoje.getDate() <= vir(anoH, mesH)) {
+    inicio = new Date(anoH, mesH - 1, vir(anoH, mesH - 1) + 1);
+    fim = new Date(anoH, mesH, vir(anoH, mesH));
   } else {
-    inicio = new Date(hoje.getFullYear(), hoje.getMonth(), diaVirada + 1);
-    fim = new Date(hoje.getFullYear(), hoje.getMonth() + 1, diaVirada);
+    inicio = new Date(anoH, mesH, vir(anoH, mesH) + 1);
+    fim = new Date(anoH, mesH + 1, vir(anoH, mesH + 1));
   }
 
   const msPorDia = 24 * 60 * 60 * 1000;

@@ -26,7 +26,7 @@ export const AJUDA_FAQ: TemaFaq[] = [
         id: "mes-do-sistema",
         pergunta: "Meu mês não começa no dia 1. Dá para ajustar?",
         resposta:
-          "Sim. Em Conta, ative o mês do sistema e escolha o dia de virada (de 1 a 28). Os totais e a Previsão do mês passam a seguir esse ciclo.",
+          "Sim. Em Conta, ative o mês do sistema e escolha o dia de virada (de 1 a 31; nos meses mais curtos vale o último dia). Os totais e a Previsão do mês passam a seguir esse ciclo.",
       },
       {
         id: "assistente",
