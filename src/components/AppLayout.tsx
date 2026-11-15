@@ -40,7 +40,7 @@ import {
   PieChart,
 } from "lucide-react";
 
-import { BarChart3, BellRing, Gauge, Hash, LifeBuoy, LineChart, ListChecks, Plus, Sparkles } from "lucide-react";
+import { BarChart3, BellRing, Gauge, Hash, LifeBuoy, LineChart, ListChecks, Plus, Sparkles, Trophy } from "lucide-react";
 import { GRUPOS_NAV, ITENS_NAV } from "@/lib/navegacao";
 import { Fragment } from "react";
 import { MenuUsuario } from "@/components/MenuUsuario";
@@ -176,7 +176,7 @@ type NavItem = {
 const ICONES_NAV: Record<string, typeof Home> = {
   Home, CalendarDays, ListChecks, TrendingUp, TrendingDown, CreditCard, PiggyBank, Gauge, BarChart3, PieChart, LineChart,
   FileUp, Tags, Hash, ArrowLeftRight, ShoppingCart, Car, PawPrint, FileHeart, MapPin, ReceiptText, Link2, Calculator,
-  Share2, BellRing, LifeBuoy, Sparkles, Settings, ShieldCheck, Landmark,
+  Share2, BellRing, LifeBuoy, Sparkles, Settings, ShieldCheck, Landmark, Trophy,
 };
 type ItemMenu = NavItem & { grupo: string };
 const MENU_SITE: ItemMenu[] = ITENS_NAV.filter((i) => i.site).map((i) => ({

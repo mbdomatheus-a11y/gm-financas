@@ -13,6 +13,7 @@ import { LimitesResumoCard } from "@/components/LimitesResumoCard";
 import { useProfile } from "@/hooks/useAuthData";
 import { TempoInicioCard } from "@/components/GamificacaoFinanceira";
 import { CicloInicio } from "@/components/ciclo/CicloInicio";
+import { JornadaInicioCard } from "@/components/JornadaInicioCard";
 import { CompartilharResumoGeral } from "@/components/CompartilharModulos";
 import { SimuladorRendimento } from "@/components/SimuladorRendimento";
 
@@ -91,6 +92,7 @@ function InicioPage() {
         </div>
         <SugestoesEconomia className="overflow-hidden" />
         <TempoInicioCard />
+        <JornadaInicioCard />
         <Suspense fallback={<CartaoCarregando />}>
           <VisaoGeralHome parte="inicio" />
         </Suspense>

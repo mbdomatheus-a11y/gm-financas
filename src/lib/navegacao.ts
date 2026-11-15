@@ -72,6 +72,7 @@ export const ITENS_NAV: ItemNav[] = [
   { id: 'de-para', titulo: 'De-para', grupo: 'organizar', site: '/de-para', app: '/mais/de-para', iconeSite: 'ArrowLeftRight', iconeApp: 'arrow.triangle.branch', global: 'financas', perm: 'despesas' },
 
   { id: 'indicar', titulo: 'Indicar o Control ALL', grupo: 'geral', site: '/compartilhar', app: '/mais/compartilhar', iconeSite: 'Share2', iconeApp: 'square.and.arrow.up', perm: 'compartilhar' },
+  { id: 'jornada', titulo: 'Minha jornada', grupo: 'geral', site: '/jornada', app: '/mais/jornada', iconeSite: 'Trophy', iconeApp: 'trophy.fill' },
   { id: 'notificacoes', titulo: 'Notificações', grupo: 'geral', site: '/notificacoes', app: '/mais/notificacoes', iconeSite: 'BellRing', iconeApp: 'bell.fill' },
   { id: 'avisos', titulo: 'Avisos', grupo: 'geral', app: '/mais/avisos', iconeSite: 'BellRing', iconeApp: 'megaphone.fill' },
   { id: 'ajuda', titulo: 'Ajuda', grupo: 'geral', site: '/ajuda', app: '/mais/ajuda', iconeSite: 'LifeBuoy', iconeApp: 'lightbulb.fill' },

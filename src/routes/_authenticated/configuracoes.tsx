@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { CicloDoMesCard } from "@/components/ciclo/CicloDoMesCard";
-import { ArrowRight, Palette, Settings } from "lucide-react";
+import { ArrowRight, Palette, Settings, Trophy } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
@@ -52,6 +52,12 @@ function ConfiguracoesPage() {
           },
         ]
       : []),
+    {
+      to: "/jornada" as const,
+      label: "Minha jornada",
+      descricao: "Sequência, nível e conquistas. Dá para mostrar ou esconder no Início.",
+      icon: Trophy,
+    },
   ];
 
   return (

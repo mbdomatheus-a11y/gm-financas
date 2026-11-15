@@ -42,6 +42,7 @@ import { Route as AuthenticatedFerramentasRouteImport } from './routes/_authenti
 import { Route as AuthenticatedImportarRouteImport } from './routes/_authenticated/importar'
 import { Route as AuthenticatedInicioRouteImport } from './routes/_authenticated/inicio'
 import { Route as AuthenticatedInvestimentosRouteImport } from './routes/_authenticated/investimentos'
+import { Route as AuthenticatedJornadaRouteImport } from './routes/_authenticated/jornada'
 import { Route as AuthenticatedLimitesRouteImport } from './routes/_authenticated/limites'
 import { Route as AuthenticatedListaComprasRouteImport } from './routes/_authenticated/lista-compras'
 import { Route as AuthenticatedNotasRouteImport } from './routes/_authenticated/notas'
@@ -249,6 +250,11 @@ const AuthenticatedInvestimentosRoute =
     path: '/investimentos',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedJornadaRoute = AuthenticatedJornadaRouteImport.update({
+  id: '/jornada',
+  path: '/jornada',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedLimitesRoute = AuthenticatedLimitesRouteImport.update({
   id: '/limites',
   path: '/limites',
@@ -477,6 +483,7 @@ export interface FileRoutesByFullPath {
   '/importar': typeof AuthenticatedImportarRoute
   '/inicio': typeof AuthenticatedInicioRoute
   '/investimentos': typeof AuthenticatedInvestimentosRoute
+  '/jornada': typeof AuthenticatedJornadaRoute
   '/limites': typeof AuthenticatedLimitesRoute
   '/lista-compras': typeof AuthenticatedListaComprasRoute
   '/notas': typeof AuthenticatedNotasRoute
@@ -548,6 +555,7 @@ export interface FileRoutesByTo {
   '/importar': typeof AuthenticatedImportarRoute
   '/inicio': typeof AuthenticatedInicioRoute
   '/investimentos': typeof AuthenticatedInvestimentosRoute
+  '/jornada': typeof AuthenticatedJornadaRoute
   '/limites': typeof AuthenticatedLimitesRoute
   '/lista-compras': typeof AuthenticatedListaComprasRoute
   '/notas': typeof AuthenticatedNotasRoute
@@ -621,6 +629,7 @@ export interface FileRoutesById {
   '/_authenticated/importar': typeof AuthenticatedImportarRoute
   '/_authenticated/inicio': typeof AuthenticatedInicioRoute
   '/_authenticated/investimentos': typeof AuthenticatedInvestimentosRoute
+  '/_authenticated/jornada': typeof AuthenticatedJornadaRoute
   '/_authenticated/limites': typeof AuthenticatedLimitesRoute
   '/_authenticated/lista-compras': typeof AuthenticatedListaComprasRoute
   '/_authenticated/notas': typeof AuthenticatedNotasRoute
@@ -694,6 +703,7 @@ export interface FileRouteTypes {
     | '/importar'
     | '/inicio'
     | '/investimentos'
+    | '/jornada'
     | '/limites'
     | '/lista-compras'
     | '/notas'
@@ -765,6 +775,7 @@ export interface FileRouteTypes {
     | '/importar'
     | '/inicio'
     | '/investimentos'
+    | '/jornada'
     | '/limites'
     | '/lista-compras'
     | '/notas'
@@ -837,6 +848,7 @@ export interface FileRouteTypes {
     | '/_authenticated/importar'
     | '/_authenticated/inicio'
     | '/_authenticated/investimentos'
+    | '/_authenticated/jornada'
     | '/_authenticated/limites'
     | '/_authenticated/lista-compras'
     | '/_authenticated/notas'
@@ -1141,6 +1153,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedInvestimentosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/jornada': {
+      id: '/_authenticated/jornada'
+      path: '/jornada'
+      fullPath: '/jornada'
+      preLoaderRoute: typeof AuthenticatedJornadaRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/limites': {
       id: '/_authenticated/limites'
       path: '/limites'
@@ -1426,6 +1445,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedImportarRoute: typeof AuthenticatedImportarRoute
   AuthenticatedInicioRoute: typeof AuthenticatedInicioRoute
   AuthenticatedInvestimentosRoute: typeof AuthenticatedInvestimentosRoute
+  AuthenticatedJornadaRoute: typeof AuthenticatedJornadaRoute
   AuthenticatedLimitesRoute: typeof AuthenticatedLimitesRoute
   AuthenticatedListaComprasRoute: typeof AuthenticatedListaComprasRoute
   AuthenticatedNotasRoute: typeof AuthenticatedNotasRoute
@@ -1470,6 +1490,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedImportarRoute: AuthenticatedImportarRoute,
   AuthenticatedInicioRoute: AuthenticatedInicioRoute,
   AuthenticatedInvestimentosRoute: AuthenticatedInvestimentosRoute,
+  AuthenticatedJornadaRoute: AuthenticatedJornadaRoute,
   AuthenticatedLimitesRoute: AuthenticatedLimitesRoute,
   AuthenticatedListaComprasRoute: AuthenticatedListaComprasRoute,
   AuthenticatedNotasRoute: AuthenticatedNotasRoute,

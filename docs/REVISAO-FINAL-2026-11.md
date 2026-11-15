@@ -25,15 +25,17 @@ Aberto em 14/11/2026. Pedido do Matheus: revisão completa, da home pública at�
 ## Blocos
 | # | Bloco | Estado |
 |---|---|---|
-| 1 | Estrutura do menu: Finanças dividido em Dia a dia, Planejar, Analisar, Organizar | Feito 14/11 (falta publicar) |
-| 2 | Identidade: tipografia, ícones, raio, sombra e movimento, nos tokens do site e do app. Personalização reduzida | Próximo (ver nota do bloco 2) |
+| 1 | Estrutura do menu: Finanças dividido em Dia a dia, Planejar, Analisar, Organizar | Feito e publicado 14/11 |
+| 2 | Identidade: tipografia, ícones, raio, sombra e movimento, nos tokens do site e do app. Personalização reduzida | Por último, a pedido do Matheus (15/11) |
 | 3 | Entrada: home pública, login, cadastro, boas-vindas, abertura (splash) e transições, web e app | Pendente |
 | 4 | Início e telas centrais: Início, Lançamentos, novo lançamento, Cartões, Mais. Unificar sinos e telas de ajuste | Pendente |
-| 5 | Gamificação leve e opcional | Pendente |
-| 6 | Administração: botão Resetar conta de teste | Código feito 14/11; falta rodar o SQL, publicar e testar |
+| 5 | Gamificação leve e opcional (Minha jornada) | Código feito 15/11; falta rodar o SQL, publicar e validar na tela |
+| 6 | Administração: botão Resetar conta de teste | Publicado 14/11 (SQL rodado); falta o Matheus testar um reset |
 | 7 | Fechamento para as lojas: acessibilidade, iPad, Android, prints, textos da loja, build final | Pendente |
 
 Cada bloco sai nas três plataformas na mesma entrega (regra de espelhamento).
+
+Ordem combinada em 15/11: o visual (blocos 2, 3 e a parte visual do 4) fica como última tarefa. Antes vêm as pendências que não mudam a aparência.
 
 ## Bloco 1 (feito)
 - src/lib/navegacao.ts (site e app, idênticos): grupo Finanças virou quatro grupos menores.
@@ -64,3 +66,16 @@ Olhei a home pública e o login no celular (produção). A identidade atual já 
 - Conta nova de novo: site e app consultam meu_ultimo_reset_teste; a conta resetada volta a ver boas-vindas, primeiros passos e tour, e o que o aparelho guardou é limpo uma vez.
 - Botão "Baixar último backup" entrega o JSON ao admin.
 - Não testado em execução: o SQL ainda não foi rodado. TypeScript sem erro no site e no app.
+
+## Bloco 5: Minha jornada (código feito em 15/11)
+- Nada é gravado a cada ação. Sequência, nível e conquistas são calculados na hora pela função do banco minha_jornada(), a partir do que a pessoa já registrou. A única coisa guardada é mostrar ou esconder (tabela jornada_usuario).
+- Regra única nos dois lados: src/lib/jornada.ts, arquivo idêntico no site e no app (como o navegacao.ts).
+- EXP: 10 por dia com algum registro, mais o valor de cada conquista. Níveis em 0, 100, 300, 600, 1000 EXP: Começando, Organizado, Atento, Planejador, Estrategista, Mestre do controle.
+- 10 conquistas: Primeiro passo, Pegando o ritmo, Tudo anotado, Fatura na mão, Primeira caixinha, Guardando sempre, Com limite, Nota guardada, Semana cheia, Mês inteiro.
+- Sequência conta até hoje ou até ontem, então o dia só "quebra" depois de um dia inteiro sem registro. Perder a sequência não tira EXP.
+- Site: cartão no Início (JornadaInicioCard), tela /jornada, item em Configurações e no menu (grupo Geral), hook useJornada.
+- App: cartão no Início (aba Resumo), tela Mais > Minha jornada, lib/jornada-dados.ts.
+- Chave "Mostrar minha jornada no Início" na própria tela. Desligada, o cartão some do Início; a tela continua no menu para religar.
+- SQL: supabase/migrations/20261115090000_minha_jornada.sql (cópia em docs/sql/2026-11-15-minha-jornada.sql). Sem o SQL, nada aparece e nada quebra.
+- Conferido: cálculo testado com dados simulados, consulta do banco testada em leitura, TypeScript sem erro nos dois lados, navegação igual. Não conferido na tela.
+- Conta de teste resetada: a jornada zera sozinha, porque é calculada dos dados.
