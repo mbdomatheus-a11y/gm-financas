@@ -63,6 +63,7 @@ import { FunilAdmin, NovosUsuariosResumo } from "@/components/FunilAdmin";
 import { PadroesAdmin } from "@/components/PadroesAdmin";
 import { TelaInicialPadraoCard } from "@/components/TelaInicialPadraoCard";
 import { RedispararAvisosCard } from "@/components/RedispararAvisosCard";
+import { ResetContaTesteCard } from "@/components/ResetContaTesteCard";
 import {
   adminListarSolicitacoesPrivacidade,
   adminTratarSolicitacaoPrivacidade,
@@ -1227,6 +1228,7 @@ function Admin() {
         {/* ─── ABA 3: ACESSO E AUTENTICAÇÃO ─── */}
         <TabsContent value="usuarios" className="space-y-6">
           <GestaoUsuariosAdmin />
+          <ResetContaTesteCard />
         </TabsContent>
 
         <TabsContent value="acesso" className="space-y-6">

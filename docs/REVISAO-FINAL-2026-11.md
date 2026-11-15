@@ -26,11 +26,11 @@ Aberto em 14/11/2026. Pedido do Matheus: revisão completa, da home pública at�
 | # | Bloco | Estado |
 |---|---|---|
 | 1 | Estrutura do menu: Finanças dividido em Dia a dia, Planejar, Analisar, Organizar | Feito 14/11 (falta publicar) |
-| 2 | Identidade nova: paleta, tipografia, ícones, raio, sombra e movimento, nos tokens do site e do app. Personalização reduzida | Próximo |
+| 2 | Identidade: tipografia, ícones, raio, sombra e movimento, nos tokens do site e do app. Personalização reduzida | Próximo (ver nota do bloco 2) |
 | 3 | Entrada: home pública, login, cadastro, boas-vindas, abertura (splash) e transições, web e app | Pendente |
 | 4 | Início e telas centrais: Início, Lançamentos, novo lançamento, Cartões, Mais. Unificar sinos e telas de ajuste | Pendente |
 | 5 | Gamificação leve e opcional | Pendente |
-| 6 | Administração: botão Resetar conta de teste | Pendente |
+| 6 | Administração: botão Resetar conta de teste | Código feito 14/11; falta rodar o SQL, publicar e testar |
 | 7 | Fechamento para as lojas: acessibilidade, iPad, Android, prints, textos da loja, build final | Pendente |
 
 Cada bloco sai nas três plataformas na mesma entrega (regra de espelhamento).
@@ -50,9 +50,17 @@ Cada bloco sai nas três plataformas na mesma entrega (regra de espelhamento).
 - Onde aparece: um bloco pequeno na Início e uma tela "Minha jornada". Chave "Mostrar minha jornada" em Configurações, desligável a qualquer momento. Desligada, nada aparece e nada é cobrado do usuário.
 - Motivo: em finanças, gamificação funciona quando premia constância e some quando vira cobrança.
 
-## Bloco 6: reset de conta de teste (especificação)
-- Botão em Administração, visível só para admin master.
-- Lista fixa no servidor com as duas contas permitidas (pelo id do usuário, não por texto digitado). Qualquer outra conta é recusada no servidor, mesmo que a tela seja burlada.
-- Passos: gera backup completo em JSON (mesmo formato do Backup), guarda o arquivo, apaga os dados da conta e do grupo dela, zera primeiro acesso, avisos e gamificação. Login e senha continuam.
-- Confirmação: digitar RESETAR. Registro de quem resetou e quando.
-- A confirmar com o Matheus antes de codar: o e-mail exato de cada conta e se alguma delas divide grupo com outra pessoa.
+## Bloco 2: nota (14/11)
+Olhei a home pública e o login no celular (produção). A identidade atual já é forte e combina com o logo azul: título pesado, botões em pílula, muito espaço. Trocar a paleta às cegas pioraria. Decisão proposta: manter a família azul do logo e concentrar o redesign em estrutura, hierarquia, ícones, boas-vindas e telas internas. As telas internas do site só podem ser vistas com login feito pelo Matheus no navegador do Claude.
+
+## Bloco 6: reset de conta de teste (código feito em 14/11)
+- Contas permitidas (conferidas no banco, cada uma sozinha no próprio grupo, nenhuma é admin do site): mwathews@gmail.com (Marcus NT) e artfoxbrasil@gmail.com (Marcus Nt).
+- Onde fica: site, Administração > Usuários > cartão "Contas de teste". Módulo de admin, só no site.
+- Arquivos do site: supabase/migrations/20261114150000_reset_conta_teste.sql (cópia em docs/sql), src/lib/conta-teste.functions.ts, src/components/ResetContaTesteCard.tsx, src/lib/reset-teste.ts, ajuste em boas-vindas/BoasVindas.tsx e em administracao.tsx.
+- Arquivos do app: src/lib/reset-teste.ts, ajuste em components/primeiro-acesso/index.tsx e export em lib/cache-telas.ts.
+- Segurança: a lista de contas é fixa no servidor e de novo dentro da função do banco (id e e-mail conferidos juntos). A função só roda pelo servidor (service role), recusa admin do site e recusa grupo com outra pessoa.
+- O que faz: backup completo em reset_backups (tipo conta_teste), apaga tudo do grupo e o estado pessoal (avisos, tour, preferências), zera o perfil financeiro, registra em admin_audit_logs. Uma transação só: se falhar, nada é apagado.
+- O que mantém: login, senha, nome, e-mail, papel, permissões, convites, chamados, aceite dos termos, conexões de banco, históricos de acesso e o registro de arquivos enviados (os arquivos no armazenamento não são apagados).
+- Conta nova de novo: site e app consultam meu_ultimo_reset_teste; a conta resetada volta a ver boas-vindas, primeiros passos e tour, e o que o aparelho guardou é limpo uma vez.
+- Botão "Baixar último backup" entrega o JSON ao admin.
+- Não testado em execução: o SQL ainda não foi rodado. TypeScript sem erro no site e no app.

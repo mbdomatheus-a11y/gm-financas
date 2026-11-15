@@ -521,3 +521,5 @@ Detalhes em docs/AUDITORIA-SEGURANCA-2026-11-01.md. Pendente de decisão ou aç�
 
 ## Revisão final para lançamento (aberta em 14/11/2026)
 Plano, blocos e estado em `docs/REVISAO-FINAL-2026-11.md`. Bloco 1 (menu de Finanças dividido em Dia a dia, Planejar, Analisar e Organizar) feito no código do site e do app, aguardando commit, push e eas update do Matheus. Próximo: bloco 2 (identidade visual nova).
+
+Bloco 6 (reset de conta de teste) com código pronto em 14/11: falta o Matheus rodar `docs/sql/2026-11-14-reset-conta-teste.sql`, publicar site e app e testar em Administração > Usuários > Contas de teste. Detalhes em `docs/REVISAO-FINAL-2026-11.md`.

@@ -11,6 +11,7 @@ import { IconeBanco, useCatalogoLogos } from "@/components/IconeBanco";
 import { CelularPrevisao } from "@/components/landing/VitrineDispositivos";
 import { useAvisoConta } from "@/components/boas-vindas/useAvisoConta";
 import { useProfile, useSession } from "@/hooks/useAuthData";
+import { useResetTeste } from "@/lib/reset-teste";
 import { useBancos } from "@/hooks/useFinance";
 import { useContas, useCriarConta } from "@/hooks/useContas";
 import { supabase } from "@/integrations/supabase/client";
@@ -80,8 +81,10 @@ const APRESENTACAO = [
 
 function useNovoUsuario(): boolean {
   const { user } = useSession();
+  // Conta de teste resetada pela Administração volta a contar como nova a partir do reset.
+  const reset = useResetTeste(user?.id);
   if (!user?.created_at) return false;
-  const criado = new Date(user.created_at).getTime();
+  const criado = Math.max(new Date(user.created_at).getTime(), reset.data ? new Date(reset.data).getTime() : 0);
   return criado >= new Date(DATA_CORTE).getTime() && Date.now() - criado < JANELA_MS;
 }
 
