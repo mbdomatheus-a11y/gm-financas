@@ -283,6 +283,7 @@ function SuportePage() {
                       <button
                         type="button"
                         className="text-muted-foreground hover:text-destructive"
+                        aria-label="Remover o anexo"
                         onClick={() => {
                           setArquivoNovo(null);
                           if (arquivoNovoRef.current) arquivoNovoRef.current.value = "";
@@ -475,6 +476,7 @@ function SuportePage() {
                                   <button
                                     type="button"
                                     className="text-muted-foreground hover:text-destructive"
+                                    aria-label="Remover o anexo"
                                     onClick={() => {
                                       setArquivoComplemento(null);
                                       if (arquivoComplementoRef.current) arquivoComplementoRef.current.value = "";

@@ -29,9 +29,9 @@ Aberto em 14/11/2026. Pedido do Matheus: revisão completa, da home pública at�
 | 2 | Identidade: tipografia, ícones, raio, sombra e movimento, nos tokens do site e do app. Personalização reduzida | Por último, a pedido do Matheus (15/11) |
 | 3 | Entrada: home pública, login, cadastro, boas-vindas, abertura (splash) e transições, web e app | Pendente |
 | 4 | Início e telas centrais: Início, Lançamentos, novo lançamento, Cartões, Mais. Unificar sinos e telas de ajuste | Pendente |
-| 5 | Gamificação leve e opcional (Minha jornada) | Código feito 15/11; falta rodar o SQL, publicar e validar na tela |
+| 5 | Gamificação leve e opcional (Minha jornada) | Publicado 15/11 (SQL rodado, update 17.06); falta validar na tela |
 | 6 | Administração: botão Resetar conta de teste | Publicado 14/11 (SQL rodado); falta o Matheus testar um reset |
-| 7 | Fechamento para as lojas: acessibilidade, iPad, Android, prints, textos da loja, build final | Pendente |
+| 7 | Fechamento para as lojas: acessibilidade, iPad, Android, prints, textos da loja, build final | Parte de código feita 15/11 (ver docs/LOJAS-CHECKLIST-2026-11.md); consoles e testes em aparelho com o Matheus |
 
 Cada bloco sai nas três plataformas na mesma entrega (regra de espelhamento).
 

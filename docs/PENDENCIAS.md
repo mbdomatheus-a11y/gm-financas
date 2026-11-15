@@ -525,3 +525,5 @@ Plano, blocos e estado em `docs/REVISAO-FINAL-2026-11.md`. Bloco 1 (menu de Fina
 Bloco 6 (reset de conta de teste) com código pronto em 14/11: falta o Matheus rodar `docs/sql/2026-11-14-reset-conta-teste.sql`, publicar site e app e testar em Administração > Usuários > Contas de teste. Detalhes em `docs/REVISAO-FINAL-2026-11.md`.
 
 Bloco 5 (Minha jornada, gamificação leve e opcional) com código pronto em 15/11 no site e no app: falta rodar `docs/sql/2026-11-15-minha-jornada.sql`, publicar e validar na tela. O visual (blocos 2 a 4) ficou como última tarefa, a pedido do Matheus.
+
+Bloco 7 (lojas) em 15/11: checklist em `docs/LOJAS-CHECKLIST-2026-11.md`; 12 botões só com ícone ganharam rótulo para leitor de tela (6 no app, 6 no site); SQL do item 7 da auditoria pronto em `docs/sql/2026-11-15-auditoria-item-7.sql` (falta rodar). Minha jornada publicada.

@@ -534,6 +534,7 @@ function DeParaPage() {
                         <Button
                           variant="ghost"
                           size="icon"
+                          aria-label="Remover esta linha da prévia"
                           onClick={() => setPrevia((p) => p.filter((_, j) => j !== i))}
                         >
                           <Trash2 className="size-4" />
@@ -785,7 +786,7 @@ function DeParaPage() {
                         />
                       </td>
                       <td className="p-2">
-                        <Button variant="ghost" size="icon" onClick={() => remover.mutate(r.id)}>
+                        <Button variant="ghost" size="icon" aria-label="Remover esta regra" onClick={() => remover.mutate(r.id)}>
                           <Trash2 className="size-4" />
                         </Button>
                       </td>

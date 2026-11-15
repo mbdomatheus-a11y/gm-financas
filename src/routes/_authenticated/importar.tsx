@@ -2983,6 +2983,7 @@ function ImportarPage() {
                         <Button
                           size="sm"
                           variant="ghost"
+                          aria-label="Remover este PDF"
                           onClick={() =>
                             setPdfsComSenha((prev) => prev.filter((x) => x.file !== p.file))
                           }
@@ -3258,6 +3259,7 @@ function ImportarPage() {
                 <Button
                   variant="ghost"
                   size="icon"
+                  aria-label="Remover esta fatura da importação"
                   onClick={() => setFaturas((prev) => prev.filter((_, i) => i !== idx))}
                 >
                   <Trash2 className="size-4" />
