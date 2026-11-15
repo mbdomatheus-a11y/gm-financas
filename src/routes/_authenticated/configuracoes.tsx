@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { CicloDoMesCard } from "@/components/ciclo/CicloDoMesCard";
-import { ArrowRight, Palette, Settings, Trophy } from "lucide-react";
+import { ArrowRight, DatabaseBackup, Palette, Settings, Trophy } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
@@ -33,7 +33,7 @@ export const Route = createFileRoute("/_authenticated/configuracoes")({
  * porta de entrada comum na navegação.
  */
 function ConfiguracoesPage() {
-  const { can } = usePermissoes();
+  const { can, isAdmin } = usePermissoes();
 
   const itens = [
     {
@@ -52,6 +52,16 @@ function ConfiguracoesPage() {
           },
         ]
       : []),
+    ...(isAdmin
+      ? [
+          {
+            to: "/backup" as const,
+            label: "Backup e reset",
+            descricao: "Baixar uma cópia dos dados do grupo ou começar do zero.",
+            icon: DatabaseBackup,
+          },
+        ]
+      : []),
     {
       to: "/jornada" as const,
       label: "Minha jornada",
@@ -61,7 +71,7 @@ function ConfiguracoesPage() {
   ];
 
   return (
-    <AppLayout title="Configurações" description="Conta e personalização do aplicativo">
+    <AppLayout title="Configurações" description="Sua conta, aparência e preferências">
       <Card className="overflow-hidden">
         <CardContent className="divide-y p-0">
           {itens.map((item) => {

@@ -120,43 +120,14 @@ export function MenuUsuario({
             ))}
           </DropdownMenuSubContent>
         </DropdownMenuSub>
-        {grupoAdmin && (
-          <>
-            <DropdownMenuSeparator />
-            {/* 28/10/2026: /usuarios é a gestão de usuários do site (só admin do site). Para o admin do
-                grupo, convites e pessoas do grupo ficam em Minha conta. */}
-            <DropdownMenuItem asChild>
-              {siteAdmin ? (
-                <Link to="/usuarios" className="flex items-center gap-2">
-                  <Users className="size-4" aria-hidden="true" /> Usuários e privilégios
-                </Link>
-              ) : (
-                <Link to="/conta" hash="grupo" className="flex items-center gap-2">
-                  <Users className="size-4" aria-hidden="true" /> Meu grupo e convites
-                </Link>
-              )}
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link to="/backup" className="flex items-center gap-2">
-                <DatabaseBackup className="size-4" aria-hidden="true" /> Backup e Reset
-              </Link>
-            </DropdownMenuItem>
-          </>
-        )}
+        {/* 15/11/2026: o menu da foto ficou só com o que é da pessoa. Usuários, Backup e Administração
+            ficam no menu lateral e em Configurações, sem repetir aqui. */}
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
           <Link to="/suporte" className="flex items-center gap-2">
             <Headphones className="size-4" aria-hidden="true" /> Suporte
           </Link>
         </DropdownMenuItem>
-        {siteAdmin && (
-          <DropdownMenuItem asChild className="bg-violet-500/[0.07]">
-            <Link to="/administracao" search={{ aba: undefined }} className="flex items-center gap-2">
-              <ShieldCheck className="size-4" aria-hidden="true" /> Administração do site
-              <span className={cn(ADMIN_ONLY_TAG, "ml-auto")}>Admin</span>
-            </Link>
-          </DropdownMenuItem>
-        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={() => onSair()} className="gap-2">
           <LogOut className="size-4" aria-hidden="true" /> Sair

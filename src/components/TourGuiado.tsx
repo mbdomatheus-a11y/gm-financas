@@ -99,6 +99,12 @@ export function TourGuiado({ bloqueado }: { bloqueado: boolean }) {
 
   useEffect(() => {
     if (!user || bloqueado || iniciadoRef.current) return;
+    // 15/11/2026: quem acabou de passar pelas boas-vindas nesta visita vê o tour na próxima, não em seguida.
+    try {
+      if (sessionStorage.getItem("control-all.boas-vindas-sessao")) return;
+    } catch {
+      // sem sessionStorage: segue
+    }
     if (!data?.ativo || data.concluido) return;
     iniciadoRef.current = true;
 

@@ -123,68 +123,135 @@ const GRUPOS_ADMIN: {
   id: string;
   titulo: string;
   descricao: string;
-  abas: { id: string; rotulo: string }[];
+  abas: { id: string; rotulo: string; chaves?: string }[];
 }[] = [
   {
-    id: "visao",
-    titulo: "1. Visão geral",
-    descricao: "Números do site e consulta de dados",
-    abas: [
-      { id: "dados-gerais", rotulo: "Dados Gerais" },
-      { id: "resumo-uso", rotulo: "Resumo de uso" },
-      { id: "avaliacoes-telas", rotulo: "Avaliações das telas" },
-      { id: "desempenho", rotulo: "Desempenho" },
-      { id: "consulta", rotulo: "Consulta" },
-      { id: "funil", rotulo: "Funil e retenção" },
-      { id: "acessos", rotulo: "Acessos ao site" },
-    ],
-  },
-  {
     id: "pessoas",
-    titulo: "2. Pessoas e pedidos",
-    descricao: "Acesso, solicitações e privacidade",
+    titulo: "Pessoas e pedidos",
+    descricao: "Contas, acesso e solicitações",
     abas: [
-      { id: "usuarios", rotulo: "Usuários (contas e convites)" },
-      { id: "acesso", rotulo: "Acesso e Auth" },
-      { id: "central", rotulo: "Central de Solicitações" },
-      { id: "privacidade", rotulo: "Privacidade LGPD" },
+      { id: "usuarios", rotulo: "Usuários e convites", chaves: "contas conta de teste resetar reset senha convite excluir desativar" },
+      { id: "acesso", rotulo: "Login e acesso", chaves: "auth autenticação cadastro sem convite inatividade tempo de sessão google drive 2fa segundo fator modo de login" },
+      { id: "central", rotulo: "Solicitações", chaves: "central chamados suporte layout fatura pedidos" },
+      { id: "privacidade", rotulo: "Privacidade (LGPD)", chaves: "exclusão dados titular encerramento exportação" },
     ],
   },
   {
     id: "site",
-    titulo: "3. Site e módulos",
-    descricao: "O que aparece e como aparece",
+    titulo: "Site e módulos",
+    descricao: "O que aparece para o usuário",
     abas: [
-      { id: "modulos", rotulo: "Módulos" },
-      { id: "personalizacao", rotulo: "Personalização" },
-      { id: "avisos", rotulo: "Avisos" },
-      { id: "alertas", rotulo: "Alertas" },
-      { id: "links", rotulo: "Links" },
-      { id: "padroes", rotulo: "Categorias e De-para" },
+      { id: "modulos", rotulo: "Módulos", chaves: "ligar desligar liberar pet veículo exames notas links exceções" },
+      { id: "personalizacao", rotulo: "Home e aparência", chaves: "personalização vídeo demonstração economia conquistada banner oferta parceria tela inicial ia lançamento" },
+      { id: "avisos", rotulo: "Avisos e tour", chaves: "comunicados boas-vindas tour guiado redisparar beta android" },
+      { id: "alertas", rotulo: "Alertas", chaves: "sino notificações vencimento garantia fatura" },
+      { id: "links", rotulo: "Links", chaves: "anotações link temporário" },
+      { id: "padroes", rotulo: "Categorias e De-para", chaves: "padrões categorias padrão regras" },
     ],
   },
   {
-    id: "openfinance",
-    titulo: "4. Open Finance",
-    descricao: "Bancos e cartões conectados (teste)",
+    id: "visao",
+    titulo: "Números",
+    descricao: "Uso do site e consultas",
     abas: [
-      { id: "bancos", rotulo: "Bancos e cartões" },
-      { id: "logos-bancos", rotulo: "Bancos e logos" },
+      { id: "dados-gerais", rotulo: "Visão geral", chaves: "dados gerais usuários cadastrados contas ativas grupos" },
+      { id: "resumo-uso", rotulo: "Resumo de uso", chaves: "atividade telas mais usadas" },
+      { id: "funil", rotulo: "Funil e retenção", chaves: "novos usuários cadastro primeiro lançamento" },
+      { id: "acessos", rotulo: "Acessos ao site", chaves: "visitas origem login tentativas" },
+      { id: "avaliacoes-telas", rotulo: "Avaliações das telas", chaves: "gostei não gostei nota" },
+      { id: "desempenho", rotulo: "Desempenho", chaves: "velocidade lentidão carregamento" },
+      { id: "consulta", rotulo: "Consulta de dados", chaves: "atividade espaço por usuário" },
     ],
   },
   {
     id: "infra",
-    titulo: "5. Armazenamento",
-    descricao: "Arquivos e espaço em disco",
-    abas: [{ id: "armazenamento", rotulo: "Armazenamento Oracle" }],
+    titulo: "Bancos e arquivos",
+    descricao: "Open Finance e armazenamento",
+    abas: [
+      { id: "bancos", rotulo: "Open Finance", chaves: "pluggy bancos cartões conectados sincronizar" },
+      { id: "logos-bancos", rotulo: "Logos dos bancos", chaves: "ícone imagem banco" },
+      { id: "armazenamento", rotulo: "Armazenamento", chaves: "oracle cota espaço arquivos comprovantes" },
+    ],
   },
   {
     id: "seguranca",
-    titulo: "6. Segurança",
-    descricao: "Histórico de ações e auditoria",
-    abas: [{ id: "logs", rotulo: "Logs de Auditoria" }],
+    titulo: "Segurança",
+    descricao: "Histórico de ações",
+    abas: [{ id: "logs", rotulo: "Registro de ações", chaves: "logs auditoria quem fez histórico" }],
   },
 ];
+
+const semAcento = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+/**
+ * Índice da Administração (15/11/2026): todas as seções à vista, agrupadas, com busca.
+ * Um toque leva a qualquer seção; a busca também acha pelo que existe dentro dela
+ * (ex.: "reset" acha Usuários e convites, "inatividade" acha Login e acesso).
+ */
+function IndiceAdmin({
+  ativa,
+  onEscolher,
+  pendentes,
+}: {
+  ativa: string;
+  onEscolher: (id: string) => void;
+  pendentes: number;
+}) {
+  const [busca, setBusca] = useState("");
+  const termo = semAcento(busca.trim());
+  const grupos = GRUPOS_ADMIN.map((g) => ({
+    ...g,
+    abas: termo ? g.abas.filter((a) => semAcento(`${a.rotulo} ${a.chaves ?? ""} ${g.titulo}`).includes(termo)) : g.abas,
+  })).filter((g) => g.abas.length > 0);
+  return (
+    <nav aria-label="Seções da administração" className="space-y-3 rounded-3xl border border-border/60 bg-card p-4 shadow-card sm:p-5">
+      <Input
+        type="search"
+        value={busca}
+        onChange={(e) => setBusca(e.target.value)}
+        placeholder="O que você procura? Ex.: reset, módulos, avisos"
+        aria-label="Buscar na administração"
+        className="h-11"
+      />
+      {grupos.length === 0 && <p className="text-sm text-muted-foreground">Nada encontrado para “{busca}”.</p>}
+      <div className="grid gap-x-6 gap-y-4 sm:grid-cols-2 xl:grid-cols-5">
+        {grupos.map((g) => (
+          <div key={g.id} className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{g.titulo}</p>
+            <ul className="mt-1.5 space-y-0.5">
+              {g.abas.map((a) => {
+                const atual = a.id === ativa;
+                return (
+                  <li key={a.id}>
+                    <button
+                      type="button"
+                      aria-current={atual ? "page" : undefined}
+                      onClick={() => {
+                        onEscolher(a.id);
+                        setBusca("");
+                      }}
+                      className={cn(
+                        "flex min-h-10 w-full items-center justify-between gap-2 rounded-lg px-2.5 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
+                        atual ? "bg-primary/10 font-semibold text-primary" : "hover:bg-muted",
+                      )}
+                    >
+                      <span className="truncate">{a.rotulo}</span>
+                      {a.id === "central" && pendentes > 0 && (
+                        <span className="rounded-full bg-destructive px-1.5 py-0.5 text-xs font-bold text-destructive-foreground">
+                          {pendentes}
+                        </span>
+                      )}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ))}
+      </div>
+    </nav>
+  );
+}
 
 export const Route = createFileRoute("/_authenticated/administracao")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -297,7 +364,7 @@ function Admin() {
   const videoInput = useRef<HTMLInputElement>(null);
   const parceriaImagemInput = useRef<HTMLInputElement>(null);
   const { aba: abaInicial } = Route.useSearch();
-  const [abaAtiva, setAbaAtiva] = useState(abaInicial || "dados-gerais");
+  const [abaAtiva, setAbaAtiva] = useState(abaInicial || "usuarios");
 
   // Server functions
   const layoutsFn = useServerFn(adminListarLayouts);
@@ -863,7 +930,7 @@ function Admin() {
   // (antes a tela de senha piscava e sumia para quem usa "Sem senha").
   if (carregandoProtecao && !consultaDesbloqueada)
     return (
-      <AppLayout title="Administração do site" description="Painel de controle administrativo">
+      <AppLayout title="Administração" description="Busque ou escolha uma seção">
         <Card><CardContent className="p-8 text-center text-muted-foreground">Carregando a administração...</CardContent></Card>
       </AppLayout>
     );
@@ -872,7 +939,7 @@ function Admin() {
 
   if (!consultaDesbloqueada && tipoProtecao !== "nenhuma")
     return (
-      <AppLayout title="Administração do site" description="Painel de controle administrativo">
+      <AppLayout title="Administração" description="Busque ou escolha uma seção">
         <Card>
           <CardContent className="p-6 space-y-4 max-w-sm mx-auto">
             <div className="text-center space-y-1">
@@ -1005,7 +1072,7 @@ function Admin() {
     : logs;
 
   return (
-    <AppLayout title="Administração do site" description="Painel de controle administrativo">
+    <AppLayout title="Administração" description="Busque ou escolha uma seção">
       <div className="mb-6 space-y-3">
         <ModoClienteControle />
         <nav aria-label="Atalhos de administração" className="flex flex-wrap gap-2">
@@ -1018,48 +1085,10 @@ function Admin() {
         {/* Grupos (2026-10-06): as 10 abas foram agrupadas por assunto. Primeiro
             escolhe-se o grupo, depois a aba dentro dele. Os valores das abas e
             seus conteudos nao mudaram (links com ?aba= continuam validos). */}
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5" role="group" aria-label="Grupos da administração">
-          {GRUPOS_ADMIN.map((g) => {
-            const ativo = g.abas.some((a) => a.id === abaAtiva);
-            const pend = g.abas.some((a) => a.id === "central") ? totalPendentes : 0;
-            return (
-              <button
-                key={g.id}
-                type="button"
-                onClick={() => setAbaAtiva(g.abas[0]!.id)}
-                aria-pressed={ativo}
-                className={cn(
-                  "relative rounded-2xl border p-4 text-left transition-colors",
-                  ativo ? "border-primary bg-primary/10" : "hover:bg-muted/50",
-                )}
-              >
-                <p className={cn("text-sm font-semibold", ativo && "text-primary")}>{g.titulo}</p>
-                <p className="text-xs text-muted-foreground">{g.descricao}</p>
-                {pend > 0 && (
-                  <span className="absolute right-2 top-2 rounded-full bg-destructive px-1.5 py-0.5 text-xs font-bold text-destructive-foreground">
-                    {pend}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-        <p className="flex items-center gap-2 text-xs text-muted-foreground">
-          <span className={ADMIN_ONLY_TAG}>Só admin</span>
-          Itens em roxo ainda não foram liberados aos usuários.
-        </p>
-        <TabsList className="flex h-auto flex-wrap gap-1">
-          {(GRUPOS_ADMIN.find((g) => g.abas.some((a) => a.id === abaAtiva)) ?? GRUPOS_ADMIN[0]!).abas.map((a) => (
-            <TabsTrigger key={a.id} value={a.id} className="relative">
-              {a.rotulo}
-              {a.id === "central" && totalPendentes > 0 && (
-                <span className="ml-1 rounded-full bg-destructive px-1.5 py-0.5 text-xs font-bold text-destructive-foreground">
-                  {totalPendentes}
-                </span>
-              )}
-            </TabsTrigger>
-          ))}
-        </TabsList>
+        <IndiceAdmin ativa={abaAtiva} onEscolher={setAbaAtiva} pendentes={totalPendentes} />
+        <h2 className="text-xl font-extrabold tracking-tight">
+          {GRUPOS_ADMIN.flatMap((g) => g.abas).find((x) => x.id === abaAtiva)?.rotulo ?? "Administração"}
+        </h2>
 
         <TabsContent value="desempenho" className="space-y-6">
           <DesempenhoAdmin />

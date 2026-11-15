@@ -80,20 +80,18 @@ export function BoasVindasExemplos({
     <Dialog open onOpenChange={(o) => !o && void fechar(false)}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Bem-vindo ao Control ALL!</DialogTitle>
+          <DialogTitle>Deixamos dados de exemplo na sua conta</DialogTitle>
           <DialogDescription className="text-foreground/90">
-            Para você entender melhor como o site funciona, adicionamos alguns dados fictícios:
-            categorias amplas, três receitas de exemplo (Vale dia 15, Salário dia 30 e uma renda
-            extra), um cartão de exemplo (final 0000) e um investimento de teste. Nada disso é
-            real, e você pode editar ou apagar quando quiser.
+            São receitas, um cartão e um investimento fictícios, só para você ver o site funcionando.
+            Dá para apagar agora ou depois.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="gap-2 sm:gap-2">
           <Button variant="outline" disabled={ocupado} onClick={() => fechar(true)}>
-            Remover exemplos agora
+            Apagar exemplos
           </Button>
           <Button disabled={ocupado} onClick={() => fechar(false)}>
-            Entendi, vou explorar
+            Manter por enquanto
           </Button>
         </DialogFooter>
       </DialogContent>

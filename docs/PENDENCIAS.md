@@ -537,3 +537,5 @@ Jornada interna do site no celular revisada em 15/11 (título repetido, ações 
 Segunda passada da jornada no site (15/11): botões de Despesas quebrando linha, valor primeiro no formulário, Fechar nas janelas, ações rápidas no computador. Falta publicar. App aguarda prints.
 
 Terceira passada da jornada no site (15/11): lançamento sobe de baixo no celular, subtítulo curto em Despesas, botões maiores em ciclo, ordenação e filtros. Falta publicar. Pendente de decisão: tempo de inatividade do site e quantidade de alertas ligados por padrão. App aguarda prints.
+
+Menos é mais (15/11, noite): menu da foto enxuto, Administração com índice e busca, primeiro acesso mais curto no site e no app, Mais do app sem grupo Administração. Código pronto, falta publicar site e app (17.09) e conferir na tela.

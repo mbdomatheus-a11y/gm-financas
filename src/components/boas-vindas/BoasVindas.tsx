@@ -56,26 +56,12 @@ const BANDEIRAS = ["Visa", "Mastercard", "Elo", "American Express", "Hipercard"]
 
 type Etapa = "apresentacao" | "bancos" | "cartao" | "fim";
 
+// 15/11/2026: uma tela só. O cadastro já apresentou o site; repetir quatro telas cansava.
 const APRESENTACAO = [
   {
-    chamada: "Previsão do mês",
+    chamada: "Tudo pronto",
     titulo: "Saiba quanto sobra no fim do mês",
-    texto: "Receitas, contas e faturas juntas numa conta simples: o que entra, o que sai e o que fica.",
-  },
-  {
-    chamada: "Tudo junto",
-    titulo: "Contas e cartões num só lugar",
-    texto: "Saldo das contas, faturas abertas e o melhor dia de compra de cada cartão, sem abrir cinco apps.",
-  },
-  {
-    chamada: "Inteligência artificial",
-    titulo: "A IA lança e explica seus gastos",
-    texto: "Fale ou digite do seu jeito. A IA entende, classifica e mostra para onde o dinheiro está indo.",
-  },
-  {
-    chamada: "Metas de verdade",
-    titulo: "Caixinhas e limites que funcionam",
-    texto: "Guarde para seus objetivos e receba um aviso antes de passar do limite de cada categoria.",
+    texto: "Lance seus gastos (a IA ajuda) e veja na hora o que entra, o que sai e o que fica.",
   },
 ];
 
@@ -140,6 +126,9 @@ export function BoasVindas({
     void dispensar();
     try {
       sessionStorage.setItem(CHAVE_RETENCAO_ADIADO, "1");
+      // Nesta mesma visita, não pedir de novo para revisar os cartões nem abrir o tour logo em seguida.
+      sessionStorage.setItem("controlall.ciclo.revisao-cartoes", "1");
+      sessionStorage.setItem("control-all.boas-vindas-sessao", "1");
     } catch {
       // sem storage
     }

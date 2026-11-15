@@ -119,3 +119,18 @@ Feito no código:
 Não foi possível conferir o modo escuro por dentro: a sessão do site caiu por inatividade no meio da conferência. A tela de login fica clara mesmo com o aparelho em modo escuro.
 Ponto para decisão do Matheus: o site desloga por inatividade em poucos minutos (configurável na Administração). Para quem usa no celular isso pesa na experiência.
 Sem alteração, por decisão: o número de avisos do sino (41) é real; esconder o número não resolve, o caminho é revisar quais alertas nascem ligados.
+
+## Menos é mais: menus, administração e primeiro acesso (15/11, noite)
+Pedido do Matheus: sem menus repetidos, administração fácil de achar, admin com a mesma experiência do usuário comum, menos telas repetidas ao entrar e menos texto no app.
+Site:
+- Menu da foto: ficou só com Minha conta, Configurações, Idioma, Suporte e Sair. Saíram Usuários e privilégios, Backup e Reset e Administração do site (já estão no menu lateral e em Configurações).
+- Configurações: ganhou "Backup e reset" para quem administra o grupo.
+- Administração: as caixas numeradas e a segunda fileira de abas deram lugar a um índice único, com todas as 21 seções à vista em 5 grupos e uma busca que acha também pelo conteúdo (ex.: "reset" leva a Usuários e convites, "inatividade" a Login e acesso). Abre em Usuários e convites. Nomes mais simples (Login e acesso, Solicitações, Registro de ações). Os endereços com ?aba= continuam valendo.
+- Primeiro acesso: apresentação de quatro telas virou uma; o aviso de dados de exemplo deixou de ser um segundo "Bem-vindo"; na mesma visita não pede para revisar os cartões recém-cadastrados nem abre o tour em seguida (o tour fica para a próxima entrada).
+App:
+- Boas-vindas com uma tela de apresentação (igual ao site); "Explorar sozinho" não abre mais o tour em seguida.
+- Tour com frases curtas.
+- Início: o número principal (Vai sobrar) vem antes da pergunta do fechamento, do convite de notificações e da novidade.
+- Mais: o grupo Administração saiu da lista; fica só em Configurações > Administração.
+Não conferido na tela: nada disto foi publicado. TypeScript sem erro nos dois projetos.
+Não feito: revisão visual do app (sem prints); "confirmar de novo" fora do primeiro acesso, se houver, precisa de um exemplo do Matheus.
