@@ -55,7 +55,7 @@ export function PerdasInvisiveis() {
   const mes = v.assinaturas + v.impulso + v.juros;
   return (
     <section id="perdas" className="scroll-mt-20 bg-muted/50">
-      <div className="mx-auto max-w-6xl px-4 py-24 sm:py-32">
+      <div className="mx-auto max-w-6xl px-4 py-16 sm:py-32">
         <CabecalhoSecao
           numero="01"
           rotulo="Perdas invisíveis"
@@ -117,7 +117,7 @@ const PASSOS = [
 
 export function ComoFunciona() {
   return (
-    <section id="como-funciona" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-24 sm:py-32">
+    <section id="como-funciona" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-16 sm:py-32">
       <CabecalhoSecao numero="02" rotulo="Como funciona" titulo="Você faz uma coisa só. A gente cuida do resto." />
       <ol className="grid gap-4 md:grid-cols-3">
         {PASSOS.map(({ icon: Icon, title, description }, i) => (
@@ -161,7 +161,7 @@ const SEGURANCA = [
 export function SegurancaBloco() {
   return (
     <section id="seguranca" className="scroll-mt-20 bg-[#0E1A2B] text-white [&_h2]:text-white [&_p.text-lg]:text-white/70">
-      <div className="mx-auto max-w-6xl px-4 py-24 sm:py-32">
+      <div className="mx-auto max-w-6xl px-4 py-16 sm:py-32">
         <CabecalhoSecao
           numero="03"
           rotulo="Segurança"
@@ -209,7 +209,7 @@ const PERGUNTAS = [
 
 export function FaqBloco() {
   return (
-    <section id="perguntas" className="mx-auto max-w-3xl scroll-mt-20 px-4 py-24 sm:py-32">
+    <section id="perguntas" className="mx-auto max-w-3xl scroll-mt-20 px-4 py-16 sm:py-32">
       <CabecalhoSecao numero="04" rotulo="Perguntas" titulo="Perguntas frequentes" />
       <Accordion type="single" collapsible className="border-t">
         {PERGUNTAS.map(({ title, description }) => (

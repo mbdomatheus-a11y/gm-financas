@@ -31,7 +31,8 @@ Google Play:
 2. Teste fechado com 12 testadores por 14 dias antes de pedir produção (regra do Google para conta pessoal nova). É o item de maior prazo: começar já.
 
 ## Decisões pendentes antes do envio
-- Cadastro: hoje "Criar conta" no app abre o cadastro do site. A Apple costuma aceitar, mas cadastro nativo reduz o risco de recusa.
+- Cadastro: já é nativo no app desde 03/11 (a informação anterior deste documento estava desatualizada). Em 15/11, por decisão do Matheus de nada passar pelo site, "Esqueci minha senha" e a troca do e-mail de acesso também ficaram dentro do app, com código por e-mail. Falta publicar as Edge Functions `recuperar-senha` e `trocar-email` e rodar `docs/sql/2026-11-15-recuperar-senha-por-codigo.sql`.
+- Ainda dependem do site no app: importar .xlsx no De-para, leitura automática de PDF ou imagem em Exames e Pets, link temporário, e a administração (usuários e alertas do sistema).
 - Cobrança: a home mostra plano pago. Se houver assinatura dentro do app, a Apple e o Google exigem compra pelo sistema deles. Se o lançamento for gratuito, tirar do app qualquer menção a preço.
 - Idiomas no app, OCR e "compartilhar como imagem" seguem fora (ver `controlall/docs/GAP-SITE-APP.md`).
 

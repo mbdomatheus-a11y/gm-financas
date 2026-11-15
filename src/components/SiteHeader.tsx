@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { SeletorIdioma } from "@/components/SeletorIdioma";
-import { Link } from "@tanstack/react-router";
+import { Link, useRouterState } from "@tanstack/react-router";
 import { ArrowRight, Calculator, ChevronDown, Link2, Menu, X } from "lucide-react";
 import { BrandMark } from "@/components/BrandMark";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,8 @@ export function SiteHeader({ home = false }: { home?: boolean }) {
   const [aberto, setAberto] = useState(false);
   const [rolou, setRolou] = useState(false);
   const ancora = (id: string) => (home ? `#${id}` : `/#${id}`);
+  // Na própria tela de login o botão Entrar do topo não aparece (15/11/2026).
+  const naTelaDeLogin = useRouterState({ select: (st) => st.location.pathname.startsWith("/entrar") });
 
   useEffect(() => {
     const aoRolar = () => setRolou(window.scrollY > 8);
@@ -123,21 +125,23 @@ export function SiteHeader({ home = false }: { home?: boolean }) {
 
         <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
           <SeletorIdioma />
+          {!naTelaDeLogin && (
           <Button
             asChild
             size="sm"
-            className={`h-8 rounded-full px-4 text-sm font-medium shadow-none transition-colors duration-150 motion-reduce:transition-none sm:h-9 ${foco}`}
+            className={`h-11 rounded-full px-4 text-sm font-medium shadow-none transition-colors duration-150 motion-reduce:transition-none sm:h-9 ${foco}`}
           >
             <Link to="/entrar">
               Entrar <ArrowRight className="size-3.5" aria-hidden="true" />
             </Link>
           </Button>
+          )}
           <Sheet open={aberto} onOpenChange={setAberto}>
             <SheetTrigger asChild>
               <Button
                 variant="ghost"
                 size="icon"
-                className={`size-9 rounded-full text-foreground/80 hover:bg-muted/70 hover:text-foreground lg:hidden ${foco}`}
+                className={`size-11 rounded-full text-foreground/80 hover:bg-muted/70 hover:text-foreground sm:size-9 lg:hidden ${foco}`}
                 aria-label={aberto ? "Fechar menu" : "Abrir menu"}
                 aria-expanded={aberto}
                 aria-controls="menu-celular"

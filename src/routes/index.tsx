@@ -1,4 +1,3 @@
-import { AppEmBreve } from "@/components/AppEmBreve";
 import { CarrosselModulos } from "@/components/landing/CarrosselModulos";
 import { VistaExplodida } from "@/components/landing/VistaExplodida";
 import { VitrineDispositivos } from "@/components/landing/VitrineDispositivos";
@@ -37,7 +36,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
 import { BrandAnimado } from "@/components/ferramentas/BrandAnimado";
 import { BrandMark } from "@/components/BrandMark";
 import { EducacaoFinanceira } from "@/components/EducacaoFinanceira";
-import { IlustracaoCalendario, IlustracaoFamilia, IlustracaoNotas } from "@/components/Ilustracoes";
+import { IlustracaoFamilia } from "@/components/Ilustracoes";
 import { ComoFunciona, FaqBloco, PerdasInvisiveis, SegurancaBloco } from "@/components/home/BlocosHome";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
@@ -492,26 +491,13 @@ function LandingPage() {
 
       <VistaExplodida />
 
-      {/* App no celular: os destaques de beta saíram do topo e vieram para cá */}
-      <section id="app" className="scroll-mt-20 bg-[#0E1A2B] text-white native:hidden">
-        <div className="mx-auto max-w-5xl px-5 py-20 text-center sm:py-28">
-          <h2 className="text-balance text-4xl font-extrabold leading-[1.04] tracking-[-0.035em] sm:text-6xl">
-            No iPhone, no Android e no computador.
-          </h2>
-          <p className="mx-auto mt-5 max-w-xl text-lg text-white/70">Uma conta, os mesmos dados em todo lugar. O app está em teste aberto.</p>
-          <div className="mx-auto mt-10 max-w-4xl text-left text-foreground">
-            <DestaquesBeta />
-          </div>
-        </div>
-      </section>
-
-      <ParceriaBloco />
-
-      <PerdasInvisiveis />
+      {/* Ordem da home (15/11/2026): como funciona, recursos, módulos, app, demonstração, perdas,
+          segurança, preço, educação e perguntas. As faixas de Notas e Calendário saíram (já estão em
+          Recursos e Módulos) e o bloco do app no fim também (repetia a faixa do app). */}
       <ComoFunciona />
 
       {/* Recursos: grade de blocos (bento), sem bordas */}
-      <section id="recursos" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-24 sm:py-32">
+      <section id="recursos" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-16 sm:py-32">
         <h2 className="mx-auto max-w-3xl text-balance text-center text-4xl font-extrabold leading-[1.02] tracking-[-0.04em] sm:text-6xl lg:text-7xl">
           Organização que acompanha a vida real.
         </h2>
@@ -520,7 +506,7 @@ function LandingPage() {
             <article
               key={titulo}
               className={cn(
-                "group flex flex-col rounded-[2rem] bg-muted/70 p-8 transition-transform duration-300 hover:-translate-y-1",
+                "group flex flex-col rounded-[2rem] bg-muted/70 p-6 transition-transform sm:p-8 duration-300 hover:-translate-y-1",
                 i === 0 && "sm:col-span-2 lg:row-span-2 lg:justify-end lg:p-10",
               )}
             >
@@ -536,7 +522,7 @@ function LandingPage() {
 
       {/* Módulos: carrossel 3D de vidro */}
       <section id="modulos" className="scroll-mt-20 overflow-hidden bg-muted/50">
-        <div className="mx-auto max-w-6xl px-4 py-24 sm:py-32">
+        <div className="mx-auto max-w-6xl px-4 py-16 sm:py-32">
           <div className="mx-auto mb-10 max-w-3xl text-center">
             <h2 className="text-balance text-4xl font-extrabold leading-[1.02] tracking-[-0.04em] sm:text-6xl lg:text-7xl">
               Use só o que fizer sentido para a sua casa.
@@ -549,41 +535,20 @@ function LandingPage() {
         </div>
       </section>
 
-      {/* Notas e garantias: faixa inteira */}
-      <section className="overflow-hidden">
-        <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 py-24 sm:py-32 md:grid-cols-2">
-          <div>
-            <p className="text-lg font-semibold text-primary">Notas fiscais e garantias</p>
-            <h2 className="mt-3 text-balance text-4xl font-extrabold leading-[1.02] tracking-[-0.04em] sm:text-6xl">
-              Notas e garantias, sem papel perdido.
-            </h2>
-            <p className="mt-6 max-w-md text-lg leading-relaxed text-muted-foreground">
-              Cadastre a nota, informe o prazo e deixe o Control ALL avisar quando a garantia estiver perto do fim. Tudo aparece também no calendário.
-            </p>
-          </div>
-          <div className="rounded-[2.5rem] bg-muted/70 p-8 sm:p-12">
-            <IlustracaoNotas className="mx-auto w-full max-w-sm" />
+      {/* App no celular: os destaques de beta saíram do topo e vieram para cá */}
+      <section id="app" className="scroll-mt-20 bg-[#0E1A2B] text-white native:hidden">
+        <div className="mx-auto max-w-5xl px-5 py-20 text-center sm:py-28">
+          <h2 className="text-balance text-4xl font-extrabold leading-[1.04] tracking-[-0.035em] sm:text-6xl">
+            No iPhone, no Android e no computador.
+          </h2>
+          <p className="mx-auto mt-5 max-w-xl text-lg text-white/70">Uma conta, os mesmos dados em todo lugar. O app está em teste aberto.</p>
+          <div className="mx-auto mt-10 max-w-4xl text-left text-foreground">
+            <DestaquesBeta />
           </div>
         </div>
       </section>
 
-      {/* Calendário: faixa escura */}
-      <section className="bg-[#0E1A2B] text-white">
-        <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 py-24 sm:py-32 md:grid-cols-2">
-          <div className="order-2 rounded-[2.5rem] bg-white p-8 sm:p-12 md:order-1">
-            <IlustracaoCalendario className="mx-auto w-full max-w-sm" />
-          </div>
-          <div className="order-1 md:order-2">
-            <p className="text-lg font-semibold text-[#7DB6E8]">Calendário</p>
-            <h2 className="mt-3 text-balance text-4xl font-extrabold leading-[1.02] tracking-[-0.04em] sm:text-6xl">
-              O que vem por aí, mês a mês.
-            </h2>
-            <p className="mt-6 max-w-md text-lg leading-relaxed text-white/70">
-              Faturas com o total, notas lançadas, fim de garantia e itens aprovados da lista de compras, num só calendário.
-            </p>
-          </div>
-        </div>
-      </section>
+      <ParceriaBloco />
 
       {/* Demonstração (só aparece quando há vídeo publicado) */}
       {videoUrl && (
@@ -596,25 +561,9 @@ function LandingPage() {
       </section>
       )}
 
-      {/* Educação financeira */}
-      <section id="educacao-financeira" className="scroll-mt-20 bg-muted/50">
-        <div className="mx-auto max-w-5xl px-4 py-24 sm:py-32">
-          <div className="mx-auto mb-14 max-w-3xl text-center">
-            <IlustracaoFamilia className="mx-auto mb-10 w-full max-w-sm" />
-            <h2 className="text-balance text-4xl font-extrabold leading-[1.02] tracking-[-0.04em] sm:text-6xl">
-              Educação financeira para todas as idades.
-            </h2>
-            <p className="mx-auto mt-5 max-w-xl text-lg leading-relaxed text-muted-foreground">
-              Crianças, jovens, adultos e idosos podem aprender e usar juntos. Veja dicas práticas para cada fase da vida.
-            </p>
-          </div>
-          <EducacaoFinanceira />
-        </div>
-      </section>
+      <PerdasInvisiveis />
 
-      {/* Preços */}
       <SegurancaBloco />
-      <FaqBloco />
 
       <section id="precos" className="scroll-mt-20">
         <div className="mx-auto max-w-4xl px-4 py-28 text-center sm:py-40">
@@ -644,9 +593,24 @@ function LandingPage() {
         </div>
       </section>
 
-      <div className="mx-auto max-w-6xl px-6 pb-8">
-        <AppEmBreve />
-      </div>
+      {/* Educação financeira */}
+      <section id="educacao-financeira" className="scroll-mt-20 bg-muted/50">
+        <div className="mx-auto max-w-5xl px-4 py-16 sm:py-32">
+          <div className="mx-auto mb-14 max-w-3xl text-center">
+            <IlustracaoFamilia className="mx-auto mb-10 w-full max-w-sm" />
+            <h2 className="text-balance text-4xl font-extrabold leading-[1.02] tracking-[-0.04em] sm:text-6xl">
+              Educação financeira para todas as idades.
+            </h2>
+            <p className="mx-auto mt-5 max-w-xl text-lg leading-relaxed text-muted-foreground">
+              Crianças, jovens, adultos e idosos podem aprender e usar juntos. Veja dicas práticas para cada fase da vida.
+            </p>
+          </div>
+          <EducacaoFinanceira />
+        </div>
+      </section>
+
+      <FaqBloco />
+
       <BarraCadastroCelular />
       <SiteFooter />
     </main>

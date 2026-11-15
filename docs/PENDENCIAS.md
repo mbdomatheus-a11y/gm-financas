@@ -527,3 +527,7 @@ Bloco 6 (reset de conta de teste) com código pronto em 14/11: falta o Matheus r
 Bloco 5 (Minha jornada, gamificação leve e opcional) com código pronto em 15/11 no site e no app: falta rodar `docs/sql/2026-11-15-minha-jornada.sql`, publicar e validar na tela. O visual (blocos 2 a 4) ficou como última tarefa, a pedido do Matheus.
 
 Bloco 7 (lojas) em 15/11: checklist em `docs/LOJAS-CHECKLIST-2026-11.md`; 12 botões só com ícone ganharam rótulo para leitor de tela (6 no app, 6 no site); SQL do item 7 da auditoria pronto em `docs/sql/2026-11-15-auditoria-item-7.sql` (falta rodar). Minha jornada publicada.
+
+App sem passar pelo site (decisão de 15/11): Esqueci minha senha e troca de e-mail por código dentro do app. Código pronto; falta rodar `docs/sql/2026-11-15-recuperar-senha-por-codigo.sql`, publicar as Edge Functions `recuperar-senha` (sem verify_jwt) e `trocar-email` (com verify_jwt) e o update do app.
+
+Jornada pública do site revisada em 15/11 (home reordenada e mais curta, alvos de toque, cookies, botão Entrar no login): ver `docs/REVISAO-FINAL-2026-11.md`. Falta publicar e conferir no celular. Telas internas ainda sem revisão visual.

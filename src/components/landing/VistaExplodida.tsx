@@ -15,7 +15,7 @@ const LEGENDAS = [
 export function VistaExplodida() {
   return (
     <section aria-labelledby="por-dentro" className="overflow-hidden bg-muted/50">
-      <div className="mx-auto max-w-6xl px-4 py-24 sm:py-32">
+      <div className="mx-auto max-w-6xl px-4 py-16 sm:py-32">
         <div className="mx-auto max-w-3xl text-center">
           <p className="text-lg font-semibold text-primary">Por dentro da Previsão</p>
           <h2 id="por-dentro" className="mt-3 text-balance text-4xl font-extrabold leading-[1.02] tracking-[-0.04em] sm:text-6xl">

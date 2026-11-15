@@ -4,7 +4,8 @@ import { abrirPreferenciasCookies } from "@/components/AvisoPrivacidade";
 
 /** Rodapé público (24/10/2026): colunas no computador, empilhado no celular. */
 export function SiteFooter() {
-  const classe = "text-sm text-muted-foreground transition-colors hover:text-foreground";
+  // Alvo de toque de 44 px no celular (15/11/2026); no computador segue compacto.
+  const classe = "flex min-h-11 items-center text-sm text-muted-foreground transition-colors hover:text-foreground sm:min-h-0";
   return (
     <footer className="border-t bg-muted/30">
       <div className="mx-auto grid max-w-6xl gap-10 px-4 pb-28 pt-12 sm:grid-cols-2 sm:pb-12 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
@@ -21,7 +22,7 @@ export function SiteFooter() {
         </div>
         <div className="space-y-3">
           <p className="text-xs font-semibold uppercase tracking-wider text-foreground">Produto</p>
-          <nav className="grid gap-2" aria-label="Produto">
+          <nav className="grid gap-0 sm:gap-2" aria-label="Produto">
             <a href="/#recursos" className={classe}>Recursos</a>
             <a href="/#modulos" className={classe}>Módulos</a>
             <a href="/#precos" className={classe}>Preços</a>
@@ -30,14 +31,14 @@ export function SiteFooter() {
         </div>
         <div className="space-y-3">
           <p className="text-xs font-semibold uppercase tracking-wider text-foreground">Ferramentas grátis</p>
-          <nav className="grid gap-2" aria-label="Ferramentas">
+          <nav className="grid gap-0 sm:gap-2" aria-label="Ferramentas">
             <Link to="/calculadoras" className={classe}>Calculadoras</Link>
             <Link to="/links-temporarios" className={classe}>Link temporário</Link>
           </nav>
         </div>
         <div className="space-y-3">
           <p className="text-xs font-semibold uppercase tracking-wider text-foreground">Privacidade</p>
-          <nav className="grid gap-2" aria-label="Documentos">
+          <nav className="grid gap-0 sm:gap-2" aria-label="Documentos">
             <Link to="/termos-de-uso" className={classe}>Termos de Uso</Link>
             <Link to="/privacidade" className={classe}>Política de Privacidade</Link>
             <Link to="/cookies" className={classe}>Política de Cookies</Link>

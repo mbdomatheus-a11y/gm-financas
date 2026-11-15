@@ -105,10 +105,9 @@ export function AvisoPrivacidade() {
               </>
             ) : (
               <>
-                Usamos <Link to="/cookies" className="underline">cookies</Link> essenciais para você entrar e guardar
-                preferências e, se você permitir, métricas de acesso para melhorar o site. Não usamos cookies de
-                publicidade. Ao continuar, você concorda com a nossa{" "}
-                <Link to="/privacidade" className="underline">Política de Privacidade</Link>. Se preferir,{" "}
+                Usamos <Link to="/cookies" className="underline">cookies</Link> essenciais para você entrar e, se
+                permitir, métricas de acesso. Sem publicidade. Veja a{" "}
+                <Link to="/privacidade" className="underline">Política de Privacidade</Link> ou{" "}
                 <button type="button" className="underline" onClick={() => { setMetricas(metricasPermitidas()); setPainel(true); }}>
                   escolha quais cookies permite
                 </button>

@@ -79,3 +79,14 @@ Olhei a home pública e o login no celular (produção). A identidade atual já 
 - SQL: supabase/migrations/20261115090000_minha_jornada.sql (cópia em docs/sql/2026-11-15-minha-jornada.sql). Sem o SQL, nada aparece e nada quebra.
 - Conferido: cálculo testado com dados simulados, consulta do banco testada em leitura, TypeScript sem erro nos dois lados, navegação igual. Não conferido na tela.
 - Conta de teste resetada: a jornada zera sozinha, porque é calculada dos dados.
+
+## Jornada do usuário, parte pública do site (15/11)
+Medido no celular (375 px) em produção: a home tinha 16.126 px de altura (cerca de 20 telas), 17 faixas, e 17 links ou botões com menos de 40 px de altura.
+Feito no código:
+- Home reordenada para o caminho de decisão: topo, Por dentro da Previsão, Como funciona, Recursos, Módulos, App, Parceria, Demonstração, Perdas invisíveis, Segurança, Preço, Educação financeira, Perguntas.
+- Saíram as faixas de Notas e de Calendário (repetiam Recursos e Módulos) e o bloco do app no fim (repetia a faixa do app). Estimativa: 2.000 px a menos no celular.
+- Espaço entre faixas no celular caiu de 96 para 64 px (computador igual).
+- Alvos de toque no celular: Entrar e menu do topo com 44 px; links do rodapé com 44 px.
+- Na tela de login, o botão Entrar do topo não aparece mais.
+- Aviso de cookies com texto mais curto (cobria cerca de um terço da tela de login no celular). Os links de Privacidade, Cookies e a escolha de cookies continuam.
+Não conferido na tela: só depois de publicado. Telas internas (Início, lançar, menus) não foram vistas: o navegador do Claude não está logado no site.
