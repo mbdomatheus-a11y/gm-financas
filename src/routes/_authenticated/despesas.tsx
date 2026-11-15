@@ -1,3 +1,4 @@
+import { vencimentoDaCompra } from "@/lib/numeros-ciclo";
 import { createFileRoute } from "@tanstack/react-router";
 import { guardarMesSite } from "@/lib/mes-escolhido";
 import { usePreferencias } from "@/hooks/usePreferencias";
@@ -144,6 +145,7 @@ export const Route = createFileRoute("/_authenticated/despesas")({
     busca?: string;
     filtro?: "parcelas" | "aberto";
     tipo?: "fixa" | "variavel";
+    editar?: string;
   } => ({
     ...(s["novo"] === true || s["novo"] === "true" || s["novo"] === 1 ? { novo: true } : {}),
     ...(typeof s["cartao"] === "string" && s["cartao"] ? { cartao: s["cartao"] } : {}),
@@ -156,6 +158,8 @@ export const Route = createFileRoute("/_authenticated/despesas")({
     ...(s["economia"] === true ? { economia: true } : {}),
     // "Quero cancelar" em /para-onde-vai abre esta tela já filtrando o gasto.
     ...(typeof s["busca"] === "string" && s["busca"] ? { busca: s["busca"] } : {}),
+    // 15/11/2026: a tela Lançamentos abre a edição direto.
+    ...(typeof s["editar"] === "string" && s["editar"] ? { editar: s["editar"] } : {}),
   }),
   head: () => ({
     meta: [
@@ -437,12 +441,13 @@ function DespesasPage() {
   useEffect(() => {
     if (!search.novo) return;
     setEditId(null);
-    setForm(novoForm(tab === "fixa" ? "fixa" : "variavel"));
+    // 15/11/2026: o "Novo lançamento" escolhe Gasto (variavel) ou Conta fixa (fixa) e abre o formulário certo.
+    setForm(novoForm(search.tipo ?? (tab === "fixa" ? "fixa" : "variavel")));
     setTagsForm([]);
     setOpen(true);
     void navigate({
       search: (p: Record<string, unknown>) => {
-        const { novo: _n, ...resto } = p;
+        const { novo: _n, tipo: _t, ...resto } = p;
         return resto as never;
       },
       replace: true,
@@ -457,6 +462,18 @@ function DespesasPage() {
     setTagsForm([]);
     setOpen(true);
   }
+
+  // 15/11/2026: ?editar=<id> vindo da tela Lançamentos abre a edição uma vez.
+  const editarAbertoRef = useRef<string | null>(null);
+  useEffect(() => {
+    const alvo = ((search as any).editar ?? null) as string | null;
+    if (!alvo || editarAbertoRef.current === alvo) return;
+    const item = (despesas as any[]).find((x) => x.id === alvo);
+    if (!item) return;
+    editarAbertoRef.current = alvo;
+    abrirEdicao(item);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, despesas]);
 
   function abrirEdicao(d: any) {
     if (!can("despesas", "editar")) return;
@@ -2593,6 +2610,7 @@ function DespesasPage() {
                 </SelectContent>
               </Select>
             </Field>
+            <FrasePagamento pagamento={form.pagamento} dataCompra={form.data_compra} cartoes={cartoes as any[]} />
             {!ehFixa && (
               <Field label="Número de parcelas *">
                 <Input
@@ -2866,4 +2884,24 @@ function DespesasPage() {
       />
     </AppLayout>
   );
+}
+
+/**
+ * Novo lançamento (15/11/2026): diz quando o dinheiro sai. Cartão: "Não sai do saldo agora: entra na fatura
+ * que vence em 15/12". Conta ou banco: "Sai do saldo nesta data". Igual ao app (nova-despesa).
+ */
+function FrasePagamento({ pagamento, dataCompra, cartoes }: { pagamento: string; dataCompra: string; cartoes: any[] }) {
+  const [tipoPg, idPg] = String(pagamento ?? "").split(":");
+  if (!tipoPg) return null;
+  if (tipoPg === "cartao") {
+    const c = cartoes.find((x) => x.id === idPg);
+    const venc = c ? vencimentoDaCompra(String(dataCompra ?? ""), c.dia_fechamento, c.vencimento_revisado ?? c.dia_vencimento) : null;
+    if (!venc) return null;
+    return (
+      <p className="-mt-2 text-xs text-muted-foreground">
+        Não sai do saldo agora: entra na fatura que vence em <strong className="text-foreground">{venc.split("-").reverse().join("/")}</strong>.
+      </p>
+    );
+  }
+  return <p className="-mt-2 text-xs text-muted-foreground">Sai do saldo na data da compra.</p>;
 }

@@ -303,7 +303,7 @@ export type NumerosCiclo = {
   /** Quanto falta para fechar o ciclo no zero (previsto negativo, em positivo). 0 se o previsto é >= 0. */
   faltaParaFechar: number;
   /** Saldo acumulado dia a dia (sem caixinhas): real até hoje, previsto depois. dia = posição (1..N). */
-  serie: { dia: number; rotulo: number; iso: string; saldo: number; projetado: boolean }[];
+  serie: { dia: number; rotulo: number; iso: string; saldo: number; projetado: boolean; entrou: number; saiu: number }[];
   /** Resultado final do ciclo (receitas − despesas do ciclo, sem tirar caixinhas). Vale como economia quando encerrado. */
   resultado: number;
 };
@@ -631,7 +631,10 @@ function calcularComBase(
       if (d === diaHoje + 1) acc += pendenteAtrasado;
       acc += entPrev[d] - saiPrev[d];
     }
-    serie.push({ dia: d, rotulo: Number(datas[d - 1]!.slice(8, 10)), iso: datas[d - 1]!, saldo: r2(acc), projetado });
+    // 15/11/2026: entrada e saída do dia, para o extrato por dia (real até hoje, previsto depois).
+    const entrou = r2(projetado ? entPrev[d] : entReal[d]);
+    const saiu = r2(projetado ? saiPrev[d] : saiReal[d]);
+    serie.push({ dia: d, rotulo: Number(datas[d - 1]!.slice(8, 10)), iso: datas[d - 1]!, saldo: r2(acc), projetado, entrou, saiu });
   }
   const diasRestantes = encerrado ? 0 : diaHoje === 0 ? dias : dias - diaHoje + 1;
   const diasAteFim = encerrado ? 0 : Math.max(0, diasEntre(futuro ? jan.inicio : hojeIso, jan.fim));
@@ -860,4 +863,23 @@ export function serieRealPrevisto(
   const cedo = futuro || (!encerrado && diaHoje <= 3);
   const { acerto, cor } = cedo ? { acerto: null, cor: null } : acertoRealPrevisto(realHoje, previstoHoje);
   return { pontos, acerto, cor, cedo, diaHoje, realHoje, previstoHoje };
+}
+
+/**
+ * Vencimento da fatura em que cai uma compra no cartão (15/11/2026). A compra feita até o dia anterior ao
+ * fechamento entra na fatura que vence logo depois; no dia do fechamento ou depois, vai para a seguinte.
+ * Usado na frase "Não sai do saldo agora: entra na fatura que vence em DD/MM" do Novo lançamento.
+ */
+export function vencimentoDaCompra(dataCompra: string, diaFechamento: number | null | undefined, diaVencimento: number | null | undefined): string | null {
+  if (!diaVencimento || !/^\d{4}-\d{2}-\d{2}$/.test(dataCompra)) return null;
+  const [a = 1970, m = 1] = dataCompra.split("-").map(Number);
+  for (let i = 0; i < 4; i++) {
+    const ano = a + Math.floor((m - 1 + i) / 12);
+    const mes0 = (m - 1 + i) % 12;
+    const dia = Math.min(diaVencimento, new Date(ano, mes0 + 1, 0).getDate());
+    const venc = `${ano}-${pad2(mes0 + 1)}-${pad2(dia)}`;
+    if (venc < dataCompra) continue;
+    if (dataCompra < fechamentoDaFatura(venc, diaFechamento)) return venc;
+  }
+  return null;
 }

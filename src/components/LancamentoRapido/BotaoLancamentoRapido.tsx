@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { Plus, Sparkles, TrendingDown, TrendingUp } from "lucide-react";
+import { Plus, Sparkles, TrendingDown, TrendingUp, Repeat, PiggyBank } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -37,9 +37,10 @@ export function BotaoLancamentoRapido({ flutuante = true }: { flutuante?: boolea
   const podeReceita = can("receitas", "editar");
   if (!podeDespesa && !podeReceita) return null;
 
-  function ir(destino: "/despesas" | "/receitas") {
+  function ir(destino: "/despesas" | "/receitas" | "/caixinhas", tipo?: "fixa" | "variavel") {
     setEscolha(false);
-    void navigate({ to: destino, search: { novo: true } as never });
+    if (destino === "/caixinhas") void navigate({ to: destino });
+    else void navigate({ to: destino, search: (tipo ? { novo: true, tipo } : { novo: true }) as never });
   }
 
   return (
@@ -61,20 +62,11 @@ export function BotaoLancamentoRapido({ flutuante = true }: { flutuante?: boolea
         {/* 15/11/2026: no celular a escolha sobe de baixo, perto do polegar; no computador segue no meio. */}
         <DialogContent className="max-w-sm max-sm:bottom-0 max-sm:top-auto max-sm:max-w-none max-sm:translate-y-0 max-sm:rounded-t-3xl max-sm:border-x-0 max-sm:border-b-0 max-sm:pb-[calc(1.5rem+env(safe-area-inset-bottom))] max-sm:data-[state=open]:slide-in-from-bottom max-sm:data-[state=closed]:slide-out-to-bottom max-sm:data-[state=open]:zoom-in-100 max-sm:data-[state=closed]:zoom-out-100">
           <DialogHeader>
-            <DialogTitle>O que você quer lançar?</DialogTitle>
-            <DialogDescription>Escolha uma opção. Você confere tudo antes de salvar.</DialogDescription>
+            <DialogTitle>Novo lançamento</DialogTitle>
+            <DialogDescription>Fale ou escreva para a IA, ou escolha o tipo.</DialogDescription>
           </DialogHeader>
+          {/* 15/11/2026: IA primeiro e quatro tipos lado a lado (Entrada, Gasto, Conta fixa, Guardar). */}
           <div className="grid gap-2">
-            {podeDespesa && (
-              <Button variant="outline" className="h-14 justify-start gap-3 text-base" onClick={() => ir("/despesas")}>
-                <TrendingDown className="size-5 text-rose-600" /> Despesa
-              </Button>
-            )}
-            {podeReceita && (
-              <Button variant="outline" className="h-14 justify-start gap-3 text-base" onClick={() => ir("/receitas")}>
-                <TrendingUp className="size-5 text-emerald-600" /> Receita
-              </Button>
-            )}
             <Button
               className="h-14 justify-start gap-3 text-base"
               onClick={() => {
@@ -82,8 +74,28 @@ export function BotaoLancamentoRapido({ flutuante = true }: { flutuante?: boolea
                 setIa(true);
               }}
             >
-              <Sparkles className="size-5" /> Lançar com IA (texto ou voz)
+              <Sparkles className="size-5" /> Falar ou escrever com a IA
             </Button>
+            <div className="grid grid-cols-2 gap-2">
+              {podeReceita && (
+                <Button variant="outline" className="h-16 flex-col gap-1 text-sm font-semibold" onClick={() => ir("/receitas")}>
+                  <TrendingUp className="size-5 text-emerald-600" /> Entrada
+                </Button>
+              )}
+              {podeDespesa && (
+                <Button variant="outline" className="h-16 flex-col gap-1 text-sm font-semibold" onClick={() => ir("/despesas", "variavel")}>
+                  <TrendingDown className="size-5 text-rose-600" /> Gasto
+                </Button>
+              )}
+              {podeDespesa && (
+                <Button variant="outline" className="h-16 flex-col gap-1 text-sm font-semibold" onClick={() => ir("/despesas", "fixa")}>
+                  <Repeat className="size-5 text-sky-600" /> Conta fixa
+                </Button>
+              )}
+              <Button variant="outline" className="h-16 flex-col gap-1 text-sm font-semibold" onClick={() => ir("/caixinhas")}>
+                <PiggyBank className="size-5 text-amber-600" /> Guardar
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

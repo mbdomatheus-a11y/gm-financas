@@ -95,3 +95,12 @@ export const adminReenviarTour = createServerFn({ method: "POST" })
     });
     return { ok: true as const };
   });
+
+/** 15/11/2026: Ajuda > "Ver o tour de novo". Apaga só a marca da própria pessoa. */
+export const reverMeuTour = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    await (supabaseAdmin as any).from("tour_concluido").delete().eq("user_id", context.userId);
+    return { ok: true as const };
+  });

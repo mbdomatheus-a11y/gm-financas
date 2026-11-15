@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { guardarMesSite, mesEscolhidoSite } from "@/lib/mes-escolhido";
 import { CampoCategoria } from "@/components/CampoCategoria";
 import { SelectBusca } from "@/components/SelectBusca";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { useValorAdiado } from "@/hooks/useValorAdiado";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -87,8 +87,10 @@ import { nomeDoCiclo, rotuloDoCiclo } from "@/lib/rotulo-ciclo";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/receitas")({
-  validateSearch: (s: Record<string, unknown>): { novo?: boolean } => ({
+  validateSearch: (s: Record<string, unknown>): { novo?: boolean; editar?: string } => ({
     ...(s["novo"] === true || s["novo"] === "true" || s["novo"] === 1 ? { novo: true } : {}),
+    // 15/11/2026: a tela Lançamentos abre a edição direto.
+    ...(typeof s["editar"] === "string" && s["editar"] ? { editar: s["editar"] } : {}),
   }),
   head: () => ({
     meta: [
@@ -380,6 +382,18 @@ function ReceitasPage() {
     setTagsForm([]);
     setOpen(true);
   }
+
+  // 15/11/2026: ?editar=<id> vindo da tela Lançamentos abre a edição uma vez.
+  const editarAbertoRef = useRef<string | null>(null);
+  useEffect(() => {
+    const alvo = ((searchRec as any).editar ?? null) as string | null;
+    if (!alvo || editarAbertoRef.current === alvo) return;
+    const item = (receitas as any[]).find((x) => x.id === alvo);
+    if (!item) return;
+    editarAbertoRef.current = alvo;
+    abrirEdicao(item);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchRec, receitas]);
 
   function abrirEdicao(r: any) {
     if (!can("receitas", "editar")) return;

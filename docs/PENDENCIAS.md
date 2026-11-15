@@ -546,3 +546,7 @@ Menos é mais (15/11, noite): menu da foto enxuto, Administração com índice e
 - Publicar funções: cadastro-app, lancamento-ia, login-seguro, recuperar-senha.
 - Publicar o site antes do app (api/entrar-app e api/atalho), depois a atualização 17.10 do app.
 - Testar login com Google no iPhone de novo (5.5) e o atalho do iPhone com o token.
+
+## Proposta Meu Extrato (15/11/2026)
+Plano no projeto Claude: claude/plano-referencia-meuextrato-2026-11-15.md. 7 itens: tour com destaque, novo lançamento enxuto, mapa de gastos em anéis, extrato do ciclo por dia, saúde financeira 0 a 100 ligada à jornada, tela única de lançamentos, site centralizado em tela grande. Aguarda 3 decisões do Matheus (menu, pilares, anéis).
+- 15/11 (noite): proposta Meu Extrato feita em código. Falta: rodar docs/sql/2026-11-15-saude-financeira.sql, publicar site e atualização do app, conferir na tela.

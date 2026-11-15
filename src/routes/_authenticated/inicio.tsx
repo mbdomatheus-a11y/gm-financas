@@ -16,6 +16,7 @@ import { CicloInicio } from "@/components/ciclo/CicloInicio";
 import { JornadaInicioCard } from "@/components/JornadaInicioCard";
 import { CompartilharResumoGeral } from "@/components/CompartilharModulos";
 import { SimuladorRendimento } from "@/components/SimuladorRendimento";
+import { SaudeFinanceiraCard } from "@/components/SaudeFinanceiraCard";
 
 // Componentes com gráficos (recharts) carregam sob demanda para aliviar o JS inicial.
 const ResumoPrevisaoHome = lazy(() =>
@@ -72,30 +73,33 @@ function InicioPage() {
             </span>
           </Link>
         )}
-        <AcoesRapidas />
-        <PrimeirosPassosCard />
-        <PerguntaFechamento />
-        <CicloInicio />
-        {/* Duas colunas no computador: previsão em destaque e, ao lado, assistente, contas e limites */}
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)] xl:items-start">
-          <div className="space-y-6">
-            <Suspense fallback={<CartaoCarregando />}>
-              <ResumoPrevisaoHome className="overflow-hidden" />
-            </Suspense>
+        {/* 15/11/2026: tela grande em duas colunas, como a home pública: principal à esquerda e resumos à direita. */}
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] xl:items-start">
+          <div className="min-w-0 space-y-6">
+            <div data-tour="inicio-lancar"><AcoesRapidas /></div>
+            <PrimeirosPassosCard />
+            <PerguntaFechamento />
+            <CicloInicio />
+            <div data-tour="inicio-sobra">
+              <Suspense fallback={<CartaoCarregando />}>
+                <ResumoPrevisaoHome className="overflow-hidden" />
+              </Suspense>
+            </div>
             <SimuladorRendimento />
+            <SugestoesEconomia className="overflow-hidden" />
+            <Suspense fallback={<CartaoCarregando />}>
+              <VisaoGeralHome parte="inicio" />
+            </Suspense>
           </div>
-          <div className="space-y-6 xl:sticky xl:top-24">
-            <AssistenteHome />
-            <MinhasContasCard />
+          <div className="min-w-0 space-y-6 xl:sticky xl:top-24">
+            <div data-tour="inicio-saude"><SaudeFinanceiraCard /></div>
+            <div data-tour="inicio-ia"><AssistenteHome /></div>
+            <div data-tour="inicio-cartoes"><MinhasContasCard /></div>
             <LimitesResumoCard />
+            <JornadaInicioCard />
+            <TempoInicioCard />
           </div>
         </div>
-        <SugestoesEconomia className="overflow-hidden" />
-        <TempoInicioCard />
-        <JornadaInicioCard />
-        <Suspense fallback={<CartaoCarregando />}>
-          <VisaoGeralHome parte="inicio" />
-        </Suspense>
       </div>
     </AppLayout>
   );

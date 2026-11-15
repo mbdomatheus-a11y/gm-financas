@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { filtrarFaq } from "@/lib/ajuda-faq";
+import { useServerFn } from "@tanstack/react-start";
+import { reverMeuTour } from "@/lib/tour.functions";
 
 export const Route = createFileRoute("/_authenticated/ajuda")({
   head: () => ({
@@ -24,6 +26,16 @@ function AjudaPage() {
   const buscando = busca.trim().length > 0;
   const total = temas.reduce((n, t) => n + t.perguntas.length, 0);
 
+  const reverTourFn = useServerFn(reverMeuTour);
+  async function verTourDeNovo() {
+    try {
+      await reverTourFn();
+      sessionStorage.removeItem("control-all.boas-vindas-sessao");
+    } catch {
+      // segue para o Início mesmo assim
+    }
+    window.location.href = "/inicio";
+  }
   return (
     <AppLayout title="Ajuda" description="Respostas rápidas sobre o Control ALL">
       <div className="mx-auto max-w-2xl">
@@ -87,6 +99,11 @@ function AjudaPage() {
             <Link to="/suporte">Falar com o suporte</Link>
           </Button>
         </Card>
+        <div className="mt-4 text-center">
+          <Button variant="ghost" className="rounded-full" onClick={() => void verTourDeNovo()}>
+            Ver o tour do Início de novo
+          </Button>
+        </div>
       </div>
     </AppLayout>
   );

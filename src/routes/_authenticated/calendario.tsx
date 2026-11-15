@@ -1,3 +1,4 @@
+import { ExtratoPorDia } from "@/components/ExtratoPorDia";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { guardarMesSite, mesEscolhidoSite } from "@/lib/mes-escolhido";
 import { useEffect, useMemo, useState } from "react";
@@ -110,7 +111,7 @@ function CalendarioPage() {
     "lista",
   ]);
   const [editando, setEditando] = useState<Evento | null>(null);
-  const [visao, setVisao] = useState<"mes" | "ano">("mes");
+  const [visao, setVisao] = useState<"mes" | "ano" | "dia">("mes");
 
   const { data: despesas = [] } = useDespesas();
   const { data: faturasMes = [] } = useFaturasMes();
@@ -241,7 +242,7 @@ function CalendarioPage() {
       description="Faturas, notas fiscais, garantias e lista de compras em um só lugar"
     >
       <div className="mb-4 inline-flex rounded-full bg-muted p-1" role="group" aria-label="Tipo de visão">
-        {(["mes", "ano"] as const).map((v) => (
+        {(["mes", "dia", "ano"] as const).map((v) => (
           <button
             key={v}
             type="button"
@@ -252,10 +253,12 @@ function CalendarioPage() {
               visao === v ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
             )}
           >
-            {v === "mes" ? "Mês" : "Ano (12 meses)"}
+            {v === "mes" ? "Mês" : v === "dia" ? "Por dia" : "Ano (12 meses)"}
           </button>
         ))}
       </div>
+
+      {visao === "dia" && <ExtratoPorDia />}
 
       {/* Agenda do iPhone (só no app): depois de vinculada, sincroniza sozinha. */}
       {vinculada ? (
@@ -289,7 +292,7 @@ function CalendarioPage() {
         </div>
       )}
 
-      <div className={cn("mb-4 flex flex-wrap items-center gap-3", visao === "ano" && "hidden")}>
+      <div className={cn("mb-4 flex flex-wrap items-center gap-3", visao !== "mes" && "hidden")}>
         <Button variant="outline" size="icon" onClick={() => irParaMes(somarMes(mes, -1))} aria-label="Mês anterior">
           <ChevronLeft className="size-4" />
         </Button>
@@ -408,7 +411,7 @@ function CalendarioPage() {
         </div>
       )}
 
-      <Card className={cn(visao === "ano" && "hidden")}>
+      <Card className={cn(visao !== "mes" && "hidden")}>
         <CardContent className="p-2 sm:p-3">
           <div className="grid grid-cols-7 gap-1 text-center text-xs font-medium text-muted-foreground">
             {DIAS_SEMANA.map((d) => (
@@ -492,7 +495,7 @@ function CalendarioPage() {
         </CardContent>
       </Card>
 
-      <div className={cn("mt-6", visao === "ano" && "hidden")}>
+      <div className={cn("mt-6", visao !== "mes" && "hidden")}>
         <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold">
           <CalendarDays className="size-4" /> {formatDate(diaSel)}
         </h3>

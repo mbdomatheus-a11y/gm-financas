@@ -151,3 +151,17 @@ Publicar: SQL cota-64mb-e-virada-31, bloqueio-login-escalonado, atalho-lancament
 ## Correções 15/11/2026 (noite)
 - Site não publicou (Vercel falhou): lancamento-ia.functions.ts passou a exportar funções comuns que puxavam rate-limit.server para o navegador. Funções movidas para src/lib/lancamento-ia-nucleo.server.ts. Build local ok. Por isso /api/entrar-app e /api/atalho davam 404.
 - Android sem atualizações desde 07/11: scripts/publicar-update.mjs publicava o Android com versionCode 5 fixo, mas a build Android instalada é de versionCode mais novo. O script agora descobre o versionCode certo de cada plataforma sozinho e não publica se não bater.
+- Android, login com Google caía em "Unmatched Route" (controlall://auth-callback): criado app/+native-intent.tsx, que conclui o login e manda para o Início (também trata controlall://pluggy). Sessão aberta uma vez só em lib/retorno-login.ts.
+- Item 6 nativo: atalhos ao segurar o ícone (iPhone e Android): Falar com a IA, Nova despesa, Nova receita (expo-quick-actions). Exige build nova: autorizada pelo Matheus em 15/11.
+
+## Proposta Meu Extrato, executada (15/11/2026)
+Decisões do Matheus: Receitas e Despesas continuam no menu; saúde com 5 pilares; mapa em anéis.
+1. Tour com destaque: site com anel azul e caixa "N DE 6" no Início (driver.js, TourGuiado.tsx + styles.css), tocar no item avança, Ajuda > "Ver o tour do Início de novo". App: mesmo visual no tour existente e toque no alvo avança.
+2. Novo lançamento: IA no topo e Entrada, Gasto, Conta fixa, Guardar (site no botão Lançar; app na tela +). Frase de quando sai do saldo (vencimentoDaCompra em numeros-ciclo.ts, site e app).
+3. Mapa em anéis: lib/aneis-gastos.ts idêntico; Para onde vai no site e no app; compara com o ciclo anterior; valores ocultos mostram só %.
+4. Extrato por dia: aba "Por dia" na Agenda (site e app), com entrou, saiu e saldo do ciclo; avisa o dia em que fica negativo. serie de numeros-ciclo ganhou entrou e saiu.
+5. Saúde financeira 0 a 100: lib/saude-financeira.ts idêntico, 5 pilares de 20; cartão no Início (site coluna direita, app aba Resumo) e detalhe (site janela, app Mais > saude). Conquistas Saúde boa (60) e Saúde ótima (80) pela melhor nota (não se perdem). SQL: docs/sql/2026-11-15-saude-financeira.sql.
+6. Lançamentos: site ganhou /lancamentos (busca, filtros, seleção, Excluir selecionados, Desfazer 5 s, editar abre Despesas/Receitas com ?editar=). App: busca e filtros Todos, Cartão, Parcelados na aba Lançamentos.
+7. Site logado com no máximo 1120 px e Início em duas colunas a partir de 1280 px.
+Conferido: tsc sem erro nos dois, build do site ok, anti-travamento ok, cálculos testados (saúde, anéis, vencimento da fatura). Não conferido na tela.
+Diferenças honestas: app não tem filtro "Contas fixas" na lista (o dado da lista não marca recorrência); "Três ciclos no verde" não entrou (precisaria guardar histórico).

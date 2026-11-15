@@ -55,7 +55,8 @@ import { chaveEstabelecimento } from "@/lib/categorizacao";
 import { aplicarRegrasFaturaMes } from "@/lib/fatura-mes";
 import { formatBRL, monthKey, monthLabel, monthLabelLong, toBRL, competenciaDaReceita, competenciaDoDia } from "@/lib/format";
 import { useCompetenciaVigente } from "@/lib/periodo-vigente";
-import { lancamentosPorCompetencias } from "@/lib/recorrencia";
+import { lancamentosPorCompetencias, somarMeses } from "@/lib/recorrencia";
+import { AneisGastos } from "@/components/AneisGastos";
 import {
   detectarRecorrentes,
   gerarPerguntas,
@@ -434,6 +435,23 @@ function ParaOndeVaiPage() {
             : "Ainda não há gastos lançados neste período."}
         </span>
       </div>
+
+      {/* 15/11/2026: mapa de gastos em anéis do ciclo de referência, comparado ao ciclo anterior. */}
+      {totalPeriodo > 0 && (
+        <Card className="mb-6 rounded-3xl">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Mapa do ciclo · {monthLabel(mesReferencia)}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <AneisGastos
+              atual={gastos.filter((g) => g.competencia === mesReferencia)}
+              anterior={gastos.filter((g) => g.competencia === somarMeses(mesReferencia, -1))}
+              nomesContas={nomesContas}
+              ocultar={ocultarValores}
+            />
+          </CardContent>
+        </Card>
+      )}
 
       {totalPeriodo === 0 ? (
         <Card>

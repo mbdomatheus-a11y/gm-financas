@@ -10,8 +10,7 @@ import {
   PiggyBank,
   ReceiptText,
   Trophy,
-  type LucideIcon,
-} from "lucide-react";
+  type LucideIcon, HeartPulse } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
@@ -31,7 +30,7 @@ export const Route = createFileRoute("/_authenticated/jornada")({
 });
 
 const ICONES: Record<string, LucideIcon> = {
-  Footprints, ListChecks, BookCheck, FileUp, PiggyBank, Coins, Gauge, ReceiptText, Flame, Trophy,
+  Footprints, ListChecks, BookCheck, FileUp, PiggyBank, Coins, Gauge, ReceiptText, Flame, Trophy, HeartPulse,
 };
 
 function JornadaPage() {

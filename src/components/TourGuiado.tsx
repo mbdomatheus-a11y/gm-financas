@@ -20,45 +20,15 @@ type Passo = {
 // nota fiscal e lista de compras — cobrindo os fluxos mais usados do site.
 // Cada passo mora numa rota diferente — ver comentário no componente sobre
 // como a navegação entre elas é feita no meio do tour.
+// 15/11/2026: tour com destaque, 6 passos no Início (uma ideia por passo). Anel azul do Control ALL em
+// volta da função e caixa curta ao lado. Tocar na função destacada também avança.
 const PASSOS: Passo[] = [
-  {
-    rota: "/dashboard",
-    titulo: "Bem-vindo ao Control ALL!",
-    descricao:
-      "Em menos de um minuto mostramos como lançar uma despesa e uma receita, e o que mais o site faz por você. Dá pra fechar a qualquer momento.",
-  },
-  {
-    rota: "/despesas",
-    selector: '[data-tour="nova-despesa"]',
-    titulo: "Lance uma despesa",
-    descricao: "Clique aqui sempre que precisar registrar uma nova despesa.",
-  },
-  {
-    rota: "/receitas",
-    selector: '[data-tour="nova-receita"]',
-    titulo: "Lance uma receita",
-    descricao: "E aqui pra registrar uma nova receita.",
-  },
-  {
-    rota: "/dashboard",
-    selector: '[data-tour="lancamento-ia"]',
-    titulo: "Lance por texto ou áudio",
-    descricao:
-      "Esse botão flutuante abre a IA: fale ou digite um lançamento em linguagem natural, ou peça um resumo das suas finanças do mês.",
-  },
-  {
-    rota: "/notas",
-    selector: '[data-tour="nova-nota"]',
-    titulo: "Guarde uma nota fiscal",
-    descricao: "Fotografe ou envie o comprovante aqui — sem precisar guardar o papel.",
-  },
-  {
-    rota: "/lista-compras",
-    selector: '[data-tour="adicionar-item-lista"]',
-    titulo: "Crie uma lista de compras",
-    descricao:
-      "Adicione itens aqui. Se mais de uma pessoa tiver acesso, dá pra exigir aprovação antes de marcar como comprado. Pronto — você já sabe o essencial!",
-  },
+  { rota: "/inicio", selector: '[data-tour="inicio-sobra"]', titulo: "Vai sobrar", descricao: "Quanto sobra até o próximo salário, já contando contas e faturas." },
+  { rota: "/inicio", selector: '[data-tour="inicio-lancar"]', titulo: "Lançar", descricao: "Gasto, entrada ou fatura em poucos toques." },
+  { rota: "/inicio", selector: '[data-tour="inicio-ia"]', titulo: "IA", descricao: "Escreva ou fale \"almoço 45 no Nubank\" e a IA lança para você." },
+  { rota: "/inicio", selector: '[data-tour="inicio-cartoes"]', titulo: "Contas e cartões", descricao: "Saldo das contas e quando cada fatura sai do bolso." },
+  { rota: "/inicio", selector: '[data-tour="inicio-saude"]', titulo: "Saúde financeira", descricao: "Uma nota de 0 a 100 e o que fazer para subir." },
+  { rota: "/inicio", selector: '[data-tour="menu"]', titulo: "Tudo à mão", descricao: "Metas, relatórios, notas e configurações ficam no menu. O tour pode ser visto de novo em Ajuda." },
 ];
 
 /**
@@ -82,6 +52,12 @@ const PASSOS: Passo[] = [
  * comunicados — apaga as linhas de `tour_concluido`, fazendo reaparecer
  * pra quem já tinha visto).
  */
+/** O menu existe duas vezes (lateral no computador, botão no celular): destaca o que está na tela. */
+function elementoVisivel(seletor: string): Element | undefined {
+  const lista = Array.from(document.querySelectorAll(seletor));
+  return lista.find((el) => (el as HTMLElement).offsetParent !== null || getComputedStyle(el).position === "fixed") ?? lista[0];
+}
+
 export function TourGuiado({ bloqueado }: { bloqueado: boolean }) {
   const { user } = useSession();
   const navigate = useNavigate();
@@ -123,12 +99,14 @@ export function TourGuiado({ bloqueado }: { bloqueado: boolean }) {
     const instancia = driver({
       showProgress: true,
       progressText: "{{current}} de {{total}}",
+      popoverClass: "tour-control-all",
+      stageRadius: 18,
       allowClose: true,
       overlayOpacity: 0.6,
-      stagePadding: 6,
+      stagePadding: 8,
       nextBtnText: "Próximo",
-      prevBtnText: "Voltar",
-      doneBtnText: "Concluir",
+      showButtons: ["next", "close"],
+      doneBtnText: "Começar a usar",
       // Só conta como concluído quando a PESSOA fecha/conclui o tour. Antes,
       // `onDestroyed` marcava como concluído até quando o tour era destruído
       // sozinho (elemento não encontrado, troca de rota), e o usuário novo
@@ -137,8 +115,21 @@ export function TourGuiado({ bloqueado }: { bloqueado: boolean }) {
         void finalizar();
         opts.driver.destroy();
       },
+      // Tocar na função destacada conta como "entendi": avança para o próximo passo.
+      onHighlighted: (el: Element | undefined, _step: unknown, opts: any) => {
+        el?.addEventListener(
+          "click",
+          () => {
+            if (opts.driver.isActive()) {
+              if (opts.driver.isLastStep()) opts.driver.destroy();
+              else opts.driver.moveNext();
+            }
+          },
+          { once: true },
+        );
+      },
       steps: PASSOS.map((passo, i) => ({
-        ...(passo.selector ? { element: passo.selector, waitForElement: 4000 } : {}),
+        ...(passo.selector ? { element: () => elementoVisivel(passo.selector!) as Element, waitForElement: 4000 } : {}),
         popover: {
           title: passo.titulo,
           description: passo.descricao,
@@ -147,7 +138,8 @@ export function TourGuiado({ bloqueado }: { bloqueado: boolean }) {
                 onNextClick: (_el: unknown, _step: unknown, opts: any) => {
                   const proximo = PASSOS[i + 1];
                   if (!proximo) return;
-                  navigate({ to: proximo.rota }).then(() => opts.driver.moveNext());
+                  if (window.location.pathname === proximo.rota) opts.driver.moveNext();
+                  else navigate({ to: proximo.rota }).then(() => opts.driver.moveNext());
                 },
               }
             : {}),

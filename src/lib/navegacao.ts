@@ -43,7 +43,7 @@ export const ITENS_NAV: ItemNav[] = [
   { id: 'inicio', titulo: 'Início', grupo: 'inicio', site: '/inicio', app: '/', iconeSite: 'Home', iconeApp: 'house.fill' },
   { id: 'agenda', titulo: 'Agenda', grupo: 'inicio', site: '/calendario', app: '/calendario', iconeSite: 'CalendarDays', iconeApp: 'calendar', global: 'financas' },
 
-  { id: 'lancamentos', titulo: 'Lançamentos', grupo: 'financas', app: '/explore', iconeSite: 'ListChecks', iconeApp: 'list.bullet.rectangle.fill', global: 'financas' },
+  { id: 'lancamentos', titulo: 'Lançamentos', grupo: 'financas', site: '/lancamentos', app: '/explore', iconeSite: 'ListChecks', iconeApp: 'list.bullet.rectangle.fill', global: 'financas' },
   { id: 'receitas', titulo: 'Receitas', grupo: 'financas', site: '/receitas', app: '/mais/receitas', iconeSite: 'TrendingUp', iconeApp: 'arrow.down.circle.fill', global: 'financas', perm: 'receitas' },
   { id: 'despesas', titulo: 'Despesas', grupo: 'financas', site: '/despesas', app: '/mais/despesas', iconeSite: 'TrendingDown', iconeApp: 'cart.fill', global: 'financas', perm: 'despesas' },
   { id: 'cartoes', titulo: 'Cartões/Conta', grupo: 'financas', site: '/cartoes', app: '/mais/cartoes', iconeSite: 'CreditCard', iconeApp: 'creditcard.fill', global: 'financas', perm: 'cartoes' },

@@ -877,7 +877,7 @@ export function AppLayout({
   return (
     <div className="min-h-screen bg-background">
       {!topMenu && (
-        <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 border-r border-border/60 bg-sidebar/80 backdrop-blur-xl backdrop-saturate-150 lg:block">
+        <aside data-tour="menu" className="fixed inset-y-0 left-0 z-30 hidden w-64 border-r border-border/60 bg-sidebar/80 backdrop-blur-xl backdrop-saturate-150 lg:block">
           <SidebarInner />
         </aside>
       )}
@@ -1005,14 +1005,14 @@ export function AppLayout({
         </header>
 
         {modoCliente && (
-          <div className="mx-auto mt-3 flex w-full max-w-7xl flex-wrap items-center justify-between gap-2 rounded-md border border-amber-400 bg-amber-100 px-4 py-2 text-sm text-amber-900 dark:bg-amber-900/40 dark:text-amber-100 native:hidden">
+          <div className="mx-auto mt-3 flex w-full max-w-[1120px] flex-wrap items-center justify-between gap-2 rounded-md border border-amber-400 bg-amber-100 px-4 py-2 text-sm text-amber-900 dark:bg-amber-900/40 dark:text-amber-100 native:hidden">
             <span>Modo usuário comum ativo. Itens administrativos ficam ocultos.</span>
             <Button size="sm" variant="outline" onClick={() => definirModoCliente(false)}>
               Voltar à visão admin
             </Button>
           </div>
         )}
-        <main data-entrada className="mx-auto w-full max-w-7xl px-4 pb-28 pt-6 lg:px-8 lg:pb-10 lg:pt-10 native:pb-[calc(5.5rem+var(--app-inset-bottom,0px))]">
+        <main data-entrada className="mx-auto w-full max-w-[1120px] px-4 pb-28 pt-6 lg:px-8 lg:pb-10 lg:pt-10 native:pb-[calc(5.5rem+var(--app-inset-bottom,0px))]">
           <div className="mb-6 flex flex-wrap items-start justify-between gap-x-3 gap-y-2 lg:mb-8">
             <div className="min-w-0 flex-1 basis-40">
               <h1 className="text-balance text-2xl font-extrabold leading-tight tracking-[-0.03em] sm:text-3xl lg:text-[2.5rem]">{title}</h1>
@@ -1119,7 +1119,7 @@ export function AppLayout({
               ) : (
                 <span />
               )}
-              <button type="button" onClick={() => setOpen(true)} className={classe(false)}>
+              <button type="button" data-tour="menu" onClick={() => setOpen(true)} className={classe(false)}>
                 <Menu className="size-5" />
                 Menu
               </button>

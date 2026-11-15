@@ -33,6 +33,9 @@ export const CONQUISTAS: ConquistaDef[] = [
   { id: 'nota', titulo: 'Nota guardada', descricao: 'Guarde a primeira nota fiscal.', chave: 'notas', alvo: 1, exp: 30, iconeSite: 'ReceiptText', iconeApp: 'doc.text.fill' },
   { id: 'semana', titulo: 'Semana cheia', descricao: '7 dias seguidos com registro.', chave: 'melhorSequencia', alvo: 7, exp: 80, iconeSite: 'Flame', iconeApp: 'flame' },
   { id: 'mes', titulo: 'Mês inteiro', descricao: '30 dias seguidos com registro.', chave: 'melhorSequencia', alvo: 30, exp: 200, iconeSite: 'Trophy', iconeApp: 'sparkles' },
+  // 15/11/2026: ligadas à Saúde financeira. Contam a MELHOR nota já alcançada, então nunca se perdem.
+  { id: 'saude-boa', titulo: 'Saúde boa', descricao: 'Chegue a 60 na saúde financeira.', chave: 'melhorSaude', alvo: 60, exp: 60, iconeSite: 'HeartPulse', iconeApp: 'heart.fill' },
+  { id: 'saude-otima', titulo: 'Saúde ótima', descricao: 'Chegue a 80 na saúde financeira.', chave: 'melhorSaude', alvo: 80, exp: 120, iconeSite: 'HeartPulse', iconeApp: 'heart.fill' },
 ];
 
 export const EXP_POR_DIA = 10;
