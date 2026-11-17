@@ -890,7 +890,10 @@ function DespesasPage() {
   const poolPorCompetencia = useMemo(() => {
     const cache = new Map<string, any[]>();
     return (comp: string) => {
-      if (!cache.has(comp)) cache.set(comp, lancamentosPorCompetencias(despesas as any[], [comp]));
+      // 17/11/2026: com o ciclo de D+1 a D, o pagamento do banco (ex.: boleto em 10/11) e a conta fixa
+      // lançada podem cair em competências vizinhas. Antes só o mês exato entrava e a junção não achava nada.
+      // Agora entram o mês anterior, o do ciclo e o seguinte; a nota por data ordena os candidatos.
+      if (!cache.has(comp)) cache.set(comp, lancamentosPorCompetencias(despesas as any[], [somarMeses(comp, -1), comp, somarMeses(comp, 1)]));
       return cache.get(comp)!;
     };
   }, [despesas]);
