@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -124,22 +124,27 @@ export type ItemHistoricoIA = {
   respostaOuDetalhes: string;
 };
 
-const CHAVE_HISTORICO_IA = "controlall_ia_historico";
+// 17/11/2026 (correção de privacidade): o histórico da IA ficava numa chave única do navegador e aparecia
+// para qualquer conta que entrasse no mesmo computador. Agora cada usuário tem a sua chave, e a antiga,
+// sem dono, é apagada na primeira leitura.
+const CHAVE_HISTORICO_IA_ANTIGA = "controlall_ia_historico";
+const chaveHistoricoIA = (userId: string) => `controlall_ia_historico:${userId}`;
 
-function carregarHistoricoIA(): ItemHistoricoIA[] {
-  if (typeof window === "undefined") return [];
+function carregarHistoricoIA(userId: string | null | undefined): ItemHistoricoIA[] {
+  if (typeof window === "undefined" || !userId) return [];
   try {
-    const raw = localStorage.getItem(CHAVE_HISTORICO_IA);
+    localStorage.removeItem(CHAVE_HISTORICO_IA_ANTIGA);
+    const raw = localStorage.getItem(chaveHistoricoIA(userId));
     return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
   }
 }
 
-function salvarHistoricoIA(itens: ItemHistoricoIA[]) {
-  if (typeof window === "undefined") return;
+function salvarHistoricoIA(userId: string | null | undefined, itens: ItemHistoricoIA[]) {
+  if (typeof window === "undefined" || !userId) return;
   try {
-    localStorage.setItem(CHAVE_HISTORICO_IA, JSON.stringify(itens.slice(0, 50)));
+    localStorage.setItem(chaveHistoricoIA(userId), JSON.stringify(itens.slice(0, 50)));
   } catch {
     // ignora falhas de localStorage
   }
@@ -184,7 +189,11 @@ export function LancamentoRapidoDialog({
   const nomeUsuarioAtual = profile?.nome ?? null;
 
   const [modo, setModo] = useState<"lancar" | "resumo" | "historico">("lancar");
-  const [historico, setHistorico] = useState<ItemHistoricoIA[]>(() => carregarHistoricoIA());
+  const [historico, setHistorico] = useState<ItemHistoricoIA[]>(() => carregarHistoricoIA(user?.id));
+  // Troca de conta no mesmo navegador: recarrega só o histórico de quem entrou.
+  useEffect(() => {
+    setHistorico(carregarHistoricoIA(user?.id));
+  }, [user?.id]);
 
   function registrarNoHistorico(tipo: "lancamento" | "resumo", entrada: string, saida: string) {
     const novoItem: ItemHistoricoIA = {
@@ -196,7 +205,7 @@ export function LancamentoRapidoDialog({
     };
     setHistorico((prev) => {
       const atualizado = [novoItem, ...prev].slice(0, 50);
-      salvarHistoricoIA(atualizado);
+      salvarHistoricoIA(user?.id, atualizado);
       return atualizado;
     });
   }
@@ -205,7 +214,7 @@ export function LancamentoRapidoDialog({
     setHistorico([]);
     if (typeof window !== "undefined") {
       try {
-        localStorage.removeItem(CHAVE_HISTORICO_IA);
+        if (user?.id) localStorage.removeItem(chaveHistoricoIA(user.id));
       } catch {}
     }
     toast.success("Histórico de IA limpo.");
@@ -214,7 +223,7 @@ export function LancamentoRapidoDialog({
   function removerItemHistorico(id: string) {
     setHistorico((prev) => {
       const atualizado = prev.filter((i) => i.id !== id);
-      salvarHistoricoIA(atualizado);
+      salvarHistoricoIA(user?.id, atualizado);
       return atualizado;
     });
     toast.success("Item removido.");

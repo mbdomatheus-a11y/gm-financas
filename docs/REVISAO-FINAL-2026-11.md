@@ -173,3 +173,13 @@ Diferenças honestas: app não tem filtro "Contas fixas" na lista (o dado da lis
 - Lançamento que se repete (site e app): "Deste mês em diante" (encerra a repetição, mantém os meses anteriores) ou "Todos os meses".
 - Extrato por dia: tocar no dia abre Lançamentos já buscando aquela data (site e app).
 Não feito, com motivo: coluna "Guardou" por dia (os aportes das caixinhas são guardados por mês, não por dia); "só este mês" num lançamento que se repete (o banco não tem como pular um mês da repetição); tour do app com 6 passos (os passos do app apontam posições fixas da tela; Saúde e IA ficam em lugares que mudam com a rolagem).
+
+## Modelos do Início no app (16/11/2026)
+- Canvas de design aprovado pelo Matheus ("Control ALL · 6 composições do Início", fileira sem rolagem).
+- App: lib/modelos-inicio.ts (regra pura, servirá ao site), lib/modelo-inicio-dados.ts (escolha guardada no aparelho), components/inicio/blocos-modelo.tsx (blocos compactos), components/inicio/escolher-inicio.tsx (7 modelos + personalizar por aba: ligar, desligar, ordenar, voltar ao modelo).
+- Padrão: Equilíbrio para todos; Original = Início de antes. Nos modelos novos a barra de áreas sai do Início (fica em Mais); a troca de mês continua.
+- Falta: site (mesma regra, mesmos modelos) e conferir na tela que cada modelo cabe sem rolar.
+
+## Correção de privacidade (17/11/2026)
+- Histórico da IA no site (LancamentoRapidoDialog) ficava no navegador numa chave única (controlall_ia_historico): outra conta no mesmo computador via o histórico de quem usou antes. Agora a chave é por usuário e a antiga é apagada. Não era vazamento do banco: o resumo vinha do navegador.
+- Conferido: o app guarda o cache das telas por usuário (cache-telas.ts) e não guarda histórico de IA no aparelho.
