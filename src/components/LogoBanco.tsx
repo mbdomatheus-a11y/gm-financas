@@ -15,7 +15,9 @@ export function LogoBanco({ nome, className }: { nome: string | null | undefined
   const fontes = [doBucket.url, v.icone].filter((u): u is string => !!u);
   const [falhas, setFalhas] = useState(0);
   const src = fontes[falhas];
-  useEffect(() => setFalhas(0), [doBucket.url]);
+  useEffect(() => {
+    setFalhas(0);
+  }, [doBucket.url]);
   const cor = doBucket.cor ?? v.cor;
   if (src) {
     return (

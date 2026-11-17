@@ -183,3 +183,8 @@ Não feito, com motivo: coluna "Guardou" por dia (os aportes das caixinhas são 
 ## Correção de privacidade (17/11/2026)
 - Histórico da IA no site (LancamentoRapidoDialog) ficava no navegador numa chave única (controlall_ia_historico): outra conta no mesmo computador via o histórico de quem usou antes. Agora a chave é por usuário e a antiga é apagada. Não era vazamento do banco: o resumo vinha do navegador.
 - Conferido: o app guarda o cache das telas por usuário (cache-telas.ts) e não guarda histórico de IA no aparelho.
+
+## Correção: "Esta página não carregou" ao usar a IA (17/11/2026)
+- Causa reproduzida no navegador (Chrome 156, conta do revisor): no Chrome novo, scrollIntoView devolve uma Promise. O ControlIA tinha `useEffect(() => fim.current?.scrollIntoView(...))`; o React tratou a Promise como função de limpeza e quebrou na segunda mensagem ("l is not a function").
+- Corrigido em todos os useEffect de uma linha do site e do app (corpo com chaves, sem retorno). Erro da tela agora também é gravado em app_erros (plataforma "site").
+- Também: rodapé com espaço para o botão Lançar; ações rápidas do Início em 2 colunas na tela grande.

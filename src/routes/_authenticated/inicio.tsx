@@ -116,7 +116,7 @@ function AcoesRapidas() {
   const classe =
     "group flex min-h-[4.5rem] items-center gap-2.5 rounded-2xl border border-border/60 bg-card p-3 text-left sm:gap-3 sm:pr-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-[0_0_0_1.5px_color-mix(in_oklab,var(--brand)_35%,transparent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 motion-reduce:hover:translate-y-0";
   return (
-    <nav aria-label="Ações rápidas" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+    <nav aria-label="Ações rápidas" className="grid grid-cols-2 gap-3 lg:grid-cols-4 xl:grid-cols-2">
       {itens.map((i) => {
         const Icone = i.icone;
         const conteudo = (

@@ -71,7 +71,9 @@ export function ControlIA({ flutuante = true }: { flutuante?: boolean }) {
     window.addEventListener("abrir-controlia", abrir);
     return () => window.removeEventListener("abrir-controlia", abrir);
   }, []);
-  useEffect(() => fim.current?.scrollIntoView({ behavior: "smooth" }), [msgs]);
+  useEffect(() => {
+    fim.current?.scrollIntoView({ behavior: "smooth" });
+  }, [msgs]);
 
   const contexto = useContexto(aberto);
   const vozDisponivel = typeof window !== "undefined" && !!((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition);

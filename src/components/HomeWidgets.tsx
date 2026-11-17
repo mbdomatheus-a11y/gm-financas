@@ -361,7 +361,9 @@ export function HomeWidgets() {
   const salvo = useMemo(() => normalizarLayout(prefs.home_widgets), [prefs.home_widgets]);
   const [itens, setItens] = useState<ItemWidget[]>(salvo);
   const [editando, setEditando] = useState(false);
-  useEffect(() => setItens(salvo), [salvo]);
+  useEffect(() => {
+    setItens(salvo);
+  }, [salvo]);
 
   function aplicar(novo: ItemWidget[], auto = false) {
     setItens(novo);

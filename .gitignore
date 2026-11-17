@@ -49,3 +49,6 @@ google-services.json
 .claude/settings.local.json
 
 _backup-rework-*/
+
+# Pastas movidas para apagar depois (sessões do Claude sem permissão de apagar)
+_to_delete/

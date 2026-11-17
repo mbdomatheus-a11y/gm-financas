@@ -130,7 +130,9 @@ function ImagemCaixinha({
   const tema = temaPorId(temaId);
   const [falhou, setFalhou] = useState(false);
   const src = fotoUrl || urlImagemTema(tema);
-  useEffect(() => setFalhou(false), [src]);
+  useEffect(() => {
+    setFalhou(false);
+  }, [src]);
   const Icone = ICONES_CAIXINHA.find((i) => i.id === tema.icone)?.icon ?? PiggyBank;
   return (
     <div

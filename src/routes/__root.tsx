@@ -45,6 +45,24 @@ function NotFoundComponent() {
 function ErrorComponent({ error, reset }: { error: unknown; reset: () => void }) {
   console.error(error);
   const router = useRouter();
+  // 17/11/2026: grava o erro no diagnóstico (app_erros, plataforma "site"), igual ao app, para achar a causa
+  // sem depender de print do console. Só mensagem, pilha e tela: nenhum dado financeiro.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const e = error instanceof Error ? error : new Error(String(error));
+    void import("@/integrations/supabase/client")
+      .then(({ supabase }) =>
+        (supabase as any).from("app_erros").insert({
+          plataforma: "site",
+          versao: "web",
+          tela: window.location.pathname.slice(0, 120),
+          mensagem: String(e.message || "Erro sem mensagem").slice(0, 500),
+          pilha: String(e.stack ?? "").slice(0, 4000),
+          fatal: true,
+        }),
+      )
+      .catch(() => {});
+  }, [error]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">

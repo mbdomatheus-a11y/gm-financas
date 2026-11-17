@@ -1015,7 +1015,7 @@ export function AppLayout({
             </Button>
           </div>
         )}
-        <main data-entrada className="mx-auto w-full max-w-[1200px] px-4 pb-28 pt-6 lg:px-8 lg:pb-10 lg:pt-10 native:pb-[calc(5.5rem+var(--app-inset-bottom,0px))]">
+        <main data-entrada className="mx-auto w-full max-w-[1200px] px-4 pb-28 pt-6 lg:px-8 lg:pb-28 lg:pt-10 native:pb-[calc(5.5rem+var(--app-inset-bottom,0px))]">
           <div className="mb-6 flex flex-wrap items-start justify-between gap-x-3 gap-y-2 lg:mb-8">
             <div className="min-w-0 flex-1 basis-40">
               <h1 className="text-balance text-2xl font-extrabold leading-tight tracking-[-0.03em] sm:text-3xl lg:text-[2.5rem]">{title}</h1>

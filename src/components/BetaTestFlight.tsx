@@ -468,7 +468,9 @@ export function AvisoBetaApp({ bloqueado = false, onVisibilityChange }: { bloque
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bloqueado, carregando, config, rodada, rodadaDispensada, plataforma]);
 
-  useEffect(() => onVisibilityChange?.(visivel), [visivel, onVisibilityChange]);
+  useEffect(() => {
+    onVisibilityChange?.(visivel);
+  }, [visivel, onVisibilityChange]);
 
   return (
     <>

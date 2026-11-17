@@ -53,7 +53,9 @@ function LinhaAlerta({ linha }: { linha: LinhaAlertaAdmin }) {
   const salvarFn = useServerFn(adminSalvarAlerta);
   const testarFn = useServerFn(adminTestarAlerta);
   const [f, setF] = useState(linha);
-  useEffect(() => setF(linha), [linha]);
+  useEffect(() => {
+    setF(linha);
+  }, [linha]);
   const mudou = JSON.stringify(f) !== JSON.stringify(linha);
   const ehEmail = item.origem === "email";
 

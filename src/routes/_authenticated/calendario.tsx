@@ -206,7 +206,9 @@ function CalendarioPage() {
   // Agenda do iPhone: o app nativo grava os vencimentos num calendário "Control ALL".
   const [sincronizando, setSincronizando] = useState(false);
   const [vinculada, setVinculada] = useState(false);
-  useEffect(() => setVinculada(agendaAppVinculada()), []);
+  useEffect(() => {
+    setVinculada(agendaAppVinculada());
+  }, []);
   useEffect(() => {
     const aoResponder = (ev: Event) => {
       const r = (ev as CustomEvent<{ ok: boolean; total?: number; erro?: string; silencioso?: boolean }>).detail;

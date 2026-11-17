@@ -17,7 +17,9 @@ function ler(): string | null {
 /** Indica se há novidade não lida (guardado só neste aparelho) e permite marcar como lida. */
 export function useNovidadeNaoLida() {
   const [lida, setLida] = useState<string | null>(NOVIDADE_ATUAL);
-  useEffect(() => setLida(ler()), []);
+  useEffect(() => {
+    setLida(ler());
+  }, []);
   const marcarLida = useCallback(() => {
     try {
       localStorage.setItem(CHAVE, NOVIDADE_ATUAL);
