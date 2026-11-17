@@ -550,3 +550,5 @@ Menos é mais (15/11, noite): menu da foto enxuto, Administração com índice e
 ## Proposta Meu Extrato (15/11/2026)
 Plano no projeto Claude: claude/plano-referencia-meuextrato-2026-11-15.md. 7 itens: tour com destaque, novo lançamento enxuto, mapa de gastos em anéis, extrato do ciclo por dia, saúde financeira 0 a 100 ligada à jornada, tela única de lançamentos, site centralizado em tela grande. Aguarda 3 decisões do Matheus (menu, pilares, anéis).
 - 15/11 (noite): proposta Meu Extrato feita em código. Falta: rodar docs/sql/2026-11-15-saude-financeira.sql, publicar site e atualização do app, conferir na tela.
+
+- 17/11/2026: parcelas Open Finance do cartão 3890 ancoradas na fatura aberta. Importador corrigido (fatura pela data da compra) e reparo em docs/sql/2026-11-17-reparo-parcelas-cartao-3890.sql. Pendente: Matheus rodar o SQL e conferir dezembro.

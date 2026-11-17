@@ -409,8 +409,14 @@ async function importarParcelado(
   const primeira = compraBanco && /^\d{4}-\d{2}-\d{2}$/.test(compraBanco) ? compraBanco : somarMeses(p.t.date, -(n - 1));
   // Fatura desta parcela: 1) billId do banco; 2) a linha do extrato vem datada no fechamento, então vale o
   // próximo vencimento do cartão depois dessa data; 3) sem nada disso, cai na data da compra (regra antiga).
-  const vencDestaParcela =
-    await vencimentoDaLinha(db, p);
+  // 17/11/2026: com a data da compra informada pelo banco, a fatura da parcela n é a fatura da compra mais
+  // (n − 1) meses. Antes, linha "PENDING" ia sempre para a fatura aberta: no cartão 3890 compras de 2025 em 2x
+  // apareceram na fatura de dez/2026. O billId do banco continua valendo primeiro.
+  const daFaturaBanco = meta?.billId ? p.faturas?.get(String(meta.billId)) ?? null : null;
+  const pelaCompra = !daFaturaBanco && compraBanco && /^\d{4}-\d{2}-\d{2}$/.test(compraBanco) && p.cartaoId
+    ? somarMeses(await vencimentoCartao(db, p.cartaoId, compraBanco), n - 1)
+    : null;
+  const vencDestaParcela = daFaturaBanco ?? pelaCompra ?? (await vencimentoDaLinha(db, p));
   // As parcelas podem cair em dias diferentes do mesmo mês (ex.: 03/09 e 11/09), então a compra
   // é identificada pelo mês da primeira parcela, e não pelo dia.
   const primeiraMes = primeira.slice(0, 7);
