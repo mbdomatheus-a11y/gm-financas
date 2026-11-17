@@ -1110,7 +1110,19 @@ async function executarSincronizacao(
         }
       }
     }
-    const cartaoFinal = conta.type === "CREDIT" ? ultimos4(conta.number) : null;
+    let cartaoFinal = conta.type === "CREDIT" ? ultimos4(conta.number) : null;
+    // 17/11/2026: o banco pode trocar o número do cartão na mesma conta (Nubank passou de 5327 para 3890).
+    // A conta da Pluggy é a mesma, então continua no cartão que já existe, sem criar outro e duplicar as compras.
+    if (cartaoFinal) {
+      const { data: antes } = await db.from("pluggy_contas").select("cartao_final").eq("account_id", conta.id).maybeSingle();
+      const finalAntes = antes?.cartao_final ? String(antes.cartao_final) : null;
+      if (finalAntes && finalAntes !== cartaoFinal) {
+        let qa = db.from("cartoes").select("id").eq("final", finalAntes);
+        qa = grupoId ? qa.eq("grupo_id", grupoId) : qa.is("grupo_id", null);
+        const { data: cartaoAntes } = await qa.limit(1).maybeSingle();
+        if (cartaoAntes) cartaoFinal = finalAntes;
+      }
+    }
     const nomeConta = (conta.name ?? conta.marketingName ?? "").trim();
     let bancoId: string | null = null;
     let bancoNome: string | null = null;
