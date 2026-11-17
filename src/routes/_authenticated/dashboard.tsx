@@ -1625,7 +1625,10 @@ function HeroMes({
             <div>
               <p className="text-sm text-muted-foreground">Despesas</p>
               <p className="text-xl font-bold tabular-nums">{formatar(despesas)}</p>
-              <p className="text-xs text-muted-foreground">Fixas {formatar(fixas)}, variáveis {formatar(variaveis)}</p>
+              <p className="text-xs text-muted-foreground">
+                Fixas {formatar(fixas)}, variáveis {formatar(variaveis)}
+                {numeros.previsto.faturaEstimada >= 0.5 ? `, faturas que ainda vão fechar ${formatar(numeros.previsto.faturaEstimada)}` : ""}
+              </p>
             </div>
           </div>
           {chip(deltaDespesas, false)}

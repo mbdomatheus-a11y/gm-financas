@@ -137,3 +137,6 @@ Frase abaixo do gráfico da Previsão do mês. Código: `ritmoDoCiclo` e `textoR
 - Texto: "Em média, neste ciclo você está gastando R$ X por dia, N% menor|maior que no ciclo anterior." Depois, se `projecaoNoRitmo < 0` (vermelho discreto): "Nesse ritmo, o ciclo fecha negativo em R$ Y, a não ser que comece a poupar agora."; senão (verde): "Nesse ritmo, sobram R$ Y em DD/MM."
 - Gráfico: linha pontilhada "No ritmo atual" de hoje até o fim: `saldo previsto − adicional × (dia − hoje) / (dias − hoje)`. Só aparece com `adicional > 0`, ciclo em andamento e fora do "cedo".
 - Teste: bloco "Ritmo" em `scripts/teste-regra-ciclo.ts`.
+
+## Conta exibida (17/11/2026)
+Vai sobrar = receitas do ciclo − despesas lançadas − faturas que ainda vão fechar (média das 3 últimas faturas − lançado, por cartão aberto) − caixinhas. Funções partesContaSobra e textoContaSobra; site ContaSobra (SobraCiclo.tsx), app folha "?" do SobraCiclo e dica da tela Despesas. Conferência: npx tsx scripts/auditoria-numeros.ts AAAA-MM.

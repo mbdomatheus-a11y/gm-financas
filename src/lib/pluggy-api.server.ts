@@ -277,6 +277,32 @@ async function gravarCartao(
   return novo.id;
 }
 
+/**
+ * Final do cartão que já recebe as compras desta conta da Pluggy (o mais usado entre as transações mais
+ * antigas da conta). Null quando a conta ainda não tem compras ligadas a um cartão do grupo.
+ */
+async function finalJaUsadoPelaConta(db: any, accountId: string, grupoId: string | null): Promise<string | null> {
+  const { data: trs } = await db
+    .from("pluggy_transacoes")
+    .select("transaction_id")
+    .eq("account_id", accountId)
+    .order("data", { ascending: true })
+    .limit(100);
+  const ids = ((trs ?? []) as { transaction_id: string }[]).map((t) => t.transaction_id).filter(Boolean);
+  if (!ids.length) return null;
+  let q = db.from("despesas").select("cartao_id, cartoes(final)").in("pluggy_transaction_id", ids).not("cartao_id", "is", null);
+  q = grupoId ? q.eq("grupo_id", grupoId) : q.is("grupo_id", null);
+  const { data: desp } = await q;
+  const conta = new Map<string, number>();
+  for (const d of (desp ?? []) as any[]) {
+    const f = d.cartoes?.final ? String(d.cartoes.final) : null;
+    if (f) conta.set(f, (conta.get(f) ?? 0) + 1);
+  }
+  let melhor: string | null = null;
+  for (const [f, n] of conta) if (!melhor || n > (conta.get(melhor) ?? 0)) melhor = f;
+  return melhor;
+}
+
 /** Bandeira no formato do app (ex.: MASTERCARD vira Mastercard). */
 function marcaCartao(brand?: string | null): string {
   const b = (brand ?? "").trim();
@@ -1112,16 +1138,11 @@ async function executarSincronizacao(
     }
     let cartaoFinal = conta.type === "CREDIT" ? ultimos4(conta.number) : null;
     // 17/11/2026: o banco pode trocar o número do cartão na mesma conta (Nubank passou de 5327 para 3890).
-    // A conta da Pluggy é a mesma, então continua no cartão que já existe, sem criar outro e duplicar as compras.
+    // A conta da Pluggy é a mesma: as compras continuam no cartão que já recebe as compras antigas dessa conta,
+    // sem criar outro cartão e duplicar tudo. O cartão é achado pelas transações mais antigas da conta.
     if (cartaoFinal) {
-      const { data: antes } = await db.from("pluggy_contas").select("cartao_final").eq("account_id", conta.id).maybeSingle();
-      const finalAntes = antes?.cartao_final ? String(antes.cartao_final) : null;
-      if (finalAntes && finalAntes !== cartaoFinal) {
-        let qa = db.from("cartoes").select("id").eq("final", finalAntes);
-        qa = grupoId ? qa.eq("grupo_id", grupoId) : qa.is("grupo_id", null);
-        const { data: cartaoAntes } = await qa.limit(1).maybeSingle();
-        if (cartaoAntes) cartaoFinal = finalAntes;
-      }
+      const finalDaConta = await finalJaUsadoPelaConta(db, conta.id, grupoId);
+      if (finalDaConta && finalDaConta !== cartaoFinal) cartaoFinal = finalDaConta;
     }
     const nomeConta = (conta.name ?? conta.marketingName ?? "").trim();
     let bancoId: string | null = null;

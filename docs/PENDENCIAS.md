@@ -552,3 +552,5 @@ Plano no projeto Claude: claude/plano-referencia-meuextrato-2026-11-15.md. 7 ite
 - 15/11 (noite): proposta Meu Extrato feita em código. Falta: rodar docs/sql/2026-11-15-saude-financeira.sql, publicar site e atualização do app, conferir na tela.
 
 - 17/11/2026: cartão 3890 era o mesmo Nubank 5327 com número novo (compras duplicadas). Importador agora mantém o cartão da conta; limpeza em docs/sql/2026-11-17-remover-cartao-3890-duplicado.sql (o reparo de parcelas do 3890 fica sem efeito).
+
+- 17/11/2026: auditoria das caixas de soma (scripts/auditoria-numeros.ts). Total despesas = soma de todas as parcelas do ciclo (antes só a última por despesa); estorno fora dos totais; Receitas da tela Despesas pela janela do ciclo; "Vai sobrar" mostra a conta (receitas − despesas lançadas − faturas que ainda vão fechar − caixinhas) com detalhe por cartão, site e app. Importador acha o cartão pelas compras antigas da conta.

@@ -4,9 +4,10 @@ import { guardarMesSite } from "@/lib/mes-escolhido";
 import { usePreferencias } from "@/hooks/usePreferencias";
 import { datasDoCiclo } from "@/lib/previsao-mes";
 import { useNumerosCiclo } from "@/hooks/useNumerosCiclo";
-import { ROTULO_SOBRA_PREVISTA, ROTULO_SOBRA_REAL, janelasDoCiclo, lancamentosDoCiclo, textoPorDia, textoVaiSobrar } from "@/lib/numeros-ciclo";
+import { ROTULO_SOBRA_PREVISTA, ROTULO_SOBRA_REAL, janelasDoCiclo, lancamentosDoCiclo, receitasDoCiclo, textoPorDia, textoVaiSobrar } from "@/lib/numeros-ciclo";
+import { ContaSobra } from "@/components/SobraCiclo";
 import { CampoCategoria } from "@/components/CampoCategoria";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useValorAdiado } from "@/hooks/useValorAdiado";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -876,6 +877,13 @@ function DespesasPage() {
     () => new Map(lancamentosDoFiltro.map((p) => [p.despesa_id, p])),
     [lancamentosDoFiltro],
   );
+  // 17/11/2026: uma despesa pode ter mais de uma parcela no ciclo (ex.: fatura que fecha e conta que vence
+  // na mesma janela). O valor da despesa no ciclo é a soma de todas, igual ao Pago + Em aberto.
+  const valorNoCicloPorDespesa = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const p of lancamentosDoFiltro as any[]) m.set(p.despesa_id, (m.get(p.despesa_id) ?? 0) + Number(p.valor ?? 0));
+    return m;
+  }, [lancamentosDoFiltro]);
 
   // 07/11/2026: juntar lançamento do Open Finance com um que o usuário já tinha (mesma regra de acesso do módulo).
   const { data: ehAdminSiteOF } = useIsSiteAdmin();
@@ -923,7 +931,7 @@ function DespesasPage() {
 
   function valorVisivel(d: any): number {
     if (filtroMes === "todos") return Number(d.valor_total ?? 0);
-    return Number(lancamentoPorDespesa.get(d.id)?.valor ?? 0);
+    return valorNoCicloPorDespesa.get(d.id) ?? 0;
   }
 
   const lista = despesas.filter((d: any) => {
@@ -990,6 +998,8 @@ function DespesasPage() {
       // soma nos totais do mês nem na conferência com a fatura (ela é o
       // gasto que deixou de existir, não um gasto a pagar).
       if (d.economia_conquistada) continue;
+      // 17/11/2026: estorno (crédito) não soma como gasto, igual ao "Vai sobrar".
+      if (d.direcao === "credito") continue;
       const brl = (v: number) => toBRL(v, d.moeda, cotacao);
       const parcelasVisiveis =
         filtroMes === "todos"
@@ -1144,11 +1154,12 @@ function DespesasPage() {
   // Receitas do período, do mesmo jeito que a Home: pela data de recebimento e convertidas para BRL.
   // Igual à tela Receitas e ao Dashboard: inclui as receitas fixas projetadas para o mês.
   const receitaDoFiltro = useMemo(() => {
+    // 17/11/2026: mesma janela de receitas do "Vai sobrar" (data prevista de D+1 a D), para as caixas fecharem.
     const lancadas = filtroMes === "todos"
       ? (receitas as any[])
-      : receitasPorCompetencias(receitas as any[], [filtroMes]);
+      : receitasDoCiclo(receitas as any[], filtroMes, prefsCiclo.dia_virada);
     return lancadas.reduce((s, r) => s + toBRL(Number(r.valor) || 0, r.moeda ?? "BRL", cotacao), 0);
-  }, [receitas, filtroMes, cotacao]);
+  }, [receitas, filtroMes, cotacao, prefsCiclo.dia_virada]);
   // Divisão justa (proposta duo-fi, 2026-11-02): os gastos "Casal / Compartilhado" do mês são divididos
   // na proporção da renda de cada pessoa no mesmo mês. Só aparece com um mês escolhido.
   const divisaoJusta = useMemo(() => {
@@ -1434,6 +1445,7 @@ function DespesasPage() {
             hint: semFiltrosDeLista && filtroMes !== "todos"
               ? textoPorDia(numerosCiclo, formatar)
               : "tire os filtros para ver a sobra",
+            extra: semFiltrosDeLista && filtroMes !== "todos" ? <ContaSobra numeros={numerosCiclo} formatar={formatar} /> : null,
           },
           { filtro: "pago" as const, label: "Pago", valor: formatar(resumo.pago), cor: "text-success", hint: "" },
           {
@@ -1462,6 +1474,7 @@ function DespesasPage() {
                 <Skeleton className="mt-1 h-7 w-24" aria-label="Carregando" />
               )}
               {financasProntas && k.hint && <p className="mt-0.5 text-xs text-muted-foreground">{k.hint}</p>}
+              {financasProntas && (k as { extra?: ReactNode }).extra ? <div className="mt-1">{(k as { extra?: ReactNode }).extra}</div> : null}
             </>
           );
           if (!k.filtro)

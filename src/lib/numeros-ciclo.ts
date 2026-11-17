@@ -389,6 +389,29 @@ export function textoEmConta(n: NumerosCiclo, formatar: (v: number) => string): 
   return `${partes.length ? `${base} Ainda vão ${partes.join(" e ")}.` : base}${caixinhas}`;
 }
 
+/**
+ * 17/11/2026: a conta do "Vai sobrar" por extenso, para fechar com as caixas que a tela mostra:
+ * "Receitas R$ A − despesas lançadas R$ B − faturas que ainda vão fechar R$ C − caixinhas R$ D".
+ * Só aparecem as parcelas diferentes de zero. Despesas lançadas = previsto sem a estimativa de fatura.
+ */
+export function partesContaSobra(n: Pick<NumerosCiclo, "previsto">) {
+  const p = n.previsto;
+  return {
+    receitas: p.receitas,
+    despesas: r2(p.despesas - p.faturaEstimada),
+    faturaEstimada: p.faturaEstimada,
+    caixinhas: p.caixinhas,
+    sobra: p.sobra,
+  };
+}
+export function textoContaSobra(n: Pick<NumerosCiclo, "previsto">, formatar: (v: number) => string): string {
+  const c = partesContaSobra(n);
+  const partes = [`Receitas ${formatar(c.receitas)}`, `despesas lançadas ${formatar(c.despesas)}`];
+  if (c.faturaEstimada >= 0.5) partes.push(`faturas que ainda vão fechar ${formatar(c.faturaEstimada)}`);
+  if (c.caixinhas >= 0.5) partes.push(`caixinhas ${formatar(c.caixinhas)}`);
+  return partes.join(" − ");
+}
+
 /** Rótulo do previsto: "Previsto para sobrar em DD/MM". */
 export function rotuloPrevisto(n: Pick<NumerosCiclo, "fim">): string {
   return `${ROTULO_SOBRA_PREVISTA} em ${diaMesNum(n.fim)}`;
