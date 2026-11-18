@@ -199,16 +199,17 @@ export function ResumoPrevisaoHome({ mes: mesEscolhido, className }: { mes?: str
             </ResponsiveContainer>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-xs text-muted-foreground">
-            <ul className="flex flex-wrap items-center gap-x-4 gap-y-1">
-              <li className="flex items-center gap-1.5">
-                <span className="h-0.5 w-4 rounded bg-primary" aria-hidden /> Real
+            {/* 18/11/2026: legenda mais nítida (texto maior, cor forte e traços mais grossos). */}
+            <ul className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-sm font-medium text-foreground">
+              <li className="flex items-center gap-2">
+                <span className="h-1 w-5 rounded bg-primary" aria-hidden /> Real
               </li>
-              <li className="flex items-center gap-1.5">
-                <span className="w-4 border-t-2 border-dashed border-success" aria-hidden /> Com o lançado
+              <li className="flex items-center gap-2">
+                <span className="w-5 border-t-[3px] border-dashed border-success" aria-hidden /> Com o lançado
               </li>
               {temRitmo && (
-                <li className="flex items-center gap-1.5">
-                  <span className="w-4 border-t-2 border-dotted border-warning" aria-hidden /> Pelo ritmo
+                <li className="flex items-center gap-2">
+                  <span className="w-5 border-t-[3px] border-dotted border-warning" aria-hidden /> Pelo ritmo
                 </li>
               )}
             </ul>

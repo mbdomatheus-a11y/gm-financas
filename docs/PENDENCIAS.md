@@ -558,3 +558,5 @@ Plano no projeto Claude: claude/plano-referencia-meuextrato-2026-11-15.md. 7 ite
 - 18/11/2026: Vai sobrar = só o lançado (receitas − despesas lançadas − caixinhas); previsão pelo ritmo de compras no cartão do ciclo anterior virou cenário à parte (previsaoPeloRitmo) e linha pontilhada no gráfico do saldo; bloco de sobra enxuto (conta numa linha com seta); linha do tempo com 12 ciclos, tabela e insight; Início do site pelo modelo do app (preferencias_usuario.inicio_modelo, por pessoa). Pendente: rodar docs/sql/2026-11-18-inicio-modelo.sql.
 
 - 18/11/2026: interruptores no servidor (lib/liberacao-modulos.ts, igual no app): módulo desligado pode ser liberado para Testadores (tabela testadores_app) ou para uma porcentagem fixa de pessoas; tela Administração > Módulos. Pendente: rodar docs/sql/2026-11-18-liberacao-modulos.sql.
+
+- 18/11/2026: Início com favorito (estrela), "Voltar à minha favorita", um "Meu modelo" extra, "Voltar o modelo ao original" e seletor "Sincronizar app e site" (desligado: cada um com a sua visão). Legenda do gráfico do saldo mais nítida.

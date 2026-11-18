@@ -1,6 +1,6 @@
 import { lazy, Suspense, useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
-import { ArrowDown, ArrowRight, ArrowUp, SlidersHorizontal } from "lucide-react";
+import { ArrowDown, ArrowRight, ArrowUp, SlidersHorizontal, Star } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -13,7 +13,20 @@ import { LimitesResumoCard } from "@/components/LimitesResumoCard";
 import { JornadaInicioCard } from "@/components/JornadaInicioCard";
 import { SaudeFinanceiraCard } from "@/components/SaudeFinanceiraCard";
 import { ExtratoPorDia } from "@/components/ExtratoPorDia";
-import { BLOCOS, MODELOS, blocosDaAba, modeloPorId, type BlocoId, type EscolhaInicio, type ModeloId } from "@/lib/modelos-inicio";
+import {
+  BLOCOS,
+  MODELOS,
+  blocosDaAba,
+  criarMeuModelo,
+  ehFavorito,
+  favoritar,
+  modeloDaEscolha,
+  restaurarModelo,
+  voltarAoFavorito,
+  type BlocoId,
+  type EscolhaInicio,
+  type ModeloId,
+} from "@/lib/modelos-inicio";
 
 const ResumoPrevisaoHome = lazy(() =>
   import("@/components/ResumoPrevisaoHome").then((m) => ({ default: m.ResumoPrevisaoHome })),
@@ -104,7 +117,7 @@ function Bloco({ id }: { id: BlocoId }): ReactNode {
 }
 
 export function InicioPorModelo({ escolha, topo }: { escolha: EscolhaInicio; topo: ReactNode }) {
-  const modelo = modeloPorId(escolha.modelo);
+  const modelo = modeloDaEscolha(escolha);
   const [abaId, setAbaId] = useState(modelo.abas[0]?.id ?? "");
   const aba = modelo.abas.find((a) => a.id === abaId) ?? modelo.abas[0];
   const vistos = new Set<string>();
@@ -151,8 +164,45 @@ export function InicioPorModelo({ escolha, topo }: { escolha: EscolhaInicio; top
 }
 
 /** Botão e janela de personalização: escolher o modelo e, por aba, ligar, desligar e ordenar os blocos. */
-export function PersonalizarInicio({ escolha, salvar }: { escolha: EscolhaInicio; salvar: (e: EscolhaInicio) => void }) {
-  const modelo = modeloPorId(escolha.modelo);
+/** 18/11/2026: estrela de favorito e "Voltar à minha favorita", sempre à mão no topo do Início (igual ao app). */
+export function FavoritoInicio({ escolha, salvar }: { escolha: EscolhaInicio; salvar: (e: EscolhaInicio) => void }) {
+  const favorita = ehFavorito(escolha);
+  return (
+    <>
+      {escolha.favorito && !favorita && (
+        <Button variant="outline" size="sm" className="gap-1.5" onClick={() => salvar(voltarAoFavorito(escolha))}>
+          <Star className="size-4 fill-warning text-warning" aria-hidden /> Voltar à minha favorita
+        </Button>
+      )}
+      <Button
+        variant="outline"
+        size="icon"
+        className="size-9"
+        aria-pressed={favorita}
+        aria-label={favorita ? "Esta visão é a sua favorita" : "Favoritar esta visão"}
+        title={favorita ? "Esta visão é a sua favorita" : "Favoritar esta visão"}
+        onClick={() => !favorita && salvar(favoritar(escolha))}
+      >
+        <Star className={`size-4 ${favorita ? "fill-warning text-warning" : "text-muted-foreground"}`} aria-hidden />
+      </Button>
+    </>
+  );
+}
+
+export function PersonalizarInicio({
+  escolha,
+  salvar,
+  sincronizar,
+  definirSincronizar,
+}: {
+  escolha: EscolhaInicio;
+  salvar: (e: EscolhaInicio) => void;
+  sincronizar: boolean;
+  definirSincronizar: (v: boolean) => void;
+}) {
+  const modelo = modeloDaEscolha(escolha);
+  const favorita = ehFavorito(escolha);
+  const opcoes = [...MODELOS, ...(escolha.meu ? [{ id: "meu" as ModeloId, nome: escolha.meu.nome, descricao: "Seu modelo personalizado" }] : [])];
   const trocarModelo = (id: ModeloId) => salvar({ ...escolha, modelo: id });
   const definirAba = (abaId: string, lista: BlocoId[]) =>
     salvar({ ...escolha, ajustes: { ...escolha.ajustes, [escolha.modelo]: { ...(escolha.ajustes[escolha.modelo] ?? {}), [abaId]: lista } } });
@@ -167,10 +217,36 @@ export function PersonalizarInicio({ escolha, salvar }: { escolha: EscolhaInicio
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Personalizar o Início</DialogTitle>
-          <DialogDescription>A escolha é sua e vale no site e no app. Quem divide o workspace tem a própria.</DialogDescription>
+          <DialogDescription>A escolha é sua. Quem divide o workspace tem a própria.</DialogDescription>
         </DialogHeader>
+        <div className="divide-y rounded-xl border text-sm">
+          <div className="flex items-center gap-3 px-3 py-2">
+            <Star className={`size-4 ${favorita ? "fill-warning text-warning" : "text-muted-foreground"}`} aria-hidden />
+            <span className="flex-1">{favorita ? "Esta é a sua visão favorita" : "Favoritar esta visão"}</span>
+            {!favorita && (
+              <Button size="sm" variant="outline" onClick={() => salvar(favoritar(escolha))}>
+                Favoritar
+              </Button>
+            )}
+          </div>
+          <div className="flex items-center gap-3 px-3 py-2">
+            <span className="flex-1">{escolha.favorito ? "Voltar à minha favorita" : "Voltar ao padrão"}</span>
+            <Button size="sm" variant="outline" disabled={favorita} onClick={() => salvar(voltarAoFavorito(escolha))}>
+              Voltar
+            </Button>
+          </div>
+          <label className="flex items-center gap-3 px-3 py-2">
+            <span className="flex-1">
+              Sincronizar app e site
+              <span className="block text-xs text-muted-foreground">
+                {sincronizar ? "O que mudar aqui muda no app, e o contrário." : "O site e o app têm visões separadas."}
+              </span>
+            </span>
+            <Switch checked={sincronizar} onCheckedChange={definirSincronizar} aria-label="Sincronizar app e site" />
+          </label>
+        </div>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {MODELOS.map((m) => (
+          {opcoes.map((m) => (
             <button
               key={m.id}
               type="button"
@@ -182,6 +258,12 @@ export function PersonalizarInicio({ escolha, salvar }: { escolha: EscolhaInicio
               <span className="block text-xs text-muted-foreground">{m.descricao}</span>
             </button>
           ))}
+        </div>
+        <div className="flex flex-col items-center gap-0.5 text-center">
+          <Button variant="link" size="sm" onClick={() => salvar(criarMeuModelo(escolha))}>
+            {escolha.meu ? "Refazer “Meu modelo” a partir da visão atual" : "Criar “Meu modelo” a partir da visão atual"}
+          </Button>
+          <p className="text-xs text-muted-foreground">Só existe um modelo seu. Os prontos você ajusta dentro de cada um.</p>
         </div>
         {modelo.abas.length > 0 && (
           <div className="space-y-4">
@@ -232,6 +314,11 @@ export function PersonalizarInicio({ escolha, salvar }: { escolha: EscolhaInicio
                   </section>
                 );
               })}
+            <div className="text-center">
+              <Button variant="link" size="sm" onClick={() => salvar(restaurarModelo(escolha))}>
+                Voltar o {modelo.nome} ao original
+              </Button>
+            </div>
           </div>
         )}
       </DialogContent>

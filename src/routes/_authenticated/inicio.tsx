@@ -17,7 +17,7 @@ import { JornadaInicioCard } from "@/components/JornadaInicioCard";
 import { CompartilharResumoGeral } from "@/components/CompartilharModulos";
 import { SimuladorRendimento } from "@/components/SimuladorRendimento";
 import { SaudeFinanceiraCard } from "@/components/SaudeFinanceiraCard";
-import { InicioPorModelo, PersonalizarInicio } from "@/components/inicio/InicioPorModelo";
+import { FavoritoInicio, InicioPorModelo, PersonalizarInicio } from "@/components/inicio/InicioPorModelo";
 import { useEscolhaInicio } from "@/hooks/useEscolhaInicio";
 
 // Componentes com gráficos (recharts) carregam sob demanda para aliviar o JS inicial.
@@ -58,7 +58,7 @@ function InicioPage() {
   const hoje = new Date();
   const dataLonga = hoje.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" });
   // 18/11/2026: o mesmo modelo do Início escolhido no app (por pessoa). "Original" mantém o Início de antes.
-  const { escolha, salvar } = useEscolhaInicio();
+  const { escolha, salvar, sincronizar, definirSincronizar } = useEscolhaInicio();
   const porModelo = escolha.modelo !== "original";
   return (
     <AppLayout
@@ -66,7 +66,8 @@ function InicioPage() {
       description={dataLonga.charAt(0).toUpperCase() + dataLonga.slice(1)}
       actions={
         <div className="flex items-center gap-2">
-          <PersonalizarInicio escolha={escolha} salvar={salvar} />
+          <FavoritoInicio escolha={escolha} salvar={salvar} />
+          <PersonalizarInicio escolha={escolha} salvar={salvar} sincronizar={sincronizar} definirSincronizar={definirSincronizar} />
           <CompartilharResumoGeral />
         </div>
       }

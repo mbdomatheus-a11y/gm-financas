@@ -2,7 +2,7 @@
 // Sete modelos prontos (o 7º é o Início de antes, "Original") e personalização por aba: ligar, desligar e ordenar.
 // Topo fixo em todos: o "Vai sobrar" (maior número da tela) e logo abaixo Entrou e Saiu.
 
-export type ModeloId = 'zen' | 'dia' | 'equilibrio' | 'planejador' | 'analitico' | 'completo' | 'original';
+export type ModeloId = 'zen' | 'dia' | 'equilibrio' | 'planejador' | 'analitico' | 'completo' | 'original' | 'meu';
 
 /** Blocos compactos novos + cartões que já existiam no Início (CartaoId do dashboard). */
 export type BlocoId =
@@ -101,7 +101,12 @@ export const MODELO_PADRAO: ModeloId = 'equilibrio';
 
 /** Ajuste da pessoa numa aba: ordem dos blocos ligados (os não listados ficam desligados). */
 export type AjustesInicio = Partial<Record<ModeloId, Record<string, BlocoId[]>>>;
-export type EscolhaInicio = { modelo: ModeloId; ajustes: AjustesInicio };
+/** 18/11/2026: UM modelo personalizado extra ("Meu modelo"), criado a partir de um modelo pronto. */
+export type ModeloPersonalizado = { nome: string; base: ModeloId; abas: AbaModelo[] };
+/** Foto de uma visão (para o favorito). */
+export type FotoEscolha = { modelo: ModeloId; ajustes: AjustesInicio; meu: ModeloPersonalizado | null };
+/** favorito: a visão marcada com estrela; "Voltar ao favorito" restaura essa foto. */
+export type EscolhaInicio = FotoEscolha & { favorito: FotoEscolha | null };
 
 export function modeloPorId(id: string | null | undefined): Modelo {
   return MODELOS.find((m) => m.id === id) ?? MODELOS.find((m) => m.id === MODELO_PADRAO)!;
@@ -114,9 +119,66 @@ export function blocosDaAba(escolha: EscolhaInicio, aba: AbaModelo): BlocoId[] {
   return (salvo ?? aba.blocos).filter((b) => validos.has(b));
 }
 
+function lerMeu(bruto: unknown): ModeloPersonalizado | null {
+  const v = (bruto && typeof bruto === 'object' ? bruto : null) as Partial<ModeloPersonalizado> | null;
+  if (!v || !Array.isArray(v.abas)) return null;
+  const validos = new Set(BLOCOS.map((b) => b.id));
+  const abas = v.abas
+    .filter((a: any) => a && typeof a.id === 'string')
+    .map((a: any) => ({ id: String(a.id), titulo: String(a.titulo ?? ''), blocos: (Array.isArray(a.blocos) ? a.blocos : []).filter((b: any) => validos.has(b)), ...(a.abreAgenda ? { abreAgenda: true } : {}) }));
+  const base = MODELOS.some((m) => m.id === v.base) ? (v.base as ModeloId) : MODELO_PADRAO;
+  return { nome: String(v.nome ?? 'Meu modelo'), base, abas };
+}
+
+function lerFoto(bruto: unknown): FotoEscolha {
+  const v = (bruto && typeof bruto === 'object' ? bruto : {}) as Partial<FotoEscolha>;
+  const meu = lerMeu(v.meu);
+  const valido = v.modelo === 'meu' ? !!meu : MODELOS.some((m) => m.id === v.modelo);
+  const modelo = valido ? (v.modelo as ModeloId) : MODELO_PADRAO;
+  const ajustes = v.ajustes && typeof v.ajustes === 'object' ? (v.ajustes as AjustesInicio) : {};
+  return { modelo, ajustes, meu };
+}
+
 export function lerEscolha(bruto: unknown): EscolhaInicio {
   const v = (bruto && typeof bruto === 'object' ? bruto : {}) as Partial<EscolhaInicio>;
-  const modelo = MODELOS.some((m) => m.id === v.modelo) ? (v.modelo as ModeloId) : MODELO_PADRAO;
-  const ajustes = v.ajustes && typeof v.ajustes === 'object' ? (v.ajustes as AjustesInicio) : {};
-  return { modelo, ajustes };
+  return { ...lerFoto(v), favorito: v.favorito ? lerFoto(v.favorito) : null };
+}
+
+/** Modelo em uso, incluindo o "Meu modelo". */
+export function modeloDaEscolha(e: Pick<EscolhaInicio, 'modelo' | 'meu'>): Modelo {
+  if (e.modelo === 'meu' && e.meu) {
+    return { id: 'meu', nome: e.meu.nome, descricao: 'Seu modelo personalizado', tamanhoSobra: modeloPorId(e.meu.base).tamanhoSobra, abas: e.meu.abas };
+  }
+  return modeloPorId(e.modelo);
+}
+
+/** Cria (ou recria) o único modelo personalizado a partir da visão atual. */
+export function criarMeuModelo(e: EscolhaInicio): EscolhaInicio {
+  const atual = e.modelo === 'original' ? modeloPorId(MODELO_PADRAO) : modeloDaEscolha(e);
+  const abas = atual.abas.map((a) => ({ ...a, blocos: blocosDaAba(e.modelo === 'original' ? { ...e, modelo: MODELO_PADRAO } : e, a) }));
+  const base = e.modelo === 'meu' && e.meu ? e.meu.base : atual.id;
+  const ajustes = { ...e.ajustes };
+  delete ajustes.meu;
+  return { ...e, modelo: 'meu', meu: { nome: 'Meu modelo', base, abas }, ajustes };
+}
+
+function foto(e: FotoEscolha): FotoEscolha {
+  return { modelo: e.modelo, ajustes: e.ajustes, meu: e.meu };
+}
+/** Marca a visão atual como favorita (estrela). */
+export function favoritar(e: EscolhaInicio): EscolhaInicio {
+  return { ...e, favorito: foto(e) };
+}
+export function ehFavorito(e: EscolhaInicio): boolean {
+  return !!e.favorito && JSON.stringify(foto(e)) === JSON.stringify(foto(e.favorito));
+}
+/** Volta para a visão favorita. Sem favorito, volta ao padrão. */
+export function voltarAoFavorito(e: EscolhaInicio): EscolhaInicio {
+  return e.favorito ? { ...e, ...foto(e.favorito) } : { ...e, modelo: MODELO_PADRAO, ajustes: {} };
+}
+/** Desfaz os ajustes do modelo em uso (o "Meu modelo" volta ao que era quando foi criado). */
+export function restaurarModelo(e: EscolhaInicio): EscolhaInicio {
+  const ajustes = { ...e.ajustes };
+  delete ajustes[e.modelo];
+  return { ...e, ajustes };
 }
