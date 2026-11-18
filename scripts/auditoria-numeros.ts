@@ -1,7 +1,7 @@
 // Auditoria das caixas de soma do ciclo (somente leitura). Uso: npx tsx scripts/auditoria-numeros.ts 2026-11
 import { readFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
-import { calcularNumerosCiclo, lancamentosDoCiclo, receitasDoCiclo, janelasDoCiclo } from "../src/lib/numeros-ciclo";
+import { calcularNumerosCiclo, lancamentosDoCiclo, receitasDoCiclo, janelasDoCiclo, previsaoPeloRitmo } from "../src/lib/numeros-ciclo";
 import { receitasPorCompetencias } from "../src/lib/recorrencia";
 import { contaComoDespesa } from "../src/lib/regras-saldo";
 
@@ -60,6 +60,7 @@ console.log(JSON.stringify({
     emContaAgora: n.real.sobra, realReceitas: n.real.receitas, realDespesas: n.real.despesas,
   },
   diferencasDespesas: { credito: r2(credito), pagamentoFatura: r2(pagFatura), economia: r2(economia) },
+  ritmo: previsaoPeloRitmo({ despesas, receitas, faturas, cotacao, cartoes, somarPagamentoFatura: false }, mes, n, diaVirada),
   estimativas: n.estimativas,
   prefsLinhas: (prefsRows ?? []).length,
 }, null, 1));

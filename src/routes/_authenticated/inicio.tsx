@@ -17,6 +17,8 @@ import { JornadaInicioCard } from "@/components/JornadaInicioCard";
 import { CompartilharResumoGeral } from "@/components/CompartilharModulos";
 import { SimuladorRendimento } from "@/components/SimuladorRendimento";
 import { SaudeFinanceiraCard } from "@/components/SaudeFinanceiraCard";
+import { InicioPorModelo, PersonalizarInicio } from "@/components/inicio/InicioPorModelo";
+import { useEscolhaInicio } from "@/hooks/useEscolhaInicio";
 
 // Componentes com gráficos (recharts) carregam sob demanda para aliviar o JS inicial.
 const ResumoPrevisaoHome = lazy(() =>
@@ -55,11 +57,19 @@ function InicioPage() {
   const primeiroNome = String((profile as any)?.nome ?? "").trim().split(/\s+/)[0] ?? "";
   const hoje = new Date();
   const dataLonga = hoje.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" });
+  // 18/11/2026: o mesmo modelo do Início escolhido no app (por pessoa). "Original" mantém o Início de antes.
+  const { escolha, salvar } = useEscolhaInicio();
+  const porModelo = escolha.modelo !== "original";
   return (
     <AppLayout
       title={primeiroNome ? `${saudacao(hoje)}, ${primeiroNome}` : saudacao(hoje)}
       description={dataLonga.charAt(0).toUpperCase() + dataLonga.slice(1)}
-      actions={<CompartilharResumoGeral />}
+      actions={
+        <div className="flex items-center gap-2">
+          <PersonalizarInicio escolha={escolha} salvar={salvar} />
+          <CompartilharResumoGeral />
+        </div>
+      }
     >
       <div data-entrada className="space-y-6">
         {naoLida && (
@@ -73,7 +83,19 @@ function InicioPage() {
             </span>
           </Link>
         )}
-        {/* 15/11/2026: tela grande em duas colunas, como a home pública: principal à esquerda e resumos à direita. */}
+        {porModelo ? (
+          <InicioPorModelo
+            escolha={escolha}
+            topo={
+              <>
+                <div data-tour="inicio-lancar"><AcoesRapidas /></div>
+                <PrimeirosPassosCard />
+                <PerguntaFechamento />
+              </>
+            }
+          />
+        ) : (
+        /* 15/11/2026: tela grande em duas colunas, como a home pública: principal à esquerda e resumos à direita. */
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] xl:items-start">
           <div className="min-w-0 space-y-6">
             <div data-tour="inicio-lancar"><AcoesRapidas /></div>
@@ -100,6 +122,7 @@ function InicioPage() {
             <TempoInicioCard />
           </div>
         </div>
+        )}
       </div>
     </AppLayout>
   );

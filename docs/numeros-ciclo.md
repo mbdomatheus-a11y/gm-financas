@@ -140,3 +140,8 @@ Frase abaixo do gráfico da Previsão do mês. Código: `ritmoDoCiclo` e `textoR
 
 ## Conta exibida (17/11/2026)
 Vai sobrar = receitas do ciclo − despesas lançadas − faturas que ainda vão fechar (média das 3 últimas faturas − lançado, por cartão aberto) − caixinhas. Funções partesContaSobra e textoContaSobra; site ContaSobra (SobraCiclo.tsx), app folha "?" do SobraCiclo e dica da tela Despesas. Conferência: npx tsx scripts/auditoria-numeros.ts AAAA-MM.
+
+## Revisão 18/11/2026
+- Vai sobrar (número grande) = receitas do ciclo − despesas lançadas − caixinhas. Sem estimativa (estimarFaturaPelaMedia desligado).
+- Cenário pelo ritmo (previsaoPeloRitmo): compras variáveis no cartão do ciclo anterior (sem fixas, boletos, débitos em conta, parcelas 2+ e estornos) ÷ dias do ciclo anterior × dias que faltam − variáveis já lançadas depois de hoje. Sem ciclo anterior, usa o ritmo deste ciclo.
+- Gráfico: saldo do ciclo por dia (real até hoje, com o lançado e pelo ritmo). Site ResumoPrevisaoHome, app previsao.tsx (saldoPorDia em painel.ts).

@@ -9,6 +9,7 @@ import {
   BarChart,
   Cell,
   Line,
+  ReferenceLine,
   ComposedChart,
   ResponsiveContainer,
   Tooltip,
@@ -182,13 +183,9 @@ export function VisaoGeralHome({
     [agrupamento],
   );
 
-  /** 7 meses: o anterior, o atual e 5 à frente (item 10, 2026-10-05). */
-  const meses = useMemo(() => {
-    const now = new Date();
-    return Array.from({ length: 7 }, (_, i) =>
-      mesDoCiclo(- 1 + i),
-    );
-  }, []);
+  /** 18/11/2026: 12 ciclos de verdade (6 anteriores, o atual e 5 à frente), como diz o título. */
+  const meses = useMemo(() => Array.from({ length: 12 }, (_, i) => mesDoCiclo(-6 + i)), []);
+  const [vistaTempo, setVistaTempo] = usePersistedState<"grafico" | "tabela">("inicio.linha-tempo.vista", "grafico");
 
   // 07/11/2026, regra "Somar pagamento de fatura": desligada (padrão), pagamento de fatura fica fora dos totais.
   const { prefs: prefsSaldo } = usePreferencias();
@@ -225,6 +222,18 @@ export function VisaoGeralHome({
   }, [meses, dadosCiclo, caixinhasCiclo, diaViradaCiclo]);
 
   const mesSelecionado = serie.find((s) => s.key === mes) ?? null;
+  // 18/11/2026: o insight da linha do tempo. Ciclos já fechados (antes do vigente) com gasto lançado.
+  const insightTempo = useMemo(() => {
+    const fechados = serie.filter((s) => s.key < competenciaVigente && s.Despesas > 0);
+    if (fechados.length < 2) return null;
+    const media = (f: (s: (typeof serie)[number]) => number) => fechados.reduce((t, s) => t + f(s), 0) / fechados.length;
+    return {
+      n: fechados.length,
+      mediaDesp: media((s) => s.Despesas),
+      mediaSobra: media((s) => s.Saldo),
+      negativos: fechados.filter((s) => s.Saldo < 0).length,
+    };
+  }, [serie, competenciaVigente]);
 
   const comGasto = serie.filter((s) => s.Despesas > 0);
   const menor = comGasto.length
@@ -313,9 +322,20 @@ export function VisaoGeralHome({
         <CardHeader className="flex flex-col gap-2 space-y-0 pb-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <CardTitle className="text-base">Linha do tempo de 12 meses</CardTitle>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Receitas, despesas e o previsto no fim de cada ciclo. O mês atual aparece em destaque. Toque em um mês para ver os valores.
-            </p>
+            <p className="mt-0.5 text-xs text-muted-foreground">Receitas, despesas e quanto sobra em cada ciclo.</p>
+          </div>
+          <div role="group" aria-label="Ver como" className="inline-flex self-start rounded-full bg-muted p-0.5 text-xs sm:order-last">
+            {(["grafico", "tabela"] as const).map((v) => (
+              <button
+                key={v}
+                type="button"
+                aria-pressed={vistaTempo === v}
+                onClick={() => setVistaTempo(v)}
+                className={`rounded-full px-3 py-1 font-semibold ${vistaTempo === v ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}
+              >
+                {v === "grafico" ? "Gráfico" : "Tabela"}
+              </button>
+            ))}
           </div>
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
             {menor && (
@@ -346,6 +366,57 @@ export function VisaoGeralHome({
           </div>
         </CardHeader>
         <CardContent className="pt-2">
+          {insightTempo && (
+            <p className="mb-2 text-sm">
+              Nos últimos {insightTempo.n} ciclos você gastou em média <b className="tabular-nums">{valorFmt(insightTempo.mediaDesp)}</b> e
+              sobrou em média{" "}
+              <b className={`tabular-nums ${insightTempo.mediaSobra < 0 ? "text-destructive" : "text-success"}`}>{valorFmt(insightTempo.mediaSobra)}</b>
+              {insightTempo.negativos > 0 ? ` · ${insightTempo.negativos} fechou no vermelho` : " · nenhum fechou no vermelho"}.
+            </p>
+          )}
+          {vistaTempo === "tabela" ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm tabular-nums">
+                <thead>
+                  <tr className="border-b text-xs text-muted-foreground">
+                    <th className="py-1.5 text-left font-medium">Ciclo</th>
+                    <th className="py-1.5 text-right font-medium">Receitas</th>
+                    <th className="py-1.5 text-right font-medium">Despesas</th>
+                    <th className="py-1.5 text-right font-medium">Sobra</th>
+                    <th className="py-1.5 text-right font-medium">Da renda</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {serie.map((s) => {
+                    const atual = s.key === competenciaVigente;
+                    const futuro = s.key > competenciaVigente;
+                    const media = insightTempo?.mediaDesp ?? 0;
+                    const acima = !futuro && media > 0 && s.Despesas > media * 1.15;
+                    return (
+                      <tr
+                        key={s.key}
+                        onClick={() => setMes(s.key)}
+                        className={`cursor-pointer border-b border-border/50 hover:bg-muted/40 ${atual ? "bg-primary/5 font-semibold" : ""} ${futuro ? "text-muted-foreground" : ""}`}
+                      >
+                        <td className="py-1.5">
+                          {monthLabel(s.key)}
+                          {atual ? " · atual" : futuro ? " · previsto" : ""}
+                        </td>
+                        <td className="py-1.5 text-right">{valorFmt(s.Receitas)}</td>
+                        <td className={`py-1.5 text-right ${acima ? "text-destructive" : ""}`} title={acima ? "Acima da média dos ciclos fechados" : undefined}>
+                          {valorFmt(s.Despesas)}
+                        </td>
+                        <td className={`py-1.5 text-right ${s.Saldo < 0 ? "text-destructive" : "text-success"}`}>{valorFmt(s.Saldo)}</td>
+                        <td className="py-1.5 text-right">{s.Comprometido == null ? "-" : `${s.Comprometido.toFixed(0)}%`}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              <p className="mt-1.5 text-xs text-muted-foreground">Despesa em vermelho: mais de 15% acima da média dos ciclos fechados.</p>
+            </div>
+          ) : (
+          <>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart
@@ -357,6 +428,15 @@ export function VisaoGeralHome({
                 }}
               >
                 <XAxis dataKey="mes" tickLine={false} axisLine={false} fontSize={11} />
+                {insightTempo && (
+                  <ReferenceLine
+                    y={insightTempo.mediaDesp}
+                    stroke="var(--destructive)"
+                    strokeDasharray="4 4"
+                    strokeOpacity={0.6}
+                    label={{ value: "média de gastos", position: "insideTopLeft", fontSize: 10, fill: "var(--muted-foreground)" }}
+                  />
+                )}
                 <YAxis hide domain={["auto", "auto"]} />
                 <Tooltip
                   formatter={(v: any, n: any) =>
@@ -423,6 +503,8 @@ export function VisaoGeralHome({
               {" · "}
               {ROTULO_SOBRA_PREVISTA} {valorFmt(mesSelecionado.Saldo)}
             </p>
+          )}
+          </>
           )}
         </CardContent>
       </Card>

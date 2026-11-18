@@ -1,40 +1,35 @@
-import { usePreferencias } from "@/hooks/usePreferencias";
 import { Link } from "@tanstack/react-router";
-import { Info, PiggyBank } from "lucide-react";
+import { PiggyBank } from "lucide-react";
 import { useMemo, useState } from "react";
-import { CartesianGrid, ComposedChart, Line, ReferenceDot, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { CartesianGrid, ComposedChart, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import { CartaoCarregando } from "@/components/CartaoCarregando";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { SobraCiclo } from "@/components/SobraCiclo";
-import { FaturaMesDialog } from "@/components/FaturaMesDialog";
+import { CenarioRitmo, SobraCiclo } from "@/components/SobraCiclo";
 import { useDadosCiclo } from "@/hooks/useNumerosCiclo";
-import { ritmoDoCiclo, rotuloPrevisto, serieRealPrevisto, TEXTO_ACERTO, textoRitmo } from "@/lib/numeros-ciclo";
+import { previsaoPeloRitmo } from "@/lib/numeros-ciclo";
 import { useFinancasProntas } from "@/hooks/useFinancasProntas";
 import { usePrivacidadeValores } from "@/hooks/usePrivacidadeValores";
 import { useCompetenciaVigente } from "@/lib/periodo-vigente";
 import { metaDoMes } from "@/lib/poupar";
-import { calcularPrevisaoMes, datasDoCiclo } from "@/lib/previsao-mes";
-import { abreviarValor, monthLabelLong } from "@/lib/format";
-import { nomeDoCiclo, rotuloDoCiclo } from "@/lib/rotulo-ciclo";
+import { calcularPrevisaoMes } from "@/lib/previsao-mes";
+import { abreviarValor } from "@/lib/format";
+import { rotuloDoCiclo } from "@/lib/rotulo-ciclo";
 import { somarMeses } from "@/lib/recorrencia";
 
 /**
- * Card "Previsão do mês" do Início. 27/10/2026: mesma conta e mesmos textos do app
- * (lib/previsao-mes.ts = controlall/src/lib/painel.ts): receitas com recorrentes projetadas,
- * despesas comprometidas e valor a guardar nas caixinhas. 07/11/2026: a sobra vem só de numeros-ciclo.ts
- * ("Sobra até agora" em destaque e "Previsto no fim do ciclo" abaixo); o forecast por ritmo foi removido.
+ * Card "Previsão do mês" do Início e da tela Finanças.
+ * 18/11/2026 (revisão do Matheus): enxuto e com o saldo do ciclo no gráfico.
+ *  - Destaque: "Vai sobrar em DD/MM" com o que JÁ ESTÁ LANÇADO (numeros-ciclo.ts, sem estimativa).
+ *  - Gráfico do saldo dia a dia: real até hoje, "com o lançado" (termina no número grande) e
+ *    "pelo ritmo" (gasto no cartão por dia do ciclo anterior; termina no cenário).
+ *  - Cenário pelo ritmo numa caixa pequena, com o racional na seta. Mesma conta no app (previsao.tsx).
  */
 export function ResumoPrevisaoHome({ mes: mesEscolhido, className }: { mes?: string; className?: string } = {}) {
   const financasProntas = useFinancasProntas();
   const { formatar, ocultoNesteItem } = usePrivacidadeValores("resumo-previsao-home");
   const mesVigente = useCompetenciaVigente();
-  const { prefs } = usePreferencias();
-  // Na tela Finanças segue o mês escolhido no filtro; no Início, a competência vigente.
-  // 03/11/2026: no Início dá para ver o ciclo atual ou planejar o próximo (na tela Finanças vale o mês escolhido).
   const [proximo, setProximo] = useState(false);
-  const [ajudaAcerto, setAjudaAcerto] = useState(false);
   const podeTrocar = mesEscolhido === undefined;
   const mes = mesEscolhido ?? (proximo ? somarMeses(mesVigente, 1) : mesVigente);
 
@@ -43,79 +38,55 @@ export function ResumoPrevisaoHome({ mes: mesEscolhido, className }: { mes?: str
     () => calcularPrevisaoMes(dados, mes, metaDoMes(caixinhasCiclo, mes), diaVirada),
     [dados, mes, caixinhasCiclo, diaVirada],
   );
-  // 03/11/2026: mostra de qual mês/ciclo é a previsão (ex.: outubro = 08/10 a 07/11 com virada no dia 8).
-  // 08/11/2026: regra do ciclo: "15/nov a 15/dez · faltam N dias" (receitas desde D, contas até D).
+  const n = p.numeros;
+  const ritmo = useMemo(() => previsaoPeloRitmo(dados, mes, n, diaVirada), [dados, mes, n, diaVirada]);
   const fmtDia = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
-  const cicloTexto = p.numeros.textoCiclo;
-  const ritmo = useMemo(
-    () => ritmoDoCiclo(dados, mes, p.numeros, diaVirada),
-    [dados, mes, p.numeros, diaVirada],
-  );
-  const frase = textoRitmo(ritmo, p.numeros.fim, formatar);
-  const mostrarRitmo = (!ritmo.cedo && !p.numeros.encerrado && !p.numeros.futuro && ritmo.adicional > 0);
-  // 14/11/2026: duas linhas por dia do ciclo: gasto real acumulado (até hoje) e previsto acumulado (serieRealPrevisto).
-  const rp = useMemo(() => serieRealPrevisto(dados, mes, diaVirada), [dados, mes, diaVirada]);
-  const realHoje = rp.pontos[rp.diaHoje - 1]?.real ?? 0;
-  const fixoHoje = rp.pontos[rp.diaHoje - 1]?.fixoPrevisto ?? 0;
-  const serie = rp.pontos.map((s) => ({
-    dia: s.dia,
-    data: fmtDia(s.iso),
-    real: s.real,
-    previsto: s.previsto,
-    // No ritmo atual: o real de hoje + as contas e faturas que ainda vencem + o gasto variável médio de hoje por dia.
-    ritmo:
-      mostrarRitmo && s.dia >= rp.diaHoje && rp.pontos.length > rp.diaHoje
-        ? Math.round((realHoje + (s.fixoPrevisto - fixoHoje) + ritmo.porDiaAtual * (s.dia - rp.diaHoje)) * 100) / 100
-        : null,
-  }));
-  // 05/11/2026: apresentação apenas. Progresso do ciclo e composição das receitas, sem mudar a conta.
-  const totalDias = serie.length || p.diasNoMes;
-  const diasPassados = Math.min(totalDias, Math.max(0, totalDias - p.diasRestantes));
-  const pctCiclo = totalDias > 0 ? Math.round((diasPassados / totalDias) * 100) : 0;
-  const rotuloDia = (d: number) => serie[d - 1]?.data ?? String(d);
-  const corAcerto = rp.cor === "verde" ? "bg-success" : rp.cor === "amarelo" ? "bg-warning" : "bg-destructive";
-  // 14/11/2026: rótulos a cada N dias (sem sobrepor "Hoje") e vencimentos maiores (saltos do previsto fixo, sem mudar a conta).
+
+  // Saldo do ciclo por dia. Caixinhas saem do que ainda está por vir (o fim fecha com o número grande).
+  const serie = useMemo(() => {
+    const meta = n.previsto.caixinhas;
+    const hoje = n.futuro ? 0 : n.diaHoje;
+    const restantes = Math.max(1, n.diasNoCiclo - hoje);
+    const comRitmo = ritmo.base !== "sem dados" && ritmo.aMais >= 0.5;
+    return n.serie.map((s) => {
+      const lancado = s.projetado ? s.saldo - meta : s.saldo;
+      const depois = Math.max(0, s.dia - hoje);
+      return {
+        dia: s.dia,
+        data: fmtDia(s.iso),
+        real: s.projetado ? null : s.saldo,
+        lancado: s.dia >= hoje ? Math.round(lancado * 100) / 100 : null,
+        ritmo: comRitmo && s.dia >= hoje ? Math.round((lancado - (ritmo.aMais * depois) / restantes) * 100) / 100 : null,
+      };
+    });
+  }, [n, ritmo]);
+
+  if (!financasProntas) return <CartaoCarregando alturaGrafico="h-44" />;
+  const totalDias = serie.length || 1;
+  const encerrado = n.encerrado;
   const passoX = Math.max(2, Math.ceil(totalDias / 6));
   const ticksX = Array.from(
     new Set(
       [
-        ...Array.from({ length: totalDias }, (_, i) => i + 1).filter((d) => (d - 1) % passoX === 0 && Math.abs(d - p.diaHoje) >= passoX / 2 && totalDias - d >= passoX / 2),
+        ...Array.from({ length: totalDias }, (_, i) => i + 1).filter(
+          (d) => (d - 1) % passoX === 0 && Math.abs(d - n.diaHoje) >= passoX / 2 && totalDias - d >= passoX / 2,
+        ),
         totalDias,
-        ...(p.diaHoje > 0 && p.diaHoje <= totalDias ? [p.diaHoje] : []),
+        ...(n.diaHoje > 0 && n.diaHoje <= totalDias ? [n.diaHoje] : []),
       ].filter((d) => d >= 1),
     ),
   ).sort((x, y) => x - y);
-  const vencimentos = new Map<number, number>();
-  {
-    const pts = rp.pontos;
-    const total = pts.length ? pts[pts.length - 1]!.fixoPrevisto : 0;
-    pts
-      .map((x, i) => ({ dia: x.dia, delta: x.fixoPrevisto - (i > 0 ? pts[i - 1]!.fixoPrevisto : 0) }))
-      .filter((x) => x.delta >= Math.max(1, total * 0.08))
-      .sort((x, y) => y.delta - x.delta)
-      .slice(0, 4)
-      .forEach((x) => vencimentos.set(x.dia, x.delta));
-  }
-
-  if (!financasProntas) return <CartaoCarregando alturaGrafico="h-44" />;
-  const encerrado = p.diaHoje >= p.diasNoMes && p.diasRestantes === 0;
-  const temMeta = p.meta > 0;
-  const semLivre = p.numeros.previsto.sobra < 0;
+  const temRitmo = serie.some((x) => x.ritmo != null);
+  const temMeta = n.previsto.caixinhas > 0;
 
   return (
     <Card className={`${className ?? "mb-4 overflow-hidden"} transition-shadow duration-300 hover:shadow-md`}>
-      <CardContent className="space-y-5 p-4 sm:p-6">
-        <header className="flex flex-wrap items-start justify-between gap-3">
+      <CardContent className="space-y-4 p-4 sm:p-6">
+        <header className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
             <h2 className="text-balance text-lg font-semibold tracking-tight">Previsão do mês</h2>
-            <p className="mt-0.5 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-              {rotuloDoCiclo(mes)}
-              {cicloTexto && (
-                <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium tabular-nums text-foreground">
-                  ciclo {cicloTexto}
-                </span>
-              )}
-              {cicloTexto && <span className="basis-full text-xs">{p.numeros.janelas.descricao}</span>}
+            <p className="text-xs text-muted-foreground">
+              {rotuloDoCiclo(mes)} · {n.textoCiclo}
             </p>
           </div>
           {podeTrocar && (
@@ -137,84 +108,17 @@ export function ResumoPrevisaoHome({ mes: mesEscolhido, className }: { mes?: str
           )}
         </header>
 
-        <SobraCiclo numeros={p.numeros} formatar={formatar} mostrarCiclo={false} />
-
-        <div className="space-y-4">
-          <div className="space-y-1.5">
-            <div className="flex items-baseline justify-between gap-3 text-xs">
-              <span className="font-medium text-muted-foreground">Progresso do ciclo</span>
-              <span className="tabular-nums text-muted-foreground">
-                <b className="font-semibold text-foreground">{diasPassados}</b> de {totalDias} dias
-              </span>
-            </div>
-            <div
-              className="h-1.5 w-full overflow-hidden rounded-full bg-muted"
-              role="progressbar"
-              aria-label="Dias passados no ciclo"
-              aria-valuemin={0}
-              aria-valuemax={totalDias}
-              aria-valuenow={diasPassados}
-            >
-              <div className="h-full rounded-full bg-foreground/70 transition-[width] duration-500" style={{ width: `${pctCiclo}%` }} />
-            </div>
-          </div>
-          <BarraComposicao receitas={p.receitas} comprometido={p.comprometido} caixinhas={temMeta ? p.meta : 0} formatar={formatar} />
-        </div>
-
-        {p.estimativas.length > 0 && (
-          <details className="group rounded-xl bg-warning/10 px-3 py-2 text-sm">
-            <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-2 gap-y-1 [&::-webkit-details-marker]:hidden">
-              <Info className="size-4 shrink-0 text-warning-foreground" aria-hidden />
-              <span className="font-semibold">Inclui {formatar(p.estimadoTotal)} estimados de faturas abertas</span>
-              <span className="text-muted-foreground group-open:hidden">Ver detalhes</span>
-            </summary>
-            <ul className="mt-2 space-y-1">
-              {p.estimativas.map((e) => (
-                <li key={e.cartaoId} className="flex items-center justify-between gap-3">
-                  <span className="min-w-0 truncate">
-                    {e.nome} <span className="text-xs text-muted-foreground">média {formatar(e.media)}, lançado {formatar(e.real)}</span>
-                  </span>
-                  <span className="shrink-0 font-semibold tabular-nums">+{formatar(e.extra)}</span>
-                </li>
-              ))}
-            </ul>
-            <FaturaMesDialog
-              trigger={
-                <Button size="sm" variant="outline" className="mt-2 h-8">
-                  Informar total da fatura
-                </Button>
-              }
-            />
-          </details>
-        )}
+        <SobraCiclo numeros={n} formatar={formatar} mostrarCiclo={false} />
 
         <div className="space-y-3 rounded-2xl border border-border/70 p-3 sm:p-4">
-          <dl className={`grid gap-2 text-sm ${temMeta ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-3"}`}>
-            <Indicador rotulo="Receitas" valor={`+${formatar(p.receitas)}`} tom="text-success" />
-            <Indicador rotulo="Despesas" valor={formatar(-p.comprometido)} tom="text-destructive" />
-            {temMeta && <Indicador rotulo="Caixinhas" valor={formatar(-p.meta)} tom="text-primary" />}
-            <Indicador rotulo={rotuloPrevisto(p.numeros)} valor={formatar(p.numeros.previsto.sobra)} forte tom={semLivre ? "text-destructive" : "text-success"} />
-          </dl>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            {rp.acerto != null ? (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 font-semibold text-foreground">
-                <span className={`size-2.5 rounded-full ${corAcerto}`} aria-hidden /> {rp.acerto}% de acerto
-              </span>
-            ) : (
-              <span className="rounded-full bg-muted px-2.5 py-1">Acerto: ainda é cedo</span>
-            )}
-            <button
-              type="button"
-              aria-expanded={ajudaAcerto}
-              aria-label="Como o acerto é calculado"
-              onClick={() => setAjudaAcerto((v) => !v)}
-              className="inline-flex size-5 items-center justify-center rounded-full border border-border text-[11px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
-            >
-              ?
-            </button>
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <p className="text-sm font-semibold">Saldo do ciclo, dia a dia</p>
+            <p className="text-xs text-muted-foreground tabular-nums">
+              dia {Math.min(totalDias, Math.max(0, n.diaHoje))} de {totalDias}
+            </p>
           </div>
-          {ajudaAcerto && <p className="whitespace-pre-line text-xs leading-relaxed text-muted-foreground">{TEXTO_ACERTO}</p>}
-          <div className="h-[260px] w-full" role="img" aria-label="Gráfico do gasto real e do previsto, acumulados dia a dia no ciclo">
+          {!encerrado && <CenarioRitmo ritmo={ritmo} fim={n.fim} formatar={formatar} />}
+          <div className="h-[240px] w-full" role="img" aria-label="Saldo do ciclo dia a dia: real até hoje, com o lançado e pelo ritmo de gastos">
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart data={serie} margin={{ top: 18, right: 12, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" strokeOpacity={0.5} />
@@ -223,7 +127,7 @@ export function ResumoPrevisaoHome({ mes: mesEscolhido, className }: { mes?: str
                   type="number"
                   domain={[1, Math.max(1, totalDias)]}
                   ticks={ticksX}
-                  tickFormatter={(d: number) => (d === p.diaHoje && !encerrado ? "Hoje" : rotuloDia(d))}
+                  tickFormatter={(d: number) => (d === n.diaHoje && !encerrado ? "Hoje" : (serie[d - 1]?.data ?? String(d)))}
                   tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
                   tickLine={false}
                   axisLine={false}
@@ -231,16 +135,16 @@ export function ResumoPrevisaoHome({ mes: mesEscolhido, className }: { mes?: str
                 />
                 <YAxis
                   width={48}
-                  domain={[0, "auto"]}
                   tickCount={5}
                   tickLine={false}
                   axisLine={false}
                   tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
                   tickFormatter={(v: number) => (ocultoNesteItem ? "••••" : v === 0 ? "0" : abreviarValor(v))}
                 />
-                {!encerrado && p.diaHoje > 0 && (
+                <ReferenceLine y={0} stroke="var(--destructive)" strokeOpacity={0.35} />
+                {!encerrado && n.diaHoje > 0 && (
                   <ReferenceLine
-                    x={p.diaHoje}
+                    x={n.diaHoje}
                     stroke="var(--foreground)"
                     strokeOpacity={0.35}
                     label={{ value: "Hoje", position: "top", fontSize: 11, fill: "var(--muted-foreground)" }}
@@ -252,66 +156,45 @@ export function ResumoPrevisaoHome({ mes: mesEscolhido, className }: { mes?: str
                     if (!active || !payload?.length) return null;
                     const ponto = payload[0]?.payload as (typeof serie)[number] | undefined;
                     if (!ponto) return null;
-                    const dif = ponto.real != null ? ponto.real - ponto.previsto : null;
-                    const venc = vencimentos.get(ponto.dia);
                     return (
                       <div className="space-y-0.5 rounded-xl border border-border/70 bg-popover px-3 py-2 text-xs shadow-md">
                         <p className="font-medium text-muted-foreground">{ponto.data}</p>
                         {ponto.real != null && <p className="text-sm font-semibold tabular-nums">Real {formatar(ponto.real)}</p>}
-                        <p className="text-sm tabular-nums text-muted-foreground">Previsto {formatar(ponto.previsto)}</p>
-                        {dif != null && (
-                          <p className={`tabular-nums ${dif > 0 ? "text-destructive" : "text-success"}`}>
-                            Diferença {dif > 0 ? "+" : ""}{formatar(dif)}
-                          </p>
+                        {ponto.lancado != null && ponto.real == null && (
+                          <p className="text-sm font-semibold tabular-nums">Com o lançado {formatar(ponto.lancado)}</p>
                         )}
-                        {venc != null && <p className="tabular-nums text-warning-foreground">Vencimentos do dia {formatar(venc)}</p>}
+                        {ponto.ritmo != null && ponto.real == null && (
+                          <p className="tabular-nums text-muted-foreground">Pelo ritmo {formatar(ponto.ritmo)}</p>
+                        )}
                       </div>
                     );
                   }}
                 />
+                <Line type="monotone" dataKey="real" name="Real" stroke="var(--primary)" strokeWidth={2.5} dot={false} connectNulls={false} isAnimationActive={false} />
                 <Line
-                  type="monotone"
-                  dataKey="real"
-                  name="Real"
-                  stroke="var(--primary)"
-                  strokeWidth={2.5}
+                  type="stepAfter"
+                  dataKey="lancado"
+                  name="Com o lançado"
+                  stroke="var(--success)"
+                  strokeWidth={2}
+                  strokeDasharray="6 4"
                   dot={false}
-                  activeDot={{ r: 4, strokeWidth: 2, stroke: "var(--card)" }}
                   connectNulls={false}
                   isAnimationActive={false}
                 />
-                {mostrarRitmo && (
+                {temRitmo && (
                   <Line
                     type="monotone"
                     dataKey="ritmo"
-                    name="No ritmo atual"
-                    stroke="var(--destructive)"
-                    strokeOpacity={0.8}
+                    name="Pelo ritmo"
+                    stroke="var(--warning)"
                     strokeWidth={2}
                     strokeDasharray="2 4"
                     dot={false}
-                    activeDot={false}
                     connectNulls={false}
                     isAnimationActive={false}
                   />
                 )}
-                <Line
-                  type="monotone"
-                  dataKey="previsto"
-                  name="Previsto"
-                  stroke="var(--muted-foreground)"
-                  strokeWidth={2}
-                  strokeDasharray="5 5"
-                  dot={false}
-                  activeDot={{ r: 4, strokeWidth: 2, stroke: "var(--card)" }}
-                  connectNulls={false}
-                  isAnimationActive={false}
-                />
-                {serie
-                  .filter((x) => vencimentos.has(x.dia))
-                  .map((x) => (
-                    <ReferenceDot key={x.dia} x={x.dia} y={x.previsto} r={4} fill="var(--warning)" stroke="var(--card)" strokeWidth={2} ifOverflow="visible" />
-                  ))}
               </ComposedChart>
             </ResponsiveContainer>
           </div>
@@ -321,16 +204,11 @@ export function ResumoPrevisaoHome({ mes: mesEscolhido, className }: { mes?: str
                 <span className="h-0.5 w-4 rounded bg-primary" aria-hidden /> Real
               </li>
               <li className="flex items-center gap-1.5">
-                <span className="w-4 border-t-2 border-dashed border-muted-foreground" aria-hidden /> Previsto
+                <span className="w-4 border-t-2 border-dashed border-success" aria-hidden /> Com o lançado
               </li>
-              {mostrarRitmo && (
+              {temRitmo && (
                 <li className="flex items-center gap-1.5">
-                  <span className="w-4 border-t-2 border-dotted border-destructive" aria-hidden /> No ritmo atual
-                </li>
-              )}
-              {vencimentos.size > 0 && (
-                <li className="flex items-center gap-1.5">
-                  <span className="size-2.5 rounded-full bg-warning" aria-hidden /> Vencimentos maiores
+                  <span className="w-4 border-t-2 border-dotted border-warning" aria-hidden /> Pelo ritmo
                 </li>
               )}
             </ul>
@@ -341,83 +219,8 @@ export function ResumoPrevisaoHome({ mes: mesEscolhido, className }: { mes?: str
               <PiggyBank className="size-3.5" /> {temMeta ? "Ver caixinhas" : "Criar uma caixinha"}
             </Link>
           </div>
-          <p className="text-xs leading-relaxed text-muted-foreground">
-            {frase.linha1}
-            {frase.linha2 && (
-              <>
-                {" "}
-                <span className={frase.tom === "negativo" ? "text-destructive/90" : "text-success"}>{frase.linha2}</span>
-              </>
-            )}
-          </p>
         </div>
       </CardContent>
     </Card>
-  );
-}
-
-function Indicador({ rotulo, valor, forte, tom }: { rotulo: string; valor: string; forte?: boolean; tom?: string }) {
-  return (
-    <div className={`min-w-0 rounded-xl px-3 py-2 ${forte ? "bg-muted/60" : "bg-muted/30"}`}>
-      <dt className="truncate text-[11px] leading-tight text-muted-foreground">{rotulo}</dt>
-      <dd className={`mt-0.5 truncate tabular-nums ${forte ? "text-base font-bold" : "text-sm font-semibold"} ${tom ?? ""}`}>{valor}</dd>
-    </div>
-  );
-}
-
-function Linha({ rotulo, valor, forte, tom }: { rotulo: string; valor: string; forte?: boolean; tom?: string }) {
-  return (
-    <div className={`flex items-center justify-between gap-3 px-4 py-2.5 ${forte ? "bg-muted/50" : "border-b border-border/60"}`}>
-      <dt className={forte ? "font-semibold" : "text-muted-foreground"}>{rotulo}</dt>
-      <dd className={`tabular-nums ${forte ? "font-bold" : "font-medium"} ${tom ?? ""}`}>{valor}</dd>
-    </div>
-  );
-}
-
-/** Barra horizontal: quanto das receitas já está comprometido, quanto vai para as caixinhas e o que sobra livre. */
-function BarraComposicao({
-  receitas,
-  comprometido,
-  caixinhas,
-  formatar,
-}: {
-  receitas: number;
-  comprometido: number;
-  caixinhas: number;
-  formatar: (v: number) => string;
-}) {
-  const desp = Math.max(0, comprometido);
-  const cx = Math.max(0, caixinhas);
-  const rec = Math.max(0, receitas);
-  const base = Math.max(rec, desp + cx, 1);
-  const livre = Math.max(0, rec - desp - cx);
-  const pct = (v: number) => `${(v / base) * 100}%`;
-  const excede = desp + cx > rec;
-  return (
-    <div className="space-y-2">
-      <div className="flex h-3 w-full overflow-hidden rounded-full bg-muted" role="img" aria-label="Receitas comparadas com despesas comprometidas e caixinhas">
-        {desp > 0 && <div className="h-full bg-destructive transition-[width] duration-500" title={`Comprometido ${formatar(desp)}`} style={{ width: pct(desp) }} />}
-        {cx > 0 && <div className="h-full bg-primary transition-[width] duration-500" title={`Caixinhas ${formatar(cx)}`} style={{ width: pct(cx) }} />}
-        {livre > 0 && <div className="h-full bg-success transition-[width] duration-500" title={`Livre ${formatar(livre)}`} style={{ width: pct(livre) }} />}
-      </div>
-      <ul className="grid grid-cols-3 gap-2 text-xs">
-        <Legenda cor="bg-success" rotulo="Receitas" valor={formatar(rec)} tom="text-success" />
-        <Legenda cor="bg-destructive" rotulo="Comprometido" valor={formatar(desp)} tom="text-destructive" />
-        <Legenda cor="bg-primary" rotulo="Caixinhas" valor={formatar(cx)} tom="text-primary" />
-      </ul>
-      {excede && <p className="text-xs text-destructive">Comprometido e caixinhas passam das receitas do ciclo.</p>}
-    </div>
-  );
-}
-
-function Legenda({ cor, rotulo, valor, tom }: { cor: string; rotulo: string; valor: string; tom: string }) {
-  return (
-    <li className="min-w-0">
-      <span className="flex items-center gap-1.5 text-muted-foreground">
-        <span className={`size-2 shrink-0 rounded-full ${cor}`} aria-hidden />
-        <span className="truncate">{rotulo}</span>
-      </span>
-      <span className={`mt-0.5 block truncate text-sm font-semibold tabular-nums ${tom}`}>{valor}</span>
-    </li>
   );
 }

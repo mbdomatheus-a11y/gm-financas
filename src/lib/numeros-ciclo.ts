@@ -250,8 +250,10 @@ export type DadosCiclo = {
   faturas: any[];
   cotacao: any;
   cartoes?: any[];
-  /** Regra "Mostrar fatura aberta": false tira a estimativa das faturas abertas. Padrão true. */
+  /** Regra "Mostrar fatura aberta" (antiga). Sem efeito na sobra desde 18/11/2026. */
   mostrarFaturaAberta?: boolean;
+  /** Soma ao previsto a média das últimas faturas abertas. Desligado (18/11/2026): a previsão é o ritmo, à parte. */
+  estimarFaturaPelaMedia?: boolean;
   /** Regra "Somar pagamento de fatura": sem ela (padrão), pagamento de fatura não entra nas saídas. */
   somarPagamentoFatura?: boolean;
   /** Regra "Somar investimentos": movimentos (aportes saem, resgates entram). Só quando a regra está ligada. */
@@ -593,7 +595,8 @@ function calcularComBase(
   // Fatura de cartão ainda aberta (fechamento no futuro) e sem total informado em "Fatura do mês":
   // entra pela média das últimas faturas, no lugar do que já foi lançado. Precisa de 2+ faturas no histórico.
   const estimativas: EstimativaFatura[] = [];
-  if (!encerrado && Array.isArray(dados.cartoes) && dados.mostrarFaturaAberta !== false) {
+  // 18/11/2026: a sobra principal é só o lançado. A previsão de gastos ficou em previsaoPeloRitmo (cenário à parte).
+  if (!encerrado && Array.isArray(dados.cartoes) && dados.estimarFaturaPelaMedia === true) {
     const janelaSet = (mm: string) => {
       const jj = janelasDoCiclo(mm, diaVirada);
       return (p: any) => despesaNoCiclo(p, jj, dados.cartoes);
@@ -713,6 +716,8 @@ export type RitmoCiclo = {
   diasRestantes: number;
   /** Ciclo com 3 dias ou menos (ou ainda não começou): ritmo não é confiável. */
   cedo: boolean;
+  /** Variáveis já lançadas com data depois de hoje (entram no lançado). */
+  agendado: number;
 };
 
 /**
@@ -733,6 +738,8 @@ export function ritmoDoCiclo(
   for (const p of parcelas) {
     const d = p.despesa;
     if (p.projetada || d?.direcao === "credito" || d?.tipo !== "variavel") continue;
+    // 18/11/2026: só compras no cartão. Boletos e débitos em conta (aluguel, condomínio, luz) não são ritmo de gasto.
+    if (!d?.cartao_id) continue;
     if (!contaComoDespesa(d, dados.somarPagamentoFatura)) continue;
     if (Number(p.numero ?? 1) > 1) continue;
     const iso = String(d.data_compra ?? p.vencimento ?? "").slice(0, 10);
@@ -757,12 +764,59 @@ export function ritmoDoCiclo(
     adicional: r2(adicional),
     diasRestantes,
     cedo: n.futuro || decorridos <= 3,
+    agendado: r2(agendado),
   };
 }
 
 function addDiaIso(iso: string): string {
   const [a = 1970, m = 1, d = 1] = iso.split("-").map(Number);
   return isoDe(new Date(a, m - 1, d + 1));
+}
+
+/**
+ * 18/11/2026: PREVISÃO PELO RITMO (cenário à parte da sobra principal).
+ * Gasto variável por dia = compras variáveis no cartão do ciclo anterior inteiro (sem contas fixas, boletos,
+ * sem parcelas 2 em diante e sem estornos) ÷ dias do ciclo anterior. Sem histórico, usa o ritmo deste ciclo.
+ * A mais até o fim = gasto por dia × dias que faltam − variáveis já lançadas depois de hoje (nunca negativo).
+ * Sobra pelo ritmo = sobra com o lançado − a mais.
+ */
+export type PrevisaoRitmo = {
+  base: "ciclo anterior" | "este ciclo" | "sem dados";
+  gastoBase: number;
+  diasBase: number;
+  porDia: number;
+  diasRestantes: number;
+  jaLancadoDepois: number;
+  aMais: number;
+  sobra: number;
+};
+export function previsaoPeloRitmo(
+  dados: DadosCiclo,
+  mes: string,
+  n: Pick<NumerosCiclo, "previsto" | "diaHoje" | "diasNoCiclo" | "encerrado" | "futuro" | "inicio" | "fim" | "hoje">,
+  diaVirada?: number | null,
+  agora: Date = new Date(),
+): PrevisaoRitmo {
+  const r = ritmoDoCiclo(dados, mes, n, diaVirada, agora);
+  const ant = janelasDoCiclo(somarMeses(mes, -1), diaVirada);
+  const diasAnt = datasEntre(ant.inicio, ant.fim).length;
+  const usaAnterior = r.porDiaAnterior > 0;
+  const decorridos = n.futuro ? 0 : Math.max(1, n.encerrado ? n.diasNoCiclo : n.diaHoje);
+  const base: PrevisaoRitmo["base"] = usaAnterior ? "ciclo anterior" : r.porDiaAtual > 0 ? "este ciclo" : "sem dados";
+  const porDia = usaAnterior ? r.porDiaAnterior : r.porDiaAtual;
+  const diasRestantes = n.encerrado ? 0 : n.futuro ? n.diasNoCiclo : r.diasRestantes;
+  const bruto = porDia * diasRestantes;
+  const aMais = Math.max(0, bruto - r.agendado);
+  return {
+    base,
+    gastoBase: r2(usaAnterior ? r.porDiaAnterior * diasAnt : r.porDiaAtual * decorridos),
+    diasBase: usaAnterior ? diasAnt : decorridos,
+    porDia: r2(porDia),
+    diasRestantes,
+    jaLancadoDepois: r2(Math.min(bruto, r.agendado)),
+    aMais: r2(aMais),
+    sobra: r2(n.previsto.sobra - aMais),
+  };
 }
 
 /** Frase do ritmo (abaixo do gráfico). tom: "neutro" | "negativo" | "positivo". */
