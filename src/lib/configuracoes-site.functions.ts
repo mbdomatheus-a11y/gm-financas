@@ -196,21 +196,26 @@ export const listarModulosDisponiveis = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const db = supabaseAdmin as any;
-    const [
-      { data: globais, error: globalError },
-      { data: individuais, error: individualError },
-      { data: admin },
-    ] = await Promise.all([
-      db.from("modulos_globais").select("modulo,nome,habilitado").order("nome"),
+    // 18/11/2026: com testadores e liberação por porcentagem (lib/liberacao-modulos.ts, igual no app).
+    let globaisR = await db.from("modulos_globais").select("modulo,nome,habilitado,liberado_testadores,percentual").order("nome");
+    if (globaisR.error) globaisR = await db.from("modulos_globais").select("modulo,nome,habilitado").order("nome");
+    const [{ data: individuais, error: individualError }, { data: admin }, testadorR] = await Promise.all([
       db.from("modulos_usuario").select("modulo,habilitado").eq("user_id", context.userId),
       db.from("site_admins").select("user_id").eq("user_id", context.userId).maybeSingle(),
+      db.from("testadores_app").select("user_id").eq("user_id", context.userId).maybeSingle(),
     ]);
-    if (globalError || individualError) throw new Error("Não foi possível carregar os módulos.");
-    const porModulo = new Map((individuais ?? []).map((x: any) => [x.modulo, x.habilitado]));
-    return (globais ?? []).map((x: any) => ({
+    if (globaisR.error || individualError) throw new Error("Não foi possível carregar os módulos.");
+    const { moduloLiberado } = await import("@/lib/liberacao-modulos");
+    const ehTestador = !testadorR.error && !!testadorR.data;
+    const porModulo = new Map<string, boolean>((individuais ?? []).map((x: any) => [String(x.modulo), !!x.habilitado]));
+    return (globaisR.data ?? []).map((x: any) => ({
       ...x,
       liberadoGeral: !!x.habilitado,
-      habilitado: !!admin || (porModulo.has(x.modulo) ? porModulo.get(x.modulo) : x.habilitado),
+      habilitado: moduloLiberado(
+        x,
+        { userId: context.userId, modulo: x.modulo, ehTestador, excecao: porModulo.get(x.modulo), siteAdmin: !!admin },
+        !!x.habilitado,
+      ),
     }));
   });
 
@@ -220,12 +225,21 @@ export const adminListarModulos = createServerFn({ method: "GET" })
     await exigirAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const db = supabaseAdmin as any;
-    const [{ data: modulos }, { data: excecoes }, { data: perfis }] = await Promise.all([
-      db.from("modulos_globais").select("modulo,nome,habilitado").order("nome"),
+    let modulosR = await db.from("modulos_globais").select("modulo,nome,habilitado,liberado_testadores,percentual").order("nome");
+    const liberacaoPronta = !modulosR.error;
+    if (modulosR.error) modulosR = await db.from("modulos_globais").select("modulo,nome,habilitado").order("nome");
+    const [{ data: excecoes }, { data: perfis }, testR] = await Promise.all([
       db.from("modulos_usuario").select("user_id,modulo,habilitado"),
       db.from("profiles").select("id,nome,email").eq("ativo", true).order("nome"),
+      db.from("testadores_app").select("user_id"),
     ]);
-    return { modulos: modulos ?? [], excecoes: excecoes ?? [], usuarios: perfis ?? [] };
+    return {
+      modulos: modulosR.data ?? [],
+      excecoes: excecoes ?? [],
+      usuarios: perfis ?? [],
+      testadores: testR.error ? [] : ((testR.data ?? []) as { user_id: string }[]).map((t) => t.user_id),
+      liberacaoPronta: liberacaoPronta && !testR.error,
+    };
   });
 
 export const adminSalvarModulo = createServerFn({ method: "POST" })
@@ -273,6 +287,47 @@ export const adminSalvarModulo = createServerFn({ method: "POST" })
         escopo: data.userId ? "usuario" : "global",
       },
     });
+    return { ok: true as const };
+  });
+
+/** 18/11/2026: liberar um módulo desligado para os testadores e/ou para uma porcentagem das pessoas. */
+export const adminSalvarLiberacaoModulo = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((v: unknown) =>
+    z
+      .object({
+        modulo: z.enum(MODULOS),
+        liberado_testadores: z.boolean().optional(),
+        percentual: z.number().int().min(0).max(100).optional(),
+      })
+      .parse(v),
+  )
+  .handler(async ({ data, context }) => {
+    await exigirAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const db = supabaseAdmin as any;
+    const mudar: Record<string, unknown> = { atualizado_em: new Date().toISOString(), atualizado_por: context.userId };
+    if (data.liberado_testadores !== undefined) mudar["liberado_testadores"] = data.liberado_testadores;
+    if (data.percentual !== undefined) mudar["percentual"] = data.percentual;
+    const { error } = await db.from("modulos_globais").update(mudar).eq("modulo", data.modulo);
+    if (error) throw new Error("Rode o SQL docs/sql/2026-11-18-liberacao-modulos.sql antes de usar esta opção.");
+    await db.from("admin_audit_logs").insert({ ator_id: context.userId, acao: "modulo_liberacao_atualizada", detalhes: data });
+    return { ok: true as const };
+  });
+
+/** 18/11/2026: marcar ou desmarcar uma pessoa como testadora (vê os módulos liberados para testadores). */
+export const adminDefinirTestador = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((v: unknown) => z.object({ userId: z.string().uuid(), testador: z.boolean() }).parse(v))
+  .handler(async ({ data, context }) => {
+    await exigirAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const db = supabaseAdmin as any;
+    const { error } = data.testador
+      ? await db.from("testadores_app").upsert({ user_id: data.userId, criado_por: context.userId })
+      : await db.from("testadores_app").delete().eq("user_id", data.userId);
+    if (error) throw new Error("Rode o SQL docs/sql/2026-11-18-liberacao-modulos.sql antes de usar esta opção.");
+    await db.from("admin_audit_logs").insert({ ator_id: context.userId, acao: "testador_atualizado", alvo_id: data.userId, detalhes: data });
     return { ok: true as const };
   });
 

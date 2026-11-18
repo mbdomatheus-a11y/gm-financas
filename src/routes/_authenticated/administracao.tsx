@@ -47,6 +47,8 @@ import {
   adminListarModulos,
   adminSalvarConfiguracaoAcesso,
   adminSalvarModulo,
+  adminSalvarLiberacaoModulo,
+  adminDefinirTestador,
   obterConfiguracaoAcesso,
   obterProtecaoAdmin,
   salvarProtecaoAdmin,
@@ -670,6 +672,19 @@ function Admin() {
 
   const mudarModulo = useMutation({
     mutationFn: (valor: { modulo: any; habilitado: boolean; userId: string | null }) => salvarModulo({ data: valor }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-modulos"] }),
+    onError: (e: any) => toast.error(e.message),
+  });
+  // 18/11/2026: liberar para testadores ou para uma porcentagem, e marcar quem é testador.
+  const salvarLiberacaoFn = useServerFn(adminSalvarLiberacaoModulo);
+  const definirTestadorFn = useServerFn(adminDefinirTestador);
+  const mudarLiberacao = useMutation({
+    mutationFn: (valor: { modulo: any; liberado_testadores?: boolean; percentual?: number }) => salvarLiberacaoFn({ data: valor }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-modulos"] }),
+    onError: (e: any) => toast.error(e.message),
+  });
+  const mudarTestador = useMutation({
+    mutationFn: (valor: { userId: string; testador: boolean }) => definirTestadorFn({ data: valor }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-modulos"] }),
     onError: (e: any) => toast.error(e.message),
   });
@@ -1491,6 +1506,39 @@ function Admin() {
           {gestaoModulos && (
             <Card>
               <CardHeader className="space-y-1">
+                <CardTitle className="text-base font-bold">Testadores</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Quem testa as novidades antes de todos. Veem os módulos marcados "Testadores", no site e no app, sem atualizar nada.
+                </p>
+              </CardHeader>
+              <CardContent>
+                {!(gestaoModulos as any).liberacaoPronta ? (
+                  <p className="text-sm text-muted-foreground">Rode o SQL docs/sql/2026-11-18-liberacao-modulos.sql para usar testadores e porcentagem.</p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {gestaoModulos.usuarios.map((u: any) => {
+                      const eh = ((gestaoModulos as any).testadores ?? []).includes(u.id);
+                      return (
+                        <Button
+                          key={u.id}
+                          size="sm"
+                          variant={eh ? "default" : "outline"}
+                          aria-pressed={eh}
+                          disabled={mudarTestador.isPending}
+                          onClick={() => mudarTestador.mutate({ userId: u.id, testador: !eh })}
+                        >
+                          {u.nome}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+          {gestaoModulos && (
+            <Card>
+              <CardHeader className="space-y-1">
                 <CardTitle className="text-base font-bold">Módulos e exceções</CardTitle>
                 <p className="text-sm text-muted-foreground">
                   Desative um módulo para todos e libere só para quem vai testar. O admin master sempre vê tudo.
@@ -1535,6 +1583,32 @@ function Admin() {
                           onCheckedChange={(v) => mudarModulo.mutate({ modulo: m.modulo, habilitado: v, userId: null })}
                         />
                       </div>
+                      {!m.habilitado && (gestaoModulos as any).liberacaoPronta && (
+                        <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl bg-muted/40 px-3 py-2 text-sm">
+                          <label className="flex items-center gap-2">
+                            <Switch
+                              aria-label={`${m.nome} liberado para testadores`}
+                              checked={!!m.liberado_testadores}
+                              onCheckedChange={(v) => mudarLiberacao.mutate({ modulo: m.modulo, liberado_testadores: v })}
+                            />
+                            Testadores
+                          </label>
+                          <label className="flex items-center gap-2">
+                            Liberar para
+                            <select
+                              className="h-8 rounded-md border bg-background px-2 tabular-nums"
+                              value={Number(m.percentual ?? 0)}
+                              onChange={(e) => mudarLiberacao.mutate({ modulo: m.modulo, percentual: Number(e.target.value) })}
+                              aria-label={`Porcentagem de pessoas com ${m.nome}`}
+                            >
+                              {[0, 5, 10, 25, 50, 75].map((n) => (
+                                <option key={n} value={n}>{n === 0 ? "ninguém" : `${n}%`}</option>
+                              ))}
+                            </select>
+                            das pessoas
+                          </label>
+                        </div>
+                      )}
                       {!m.habilitado && (
                         <div className="mt-3 space-y-3">
                           {selecionados.size > 0 && (

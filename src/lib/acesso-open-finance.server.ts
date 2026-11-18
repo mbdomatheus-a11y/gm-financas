@@ -31,7 +31,23 @@ export async function verificarAcessoOpenFinance(userId: string): Promise<Acesso
 
   if (!perfil.data || perfil.data.ativo !== true || !grupoId) return null;
   if (global.error || individual.error) return null;
-  const habilitado = individual.data ? individual.data.habilitado === true : global.data?.habilitado === true;
+  // 18/11/2026: também vale para testadores e para a porcentagem liberada (lib/liberacao-modulos.ts).
+  let regra = global.data as { habilitado: boolean; liberado_testadores?: boolean; percentual?: number } | null;
+  let ehTestador = false;
+  if (regra && !regra.habilitado && !individual.data) {
+    const [extra, test] = await Promise.all([
+      db.from("modulos_globais").select("habilitado,liberado_testadores,percentual").eq("modulo", "open_finance").maybeSingle(),
+      db.from("testadores_app").select("user_id").eq("user_id", userId).maybeSingle(),
+    ]);
+    if (!extra.error && extra.data) regra = extra.data;
+    ehTestador = !test.error && !!test.data;
+  }
+  const { moduloLiberado } = await import("@/lib/liberacao-modulos");
+  const habilitado = moduloLiberado(
+    regra ?? undefined,
+    { userId, modulo: "open_finance", ehTestador, excecao: individual.data ? individual.data.habilitado === true : undefined },
+    false,
+  );
   return habilitado ? { userId, admin: false, grupoId } : null;
 }
 
