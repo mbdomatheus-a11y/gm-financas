@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowDown, ArrowUp, Copy, ExternalLink, ImagePlus, Pencil, Plus, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Copy, ExternalLink, ImagePlus, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -12,8 +12,10 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   adminBioExcluirLink,
   adminBioObter,
+  adminBioDefinirIcone,
   adminBioOrdenarLinks,
   adminBioPrepararFoto,
+  adminBioPrepararIcone,
   adminBioSalvarLink,
   adminBioSalvarPagina,
 } from "@/lib/bio.functions";
@@ -82,12 +84,46 @@ export function BioLinksAdmin() {
   }
 
   const [novo, setNovo] = useState({ titulo: "", url: "" });
+  const [fotoNovo, setFotoNovo] = useState<File | null>(null);
+  const arquivoNovo = useRef<HTMLInputElement>(null);
   const [editando, setEditando] = useState<{ id: string; titulo: string; url: string; ativo: boolean } | null>(null);
+  const prepararIconeFn = useServerFn(adminBioPrepararIcone);
+  const definirIconeFn = useServerFn(adminBioDefinirIcone);
+  const arquivoIcone = useRef<HTMLInputElement>(null);
+  const [iconeDe, setIconeDe] = useState<string | null>(null);
+  async function enviarIcone(id: string, file: File) {
+    if (!file.type.startsWith("image/") || file.size > 1024 * 1024) {
+      toast.error("Use uma imagem de até 1 MB.");
+      return;
+    }
+    try {
+      const envio = await prepararIconeFn({ data: { id, nome: file.name } });
+      const { error: e } = await supabase.storage.from("site_assets").uploadToSignedUrl(envio.path, envio.token, file);
+      if (e) throw e;
+      await definirIconeFn({ data: { id, path: envio.path } });
+      recarregar();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Não foi possível enviar o ícone.");
+    }
+  }
+  const buscarIcone = (id: string) =>
+    definirIconeFn({ data: { id, path: null, buscar: true } })
+      .then(() => {
+        toast.success("Logo atualizado.");
+        recarregar();
+      })
+      .catch((e: any) => toast.error(e.message));
   const salvarLink = useMutation({
-    mutationFn: (v: { id: string | null; titulo: string; url: string; ativo: boolean }) =>
-      salvarLinkFn({ data: { ...v, pagina_id: pagina!.id } }),
+    mutationFn: async (v: { id: string | null; titulo: string; url: string; ativo: boolean; foto?: File | null }) => {
+      const { foto, ...resto } = v;
+      const r = await salvarLinkFn({ data: { ...resto, pagina_id: pagina!.id, comFoto: !!foto } });
+      // Link novo com foto própria: envia a foto logo depois de criar.
+      if (foto && r.id) await enviarIcone(r.id, foto);
+      return r;
+    },
     onSuccess: () => {
       setNovo({ titulo: "", url: "" });
+      setFotoNovo(null);
       setEditando(null);
       recarregar();
     },
@@ -136,17 +172,27 @@ export function BioLinksAdmin() {
             <button
               type="button"
               onClick={() => arquivo.current?.click()}
-              disabled={!pagina || enviandoFoto}
+              disabled={enviandoFoto}
               className="group relative grid size-20 shrink-0 place-items-center overflow-hidden rounded-full border bg-muted"
               aria-label="Trocar foto"
-              title={pagina ? "Trocar foto" : "Salve a página antes de enviar a foto"}
+              title="Trocar foto"
             >
               {pagina?.foto ? <img src={pagina.foto} alt="" className="size-full object-cover" /> : <ImagePlus className="size-6 text-muted-foreground" />}
               <span className="absolute inset-0 hidden place-items-center bg-black/40 text-xs text-white group-hover:grid">
                 {enviandoFoto ? "Enviando…" : "Trocar"}
               </span>
             </button>
-            <input ref={arquivo} type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && void enviarFoto(e.target.files[0])} />
+            <input
+              ref={arquivo}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                e.target.value = "";
+                if (file) void enviarFoto(file);
+              }}
+            />
             <div className="min-w-0 flex-1 space-y-1">
               <p className="truncate text-sm font-medium">{endereco}</p>
               <div className="flex flex-wrap gap-2">
@@ -190,6 +236,18 @@ export function BioLinksAdmin() {
             <CardTitle className="text-base font-bold">Links</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
+            <input
+              ref={arquivoIcone}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                e.target.value = "";
+                if (file && iconeDe) void enviarIcone(iconeDe, file);
+              }}
+            />
+            <p className="text-xs text-muted-foreground">Para trocar a foto de um link, toque nela e envie outra imagem.</p>
             <ul className="divide-y rounded-xl border">
               {links.length === 0 && <li className="px-3 py-3 text-sm text-muted-foreground">Nenhum link ainda.</li>}
               {links.map((l: any, i: number) =>
@@ -204,6 +262,18 @@ export function BioLinksAdmin() {
                   </li>
                 ) : (
                   <li key={l.id} className="flex items-center gap-2 px-3 py-2 text-sm">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIconeDe(l.id);
+                        arquivoIcone.current?.click();
+                      }}
+                      className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-lg border bg-white"
+                      title="Trocar o ícone (envie uma imagem)"
+                      aria-label={`Trocar o ícone de ${l.titulo}`}
+                    >
+                      {l.icone ? <img src={l.icone} alt="" className="size-full object-contain p-0.5" /> : <ImagePlus className="size-4 text-muted-foreground" />}
+                    </button>
                     <Switch
                       checked={l.ativo}
                       onCheckedChange={(v) => salvarLink.mutate({ id: l.id, titulo: l.titulo, url: l.url, ativo: v })}
@@ -216,6 +286,7 @@ export function BioLinksAdmin() {
                     <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{porLink.get(l.id) ?? 0} cliques</span>
                     <Button variant="ghost" size="icon" className="size-8" disabled={i === 0} onClick={() => mover(i, -1)} aria-label="Subir"><ArrowUp className="size-4" /></Button>
                     <Button variant="ghost" size="icon" className="size-8" disabled={i === links.length - 1} onClick={() => mover(i, 1)} aria-label="Descer"><ArrowDown className="size-4" /></Button>
+                    <Button variant="ghost" size="icon" className="size-8" onClick={() => void buscarIcone(l.id)} aria-label="Buscar o logo do site de novo" title="Buscar o logo do site de novo"><RefreshCw className="size-4" /></Button>
                     <Button variant="ghost" size="icon" className="size-8" onClick={() => setEditando({ id: l.id, titulo: l.titulo, url: l.url, ativo: l.ativo })} aria-label="Editar"><Pencil className="size-4" /></Button>
                     <Button
                       variant="ghost"
@@ -233,12 +304,35 @@ export function BioLinksAdmin() {
                 ),
               )}
             </ul>
-            <div className="grid gap-2 sm:grid-cols-[1fr_2fr_auto]">
-              <Input placeholder="Nome (ex.: Minha loja na Shopee)" value={novo.titulo} maxLength={80} onChange={(e) => setNovo({ ...novo, titulo: e.target.value })} />
-              <Input placeholder="https://…" value={novo.url} onChange={(e) => setNovo({ ...novo, url: e.target.value.trim() })} />
-              <Button className="gap-1.5" disabled={salvarLink.isPending} onClick={() => salvarLink.mutate({ id: null, ...novo, ativo: true })}>
-                <Plus className="size-4" /> Adicionar
-              </Button>
+            <div className="space-y-2 rounded-xl border border-dashed p-3">
+              <p className="text-sm font-semibold">Novo link</p>
+              <div className="grid items-center gap-2 sm:grid-cols-[auto_1fr_2fr_auto]">
+                <button
+                  type="button"
+                  onClick={() => arquivoNovo.current?.click()}
+                  className="grid size-12 place-items-center overflow-hidden rounded-xl border bg-white"
+                  title="Foto do link (opcional: sem foto, entra o logo do site)"
+                  aria-label="Escolher a foto do link"
+                >
+                  {fotoNovo ? <img src={URL.createObjectURL(fotoNovo)} alt="" className="size-full object-cover" /> : <ImagePlus className="size-5 text-muted-foreground" />}
+                </button>
+                <input
+                  ref={arquivoNovo}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    setFotoNovo(e.target.files?.[0] ?? null);
+                    e.target.value = "";
+                  }}
+                />
+                <Input placeholder="Nome (ex.: Minha loja na Shopee)" value={novo.titulo} maxLength={80} onChange={(e) => setNovo({ ...novo, titulo: e.target.value })} />
+                <Input placeholder="Para onde leva (ex.: https://shopee.com.br/…)" value={novo.url} onChange={(e) => setNovo({ ...novo, url: e.target.value.trim() })} />
+                <Button className="gap-1.5" disabled={salvarLink.isPending} onClick={() => salvarLink.mutate({ id: null, ...novo, ativo: true, foto: fotoNovo })}>
+                  <Plus className="size-4" /> Adicionar
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">Quem tocar no link vai direto para o endereço. A foto é opcional: sem ela, entra o logo do site.</p>
             </div>
           </CardContent>
         </Card>

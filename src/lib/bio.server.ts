@@ -29,3 +29,38 @@ export function dadosDaRequisicao(metricas: boolean) {
   };
 }
 
+
+/**
+ * 19/11/2026: busca o logo (ícone) do site do link e guarda em site_assets/bio/icones/. Roda só no servidor,
+ * então quem visita a página não acessa serviço de terceiros. Devolve o caminho salvo ou null.
+ */
+export async function buscarIconeDoSite(db: any, linkId: string, url: string): Promise<string | null> {
+  let host = "";
+  try {
+    host = new URL(url).hostname;
+  } catch {
+    return null;
+  }
+  const fontes = [
+    `https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=128`,
+    `https://icons.duckduckgo.com/ip3/${encodeURIComponent(host)}.ico`,
+  ];
+  for (const fonte of fontes) {
+    try {
+      const r = await fetch(fonte, { signal: AbortSignal.timeout(8000) });
+      if (!r.ok) continue;
+      const tipo = r.headers.get("content-type") ?? "image/png";
+      if (!tipo.startsWith("image/")) continue;
+      const bytes = new Uint8Array(await r.arrayBuffer());
+      if (bytes.length < 100 || bytes.length > 500_000) continue;
+      const ext = tipo.includes("icon") ? "ico" : tipo.includes("svg") ? "svg" : tipo.includes("jpeg") ? "jpg" : "png";
+      const path = `bio/icones/${linkId}-${Date.now()}.${ext}`;
+      const { error } = await db.storage.from("site_assets").upload(path, bytes, { contentType: tipo, upsert: true });
+      if (error) continue;
+      return path;
+    } catch {
+      // tenta a próxima fonte
+    }
+  }
+  return null;
+}

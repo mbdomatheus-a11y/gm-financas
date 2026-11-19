@@ -26,8 +26,10 @@ export const obterBioPublica = createServerFn({ method: "GET" })
     q = data.slug ? q.eq("slug", data.slug) : q.order("criado_em").limit(1);
     const { data: pagina } = await q.maybeSingle();
     if (!pagina) return null;
-    const { data: links } = await db.from("bio_links").select("id,titulo,url").eq("pagina_id", pagina.id).eq("ativo", true).order("ordem");
-    return { slug: pagina.slug, titulo: pagina.titulo, bio: pagina.bio, foto: urlFoto(pagina.foto_path), links: links ?? [] };
+    let r = await db.from("bio_links").select("id,titulo,url,icone_path").eq("pagina_id", pagina.id).eq("ativo", true).order("ordem");
+    if (r.error) r = await db.from("bio_links").select("id,titulo,url").eq("pagina_id", pagina.id).eq("ativo", true).order("ordem");
+    const links = ((r.data ?? []) as any[]).map((l) => ({ id: l.id as string, titulo: l.titulo as string, icone: urlFoto(l.icone_path ?? null) }));
+    return { slug: pagina.slug, titulo: pagina.titulo, bio: pagina.bio, foto: urlFoto(pagina.foto_path), links };
   });
 
 const campoOrigem = {
@@ -103,7 +105,7 @@ export const adminBioObter = createServerFn({ method: "POST" })
     }
     return {
       paginas: (paginas ?? []).map((p: any) => ({ ...p, foto: urlFoto(p.foto_path) })),
-      links: links ?? [],
+      links: ((links ?? []) as any[]).map((l) => ({ ...l, icone: urlFoto(l.icone_path ?? null) })),
       eventos,
     };
   });
@@ -156,6 +158,8 @@ export const adminBioSalvarLink = createServerFn({ method: "POST" })
         url: z.string().trim().url("Endereço inválido.").regex(/^https?:\/\//, "Use um endereço que comece com https://"),
         ativo: z.boolean(),
         ordem: z.number().int().optional(),
+        /** Com foto própria, não busca o logo do site. */
+        comFoto: z.boolean().optional(),
       })
       .parse(v),
   )
@@ -163,15 +167,29 @@ export const adminBioSalvarLink = createServerFn({ method: "POST" })
     await exigirAdminSite(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const db = supabaseAdmin as any;
+    const { buscarIconeDoSite } = await import("@/lib/bio.server");
     if (data.id) {
+      const { data: antes } = await db.from("bio_links").select("url").eq("id", data.id).maybeSingle();
       const { error } = await db.from("bio_links").update({ titulo: data.titulo, url: data.url, ativo: data.ativo }).eq("id", data.id);
       if (error) throw new Error(error.message);
-      return { ok: true as const };
+      if (antes && antes.url !== data.url) {
+        const icone = await buscarIconeDoSite(db, data.id, data.url);
+        if (icone) await db.from("bio_links").update({ icone_path: icone }).eq("id", data.id);
+      }
+      return { ok: true as const, id: data.id };
     }
     const { data: ult } = await db.from("bio_links").select("ordem").eq("pagina_id", data.pagina_id).order("ordem", { ascending: false }).limit(1).maybeSingle();
-    const { error } = await db.from("bio_links").insert({ pagina_id: data.pagina_id, titulo: data.titulo, url: data.url, ativo: data.ativo, ordem: (ult?.ordem ?? -1) + 1 });
+    const { data: novo, error } = await db
+      .from("bio_links")
+      .insert({ pagina_id: data.pagina_id, titulo: data.titulo, url: data.url, ativo: data.ativo, ordem: (ult?.ordem ?? -1) + 1 })
+      .select("id")
+      .single();
     if (error) throw new Error(error.message);
-    return { ok: true as const };
+    if (!data.comFoto) {
+      const icone = await buscarIconeDoSite(db, novo.id, data.url);
+      if (icone) await db.from("bio_links").update({ icone_path: icone }).eq("id", novo.id);
+    }
+    return { ok: true as const, id: novo.id as string };
   });
 
 export const adminBioOrdenarLinks = createServerFn({ method: "POST" })
@@ -193,5 +211,39 @@ export const adminBioExcluirLink = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await (supabaseAdmin as any).from("bio_links").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
+    return { ok: true as const };
+  });
+
+/** Ícone de um link: enviar um próprio (prepara o envio) ou buscar de novo o logo do site. */
+export const adminBioPrepararIcone = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((v: unknown) => z.object({ id: z.string().uuid(), nome: z.string().min(1).max(140) }).parse(v))
+  .handler(async ({ data, context }) => {
+    await exigirAdminSite(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const path = `bio/icones/${data.id}-${Date.now()}-${data.nome.replace(/[^a-zA-Z0-9._-]/g, "_").slice(-40)}`;
+    const { data: signed, error } = await (supabaseAdmin as any).storage.from("site_assets").createSignedUploadUrl(path);
+    if (error) throw new Error(error.message);
+    return { path, token: signed.token as string };
+  });
+
+export const adminBioDefinirIcone = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((v: unknown) =>
+    z.object({ id: z.string().uuid(), path: z.string().regex(/^bio\/icones\/[A-Za-z0-9._-]+$/).nullable(), buscar: z.boolean().optional() }).parse(v),
+  )
+  .handler(async ({ data, context }) => {
+    await exigirAdminSite(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const db = supabaseAdmin as any;
+    let path = data.path;
+    if (data.buscar) {
+      const { data: link } = await db.from("bio_links").select("url").eq("id", data.id).maybeSingle();
+      const { buscarIconeDoSite } = await import("@/lib/bio.server");
+      path = link ? await buscarIconeDoSite(db, data.id, link.url) : null;
+      if (!path) throw new Error("Não achei o logo desse site. Envie uma imagem.");
+    }
+    const { error } = await db.from("bio_links").update({ icone_path: path }).eq("id", data.id);
+    if (error) throw new Error("Rode o SQL docs/sql/2026-11-19-bio-icones.sql antes de usar ícones.");
     return { ok: true as const };
   });

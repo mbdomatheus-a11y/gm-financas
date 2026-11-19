@@ -7,7 +7,7 @@ import { registrarVisitaBio } from "@/lib/bio.functions";
 import { origemAcesso, sessaoAcesso } from "@/lib/funil-cliente";
 
 /** Página de links da bio (19/11/2026). Visual único para /bio e /bio/<nome>. */
-export function PaginaBio({ p }: { p: { slug: string; titulo: string; bio: string; foto: string | null; links: { id: string; titulo: string }[] } }) {
+export function PaginaBio({ p }: { p: { slug: string; titulo: string; bio: string; foto: string | null; links: { id: string; titulo: string; icone?: string | null }[] } }) {
   const registrar = useServerFn(registrarVisitaBio);
   const [m, setM] = useState(false);
   const [extra, setExtra] = useState("");
@@ -71,15 +71,18 @@ export function PaginaBio({ p }: { p: { slug: string; titulo: string; bio: strin
         {p.titulo && <h1 className="mt-4 text-xl font-bold tracking-tight">{p.titulo}</h1>}
         {p.bio && <p className="mt-1.5 max-w-sm whitespace-pre-line text-sm text-white/70">{p.bio}</p>}
         <ul className="mt-8 w-full space-y-3">
-          {p.links.map((l: { id: string; titulo: string }) => (
+          {p.links.map((l) => (
             <li key={l.id}>
               <a
                 href={`/api/bio-ir?l=${l.id}&m=${m ? 1 : 0}${extra}`}
                 rel="noopener"
-                className="group flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl border border-white/15 bg-white/10 px-5 py-3.5 text-[15px] font-semibold backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+                className="group relative flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl border border-white/15 bg-white/10 px-14 py-3.5 text-[15px] font-semibold backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
               >
+                {l.icone && (
+                  <img src={l.icone} alt="" className="absolute left-2.5 size-10 rounded-xl bg-white object-cover" loading="lazy" />
+                )}
                 <span className="truncate">{l.titulo}</span>
-                <ArrowUpRight className="size-4 shrink-0 opacity-60 transition group-hover:opacity-100" aria-hidden />
+                <ArrowUpRight className="absolute right-4 size-4 shrink-0 opacity-60 transition group-hover:opacity-100" aria-hidden />
               </a>
             </li>
           ))}
