@@ -11,6 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import {
   adminBioExcluirLink,
+  adminBioExcluirPagina,
   adminBioObter,
   adminBioDefinirIcone,
   adminBioOrdenarLinks,
@@ -41,6 +42,7 @@ export function BioLinksAdmin() {
   const salvarLinkFn = useServerFn(adminBioSalvarLink);
   const ordenarFn = useServerFn(adminBioOrdenarLinks);
   const excluirFn = useServerFn(adminBioExcluirLink);
+  const excluirPaginaFn = useServerFn(adminBioExcluirPagina);
 
   const pagina = data?.paginas?.[0] ?? null;
   const links = useMemo(() => (data?.links ?? []).filter((l: any) => l.pagina_id === pagina?.id), [data, pagina]);
@@ -220,12 +222,37 @@ export function BioLinksAdmin() {
             </label>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <label className="flex items-center gap-2 text-sm">
-              <Switch checked={f.ativo} onCheckedChange={(v) => setForm({ ...f, ativo: v })} /> Página no ar
-            </label>
-            <Button onClick={() => salvarPagina.mutate({})} disabled={salvarPagina.isPending}>
-              {pagina ? "Salvar página" : "Criar página"}
-            </Button>
+            <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${pagina?.ativo === false ? "bg-muted text-muted-foreground" : "bg-success/15 text-success"}`}>
+              {pagina ? (pagina.ativo ? "Página no ar" : "Página fora do ar") : "Página ainda não criada"}
+            </span>
+            <div className="flex flex-wrap gap-2">
+              {pagina && (
+                <Button
+                  variant="outline"
+                  onClick={() => salvarPaginaFn({ data: { id: pagina.id, slug: pagina.slug, titulo: pagina.titulo, bio: pagina.bio, ativo: !pagina.ativo } }).then(recarregar)}
+                >
+                  {pagina.ativo ? "Tirar do ar" : "Colocar no ar"}
+                </Button>
+              )}
+              {pagina && (
+                <Button
+                  variant="outline"
+                  className="text-destructive"
+                  onClick={() => {
+                    if (confirm("Excluir a página inteira? Os links e o histórico de cliques também serão apagados."))
+                      void excluirPaginaFn({ data: { id: pagina.id } }).then(() => {
+                        setForm(null);
+                        recarregar();
+                      });
+                  }}
+                >
+                  Excluir página
+                </Button>
+              )}
+              <Button onClick={() => salvarPagina.mutate({})} disabled={salvarPagina.isPending}>
+                {pagina ? "Salvar alterações" : "Criar página"}
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -261,7 +288,7 @@ export function BioLinksAdmin() {
                     </div>
                   </li>
                 ) : (
-                  <li key={l.id} className="flex items-center gap-2 px-3 py-2 text-sm">
+                  <li key={l.id} className="flex flex-wrap items-center gap-2 px-3 py-2 text-sm">
                     <button
                       type="button"
                       onClick={() => {
@@ -274,31 +301,33 @@ export function BioLinksAdmin() {
                     >
                       {l.icone ? <img src={l.icone} alt="" className="size-full object-contain p-0.5" /> : <ImagePlus className="size-4 text-muted-foreground" />}
                     </button>
-                    <Switch
-                      checked={l.ativo}
-                      onCheckedChange={(v) => salvarLink.mutate({ id: l.id, titulo: l.titulo, url: l.url, ativo: v })}
-                      aria-label={`${l.titulo} no ar`}
-                    />
                     <div className="min-w-0 flex-1">
-                      <p className="truncate font-medium">{l.titulo}</p>
+                      <p className={`truncate font-medium ${l.ativo ? "" : "text-muted-foreground line-through"}`}>{l.titulo}</p>
                       <p className="truncate text-xs text-muted-foreground">{l.url}</p>
                     </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8"
+                      onClick={() => salvarLink.mutate({ id: l.id, titulo: l.titulo, url: l.url, ativo: !l.ativo })}
+                    >
+                      {l.ativo ? "Tirar do ar" : "Colocar no ar"}
+                    </Button>
                     <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{porLink.get(l.id) ?? 0} cliques</span>
                     <Button variant="ghost" size="icon" className="size-8" disabled={i === 0} onClick={() => mover(i, -1)} aria-label="Subir"><ArrowUp className="size-4" /></Button>
                     <Button variant="ghost" size="icon" className="size-8" disabled={i === links.length - 1} onClick={() => mover(i, 1)} aria-label="Descer"><ArrowDown className="size-4" /></Button>
                     <Button variant="ghost" size="icon" className="size-8" onClick={() => void buscarIcone(l.id)} aria-label="Buscar o logo do site de novo" title="Buscar o logo do site de novo"><RefreshCw className="size-4" /></Button>
-                    <Button variant="ghost" size="icon" className="size-8" onClick={() => setEditando({ id: l.id, titulo: l.titulo, url: l.url, ativo: l.ativo })} aria-label="Editar"><Pencil className="size-4" /></Button>
+                    <Button variant="outline" size="sm" className="h-8 gap-1" onClick={() => setEditando({ id: l.id, titulo: l.titulo, url: l.url, ativo: l.ativo })}><Pencil className="size-3.5" /> Editar</Button>
                     <Button
-                      variant="ghost"
-                      size="icon"
-                      className="size-8 text-destructive"
+                      variant="outline"
+                      size="sm"
+                      className="h-8 gap-1 text-destructive"
                       onClick={() => {
                         if (confirm(`Excluir o link "${l.titulo}"? Os cliques já contados continuam no histórico.`))
                           void excluirFn({ data: { id: l.id } }).then(recarregar);
                       }}
-                      aria-label="Excluir"
                     >
-                      <Trash2 className="size-4" />
+                      <Trash2 className="size-3.5" /> Excluir
                     </Button>
                   </li>
                 ),

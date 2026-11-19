@@ -247,3 +247,15 @@ export const adminBioDefinirIcone = createServerFn({ method: "POST" })
     if (error) throw new Error("Rode o SQL docs/sql/2026-11-19-bio-icones.sql antes de usar ícones.");
     return { ok: true as const };
   });
+
+/** Exclui a página inteira (links e histórico de cliques junto). */
+export const adminBioExcluirPagina = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((v: unknown) => z.object({ id: z.string().uuid() }).parse(v))
+  .handler(async ({ data, context }) => {
+    await exigirAdminSite(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await (supabaseAdmin as any).from("bio_paginas").delete().eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
+  });
