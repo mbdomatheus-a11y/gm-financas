@@ -560,3 +560,7 @@ Plano no projeto Claude: claude/plano-referencia-meuextrato-2026-11-15.md. 7 ite
 - 18/11/2026: interruptores no servidor (lib/liberacao-modulos.ts, igual no app): módulo desligado pode ser liberado para Testadores (tabela testadores_app) ou para uma porcentagem fixa de pessoas; tela Administração > Módulos. Pendente: rodar docs/sql/2026-11-18-liberacao-modulos.sql.
 
 - 18/11/2026: Início com favorito (estrela), "Voltar à minha favorita", um "Meu modelo" extra, "Voltar o modelo ao original" e seletor "Sincronizar app e site" (desligado: cada um com a sua visão). Legenda do gráfico do saldo mais nítida.
+
+- 18/11/2026: e-mails do app (código de cadastro, recuperar senha, convites, suporte, login seguro, troca de e-mail) recusados pelo Resend (422, remetente inválido no segredo RESEND_FROM_EMAIL do Supabase). Funções do app agora remontam o remetente; pendente: conferir o segredo e publicar as funções.
+
+- 19/11/2026: página de links da bio em /bio/<nome> (só link direto, noindex), administrada em Administração > Site e módulos > Links da bio; visitas e cliques com os dados do registro de acessos (com aceite de cookies). Pendente: rodar docs/sql/2026-11-19-bio-links.sql.

@@ -63,7 +63,10 @@ import { Route as AuthenticatedTagsRouteImport } from './routes/_authenticated/t
 import { Route as AuthenticatedUsuariosRouteImport } from './routes/_authenticated/usuarios'
 import { Route as AuthenticatedVeiculosRouteImport } from './routes/_authenticated/veiculos'
 import { Route as ApiAtalhoRouteImport } from './routes/api/atalho'
+import { Route as ApiBioIrRouteImport } from './routes/api/bio-ir'
 import { Route as ApiEntrarAppRouteImport } from './routes/api/entrar-app'
+import { Route as BioIndexRouteImport } from './routes/bio.index'
+import { Route as BioSlugRouteImport } from './routes/bio.$slug'
 import { Route as CalculadorasIndexRouteImport } from './routes/calculadoras/index'
 import { Route as CalculadorasDiferencaEntreDatasRouteImport } from './routes/calculadoras/diferenca-entre-datas'
 import { Route as CalculadorasSimuladorDeDoseDiluicaoRouteImport } from './routes/calculadoras/simulador-de-dose-diluicao'
@@ -364,9 +367,24 @@ const ApiAtalhoRoute = ApiAtalhoRouteImport.update({
   path: '/api/atalho',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiBioIrRoute = ApiBioIrRouteImport.update({
+  id: '/api/bio-ir',
+  path: '/api/bio-ir',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiEntrarAppRoute = ApiEntrarAppRouteImport.update({
   id: '/api/entrar-app',
   path: '/api/entrar-app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BioIndexRoute = BioIndexRouteImport.update({
+  id: '/bio/',
+  path: '/bio/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BioSlugRoute = BioSlugRouteImport.update({
+  id: '/bio/$slug',
+  path: '/bio/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CalculadorasIndexRoute = CalculadorasIndexRouteImport.update({
@@ -529,7 +547,9 @@ export interface FileRoutesByFullPath {
   '/usuarios': typeof AuthenticatedUsuariosRoute
   '/veiculos': typeof AuthenticatedVeiculosRoute
   '/api/atalho': typeof ApiAtalhoRoute
+  '/api/bio-ir': typeof ApiBioIrRoute
   '/api/entrar-app': typeof ApiEntrarAppRoute
+  '/bio/$slug': typeof BioSlugRoute
   '/calculadoras/diferenca-entre-datas': typeof CalculadorasDiferencaEntreDatasRoute
   '/calculadoras/simulador-de-dose-diluicao': typeof CalculadorasSimuladorDeDoseDiluicaoRoute
   '/calculadoras/somar-dias-a-data': typeof CalculadorasSomarDiasADataRoute
@@ -537,6 +557,7 @@ export interface FileRoutesByFullPath {
   '/comecar/$assunto': typeof ComecarAssuntoRoute
   '/links-temporarios/$id': typeof LinksTemporariosIdRoute
   '/nota/$token': typeof NotaTokenRoute
+  '/bio/': typeof BioIndexRoute
   '/calculadoras/': typeof CalculadorasIndexRoute
   '/links-temporarios/': typeof LinksTemporariosIndexRoute
   '/links/$id': typeof AuthenticatedLinksIdRoute
@@ -605,7 +626,9 @@ export interface FileRoutesByTo {
   '/usuarios': typeof AuthenticatedUsuariosRoute
   '/veiculos': typeof AuthenticatedVeiculosRoute
   '/api/atalho': typeof ApiAtalhoRoute
+  '/api/bio-ir': typeof ApiBioIrRoute
   '/api/entrar-app': typeof ApiEntrarAppRoute
+  '/bio/$slug': typeof BioSlugRoute
   '/calculadoras/diferenca-entre-datas': typeof CalculadorasDiferencaEntreDatasRoute
   '/calculadoras/simulador-de-dose-diluicao': typeof CalculadorasSimuladorDeDoseDiluicaoRoute
   '/calculadoras/somar-dias-a-data': typeof CalculadorasSomarDiasADataRoute
@@ -613,6 +636,7 @@ export interface FileRoutesByTo {
   '/comecar/$assunto': typeof ComecarAssuntoRoute
   '/links-temporarios/$id': typeof LinksTemporariosIdRoute
   '/nota/$token': typeof NotaTokenRoute
+  '/bio': typeof BioIndexRoute
   '/calculadoras': typeof CalculadorasIndexRoute
   '/links-temporarios': typeof LinksTemporariosIndexRoute
   '/links/$id': typeof AuthenticatedLinksIdRoute
@@ -683,7 +707,9 @@ export interface FileRoutesById {
   '/_authenticated/usuarios': typeof AuthenticatedUsuariosRoute
   '/_authenticated/veiculos': typeof AuthenticatedVeiculosRoute
   '/api/atalho': typeof ApiAtalhoRoute
+  '/api/bio-ir': typeof ApiBioIrRoute
   '/api/entrar-app': typeof ApiEntrarAppRoute
+  '/bio/$slug': typeof BioSlugRoute
   '/calculadoras/diferenca-entre-datas': typeof CalculadorasDiferencaEntreDatasRoute
   '/calculadoras/simulador-de-dose-diluicao': typeof CalculadorasSimuladorDeDoseDiluicaoRoute
   '/calculadoras/somar-dias-a-data': typeof CalculadorasSomarDiasADataRoute
@@ -691,6 +717,7 @@ export interface FileRoutesById {
   '/comecar/$assunto': typeof ComecarAssuntoRoute
   '/links-temporarios/$id': typeof LinksTemporariosIdRoute
   '/nota/$token': typeof NotaTokenRoute
+  '/bio/': typeof BioIndexRoute
   '/calculadoras/': typeof CalculadorasIndexRoute
   '/links-temporarios/': typeof LinksTemporariosIndexRoute
   '/_authenticated/links/$id': typeof AuthenticatedLinksIdRoute
@@ -761,7 +788,9 @@ export interface FileRouteTypes {
     | '/usuarios'
     | '/veiculos'
     | '/api/atalho'
+    | '/api/bio-ir'
     | '/api/entrar-app'
+    | '/bio/$slug'
     | '/calculadoras/diferenca-entre-datas'
     | '/calculadoras/simulador-de-dose-diluicao'
     | '/calculadoras/somar-dias-a-data'
@@ -769,6 +798,7 @@ export interface FileRouteTypes {
     | '/comecar/$assunto'
     | '/links-temporarios/$id'
     | '/nota/$token'
+    | '/bio/'
     | '/calculadoras/'
     | '/links-temporarios/'
     | '/links/$id'
@@ -837,7 +867,9 @@ export interface FileRouteTypes {
     | '/usuarios'
     | '/veiculos'
     | '/api/atalho'
+    | '/api/bio-ir'
     | '/api/entrar-app'
+    | '/bio/$slug'
     | '/calculadoras/diferenca-entre-datas'
     | '/calculadoras/simulador-de-dose-diluicao'
     | '/calculadoras/somar-dias-a-data'
@@ -845,6 +877,7 @@ export interface FileRouteTypes {
     | '/comecar/$assunto'
     | '/links-temporarios/$id'
     | '/nota/$token'
+    | '/bio'
     | '/calculadoras'
     | '/links-temporarios'
     | '/links/$id'
@@ -914,7 +947,9 @@ export interface FileRouteTypes {
     | '/_authenticated/usuarios'
     | '/_authenticated/veiculos'
     | '/api/atalho'
+    | '/api/bio-ir'
     | '/api/entrar-app'
+    | '/bio/$slug'
     | '/calculadoras/diferenca-entre-datas'
     | '/calculadoras/simulador-de-dose-diluicao'
     | '/calculadoras/somar-dias-a-data'
@@ -922,6 +957,7 @@ export interface FileRouteTypes {
     | '/comecar/$assunto'
     | '/links-temporarios/$id'
     | '/nota/$token'
+    | '/bio/'
     | '/calculadoras/'
     | '/links-temporarios/'
     | '/_authenticated/links/$id'
@@ -950,7 +986,9 @@ export interface RootRouteChildren {
   SobreRoute: typeof SobreRoute
   TermosDeUsoRoute: typeof TermosDeUsoRoute
   ApiAtalhoRoute: typeof ApiAtalhoRoute
+  ApiBioIrRoute: typeof ApiBioIrRoute
   ApiEntrarAppRoute: typeof ApiEntrarAppRoute
+  BioSlugRoute: typeof BioSlugRoute
   CalculadorasDiferencaEntreDatasRoute: typeof CalculadorasDiferencaEntreDatasRoute
   CalculadorasSimuladorDeDoseDiluicaoRoute: typeof CalculadorasSimuladorDeDoseDiluicaoRoute
   CalculadorasSomarDiasADataRoute: typeof CalculadorasSomarDiasADataRoute
@@ -958,6 +996,7 @@ export interface RootRouteChildren {
   ComecarAssuntoRoute: typeof ComecarAssuntoRoute
   LinksTemporariosIdRoute: typeof LinksTemporariosIdRoute
   NotaTokenRoute: typeof NotaTokenRoute
+  BioIndexRoute: typeof BioIndexRoute
   CalculadorasIndexRoute: typeof CalculadorasIndexRoute
   LinksTemporariosIndexRoute: typeof LinksTemporariosIndexRoute
   ApiCronAlertasRoute: typeof ApiCronAlertasRoute
@@ -1351,11 +1390,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAtalhoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/bio-ir': {
+      id: '/api/bio-ir'
+      path: '/api/bio-ir'
+      fullPath: '/api/bio-ir'
+      preLoaderRoute: typeof ApiBioIrRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/entrar-app': {
       id: '/api/entrar-app'
       path: '/api/entrar-app'
       fullPath: '/api/entrar-app'
       preLoaderRoute: typeof ApiEntrarAppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/bio/': {
+      id: '/bio/'
+      path: '/bio'
+      fullPath: '/bio/'
+      preLoaderRoute: typeof BioIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/bio/$slug': {
+      id: '/bio/$slug'
+      path: '/bio/$slug'
+      fullPath: '/bio/$slug'
+      preLoaderRoute: typeof BioSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/calculadoras/': {
@@ -1611,7 +1671,9 @@ const rootRouteChildren: RootRouteChildren = {
   SobreRoute: SobreRoute,
   TermosDeUsoRoute: TermosDeUsoRoute,
   ApiAtalhoRoute: ApiAtalhoRoute,
+  ApiBioIrRoute: ApiBioIrRoute,
   ApiEntrarAppRoute: ApiEntrarAppRoute,
+  BioSlugRoute: BioSlugRoute,
   CalculadorasDiferencaEntreDatasRoute: CalculadorasDiferencaEntreDatasRoute,
   CalculadorasSimuladorDeDoseDiluicaoRoute:
     CalculadorasSimuladorDeDoseDiluicaoRoute,
@@ -1620,6 +1682,7 @@ const rootRouteChildren: RootRouteChildren = {
   ComecarAssuntoRoute: ComecarAssuntoRoute,
   LinksTemporariosIdRoute: LinksTemporariosIdRoute,
   NotaTokenRoute: NotaTokenRoute,
+  BioIndexRoute: BioIndexRoute,
   CalculadorasIndexRoute: CalculadorasIndexRoute,
   LinksTemporariosIndexRoute: LinksTemporariosIndexRoute,
   ApiCronAlertasRoute: ApiCronAlertasRoute,

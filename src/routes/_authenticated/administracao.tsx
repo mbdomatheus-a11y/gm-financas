@@ -21,6 +21,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { ADMIN_ONLY_CARD, ADMIN_ONLY_TAG } from "@/lib/areas";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { BioLinksAdmin } from "@/components/admin/BioLinksAdmin";
 import { LinksAdminHabilitar } from "@/components/LinksAdminHabilitar";
 import { GestaoUsuariosAdmin } from "@/components/usuarios/GestaoUsuariosAdmin";
 import { adminReativarUsuario } from "@/lib/admin.functions";
@@ -148,6 +149,7 @@ const GRUPOS_ADMIN: {
       { id: "avisos", rotulo: "Avisos e tour", chaves: "comunicados boas-vindas tour guiado redisparar beta android" },
       { id: "alertas", rotulo: "Alertas", chaves: "sino notificações vencimento garantia fatura" },
       { id: "links", rotulo: "Links", chaves: "anotações link temporário" },
+      { id: "bio", rotulo: "Links da bio", chaves: "linktree bio shopee tiktok instagram divulgação cliques" },
       { id: "padroes", rotulo: "Categorias e De-para", chaves: "padrões categorias padrão regras" },
     ],
   },
@@ -1684,6 +1686,10 @@ function Admin() {
         </TabsContent>
 
         {/* ─── ABA: ARMAZENAMENTO ORACLE ─── */}
+        <TabsContent value="bio" className="space-y-6">
+          <BioLinksAdmin />
+        </TabsContent>
+
         <TabsContent value="armazenamento" className="space-y-6">
           <Card>
             <CardHeader className="space-y-1">
