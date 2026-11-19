@@ -23,7 +23,7 @@ export const Route = createFileRoute("/api/bio-ir")({
         if (!link || !link.ativo || !/^https?:\/\//.test(link.url)) return voltar;
         try {
           const metricas = u.searchParams.get("m") === "1";
-          const { dadosDaRequisicao } = await import("@/lib/bio.functions");
+          const { dadosDaRequisicao } = await import("@/lib/bio.server");
           const { robo, campos } = dadosDaRequisicao(metricas);
           if (!robo) {
             await db.from("bio_eventos").insert({

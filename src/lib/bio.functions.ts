@@ -1,5 +1,4 @@
 import { createServerFn } from "@tanstack/react-start";
-import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
@@ -9,34 +8,6 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
  * Visitas e cliques guardam os mesmos dados do registro de acessos do site, com a mesma regra da LGPD:
  * origem, local, IP e navegador só com o aceite de cookies de métricas; sem aceite, só a contagem e o aparelho.
  */
-
-const decodificar = (v: string | null) => {
-  if (!v) return null;
-  try {
-    return decodeURIComponent(v);
-  } catch {
-    return v;
-  }
-};
-
-/** Dados da requisição para o evento (mesma regra de acessos_site_log). */
-export function dadosDaRequisicao(metricas: boolean) {
-  const h = getRequest().headers;
-  const ua = h.get("user-agent") ?? "";
-  const robo = /bot|crawl|spider|preview|headless|lighthouse|vercel|facebookexternalhit|whatsapp|telegram|slack/i.test(ua);
-  const dispositivo = /ipad|tablet/i.test(ua) ? "tablet" : /mobi|android|iphone/i.test(ua) ? "celular" : "computador";
-  return {
-    robo,
-    campos: {
-      ip: metricas ? h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || null : null,
-      cidade: metricas ? decodificar(h.get("x-vercel-ip-city")) : null,
-      regiao: metricas ? decodificar(h.get("x-vercel-ip-country-region")) : null,
-      pais: metricas ? h.get("x-vercel-ip-country") : null,
-      user_agent: metricas ? ua.slice(0, 300) || null : null,
-      dispositivo,
-    },
-  };
-}
 
 const urlFoto = (path: string | null) => {
   if (!path) return null;
@@ -73,6 +44,7 @@ export const registrarVisitaBio = createServerFn({ method: "POST" })
   .inputValidator((v: unknown) => z.object({ slug: z.string().regex(/^[a-z0-9-]{2,40}$/), ...campoOrigem }).parse(v))
   .handler(async ({ data }) => {
     try {
+      const { dadosDaRequisicao } = await import("@/lib/bio.server");
       const { robo, campos } = dadosDaRequisicao(data.metricas);
       if (robo) return { ok: true };
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
