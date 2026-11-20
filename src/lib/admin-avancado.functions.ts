@@ -305,6 +305,24 @@ export const adminMetricas = createServerFn({ method: "GET" })
         ultimaPorUsuario.set(sessao.user_id, sessao.ultima_atividade_em);
       }
     }
+    // 20/11/2026: o site registra sessões em eventos_sessao, mas o app não. Soma o último login e a última
+    // renovação de sessão (o app renova enquanto é usado) para quem usa só o app não aparecer "Sem acesso".
+    const ondeUltima = new Map<string, "site" | "app">();
+    for (const id of ultimaPorUsuario.keys()) ondeUltima.set(id, "site");
+    try {
+      const { data: atividade } = await db.rpc("admin_atividade_usuarios");
+      for (const a of (atividade ?? []) as { user_id: string; ultimo_login: string | null; ultima_sessao: string | null }[]) {
+        const doApp = [a.ultima_sessao, a.ultimo_login].filter(Boolean).sort().pop() ?? null;
+        const doSite = ultimaPorUsuario.get(a.user_id) ?? null;
+        if (doApp && (!doSite || doApp > doSite)) {
+          ultimaPorUsuario.set(a.user_id, doApp);
+          // Sem sessão do site depois disso: o uso mais recente foi no app (ou login).
+          ondeUltima.set(a.user_id, "app");
+        }
+      }
+    } catch {
+      // função ainda não criada: segue só com o site
+    }
     const duracoes = (sessoes ?? [])
       .map(
         (s: any) =>
@@ -330,6 +348,7 @@ export const adminMetricas = createServerFn({ method: "GET" })
         email: perfil.email as string | null,
         ativo: perfil.ativo as boolean,
         ultimaAtividadeEm: ultimaPorUsuario.get(perfil.id) ?? null,
+        ultimaAtividadeOnde: ondeUltima.get(perfil.id) ?? null,
         arquivos: usoPorUsuario.get(perfil.id)?.arquivos ?? 0,
         bytesArmazenados: usoPorUsuario.get(perfil.id)?.bytes ?? 0,
         grupoId: perfil.grupo_id ?? null,

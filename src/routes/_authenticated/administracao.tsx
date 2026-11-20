@@ -300,6 +300,7 @@ function TabelaAtividadeUsuarios({ usuarios }: { usuarios: any[] }) {
           celula: (u: any) => (
             <span className="text-xs tabular-nums text-muted-foreground">
               {u.ultimaAtividadeEm ? new Date(u.ultimaAtividadeEm).toLocaleString("pt-BR") : "Sem acesso"}
+              {u.ultimaAtividadeEm && (u as any).ultimaAtividadeOnde === "app" ? " · app" : ""}
             </span>
           ),
           ordenar: (u: any) => (u.ultimaAtividadeEm ? new Date(u.ultimaAtividadeEm) : null),
