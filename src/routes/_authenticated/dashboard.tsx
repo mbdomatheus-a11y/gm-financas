@@ -57,7 +57,7 @@ import { useCartoes, useCategorias, useDespesas, useFaturasMes, useInvestimentos
 import { usePreferencias } from "@/hooks/usePreferencias";
 import { SobraCiclo } from "@/components/SobraCiclo";
 import { useDadosCiclo, useNumerosCiclo } from "@/hooks/useNumerosCiclo";
-import { calcularNumerosDosCiclos, despesaNoCiclo, janelasDoCiclo, type NumerosCiclo } from "@/lib/numeros-ciclo";
+import { calcularNumerosDosCiclos, cicloDaFatura, despesaNoCiclo, janelasDoCiclo, type NumerosCiclo } from "@/lib/numeros-ciclo";
 import { metaDoMes } from "@/lib/poupar";
 import { contaComoDespesa, movimentosDeInvestimentos, totaisInvestimentos } from "@/lib/regras-saldo";
 import { useEstruturaCategorias } from "@/hooks/useEstruturaCategorias";
@@ -581,7 +581,8 @@ function DashboardPage() {
       // Só considera se a parcela final existe e ainda não foi paga
       if (!parcelaFinal || parcelaFinal.paga) continue;
 
-      const mesFim = competenciaDoDia(parcelaFinal.vencimento);
+      // Mesma regra do ciclo do resto do site: fatura de cartão conta pelo FECHAMENTO (mês M+1).
+      const mesFim = cicloDaFatura({ ...parcelaFinal, despesa: d }, diaViradaCiclo, cartoesCiclo as any[]) ?? competenciaDoDia(parcelaFinal.vencimento);
       const valorParcela = toBRL(Number(parcelaFinal.valor ?? d.valor_parcela ?? d.valor), d.moeda, cotacao);
 
       if (!alivioMap.has(mesFim)) {
