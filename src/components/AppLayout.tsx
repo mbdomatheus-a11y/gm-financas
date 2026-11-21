@@ -504,11 +504,14 @@ export function AppLayout({
   title,
   description,
   actions,
+  compacto = false,
   children,
 }: {
   title: string;
   description?: string;
   actions?: ReactNode;
+  /** Cabeçalho enxuto: título e descrição na mesma linha, menos espaço em volta (Início). */
+  compacto?: boolean;
   children: ReactNode;
 }) {
   useApplyPreferencias();
@@ -1016,10 +1019,19 @@ export function AppLayout({
           </div>
         )}
         <main data-entrada className="mx-auto w-full max-w-[1200px] px-4 pb-28 pt-6 lg:px-8 lg:pb-28 lg:pt-10 native:pb-[calc(5.5rem+var(--app-inset-bottom,0px))]">
-          <div className="mb-6 flex flex-wrap items-start justify-between gap-x-3 gap-y-2 lg:mb-8">
+          <div className={compacto ? "mb-3 flex flex-wrap items-start justify-between gap-x-3 gap-y-1 lg:mb-4" : "mb-6 flex flex-wrap items-start justify-between gap-x-3 gap-y-2 lg:mb-8"}>
             <div className="min-w-0 flex-1 basis-40">
-              <h1 className="text-balance text-2xl font-extrabold leading-tight tracking-[-0.03em] sm:text-3xl lg:text-[2.5rem]">{title}</h1>
-              {description && <p className="mt-1.5 text-sm text-muted-foreground sm:text-base">{description}</p>}
+              {compacto ? (
+                <h1 className="text-balance text-xl font-extrabold leading-tight tracking-[-0.02em] sm:text-2xl">
+                  {title}
+                  {description && <span className="ml-2 text-sm font-medium tracking-normal text-muted-foreground sm:text-base">· {description}</span>}
+                </h1>
+              ) : (
+                <>
+                  <h1 className="text-balance text-2xl font-extrabold leading-tight tracking-[-0.03em] sm:text-3xl lg:text-[2.5rem]">{title}</h1>
+                  {description && <p className="mt-1.5 text-sm text-muted-foreground sm:text-base">{description}</p>}
+                </>
+              )}
             </div>
             {/* 15/11/2026: no celular as ações da página ficam ao lado do título, não na barra do topo
                 (na barra elas empurravam a foto da conta para fora da tela). */}

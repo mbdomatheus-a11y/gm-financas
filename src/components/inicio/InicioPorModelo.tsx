@@ -99,20 +99,8 @@ function Bloco({ id }: { id: BlocoId }): ReactNode {
       );
     case "atalhos":
       return null; // ações rápidas ficam no topo
-    default: {
-      const alvo = ATALHO[id];
-      if (!alvo) return null;
-      return (
-        <Link
-          to={alvo.to as any}
-          {...(alvo.hash ? { hash: alvo.hash } : {})}
-          className="flex items-center justify-between gap-3 rounded-2xl border border-border/60 bg-card px-4 py-3 text-sm transition-colors hover:bg-muted/40"
-        >
-          <span className="font-medium">{TITULO.get(id)}</span>
-          <ArrowRight className="size-4 text-muted-foreground" aria-hidden />
-        </Link>
-      );
-    }
+    default:
+      return null; // atalhos entram na faixa "Ver também"
   }
 }
 
@@ -123,8 +111,20 @@ export function InicioPorModelo({ escolha, topo }: { escolha: EscolhaInicio; top
   const vistos = new Set<string>();
   const blocos = aba ? blocosDaAba(escolha, aba).filter((b) => (vistos.has(chaveDe(b)) ? false : (vistos.add(chaveDe(b)), true))) : [];
 
+  // Blocos que o site mostra em outra tela viram chips numa faixa só (sem repetir o mesmo destino).
+  const vistosAtalho = new Set<string>();
+  const atalhos = blocos
+    .map((b) => ({ b, alvo: ATALHO[b] }))
+    .filter((x): x is { b: BlocoId; alvo: { to: string; hash?: string } } => !!x.alvo)
+    .filter((x) => {
+      const k = `${x.alvo.to}#${x.alvo.hash ?? ""}`;
+      if (vistosAtalho.has(k)) return false;
+      vistosAtalho.add(k);
+      return true;
+    });
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {topo}
       <Suspense fallback={<CartaoCarregando />}>
         <div data-tour="inicio-sobra">
@@ -152,12 +152,30 @@ export function InicioPorModelo({ escolha, topo }: { escolha: EscolhaInicio; top
           Abrir a Agenda <ArrowRight className="size-4" aria-hidden />
         </Link>
       ) : (
-        <div className="grid gap-4 xl:grid-cols-2 xl:items-start">
-          {blocos.map((b) => {
-            const el = Bloco({ id: b });
-            return el ? <div key={b} className="min-w-0">{el}</div> : null;
-          })}
-        </div>
+        <>
+          <div className="grid gap-4 xl:grid-cols-2 xl:items-start">
+            {blocos.map((b) => {
+              const el = Bloco({ id: b });
+              return el ? <div key={b} className="min-w-0">{el}</div> : null;
+            })}
+          </div>
+          {atalhos.length > 0 && (
+            <nav aria-label="Ver também" className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-medium text-muted-foreground">Ver também</span>
+              {atalhos.map(({ b, alvo }) => (
+                <Link
+                  key={b}
+                  to={alvo.to as any}
+                  {...(alvo.hash ? { hash: alvo.hash } : {})}
+                  className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-card px-3 py-1.5 text-xs font-medium transition-colors hover:bg-muted/50"
+                >
+                  {(TITULO.get(b) ?? "").replace(/ \((resumo|completo)\)$/i, "")}
+                  <ArrowRight className="size-3" aria-hidden />
+                </Link>
+              ))}
+            </nav>
+          )}
+        </>
       )}
     </div>
   );
