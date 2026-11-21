@@ -2218,7 +2218,9 @@ function DespesasPage() {
                           {d.tipo !== "fixa" && d.total_parcelas > 1 && (
                             <div className="hidden w-24 shrink-0 sm:block">
                               <Badge variant="secondary" className="text-xs">
-                                {`${totalPagas}/${d.total_parcelas} pagas`}
+                                {pDoMes && Number(pDoMes.total) > 1
+                                  ? `Parcela ${pDoMes.numero}/${pDoMes.total}${Number(pDoMes.numero) === Number(pDoMes.total) ? " · última" : ""}`
+                                  : `${totalPagas}/${d.total_parcelas} pagas`}
                               </Badge>
                               <Progress
                                 value={(totalPagas / d.total_parcelas) * 100}
