@@ -218,19 +218,6 @@ export function despesaNoCiclo(p: any, j: Pick<JanelasCiclo, "despesas" | "fatur
   return iso >= j.despesas.inicio && iso <= j.despesas.fim;
 }
 
-/**
- * Ciclo (AAAA-MM) de uma parcela de cartão de crédito pela regra única: a fatura é do ciclo M cujo mês M+1 contém o
- * FECHAMENTO. Devolve null quando não vale (sem virada ou conta fora do cartão): aí vale o vencimento (competenciaDoDia).
- */
-export function cicloDaFatura(p: any, diaVirada?: number | null, cartoes?: any[] | null): string | null {
-  if (!diaValido(diaVirada)) return null;
-  const fech = fechamentoDaParcela(p, cartoes);
-  if (!fech) return null;
-  const [a = 1970, m = 1] = fech.split("-").map(Number);
-  const ant = new Date(a, m - 2, 1);
-  return `${ant.getFullYear()}-${pad2(ant.getMonth() + 1)}`;
-}
-
 /** Lançamentos de despesa do ciclo pela regra única (faturas que fecham em M+1 e contas que vencem no ciclo). */
 export function lancamentosDoCiclo(
   despesas: any[],

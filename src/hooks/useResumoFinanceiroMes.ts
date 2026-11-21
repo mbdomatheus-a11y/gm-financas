@@ -1,8 +1,6 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useCartoes, useDespesas, useReceitas } from "@/hooks/useFinance";
-import { useDadosCiclo } from "@/hooks/useNumerosCiclo";
-import { cicloDaFatura } from "@/lib/numeros-ciclo";
+import { useDespesas, useReceitas } from "@/hooks/useFinance";
 import { useCotacao } from "@/hooks/useCotacao";
 import { monthKey, toBRL, competenciaDoDia } from "@/lib/format";
 import { competenciaDe, lancamentosPorCompetencias } from "@/lib/recorrencia";
@@ -24,8 +22,6 @@ export function useResumoFinanceiroMes(): {
   const { data: receitas = [], isLoading: carregandoReceitas } = useReceitas();
   const cotacao = useCotacao();
   const numeros = useNumerosCiclo();
-  const { data: cartoes = [] } = useCartoes();
-  const { diaVirada } = useDadosCiclo();
 
   const { data: compras = [] } = useQuery({
     queryKey: ["resumo-ia-lista-compras"],
@@ -118,7 +114,7 @@ export function useResumoFinanceiroMes(): {
       const naoPagas = (d.parcelas as any[]).filter((p) => !p.paga);
       if (!naoPagas.length) continue;
       const ultima = naoPagas.reduce((m, p) => (p.vencimento > m.vencimento ? p : m));
-      const mesFim = cicloDaFatura({ ...ultima, despesa: d }, diaVirada, cartoes as any[]) ?? competenciaDoDia(ultima.vencimento);
+      const mesFim = String(ultima.vencimento).slice(0, 7);
       const valorParcela = toBRL(Number(ultima.valor ?? d.valor_parcela ?? d.valor), d.moeda, cotacao);
       parcelamentosFuturos.push({
         descricao: d.descricao,
@@ -173,7 +169,7 @@ export function useResumoFinanceiroMes(): {
       itensListaCompras,
       notasFiscais,
     };
-  }, [despesas, receitas, compras, notas, cotacao, numeros, cartoes, diaVirada]);
+  }, [despesas, receitas, compras, notas, cotacao, numeros]);
 
   return { resumo, carregando: carregandoDespesas || carregandoReceitas };
 }

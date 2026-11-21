@@ -57,7 +57,7 @@ import { useCartoes, useCategorias, useDespesas, useFaturasMes, useInvestimentos
 import { usePreferencias } from "@/hooks/usePreferencias";
 import { SobraCiclo } from "@/components/SobraCiclo";
 import { useDadosCiclo, useNumerosCiclo } from "@/hooks/useNumerosCiclo";
-import { calcularNumerosDosCiclos, cicloDaFatura, despesaNoCiclo, janelasDoCiclo, type NumerosCiclo } from "@/lib/numeros-ciclo";
+import { calcularNumerosDosCiclos, despesaNoCiclo, janelasDoCiclo, type NumerosCiclo } from "@/lib/numeros-ciclo";
 import { metaDoMes } from "@/lib/poupar";
 import { contaComoDespesa, movimentosDeInvestimentos, totaisInvestimentos } from "@/lib/regras-saldo";
 import { useEstruturaCategorias } from "@/hooks/useEstruturaCategorias";
@@ -581,8 +581,8 @@ function DashboardPage() {
       // Só considera se a parcela final existe e ainda não foi paga
       if (!parcelaFinal || parcelaFinal.paga) continue;
 
-      // Mesma regra do ciclo do resto do site: fatura de cartão conta pelo FECHAMENTO (mês M+1).
-      const mesFim = cicloDaFatura({ ...parcelaFinal, despesa: d }, diaViradaCiclo, cartoesCiclo as any[]) ?? competenciaDoDia(parcelaFinal.vencimento);
+      // Termina no mês do VENCIMENTO da última parcela (o mês da fatura, como no banco), não no mês do ciclo.
+      const mesFim = String(parcelaFinal.vencimento).slice(0, 7);
       const valorParcela = toBRL(Number(parcelaFinal.valor ?? d.valor_parcela ?? d.valor), d.moeda, cotacao);
 
       if (!alivioMap.has(mesFim)) {
@@ -600,7 +600,7 @@ function DashboardPage() {
       });
     }
     // Só meses futuros (a partir do mês atual) ordenados
-    const now2 = mesAtual;
+    const now2 = monthKey(new Date());
     const alivioParcelamentos = Array.from(alivioMap.values())
       .filter((g) => g.mes >= now2)
       .sort((a, b) => a.mes.localeCompare(b.mes))
@@ -656,17 +656,17 @@ function DashboardPage() {
 
   // Pedido 3 (2026-10-03): Alívio de parcelas que terminam no período selecionado no gráfico
   const alivioPeriodo = useMemo(() => {
-    const gruposNoPeriodo = dados.alivioParcelamentos.filter(
-      (g) => g.mes === mesAtual,
-    );
-    const totalAlivio = gruposNoPeriodo.reduce((s, g) => s + g.total, 0);
-    const qtdContratos = gruposNoPeriodo.reduce((s, g) => s + g.itens.length, 0);
+    const j = janelasDoCiclo(mesAtual, diaViradaCiclo);
+    const itens = dados.alivioParcelamentos
+      .flatMap((g) => g.itens)
+      .filter((it) => it.ultimaParcela >= j.despesas.inicio && it.ultimaParcela <= j.despesas.fim);
+    const totalAlivio = itens.reduce((s, it) => s + it.valor, 0);
     return {
       totalAlivio,
-      qtdContratos,
-      grupos: gruposNoPeriodo,
+      qtdContratos: itens.length,
+      grupos: [{ mes: mesAtual, total: totalAlivio, itens }],
     };
-  }, [dados.alivioParcelamentos, meses, mesAtual, mesFimGrafico]);
+  }, [dados.alivioParcelamentos, mesAtual, diaViradaCiclo]);
 
   const detalhe = useMemo(() => {
     if (!drill) return [];
